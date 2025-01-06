@@ -1,0 +1,38 @@
+.paper_entitydetail {
+    padding: 16px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-height: 80%;
+    overflow-y: auto;
+}
+
+.entity-detail-container {
+    margin-top: 20px;
+}
+
+.entity-detail-box {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.entity-detail-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.entity-detail-box .MuiGrid-container {
+    margin-bottom: 20px;
+}
+
+.entity-detail-box .MuiTypography-h6 {
+    margin-top: 20px;
+}
+
+.entity-detail-actions .MuiButton-root {
+    margin-left: 10px;
+}

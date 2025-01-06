@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ofício {{ NUMERO_OFICIO }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2.5cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .recipient {
+            margin-bottom: 30px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .info-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            vertical-align: top;
+        }
+        .info-table td:first-child {
+            width: 20%;
+        }
+        .subject {
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .content {
+            text-align: justify;
+            margin-bottom: 30px;
+        }
+        .signature {
+            margin-top: 40px;
+            border-top: 1px solid #000;
+            width: 300px;
+            text-align: center;
+            padding-top: 10px;
+        }
+        .additional-info {
+            margin: 20px 0;
+            text-align: justify;
+        }
+    </style>
+</head>
+<body>
+    <div class="recipient">
+        <p>Ex.mo(a) Senhor(a)</p>
+        <p>{{ NOME }}</p>
+        <p>{{ MORADA }}, {{ PORTA }}</p>
+        <p>{{ CODIGO_POSTAL }} {{ LOCALIDADE }}</p>
+    </div>
+
+    <table class="info-table">
+        <tr>
+            <td>Sua referência:</td>
+            <td>Sua comunicação:</td>
+            <td>Nossa referência:<br>{{ NUMERO_PEDIDO }}<br><br>Datado de:<br>{{ DATA_PEDIDO }}</td>
+            <td>Data: {{ DATA }}<br><br>Ofício nº<br>{{ NUMERO_OFICIO }}</td>
+        </tr>
+    </table>
+
+    <div class="subject">
+        <p>Assunto: Autorização de Ligação</p>
+    </div>
+
+    <p>Ex.mo(a). Senhor(a),</p>
+
+    <div class="content">
+        {{ BODY | safe }}
+    </div>
+
+    <div class="additional-info">
+        <p>Por conseguinte, uma vez que se encontra autorizada por esta Entidade, deverá V. Exa. diligenciar a ligação à caixa de ramal domiciliário.</p>
+        <p>Mais se informa, que face ao exposto acima, esta Entidade solicitará à concessionária de abastecimento de água pública que a morada identificada passe a integrar a tarifa de saneamento, pelo que será cobrada a devida taxa na fatura da água.</p>
+    </div>
+
+    <p>Com os melhores cumprimentos,</p>
+
+    <p>O Presidente da Direção,</p>
+
+    <div class="signature">
+        Paulo Jorge Catalino de Almeida Ferraz
+    </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.theme-transition {
+  transition: background-color 0.9s ease, color 0.9s ease;
+}
+
+.main-content {
+  display: flex;
+  flex-grow: 1;
+  transition: margin-left 0.6s ease-in-out;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 14px;
+  overflow-y: auto;
+  margin-top: 64px;
+  transition: margin-left 0.6s ease-in-out;
+}

@@ -1,0 +1,111 @@
+├── .env.development
+├── .env.production
+├── app
+│   ├── config.py
+│   ├── models
+│   │   ├── models.py
+│   │   ├── __init__.py
+│   ├── routes
+│   │   ├── auth_routes.py
+│   │   ├── dashboard_routes.py
+│   │   ├── documents_routes.py
+│   │   ├── entity_routes.py
+│   │   ├── etar_ee_routes.py
+│   │   ├── letter_routes.py
+│   │   ├── meta_data_routes.py
+│   │   ├── notification_routes.py
+│   │   ├── user_routes.py
+│   │   ├── __init__.py
+│   ├── services
+│   │   ├── auth_service.py
+│   │   ├── dashboard_service.py
+│   │   ├── documents_service.py
+│   │   ├── entity_service.py
+│   │   ├── etar_ee_service.py
+│   │   ├── file_service.py
+│   │   ├── letter_service.py
+│   │   ├── meta_data_service.py
+│   │   ├── notification_service.py
+│   │   ├── time.py
+│   │   ├── user_service.py
+│   │   ├── __init__.py
+│   ├── socketio
+│   │   ├── socketio_events.py
+│   │   ├── socket_events.py
+│   │   ├── __init__.py
+│   ├── utils
+│   │   ├── FORMULARIO_AINTAR_V04.pdf
+│   │   ├── FORMULARIO_AINTAR_V05.docx
+│   │   ├── FORMULARIO_AINTAR_V05.pdf
+│   │   ├── Letters
+│   │   │   ├── Oficio.docx
+│   │   │   ├── Oficio.html
+│   │   │   ├── OficioLivre.docx
+│   │   │   └── OficioLivre.html
+│   │   ├── logo_aintar.png
+│   │   ├── utils.py
+│   │   ├── __init__.py
+│   ├── __init__.py
+├── config.py
+├── files
+│   └── letters
+│       ├── OF-2024.S.OFI.000060.pdf
+│       └── OF-2024.S.OFI.000061.pdf
+├── flask-socketio.log
+├── python-redis-check.py
+├── requirements.txt
+├── restart_server.bat
+├── run.py
+├── run_waitress.py
+├── start.bat
+├── temp
+│   ├── oficio_101192_20241014225428.docx
+│   ├── oficio_101192_20241015123415.docx
+│   ├── oficio_101192_20241015125157.docx
+│   ├── oficio_101192_20241015125447.docx
+│   ├── oficio_101192_20241015130137.docx
+│   ├── oficio_101192_20241015144048.docx
+│   ├── oficio_101192_20241015230008.docx
+│   ├── oficio_101192_20241015230106.docx
+│   ├── oficio_101192_20241015232316.docx
+│   ├── oficio_101192_20241015232629.docx
+│   ├── oficio_101192_20241015233225.docx
+│   ├── oficio_101192_20241015233243.docx
+│   ├── oficio_101192_20241016092605.docx
+│   ├── oficio_101192_20241016101749.docx
+│   ├── oficio_101192_20241016102817.pdf
+│   ├── oficio_101192_20241017122708.pdf
+│   ├── oficio_101192_20241017123133.pdf
+│   ├── oficio_101192_20241017141356.pdf
+│   ├── oficio_101192_20241018100321.pdf
+│   ├── oficio_101192_20241018123335.pdf
+│   ├── oficio_101192_20241018123424.pdf
+│   ├── oficio_101192_20241018123618.pdf
+│   ├── oficio_2024.S.OFI.000012_20241018130431.pdf
+│   ├── oficio_2024.S.OFI.000025.pdf
+│   ├── oficio_2024.S.OFI.000026.pdf
+│   ├── oficio_2024.S.OFI.000027.pdf
+│   ├── oficio_2024.S.OFI.000033.pdf
+│   ├── oficio_2024.S.OFI.000034.pdf
+│   ├── oficio_2024.S.OFI.000035.pdf
+│   ├── oficio_2024.S.OFI.000036.pdf
+│   ├── oficio_2024.S.OFI.000037.pdf
+│   ├── oficio_2024.S.OFI.000038.pdf
+│   ├── oficio_2024.S.OFI.000041.pdf
+│   ├── oficio_2024.S.OFI.000042.pdf
+│   ├── oficio_2024.S.OFI.000043.pdf
+│   ├── oficio_2024.S.OFI.000044.pdf
+│   ├── oficio_2024.S.OFI.000045.pdf
+│   ├── oficio_2024.S.OFI.000046.pdf
+│   ├── oficio_2024.S.OFI.000049.pdf
+│   ├── oficio_2024.S.OFI.000050.pdf
+│   ├── oficio_2024.S.OFI.000051.pdf
+│   ├── oficio_2024.S.OFI.000052.pdf
+│   ├── oficio_2024.S.OFI.000053.pdf
+│   ├── oficio_2024.S.OFI.000054.pdf
+│   ├── oficio_2024.S.OFI.000055.pdf
+│   ├── oficio_2024.S.OFI.000056.pdf
+│   ├── oficio_2024.S.OFI.000057.pdf
+│   └── oficio_2024.S.OFI.000058.pdf
+├── test_redis.py
+├── waitress.log

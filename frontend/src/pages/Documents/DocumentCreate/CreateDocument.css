@@ -1,0 +1,13 @@
+.paper-createdocument {
+    padding: 16px;
+}
+
+.create-document-container {
+    margin-top: 20px;
+}
+
+.create-document-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

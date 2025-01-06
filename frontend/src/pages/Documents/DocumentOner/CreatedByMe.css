@@ -1,0 +1,40 @@
+.paper-owner {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    height: calc(96vh - 64px);
+}
+
+.header-container-owner {
+    margin-bottom: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-header-owner {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+
+.table-pagination-owner {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.table-container-owner {
+    flex-grow: 1;
+    overflow-y: auto;
+    height: calc(100vh - 200px);
+}

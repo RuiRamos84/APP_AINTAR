@@ -1,0 +1,307 @@
+from flask import current_app, jsonify, send_file
+from flask import Blueprint, request, jsonify, g, current_app, send_file
+from flask_jwt_extended import jwt_required, get_jwt_identity, decode_token
+from ..services.documents_service import (
+    list_documents,
+    create_document,
+    get_document_steps,
+    get_document_anex_steps,
+    add_document_step,
+    document_self,
+    document_owner,
+    add_document_annex,
+    download_file,
+    check_vacation_status,
+    get_entity_count_types,
+    create_document_direct,
+    update_document_notification,
+    buscar_dados_pedido, 
+    gerar_comprovativo_pdf,
+    preencher_pdf,
+    get_document_type_param,
+    update_document_params,
+    create_etar_document_direct,
+    create_ee_document_direct,
+)
+import jwt
+from .. import limiter
+from ..utils.utils import token_required, set_session, db_session_manager
+
+bp = Blueprint('documents_routes', __name__)
+
+
+@bp.route('/documents', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_documents():
+    """Listar todos os documentos"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return list_documents(current_user)
+
+
+@bp.route('/document_self', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_document_self():
+    """Listar documentos atribuídos a si"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return document_self(current_user)
+
+
+@bp.route('/check_vacation_status/<int:user_pk>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def check_vacation_status_route(user_pk):
+    """Verificar status de férias do usuário"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return check_vacation_status(user_pk, current_user)
+
+
+@bp.route('/create_document', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def create_new_document():
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        data = request.form
+        files = request.files.getlist('files')
+        return create_document(data, files, current_user)
+
+
+@bp.route('/update_document_notification/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+def update_document_notification_route(pk):
+    """Atualizar o status de notificação de um documento"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return update_document_notification(pk, current_user)
+
+
+@bp.route('/document_owner', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_document_owner():
+    """Listar documentos criados por si"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return document_owner(current_user)
+
+
+@bp.route('/get_document_step/<int:pk>', methods=['GET'])
+@limiter.exempt
+@jwt_required()
+@token_required
+@set_session
+def get_document_step(pk):
+    """Obter passos do documento"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return jsonify(get_document_steps(pk, current_user))
+
+
+@bp.route('/document_type_params/<int:type_id>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_document_type_params(type_id):
+    """Obter parâmetros do tipo de documento"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return get_document_type_param(current_user, type_id)
+
+
+@bp.route('/document_type_params/<int:type_id>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+def update_document_type_params(type_id):
+    """Atualizar parâmetros do tipo de documento"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return update_document_params(current_user, type_id, data)
+
+
+@bp.route('/get_document_anex/<int:pk>', methods=['GET'])
+@limiter.exempt
+@jwt_required()
+@token_required
+@set_session
+def get_document_anex_step(pk):
+    """Adicionar anexos ao documento"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return jsonify(get_document_anex_steps(pk, current_user))
+
+
+@bp.route('/add_document_step/<int:pk>', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def add_document_steps(pk):
+    """Criar ou atualizar passo do documento"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        data = request.form
+        return add_document_step(data, pk, current_user)
+
+
+@bp.route('/add_document_annex', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def add_document_annex_endpoint():
+    """Endpoint para adicionar anexos a um documento existente"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        data = request.form
+        response = add_document_annex(data, current_user)
+        return jsonify(response[0]), response[1]
+
+
+@bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
+@jwt_required()
+@set_session
+def download_file_route(regnumber, filename):
+    """Apresentar arquivo"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        try:
+            # Obter o token do cabeçalho de autorização
+            token = request.headers.get('Authorization', '').split(' ')[-1]
+            if not token:
+                return jsonify({"error": "Token não fornecido"}), 401
+
+            # Verificar o token
+            try:
+                decode_token(token)
+            except jwt.ExpiredSignatureError:
+                return jsonify({"error": "Token expirado"}), 401
+            except jwt.InvalidTokenError:
+                return jsonify({"error": "Token inválido"}), 401
+
+            return download_file(regnumber, filename, current_user)
+        except Exception as e:
+            current_app.logger.error(f"Erro ao baixar arquivo: {str(e)}")
+            return jsonify({'error': 'Erro interno ao baixar arquivo'}), 500
+
+
+@bp.route('/entity_count_types/<int:pk>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_entity_count_types_route(pk):
+    """Obter tipos de pedidos efetuados por uma entidade"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return jsonify(get_entity_count_types(pk, current_user))
+
+
+@bp.route('document/create_direct', methods=['POST'])
+def create_document_extern():
+    data = request.json
+    try:
+        result = create_document_direct(
+            data.get('ntype'),
+            data.get('associate'),
+            data.get('nif'),
+            data.get('name'),
+            data.get('phone'),
+            data.get('email'),
+            data.get('text')
+        )
+        return jsonify({"message": result}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route('/extrair_comprovativo/<int:pk>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def extrair_comprovativo(pk):
+    try:
+        current_user = get_jwt_identity()
+        current_app.logger.info(f"Iniciando extração de comprovativo para o pedido {pk}")
+
+        dados_pedido = buscar_dados_pedido(pk, current_user)
+
+        if dados_pedido is None:
+            current_app.logger.warning(f"Pedido {pk} não encontrado")
+            return jsonify({"erro": "Pedido não encontrado"}), 404
+
+        current_app.logger.info(f"Dados do pedido {pk} recuperados com sucesso")
+        current_app.logger.debug(f"Dados para preenchimento do PDF: {dados_pedido}")
+
+        # Preencher o PDF com os dados do pedido
+        current_app.logger.info(f"Iniciando preenchimento do PDF para o pedido {pk}")
+        pdf_buffer = preencher_pdf(dados_pedido)
+
+        current_app.logger.info(f"PDF para o pedido {pk} gerado com sucesso")
+
+        # Retornar o PDF gerado para o utilizador
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=f"comprovativo_pedido_{pk}.pdf",
+            mimetype='application/pdf'
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao gerar comprovativo para o pedido {pk}: {str(e)}", exc_info=True)
+        return jsonify({"erro": str(e)}), 500
+
+
+@bp.route('/create_etar_document/<int:etar_pk>', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def create_etar_document(etar_pk):
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        try:
+            # Chama a função que cria o pedido ETAR
+            result = create_etar_document_direct(etar_pk, current_user)
+            return jsonify(result)
+        except Exception as e:
+            current_app.logger.error(f"Erro ao criar pedido ETAR: {str(e)}")
+            return jsonify({"erro": str(e)}), 500
+
+
+@bp.route('/create_ee_document/<int:ee_pk>', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def create_ee_document(ee_pk):
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        try:
+            # Chama a função que cria o pedido EE
+            result = create_ee_document_direct(ee_pk, current_user)
+            return jsonify(result)
+        except Exception as e:
+            current_app.logger.error(f"Erro ao criar pedido EE: {str(e)}")
+            return jsonify({"erro": str(e)}), 500
+
+
+@bp.after_request
+def cleanup_session(response):
+    if hasattr(g, 'current_user'):
+        delattr(g, 'current_user')
+    if hasattr(g, 'current_session_id'):
+        delattr(g, 'current_session_id')
+    # current_app.logger.debug("Sessão limpa após requisição documents")
+    return response
+
+
+# Registrar a função de limpeza de sessão
+bp.after_request(cleanup_session)

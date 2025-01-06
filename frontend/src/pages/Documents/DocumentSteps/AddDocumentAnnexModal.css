@@ -1,0 +1,27 @@
+.create-document-box {
+    padding: 20px;
+}
+
+.img-preview {
+    width: 160px;
+    height: 200px;
+    margin-right: 20px;
+}
+
+.dropzone {
+    border: 2px dashed gray;
+    padding: 20px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.dropzone-active {
+    background-color: lightgreen;
+    color: black;
+}
+
+.error-text {
+    font-size: 30px;
+    margin-top: 20px;
+    text-align: center;
+}

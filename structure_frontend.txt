@@ -1,0 +1,188 @@
+├── .env.development
+├── .env.production
+├── .gitignore
+├── loadEnv.js
+├── package-lock.json
+├── package.json
+├── README.md
+├── src
+│   ├── App.css
+│   ├── App.js
+│   ├── App.test.js
+│   ├── assets
+│   │   ├── fonts
+│   │   └── images
+│   │       ├── chevron.svg
+│   │       ├── cog.svg
+│   │       ├── heart.svg
+│   │       ├── logo.png
+│   │       ├── logo_hold.png
+│   │       └── more.svg
+│   ├── components
+│   │   ├── AddressForm
+│   │   │   └── AddressForm.js
+│   │   ├── Chat
+│   │   │   ├── ChatComponent.css
+│   │   │   └── ChatComponent.js
+│   │   ├── common
+│   │   │   ├── ErrorBoundary.js
+│   │   │   ├── Footer
+│   │   │   │   └── Footer.js
+│   │   │   ├── Navbar
+│   │   │   │   ├── MaterialUISwitch.js
+│   │   │   │   ├── Navbar.css
+│   │   │   │   ├── Navbar.js
+│   │   │   │   └── VacationSwitch.js
+│   │   │   ├── SearchBar
+│   │   │   │   ├── SearchBar.css
+│   │   │   │   └── SearchBar.js
+│   │   │   ├── Sidebar
+│   │   │   │   ├── Sidebar.css
+│   │   │   │   └── Sidebar.js
+│   │   │   └── Toaster
+│   │   │       └── ThemedToaster.js
+│   │   ├── Dashboard
+│   │   │   └── Dashboard.js
+│   │   ├── Documents
+│   │   │   ├── DocumentPDF.js
+│   │   │   ├── DocumentPreview.css
+│   │   │   └── DocumentPreview.js
+│   │   ├── MapSelector
+│   │   │   └── mapselector.js
+│   │   ├── Notification
+│   │   │   └── Notification.js
+│   │   └── Socket
+│   │       └── SocketComponent.js
+│   ├── config.js
+│   ├── contexts
+│   │   ├── AuthContext.js
+│   │   ├── AuthContextProvider.js
+│   │   ├── MetaDataContext.js
+│   │   ├── NotificationContext.js
+│   │   └── SocketContext.js
+│   ├── hooks
+│   │   └── useSocket.js
+│   ├── index.css
+│   ├── index.js
+│   ├── logo.svg
+│   ├── pages
+│   │   ├── AccessDenied
+│   │   │   └── AccessDenied.js
+│   │   ├── Activation
+│   │   │   ├── Activation.css
+│   │   │   └── Activation.js
+│   │   ├── ChangePassword
+│   │   │   ├── ChangePassword.css
+│   │   │   └── ChangePassword.js
+│   │   ├── CreateUser
+│   │   │   ├── CreateUser.css
+│   │   │   └── CreateUser.js
+│   │   ├── Dashboard
+│   │   │   ├── Dashboard.css
+│   │   │   └── Dashboard.js
+│   │   ├── DocumentPage
+│   │   │   ├── DocumentPage.css
+│   │   │   └── DocumentPage.js
+│   │   ├── Documents
+│   │   │   ├── DocumentCreate
+│   │   │   │   ├── CreateDocument.css
+│   │   │   │   ├── CreateDocument.js
+│   │   │   │   └── CreateDocumentModal.js
+│   │   │   ├── DocumentDetails
+│   │   │   │   ├── DocumentDetailsModal.css
+│   │   │   │   └── DocumentDetailsModal.js
+│   │   │   ├── DocumentListAll
+│   │   │   │   ├── DocumentList.css
+│   │   │   │   ├── DocumentList.js
+│   │   │   │   ├── EditParametersModal.js
+│   │   │   │   ├── Row.css
+│   │   │   │   └── Row.js
+│   │   │   ├── DocumentOner
+│   │   │   │   ├── CreatedByMe.css
+│   │   │   │   └── CreatedByMe.js
+│   │   │   ├── DocumentSelf
+│   │   │   │   ├── AssignedToMe.css
+│   │   │   │   └── AssignedToMe.js
+│   │   │   └── DocumentSteps
+│   │   │       ├── AddDocumentAnnexModal.css
+│   │   │       ├── AddDocumentAnnexModal.js
+│   │   │       └── AddDocumentStepModal.js
+│   │   ├── Entity
+│   │   │   ├── CreateEntity
+│   │   │   │   ├── CreateEntity.css
+│   │   │   │   └── CreateEntity.js
+│   │   │   ├── EntityDetail
+│   │   │   │   ├── EntityDetail.css
+│   │   │   │   └── EntityDetail.js
+│   │   │   ├── EntityList
+│   │   │   │   ├── EntityList.css
+│   │   │   │   └── EntityList.js
+│   │   │   └── EntityModal
+│   │   │       ├── EntitiesPage.js
+│   │   │       ├── EntityForm.js
+│   │   │       ├── EntityFormModal.js
+│   │   │       └── EntityModal.js
+│   │   ├── Home
+│   │   │   ├── Home.css
+│   │   │   └── Home.js
+│   │   ├── Internal
+│   │   │   ├── EnergyRecordsTable.js
+│   │   │   ├── ExpenseRecordsTable.js
+│   │   │   ├── InternalArea.js
+│   │   │   ├── InternalDetails.js
+│   │   │   ├── InternalMaintenance.js
+│   │   │   ├── InternalTabs.js
+│   │   │   ├── MaintenanceRecordsTable.js
+│   │   │   ├── RamalRedeContent.js
+│   │   │   ├── RamalRedeExpense.js
+│   │   │   ├── RamalRedeManagement.js
+│   │   │   └── VolumeRecordsTable.js
+│   │   ├── Letters
+│   │   │   ├── CreateLetterModal.js
+│   │   │   ├── IssuedLettersList.js
+│   │   │   ├── LetterEmission.js
+│   │   │   ├── LetterEmissionModal.js
+│   │   │   ├── LetterManagement.css
+│   │   │   ├── LetterManagement.js
+│   │   │   ├── LetterRow.css
+│   │   │   ├── LetterRow.js
+│   │   │   ├── LetterTemplateList.js
+│   │   │   └── LetterTemplateModal.js
+│   │   ├── Login
+│   │   │   ├── Login.css
+│   │   │   └── Login.js
+│   │   ├── PasswordRecovery
+│   │   │   ├── PasswordRecovery.css
+│   │   │   └── PasswordRecovery.js
+│   │   ├── ResetPassword
+│   │   │   ├── ResetPassword.css
+│   │   │   └── ResetPassword.js
+│   │   ├── Settings
+│   │   │   ├── Settings.css
+│   │   │   └── Settings.js
+│   │   └── UserInfo
+│   │       ├── UserInfo.css
+│   │       └── UserInfo.js
+│   ├── reportWebVitals.js
+│   ├── services
+│   │   ├── activityTracker.js
+│   │   ├── api.js
+│   │   ├── authService.js
+│   │   ├── dashboardService.js
+│   │   ├── documentService.js
+│   │   ├── entityService.js
+│   │   ├── InternalService.js
+│   │   ├── letter_service.js
+│   │   ├── notificationService.js
+│   │   ├── postalCodeService.js
+│   │   ├── socketService.js
+│   │   └── userService.js
+│   ├── setupTests.js
+│   ├── styles
+│   │   ├── global.css
+│   │   ├── sessionAlert.css
+│   │   └── theme.js
+│   └── utils
+│       ├── dataUtils.js
+│       └── helpers.js
+└── webpack.config.js

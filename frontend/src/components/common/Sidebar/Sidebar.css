@@ -1,0 +1,227 @@
+/* Estilos gerais da sidebar */
+.sidebar {
+    box-sizing: border-box;
+    height: calc(100dvh - 64px);
+    margin-top: 64px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.6s ease-in-out;
+    position: relative;
+}
+
+/* Estilos para o estado aberto e fechado */
+.sidebar.closed {
+    width: 60px;
+    transition: opacity 0.6s ease-in-out,
+        width 0.6s ease-in-out;
+}
+
+.sidebar.open {
+    width: 200px;
+    transition: opacity 0.6s ease-in-out,
+        width 0.6s ease-in-out;
+}
+
+/* Conteúdo da sidebar */
+.sidebar-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+}
+
+/* Estilos dos itens do menu */
+.menu-list {
+    padding: 0;
+    width: 100%;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    transition: opacity 0.6s ease-in-out,
+        width 0.6s ease-in-out;
+}
+
+/* Hover state */
+[data-theme="light"] .menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Selected state */
+[data-theme="light"] .menu-item.selected {
+    color: #1976d2;
+    background-color: rgba(25, 118, 210, 0.08);
+}
+
+[data-theme="dark"] .menu-item.selected {
+    color: #90caf9;
+    background-color: rgba(144, 202, 249, 0.08);
+}
+
+/* Selected icons */
+[data-theme="light"] .menu-item.selected svg {
+    color: #1976d2;
+}
+
+[data-theme="dark"] .menu-item.selected svg {
+    color: #90caf9;
+}
+
+.menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.menu-item.selected {
+    color: #1976d2;
+    /* Cor do item selecionado */
+}
+
+.menu-item.selected svg {
+    color: #1976d2;
+    /* Cor do ícone do item selecionado */
+}
+
+.menu-item svg {
+    font-size: 24px;
+    margin-right: 16px;
+    min-width: 24px;
+}
+
+.menu-item.subitem-selected {
+    font-weight: bold;
+}
+
+.menu-item.subitem-selected::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 16px;
+    right: 16px;
+    height: 2px;
+    background-color: #1976d2;
+    /* Ou a cor que preferir */
+}
+
+/* Caso queira um efeito diferente quando o sidebar estiver fechado */
+.sidebar.closed .menu-item.subitem-selected::after {
+    left: 4px;
+    right: 4px;
+}
+
+.list-item-text {
+    opacity: 1;
+    width: auto;
+    transition: opacity 0.6s ease-in-out,
+        width 0.6s ease-in-out,
+        margin-left 0.6s ease-in-out;
+    white-space: nowrap;
+    overflow: hidden;
+    margin-left: 4px;
+    /* Espaço constante entre o ícone e o texto */
+}
+
+.sidebar.open .list-item-text {
+    opacity: 1;
+    width: auto;
+    margin-left: 5px;
+    transition: opacity 0.6s ease-in-out,
+            width 0.6s ease-in-out;
+}
+
+/* Estilos para o submenu */
+.sub-menu {
+    padding-left: 16px;
+}
+
+.sub-menu-item {
+    padding-left: 32px;
+}
+
+/* Estilos para o botão de toggle */
+.sidebar-toggle-wrapper {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding: 8px;
+}
+
+.sidebar-toggle-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    transition: background-color 0.6s;
+}
+
+.sidebar-toggle-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle-button svg {
+    font-size: 24px;
+    transition: transform 0.6s ease-in-out;
+}
+
+/* Rotação do ícone */
+.sidebar.closed .sidebar-toggle-button svg {
+    transform: rotate(180deg);
+}
+
+.sidebar.open .sidebar-toggle-button svg {
+    transform: rotate(0deg);
+}
+
+.sidebar-badge {
+    display: flex;
+    align-items: center;
+    width: 24px;
+}
+
+.sidebar-badge .MuiBadge-badge {
+    right: -4px;
+    top: 0px;
+    transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+    transform-origin: center;
+}
+
+.sidebar.closed .sidebar-badge .MuiBadge-badge {
+    right: -4px;
+    top: 0px;
+}
+
+.sidebar-badge .MuiBadge-badge.MuiBadge-invisible {
+    transform: scale(0);
+    opacity: 0;
+}
+
+/* Ajuste a posição do ícone para dar espaço ao badge */
+.sidebar-badge .MuiSvgIcon-root {
+    margin-right: -4px;
+}
+
+/* Quando a sidebar estiver fechada, reajuste a posição do ícone */
+.sidebar.closed .sidebar-badge .MuiSvgIcon-root {
+    margin-right: 0;
+}
+
+/* Estilo específico para o badge no item principal quando fechado */
+.sidebar.closed .menu-item>.sidebar-badge .MuiBadge-badge {
+    right: 0px;
+    top: 0px;
+}

@@ -1,0 +1,13 @@
+.table-row-rows:hover {
+    background-color: var(--row-hover-bg);
+}
+
+.no-spacing-rows {
+    padding: 0 !important;
+}
+
+.collapse-cell-rows {
+    padding-bottom: 0 !important;
+    padding-top: 0 !important;
+}
+

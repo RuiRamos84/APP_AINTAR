@@ -1,0 +1,38 @@
+.user-info-paper {
+    margin-top: 24px;
+    padding: 32px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.user-info-box {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.user-info-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.user-info-button {
+    margin: 24px 0 16px;
+    height: 48px;
+    text-transform: none;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.user-info-button:hover {
+    background-color: #0056b3;
+}
+
+.user-info-box .MuiGrid-container {
+    margin-bottom: 20px;
+}
+
+.user-info-box .MuiTypography-h5 {
+    margin-top: 20px;
+}

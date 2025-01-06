@@ -1,0 +1,36 @@
+/* LetterManagement.css */
+.paper-list {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    height: calc(96vh - 64px - 48px);
+    /* Ajustado para considerar o título */
+}
+
+.header-container-list {
+    margin-bottom: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-container-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    height: calc(100vh - 200px - 48px);
+    /* Ajustado para considerar o título */
+}
+
+.table-pagination-list {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+}

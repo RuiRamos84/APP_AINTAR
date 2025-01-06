@@ -1,0 +1,8 @@
+/* LetterRow.css */
+.table-row-rows:hover {
+    background-color: var(--row-hover-bg);
+}
+
+.no-spacing-rows {
+    padding: 0 !important;
+}

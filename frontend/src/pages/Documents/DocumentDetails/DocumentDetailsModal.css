@@ -1,0 +1,14 @@
+/* DocumentDetailsModal.css */
+
+.modal-style {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    background-color: var(--bg-color-paper);
+    box-shadow: 24px 24px 24px 24px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    overflow-y: scroll;
+    max-height: 90%;
+}
