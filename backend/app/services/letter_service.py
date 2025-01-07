@@ -217,8 +217,7 @@ def generate_letter_document(letter_id, document_data, current_user):
                 return {'error': 'Modelo de ofício não encontrado'}
 
             # Adicionar a versão do modelo ao document_data
-            document_data['VS_M'] = f'v{letter.get(
-                "version", "1.0")}'  # Garante formato 'v1.0'
+            document_data['VS_M'] = f'v{letter.get("version", "1.0")}'  # Garante formato 'v1.0'
 
             # Gerar número do ofício
             document_number = session.execute(

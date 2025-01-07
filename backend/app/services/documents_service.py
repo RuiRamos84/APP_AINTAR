@@ -465,7 +465,7 @@ def download_file(regnumber, filename, current_user):
         if not os.path.exists(file_path):
             file_path = os.path.join(request_path, filename)
 
-        if os.path.exists(file_path):
+        if os.path.exists(file_path):            
             response = send_file(file_path, as_attachment=True)
             response.headers["Cache-Control"] = ("no-cache, no-store, must-revalidate")
             response.headers["Pragma"] = "no-cache"

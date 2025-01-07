@@ -187,8 +187,7 @@ class BaseLetterTemplate(BaseDocTemplate):
         # Versão e página em linha separada, alinhada à direita
         version = self.version.replace(
             'v', '') if self.version.startswith('v') else self.version
-        page_info = f"Página {self.current_page} de {
-            self.page_count}  |  {version}"
+        page_info = f"Página {self.current_page} de {self.page_count}  |  {version}"
         canvas.drawRightString(doc.pagesize[0]-2*cm, 0.7*cm, page_info)
 
         canvas.restoreState()
@@ -209,10 +208,8 @@ class LetterDocument:
         elements.extend([
             Paragraph("Ex.mo(a) Senhor(a)", self.styles['RecipientHeader']),
             Paragraph(data.get('NOME', ''), self.styles['RecipientHeader']),
-            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}",
-                      self.styles['RecipientHeader']),
-            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}",
-                      self.styles['RecipientHeader']),
+            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}", self.styles['RecipientHeader']),
+            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}", self.styles['RecipientHeader']),
         ])
 
         # Espaço após o cabeçalho
@@ -224,8 +221,7 @@ class LetterDocument:
         elements.append(Spacer(1, 1*cm))
 
         # Assunto em negrito
-        elements.append(Paragraph("Assunto: Autorização de Ligação",
-                                self.styles['Subject']))
+        elements.append(Paragraph("Assunto: Autorização de Ligação", self.styles['Subject']))
         elements.append(Spacer(1, 0.5*cm))
 
         # Corpo do ofício
@@ -248,8 +244,7 @@ class LetterDocument:
             Paragraph("O Presidente da Direção,", self.styles['BodyCenter']),
             Spacer(1, 1*cm),
             Paragraph("_" * 35, self.styles['BodyCenter']),
-            Paragraph("Paulo Jorge Catalino de Almeida Ferraz",
-                      self.styles['BodyCenter'])
+            Paragraph("Paulo Jorge Catalino de Almeida Ferraz", self.styles['BodyCenter'])
         ])
 
         return elements
@@ -259,10 +254,8 @@ class LetterDocument:
         return [
             Paragraph("Ex.mo(a) Senhor(a)", self.styles['Recipient']),
             Paragraph(data.get('NOME', ''), self.styles['Recipient']),
-            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}", 
-                     self.styles['Recipient']),
-            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}", 
-                     self.styles['Recipient']),
+            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}", self.styles['Recipient']),
+            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}", self.styles['Recipient']),
             Spacer(1, 20*mm)
         ]
 
@@ -308,12 +301,10 @@ class LetterDocument:
         return [
             Spacer(1, 15*mm),
             Paragraph("Com os melhores cumprimentos,", self.styles['BodyLeft']),
-            Paragraph(data.get('SIGNATURE_TITLE', 'O Presidente da Direção'), 
-                     self.styles['BodyLeft']),
+            Paragraph(data.get('SIGNATURE_TITLE', 'O Presidente da Direção'), self.styles['BodyLeft']),
             Spacer(1, 25*mm),
             Paragraph("_" * 35, self.styles['BodyCenter']),
-            Paragraph(data.get('SIGNATURE_NAME', 'Paulo Jorge Catalino de Almeida Ferraz'), 
-                     self.styles['BodyLeft'])
+            Paragraph(data.get('SIGNATURE_NAME', 'Paulo Jorge Catalino de Almeida Ferraz'), self.styles['BodyLeft'])
         ]
 
     def _create_styles(self) -> Dict[str, ParagraphStyle]:
@@ -388,11 +379,8 @@ class LetterDocument:
     def _create_reference_table(self, data: Dict) -> Table:
         """Cria a tabela de referências sem bordas"""
         table_data = [
-            ['Sua referência:', 'Sua comunicação:',
-             'Nossa Referência:', f"Data: {data.get('DATA', '')}"],
-            ['', '', data.get('NUMERO_PEDIDO', ''),
-             f"Ofício nº {data.get('NUMERO_OFICIO', '')}"],
-            ['', '', f"Datado de:\n{data.get('DATA_PEDIDO', '')}", '']
+            ['Sua referência:', 'Sua comunicação:', 'Nossa Referência:', f"Data: {data.get('DATA', '')}"],
+            ['', '', data.get('NUMERO_PEDIDO', ''), f"Ofício nº {data.get('NUMERO_OFICIO', '')}"], ['', '', f"Datado de:\n{data.get('DATA_PEDIDO', '')}", '']
         ]
 
         table = Table(table_data, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
@@ -456,8 +444,7 @@ class FileService:
             }
         return {'letters_path': letters_path}
 
-    def generate_letter(self, context: Dict, regnumber: str = None,
-                    document_number: str = None, is_free_letter: bool = False) -> Tuple[str, str]:
+    def generate_letter(self, context: Dict, regnumber: str = None, document_number: str = None, is_free_letter: bool = False) -> Tuple[str, str]:
         """Gera um ofício usando o template base"""
         try:
             # Definir nome e caminho do arquivo
@@ -484,7 +471,6 @@ class FileService:
         except Exception as e:
             current_app.logger.error(f"Erro ao gerar ofício: {str(e)}")
             raise
-
 
     def _prepare_context(self, context: Dict, document_number: str) -> Dict:
         """
@@ -579,7 +565,4 @@ class FileService:
     def _get_output_path(self, regnumber: str, filename: str, is_free_letter: bool) -> str:
         """Determina o caminho de saída para o arquivo"""
         paths = self.ensure_directories(regnumber if not is_free_letter else None)
-        return os.path.join(
-            paths['oficios_path'] if not is_free_letter else paths['letters_path'],
-            filename
-        )
+        return os.path.join(paths['oficios_path'] if not is_free_letter else paths['letters_path'], filename)
