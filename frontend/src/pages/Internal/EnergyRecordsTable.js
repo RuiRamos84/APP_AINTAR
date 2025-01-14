@@ -12,13 +12,14 @@ import {
     TextField,
     Grid,
 } from "@mui/material";
+import { getCurrentDateTime } from "../../utils/dataUtils";
 import { getEnergyRecords, addEnergyRecord } from "../../services/InternalService";
 import { notifySuccess, notifyError, notifyWarning, notifyInfo, notifyCustom } from "../../components/common/Toaster/ThemedToaster";
 
 const EnergyRecordsTable = ({ selectedEntity, selectedArea }) => {
     const [energyData, setEnergyData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [newRecord, setNewRecord] = useState({ date: "", vazio: "", ponta: "", cheia: "" });
+    const [newRecord, setNewRecord] = useState({ date: getCurrentDateTime(), vazio: "", ponta: "", cheia: "" });
 
     const fetchEnergyRecords = async () => {
         if (!selectedEntity) return;

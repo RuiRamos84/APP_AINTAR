@@ -20,7 +20,8 @@ const InternalArea = () => {
         { id: 1, name: "ETAR", description: "Gestão de ETAR" },
         { id: 2, name: "EEAR", description: "Gestão de EEAR" },
         { id: 3, name: "Rede", description: "Gestão de Rede" },
-        { id: 4, name: "Ramais", description: "Gestão de Ramais" }
+        { id: 4, name: "Ramais", description: "Gestão de Ramais" },
+        { id: 5, name: "Manutenção", description: "Gestão de Manutenção" },
     ];
 
     const etarEeSubAreas = [
@@ -69,6 +70,9 @@ const InternalArea = () => {
                     </Grid>
                 );
             }
+            if (selectedArea === 5) { // Área de Manutenção
+                return <ExpenseRecordsTable selectedArea={selectedArea} metaData={metaData} />;
+            }
 
             switch (selectedSubArea) {
                 case 1:
@@ -103,6 +107,17 @@ const InternalArea = () => {
                             selectedArea={selectedArea}
                             metaData={metaData}
                         />
+                    );
+                case 5: // Manutenção
+                    return (
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <ExpenseRecordsTable
+                                    selectedArea={selectedArea}
+                                    metaData={metaData}
+                                />
+                            </Grid>
+                        </Grid>
                     );
                 default:
                     return null;

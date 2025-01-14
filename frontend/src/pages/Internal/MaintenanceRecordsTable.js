@@ -37,7 +37,7 @@ const MaintenanceRecordsTable = ({
     });
 
     const fetchRecords = async () => {
-        if (!selectedEntity && selectedArea !== 3 && selectedArea !== 4) return;
+        if (!selectedEntity && selectedArea !== 3 && selectedArea !== 4 && selectedArea !== 5) return;
         setLoading(true);
         try {
             let type = getType(selectedArea);
@@ -71,6 +71,7 @@ const MaintenanceRecordsTable = ({
             case 2: return "ee";
             case 3: return "rede";
             case 4: return "ramal";
+            case 5: return "manutencao";
             default: throw new Error("Área inválida");
         }
     };

@@ -22,6 +22,9 @@ from ..services.documents_service import (
     update_document_params,
     create_etar_document_direct,
     create_ee_document_direct,
+    get_document_ramais,
+    update_document_pavenext,
+    get_document_ramais_concluded,
 )
 import jwt
 from .. import limiter
@@ -291,6 +294,38 @@ def create_ee_document(ee_pk):
         except Exception as e:
             current_app.logger.error(f"Erro ao criar pedido EE: {str(e)}")
             return jsonify({"erro": str(e)}), 500
+
+
+@bp.route('/document_ramais', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_document_ramais_route():
+    """Obter dados dos ramais"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return get_document_ramais(current_user)
+
+
+@bp.route('/document_pavenext/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+def update_document_pavenext_route(pk):
+    """Atualizar status do documento para próximo passo"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return update_document_pavenext(pk, current_user)
+
+
+@bp.route('/document_ramais_concluded', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_document_ramais_concluded_route():
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return get_document_ramais_concluded(current_user)
 
 
 @bp.after_request

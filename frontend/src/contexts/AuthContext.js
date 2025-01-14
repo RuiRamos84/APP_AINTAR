@@ -11,13 +11,8 @@ import {
   logout as logoutService,
   refreshToken as refreshTokenService,
   decodeToken,
+  checkTokenValidity,
 } from "../services/authService";
-import {
-  setupActivityTracking,
-  resetLastActivity,
-  resetTimers,
-  setupHeartbeat,
-} from "../services/activityTracker";
 import {
   notifySuccess,
   notifyError,
@@ -27,6 +22,7 @@ import {
 import { updateDarkMode, updateVacationStatus } from "../services/userService";
 import { connectSocket, disconnectSocket } from "../services/socketService";
 import { startLogout, finishLogout, resetLogoutState } from "../services/api";
+import { sessionService } from '../services/SessionService';
 import Swal from "sweetalert2";
 import config from "../config";
 
@@ -39,10 +35,6 @@ export const AuthProvider = ({ children }) => {
   const isLoggedOutRef = useRef(false);
   const timersRef = useRef({});
 
-  // const INACTIVITY_TIMEOUT = config.INACTIVITY_TIMEOUT;
-  // const WARNING_TIMEOUT = config.WARNING_TIMEOUT;
-  // const TOKEN_REFRESH_INTERVAL = config.TOKEN_REFRESH_INTERVAL;
-
   const clearAllIntervals = useCallback(() => {
     Object.values(timersRef.current).forEach(clearInterval);
     timersRef.current = {};
@@ -50,7 +42,10 @@ export const AuthProvider = ({ children }) => {
 
   const logoutUser = useCallback(
     async (silent = false) => {
-      if (isLoggedOutRef.current) return;
+      if (isLoggedOutRef.current) {
+        window.location.href = "/";
+        return;
+      }
 
       setIsLoggingOut(true);
       try {
@@ -64,9 +59,9 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error("Erro durante o logout:", error);
       } finally {
-        window.location.href = "/"; // Força o redirecionamento
         setIsLoggingOut(false);
         finishLogout();
+        window.location.href = "/";
       }
     },
     [clearAllIntervals]
@@ -78,10 +73,8 @@ export const AuthProvider = ({ children }) => {
       const currentTime = Date.now();
       const newTokens = await refreshTokenService(currentTime);
       if (newTokens) {
-        setUser((prevUser) => ({ ...prevUser, ...newTokens }));
-        localStorage.setItem("user", JSON.stringify({ ...user, ...newTokens }));
-        resetLastActivity();
-        resetTimers();
+        setUser(prevUser => ({ ...prevUser, ...newTokens }));
+        localStorage.setItem("user", JSON.stringify(newTokens));
         return newTokens;
       }
     } catch (error) {
@@ -91,58 +84,6 @@ export const AuthProvider = ({ children }) => {
     return null;
   }, [logoutUser]);
 
-  useEffect(() => {
-    const handleSessionWarning = async () => {
-      let timerInterval;
-      const result = await Swal.fire({
-        title: "Aviso de Inatividade",
-        html: "Sua sessão irá expirar em <b></b> segundos.<br/><br/>Deseja continuar?",
-        icon: "warning",
-        timer: 5 * 60 * 1000, // 5 minutos para resposta do utilizador
-        timerProgressBar: true,
-        showCancelButton: true,
-        confirmButtonText: "Continuar sessão",
-        cancelButtonText: "Fazer logout",
-        allowOutsideClick: false,
-        didOpen: () => {
-          timerInterval = setInterval(() => {
-            const b = Swal.getHtmlContainer().querySelector("b");
-            if (b) {
-              b.textContent = (Swal.getTimerLeft() / 1000).toFixed(0);
-            }
-          }, 100);
-        },
-        willClose: () => {
-          clearInterval(timerInterval);
-        },
-      });
-
-      if (result.isConfirmed) {
-        await refreshToken();
-      } else if (result.dismiss === Swal.DismissReason.cancel || result.dismiss === Swal.DismissReason.timer) {
-        await logoutUser(true);
-      }
-    };
-
-    const handleSessionExpired = async () => {
-      await Swal.fire({
-        title: "Sessão Expirada",
-        text: "Sua sessão expirou devido à inatividade.",
-        icon: "info",
-        confirmButtonText: "OK",
-      });
-      await logoutUser(true);
-    };
-
-    window.addEventListener("sessionWarning", handleSessionWarning);
-    window.addEventListener("sessionExpired", handleSessionExpired);
-
-    return () => {
-      window.removeEventListener("sessionWarning", handleSessionWarning);
-      window.removeEventListener("sessionExpired", handleSessionExpired);
-    };
-  }, [refreshToken, logoutUser]);
-
   const loginUser = async (username, password) => {
     try {
       setIsLoading(true);
@@ -151,9 +92,6 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("lastActivityTime", Date.now().toString());
-      setupActivityTracking();
-      setupHeartbeat(refreshToken);
-      resetTimers();
       await connectSocket(userData.user_id);
       return userData;
     } catch (error) {
@@ -197,15 +135,33 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
-        setupActivityTracking();
-        setupHeartbeat();
+        const userData = JSON.parse(storedUser);
+        // Verifica validade do token antes de fazer refresh
+        if (checkTokenValidity(userData.access_token)) {
+          setUser(userData);
+          sessionService.initialize(
+            () => refreshToken(),
+            () => logoutUser(true)
+          );
+        } else {
+          const newTokens = await refreshTokenService(Date.now());
+          if (newTokens) {
+            setUser({ ...userData, ...newTokens });
+            localStorage.setItem("user", JSON.stringify({ ...userData, ...newTokens }));
+            sessionService.initialize(
+              () => refreshToken(),
+              () => logoutUser(true)
+            );
+          } else {
+            await logoutUser(true);
+          }
+        }
       }
       setIsLoading(false);
     };
 
     initializeAuth();
-  }, []);
+  }, [refreshToken, logoutUser]);
 
   return (
     <AuthContext.Provider

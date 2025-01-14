@@ -49,3 +49,17 @@ export const parseDateString = (dateString) => {
   const [day, month, year] = dateString.split("/");
   return new Date(year, month - 1, day);
 };
+
+/**
+ * Converte uma string de data e hora no formato dd/mm/yyyy HH:mm para um objeto Date
+ * @param {string} dateTimeString - Data e hora em string no formato dd/mm/yyyy HH:mm
+ * @returns {Date} Objeto Date
+ */
+
+export const getCurrentDateTime = () => {
+    const now = new Date();
+    // formato: YYYY-MM-DDThh:mm
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+};

@@ -90,7 +90,7 @@ def check_vacation_status(user_pk, current_user):
 
 def create_document(data, files, current_user):
     try:
-        current_app.logger.info(f"Dados recebidos: {data}")
+        # current_app.logger.info(f"Dados recebidos: {data}")
         with db_session_manager(current_user) as session:
             ts_entity = data.get('ts_entity')
             if not ts_entity:
@@ -823,3 +823,64 @@ def create_ee_document_direct(ee_pk, current_user):
     except Exception as e:
         current_app.logger.error(f"Erro ao criar pedido EE: {str(e)}")
         raise
+
+
+def get_document_ramais(current_user):
+    """
+    Obtém dados dos ramais do documento da vista vbr_document_ramais02
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            ramais_query = text("SELECT * FROM vbr_document_ramais02")
+            result = session.execute(ramais_query).mappings().all()
+
+            if result:
+                return {'ramais': [dict(row) for row in result]}, 200
+            return {'ramais': [], 'message': 'Nenhum ramal encontrado'}, 200
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter ramais: {str(e)}")
+        return {'error': format_message(str(e))}, 500
+
+
+def update_document_pavenext(pk, current_user):
+    """
+    Atualiza o documento usando a função fbo_document_pavenext
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            update_query = text("""
+                SELECT aintar_server_dev.fbo_document_pavenext(:pk) AS result
+            """)
+            result = session.execute(update_query, {'pk': pk}).scalar()
+
+            if result:
+                formatted_result = format_message(result)
+                session.commit()
+                return {
+                    'message': 'Documento atualizado com sucesso',
+                    'result': formatted_result
+                }, 200
+
+            return {
+                'error': 'Falha ao atualizar documento'
+            }, 400
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao atualizar documento: {str(e)}")
+        return {'error': format_message(str(e))}, 500
+
+
+def get_document_ramais_concluded(current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            ramais_query = text("SELECT * FROM vbr_document_ramais03")
+            result = session.execute(ramais_query).mappings().all()
+
+            if result:
+                return {'ramais': [dict(row) for row in result]}, 200
+            return {'ramais': [], 'message': 'Nenhum ramal concluído encontrado'}, 200
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter ramais concluídos: {str(e)}")
+        return {'error': format_message(str(e))}, 500

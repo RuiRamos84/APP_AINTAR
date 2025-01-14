@@ -74,6 +74,9 @@ export const getExpenseRecords = async (type, pk) => {
             case "ramal":
                 url = `/ramal_expenses`;
                 break;
+            case "manutencao":    // <-- Este também estava como "manut"
+                url = `/manut_expenses`;  // <-- O endpoint continua o mesmo
+                break;
             default:
                 throw new Error("Invalid expense type");
         }
@@ -100,6 +103,9 @@ export const addExpenseRecord = async (type, data) => {
                 break;
             case "ramal":
                 url = "/ramal_expense";
+                break;
+            case "manutencao":     // <-- Este estava como "manut"
+                url = "/manut_expense";  // <-- O endpoint continua o mesmo
                 break;
             default:
                 throw new Error("Invalid expense type");

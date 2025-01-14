@@ -22,6 +22,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
         pndate: "",
         pnval: "",
         pnmemo: "",
+        pnts_associate: "",
     });
 
     const handleInputChange = (field, value) => {
@@ -30,13 +31,14 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
 
     const handleAddRecord = async () => {
         try {
-            const type = selectedArea === 3 ? "rede" : "ramal";
+            const type = selectedArea === 3 ? "rede" : "ramal" : "manutencao";
 
             const payload = {
                 pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
                 pndate: newRecord.pndate,
                 pnval: parseFloat(newRecord.pnval),
                 pnmemo: newRecord.pnmemo,
+                pnts_associate: newRecord.pnts_associate,
             };
 
             // console.log("Adicionando despesa:", payload);
@@ -48,7 +50,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
             setExpenseData(response.expenses || []);
 
             // Limpar o formulário
-            setNewRecord({ pndate: "", pnval: "", pntt_expensedest: "", pnmemo: "" });
+            setNewRecord({ pndate: "", pnval: "", pntt_expensedest: "", pnmemo: "", pnts_associate: "" });
         } catch (error) {
             console.error("Erro ao adicionar despesa:", error);
         }
@@ -57,7 +59,10 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
     return (
         <Box>
             <Typography variant="h6" gutterBottom>
-                {selectedArea === 3 ? "Despesas na Rede" : "Despesas nos Ramais"}
+                {selectedArea === 5 ? "Material de Manutenção" :
+                    selectedArea === 3 ? "Despesas na Rede" :
+                        selectedArea === 4 ? "Despesas nos Ramais" :
+                            "Novo Registo de Despesas"}
             </Typography>
 
             {/* Formulário Responsivo */}

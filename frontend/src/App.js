@@ -23,6 +23,8 @@ import EntityList from "./pages/Entity/EntityList/EntityList";
 import EntityDetail from "./pages/Entity/EntityDetail/EntityDetail";
 import CreateEntity from "./pages/Entity/CreateEntity/CreateEntity";
 import DocumentList from "./pages/Documents/DocumentListAll/DocumentList";
+import RamaisList from "./pages/Documents/RamaisList/RamalList";
+import RamaisListConcluded from "./pages/Documents/RamaisList/RamaisConcludedList";
 import CreateDocument from "./pages/Documents/DocumentCreate/CreateDocument";
 import CreateDocumentModal from "./pages/Documents/DocumentCreate/CreateDocumentModal";
 import AssignedToMe from "./pages/Documents/DocumentSelf/AssignedToMe";
@@ -224,6 +226,22 @@ const AppContent = () => {
                 element={
                   <PrivateRoute>
                     <AssignedToMe />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/ramais"
+                element={
+                  <PrivateRoute>
+                    <RamaisList />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/ramais/concluded"
+                element={
+                  <PrivateRoute>
+                    <RamaisListConcluded />
                   </PrivateRoute>
                 }
               />

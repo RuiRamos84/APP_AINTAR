@@ -18,7 +18,7 @@ const ThemedToaster = () => {
       }}
       // theme="system"
       dir="auto"
-      position="bottom-center"
+      position="top-center"
       reverseOrder={false}
       closeButton
       invert={true}

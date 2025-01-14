@@ -147,16 +147,17 @@ def list_ee_energy(tb_ee, current_user):
         return {'error': f"Erro ao listar energia de EE: {str(e)}"}, 500
 
 
-def create_etar_expense(pntt_expensedest, pndate, pnval, pntt_etar, pnmemo, current_user):
+def create_etar_expense(pntt_expensedest, pndate, pnval, pntt_etar, pnts_associate, pnmemo, current_user):
     try:
         with db_session_manager(current_user) as session:
             query = text(
-                "SELECT fbo_expense_etar_create(:pntt_expensedest, :pndate, :pnval, :pntt_etar, :pnmemo )")
+                "SELECT fbo_expense_etar_create(:pntt_expensedest, :pndate, :pnval, :pntt_etar, :pnts_associate,  :pnmemo )")
             result = session.execute(query, {
                 'pntt_expensedest': pntt_expensedest,
                 'pndate': pndate,
                 'pnval': pnval,
                 'pntt_etar': pntt_etar,
+                'pnts_associate': pnts_associate,
                 'pnmemo': pnmemo
             }).scalar()
             success_message = format_message(result)
@@ -165,16 +166,17 @@ def create_etar_expense(pntt_expensedest, pndate, pnval, pntt_etar, pnmemo, curr
         return {'error': f"Erro ao registar despesa em ETAR: {str(e)}"}, 500
 
 
-def create_ee_expense(pntt_expensedest, pndate, pnval, pntt_ee, pnmemo, current_user):
+def create_ee_expense(pntt_expensedest, pndate, pnval, pntt_ee, pnts_associate, pnmemo, current_user):
     try:
         with db_session_manager(current_user) as session:
             query = text(
-                "SELECT fbo_expense_ee_create(:pntt_expensedest, :pndate, :pnval, :pntt_ee, :pnmemo)")
+                "SELECT fbo_expense_ee_create(:pntt_expensedest, :pndate, :pnval, :pntt_ee, :pnts_associate, :pnmemo)")
             result = session.execute(query, {
                 'pntt_expensedest': pntt_expensedest,
                 'pndate': pndate,
                 'pnval': pnval,
                 'pntt_ee': pntt_ee,
+                'pnts_associate': pnts_associate,
                 'pnmemo': pnmemo
             }).scalar()
             success_message = format_message(result)
@@ -183,15 +185,16 @@ def create_ee_expense(pntt_expensedest, pndate, pnval, pntt_ee, pnmemo, current_
         return {'error': f"Erro ao registar despesa em EE: {str(e)}"}, 500
 
 
-def create_rede_expense(pntt_expensedest, pndate, pnval, pnmemo, current_user):
+def create_rede_expense(pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user):
     try:
         with db_session_manager(current_user) as session:
             query = text(
-                "SELECT fbo_expense_rede_create(:pntt_expensedest, :pndate, :pnval, :pnmemo)")
+                "SELECT fbo_expense_rede_create(:pntt_expensedest, :pndate, :pnval, :pnts_associate, :pnmemo)")
             result = session.execute(query, {
                 'pntt_expensedest': pntt_expensedest,
                 'pndate': pndate,
                 'pnval': pnval,
+                'pnts_associate': pnts_associate,
                 'pnmemo': pnmemo
             }).scalar()
             success_message = format_message(result)
@@ -200,15 +203,16 @@ def create_rede_expense(pntt_expensedest, pndate, pnval, pnmemo, current_user):
         return {'error': f"Erro ao registar despesa na rede: {str(e)}"}, 500
 
 
-def create_ramal_expense(pntt_expensedest, pndate, pnval, pnmemo, current_user):
+def create_ramal_expense(pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user):
     try:
         with db_session_manager(current_user) as session:
             query = text(
-                "SELECT fbo_expense_ramal_create(:pntt_expensedest, :pndate, :pnval, :pnmemo)")
+                "SELECT fbo_expense_ramal_create(:pntt_expensedest, :pndate, :pnval, :pnts_associate, :pnmemo)")
             result = session.execute(query, {
                 'pntt_expensedest': pntt_expensedest,
                 'pndate': pndate,
                 'pnval': pnval,
+                'pnts_associate': pnts_associate,
                 'pnmemo': pnmemo
             }).scalar()
             success_message = format_message(result)
@@ -294,3 +298,33 @@ def get_ee_details_by_pk(current_user, pk):
                 return {'error': 'EE não encontrada.'}, 404
     except Exception as e:
         return {'error': f"Erro ao obter detalhes da EE: {str(e)}"}, 500
+
+
+def create_manut_expense(pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_expense_manut_create(:pntt_expensedest, :pndate, :pnval, :pnts_associate, :pnmemo)")
+            result = session.execute(query, {
+                'pntt_expensedest': pntt_expensedest,
+                'pndate': pndate,
+                'pnval': pnval,
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            success_message = format_message(result)
+            return {'message': 'Despesa de Material de Manutenção registada com sucesso', 'result': success_message}, 201
+    except Exception as e:
+        return {'error': f"Erro ao registar despesa de Material de Manutenção: {str(e)}"}, 500
+
+
+def list_manut_expenses(current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT * FROM vbl_expense WHERE tt_expensetype = 5 order by data desc")
+            results = session.execute(query).fetchall()
+            expenses = [dict(row._mapping) for row in results]
+            return {'expenses': expenses}, 200
+    except Exception as e:
+        return {'error': f"Erro ao listar despesas de Material de Manutenção: {str(e)}"}, 500

@@ -16,13 +16,14 @@ import {
     InputLabel,
     Grid,
 } from "@mui/material";
+import { getCurrentDateTime } from "../../utils/dataUtils";
 import { getVolumeRecords, addVolumeRecord } from "../../services/InternalService";
 import { notifySuccess, notifyError, notifyWarning, notifyInfo, notifyCustom } from "../../components/common/Toaster/ThemedToaster";
 
 const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     const [volumeData, setVolumeData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [newRecord, setNewRecord] = useState({ pndate: "", pnval: "", pnspot: "" });
+    const [newRecord, setNewRecord] = useState({ pndate: getCurrentDateTime(), pnval: "", pnspot: "" });
 
     // Função para buscar os dados de volume
     const fetchVolumeRecords = async () => {

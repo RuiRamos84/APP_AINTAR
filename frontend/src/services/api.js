@@ -1,8 +1,7 @@
 import axios from "axios";
 import Swal from "sweetalert2";
 import config from "../config";
-import { resetTimers } from "./activityTracker";
-
+import { sessionService } from './SessionService';
 // console.log("API Base URL:", process.env.REACT_APP_API_BASE_URL);
 
 const api = axios.create({
@@ -47,7 +46,7 @@ api.interceptors.request.use(
     if (user && user.access_token) {
       config.headers["Authorization"] = `Bearer ${user.access_token}`;
     }
-    resetTimers();
+    sessionService.updateActivity();
     return config;
   },
   (error) => Promise.reject(error)
@@ -133,6 +132,7 @@ const handleSessionExpired = async () => {
       confirmButtonText: "OK",
     });
     await handleLogout();
+    window.location.href = "/login";
   }
 };
 

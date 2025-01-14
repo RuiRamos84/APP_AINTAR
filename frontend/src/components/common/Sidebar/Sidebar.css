@@ -225,3 +225,33 @@
     right: 0px;
     top: 0px;
 }
+
+@media (max-width: 768px) {
+    .sidebar {
+        margin-top: 0;
+        height: 100vh;
+        position: fixed;
+        background-color: var(--mui-palette-background-paper);
+        z-index: 1200;
+        width: 250px !important;
+        /* Força largura fixa no mobile */
+        box-shadow: 4px 0 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Remove animação de width no mobile */
+    .sidebar.closed,
+    .sidebar.open {
+        transition: none;
+    }
+
+    /* Esconde o botão de toggle original */
+    .sidebar-toggle-wrapper {
+        display: none;
+    }
+
+    /* Ajusta o conteúdo da sidebar */
+    .sidebar-content {
+        margin-top: 64px;
+        /* Alinha com o topo da aplicação */
+    }
+}

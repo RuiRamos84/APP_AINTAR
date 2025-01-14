@@ -1,6 +1,6 @@
 import api from "./api";
 import axios from "axios";
-import { resetLastActivity, resetTimers } from "./activityTracker";
+// import { resetLastActivity, resetTimers } from "./activityTracker";
 import config from "../config";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -32,8 +32,8 @@ export const initializeSessionManagement = () => {
     }).then((result) => {
       if (result.isConfirmed) {
         refreshToken(Date.now());
-        resetLastActivity();
-        resetTimers();
+        // resetLastActivity();
+        // resetTimers();
       } else if (result.dismiss === Swal.DismissReason.timer) {
         // User closed the modal
       } else if (result.dismiss === Swal.DismissReason.cancel) {
@@ -59,8 +59,6 @@ export const login = async (username, password) => {
     const response = await api.post("/auth/login", { username, password });
     if (response.status === 200 && response.data) {
       localStorage.setItem("user", JSON.stringify(response.data));
-      resetLastActivity(); // Resetar a atividade após o login bem-sucedido
-      resetTimers(); // Resetar os timers após o login bem-sucedido
       return response.data;
     } else {
       throw new Error("Resposta inválida do servidor");
@@ -114,8 +112,8 @@ export const refreshToken = async (currentTime) => {
       };
 
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      resetLastActivity(); // Resetar a atividade após o refresh bem-sucedido
-      resetTimers(); // Resetar os timers após o refresh bem-sucedido
+      // resetLastActivity(); // Resetar a atividade após o refresh bem-sucedido
+      // resetTimers(); // Resetar os timers após o refresh bem-sucedido
       return updatedUser;
     }
   } catch (error) {

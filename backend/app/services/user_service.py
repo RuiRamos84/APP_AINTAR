@@ -230,8 +230,10 @@ def password_recovery(data):
             else:
                 return {'erro': 'Erro ao enviar o e-mail de recuperação de password'}, 500
         else:
+            print(response)
             return {'erro': f'Erro ao recuperar a password: {format_message(response)}'}, 400
     except Exception as e:
+        print(e)
         return {'erro': f"Erro ao recuperar a password: {format_message(str(e))}"}, 500
 
 

@@ -166,5 +166,34 @@ export const downloadComprovativo = async (documentId) => {
   }
 };
 
+export const getDocumentRamais = async () => {
+  try {
+    const response = await api.get("/document_ramais");
+    // console.log(response.data);
+    return response.data.ramais
+  } catch (error) {
+    console.error("Erro ao buscar ramais:", error);
+    throw error;
+  }
+};
 
+export const updateDocumentPavenext = async (pk) => {
+  try {
+    const response = await api.put(`/document_pavenext/${pk}`);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao atualizar estado do documento:", error);
+    throw error;
+  }
+};
 
+export const getDocumentRamaisConcluded = async () => {
+  try {
+    const response = await api.get("/document_ramais_concluded");
+    // console.log(response.data);
+    return response.data.ramais;
+  } catch (error) {
+    console.error("Erro ao buscar ramais concluídos:", error);
+    throw error;
+  }
+};

@@ -53,7 +53,8 @@ class SocketIOEvents(Namespace):
 
     def on_join(self, data):
         user_id = data['userId']
-        current_app.logger.info(f'User with ID {user_id} joined the room - {request.sid}')
+        current_app.logger.info(
+            f'User with ID {user_id} joined the room - {request.sid}')
         join_room(user_id)
         with self.user_lock:
             self.connected_users[user_id] = request.sid
@@ -67,7 +68,8 @@ class SocketIOEvents(Namespace):
     def on_new_order_created(self, data):
         order_id = data['orderId']
         user_id = data['userId']
-        current_app.logger.info(f'Received "new_order_created" event with order {order_id} for user {user_id}')
+        current_app.logger.info(
+            f'Received "new_order_created" event with order {order_id} for user {user_id}')
         result = add_notification(user_id)
         if not isinstance(result, str) or not result.startswith("Error"):
             emit('new_notification', {
@@ -82,7 +84,8 @@ class SocketIOEvents(Namespace):
     def on_order_assigned(self, data):
         order_id = data['orderId']
         user_id = data['userId']
-        current_app.logger.info(f'Received "order_assigned" event for order {order_id} and user {user_id}')
+        current_app.logger.info(
+            f'Received "order_assigned" event for order {order_id} and user {user_id}')
         result = add_notification(user_id)
         if not isinstance(result, str) or not result.startswith("Error"):
             emit('new_notification', {
@@ -101,7 +104,8 @@ class SocketIOEvents(Namespace):
     def on_new_step_added(self, data):
         order_id = data['orderId']
         user_id = data['userId']
-        current_app.logger.info(f'Received "new_step_added" event for order {order_id} and user {user_id}')
+        current_app.logger.info(
+            f'Received "new_step_added" event for order {order_id} and user {user_id}')
         result = add_notification(user_id)
         if not isinstance(result, str) or not result.startswith("Error"):
             notification_count = get_notifications_count(user_id)

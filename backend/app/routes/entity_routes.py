@@ -37,8 +37,8 @@ def get_entity_nipc(nipc):
 
 @bp.route('/entity', methods=['POST'])
 @jwt_required()
-# @token_required
-# @set_session
+@token_required
+@set_session
 def create_new_entity():
     """Criar uma nova entidade"""
     current_user = get_jwt_identity()
@@ -69,8 +69,8 @@ def update_entity(pk):
 
 @bp.route('/entities', methods=['GET'])
 @jwt_required()
-# @token_required
-# @set_session
+@token_required
+@set_session
 def list_all_entities():
     """Listar todas as entidades"""
     current_user = get_jwt_identity()

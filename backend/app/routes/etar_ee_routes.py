@@ -21,6 +21,8 @@ from ..services.etar_ee_service import (
     list_ramal_expenses,
     get_etar_details_by_pk,
     get_ee_details_by_pk,
+    list_manut_expenses,
+    create_manut_expense,
     )
 from ..utils.utils import set_session, token_required
 
@@ -175,9 +177,10 @@ def add_etar_expense():
     pndate = data.get('pndate')
     pnval = data.get('pnval')
     pntt_etar = data.get('pntt_etar')
+    pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     result, status_code = create_etar_expense(
-        pntt_expensedest, pndate, pnval, pntt_etar, pnmemo, current_user)
+        pntt_expensedest, pndate, pnval, pntt_etar, pnts_associate, pnmemo, current_user)
     return jsonify(result), status_code
 
 
@@ -193,9 +196,10 @@ def add_ee_expense():
     pndate = data.get('pndate')
     pnval = data.get('pnval')
     pntt_ee = data.get('pntt_ee')
+    pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     result, status_code = create_ee_expense(
-        pntt_expensedest, pndate, pnval, pntt_ee, pnmemo, current_user)
+        pntt_expensedest, pndate, pnval, pntt_ee, pnts_associate, pnmemo, current_user)
     return jsonify(result), status_code
 
 
@@ -210,9 +214,10 @@ def add_rede_expense():
     pntt_expensedest = data.get('pntt_expensedest')
     pndate = data.get('pndate')
     pnval = data.get('pnval')
+    pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     result, status_code = create_rede_expense(
-        pntt_expensedest, pndate, pnval, pnmemo, current_user)
+        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user)
     return jsonify(result), status_code
 
 
@@ -227,9 +232,10 @@ def add_ramal_expense():
     pntt_expensedest = data.get('pntt_expensedest')
     pndate = data.get('pndate')
     pnval = data.get('pnval')
+    pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     result, status_code = create_ramal_expense(
-        pntt_expensedest, pndate, pnval, pnmemo, current_user)
+        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user)
     return jsonify(result), status_code
 
 
@@ -274,6 +280,35 @@ def get_ramal_expenses():
     """Listar despesas para os ramais"""
     current_user = get_jwt_identity()
     result, status_code = list_ramal_expenses(current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/manut_expenses', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_manut_expenses():
+    """Listar despesas de manutenção"""
+    current_user = get_jwt_identity()
+    result, status_code = list_manut_expenses(current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/manut_expense', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def created_manut_expense():
+    """Criar uma despesa de manutenção"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pntt_expensedest = data.get('pntt_expensedest')
+    pndate = data.get('pndate')
+    pnval = data.get('pnval')
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    result, status_code = create_manut_expense(
+        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user)
     return jsonify(result), status_code
 
 
