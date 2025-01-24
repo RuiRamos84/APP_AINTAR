@@ -26,6 +26,7 @@ import {
   WaterDrop as WaterIcon,
   Check as CheckIcon,
 } from "@mui/icons-material";
+import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import ResponsiveSidebar from './ResponsiveSidebar';
 import { useAuth } from "../../../contexts/AuthContext";
 import { useSocket } from "../../../contexts/SocketContext";
@@ -142,6 +143,13 @@ const MENU_ITEMS = [
     icon: <AppsIcon />,
     to: "/internal",
     rolesAllowed: ["0", "1"],
+  },
+  {
+    id: "epi",
+    text: "Gestão de EPIs",
+    icon: <SecurityOutlinedIcon />, // Novo import necessário
+    to: "/epi",
+    rolesAllowed: ["0", "1"], // Permissões para admin e gestor
   },
 ];
 

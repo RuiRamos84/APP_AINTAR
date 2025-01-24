@@ -14,6 +14,7 @@ import {
   useTheme,
   TableSortLabel,
   CircularProgress,
+  Tabs, Tab, Badge,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
@@ -32,6 +33,7 @@ import {
   getNotificationsCount,
 } from "../../../services/notificationService";
 import { useSocket } from "../../../contexts/SocketContext";
+import DocumentTabs from '../DocumentTabs/DocumentTabs';
 import "./AssignedToMe.css";
 
 const AssignedToMe = () => {
@@ -53,6 +55,7 @@ const AssignedToMe = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userOrdered, setUserOrdered] = useState(false);
+  const [selectedState, setSelectedState] = useState(4);
   const [notifications, setNotifications] = useState([]);
   const {
     globalNotificationCount,
@@ -217,12 +220,11 @@ const AssignedToMe = () => {
   if (!metaData || !metaData.columns) return null;
 
   const filteredDocuments = documents.filter((document) => {
-    return metaData.columns.some((column) =>
-      document[column.id]
-        ?.toString()
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
+    const matchesSearch = metaData.columns.some((column) =>
+      document[column.id]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
+    const matchesState = document.what === selectedState;
+    return matchesSearch && matchesState;
   });
 
   const sortedDocuments = userOrdered
@@ -310,36 +312,42 @@ const AssignedToMe = () => {
       ));
   };
 
+  const handleStateChange = (newState) => {
+    setSelectedState(newState);
+    setPage(0);
+  };
+
 
   return (
-    <Paper
-      className="paper-self"
-      style={{
-        backgroundColor: theme.palette.background.paper,
-        color: theme.palette.text.primary,
-      }}
-    >
-      <Grid
-        container
-        className="header-container-list"
-        alignItems="center"
-        spacing={2}
-      >
-        <Grid item xs={6}>
+    <Paper className="paper-self" style={{
+      backgroundColor: theme.palette.background.paper,
+      color: theme.palette.text.primary,
+    }}>
+      <Grid container className="header-container-list" alignItems="center" spacing={2}>
+        <Grid item xs={4}>
           <Typography variant="h4">Para tratamento</Typography>
         </Grid>
-        <Grid item xs={4} container justifyContent="flex-end">
-          <SearchBar onSearch={handleSearch} />
+        <Grid item xs={8} container justifyContent="flex-end" spacing={2}>
+          <Grid item xs={2}>
+            <SearchBar onSearch={handleSearch} />
+          </Grid>
+          <Grid item xs={2}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleCreateNewDoc}
+              fullWidth
+            >
+              Adicionar Pedido
+            </Button>
+          </Grid>
         </Grid>
-        <Grid item xs={2} container justifyContent="center">
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleCreateNewDoc}
-          >
-            Adicionar Pedido
-          </Button>
+        <Grid item xs={12}>
+          <DocumentTabs
+            documents={documents}
+            onFilterChange={handleStateChange}
+          />
         </Grid>
       </Grid>
       <TableContainer className="table-container-self">

@@ -216,7 +216,7 @@ const InternalDetails = ({
                         <Select
                             value={selectedEntity?.pk || ""}
                             onChange={handleEntityChange}
-                            label={selectedArea === 1 ? "ETAR" : "EE"}
+                            label={selectedArea === 1 ? "ETAR" : "Estação Elevatória"}
                         >
                             {filteredEntities?.map((entity) => (
                                 <MenuItem key={entity.pk} value={entity.pk}>

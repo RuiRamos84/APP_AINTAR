@@ -84,40 +84,33 @@ const refreshApi = axios.create({
 let isRefreshingToken = false;
 
 export const refreshToken = async (currentTime) => {
-  if (isRefreshingToken) {
-    console.log("Refresh já em andamento, ignorando...");
-    return;
-  }
+  if (isRefreshingToken) return null;
 
   try {
     isRefreshingToken = true;
     const storedUser = JSON.parse(localStorage.getItem("user"));
-    if (!storedUser || !storedUser.refresh_token) {
-      throw new Error("REFRESH_TOKEN_NOT_FOUND");
-    }
+    if (!storedUser?.refresh_token) throw new Error("No refresh token");
 
-    const response = await refreshApi.post(
-      "/auth/refresh",
+    const response = await refreshApi.post("/auth/refresh",
       { current_time: currentTime },
       {
         headers: { Authorization: `Bearer ${storedUser.refresh_token}` },
+        _retry: true // Previne loop infinito
       }
     );
 
-    if (response.status === 200 && response.data) {
+    if (response?.data) {
       const updatedUser = {
         ...storedUser,
         access_token: response.data.access_token,
-        refresh_token: response.data.refresh_token,
+        refresh_token: response.data.refresh_token
       };
-
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      // resetLastActivity(); // Resetar a atividade após o refresh bem-sucedido
-      // resetTimers(); // Resetar os timers após o refresh bem-sucedido
       return updatedUser;
     }
+    return null;
   } catch (error) {
-    console.error("Erro ao renovar token:", error);
+    localStorage.clear();
     throw error;
   } finally {
     isRefreshingToken = false;

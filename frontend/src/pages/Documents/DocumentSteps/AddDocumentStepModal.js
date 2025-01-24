@@ -77,7 +77,7 @@ const AddStepAndAnnexModal = ({
 
   const validateFields = () => {
     let tempErrors = {};
-    if (!stepData.who) tempErrors.who = "Quem é obrigatório.";
+    if (stepData.who === null || stepData.who === undefined) tempErrors.who = "Para quem é obrigatório.";
     if (stepData.what === "") tempErrors.what = "Estado é obrigatório.";
     if (!stepData.memo) tempErrors.memo = "Observações são obrigatórias.";
     setErrors(tempErrors);

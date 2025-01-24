@@ -49,7 +49,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
 
     useEffect(() => {
         const fetchExpenseRecords = async () => {
-            if (!selectedEntity && selectedArea !== 5) return;
+            if (!selectedEntity && selectedArea !== 3 && selectedArea !== 4 && selectedArea !== 5) return;
 
             let type;
             switch (selectedArea) {
@@ -89,73 +89,59 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     };
 
     const handleAddRecord = async () => {
-        if (!selectedEntity && selectedArea !== 3 && selectedArea !== 4 && selectedArea !== 5) {
+        if (!selectedEntity && (selectedArea === 1 || selectedArea === 2)) {
             notifyWarning("Por favor, selecione uma ETAR/EE.");
             return;
-                }
+        }
         try {
-            let type, payload;
+            // Criar payload base
+            let payload = {
+                pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
+                pndate: newRecord.pndate,
+                pnval: parseFloat(newRecord.pnval),
+                pnmemo: newRecord.pnmemo,
+            };
+
+            // Adiciona pnts_associate apenas se estiver preenchido
+            if (newRecord.pnts_associate) {
+                payload.pnts_associate = parseInt(newRecord.pnts_associate, 10);
+            }
+
+            // Adiciona campos específicos para ETAR e EE
+            let type;
             switch (selectedArea) {
                 case 1:
                     type = "etar";
-                    payload = {
-                        pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
-                        pndate: newRecord.pndate,
-                        pnval: parseFloat(newRecord.pnval),
-                        pntt_etar: selectedEntity.pk,
-                        pnmemo: newRecord.pnmemo,
-                        pnts_associate: parseInt(newRecord.pnts_associate, 10),
-                    };
+                    payload.pntt_etar = selectedEntity.pk;
                     break;
                 case 2:
                     type = "ee";
-                    payload = {
-                        pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
-                        pndate: newRecord.pndate,
-                        pnval: parseFloat(newRecord.pnval),
-                        pntt_ee: selectedEntity.pk,
-                        pnmemo: newRecord.pnmemo,
-                        pnts_associate: parseInt(newRecord.pnts_associate, 10),
-                    };
+                    payload.pntt_ee = selectedEntity.pk;
                     break;
                 case 3:
                     type = "rede";
-                    payload = {
-                        pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
-                        pndate: newRecord.pndate,
-                        pnval: parseFloat(newRecord.pnval),
-                        pnmemo: newRecord.pnmemo,
-                        pnts_associate: parseInt(newRecord.pnts_associate, 10),
-                    };
                     break;
                 case 4:
                     type = "ramal";
-                    payload = {
-                        pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
-                        pndate: newRecord.pndate,
-                        pnval: parseFloat(newRecord.pnval),
-                        pnmemo: newRecord.pnmemo,
-                        pnts_associate: parseInt(newRecord.pnts_associate, 10),
-                    };
                     break;
-                case 5: // Nova área de Manutenção
-                    type = "manutencao";  // Mudou de "manut" para "manutencao" para corresponder ao InternalService
-                    payload = {
-                        pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
-                        pndate: newRecord.pndate,
-                        pnval: parseFloat(newRecord.pnval),
-                        pnmemo: newRecord.pnmemo,
-                        pnts_associate: parseInt(newRecord.pnts_associate, 10),
-                    };
+                case 5:
+                    type = "manutencao";
                     break;
                 default:
                     throw new Error("Invalid area");
             }
+
             await addExpenseRecord(type, payload);
             notifySuccess("Registo de despesa adicionado com sucesso");
             const response = await getExpenseRecords(type, selectedEntity?.pk);
             setExpenseData(response.expenses || []);
-            setNewRecord({ pndate: getCurrentDateTime(), pnval: "", pntt_expensedest: "", pnmemo: "", pnts_associate: "" });
+            setNewRecord({
+                pndate: getCurrentDateTime(),
+                pnval: "",
+                pntt_expensedest: "",
+                pnmemo: "",
+                pnts_associate: ""
+            });
         } catch (error) {
             console.error("Erro ao adicionar registro de despesas:", error);
             notifyError("Erro ao adicionar registro de despesas");
@@ -176,7 +162,11 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     return (
         <Box sx={{ backgroundColor: theme.palette.background.paper }}>
             <Typography variant="h6" gutterBottom>
-                Novo Registo de Despesas
+                {selectedArea === 5 ? "Registo de Material de Manutenção" :
+                    selectedArea === 3 ? "Registo de Despesas na Rede" :
+                        selectedArea === 4 ? "Registo de Despesas nos Ramais" :
+                            selectedArea === 2 ? "Registo de Despesas na EE" :
+                                "Registo de Despesas na ETAR"}
             </Typography>
             <Grid container spacing={2} mb={3}>
                 <Grid item xs={12} sm={6} md={2.2}>
@@ -289,7 +279,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         variant="contained"
                         color="primary"
                         onClick={handleAddRecord}
-                        disabled={!newRecord.pndate || !newRecord.pnval || !newRecord.pntt_expensedest || !newRecord.pnmemo || !newRecord.pnts_associate}
+                        disabled={!newRecord.pndate || !newRecord.pnval || !newRecord.pntt_expensedest || !newRecord.pnmemo}
                     >
                         Adicionar
                     </Button>
@@ -302,28 +292,29 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
             {loading ? (
                 <CircularProgress />
             ) : (
-                <TableContainer>
-                    <Table>
-                        <TableHead>
-                            <TableRow sx={{
-                                backgroundColor: theme.palette.table.header.backgroundColor,
-                            }}>
-                                <TableCell sx={{ color: theme.palette.table.header.color }}>Data</TableCell>
-                                <TableCell sx={{ color: theme.palette.table.header.color }}>Destino</TableCell>
-                                <TableCell sx={{ color: theme.palette.table.header.color }}>Valor (€)</TableCell>
-                                <TableCell sx={{ color: theme.palette.table.header.color }}>Descrição</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {expenseData.map((record, index) => (
-                                <TableRow
-                                    key={index}
-                                    sx={{
-                                        '&:hover': {
-                                            backgroundColor: theme.palette.table.rowHover.backgroundColor
-                                        }
-                                    }}
-                                >
+                    <TableContainer>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow sx={{
+                                    backgroundColor: theme.palette.table.header.backgroundColor,
+                                }}>
+                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Data</TableCell>
+                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Destino</TableCell>
+                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Valor (€)</TableCell>
+                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Descrição</TableCell>
+                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Associado</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {expenseData.map((record, index) => (
+                                    <TableRow
+                                        key={index}
+                                        sx={{
+                                            '&:hover': {
+                                                backgroundColor: theme.palette.table.rowHover.backgroundColor
+                                            }
+                                        }}
+                                    >
                                     <TableCell>{formatDate(record.data)}</TableCell>
                                     <TableCell>{record.tt_expensedest || "N/A"}</TableCell>
                                     <TableCell>
@@ -333,6 +324,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                                         })}
                                     </TableCell>
                                     <TableCell>{record.memo || ""}</TableCell>
+                                    <TableCell>{record.ts_associate || " - "}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

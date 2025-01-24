@@ -29,6 +29,7 @@ import CreateDocument from "./pages/Documents/DocumentCreate/CreateDocument";
 import CreateDocumentModal from "./pages/Documents/DocumentCreate/CreateDocumentModal";
 import AssignedToMe from "./pages/Documents/DocumentSelf/AssignedToMe";
 import CreatedByMe from "./pages/Documents/DocumentOner/CreatedByMe";
+import EpiArea from "./pages/EPIs/EpiArea";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { MetaDataProvider } from "./contexts/MetaDataContext";
@@ -274,7 +275,15 @@ const AppContent = () => {
                   <PrivateRoute>
                     <InternalArea />
                   </PrivateRoute>
-                }/>
+                } />
+              <Route
+                path="/epi"
+                element={
+                  <PrivateRoute>
+                    <EpiArea />
+                  </PrivateRoute>
+                }
+              />
             </Routes>
           </div>
         </div>

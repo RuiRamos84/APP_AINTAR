@@ -133,31 +133,35 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        // Verifica validade do token antes de fazer refresh
-        if (checkTokenValidity(userData.access_token)) {
-          setUser(userData);
-          sessionService.initialize(
-            () => refreshToken(),
-            () => logoutUser(true)
-          );
-        } else {
-          const newTokens = await refreshTokenService(Date.now());
-          if (newTokens) {
-            setUser({ ...userData, ...newTokens });
-            localStorage.setItem("user", JSON.stringify({ ...userData, ...newTokens }));
-            sessionService.initialize(
-              () => refreshToken(),
-              () => logoutUser(true)
-            );
-          } else {
-            await logoutUser(true);
-          }
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (!storedUser) {
+          setIsLoading(false);
+          return;
         }
+
+        const userData = JSON.parse(storedUser);
+        if (!checkTokenValidity(userData.access_token)) {
+          const newTokens = await refreshToken(Date.now());
+          if (!newTokens) {
+            await logoutUser(true);
+            return;
+          }
+          userData.access_token = newTokens.access_token;
+          userData.refresh_token = newTokens.refresh_token;
+        }
+
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        sessionService.initialize(
+          () => refreshToken(),
+          () => logoutUser(true)
+        );
+      } catch (error) {
+        await logoutUser(true);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();

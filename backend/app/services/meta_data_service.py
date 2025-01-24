@@ -29,34 +29,34 @@ def fetch_meta_data(current_user):
         'param': "SELECT * FROM vbl_param",
         'presentation': "SELECT * FROM vbl_presentation",
         'spot': "SELECT * FROM vbl_readspot",
-        'expense': "select * from vbl_expensedest"
+        'expense': "select * from vbl_expensedest",
+        'epi_shoe_types': "SELECT * FROM vbl_epishoetype ORDER BY pk",
+        'epi_what_types': "SELECT * FROM vbl_epiwhat ORDER BY pk",
+        'epi_list': "SELECT * FROM vbl_epi ORDER BY name",
+        'epi_deliveries': "SELECT * FROM vbl_epi_deliver ORDER BY data DESC LIMIT 1000"
     }
     response_data = {}
     try:
         with db_session_manager(current_user) as session:
             for key, query in queries.items():
-                # current_app.logger.debug(f"Executing query for {key}: {query}")
                 result = session.execute(text(query))
-                # current_app.logger.debug(f"Query for {key} returned results")
                 columns = result.keys()
                 response_data[key] = [
                     {column: value for column, value in zip(columns, row)}
                     for row in result
                 ]
-                # current_app.logger.debug(f"Processed {len(response_data[key])} rows for {key}")
-        # print(response_data)
         metadata_cache = {
             'data': response_data,
             'timestamp': current_time
         }
-
-        # current_app.logger.info("Metadata fetched and cached successfully")
         return response_data, 200
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Database error while fetching metadata: {str(e)}")
+        current_app.logger.error(
+            f"Database error while fetching metadata: {str(e)}")
         return {'error': "Database error while fetching metadata"}, 500
     except Exception as e:
-        current_app.logger.error(f"Unexpected error while fetching metadata: {str(e)}")
+        current_app.logger.error(
+            f"Unexpected error while fetching metadata: {str(e)}")
         return {'error': "Unexpected error while fetching metadata"}, 500
 
 
