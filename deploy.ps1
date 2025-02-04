@@ -14,7 +14,7 @@ $compartilhamento = "\\$serverIP\$compartilhamentoNome"
 $caminhoLocalFrontend = "C:\Users\rui.ramos\Desktop\APP\frontend\build"
 $caminhoLocalBackend = "C:\Users\rui.ramos\Desktop\APP\backend"
 $caminhoRemotoApp = "ServerDrive:NewAPP"
-$caminhoRemotoFrontend = "$caminhoRemotoApp\frontend"
+$caminhoRemotoFrontend = "$caminhoRemotoApp\nginx\html\react-app\build"  # Novo caminho do frontend
 $caminhoRemotoBackend = "$caminhoRemotoApp\backend"
 
 # Montar o compartilhamento de rede com as credenciais
@@ -52,36 +52,87 @@ try {
 
     Write-Host "A exportação do backend foi concluída com sucesso!"
 
-    # Verificar se o web.config já existe
-    $webConfigPath = "$caminhoRemotoFrontend\web.config"
-    if (!(Test-Path $webConfigPath)) {
-        # Criar e configurar o web.config para o frontend apenas se não existir
-        $webConfigContent = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-  <system.webServer>
-    <rewrite>
-      <rules>
-        <rule name="React Routes" stopProcessing="true">
-          <match url=".*" />
-          <conditions logicalGrouping="MatchAll">
-            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-            <add input="{REQUEST_URI}" pattern="^/(api)" negate="true" />
-          </conditions>
-          <action type="Rewrite" url="/" />
-        </rule>
-      </rules>
-    </rewrite>
-  </system.webServer>
-</configuration>
+    # Verificar se o nginx.conf já existe
+    $nginxConfigPath = "$caminhoRemotoApp\nginx\conf\nginx.conf"
+    if (!(Test-Path $nginxConfigPath)) {
+        # Criar e configurar o nginx.conf para o NGINX
+        $nginxConfigContent = @"
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    server {
+        listen 80;
+        server_name app.aintar.pt;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name app.aintar.pt;
+
+        ssl_certificate D:/APP/NewAPP/nginx/ssl/app.aintar.pt.crt;
+        ssl_certificate_key D:/APP/NewAPP/nginx/ssl/app.aintar.pt.key;
+
+        root D:/APP/NewAPP/nginx/html/react-app/build;
+        index index.html;
+
+        location / {
+            try_files $uri /index.html;
+        }
+
+        location /api/v1/ {
+            proxy_pass http://127.0.0.1:5000/api/v1/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api/v1/files/ {
+            proxy_pass http://127.0.0.1:5000/api/v1/files/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /socket.io/ {
+            proxy_pass http://127.0.0.1:5000/socket.io/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
 "@
 
-        $webConfigContent | Out-File -FilePath $webConfigPath -Encoding UTF8
-        Write-Host "O arquivo web.config foi criado com sucesso!"
+        $nginxConfigContent | Out-File -FilePath $nginxConfigPath -Encoding UTF8
+        Write-Host "O arquivo nginx.conf foi criado com sucesso!"
     } else {
-        Write-Host "O arquivo web.config já existe. Nenhuma alteração foi feita."
+        Write-Host "O arquivo nginx.conf já existe. Nenhuma alteração foi feita."
     }
+
+    # Recarregar o NGINX após o deploy
+    # Write-Host "Recarregando o NGINX..."
+    # Invoke-Command -ComputerName $serverIP -Credential $credencial -ScriptBlock {
+    #     nginx -s reload
+    # }
+
+    # Write-Host "O NGINX foi recarregado com sucesso!"
 
 } catch {
     Write-Host "Erro durante a exportação: $($_.Exception.Message)"

@@ -21,6 +21,7 @@ import {
   Send as SendIcon,
   Attachment as AttachmentIcon,
   Mail as MailIcon,
+  FileCopy as FileCopyIcon,
 } from "@mui/icons-material";
 import {
   getDocumentStep,
@@ -43,6 +44,7 @@ import AddDocumentAnnexModal from "../DocumentSteps/AddDocumentAnnexModal";
 import LetterEmissionModal from "../../Letters/LetterEmissionModal";
 import EditParametersModal from "./EditParametersModal";
 import { useMetaData } from "../../../contexts/MetaDataContext";
+import ReplicateDocumentModal from '../DocumentSelf/ReplicateDocumentModal';
 import "./Row.css";
 
 function Row({
@@ -80,6 +82,7 @@ function Row({
   const [editableParams, setEditableParams] = useState([]);
   const [wasSaved, setWasSaved] = useState(false);
   const [etars, setEtars] = useState([]);
+  const [openReplicateModal, setOpenReplicateModal] = useState(false);
   const isBooleanParam = (name) =>
     name === "Gratuito" ||
     name === "Existência de sanemanto até 20 m" ||
@@ -133,6 +136,13 @@ function Row({
       setHasParams(false);
     } finally {
       setParamsLoading(false);
+    }
+  };
+
+  const handleReplicateSuccess = async (message) => {
+    notifySuccess(message);
+    if (onSave) {
+      await onSave();
     }
   };
 
@@ -482,38 +492,74 @@ function Row({
             {row[column.id]}
           </TableCell>
         ))}
-        <TableCell className="no-spacing-rows">
-          <Tooltip title="Detalhes" placement="top">
-            <IconButton onClick={handleOpenModal}>
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-          {isAssignedToMe && (
-            <>
-              <Tooltip title="Enviar" placement="top">
-                <IconButton
-                  onClick={() => handleOpenStepModal()}
-                  color="primary"
-                >
-                  <SendIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Anexos" placement="top">
-                <IconButton onClick={handleOpenAnnexModal} color="secondary">
-                  <AttachmentIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Ofício" placement="top">
-                <IconButton
-                  onClick={() => setOpenLetterModal(true)}
-                  size="small"
-                >
-                  <MailIcon />
-                </IconButton>
-              </Tooltip>
-
-            </>
-          )}
+        <TableCell
+          className="no-spacing-rows"
+          align="center"
+          style={{
+            minWidth: '200px',  // Garante espaço suficiente para todos os ícones
+            width: '200px'      // Mantém a largura consistente
+          }}
+        >
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            gap={1}
+            role="group"
+            aria-label="Ações do documento"
+          >
+            <Tooltip title="Detalhes" placement="top">
+              <IconButton
+                onClick={handleOpenModal}
+                size="small"
+                aria-label="Ver detalhes do documento"
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+            {isAssignedToMe && (
+              <>
+                <Tooltip title="Enviar" placement="top">
+                  <IconButton
+                    onClick={() => handleOpenStepModal()}
+                    color="primary"
+                    size="small"
+                    aria-label="Enviar documento"
+                  >
+                    <SendIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Anexos" placement="top">
+                  <IconButton
+                    onClick={handleOpenAnnexModal}
+                    color="secondary"
+                    size="small"
+                    aria-label="Gerenciar anexos"
+                  >
+                    <AttachmentIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Ofício" placement="top">
+                  <IconButton
+                    onClick={() => setOpenLetterModal(true)}
+                    size="small"
+                    aria-label="Criar ofício"
+                  >
+                    <MailIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Replicar" placement="top">
+                  <IconButton
+                    onClick={() => setOpenReplicateModal(true)}
+                    size="small"
+                    aria-label="Replicar documento"
+                  >
+                    <FileCopyIcon />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </Box>
         </TableCell>
       </TableRow>
       <TableRow className="collapse-cell-rows">
@@ -762,6 +808,12 @@ function Row({
         isBooleanParam={isBooleanParam}
         metaData={metaData}
         tsAssociate={row.ts_associate}
+      />
+      <ReplicateDocumentModal
+        open={openReplicateModal}
+        onClose={() => setOpenReplicateModal(false)}
+        document={row}
+        onSuccess={handleReplicateSuccess}
       />
     </>
   );

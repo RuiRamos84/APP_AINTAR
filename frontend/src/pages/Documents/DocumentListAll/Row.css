@@ -11,3 +11,19 @@
     padding-top: 0 !important;
 }
 
+.actions-cell {
+    padding-right: 8px !important;
+    /* Reduz o padding à direita */
+    min-width: 200px;
+    /* Garante espaço suficiente para todos os botões */
+}
+
+/* Ajusta o tamanho dos ícones para serem consistentes */
+.actions-cell .MuiIconButton-root {
+    padding: 6px;
+}
+
+/* Hover effect suave */
+.actions-cell .MuiIconButton-root:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}

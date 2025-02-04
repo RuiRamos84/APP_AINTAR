@@ -1,3 +1,4 @@
+├── .env
 ├── .env.development
 ├── .env.production
 ├── app
@@ -10,6 +11,7 @@
 │   │   ├── dashboard_routes.py
 │   │   ├── documents_routes.py
 │   │   ├── entity_routes.py
+│   │   ├── epi_routes.py
 │   │   ├── etar_ee_routes.py
 │   │   ├── letter_routes.py
 │   │   ├── meta_data_routes.py
@@ -21,6 +23,7 @@
 │   │   ├── dashboard_service.py
 │   │   ├── documents_service.py
 │   │   ├── entity_service.py
+│   │   ├── epi_service.py
 │   │   ├── etar_ee_service.py
 │   │   ├── file_service.py
 │   │   ├── letter_service.py
@@ -33,6 +36,7 @@
 │   │   ├── socketio_events.py
 │   │   ├── socket_events.py
 │   │   ├── __init__.py
+│   ├── uploads
 │   ├── utils
 │   │   ├── FORMULARIO_AINTAR_V04.pdf
 │   │   ├── FORMULARIO_AINTAR_V05.docx
@@ -107,5 +111,6 @@
 │   ├── oficio_2024.S.OFI.000056.pdf
 │   ├── oficio_2024.S.OFI.000057.pdf
 │   └── oficio_2024.S.OFI.000058.pdf
+├── tests
 ├── test_redis.py
 ├── waitress.log

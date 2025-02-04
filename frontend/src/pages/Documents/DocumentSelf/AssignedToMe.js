@@ -372,7 +372,15 @@ const AssignedToMe = () => {
                   </TableSortLabel>
                 </TableCell>
               ))}
-              <TableCell align="center">Ações</TableCell>
+              <TableCell
+                align="center"
+                style={{
+                  minWidth: '200px',
+                  width: '200px'
+                }}
+              >
+                Ações
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>{renderTableContent()}</TableBody>

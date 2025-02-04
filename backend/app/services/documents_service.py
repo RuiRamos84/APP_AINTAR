@@ -884,3 +884,35 @@ def get_document_ramais_concluded(current_user):
     except Exception as e:
         current_app.logger.error(f"Erro ao obter ramais concluídos: {str(e)}")
         return {'error': format_message(str(e))}, 500
+
+
+def replicate_document_service(pk, new_type, current_user):
+    """
+    Serviço simplificado para replicar um documento com novo tipo.
+    
+    Args:
+        pk (int): PK do documento original
+        new_type (int): Novo tipo de documento
+        current_user: Usuário atual
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            # Executa a função de replicação
+            replicate_query = text("""
+            SELECT fbo_document_replicate(:popk, :pntype) AS result
+            """)
+
+            result = session.execute(replicate_query, {
+                'popk': pk,
+                'pntype': new_type
+            }).scalar()
+
+            if not result:
+                return {'error': 'Falha ao replicar documento'}, 500
+
+            # Retorna o resultado formatado
+            return {'message': format_message(result)}, 201
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao replicar documento: {str(e)}")
+        return {'error': format_message(str(e))}, 500

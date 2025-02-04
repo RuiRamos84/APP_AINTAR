@@ -279,7 +279,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         variant="contained"
                         color="primary"
                         onClick={handleAddRecord}
-                        disabled={!newRecord.pndate || !newRecord.pnval || !newRecord.pntt_expensedest || !newRecord.pnmemo}
+                        disabled={typeof newRecord.pntt_expensedest !== 'number' || !newRecord.pndate || !newRecord.pnval || !newRecord.pnmemo}
                     >
                         Adicionar
                     </Button>
@@ -292,29 +292,29 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
             {loading ? (
                 <CircularProgress />
             ) : (
-                    <TableContainer>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow sx={{
-                                    backgroundColor: theme.palette.table.header.backgroundColor,
-                                }}>
-                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Data</TableCell>
-                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Destino</TableCell>
-                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Valor (€)</TableCell>
-                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Descrição</TableCell>
-                                    <TableCell sx={{ color: theme.palette.table.header.color }}>Associado</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {expenseData.map((record, index) => (
-                                    <TableRow
-                                        key={index}
-                                        sx={{
-                                            '&:hover': {
-                                                backgroundColor: theme.palette.table.rowHover.backgroundColor
-                                            }
-                                        }}
-                                    >
+                <TableContainer>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow sx={{
+                                backgroundColor: theme.palette.table.header.backgroundColor,
+                            }}>
+                                <TableCell sx={{ color: theme.palette.table.header.color }}>Data</TableCell>
+                                <TableCell sx={{ color: theme.palette.table.header.color }}>Destino</TableCell>
+                                <TableCell sx={{ color: theme.palette.table.header.color }}>Valor (€)</TableCell>
+                                <TableCell sx={{ color: theme.palette.table.header.color }}>Descrição</TableCell>
+                                <TableCell sx={{ color: theme.palette.table.header.color }}>Associado</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {expenseData.map((record, index) => (
+                                <TableRow
+                                    key={index}
+                                    sx={{
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.table.rowHover.backgroundColor
+                                        }
+                                    }}
+                                >
                                     <TableCell>{formatDate(record.data)}</TableCell>
                                     <TableCell>{record.tt_expensedest || "N/A"}</TableCell>
                                     <TableCell>

@@ -77,9 +77,15 @@ const AddStepAndAnnexModal = ({
 
   const validateFields = () => {
     let tempErrors = {};
-    if (stepData.who === null || stepData.who === undefined) tempErrors.who = "Para quem é obrigatório.";
+
+    // Verifica se who é um número válido
+    if (stepData.who === null || stepData.who === undefined || stepData.who === '') {
+      tempErrors.who = "Para quem é obrigatório.";
+    }
+
     if (stepData.what === "") tempErrors.what = "Estado é obrigatório.";
     if (!stepData.memo) tempErrors.memo = "Observações são obrigatórias.";
+
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };

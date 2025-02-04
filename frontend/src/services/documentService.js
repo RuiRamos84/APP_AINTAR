@@ -197,3 +197,19 @@ export const getDocumentRamaisConcluded = async () => {
     throw error;
   }
 };
+
+export const replicateDocument = async (documentId, newType) => {
+  try {
+    const response = await api.post(`/document/replicate/${documentId}`, {
+      new_type: newType
+    });
+
+    if (response.data.error) {
+      throw new Error(response.data.error);
+    }
+
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Erro ao replicar documento');
+  }
+};

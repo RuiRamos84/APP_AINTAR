@@ -26,12 +26,18 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
     });
 
     const handleInputChange = (field, value) => {
+        console.log(`Campo ${field} alterado para:`, value);
+        console.log('Tipo do valor:', typeof value);
         setNewRecord((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleAddRecord = async () => {
         try {
             const type = selectedArea === 3 ? "rede" : "ramal" : "manutencao";
+
+            console.log("Estado atual do newRecord:", newRecord);
+            console.log("Valor de pntt_expensedest:", newRecord.pntt_expensedest);
+            console.log("Tipo de pntt_expensedest:", typeof newRecord.pntt_expensedest);
 
             const payload = {
                 pntt_expensedest: parseInt(newRecord.pntt_expensedest, 10),
@@ -40,6 +46,8 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                 pnmemo: newRecord.pnmemo,
                 pnts_associate: newRecord.pnts_associate,
             };
+
+            console.log("Payload final:", payload);
 
             // console.log("Adicionando despesa:", payload);
             await addExpenseRecord(type, payload);
@@ -72,7 +80,10 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                         <InputLabel>Destino da Despesa</InputLabel>
                         <Select
                             value={newRecord.pntt_expensedest}
-                            onChange={(e) => handleInputChange("pntt_expensedest", e.target.value)}
+                            onChange={(e) => {
+                                console.log("Valor selecionado no Select:", e.target.value);
+                                handleInputChange("pntt_expensedest", e.target.value);
+                            }}
                         >
                             {metaData?.expense?.map((dest) => (
                                 <MenuItem key={dest.pk} value={dest.pk}>
@@ -114,7 +125,9 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                         color="primary"
                         onClick={handleAddRecord}
                         disabled={
-                            !newRecord.pntt_expensedest || !newRecord.pndate || !newRecord.pnval
+                            typeof newRecord.pntt_expensedest !== 'number' ||
+                            !newRecord.pndate ||
+                            !newRecord.pnval
                         }
                     >
                         Adicionar

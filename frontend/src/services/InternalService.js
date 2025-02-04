@@ -7,7 +7,7 @@ export const getVolumeRecords = async (areaId, pk) => {
             throw new Error("Área ou PK inválida.");
         }
         const url = areaId === 1 ? `/etar_volumes/${pk}` : `/ee_volumes/${pk}`;
-        console.log(`Fetching volume records from: ${url}`);
+        // console.log(`Fetching volume records from: ${url}`);
         const response = await api.get(url);
         // console.log(response.data)
         return response.data;
@@ -23,7 +23,7 @@ export const addVolumeRecord = async (areaId, data) => {
             throw new Error("Dados ou área inválidos.");
         }
         const url = areaId === 1 ? `/etar_volume` : `/ee_volume`;
-        console.log(`Adding volume record to: ${url} with data:`, data);
+        // console.log(`Adding volume record to: ${url} with data:`, data);
         const response = await api.post(url, data);
         return response.data;
     } catch (error) {

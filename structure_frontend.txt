@@ -1,6 +1,37 @@
 ├── .env.development
 ├── .env.production
 ├── .gitignore
+├── build
+│   ├── asset-manifest.json
+│   ├── env-config.json
+│   ├── favicon.ico
+│   ├── IMAGEM_RIO.jpg
+│   ├── index.html
+│   ├── LOGO AINTAR_CORES.png
+│   ├── logo192.png
+│   ├── logo512.png
+│   ├── LOGO_VERTICAL_CORES.png
+│   ├── manifest.json
+│   ├── robots.txt
+│   └── static
+│       ├── css
+│       │   ├── main.eff77ecb.css
+│       │   └── main.eff77ecb.css.map
+│       └── js
+│           ├── 213.6e4b8197.chunk.js
+│           ├── 213.6e4b8197.chunk.js.LICENSE.txt
+│           ├── 213.6e4b8197.chunk.js.map
+│           ├── 238.249a6cf8.chunk.js
+│           ├── 238.249a6cf8.chunk.js.LICENSE.txt
+│           ├── 238.249a6cf8.chunk.js.map
+│           ├── 239.dfdb0d71.chunk.js
+│           ├── 239.dfdb0d71.chunk.js.LICENSE.txt
+│           ├── 239.dfdb0d71.chunk.js.map
+│           ├── 455.feb3ac84.chunk.js
+│           ├── 455.feb3ac84.chunk.js.map
+│           ├── main.0c1af73b.js
+│           ├── main.0c1af73b.js.LICENSE.txt
+│           └── main.0c1af73b.js.map
 ├── loadEnv.js
 ├── package-lock.json
 ├── package.json
@@ -37,6 +68,7 @@
 │   │   │   │   ├── SearchBar.css
 │   │   │   │   └── SearchBar.js
 │   │   │   ├── Sidebar
+│   │   │   │   ├── ResponsiveSidebar.js
 │   │   │   │   ├── Sidebar.css
 │   │   │   │   └── Sidebar.js
 │   │   │   └── Toaster
@@ -61,6 +93,7 @@
 │   │   ├── NotificationContext.js
 │   │   └── SocketContext.js
 │   ├── hooks
+│   │   ├── useDeliveries.js
 │   │   └── useSocket.js
 │   ├── index.css
 │   ├── index.js
@@ -102,11 +135,21 @@
 │   │   │   │   └── CreatedByMe.js
 │   │   │   ├── DocumentSelf
 │   │   │   │   ├── AssignedToMe.css
-│   │   │   │   └── AssignedToMe.js
-│   │   │   └── DocumentSteps
-│   │   │       ├── AddDocumentAnnexModal.css
-│   │   │       ├── AddDocumentAnnexModal.js
-│   │   │       └── AddDocumentStepModal.js
+│   │   │   │   ├── AssignedToMe.js
+│   │   │   │   └── ReplicateDocumentModal.js
+│   │   │   ├── DocumentSteps
+│   │   │   │   ├── AddDocumentAnnexModal.css
+│   │   │   │   ├── AddDocumentAnnexModal.js
+│   │   │   │   └── AddDocumentStepModal.js
+│   │   │   ├── DocumentTabs
+│   │   │   │   └── DocumentTabs.js
+│   │   │   └── RamaisList
+│   │   │       ├── RamaisConcludedList.js
+│   │   │       ├── RamalConcludedRow.js
+│   │   │       ├── RamalGenericList.js
+│   │   │       ├── RamalGenericRow.js
+│   │   │       ├── RamalList.js
+│   │   │       └── RamalRow.js
 │   │   ├── Entity
 │   │   │   ├── CreateEntity
 │   │   │   │   ├── CreateEntity.css
@@ -122,6 +165,17 @@
 │   │   │       ├── EntityForm.js
 │   │   │       ├── EntityFormModal.js
 │   │   │       └── EntityModal.js
+│   │   ├── EPIs
+│   │   │   ├── AdvancedFilters.js
+│   │   │   ├── BulkDeliveryForm .js
+│   │   │   ├── dataUtils.js
+│   │   │   ├── DeliveriesTable .js
+│   │   │   ├── EpiArea.js
+│   │   │   ├── EpiSection.js
+│   │   │   ├── EpiSummarySection.js
+│   │   │   ├── exportUtils.js
+│   │   │   ├── PreferencesSection.js
+│   │   │   └── UniformSection.js
 │   │   ├── Home
 │   │   │   ├── Home.css
 │   │   │   └── Home.js
@@ -171,10 +225,13 @@
 │   │   ├── dashboardService.js
 │   │   ├── documentService.js
 │   │   ├── entityService.js
+│   │   ├── episervice.js
 │   │   ├── InternalService.js
 │   │   ├── letter_service.js
 │   │   ├── notificationService.js
 │   │   ├── postalCodeService.js
+│   │   ├── SessionManager.js
+│   │   ├── SessionService.js
 │   │   ├── socketService.js
 │   │   └── userService.js
 │   ├── setupTests.js

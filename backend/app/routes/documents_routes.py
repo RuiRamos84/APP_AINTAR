@@ -25,6 +25,7 @@ from ..services.documents_service import (
     get_document_ramais,
     update_document_pavenext,
     get_document_ramais_concluded,
+    replicate_document_service,
 )
 import jwt
 from .. import limiter
@@ -326,6 +327,57 @@ def get_document_ramais_concluded_route():
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return get_document_ramais_concluded(current_user)
+
+
+@bp.route('/document/replicate/<int:pk>', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def replicate_document(pk):
+    """
+    Replicar um documento existente com novo tipo.
+    A replicação copia todos os dados do documento original e seus anexos.
+    
+    Args:
+        pk (int): PK do documento original
+    
+    Request Body:
+        {
+            "new_type": integer (ID do novo tipo de documento)
+        }
+    
+    Returns:
+        JSON com resultado da operação incluindo detalhes do documento original e novo
+    """
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+
+        if not data or 'new_type' not in data:
+            return jsonify({
+                'error': 'Novo tipo de documento não especificado',
+                'details': 'O campo new_type é obrigatório no corpo da requisição'
+            }), 400
+
+        new_type = data.get('new_type')
+
+        # Valida se new_type é um número
+        if not isinstance(new_type, int):
+            try:
+                new_type = int(new_type)
+            except (TypeError, ValueError):
+                return jsonify({
+                    'error': 'Tipo de documento inválido',
+                    'details': 'O new_type deve ser um número inteiro'
+                }), 400
+
+        with db_session_manager(current_user):
+            result = replicate_document_service(pk, new_type, current_user)
+            return jsonify(result[0]), result[1]
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao replicar documento: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 @bp.after_request
