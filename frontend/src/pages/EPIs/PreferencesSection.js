@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect  } from "react";
 import {
     Box, FormControl, InputLabel, Select, MenuItem, Typography,
     Grid, Paper, TextField, Button, useTheme
 } from "@mui/material";
 import { updateEpiPreferences } from "../../services/episervice";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
+import { useEpi } from "../../contexts/EpiContext";
 
-const PreferencesSection = ({ metaData }) => {
+const PreferencesSection = () => {  // Remova o { metaData } dos props
     const theme = useTheme();
     const [selectedEmployee, setSelectedEmployee] = useState("");
+    const { epiData, loading, error, fetchEpiData, updateEpiList } = useEpi();
+    
     const [preferences, setPreferences] = useState({
         tt_epishoetype: "",
         shoenumber: "",
@@ -26,37 +29,46 @@ const PreferencesSection = ({ metaData }) => {
         mask: "",
         memo: ""
     });
+    
+    // Carrega os dados quando o componente monta
+    useEffect(() => {
+        fetchEpiData();
+    }, [fetchEpiData]);
 
+    useEffect(() => {
+        if (selectedEmployee) {
+            const employee = epiData?.epi_list?.find(emp => emp.pk === selectedEmployee);
+            if (employee) {
+                const shoeType = epiData?.epi_shoe_types?.find(
+                    type => type.value.toLowerCase() === employee.tt_epishoetype?.toLowerCase()
+                );
+
+                setPreferences({
+                    tt_epishoetype: shoeType?.pk || "",
+                    shoenumber: employee.shoenumber || "",
+                    tshirt: employee.tshirt || "",
+                    sweatshirt: employee.sweatshirt || "",
+                    jacket: employee.jacket || "",
+                    pants: employee.pants || "",
+                    apron: employee.apron || "",
+                    gown: employee.gown || "",
+                    welderboot: employee.welderboot || "",
+                    waterproof: employee.waterproof || "",
+                    reflectivevest: employee.reflectivevest || "",
+                    galoshes: employee.galoshes || "",
+                    gloves: employee.gloves || "",
+                    mask: employee.mask || "",
+                    memo: employee.memo || ""
+                });
+            }
+        }
+    }, [selectedEmployee, epiData]);
+
+    // Atualiza os dados de EPIs quando o funcionário selecionado muda
     const handleEmployeeChange = (employeeId) => {
         setSelectedEmployee(employeeId);
         if (!employeeId) {
             handleReset();
-            return;
-        }
-
-        const employee = metaData?.epi_list?.find(emp => emp.pk === employeeId);
-        if (employee) {
-            const shoeType = metaData?.epi_shoe_types?.find(
-                type => type.value.toLowerCase() === employee.tt_epishoetype?.toLowerCase()
-            );
-
-            setPreferences({
-                tt_epishoetype: shoeType?.pk || "",
-                shoenumber: employee.shoenumber || "",
-                tshirt: employee.tshirt || "",
-                sweatshirt: employee.sweatshirt || "",
-                jacket: employee.jacket || "",
-                pants: employee.pants || "",
-                apron: employee.apron || "",
-                gown: employee.gown || "",
-                welderboot: employee.welderboot || "",
-                waterproof: employee.waterproof || "",
-                reflectivevest: employee.reflectivevest || "",
-                galoshes: employee.galoshes || "",
-                gloves: employee.gloves || "",
-                mask: employee.mask || "",
-                memo: employee.memo || ""
-            });
         }
     };
 
@@ -91,11 +103,34 @@ const PreferencesSection = ({ metaData }) => {
     const handleSave = async () => {
         try {
             const response = await updateEpiPreferences(selectedEmployee, preferences);
-            if (response.status === 200) {
-                notifySuccess("Preferências atualizadas com sucesso");
-                const updatedEmployee = metaData?.epi_list?.find(emp => emp.pk === selectedEmployee);
+
+            if (response?.message === 'Preferências atualizadas com sucesso') {
+                notifySuccess(response.message);
+                await fetchEpiData(); // Aguarda a atualização dos dados
+
+                const updatedEmployee = epiData?.epi_list?.find(emp => emp.pk === selectedEmployee);
                 if (updatedEmployee) {
-                    handleEmployeeChange(selectedEmployee);
+                    const shoeType = epiData?.epi_shoe_types?.find(
+                        type => type.value.toLowerCase() === updatedEmployee.tt_epishoetype?.toLowerCase()
+                    );
+
+                    setPreferences({
+                        tt_epishoetype: shoeType?.pk || "",
+                        shoenumber: updatedEmployee.shoenumber || "",
+                        tshirt: updatedEmployee.tshirt || "",
+                        sweatshirt: updatedEmployee.sweatshirt || "",
+                        jacket: updatedEmployee.jacket || "",
+                        pants: updatedEmployee.pants || "",
+                        apron: updatedEmployee.apron || "",
+                        gown: updatedEmployee.gown || "",
+                        welderboot: updatedEmployee.welderboot || "",
+                        waterproof: updatedEmployee.waterproof || "",
+                        reflectivevest: updatedEmployee.reflectivevest || "",
+                        galoshes: updatedEmployee.galoshes || "",
+                        gloves: updatedEmployee.gloves || "",
+                        mask: updatedEmployee.mask || "",
+                        memo: updatedEmployee.memo || ""
+                    });
                 }
             }
         } catch (error) {
@@ -119,7 +154,7 @@ const PreferencesSection = ({ metaData }) => {
                             <MenuItem value="">
                                 <em>Selecione um funcionário</em>
                             </MenuItem>
-                            {metaData?.epi_list?.map((emp) => (
+                            {epiData?.epi_list?.map((emp) => (
                                 <MenuItem key={emp.pk} value={emp.pk}>
                                     {emp.name}
                                 </MenuItem>
@@ -148,7 +183,7 @@ const PreferencesSection = ({ metaData }) => {
                                             value={preferences.tt_epishoetype}
                                             onChange={(e) => handleInputChange("tt_epishoetype", e.target.value)}
                                         >
-                                            {metaData?.epi_shoe_types?.map((type) => (
+                                            {epiData?.epi_shoe_types?.map((type) => (
                                                 <MenuItem key={type.pk} value={type.pk}>
                                                     {type.value}
                                                 </MenuItem>

@@ -6,6 +6,7 @@ from ..services.epi_service import (
     update_epi_preferences,
 )
 from ..utils.utils import token_required, set_session, db_session_manager
+from sqlalchemy import text
 
 bp = Blueprint('epi_routes', __name__)
 
@@ -64,6 +65,42 @@ def update_epi_preferences_route(user_pk):
     except Exception as e:
         current_app.logger.error(
             f"Erro ao atualizar preferências de EPI: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/epi/data', methods=['GET'])
+@jwt_required()
+def get_epi_data():
+    """Obtém dados de EPI"""
+    try:
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user) as session:
+            epi_list = session.execute(
+                text("SELECT * FROM vbl_epi ORDER BY name")).mappings().all()
+            shoe_types = session.execute(
+                text("SELECT * FROM vbl_epishoetype ORDER BY pk")).mappings().all()
+            what_types = session.execute(
+                text("SELECT * FROM vbl_epiwhat ORDER BY pk")).mappings().all()
+
+            return jsonify({
+                'epi_list': [dict(row) for row in epi_list],
+                'epi_shoe_types': [dict(row) for row in shoe_types],
+                'epi_what_types': [dict(row) for row in what_types]
+            }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/epi/list', methods=['GET'])
+def get_epi_list():
+    """Obtém apenas a lista de EPIs"""
+    try:
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user) as session:
+            epi_list = session.execute(
+                text("SELECT * FROM vbl_epi ORDER BY name")).mappings().all()
+            return jsonify([dict(row) for row in epi_list]), 200
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 

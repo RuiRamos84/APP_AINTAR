@@ -121,6 +121,7 @@ export const MetaDataProvider = ({ children }) => {
     <MetaDataContext.Provider
       value={{
         metaData,
+        setMetaData,
         loading,
         error,
         fetchMetaData,

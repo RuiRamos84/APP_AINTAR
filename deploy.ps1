@@ -57,26 +57,47 @@ try {
     if (!(Test-Path $nginxConfigPath)) {
         # Criar e configurar o nginx.conf para o NGINX
         $nginxConfigContent = @"
-worker_processes auto;
+    worker_processes auto;
 
-events {
-    worker_connections 1024;
-}
-
-http {
-    include       mime.types;
-    default_type  application/octet-stream;
-
-    sendfile        on;
-    keepalive_timeout  65;
-
-    server {
-        listen 80;
-        server_name app.aintar.pt;
-        return 301 https://$host$request_uri;
+    events {
+        worker_connections 1024;
     }
 
-    server {
+    http {
+        include       mime.types;
+        default_type  application/octet-stream;
+
+        sendfile        on;
+        keepalive_timeout  65;
+        client_max_body_size 12M;
+
+        # Redirecionar HTTP do IP para o domínio
+        server {
+            listen 80;
+            server_name 83.240.148.114;
+            return 301 https://app.aintar.pt$request_uri;
+        }
+
+        # Redirecionar HTTPS do IP para o domínio
+        server {
+            listen 443 ssl;
+            server_name 83.240.148.114;
+
+            ssl_certificate D:/APP/NewAPP/nginx/ssl/app.aintar.pt.crt;
+            ssl_certificate_key D:/APP/NewAPP/nginx/ssl/app.aintar.pt.key;
+
+            return 301 https://app.aintar.pt$request_uri;
+        }
+
+        # Configuração do servidor HTTP (redireciona para HTTPS)
+        server {
+            listen 80;
+            server_name app.aintar.pt;
+            return 301 https://$host$request_uri;
+        }
+
+        # Configuração do servidor HTTPS
+        server {
         listen 443 ssl;
         server_name app.aintar.pt;
 
@@ -107,17 +128,17 @@ http {
         }
 
         location /socket.io/ {
-            proxy_pass http://127.0.0.1:5000/socket.io/;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "Upgrade";
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 86400;
     }
-}
+    }
+    }
 "@
 
         $nginxConfigContent | Out-File -FilePath $nginxConfigPath -Encoding UTF8

@@ -41,6 +41,7 @@ import { ThemedToaster } from "./components/common/Toaster/ThemedToaster";
 import { initializeSessionManagement } from "./services/authService";
 import LetterManagement from "./pages/Letters/LetterManagement";
 import { useNotification } from "./contexts/NotificationContext";
+import { EpiProvider } from './contexts/EpiContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
@@ -307,7 +308,9 @@ function App() {
         <AuthProvider>
           <SocketProvider>
             <MetaDataProvider>
-              <AppContent />
+              <EpiProvider>
+                <AppContent />
+              </EpiProvider>
             </MetaDataProvider>
           </SocketProvider>
         </AuthProvider>
