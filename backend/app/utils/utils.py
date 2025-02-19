@@ -10,7 +10,6 @@ import requests
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
 from app import blacklist
-from .. import db
 from flask_caching import Cache
 from datetime import datetime, timezone
 
@@ -152,6 +151,7 @@ def parse_xml_response(response):
 
 
 def fs_setsession(session_id):
+    from app import db
     try:
         query = text("SELECT fs_setsession(:session_id)")
         result = db.session.execute(query, {"session_id": session_id})
@@ -184,6 +184,7 @@ def set_session(f):
 
 @contextmanager
 def db_session_manager(session_id):
+    from app import db
     try:
         if session_id:
             # current_app.logger.debug(f"Configurando sessão no banco de dados para session_id: {session_id}")
@@ -246,7 +247,8 @@ def verify_token_claims(token):
 
 
 def add_token_to_blacklist(jti):
-    blacklist.add(jti)
+    from app import blacklist  # Importação local
+    blacklist.token_blacklist.add(jti)
 
 
 def is_token_revoked(jti):
@@ -254,6 +256,7 @@ def is_token_revoked(jti):
 
 
 def check_if_token_revoked(jwt_payload):
+    from app import blacklist  # Importação local
     jti = jwt_payload['jti']
     return jti in blacklist
 

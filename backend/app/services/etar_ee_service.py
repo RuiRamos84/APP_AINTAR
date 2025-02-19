@@ -328,3 +328,43 @@ def list_manut_expenses(current_user):
             return {'expenses': expenses}, 200
     except Exception as e:
         return {'error': f"Erro ao listar despesas de Material de Manutenção: {str(e)}"}, 500
+
+
+def create_equip_expense(pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT fbo_expense_equip_create(
+                    :pntt_expensedest,
+                    :pndate,
+                    :pnval,
+                    :pnts_associate,
+                    :pnmemo
+                )
+            """)
+            result = session.execute(query, {
+                'pntt_expensedest': pntt_expensedest,
+                'pndate': pndate,
+                'pnval': pnval,
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            success_message = format_message(result)
+            return {'message': 'Despesa de Equipamento registada com sucesso', 'result': success_message}, 201
+    except Exception as e:
+        return {'error': f"Erro ao registar despesa de Equipamento: {str(e)}"}, 500
+
+
+def list_equip_expenses(current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT * FROM vbl_expense
+                WHERE tt_expensetype = 6  -- (ou a tua tipologia definida para "equip")
+                ORDER BY data DESC
+            """)
+            results = session.execute(query).fetchall()
+            expenses = [dict(row._mapping) for row in results]
+            return {'expenses': expenses}, 200
+    except Exception as e:
+        return {'error': f"Erro ao listar despesas de Equipamento: {str(e)}"}, 500

@@ -55,6 +55,16 @@ class Config:
     CACHE_TYPE = os.getenv('CACHE_TYPE', 'simple')
     CACHE_DEFAULT_TIMEOUT = 300
 
+    # Configurações SIBS
+    SIBS_BASE_URL = os.getenv(
+        'SIBS_BASE_URL', 'https://api.qly.sibspayments.com/sibs/spg/v2/payments')
+    SIBS_TERMINAL_ID = os.getenv('SIBS_TERMINAL_ID')
+    SIBS_CLIENT_ID = os.getenv('SIBS_CLIENT_ID')
+    SIBS_MERCHANT_ID = os.getenv('SIBS_MERCHANT_ID')
+    SIBS_API_TOKEN = os.getenv('SIBS_API_TOKEN')
+    SIBS_WEBHOOK_SECRET = os.getenv('SIBS_WEBHOOK_SECRET')
+    SIBS_PRODUCTION = os.getenv('SIBS_PRODUCTION', 'false').lower() == 'true'
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

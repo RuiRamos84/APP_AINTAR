@@ -4,6 +4,7 @@ import {
   notifySuccess,
   notifyError,
 } from "../../components/common/Toaster/ThemedToaster";
+import ReopenDocument from './ReopenDocument';
 
 const Settings = () => {
   const handleRestart = async () => {
@@ -17,8 +18,9 @@ const Settings = () => {
 
   return (
     <div>
-      <h2>Configurações</h2>
-      <button onClick={handleRestart}>Reiniciar Servidor</button>
+      <h1>Administração</h1>
+      <ReopenDocument />
+      {/* <button onClick={handleRestart}>Reiniciar Servidor</button> */}
     </div>
   );
 };

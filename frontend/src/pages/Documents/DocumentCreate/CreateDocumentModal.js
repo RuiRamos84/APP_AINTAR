@@ -774,6 +774,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
+                type="number"
                 label="NIPC"
                 name="nipc"
                 value={document.nipc}

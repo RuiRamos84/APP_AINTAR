@@ -5,6 +5,7 @@ import InternalDetails from "./InternalDetails";
 import InternalMaintenance from "./InternalMaintenance";
 import ExpenseRecordsTable from "./ExpenseRecordsTable";
 import MaintenanceRecordsTable from "./MaintenanceRecordsTable";
+import EquipExpenseTable from "./EquipExpenseTable";
 
 const InternalArea = () => {
     const { metaData } = useMetaData();
@@ -22,13 +23,37 @@ const InternalArea = () => {
         { id: 3, name: "Rede", description: "Gestão de Rede" },
         { id: 4, name: "Ramais", description: "Gestão de Ramais" },
         { id: 5, name: "Manutenção", description: "Gestão de Manutenção" },
+        { id: 6, name: 'Equipamento Básico', description: 'Gestão de Equipamento Básico' }
     ];
 
     const etarEeSubAreas = [
         { id: 1, name: "Detalhes/Características" },
         { id: 2, name: "Agendamento de Manutenção" },
-        // { id: 3, name: "Registo de Despesa" }
     ];
+
+    // Opções para áreas 3 a 6
+    const getOptionsForArea = (areaId) => {
+        switch (areaId) {
+            case 3: // Rede
+                return [
+                    { id: 'despesa', name: 'Registo de Despesa' }
+                ];
+            case 4: // Ramais
+                return [
+                    { id: 'despesa', name: 'Registo de Despesa' }
+                ];
+            case 5: // Manutenção
+                return [
+                    { id: 'despesa', name: 'Registo de Despesa' }
+                ];
+            case 6: // Despesas Equipamento
+                return [
+                    { id: 'despesa', name: 'Registo de Despesa' }
+                ];
+            default:
+                return [];
+        }
+    };
 
     const handleAreaClick = (areaId) => {
         setSelectedArea(areaId);
@@ -47,7 +72,8 @@ const InternalArea = () => {
     const renderContentByArea = () => {
         if (!selectedArea) return null;
 
-        if (selectedArea <= 2) { // ETAR ou EEAR
+        // ETAR ou EEAR (áreas 1 e 2)
+        if (selectedArea <= 2) {
             if (!selectedSubArea) {
                 return (
                     <Grid container spacing={2}>
@@ -69,9 +95,6 @@ const InternalArea = () => {
                         ))}
                     </Grid>
                 );
-            }
-            if (selectedArea === 5) { // Área de Manutenção
-                return <ExpenseRecordsTable selectedArea={selectedArea} metaData={metaData} />;
             }
 
             switch (selectedSubArea) {
@@ -101,38 +124,14 @@ const InternalArea = () => {
                             setSelectedEntities={setSelectedEntities}
                         />
                     );
-                case 3:
-                    return (
-                        <ExpenseRecordsTable
-                            selectedArea={selectedArea}
-                            metaData={metaData}
-                        />
-                    );
-                case 5: // Manutenção
-                    return (
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                                <ExpenseRecordsTable
-                                    selectedArea={selectedArea}
-                                    metaData={metaData}
-                                />
-                            </Grid>
-                        </Grid>
-                    );
                 default:
                     return null;
             }
         }
 
-        // Rede ou Ramais
-        const options = selectedArea === 3 ? [
-            { id: 'despesa', name: 'Registo de Despesa' },
-            // { id: 'desobstrucao', name: 'Registo de Desobstrução' }
-        ] : [
-            // { id: 'manutencao', name: 'Agendamento de Manutenção' },
-            { id: 'despesa', name: 'Registo de Despesa' },
-            // { id: 'desobstrucao', name: 'Registo de Desobstrução' }
-        ];
+        // Rede, Ramais, Manutenção, Despesas Equipamento (áreas 3, 4, 5, 6)
+        // Mostrar submenu de opções
+        const options = getOptionsForArea(selectedArea);
 
         if (!selectedOption) {
             return (
@@ -157,13 +156,13 @@ const InternalArea = () => {
             );
         }
 
+        // Renderizar o componente adequado com base na opção selecionada
         switch (selectedOption) {
             case 'despesa':
+                if (selectedArea === 6) {
+                    return <EquipExpenseTable metaData={metaData} />;
+                }
                 return <ExpenseRecordsTable selectedArea={selectedArea} metaData={metaData} />;
-            case 'desobstrucao':
-                return <MaintenanceRecordsTable selectedArea={selectedArea} metaData={metaData} recordType="unblocking" />;
-            case 'manutencao':
-                return <MaintenanceRecordsTable selectedArea={selectedArea} metaData={metaData} recordType="maintenance" />;
             default:
                 return null;
         }

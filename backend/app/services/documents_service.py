@@ -536,7 +536,7 @@ def create_document_direct(ntype, associate, nif, name, phone, email, text_value
         with db_session_manager(session_id) as session:
             # Construir a query SQL para chamar a função PL/pgSQL
             sql = text("""
-                SELECT aintar_server_dev.fbo_document_createdirect(
+                SELECT fbo_document_createdirect(
                     :pntype, :pnassociate, :pnnif, :pnname, :pnphone, :pnemail, :pntext
                 ) AS result
             """)
@@ -788,7 +788,7 @@ def create_etar_document_direct(etar_pk, current_user):
         with db_session_manager(current_user) as session:
             # Executar a função PL/pgSQL que cria o pedido ETAR
             sql = text(
-                "SELECT aintar_server_dev.fbo_etar_document_createdirect(:pnpk) AS result")
+                "SELECT fbo_etar_document_createdirect(:pnpk) AS result")
             result = session.execute(sql, {"pnpk": etar_pk}).fetchone()
 
             if not result or not result.result:
@@ -809,7 +809,7 @@ def create_ee_document_direct(ee_pk, current_user):
         with db_session_manager(current_user) as session:
             # Executar a função PL/pgSQL que cria o pedido EE
             sql = text(
-                "SELECT aintar_server_dev.fbo_ee_document_createdirect(:pnpk) AS result")
+                "SELECT fbo_ee_document_createdirect(:pnpk) AS result")
             result = session.execute(sql, {"pnpk": ee_pk}).fetchone()
 
             if not result or not result.result:
@@ -831,7 +831,7 @@ def get_document_ramais(current_user):
     """
     try:
         with db_session_manager(current_user) as session:
-            ramais_query = text("SELECT * FROM vbr_document_ramais02")
+            ramais_query = text("SELECT * FROM vbr_document_pav01")
             result = session.execute(ramais_query).mappings().all()
 
             if result:
@@ -850,7 +850,7 @@ def update_document_pavenext(pk, current_user):
     try:
         with db_session_manager(current_user) as session:
             update_query = text("""
-                SELECT aintar_server_dev.fbo_document_pavenext(:pk) AS result
+                SELECT fbo_document_pavenext(:pk) AS result
             """)
             result = session.execute(update_query, {'pk': pk}).scalar()
 
@@ -874,7 +874,7 @@ def update_document_pavenext(pk, current_user):
 def get_document_ramais_concluded(current_user):
     try:
         with db_session_manager(current_user) as session:
-            ramais_query = text("SELECT * FROM vbr_document_ramais03")
+            ramais_query = text("SELECT * FROM vbr_document_pav02")
             result = session.execute(ramais_query).mappings().all()
 
             if result:
@@ -915,4 +915,24 @@ def replicate_document_service(pk, new_type, current_user):
 
     except Exception as e:
         current_app.logger.error(f"Erro ao replicar documento: {str(e)}")
+        return {'error': format_message(str(e))}, 500
+
+
+def reopen_document(regnumber, user_id, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            result = session.execute(
+                text("SELECT fbs_document_open(:regnumber, :user_id)"),
+                {'regnumber': regnumber, 'user_id': user_id}
+            ).scalar()
+
+            if result:
+                return {
+                    'message': 'Pedido reaberto com sucesso',
+                    'result': format_message(result)
+                }, 200
+            return {'error': 'Falha ao reabrir pedido'}, 400
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao reabrir pedido: {str(e)}")
         return {'error': format_message(str(e))}, 500

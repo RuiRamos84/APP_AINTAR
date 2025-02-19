@@ -4,6 +4,8 @@ from ..services.epi_service import (
     get_epi_deliveries,
     create_epi_delivery,
     update_epi_preferences,
+    update_epi_delivery,
+    return_epi_delivery,
 )
 from ..utils.utils import token_required, set_session, db_session_manager
 from sqlalchemy import text
@@ -101,6 +103,38 @@ def get_epi_list():
                 text("SELECT * FROM vbl_epi ORDER BY name")).mappings().all()
             return jsonify([dict(row) for row in epi_list]), 200
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/delivery/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+def update_epi_delivery_route(pk):
+    """Atualizar entrega de EPI"""
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        with db_session_manager(current_user):
+            return update_epi_delivery(pk, data, current_user)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao atualizar entrega de EPI: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/delivery/<int:pk>/return', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+def return_epi_delivery_route(pk):
+    """Anular entrega de EPI"""
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        with db_session_manager(current_user):
+            return return_epi_delivery(pk, data, current_user)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao anular entrega de EPI: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 

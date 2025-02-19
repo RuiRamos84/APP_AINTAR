@@ -32,8 +32,10 @@ def fetch_meta_data(current_user):
         'expense': "select * from vbl_expensedest",
         'epi_shoe_types': "SELECT * FROM vbl_epishoetype ORDER BY pk",
         'epi_what_types': "SELECT * FROM vbl_epiwhat ORDER BY pk",
-        'epi_list': "SELECT * FROM vbl_epi ORDER BY name",
-        'epi_deliveries': "SELECT * FROM vbl_epi_deliver ORDER BY data DESC LIMIT 1000"
+        'epi_list': "SELECT * FROM vbl_epi ORDER BY pk",
+        'epi_deliveries': "SELECT * FROM vbl_epi_deliver ORDER BY tb_epi",
+        'task_priority': "SELECT * FROM vbl_priority ORDER BY pk",
+        'task_status': "SELECT * FROM vbl_notestatus ORDER BY pk",
     }
     response_data = {}
     try:

@@ -513,6 +513,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={2}>
                     <TextField
+                      type="number"  
                       required
                       label="NIF"
                       name="nipc"

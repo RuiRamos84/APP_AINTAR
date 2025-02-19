@@ -1,86 +1,160 @@
 import React, { useState, useEffect } from "react";
-import { Box, FormControl, InputLabel, Select, MenuItem, Grid, Button, Paper, Typography } from "@mui/material";
-import DeliveriesTable from "./DeliveriesTable ";
-import BulkDeliveryForm from "./BulkDeliveryForm ";
+import { Box, FormControl, InputLabel, Select, MenuItem, Grid, Button, Paper, Typography, IconButton } from "@mui/material";
+import { Edit, Cancel } from "@mui/icons-material";
+import EditDeliveryDialog from "./EditDelivery";
+import ReturnDeliveryDialog from "./CancelDelivery";
+import DeliveriesTable from "./DeliveriesTable";
+import BulkDeliveryForm from "./BulkDeliveryForm";
 import * as epiService from "../../services/episervice";
 import { formatDate } from "./dataUtils";
+import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
+import { Tooltip } from "@mui/material";
 
 const UniformSection = ({ metaData }) => {
     const [selectedEmployee, setSelectedEmployee] = useState("");
     const [employeeDeliveries, setEmployeeDeliveries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [bulkDeliveryOpen, setBulkDeliveryOpen] = useState(false);
+    const [editDelivery, setEditDelivery] = useState(null);
+    const [returnDelivery, setReturnDelivery] = useState(null);
+
+    // Carrega as entregas do funcionário selecionado
+    const fetchDeliveries = async () => {
+        if (!selectedEmployee) {
+            setEmployeeDeliveries([]);
+            return;
+        }
+        setLoading(true);
+        try {
+            const response = await epiService.getEpiDeliveries({});
+            const selectedEmployeeName = metaData?.epi_list?.find(
+                (emp) => emp.pk === selectedEmployee
+            )?.name?.trim();
+
+            const filtered = response.deliveries.filter((delivery) => {
+                const employeeName = delivery.tb_epi?.trim();
+                const isUniformType = delivery.what === 2; // Filtra apenas Fardamento
+                return employeeName === selectedEmployeeName && isUniformType;
+            });
+            setEmployeeDeliveries(filtered);
+        } catch (error) {
+            console.error("Erro ao carregar entregas:", error);
+            setEmployeeDeliveries([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchDeliveries = async () => {
-            if (!selectedEmployee) {
-                setEmployeeDeliveries([]);
-                return;
-            }
-
-            setLoading(true);
-            try {
-                const response = await epiService.getEpiDeliveries({});
-                const selectedEmployeeName = metaData?.epi_list?.find(
-                    emp => emp.pk === selectedEmployee
-                )?.name?.trim();
-
-                const filtered = response.deliveries.filter(delivery => {
-                    const employeeName = delivery.tb_epi?.trim();
-                    const isUniformType = delivery.what === 2; // Filtra apenas Fardamento
-                    return employeeName === selectedEmployeeName && isUniformType;
-                });
-
-                setEmployeeDeliveries(filtered);
-            } catch (error) {
-                console.error("Erro ao carregar entregas:", error);
-                setEmployeeDeliveries([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchDeliveries();
     }, [selectedEmployee, metaData]);
 
+    // Ações de editar/anular
+    const handleEditDelivery = (delivery) => {
+        setEditDelivery(delivery);
+    };
+
+    const handleReturnDelivery = (delivery) => {
+        setReturnDelivery(delivery);
+    };
+
+    const handleUpdateDelivery = async (deliveryData) => {
+        try {
+            await epiService.updateEpiDelivery(editDelivery.pk, deliveryData);
+            notifySuccess("Entrega atualizada com sucesso");
+            await fetchDeliveries();
+        } catch (error) {
+            notifyError("Erro ao atualizar entrega");
+        }
+    };
+
+    const handleConfirmReturn = async (returnData) => {
+        try {
+            await epiService.returnEpiDelivery(returnDelivery.pk, returnData);
+            notifySuccess("Entrega anulada com sucesso");
+            await fetchDeliveries();
+        } catch (error) {
+            notifyError("Erro ao anular entrega");
+        }
+    };
+
+    // Colunas da tabela
     const columns = [
-        { id: "data", label: "Data", render: row => formatDate(row.data) },
+        { id: "data", label: "Data", render: (row) => formatDate(row.data) },
         { id: "tt_epiwhat", label: "Tipo de Fardamento" },
         { id: "dim", label: "Tamanho" },
         { id: "quantity", label: "Quantidade" },
-        { id: "memo", label: "Observações" }
+        { id: "memo", label: "Observações" },
+        {
+            id: "actions",
+            label: "Ações",
+            render: (row) => (
+                <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip
+                        title={
+                            row.returned
+                                ? `Entrega anulada em ${row.returned}`
+                                : "Editar entrega"
+                        }
+                    >
+                        <span>
+                            <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleEditDelivery(row)}
+                                disabled={row.returned}
+                            >
+                                <Edit fontSize="small" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                    <Tooltip
+                        title={
+                            row.returned
+                                ? `Entrega anulada em ${row.returned}`
+                                : "Anular entrega"
+                        }
+                    >
+                        <span>
+                            <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleReturnDelivery(row)}
+                                disabled={row.returned}
+                            >
+                                <Cancel fontSize="small" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                </Box>
+            ),
+        },
     ];
 
-    const handleBulkSubmit = async (deliveries) => {
+    // Esta função é chamada no BulkDeliveryForm (para cada item)
+    const handleBulkSubmit = async (delivery) => {
         try {
-            await Promise.all(deliveries.map(delivery =>
-                epiService.createEpiDelivery(delivery)
-            ));
-            const selectedEmployeeName = metaData?.epi_list?.find(
-                emp => emp.pk === selectedEmployee
-            )?.name?.trim();
-            setBulkDeliveryOpen(false);
-
-            // Recarregar entregas após submissão em massa
-            const response = await epiService.getEpiDeliveries({});
-            const filtered = response.deliveries.filter(delivery =>
-                delivery.tb_epi?.trim() === selectedEmployeeName
-            );
-            setEmployeeDeliveries(filtered);
+            const response = await epiService.createEpiDelivery(delivery);
+            if (response && response.message) {
+                notifySuccess(`Entrega de ${delivery.typeName} registrada com sucesso`);
+                return response;
+            }
+            throw new Error("Falha ao criar entrega");
         } catch (error) {
+            notifyError("Falha ao criar entrega");
             console.error("Erro ao registar entregas:", error);
             throw error;
         }
     };
 
     const getPreferredSize = (employeeId) => {
-        const employee = metaData?.epi_list?.find(emp => emp.pk === employeeId);
+        const employee = metaData?.epi_list?.find((emp) => emp.pk === employeeId);
         const sizes = [];
         if (employee?.tshirt) sizes.push(`T-Shirt: ${employee.tshirt}`);
         if (employee?.sweatshirt) sizes.push(`Sweatshirt: ${employee.sweatshirt}`);
         if (employee?.jacket) sizes.push(`Casaco: ${employee.jacket}`);
         if (employee?.pants) sizes.push(`Calças: ${employee.pants}`);
-        return sizes.join(' | ');
+        return sizes.join(" | ");
     };
 
     return (
@@ -98,18 +172,15 @@ const UniformSection = ({ metaData }) => {
                         >
                             {metaData?.epi_list?.map((emp) => (
                                 <MenuItem key={emp.pk} value={emp.pk}>
-                                    {emp.name}
+                                    {emp.pk} - {emp.name}
                                 </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} md={8} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                        variant="contained"
-                        onClick={() => setBulkDeliveryOpen(true)}
-                    >
+                <Grid item xs={12} md={8} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Button variant="contained" onClick={() => setBulkDeliveryOpen(true)}>
                         Registar Entrega em Massa
                     </Button>
                 </Grid>
@@ -126,7 +197,6 @@ const UniformSection = ({ metaData }) => {
                                 </Typography>
                             </Paper>
                         </Grid>
-
                         <Grid item xs={12}>
                             <DeliveriesTable
                                 deliveries={employeeDeliveries}
@@ -135,7 +205,7 @@ const UniformSection = ({ metaData }) => {
                                 pagination={{
                                     page: 0,
                                     pageSize: 10,
-                                    total: employeeDeliveries.length
+                                    total: employeeDeliveries.length,
                                 }}
                                 onPaginationChange={() => { }}
                                 filters={{}}
@@ -153,8 +223,27 @@ const UniformSection = ({ metaData }) => {
                 onClose={() => setBulkDeliveryOpen(false)}
                 onSubmit={handleBulkSubmit}
                 employees={metaData?.epi_list || []}
-                equipmentTypes={metaData?.epi_what_types?.filter(type => type.what === 2) || []}
+                equipmentTypes={
+                    metaData?.epi_what_types?.filter((type) => type.what === 2) || []
+                }
                 isEpi={false}
+
+                // Passamos o funcionário selecionado e a função de refresh
+                selectedEmployee={selectedEmployee}
+                afterSubmitSuccess={fetchDeliveries}
+            />
+
+            <EditDeliveryDialog
+                open={!!editDelivery}
+                onClose={() => setEditDelivery(null)}
+                delivery={editDelivery}
+                onSave={handleUpdateDelivery}
+            />
+            <ReturnDeliveryDialog
+                open={!!returnDelivery}
+                onClose={() => setReturnDelivery(null)}
+                delivery={returnDelivery}
+                onConfirm={handleConfirmReturn}
             />
         </Box>
     );

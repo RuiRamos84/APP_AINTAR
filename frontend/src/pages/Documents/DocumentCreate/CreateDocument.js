@@ -193,6 +193,7 @@ const CreateDocument = () => {
               <Grid item xs={12} sm={2}>
                 <TextField
                   required
+                  type="number"
                   label="NIPC"
                   name="nipc"
                   value={document.nipc}

@@ -49,20 +49,42 @@ def create_epi_delivery(data, current_user):
     """
     try:
         with db_session_manager(current_user) as session:
-            # Validar dados necessários
-            required_fields = ['pntb_epi', 'pntt_epiwhat']
-            if not all(field in data for field in required_fields):
-                missing_fields = [
-                    field for field in required_fields if field not in data]
+            # Validar dados e converter tipos
+            tb_epi = int(data.get('pntb_epi'))
+            tt_epiwhat = int(data.get('pntt_epiwhat'))
+
+            # Converter a data do formato ISO para date
+            data_str = data.get('pndata')
+            if data_str:
+                data_date = datetime.strptime(
+                    data_str.split('T')[0], '%Y-%m-%d').date()
+            else:
+                data_date = None
+
+            # Verificar se já existe entrega para essa combinação
+            check_query = text("""
+                SELECT COUNT(*) FROM tb_epi_deliver 
+                WHERE tb_epi = :tb_epi 
+                AND tt_epiwhat = :tt_epiwhat 
+                AND data = :data
+            """)
+
+            exists = session.execute(check_query, {
+                'tb_epi': tb_epi,
+                'tt_epiwhat': tt_epiwhat,
+                'data': data_date
+            }).scalar()
+
+            if exists:
                 return {
-                    'error': f'Campos obrigatórios ausentes: {", ".join(missing_fields)}'
+                    'error': 'Já existe uma entrega registrada para este equipamento nesta data para este funcionário.',
+                    'details': 'Escolha uma data diferente ou um equipamento diferente.'
                 }, 400
 
-            # Se a data não for fornecida, usar a data atual
-            if 'pndata' not in data or data['pndata'] is None:
-                data['pndata'] = datetime.now().date()
+            quantity = int(data.get('pnquantity', 1))
+            dim = str(data.get('pndim')) if data.get('pndim') else None
+            memo = str(data.get('pnmemo')) if data.get('pnmemo') else ''
 
-            # Chamar a função do banco de dados com o nome correto dos parâmetros
             query = text("""
                 SELECT fbo_epi_deliver_create(
                     :pntb_epi, :pntt_epiwhat, :pndata, :pnquantity, :pndim, :pnmemo
@@ -70,12 +92,12 @@ def create_epi_delivery(data, current_user):
             """)
 
             result = session.execute(query, {
-                'pntb_epi': data['pntb_epi'],
-                'pntt_epiwhat': data['pntt_epiwhat'],
-                'pndata': data['pndata'],
-                'pnquantity': data.get('pnquantity', 1),
-                'pndim': data.get('pndim', None),
-                'pnmemo': data.get('pnmemo', '')
+                'pntb_epi': tb_epi,
+                'pntt_epiwhat': tt_epiwhat,
+                'pndata': data_date,
+                'pnquantity': quantity,
+                'pndim': dim,
+                'pnmemo': memo
             }).scalar()
 
             if result:
@@ -135,4 +157,94 @@ def update_epi_preferences(user_pk, data, current_user):
     except Exception as e:
         current_app.logger.error(
             f"Erro ao atualizar preferências de EPI: {str(e)}")
+        return {'error': format_message(str(e))}, 500
+
+
+def update_epi_delivery(pk, data, current_user):
+    """
+    Atualiza uma entrega de EPI usando a função fbo_epi_deliver_update
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            # Converter a data do formato ISO para date
+            data_str = data.get('pndata')
+            if data_str:
+                data_date = datetime.strptime(
+                    data_str.split('T')[0], '%Y-%m-%d').date()
+            else:
+                data_date = None
+
+            quantity = int(data.get('pnquantity', 1))
+            dim = str(data.get('pndim')) if data.get('pndim') else None
+            memo = str(data.get('pnmemo')) if data.get('pnmemo') else ''
+
+            query = text("""
+                SELECT fbo_epi_deliver_update(
+                    :pnpk, :pndata, :pnquantity, :pndim, :pnmemo
+                ) AS result
+            """)
+
+            result = session.execute(query, {
+                'pnpk': pk,
+                'pndata': data_date,
+                'pnquantity': quantity,
+                'pndim': dim,
+                'pnmemo': memo
+            }).scalar()
+
+            if result:
+                session.commit()
+                formatted_result = format_message(result)
+                return {
+                    'message': 'Entrega atualizada com sucesso',
+                    'result': formatted_result
+                }, 200
+
+            return {'error': 'Falha ao atualizar entrega'}, 400
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao atualizar entrega de EPI: {str(e)}")
+        return {'error': format_message(str(e))}, 500
+
+
+def return_epi_delivery(pk, data, current_user):
+    """
+    Anula uma entrega de EPI usando a função fbo_epi_deliver_return
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            # Converter a data do formato ISO para date
+            data_str = data.get('pndata')
+            if data_str:
+                data_date = datetime.strptime(
+                    data_str.split('T')[0], '%Y-%m-%d').date()
+            else:
+                data_date = datetime.now().date()
+
+            memo = str(data.get('pnmemo')) if data.get('pnmemo') else ''
+
+            query = text("""
+                SELECT fbo_epi_deliver_return(
+                    :pnpk, :pndata, :pnmemo
+                ) AS result
+            """)
+
+            result = session.execute(query, {
+                'pnpk': pk,
+                'pndata': data_date,
+                'pnmemo': memo
+            }).scalar()
+
+            if result:
+                session.commit()
+                formatted_result = format_message(result)
+                return {
+                    'message': 'Entrega anulada com sucesso',
+                    'result': formatted_result
+                }, 200
+
+            return {'error': 'Falha ao anular entrega'}, 400
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao anular entrega de EPI: {str(e)}")
         return {'error': format_message(str(e))}, 500

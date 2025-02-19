@@ -279,6 +279,7 @@ const EntityDetail = ({
                   <Grid item xs={12} sm={2}>
                     <TextField
                       required
+                      type="number"
                       label="NIF"
                       name="nipc"
                       value={entity.nipc || ""}

@@ -78,8 +78,8 @@ const AssignedToMe = () => {
     try {
       const fetchedDocuments = await getDocumentsAssignedToMe();
       setDocuments(fetchedDocuments);
-      // console.log(fetchedDocuments)
-      // console.log(metaData)
+      console.log(fetchedDocuments)
+      console.log(metaData)
     } catch (error) {
       console.error("Erro ao buscar documentos:", error);
       setError("Erro ao carregar documentos. Por favor, tente novamente.");

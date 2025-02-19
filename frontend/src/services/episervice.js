@@ -63,3 +63,39 @@ export const updateEpiPreferences = async (userId, data) => {
         throw error;
     }
 };
+
+export const updateEpiDelivery = async (pk, data) => {
+    try {
+        const response = await api.put(`/delivery/${pk}`, {
+            ...data,
+            pndata: data.pndata,
+            pnquantity: data.pnquantity,
+            pndim: data.pndim || '',
+            pnmemo: data.pnmemo || ''
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar entrega:", error);
+        throw error;
+    }
+};
+
+export const returnEpiDelivery = async (pk, data) => {
+    try {
+        const response = await api.put(`/delivery/${pk}/return`, {
+            pndata: data.pndata || new Date().toISOString().split('T')[0],
+            pnmemo: data.pnmemo || ''
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao anular entrega:", error);
+        throw error;
+    }
+};
+
+// Função auxiliar para formatar data
+export const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toISOString().split('T')[0];
+};

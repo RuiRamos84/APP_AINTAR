@@ -20,6 +20,11 @@ import {
     TableHead,
     TableRow
 } from '@mui/material';
+import {
+    notifySuccess,
+    notifyError,
+    notifyWarning
+} from "../../components/common/Toaster/ThemedToaster";
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { getCurrentDateTime } from '../../utils/dataUtils';
@@ -30,9 +35,11 @@ const BulkDeliveryForm = ({
     onSubmit,
     employees,
     equipmentTypes,
-    isEpi
+    isEpi,
+    selectedEmployee: preSelectedEmployee = "",  // <--- novo
+    afterSubmitSuccess                             // <--- novo
 }) => {
-    const [selectedEmployee, setSelectedEmployee] = useState("");
+    const [selectedEmployee, setSelectedEmployee] = useState(preSelectedEmployee);
     const [items, setItems] = useState([]);
     const [currentItem, setCurrentItem] = useState({
         pntt_epiwhat: '',
@@ -42,13 +49,26 @@ const BulkDeliveryForm = ({
     });
     const [loading, setLoading] = useState(false);
 
+    // Sempre que a prop "preSelectedEmployee" mudar (por ex. quando trocamos de funcionário),
+    // atualizamos o estado local, se o form estiver aberto.
+    useEffect(() => {
+        if (open) {
+            setSelectedEmployee(preSelectedEmployee);
+        }
+    }, [preSelectedEmployee, open]);
+
     const handleAddItem = () => {
         if (currentItem.pntt_epiwhat) {
-            const itemType = equipmentTypes.find(type => type.pk === currentItem.pntt_epiwhat);
-            setItems([...items, {
-                ...currentItem,
-                typeName: itemType?.value || ''
-            }]);
+            const itemType = equipmentTypes.find(
+                type => type.pk === currentItem.pntt_epiwhat
+            );
+            setItems((prev) => [
+                ...prev,
+                {
+                    ...currentItem,
+                    typeName: itemType?.value || ''
+                }
+            ]);
             setCurrentItem({
                 pntt_epiwhat: '',
                 pnquantity: "",
@@ -59,31 +79,59 @@ const BulkDeliveryForm = ({
     };
 
     const handleRemoveItem = (index) => {
-        setItems(items.filter((_, i) => i !== index));
+        setItems((prev) => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async () => {
-        if (!selectedEmployee || items.length === 0) return;
+        if (!selectedEmployee || items.length === 0) {
+            notifyWarning("Selecione um funcionário e adicione pelo menos um item");
+            return;
+        }
+
+        setLoading(true);
+        let successCount = 0;
 
         try {
-            setLoading(true);
-            const deliveries = items.map(item => ({
-                ...item,
-                pntb_epi: selectedEmployee,
-                pndata: getCurrentDateTime()
-            }));
-            await onSubmit(deliveries);
-            onClose();
+            for (const item of items) {
+                try {
+                    const delivery = {
+                        pntb_epi: selectedEmployee,
+                        pntt_epiwhat: item.pntt_epiwhat,
+                        pndata: getCurrentDateTime(),
+                        pnquantity: parseInt(item.pnquantity) || 1,
+                        pndim: item.pndim || '',
+                        pnmemo: item.pnmemo || '',
+                        typeName: item.typeName   // Só para exibir nas notificações
+                    };
+
+                    await onSubmit(delivery);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Erro ao processar entrega ${item.typeName}:`, error);
+                    notifyError(`Erro ao processar entrega de ${item.typeName}: ${error.message}`);
+                }
+            }
+
+            if (successCount === items.length) {
+                notifySuccess("Todas as entregas foram registradas com sucesso");
+
+                // Chamamos a função de refresh para atualizar o histórico, se existir
+                if (afterSubmitSuccess) {
+                    afterSubmitSuccess();
+                }
+
+                onClose(); // Fecha o formulário
+            } else if (successCount > 0) {
+                notifyWarning(`${successCount} de ${items.length} itens foram registrados`);
+            } else {
+                notifyError("Nenhuma entrega foi registrada");
+            }
         } catch (error) {
-            console.error(error);
+            console.error("Erro ao processar entregas:", error);
+            notifyError(`Erro ao processar entregas: ${error.message}`);
         } finally {
             setLoading(false);
         }
-    };
-
-    const getEmployeePreference = (employeeId, field) => {
-        const employee = employees.find(emp => emp.pk === employeeId);
-        return employee ? employee[field] : '';
     };
 
     const getPreferredSize = (employeeId, itemType) => {
@@ -94,12 +142,12 @@ const BulkDeliveryForm = ({
         const sizeMap = {
             'Botas': 'shoenumber',
             'Bota': 'shoenumber',
-            'Sapato': 'shoenumber',
+            'Sapatos': 'shoenumber',
             'Galochas': 'shoenumber',
             'Calçado de Segurança': 'shoenumber',
             'T-Shirt': 'tshirt',
-            'Sweatshirt': 'sweatshirt',
-            'Casaco': 'jacket',
+            'Sweat': 'sweatshirt',
+            'Casaco Refletor': 'jacket',
             'Calças': 'pants'
         };
 
@@ -108,7 +156,7 @@ const BulkDeliveryForm = ({
         return sizeField ? employee[sizeField] : '';
     };
 
-    // No evento de alteração do tipo de item:
+    // Ao alterar o tipo de item, tentamos obter o tamanho preferencial
     const handleTypeChange = (value) => {
         const preferredSize = getPreferredSize(selectedEmployee, value);
         setCurrentItem(prev => ({
@@ -118,16 +166,17 @@ const BulkDeliveryForm = ({
         }));
     };
 
-    useEffect(() => {
-        if (selectedEmployee && currentItem.pntt_epiwhat) {
-            const preferredSize = getPreferredSize(selectedEmployee, currentItem.pntt_epiwhat);
-            setCurrentItem(prev => ({
-                ...prev,
-                pndim: preferredSize || ''
-            }));
+    // Quando alteramos o selectedEmployee manualmente na combo
+    const handleEmployeeChange = (value) => {
+        setSelectedEmployee(value);
+        // Se já existia um tipo selecionado, voltamos a verificar tamanho
+        if (currentItem.pntt_epiwhat) {
+            const newPref = getPreferredSize(value, currentItem.pntt_epiwhat);
+            setCurrentItem(prev => ({ ...prev, pndim: newPref || '' }));
         }
-    }, [selectedEmployee, currentItem.pntt_epiwhat]);
+    };
 
+    // Sempre que a modal fecha, limpamos o form
     useEffect(() => {
         if (!open) {
             setSelectedEmployee("");
@@ -141,9 +190,25 @@ const BulkDeliveryForm = ({
         }
     }, [open]);
 
+    const handleClose = () => {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+        onClose();
+    };
+
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
+        <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="md"
+            fullWidth
+            aria-labelledby="delivery-form-title"
+            keepMounted={false}
+            disableEnforceFocus
+            disableRestoreFocus
+        >
+            <DialogTitle id="delivery-form-title">
                 {isEpi ? 'Entrega Múltipla de EPIs' : 'Entrega Múltipla de Fardamento'}
             </DialogTitle>
             <DialogContent>
@@ -153,12 +218,12 @@ const BulkDeliveryForm = ({
                             <InputLabel>Funcionário</InputLabel>
                             <Select
                                 value={selectedEmployee}
-                                onChange={(e) => setSelectedEmployee(e.target.value)}
+                                onChange={(e) => handleEmployeeChange(e.target.value)}
                                 label="Funcionário"
                             >
                                 {employees.map((employee) => (
                                     <MenuItem key={employee.pk} value={employee.pk}>
-                                        {employee.name}
+                                        {employee.pk} - {employee.name}
                                     </MenuItem>
                                 ))}
                             </Select>
@@ -172,11 +237,17 @@ const BulkDeliveryForm = ({
                                     <Grid container spacing={2} alignItems="center">
                                         <Grid item xs={12} md={4}>
                                             <FormControl fullWidth>
-                                                <InputLabel>{isEpi ? 'Tipo de EPI' : 'Tipo de Fardamento'}</InputLabel>
+                                                <InputLabel>
+                                                    {isEpi ? 'Tipo de EPI' : 'Tipo de Fardamento'}
+                                                </InputLabel>
                                                 <Select
                                                     value={currentItem.pntt_epiwhat}
                                                     onChange={(e) => handleTypeChange(e.target.value)}
-                                                    label={isEpi ? 'Tipo de EPI' : 'Tipo de Fardamento'}
+                                                    label={
+                                                        isEpi
+                                                            ? 'Tipo de EPI'
+                                                            : 'Tipo de Fardamento'
+                                                    }
                                                 >
                                                     {equipmentTypes.map((type) => (
                                                         <MenuItem key={type.pk} value={type.pk}>
@@ -190,10 +261,12 @@ const BulkDeliveryForm = ({
                                             <TextField
                                                 label="Tamanho"
                                                 value={currentItem.pndim}
-                                                onChange={(e) => setCurrentItem(prev => ({
-                                                    ...prev,
-                                                    pndim: e.target.value
-                                                }))}
+                                                onChange={(e) =>
+                                                    setCurrentItem((prev) => ({
+                                                        ...prev,
+                                                        pndim: e.target.value
+                                                    }))
+                                                }
                                                 fullWidth
                                             />
                                         </Grid>
@@ -202,10 +275,12 @@ const BulkDeliveryForm = ({
                                                 type="number"
                                                 label="Quantidade"
                                                 value={currentItem.pnquantity}
-                                                onChange={(e) => setCurrentItem(prev => ({
-                                                    ...prev,
-                                                    pnquantity: parseInt(e.target.value) || 1
-                                                }))}
+                                                onChange={(e) =>
+                                                    setCurrentItem((prev) => ({
+                                                        ...prev,
+                                                        pnquantity: parseInt(e.target.value) || 1
+                                                    }))
+                                                }
                                                 fullWidth
                                                 InputProps={{ inputProps: { min: 1 } }}
                                             />
@@ -214,10 +289,12 @@ const BulkDeliveryForm = ({
                                             <TextField
                                                 label="Observações"
                                                 value={currentItem.pnmemo}
-                                                onChange={(e) => setCurrentItem(prev => ({
-                                                    ...prev,
-                                                    pnmemo: e.target.value
-                                                }))}
+                                                onChange={(e) =>
+                                                    setCurrentItem((prev) => ({
+                                                        ...prev,
+                                                        pnmemo: e.target.value
+                                                    }))
+                                                }
                                                 fullWidth
                                             />
                                         </Grid>
@@ -272,11 +349,17 @@ const BulkDeliveryForm = ({
                 </Grid>
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose}>Cancelar</Button>
+                <Button
+                    onClick={handleClose}
+                    aria-label="Cancelar e fechar formulário"
+                >
+                    Cancelar
+                </Button>
                 <Button
                     onClick={handleSubmit}
                     variant="contained"
                     disabled={loading || !selectedEmployee || items.length === 0}
+                    aria-label={loading ? "A Processar..." : "Registrar Entregas"}
                 >
                     {loading ? 'A Processar...' : 'Registrar Entregas'}
                 </Button>

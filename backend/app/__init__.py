@@ -16,6 +16,7 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 import os
 from flask_jwt_extended.exceptions import NoAuthorizationError
+from .services.payment_service import payment_service
 
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
@@ -93,6 +94,9 @@ def create_app(config_class):
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     socket_io.init_app(app, logger=False, engineio_logger=False, cors_allowed_origins="*")
 
+    # Inicializar o serviço de pagamento
+    payment_service.init_app(app)
+
     # Configuração da blacklist no JWT
     @jwt.token_in_blocklist_loader
     def check_if_token_in_blacklist(jwt_header, jwt_payload):
@@ -126,7 +130,8 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, notification_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp
+        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, notification_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp
+
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
         app.register_blueprint(user_bp, url_prefix='/api/v1/user')
         app.register_blueprint(entity_bp, url_prefix='/api/v1')
@@ -137,6 +142,9 @@ def create_app(config_class):
         app.register_blueprint(letters_bp, url_prefix='/api/v1')
         app.register_blueprint(etar_ee_bp, url_prefix='/api/v1')
         app.register_blueprint(epi_bp, url_prefix='/api/v1')
+        app.register_blueprint(webhook_bp, url_prefix='/api/v1')
+        app.register_blueprint(payment_bp, url_prefix='/api/v1')
+        app.register_blueprint(tasks_bp, url_prefix='/api/v1')
 
         # Configuração do search_path para o PostgreSQL
         @db.event.listens_for(db.engine, "connect")

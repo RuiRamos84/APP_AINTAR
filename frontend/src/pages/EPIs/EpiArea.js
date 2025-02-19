@@ -23,22 +23,22 @@ const EpiArea = () => {
         {
             id: 'preferences',
             name: 'Registo de Tamanhos',
-            title: "Gestão de Tamanhos de EPI's e Fardamento"
+            description: "Gestão de Tamanhos de EPI's e Fardamento"
         },
         {
             id: 'epis',
             name: 'EPIs',
-            title: "Gestão de Entrega de EPI's"
+            description: "Gestão de Entrega de EPI's"
         },
         {
             id: 'uniforms',
             name: 'Fardamento',
-            title: 'Gestão de Entrega de Fardamento'
+            description: 'Gestão de Entrega de Fardamento'
         },
         {
             id: 'summary',
             name: 'Resumo de Entregas',
-            title: 'Resumo de Entregas por Colaborador'
+            description: 'Resumo de Entregas por Colaborador'
         } 
     ];
 
@@ -46,10 +46,10 @@ const EpiArea = () => {
         setSelectedSection(null);
     };
 
-    const getPageTitle = () => {
+    const getPagedescription = () => {
         if (selectedSection) {
             const section = sections.find(s => s.id === selectedSection);
-            return section ? section.title : "Gestão de EPI's e Fardamento";
+            return section ? section.description : "Gestão de EPI's e Fardamento";
         }
         return "Gestão de EPI's e Fardamento";
     };
@@ -79,6 +79,7 @@ const EpiArea = () => {
                                 >
                                     <CardContent>
                                         <Typography variant="h6">{section.name}</Typography>
+                                        <Typography variant="body2">{section.description}</Typography>
                                     </CardContent>
                                 </Card>
                             </Grid>
@@ -92,7 +93,7 @@ const EpiArea = () => {
         <Box sx={{ padding: 4 }}>
             <Box display="flex" justifyContent="space-between" mb={4}>
                 <Typography variant="h4">
-                    {getPageTitle()}
+                    {getPagedescription()}
                 </Typography>
                 {selectedSection && (
                     <Button variant="outlined" onClick={handleBack}>

@@ -156,7 +156,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                             </MenuItem>
                             {epiData?.epi_list?.map((emp) => (
                                 <MenuItem key={emp.pk} value={emp.pk}>
-                                    {emp.name}
+                                    {emp.pk} - {emp.name}
                                 </MenuItem>
                             ))}
                         </Select>

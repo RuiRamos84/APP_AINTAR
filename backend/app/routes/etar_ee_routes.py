@@ -23,6 +23,8 @@ from ..services.etar_ee_service import (
     get_ee_details_by_pk,
     list_manut_expenses,
     create_manut_expense,
+    create_equip_expense,
+    list_equip_expenses,
     )
 from ..utils.utils import set_session, token_required
 
@@ -335,4 +337,35 @@ def get_ee_details(pk):
     """
     current_user = get_jwt_identity()
     result, status_code = get_ee_details_by_pk(current_user, pk)
+    return jsonify(result), status_code
+
+
+@bp.route('/equip_expense', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def add_equip_expense():
+    """Registar despesa de Equipamento"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pntt_expensedest = data.get('pntt_expensedest')
+    pndate = data.get('pndate')
+    pnval = data.get('pnval')
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    result, status_code = create_equip_expense(
+        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user
+    )
+    return jsonify(result), status_code
+
+
+@bp.route('/equip_expenses', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_equip_expenses():
+    """Listar despesas de Equipamento"""
+    current_user = get_jwt_identity()
+    result, status_code = list_equip_expenses(current_user)
     return jsonify(result), status_code

@@ -213,3 +213,15 @@ export const replicateDocument = async (documentId, newType) => {
     throw new Error(error.response?.data?.error || 'Erro ao replicar documento');
   }
 };
+
+export const reopenDocument = async (regnumber, user_id) => {
+  try {
+    const response = await api.post('/document/reopen', {
+      regnumber,
+      user_id
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

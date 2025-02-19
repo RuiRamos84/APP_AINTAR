@@ -26,6 +26,7 @@ from ..services.documents_service import (
     update_document_pavenext,
     get_document_ramais_concluded,
     replicate_document_service,
+    reopen_document,
 )
 import jwt
 from .. import limiter
@@ -377,6 +378,27 @@ def replicate_document(pk):
 
     except Exception as e:
         current_app.logger.error(f"Erro ao replicar documento: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/document/reopen', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+def reopen_document_route():
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        regnumber = data.get('regnumber')
+        user_id = data.get('user_id')
+
+        if not regnumber or not user_id:
+            return jsonify({'error': 'regnumber e user_id são obrigatórios'}), 400
+
+        return reopen_document(regnumber, user_id, current_user)
+
+    except Exception as e:
+        current_app.logger.error(f"Erro na rota de reabrir pedido: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 

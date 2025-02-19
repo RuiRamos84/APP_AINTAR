@@ -38,14 +38,89 @@ const Dashboard = () => {
   const [associates, setAssociates] = useState(["all"]);
   const [orderBy, setOrderBy] = useState("");
   const [order, setOrder] = useState("asc");
+
   const isFossaView = useMemo(() => {
     return selectedView ? selectedView.startsWith("vbr_document_fossa") : false;
   }, [selectedView]);
+
+  const isRamaisView = useMemo(() => {
+    return selectedView ? selectedView.startsWith("vbr_document_ramais") : false;
+  }, [selectedView]);
+  const formatDate = (value) => {
+    if (!value) return '';
+
+    // Se já estiver no formato "YYYY-MM-DD às HH:MM"
+    if (value.includes(' às ')) {
+      return value;
+    }
+
+    const date = new Date(value);
+    return date.toLocaleString('pt-PT', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+
+  const baseColumns = [
+    { id: "regnumber", label: "Nº Processo" },
+    { 
+        id: "submission", 
+        label: "Data Submissão",
+        format: formatDate 
+    },
+    { id: "ts_entity", label: "Requerente" },
+    { id: "phone", label: "Contacto" },
+    // { id: "memo", label: "Observações" }y
+];
+
+  const viewSpecificColumns = {
+    ramais: [
+      ...baseColumns,
+      { id: "tipo", label: "Tipo" },
+      {
+        id: "execution",
+        label: "Data Execução",
+        format: formatDate
+      },
+      {
+        id: "limitdate",
+        label: "Data Limite",
+        format: formatDate
+      },
+      {
+        id: "restdays",
+        label: "Dias Restantes",
+        format: (value) => `${Math.floor(value)} dias`
+      }
+    ],
+    fossa: [
+      ...baseColumns,
+      // { id: "local_descarga", label: "Local Descarga" },
+      // { id: "n_cisternas", label: "Nº Cisternas" }
+    ],
+    // Outros tipos podem ser adicionados aqui
+  };
+
+  const getColumnsForView = (viewName) => {
+    if (viewName?.startsWith('vbr_document_ramais')) {
+      return viewSpecificColumns.ramais;
+    }
+    if (viewName?.startsWith('vbr_document_fossa')) {
+      return viewSpecificColumns.fossa;
+    }
+    // Se não houver colunas específicas, retorna as colunas base
+    return baseColumns;
+  };
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         const data = await fetchDashboardData();
+        // console.log(data);
         setDashboardData(data);
 
         const storedMetaData = localStorage.getItem("metaData");
@@ -74,6 +149,13 @@ const Dashboard = () => {
 
     loadDashboardData();
   }, []);
+
+  const getRemainingDaysColor = (days) => {
+    if (days <= 0) return 'error.main';
+    if (days <= 15) return 'warning.main';
+    if (days <= 30) return 'warning.light';
+    return 'success.main';
+  };
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -143,6 +225,14 @@ const Dashboard = () => {
     return [...filteredData[selectedView].data].sort((a, b) => {
       if (!a[orderBy] || !b[orderBy]) return 0;
 
+      // Ordenação especial para dias restantes
+      if (orderBy === 'restdays') {
+        return order === 'asc'
+          ? Number(a[orderBy]) - Number(b[orderBy])
+          : Number(b[orderBy]) - Number(a[orderBy]);
+      }
+
+      // Ordenação padrão para outras colunas
       if (order === "asc") {
         return a[orderBy].localeCompare(b[orderBy]);
       } else {
@@ -187,53 +277,10 @@ const Dashboard = () => {
     }));
   };
 
-  const getColumnName = (columnKey) => {
-    const column = metaData?.columns.find((col) => col.id === columnKey);
-    return column ? column.label : columnKey;
-  };
-
-  const mainColumns = [
-    "regnumber",
-    "submission",
-    "tt_type",
-    "ts_entity",
-    "phone",
-  ];
-
   const getAddressString = (row) => {
-    return `${row.address || ""}, ${row.door || ""}, ${row.postal || ""} ${
-      row.nut4 || ""
-    }`.trim();
+    return `${row.address || ""}, ${row.door || ""}, ${row.postal || ""} ${row.nut4 || ""
+      }`.trim();
   };
-
-  if (loading) return <CircularProgress />;
-  if (error) return <Typography color="error">{error}</Typography>;
-  if (Object.keys(dashboardData).length === 0)
-    return <Typography>Nenhum dado disponível no momento.</Typography>;
-
-  const excelColumns = [
-    { header: "Número de Registo", key: "regnumber" },
-    { header: "Data de Submissão", key: "submission" },
-    { header: "Requerente", key: "ts_entity" },
-    { header: "Contacto1", key: "phone" },
-    { header: "Local do pedido", key: "address" },
-    { header: "Porta", key: "door" },
-    { header: "Andar", key: "floor" },
-    { header: "Código Postal", key: "postal" },
-    { header: "Distrito", key: "nut1" },
-    { header: "Concelho", key: "nut2" },
-    { header: "Freguesia", key: "nut3" },
-    { header: "Localidade", key: "nut4" },
-    { header: "Nº Cisternas", key: "n_cisternas" },
-    { header: "Gratuita?", key: "gratuita" },
-    {
-      header: "Existe saneamento na rua até 20 metros?",
-      key: "saneamento_proximo",
-    },
-    { header: "Existe rede de água no local?", key: "rede_agua" },
-    { header: "Local de Descarga / ETAR", key: "local_descarga" },
-    { header: "Observações", key: "memo" },
-  ];
 
   const handleExportExcel = () => {
     if (isFossaView && selectedView && filteredData[selectedView]) {
@@ -431,6 +478,33 @@ const Dashboard = () => {
     }
   };
 
+  const renderCell = (column, row) => {
+    // Se a coluna tem uma função de formatação específica
+    if (column.format) {
+      return column.format(row[column.id]);
+    }
+
+    // Se é a coluna de dias restantes dos ramais
+    if (isRamaisView && column.id === 'restdays') {
+      return (
+        <Box sx={{
+          color: getRemainingDaysColor(row[column.id]),
+          fontWeight: 'bold'
+        }}>
+          {Math.floor(row[column.id])} dias
+        </Box>
+      );
+    }
+
+    // Valor padrão
+    return row[column.id || column];
+  };
+
+  if (loading) return <CircularProgress />;
+  if (error) return <Typography color="error">{error}</Typography>;
+  if (Object.keys(dashboardData).length === 0)
+    return <Typography>Nenhum dado disponível no momento.</Typography>;
+
 
 
   return (
@@ -535,104 +609,119 @@ const Dashboard = () => {
               sx={{ maxHeight: "calc(100vh - 300px)", overflow: "auto" }}
             >
               <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell />
-                    {mainColumns.map((column) => (
-                      <TableCell key={column}>
-                        <TableSortLabel
-                          active={orderBy === column}
-                          direction={orderBy === column ? order : "asc"}
-                          onClick={() => handleRequestSort(column)}
+              <TableHead>
+                <TableRow>
+                  <TableCell />
+                  {getColumnsForView(selectedView).map((column) => (
+                    <TableCell key={column.id || column}>
+                      <TableSortLabel
+                        active={orderBy === (column.id || column)}
+                        direction={orderBy === (column.id || column) ? order : "asc"}
+                        onClick={() => handleRequestSort(column.id || column)}
+                      >
+                        {column.label} {/* Aqui é a mudança - usar column.label */}
+                      </TableSortLabel>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sortedData.map((row, rowIndex) => (
+                  <React.Fragment key={rowIndex}>
+                    <TableRow>
+                      <TableCell>
+                        <IconButton
+                          size="small"
+                          onClick={() => toggleRowExpand(rowIndex)}
                         >
-                          {getColumnName(column)}
-                        </TableSortLabel>
+                          {expandedRows[rowIndex] ? (
+                            <ExpandLess />
+                          ) : (
+                            <ExpandMore />
+                          )}
+                        </IconButton>
                       </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedData.map((row, rowIndex) => (
-                    <React.Fragment key={rowIndex}>
-                      <TableRow>
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            onClick={() => toggleRowExpand(rowIndex)}
-                          >
-                            {expandedRows[rowIndex] ? (
-                              <ExpandLess />
-                            ) : (
-                              <ExpandMore />
-                            )}
-                          </IconButton>
+                      {getColumnsForView(selectedView).map((column) => (
+                        <TableCell key={column.id || column}>
+                          {isRamaisView && column.id === 'restdays' ? (
+                            <Box
+                              sx={{
+                                color: getRemainingDaysColor(row[column.id]),
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {Math.floor(row[column.id])} dias
+                            </Box>
+                          ) : renderCell(column, row)}
                         </TableCell>
-                        {mainColumns.map((column) => (
-                          <TableCell key={column}>{row[column]}</TableCell>
-                        ))}
-                      </TableRow>
+                      ))}
+                    </TableRow>
                       <TableRow>
                         <TableCell
                           style={{ paddingBottom: 0, paddingTop: 0 }}
-                          colSpan={6}
+                          colSpan={getColumnsForView(selectedView).length + 1}
                         >
-                          <Collapse
-                            in={expandedRows[rowIndex]}
-                            timeout="auto"
-                            unmountOnExit
-                          >
-                            <Box margin={1}>
-                              <Typography
-                                variant="h6"
-                                gutterBottom
-                                component="div"
-                              >
-                                Detalhes Adicionais
-                              </Typography>
-                              <Table size="small" aria-label="purchases">
-                                <TableBody>
-                                  <TableRow>
-                                    <TableCell component="th" scope="row">
-                                      Morada Completa
-                                    </TableCell>
-                                    <TableCell>
-                                      {getAddressString(row)}
-                                    </TableCell>
-                                  </TableRow>
-                                  <TableRow>
-                                    <TableCell component="th" scope="row">
-                                      Freguesia
-                                    </TableCell>
-                                    <TableCell>{row.nut3}</TableCell>
-                                  </TableRow>
-                                  <TableRow>
-                                    <TableCell component="th" scope="row">
-                                      Concelho
-                                    </TableCell>
-                                    <TableCell>{row.nut2}</TableCell>
-                                  </TableRow>
-                                  <TableRow>
-                                    <TableCell component="th" scope="row">
-                                      Distrito
-                                    </TableCell>
-                                    <TableCell>{row.nut1}</TableCell>
-                                  </TableRow>
-                                  <TableRow>
-                                    <TableCell component="th" scope="row">
-                                      Associado
-                                    </TableCell>
-                                    <TableCell>{row.ts_associate}</TableCell>
-                                  </TableRow>
-                                  <TableRow>
-                                    <TableCell component="th" scope="row">
-                                      Observações
-                                    </TableCell>
-                                    <TableCell>{row.memo}</TableCell>
-                                  </TableRow>
-                                </TableBody>
-                              </Table>
-                            </Box>
-                          </Collapse>
+                        <Collapse
+                          in={expandedRows[rowIndex]}
+                          timeout="auto"
+                          unmountOnExit
+                        >
+                          <Box margin={1}>
+                            <Typography variant="h6" gutterBottom component="div">
+                              {isRamaisView ? "Detalhes do Ramal" : "Detalhes Adicionais"}
+                            </Typography>
+                            <Table size="small">
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                    Morada Completa
+                                  </TableCell>
+                                  <TableCell>
+                                    {getAddressString(row)}
+                                  </TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                    Localização
+                                  </TableCell>
+                                  <TableCell>
+                                    <Typography>Freguesia: {row.nut3}</Typography>
+                                    <Typography>Concelho: {row.nut2}</Typography>
+                                    <Typography>Distrito: {row.nut1}</Typography>
+                                  </TableCell>
+                                </TableRow>
+                                {/* {isFossaView && (
+                                  <>
+                                    <TableRow>
+                                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                        Local de Descarga
+                                      </TableCell>
+                                      <TableCell>{row.local_descarga}</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                        Nº Cisternas
+                                      </TableCell>
+                                      <TableCell>{row.n_cisternas}</TableCell>
+                                    </TableRow>
+                                  </>
+                                )} */}
+                                <TableRow>
+                                  <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                    Associado
+                                  </TableCell>
+                                  <TableCell>{row.ts_associate}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                                    Observações
+                                  </TableCell>
+                                  <TableCell>{row.memo}</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </Box>
+                        </Collapse>
                         </TableCell>
                       </TableRow>
                     </React.Fragment>

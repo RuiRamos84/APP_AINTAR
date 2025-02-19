@@ -151,6 +151,35 @@ const MENU_ITEMS = [
     to: "/epi",
     rolesAllowed: ["0", "1"], // Permissões para admin e gestor
   },
+  {
+    id: "tasks",
+    text: "Tarefas",
+    icon: <ListAltIcon />, // Você pode escolher outro ícone, como TaskIcon, caso prefira
+    submenu: [
+      {
+        id: "all_tasks",
+        text: "Todas as Tarefas",
+        icon: <ListAltIcon />,
+        to: "/tasks", // Rota para listar todas as tarefas
+        rolesAllowed: ["0", "1"], // Defina os papéis permitidos
+      },
+      {
+        id: "my_tasks",
+        text: "Minhas Tarefas",
+        icon: <PersonIcon />,
+        to: "/tasks/my", // Rota para listar tarefas atribuídas ao usuário
+        rolesAllowed: ["0", "1"],
+      },
+      {
+        id: "completed_tasks",
+        text: "Tarefas Concluídas",
+        icon: <CheckIcon />,
+        to: "/tasks/completed", // Rota para listar tarefas concluídas
+        rolesAllowed: ["0", "1"],
+      },
+    ],
+    rolesAllowed: ["0", "1"], // Defina os papéis permitidos
+  },
 ];
 
 const Sidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpenModal }) => {

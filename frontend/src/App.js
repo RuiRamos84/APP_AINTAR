@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Route,
   Routes,
   Navigate,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
 import Navbar from "./components/common/Navbar/Navbar";
 import Sidebar from "./components/common/Sidebar/Sidebar";
@@ -40,23 +42,26 @@ import PrivateRoute from "./contexts/AuthContextProvider";
 import { ThemedToaster } from "./components/common/Toaster/ThemedToaster";
 import { initializeSessionManagement } from "./services/authService";
 import LetterManagement from "./pages/Letters/LetterManagement";
-import { useNotification } from "./contexts/NotificationContext";
-import { EpiProvider } from './contexts/EpiContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { EpiProvider } from "./contexts/EpiContext";
+import TaskBoard from "./pages/Tasks/TaskBoard"; // Novo componente para tarefas
+// Importações de páginas antigas de tarefas podem ser removidas se não forem mais necessárias
+// import TaskList from "./pages/Tasks/TaskList";
+// import MyTasks from "./pages/Tasks/MyTasks";
+// import CompletedTasks from "./pages/Tasks/CompletedTasks";
+
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
 import "./App.css";
 
 const AppContent = () => {
   const { user, isLoading, isLoggingOut } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isDarkMode = user ? user.dark_mode : false;
   const navigate = useNavigate();
   const location = useLocation();
-  // const { fetchNotifications } = useNotification();
-  const [isCreateDocumentModalOpen, setIsCreateDocumentModalOpen] =
-    useState(false);
-  const [isCreateEntityModalOpen, setIsCreateEntytiModalOpen] = useState(false);
+
+  const [isCreateDocumentModalOpen, setIsCreateDocumentModalOpen] = useState(false);
+  const [isCreateEntityModalOpen, setIsCreateEntityModalOpen] = useState(false);
 
   useEffect(() => {
     initializeSessionManagement();
@@ -79,15 +84,11 @@ const AppContent = () => {
   }, [user, isLoading, isLoggingOut, navigate, location.pathname]);
 
   const toggleSidebar = () => {
-    setIsOpen(!isOpen);
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   const openEntityModal = () => {
-    setIsCreateEntytiModalOpen(true);
-  };
-
-  const handleOpenModal = () => {
-    setIsCreateEntytiModalOpen(true);
+    setIsCreateEntityModalOpen(true);
   };
 
   const openNewDocumentModal = () => {
@@ -99,6 +100,7 @@ const AppContent = () => {
   };
 
   useEffect(() => {
+    // Atualiza a cor do meta tag theme-color conforme o tema selecionado
     const updateThemeColor = (color) => {
       let metaThemeColor = document.querySelector("meta[name=theme-color]");
       if (!metaThemeColor) {
@@ -114,10 +116,6 @@ const AppContent = () => {
     updateThemeColor(themeColor);
   }, [isDarkMode]);
 
-  // if (isLoading) {
-  //   return <div>Loading...</div>; // ou um componente de loading mais elaborado
-  // }
-
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
       <CssBaseline />
@@ -126,30 +124,20 @@ const AppContent = () => {
         <div className="main-content">
           {user && (
             <Sidebar
-              isOpen={isOpen}
+              isOpen={isSidebarOpen}
               toggleSidebar={toggleSidebar}
               openNewDocumentModal={openNewDocumentModal}
               openEntityModal={openEntityModal}
-              handleOpenModal={handleOpenModal}
             />
           )}
           <div className="content">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/create-user" element={<CreateUser />} />
-              <Route
-                path="/activation/:id/:activation_code"
-                element={<Activation />}
-              />
+              <Route path="/activation/:id/:activation_code" element={<Activation />} />
               <Route path="/password-recovery" element={<PasswordRecovery />} />
-              <Route
-                path="/reset-password/:id/:reset_code"
-                element={<ResetPassword />}
-              />
-              <Route
-                path="/login"
-                element={user ? <Navigate to="/" /> : <Login />}
-              />
+              <Route path="/reset-password/:id/:reset_code" element={<ResetPassword />} />
+              <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
 
               <Route
                 path="/user-info"
@@ -216,7 +204,7 @@ const AppContent = () => {
                 }
               />
               <Route
-                path="document_owner"
+                path="/document_owner"
                 element={
                   <PrivateRoute>
                     <CreatedByMe />
@@ -224,7 +212,7 @@ const AppContent = () => {
                 }
               />
               <Route
-                path="document_self"
+                path="/document_self"
                 element={
                   <PrivateRoute>
                     <AssignedToMe />
@@ -269,14 +257,16 @@ const AppContent = () => {
                   <PrivateRoute>
                     <LetterManagement />
                   </PrivateRoute>
-              } />
+                }
+              />
               <Route
                 path="/internal"
                 element={
                   <PrivateRoute>
                     <InternalArea />
                   </PrivateRoute>
-                } />
+                }
+              />
               <Route
                 path="/epi"
                 element={
@@ -285,22 +275,26 @@ const AppContent = () => {
                   </PrivateRoute>
                 }
               />
+              {/* Rota para as tarefas com TaskBoard */}
+              <Route
+                path="/tasks"
+                element={
+                  <PrivateRoute>
+                    <TaskBoard />
+                  </PrivateRoute>
+                }
+              />
             </Routes>
           </div>
         </div>
-        <CreateDocumentModal
-          open={isCreateDocumentModalOpen}
-          onClose={closeNewDocumentModal}
-        />
-        <CreateEntity
-          open={isCreateEntityModalOpen}
-          onClose={() => setIsCreateEntytiModalOpen(false)}
-        />
+        <CreateDocumentModal open={isCreateDocumentModalOpen} onClose={closeNewDocumentModal} />
+        <CreateEntity open={isCreateEntityModalOpen} onClose={() => setIsCreateEntityModalOpen(false)} />
         <ThemedToaster />
       </div>
     </ThemeProvider>
   );
 };
+
 function App() {
   return (
     <Router>
