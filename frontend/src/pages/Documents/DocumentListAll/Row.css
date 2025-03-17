@@ -1,5 +1,6 @@
 .table-row-rows:hover {
     background-color: var(--row-hover-bg);
+    cursor: pointer;
 }
 
 .no-spacing-rows {

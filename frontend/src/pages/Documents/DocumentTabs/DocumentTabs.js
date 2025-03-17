@@ -19,6 +19,7 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
         '10': 'PARA EXECUÇÃO',
         '11': 'PARA ORÇAMENTAÇÃO',
         '12': 'PARA COBRANÇA',
+        '13': 'PARA ACEITAÇÃO DE ORÇAMENTO',
         '100': 'PARA PAGAMENTO DE PAVIMENTAÇÃO'
     };
 
@@ -32,58 +33,67 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
     };
 
     useEffect(() => {
-        const hasDocuments = getDocumentCount(value) > 0;
-        if (!hasDocuments) {
-            const firstStateWithDocs = Object.keys(states).find(id => getDocumentCount(id) > 0);
-            if (firstStateWithDocs) {
-                setValue(parseInt(firstStateWithDocs));
-                onFilterChange(parseInt(firstStateWithDocs));
-            }
+        // Sempre selecionar o primeiro estado com documentos ao carregar
+        const firstStateWithDocs = Object.keys(states).find(id => getDocumentCount(id) > 0);
+        if (firstStateWithDocs) {
+            setValue(parseInt(firstStateWithDocs));
+            onFilterChange(parseInt(firstStateWithDocs));
         }
     }, [documents]);
 
     const activeStates = Object.entries(states).filter(([id]) => getDocumentCount(id) > 0);
 
     return (
-        <Tabs
-            value={value}
-            onChange={handleChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-                borderBottom: 1,
-                borderColor: 'divider',
-                '& .MuiTab-root': {
+        <Box sx={{
+            width: '100%',
+            position: 'relative',
+            zIndex: 1,
+            overflow: 'hidden',
+            flexShrink: 0 // Previne que as tabs sejam comprimidas
+        }}>
+            <Tabs
+                value={value}
+                onChange={handleChange}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{
                     minHeight: '48px',
-                    textTransform: 'none',
-                    minWidth: 'auto',
-                    padding: '12px 16px'
-                }
-            }}
-        >
-            {activeStates.map(([id, label]) => (
-                <Tab
-                    key={id}
-                    value={parseInt(id)}
-                    label={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {label}
-                            <Badge
-                                badgeContent={getDocumentCount(id)}
-                                color="primary"
-                                max={999}
-                                sx={{
-                                    '& .MuiBadge-badge': {
-                                        position: 'relative',
-                                        transform: 'none',
-                                    }
-                                }}
-                            />
-                        </Box>
-                    }
-                />
-            ))}
-        </Tabs>
+                    '& .MuiTab-root': {
+                        minHeight: '48px',
+                        textTransform: 'none',
+                        minWidth: 'auto',
+                        padding: '12px 16px'
+                    },
+                    '& .MuiTabs-flexContainer': {
+                        width: 'auto', // Garante que as tabs não ultrapassem o contêiner
+                    },
+                    position: 'relative' // Garante posicionamento correto
+                }}
+            >
+                {activeStates.map(([id, label]) => (
+                    <Tab
+                        key={id}
+                        value={parseInt(id)}
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {label}
+                                <Badge
+                                    badgeContent={getDocumentCount(id)}
+                                    color="primary"
+                                    max={999}
+                                    sx={{
+                                        '& .MuiBadge-badge': {
+                                            position: 'relative',
+                                            transform: 'none',
+                                        }
+                                    }}
+                                />
+                            </Box>
+                        }
+                    />
+                ))}
+            </Tabs>
+        </Box>
     );
 };
 

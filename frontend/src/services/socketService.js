@@ -9,16 +9,18 @@ export const connectSocket = (userId) => {
   return new Promise((resolve, reject) => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user || !user.access_token) {
-      reject(new Error("No user data or token available"));
+      reject(new Error("Dados de utilizador ou token indisponíveis"));
       return;
     }
 
-    // console.log("Iniciando conexão Socket.IO...");
     socket = io(socketUrl, {
-      query: { token: user.access_token, userId },
+      query: {
+        token: user.access_token,
+        userId: userId
+      },
       transports: ["websocket"],
       reconnection: true,
-      reconnectionAttempts: 3,
+      reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     });
 
@@ -28,12 +30,11 @@ export const connectSocket = (userId) => {
     });
 
     socket.on("connect_error", (error) => {
-      // console.error("Erro de conexão Socket.IO:", error);
-      reject(error);
+      console.error("Erro de conexão Socket.IO:", error);
     });
 
     socket.on("disconnect", (reason) => {
-      // console.log("Desconectado do servidor Socket.IO. Razão:", reason);
+      console.log("Desconectado do Socket.IO. Razão:", reason);
     });
   });
 };
@@ -41,19 +42,13 @@ export const connectSocket = (userId) => {
 export const disconnectSocket = () => {
   return new Promise((resolve) => {
     if (socket) {
-      // console.log("Iniciando desconexão do socket");
-
-      const onDisconnect = () => {
-        // console.log("Socket desconectado com sucesso");
-        socket.off("disconnect", onDisconnect);
+      socket.on("disconnect", () => {
+        socket.off("disconnect");
         socket = null;
         resolve();
-      };
-
-      socket.on("disconnect", onDisconnect);
+      });
       socket.disconnect();
     } else {
-      // console.log("Nenhum socket para desconectar");
       resolve();
     }
   });
@@ -61,10 +56,18 @@ export const disconnectSocket = () => {
 
 export const emitEvent = (eventName, data) => {
   if (socket && socket.connected) {
-    socket.emit(eventName, data);
+    // Obter dados do utilizador para incluir sessionId se necessário
+    const user = JSON.parse(localStorage.getItem("user"));
+    const enhancedData = {
+      ...data,
+      sessionId: data.sessionId || user?.session_id
+    };
+    socket.emit(eventName, enhancedData);
   } else {
     console.warn("Tentativa de emitir evento, mas o socket não está conectado");
   }
 };
 
 export const getSocket = () => socket;
+export const getSocketId = () => socket?.id;
+export default socket;

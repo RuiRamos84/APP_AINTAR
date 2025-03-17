@@ -161,8 +161,10 @@ def create_document(data, files, current_user):
             session.execute(insert_query, query_params)
             session.commit()
 
-            reg_query = text("SELECT regnumber FROM vbf_document WHERE pk = :pk")
-            reg_result = session.execute(reg_query, {'pk': pk_result}).scalar()
+            reg_query = text("SELECT regnumber, who FROM vbl_document WHERE pk = :pk")
+            result = session.execute(reg_query, {'pk': pk_result}).fetchone()
+            reg_result = result.regnumber
+            who = result.who
 
             # Processar arquivos
             UPLOAD_FOLDER = current_app.config['FILES_DIR']
@@ -191,11 +193,7 @@ def create_document(data, files, current_user):
                 })
                 session.commit()
 
-            # Emitir notificação
-            who_query = text(
-                "SELECT who FROM vbf_document_step WHERE tb_document = :pk and ord = 0")
-            who_id = session.execute(who_query, {'pk': pk_result}).scalar()
-
+            # Emitir notificação via socket se estiver disponível
             notification_data = {
                 "document_id": pk_result,
                 "regnumber": reg_result,
@@ -203,9 +201,9 @@ def create_document(data, files, current_user):
             }
             try:
                 socketio = current_app.extensions['socketio']
-                socketio.emit('new_notification', notification_data, room=f"user_{who_id}")
+                socketio.emit('new_notification', notification_data, room=f"user_{who}")
                 current_app.logger.info(
-                    f"Notificação enviada para o usuário {who_id}")
+                    f"Notificação enviada para o usuário {who}")
             except Exception as e:
                 current_app.logger.error(
                     f"Erro ao enviar notificação via socket: {str(e)}")
@@ -218,7 +216,7 @@ def create_document(data, files, current_user):
             """)
             params = session.execute(
                 param_query, {'pk': pk_result}).fetchall()
-            print(params)
+            # print(params)
 
             # Inserir ou atualizar os parâmetros adicionais
             for param in params:

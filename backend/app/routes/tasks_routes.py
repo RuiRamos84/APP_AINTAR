@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..services.tasks_service import (
     list_tasks,
     create_task,
@@ -109,6 +109,8 @@ def close_task_route(task_id):
 def update_task_status_route(task_id):
     """Atualizar status de uma tarefa"""
     current_user = get_jwt_identity()
+    # Extrair user_id do token
+    user_id = get_jwt()["user_id"]
     data = request.json
     status_id = data.get('status_id')
 
@@ -116,7 +118,7 @@ def update_task_status_route(task_id):
         return jsonify({"error": "status_id is required"}), 400
 
     with db_session_manager(current_user):
-        return update_task_status(task_id, status_id, current_user)
+        return update_task_status(task_id, status_id, user_id, current_user)
 
 
 @bp.route('/tasks/<int:task_id>/history', methods=['GET'])

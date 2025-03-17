@@ -2,9 +2,9 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    overflow: hidden;
     height: calc(96vh - 64px);
+    width: 100%;
+    overflow: hidden;
 }
 
 .header-container-self {

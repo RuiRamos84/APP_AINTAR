@@ -43,12 +43,11 @@ import { ThemedToaster } from "./components/common/Toaster/ThemedToaster";
 import { initializeSessionManagement } from "./services/authService";
 import LetterManagement from "./pages/Letters/LetterManagement";
 import { EpiProvider } from "./contexts/EpiContext";
-import TaskBoard from "./pages/Tasks/TaskBoard"; // Novo componente para tarefas
-// Importações de páginas antigas de tarefas podem ser removidas se não forem mais necessárias
-// import TaskList from "./pages/Tasks/TaskList";
-// import MyTasks from "./pages/Tasks/MyTasks";
-// import CompletedTasks from "./pages/Tasks/CompletedTasks";
-
+import { SidebarProvider } from './contexts/SidebarContext';
+import {
+  TaskManagement, AllTasks, MyTasks,
+  CreatedTasks, CompletedTasks
+} from './pages/Tasks/index.js';
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
 import "./App.css";
@@ -66,6 +65,14 @@ const AppContent = () => {
   useEffect(() => {
     initializeSessionManagement();
   }, []);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-margin",
+      isSidebarOpen ? "8.5vw" : "2.5vw"
+    );
+  }, [isSidebarOpen]);
+
 
   useEffect(() => {
     if (!isLoading && !user && !isLoggingOut) {
@@ -121,16 +128,16 @@ const AppContent = () => {
       <CssBaseline />
       <div className="App">
         <Navbar />
-        <div className="main-content">
+        <div className="main-content-app">
           {user && (
             <Sidebar
               isOpen={isSidebarOpen}
               toggleSidebar={toggleSidebar}
               openNewDocumentModal={openNewDocumentModal}
-              openEntityModal={openEntityModal}
+              handleOpenModal={openEntityModal}
             />
           )}
-          <div className="content">
+          <div className="content-app">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/create-user" element={<CreateUser />} />
@@ -260,6 +267,20 @@ const AppContent = () => {
                 }
               />
               <Route
+                path="/tasks"
+                element={
+                  <PrivateRoute>
+                    <TaskManagement />
+                  </PrivateRoute>
+                }
+              >
+                <Route path="" element={<Navigate to="/tasks/all" replace />} />
+                <Route path="all" element={<AllTasks />} />
+                <Route path="my" element={<MyTasks />} />
+                <Route path="created" element={<CreatedTasks />} />
+                <Route path="completed" element={<CompletedTasks />} />
+              </Route>
+              <Route
                 path="/internal"
                 element={
                   <PrivateRoute>
@@ -272,15 +293,6 @@ const AppContent = () => {
                 element={
                   <PrivateRoute>
                     <EpiArea />
-                  </PrivateRoute>
-                }
-              />
-              {/* Rota para as tarefas com TaskBoard */}
-              <Route
-                path="/tasks"
-                element={
-                  <PrivateRoute>
-                    <TaskBoard />
                   </PrivateRoute>
                 }
               />
@@ -300,13 +312,15 @@ function App() {
     <Router>
       <ErrorBoundary>
         <AuthProvider>
-          <SocketProvider>
-            <MetaDataProvider>
-              <EpiProvider>
-                <AppContent />
-              </EpiProvider>
-            </MetaDataProvider>
-          </SocketProvider>
+          <SidebarProvider>
+            <SocketProvider>
+              <MetaDataProvider>
+                <EpiProvider>
+                  <AppContent />
+                </EpiProvider>
+              </MetaDataProvider>
+            </SocketProvider>
+          </SidebarProvider>
         </AuthProvider>
       </ErrorBoundary>
     </Router>

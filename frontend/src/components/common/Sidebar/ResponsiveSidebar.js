@@ -1,56 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { Badge, IconButton, Box } from '@mui/material';
 import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
+import { useSocket } from '../../../contexts/SocketContext';
+import { useSidebar } from '../../../contexts/SidebarContext';
 
-const ResponsiveSidebar = ({ children, breakpoint = 768 }) => {
-    const [isMobile, setIsMobile] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
+const ResponsiveSidebar = ({ children }) => {
+    const { sidebarMode, setSidebarMode, isMobile } = useSidebar();
+    const { notificationCount, refreshNotifications } = useSocket();
+    const isOpen = sidebarMode !== 'closed';
 
-    useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < breakpoint);
-            if (window.innerWidth >= breakpoint) {
-                setIsOpen(false);
-            }
-        };
+    // Solicitar contagem de notificações ao montar o componente
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            refreshNotifications();
+        }, 500);
 
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, [breakpoint]);
+        return () => clearTimeout(timer);
+    }, [refreshNotifications]);
 
     return (
         <>
-            {/* Toggle Button - Only on mobile */}
+            {/* Toggle Button with Notification Badge - Only on mobile */}
             {isMobile && (
-                <IconButton
-                    onClick={() => setIsOpen(!isOpen)}
+                <Badge
+                    badgeContent={notificationCount}
+                    color="secondary"
+                    anchorOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                    }}
                     sx={{
                         position: 'fixed',
                         bottom: '20px',
-                        left: isOpen ? '270px' : '20px', // Ajusta posição com a sidebar
-                        zIndex: 1301,
-                        backgroundColor: 'background.paper',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                        width: '48px',
-                        height: '48px',
-                        transition: 'left 0.3s ease-in-out',
-                        '&:hover': {
-                            backgroundColor: 'action.hover',
-                            transform: 'scale(1.1)',
-                        },
+                        left: '20px',
+                        zIndex: 1302,
+                        '& .MuiBadge-badge': {
+                            top: -5,
+                            right: -5,
+                            border: '2px solid',
+                            borderColor: 'background.paper',
+                        }
                     }}
-                    aria-label="Toggle Sidebar"
+                    invisible={notificationCount === 0}
                 >
-                    {isOpen ? <CloseIcon /> : <MenuIcon />}
-                </IconButton>
+                    <IconButton
+                        onClick={() => setSidebarMode(isOpen ? 'closed' : 'full')}
+                        sx={{
+                            backgroundColor: 'background.paper',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                            width: '48px',
+                            height: '48px',
+                            '&:hover': {
+                                backgroundColor: 'action.hover',
+                                transform: 'scale(1.1)',
+                            },
+                        }}
+                        aria-label="Toggle Sidebar"
+                    >
+                        {isOpen ? <CloseIcon /> : <MenuIcon />}
+                    </IconButton>
+                </Badge>
             )}
 
             {/* Backdrop - Only on mobile */}
             {isMobile && isOpen && (
-                <div
-                    onClick={() => setIsOpen(false)}
-                    style={{
+                <Box
+                    onClick={() => setSidebarMode('closed')}
+                    sx={{
                         position: 'fixed',
                         inset: 0,
                         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -61,8 +77,8 @@ const ResponsiveSidebar = ({ children, breakpoint = 768 }) => {
             )}
 
             {/* Sidebar Container */}
-            <div
-                style={{
+            <Box
+                sx={{
                     position: isMobile ? 'fixed' : 'relative',
                     left: 0,
                     top: 0,
@@ -75,7 +91,7 @@ const ResponsiveSidebar = ({ children, breakpoint = 768 }) => {
                 }}
             >
                 {children}
-            </div>
+            </Box>
         </>
     );
 };

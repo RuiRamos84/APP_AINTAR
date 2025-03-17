@@ -1,0 +1,62 @@
+.paper-task {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: calc(96vh - 64px);
+    overflow: hidden;
+}
+
+.header-container-task {
+    margin-bottom: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.tasks-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    height: calc(100vh - 200px);
+    padding: 0 4px;
+}
+
+.task-column {
+    height: 100%;
+    min-height: 100px;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.task-item {
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.task-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Corrigindo z-index para garantir que o modal fique sobre a sidebar */
+.MuiModal-root {
+    z-index: 1500 !important;
+}
+
+/* Estilos de responsividade */
+@media (max-width: 960px) {
+    .paper-task {
+        height: calc(90vh - 64px);
+    }
+
+    .tasks-container {
+        height: calc(100vh - 180px);
+    }
+}

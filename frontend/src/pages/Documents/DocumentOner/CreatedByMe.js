@@ -282,7 +282,16 @@ const CreatedByMe = () => {
                   Submissão
                 </TableSortLabel>
               </TableCell>
-              <TableCell></TableCell>
+              <TableCell>
+                <TableSortLabel
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ cursor: "default" }}
+                  Ações
+
+                >
+                  
+                </TableSortLabel>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

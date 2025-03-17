@@ -13,10 +13,12 @@
 │   ├── LOGO_VERTICAL_CORES.png
 │   ├── manifest.json
 │   ├── robots.txt
+│   ├── sounds
+│   │   └── notification.mp3
 │   └── static
 │       ├── css
-│       │   ├── main.eff77ecb.css
-│       │   └── main.eff77ecb.css.map
+│       │   ├── main.e50924b5.css
+│       │   └── main.e50924b5.css.map
 │       └── js
 │           ├── 213.6e4b8197.chunk.js
 │           ├── 213.6e4b8197.chunk.js.LICENSE.txt
@@ -29,9 +31,9 @@
 │           ├── 239.dfdb0d71.chunk.js.map
 │           ├── 455.feb3ac84.chunk.js
 │           ├── 455.feb3ac84.chunk.js.map
-│           ├── main.0c1af73b.js
-│           ├── main.0c1af73b.js.LICENSE.txt
-│           └── main.0c1af73b.js.map
+│           ├── main.d4c189ee.js
+│           ├── main.d4c189ee.js.LICENSE.txt
+│           └── main.d4c189ee.js.map
 ├── loadEnv.js
 ├── package-lock.json
 ├── package.json
@@ -89,12 +91,14 @@
 │   ├── contexts
 │   │   ├── AuthContext.js
 │   │   ├── AuthContextProvider.js
+│   │   ├── EpiContext.js
 │   │   ├── MetaDataContext.js
-│   │   ├── NotificationContext.js
-│   │   └── SocketContext.js
+│   │   ├── SocketContext.js
+│   │   └── ThemeContext.js
 │   ├── hooks
 │   │   ├── useDeliveries.js
-│   │   └── useSocket.js
+│   │   ├── useSocket.js
+│   │   └── useTasks.js
 │   ├── index.css
 │   ├── index.js
 │   ├── logo.svg
@@ -142,8 +146,12 @@
 │   │   │   │   ├── AddDocumentAnnexModal.js
 │   │   │   │   └── AddDocumentStepModal.js
 │   │   │   ├── DocumentTabs
+│   │   │   │   ├── DocumentTabs.css
 │   │   │   │   └── DocumentTabs.js
 │   │   │   └── RamaisList
+│   │   │       ├── ConfirmationDialog.js
+│   │   │       ├── excelExportUtils.js
+│   │   │       ├── ExportExcelButton.js
 │   │   │       ├── RamaisConcludedList.js
 │   │   │       ├── RamalConcludedRow.js
 │   │   │       ├── RamalGenericList.js
@@ -167,9 +175,11 @@
 │   │   │       └── EntityModal.js
 │   │   ├── EPIs
 │   │   │   ├── AdvancedFilters.js
-│   │   │   ├── BulkDeliveryForm .js
+│   │   │   ├── BulkDeliveryForm.js
+│   │   │   ├── CancelDelivery.js
 │   │   │   ├── dataUtils.js
-│   │   │   ├── DeliveriesTable .js
+│   │   │   ├── DeliveriesTable.js
+│   │   │   ├── EditDelivery.js
 │   │   │   ├── EpiArea.js
 │   │   │   ├── EpiSection.js
 │   │   │   ├── EpiSummarySection.js
@@ -181,6 +191,7 @@
 │   │   │   └── Home.js
 │   │   ├── Internal
 │   │   │   ├── EnergyRecordsTable.js
+│   │   │   ├── EquipExpenseTable.js
 │   │   │   ├── ExpenseRecordsTable.js
 │   │   │   ├── InternalArea.js
 │   │   │   ├── InternalDetails.js
@@ -212,8 +223,20 @@
 │   │   │   ├── ResetPassword.css
 │   │   │   └── ResetPassword.js
 │   │   ├── Settings
+│   │   │   ├── ReopenDocument.js
 │   │   │   ├── Settings.css
 │   │   │   └── Settings.js
+│   │   ├── Tasks
+│   │   │   ├── CompletedTasks.js
+│   │   │   ├── CreateTaskModal.jsx
+│   │   │   ├── MyTasks.js
+│   │   │   ├── TaskBoard.css
+│   │   │   ├── TaskBoard.jsx
+│   │   │   ├── TaskCard.jsx
+│   │   │   ├── TaskColumn.jsx
+│   │   │   ├── TaskList.js
+│   │   │   ├── TaskModal.jsx
+│   │   │   └── utils.js
 │   │   └── UserInfo
 │   │       ├── UserInfo.css
 │   │       └── UserInfo.js
@@ -228,11 +251,12 @@
 │   │   ├── episervice.js
 │   │   ├── InternalService.js
 │   │   ├── letter_service.js
-│   │   ├── notificationService.js
+│   │   ├── NotificacaoService.js
 │   │   ├── postalCodeService.js
 │   │   ├── SessionManager.js
 │   │   ├── SessionService.js
 │   │   ├── socketService.js
+│   │   ├── TaskService.js
 │   │   └── userService.js
 │   ├── setupTests.js
 │   ├── styles

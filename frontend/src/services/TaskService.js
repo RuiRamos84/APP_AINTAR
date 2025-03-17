@@ -38,6 +38,7 @@ const mapTasks = (data) => {
 export const getTasks = async () => {
     try {
         const response = await api.get("/tasks");
+        console.log("Tarefas:", response.data);
         return mapTasks(handleResponse(response));
     } catch (error) {
         console.error("Erro ao buscar tarefas:", error);
@@ -108,8 +109,21 @@ export const getTaskHistory = async (taskId) => {
 export const updateTaskStatus = async (taskId, statusId) => {
     try {
         const response = await api.put(`/tasks/${taskId}/status`, { status_id: statusId });
+
+        if (response.data.error) {
+            // Tratar erros específicos do backend
+            console.error(`Erro do servidor: ${response.data.error}`);
+            throw new Error(response.data.error);
+        }
+
         return handleResponse(response);
     } catch (error) {
+        // Verificar se é um erro de permissão (403)
+        if (error.response && error.response.status === 403) {
+            console.error("Erro de permissão: Apenas o cliente pode atualizar o status da tarefa");
+            throw new Error("Apenas o cliente pode atualizar o status da tarefa");
+        }
+
         console.error("Erro ao atualizar status da tarefa:", error);
         throw error;
     }

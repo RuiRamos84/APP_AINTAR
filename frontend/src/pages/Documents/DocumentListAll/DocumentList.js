@@ -28,7 +28,7 @@ import SearchBar from "../../../components/common/SearchBar/SearchBar";
 import CreateDocumentModal from "../DocumentCreate/CreateDocumentModal";
 import { getDocuments } from "../../../services/documentService";
 import Row from "./Row";
-import "../DocumentListAll/DocumentList.css";
+// import "../DocumentListAll/DocumentList.css";
 
 const useStyles = makeStyles((theme) => ({
   filterIconActive: {
@@ -231,7 +231,7 @@ const DocumentList = () => {
 
   return (
     <Paper
-      className="paper-list"
+      className="paper-list-document"
       style={{
         backgroundColor: theme.palette.background.paper,
         color: theme.palette.text.primary,

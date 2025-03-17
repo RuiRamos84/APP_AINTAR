@@ -35,7 +35,7 @@ import {
   notifyInfo,
   notifyWarning,
 } from "../../../components/common/Toaster/ThemedToaster.js";
-import { updateNotificationStatus } from "../../../services/notificationService";
+import { useSocket } from '../../../contexts/SocketContext';
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import DocumentDetailsModal from "../DocumentDetails/DocumentDetailsModal";
@@ -58,10 +58,14 @@ function Row({
   onUpdateRow,
   showComprovativo = false,
   customRowStyle,
+  isOpenControlled = false,
+  isOpen: externalIsOpen = false,
+  onToggle = null,
   ...props
 }) {
   const [localRow, setLocalRow] = useState(row);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isOpenControlled ? externalIsOpen : internalOpen;
   const [openDetails, setOpenDetails] = useState(false);
   const [openSteps, setOpenSteps] = useState(false);
   const [openAnexos, setOpenAnexos] = useState(false);
@@ -83,6 +87,10 @@ function Row({
   const [wasSaved, setWasSaved] = useState(false);
   const [etars, setEtars] = useState([]);
   const [openReplicateModal, setOpenReplicateModal] = useState(false);
+
+  // Usar o contexto de Socket para notificações
+  const { markAsRead } = useSocket();
+
   const isBooleanParam = (name) =>
     name === "Gratuito" ||
     name === "Existência de sanemanto até 20 m" ||
@@ -162,54 +170,57 @@ function Row({
   };
 
   const handleCollapseClick = async () => {
+    // Se controlado externamente, notifica o componente pai
+    if (isOpenControlled && onToggle) {
+      onToggle(row.pk, !open);
+    } else {
+      // Comportamento padrão - gerencia o estado internamente
+      setInternalOpen(!internalOpen);
+    }
+
     const newOpenState = !open;
-    setOpen(newOpenState);
 
     if (newOpenState) {
-      // Carregar dados dos anexos, parâmetros e passos de uma só vez, se ainda não estiverem carregados
+      // Carrega dados apenas se estiver abrindo
       if (!hasAnexos && !hasParams && steps.length === 0) {
         try {
-          // notifyInfo("A obter os dados do documento..."); // Notificação de carregamento
           const [responseAttachments, responseParams, responseSteps] = await Promise.all([
             getDocumentAnnex(row.pk),
             getDocumentTypeParams(row.pk),
             getDocumentStep(row.pk),
           ]);
 
-          // Atualizar anexos
           setAnexos(responseAttachments);
           setHasAnexos(responseAttachments.length > 0);
 
-          // Atualizar parâmetros
           const fetchedParams = responseParams.params || [];
           setParams(fetchedParams);
           setHasParams(fetchedParams.length > 0);
 
-          // Atualizar passos
           setSteps(responseSteps);
           setHasSteps(responseSteps.length > 0);
-
-          // notifySuccess("Dados obtidos com sucesso!"); // Notificação de sucesso
-
         } catch (error) {
           console.error("Erro ao obter dados do documento:", error);
-          notifyError("Erro ao obter os dados do documento."); // Notificação de erro
+          notifyError("Erro ao obter os dados do documento.");
           setHasAnexos(false);
           setHasParams(false);
           setHasSteps(false);
         }
       }
 
-      // Atualizar status de notificação, se necessário
+      // Atualiza status de notificação via socket, se necessário
       if (localRow.notification === 1) {
         try {
-          await updateNotificationStatus(localRow.pk, 0);
+          // Usar markAsRead do Socket Context em vez de updateNotificationStatus
+          markAsRead(localRow.pk);
+
+          // Atualizar a visualização local
           const updatedRow = { ...localRow, notification: 0 };
           setLocalRow(updatedRow);
           if (onUpdateRow) onUpdateRow(updatedRow);
         } catch (error) {
           console.error("Erro ao atualizar status de notificação:", error);
-          notifyWarning("Erro ao atualizar o status de notificação."); // Notificação de aviso
+          notifyWarning("Erro ao atualizar o status de notificação.");
         }
       }
     }
@@ -477,9 +488,13 @@ function Row({
             ? theme.palette.action.hover
             : theme.palette.background.default,
         }}
+        onClick={handleCollapseClick}
       >
         <TableCell className="no-spacing-rows">
-          <IconButton onClick={handleCollapseClick}>
+          <IconButton onClick={(e) => {
+            e.stopPropagation();
+            handleCollapseClick();
+          }}>
             {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
           </IconButton>
         </TableCell>
@@ -496,8 +511,8 @@ function Row({
           className="no-spacing-rows"
           align="center"
           style={{
-            minWidth: '200px',  // Garante espaço suficiente para todos os ícones
-            width: '200px'      // Mantém a largura consistente
+            minWidth: '200px',
+            width: '200px'
           }}
         >
           <Box
@@ -507,6 +522,7 @@ function Row({
             gap={1}
             role="group"
             aria-label="Ações do documento"
+            onClick={(e) => e.stopPropagation()} // Evitar que o clique nos botões propague para a linha
           >
             <Tooltip title="Detalhes" placement="top">
               <IconButton
@@ -570,8 +586,16 @@ function Row({
               style={{ backgroundColor: theme.palette.background.paper }}
             >
               {/* Colapso de Detalhes */}
-              <Box display="flex" alignItems="center">
-                <IconButton onClick={handleDetailsCollapseClick}>
+              <Box
+                display="flex"
+                alignItems="center"
+                onClick={handleDetailsCollapseClick}
+                sx={{ cursor: 'pointer', padding: '8px 0', '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+              >
+                <IconButton onClick={(e) => {
+                  e.stopPropagation();
+                  handleDetailsCollapseClick();
+                }}>
                   {openDetails ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
                 </IconButton>
                 <Typography variant="h6">Detalhes</Typography>
@@ -621,10 +645,23 @@ function Row({
               {/* Colapso de Parâmetros - Apenas se existirem parâmetros */}
               {hasParams && (
                 <Box mt={2}>
-                  <Divider style={{ margin: "16px 0" }} />
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box display="flex" alignItems="center">
-                      <IconButton onClick={() => setOpenParams(!openParams)}>
+                  {/* <Divider style={{ margin: " 0" }} /> */}
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    onClick={handleParamsCollapseClick}
+                    sx={{ cursor: 'pointer', padding: '8px 0', '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+                  >
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      onClick={(e) => e.stopPropagation()} // Previne duplo disparo do evento
+                    >
+                      <IconButton onClick={(e) => {
+                        e.stopPropagation();
+                        handleParamsCollapseClick();
+                      }}>
                         {openParams ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
                       </IconButton>
                       <Typography variant="h6">Parâmetros</Typography>
@@ -634,7 +671,10 @@ function Row({
                         variant="outlined"
                         color="primary"
                         size="small"
-                        onClick={handleOpenParamModal}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenParamModal();
+                        }}
                       >
                         Editar
                       </Button>
@@ -682,9 +722,17 @@ function Row({
               {/* Colapso de Passos - Apenas se existirem passos */}
               {steps.length > 0 && (
                 <Box mt={2}>
-                  <Divider style={{ margin: "16px 0" }} />
-                  <Box display="flex" alignItems="center">
-                    <IconButton onClick={handleStepsCollapseClick}>
+                  {/* <Divider style={{ margin: " 0" }} /> */}
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    onClick={handleStepsCollapseClick}
+                    sx={{ cursor: 'pointer', padding: '8px 0', '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+                  >
+                    <IconButton onClick={(e) => {
+                      e.stopPropagation();
+                      handleStepsCollapseClick();
+                    }}>
                       {openSteps ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
                     </IconButton>
                     <Typography variant="h6">Passos ({steps.length})</Typography>
@@ -732,9 +780,17 @@ function Row({
               {/* Colapso de Anexos - Apenas se existirem anexos */}
               {hasAnexos && (
                 <Box mt={2}>
-                  <Divider style={{ margin: "16px 0" }} />
-                  <Box display="flex" alignItems="center">
-                    <IconButton onClick={() => setOpenAnexos(!openAnexos)}>
+                  {/* <Divider style={{ margin: " 0" }} /> */}
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    onClick={() => setOpenAnexos(!openAnexos)}
+                    sx={{ cursor: 'pointer', padding: '8px 0', '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+                  >
+                    <IconButton onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenAnexos(!openAnexos);
+                    }}>
                       {openAnexos ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
                     </IconButton>
                     <Typography variant="h6">Anexos ({anexos.length})</Typography>
@@ -817,7 +873,6 @@ function Row({
       />
     </>
   );
-
 }
 
 export default Row;

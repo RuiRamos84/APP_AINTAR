@@ -360,7 +360,7 @@ def list_equip_expenses(current_user):
         with db_session_manager(current_user) as session:
             query = text("""
                 SELECT * FROM vbl_expense
-                WHERE tt_expensetype = 6  -- (ou a tua tipologia definida para "equip")
+                WHERE tt_expensetype = 6
                 ORDER BY data DESC
             """)
             results = session.execute(query).fetchall()

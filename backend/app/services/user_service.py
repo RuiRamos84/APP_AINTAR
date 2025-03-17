@@ -25,7 +25,7 @@ def send_activation_email(name, email, id, activation_code):
     try:
         subject = "Ativação da conta AINTAR"
         body = f"Olá {name},\n\nObrigado por se registrar em AINTAR. Para ativar sua conta, utilize o seguinte código de ativação:\n\n http://localhost:3000/activation/{id}/{activation_code}\n\n Atenciosamente,\n Equipe AINTAR"
-        msg = Message(subject, recipients=[email])
+        msg = Message(subject, sender="", recipients=[email])
         msg.body = body
         mail.send(msg)
         return True

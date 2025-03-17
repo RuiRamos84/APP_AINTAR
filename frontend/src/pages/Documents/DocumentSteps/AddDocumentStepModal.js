@@ -19,10 +19,9 @@ import {
   addDocumentAnnex,
   checkVacationStatus,
 } from "../../../services/documentService";
-import { getNotificationsCount } from "../../../services/notificationService";
 import { toast } from "../../../components/common/Toaster/ThemedToaster";
 import { useMetaData } from "../../../contexts/MetaDataContext";
-import { useSocket } from "../../../contexts/SocketContext";
+import { useSocket } from '../../../contexts/SocketContext';
 import * as pdfjsLib from "pdfjs-dist/webpack";
 
 const AddStepAndAnnexModal = ({
@@ -31,7 +30,6 @@ const AddStepAndAnnexModal = ({
   document,
   regnumber,
   fetchDocuments,
-  setGlobalNotificationCount,
 }) => {
   const { metaData } = useMetaData();
   const [stepData, setStepData] = useState({
@@ -46,7 +44,9 @@ const AddStepAndAnnexModal = ({
   const [confirmClose, setConfirmClose] = useState(false);
   const [vacationAlert, setVacationAlert] = useState(false);
 
-  const { emit, isConnected } = useSocket();
+  // Usar o socket context para notificações e emissão de eventos
+  const { emit, isConnected, refreshNotifications } = useSocket();
+
   useEffect(() => {
     setStepData({
       pk: 0,
@@ -189,6 +189,7 @@ const AddStepAndAnnexModal = ({
         emit("new_step_added", {
           orderId: regnumber,
           userId: stepData.who,
+          documentId: document.pk
         });
       } else {
         console.warn(
@@ -198,19 +199,15 @@ const AddStepAndAnnexModal = ({
 
       toast.success("Passo e anexos adicionados com sucesso");
 
-      // Atualizar documentos e notificações
+      // Atualizar documentos
       if (typeof fetchDocuments === "function") {
         await fetchDocuments();
       } else {
         console.warn("fetchDocuments não é uma função ou não foi fornecida");
       }
 
-      const notificationCount = await getNotificationsCount();
-      if (typeof setGlobalNotificationCount === "function") {
-        setGlobalNotificationCount(notificationCount);
-      } else {
-        console.warn("setGlobalNotificationCount não é uma função");
-      }
+      // Solicitar atualização de notificações via socket
+      refreshNotifications();
 
       onClose(true);
     } catch (error) {

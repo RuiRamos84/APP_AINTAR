@@ -8,22 +8,37 @@ import {
     KeyboardArrowDown as KeyboardArrowDownIcon,
     KeyboardArrowUp as KeyboardArrowUpIcon
 } from "@mui/icons-material";
+import ConfirmationDialog from "./ConfirmationDialog";
 
 const RamalGenericRow = ({ row, onComplete, isConcluded }) => {
     const [open, setOpen] = useState(false);
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+    const handleCompleteClick = () => {
+        setConfirmDialogOpen(true);
+    };
+
+    const handleConfirmComplete = () => {
+        onComplete(row.pk);
+        setConfirmDialogOpen(false);
+    };
+
+    const handleCancelComplete = () => {
+        setConfirmDialogOpen(false);
+    };
 
     const mainColumns = (
         <>
             <TableCell>{row.regnumber}</TableCell>
             <TableCell>{row.ts_entity}</TableCell>
             <TableCell>{row.nut4}</TableCell>
-            <TableCell>{row.comprimento ? `${parseFloat(row.comprimento).toFixed(2)}m` : ''}</TableCell>
-            <TableCell>{row.area ? `${parseFloat(row.area).toFixed(2)}m²` : ''}</TableCell>
+            <TableCell>{row.comprimento_gra ? `${parseFloat(row.comprimento_gra).toFixed(2)}m` : ''}</TableCell>
+            <TableCell>{row.area_gra ? `${parseFloat(row.area_gra).toFixed(2)}m²` : ''}</TableCell>
             <TableCell>{isConcluded ? row.when_stop : row.submission}</TableCell>
             {!isConcluded && (
                 <TableCell>
                     <Tooltip title="Concluir">
-                        <IconButton onClick={() => onComplete(row.pk)} color="primary">
+                        <IconButton onClick={handleCompleteClick} color="primary">
                             <CheckIcon />
                         </IconButton>
                     </Tooltip>
@@ -66,6 +81,14 @@ const RamalGenericRow = ({ row, onComplete, isConcluded }) => {
                     </Collapse>
                 </TableCell>
             </TableRow>
+
+            <ConfirmationDialog
+                open={confirmDialogOpen}
+                title="Concluir Ramal"
+                message={`Tem certeza que deseja concluir o ramal número ${row.regnumber}?`}
+                onConfirm={handleConfirmComplete}
+                onCancel={handleCancelComplete}
+            />
         </>
     );
 };

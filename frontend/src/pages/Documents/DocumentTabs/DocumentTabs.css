@@ -1,0 +1,39 @@
+/* Adicione este arquivo na pasta onde está o DocumentTabs.js */
+
+.document-tabs-container {
+    width: 100%;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    flex-shrink: 0;
+    margin-bottom: 16px;
+}
+
+/* Garante que as tabs não se estendam além da área do papel */
+.document-tabs-container .MuiTabs-root {
+    max-width: 100%;
+}
+
+.document-tabs-container .MuiTabs-flexContainer {
+    width: auto;
+}
+
+/* Ajustes para garantir que o componente funcione bem com a sidebar */
+.document-tabs-container .MuiTabs-scroller {
+    overflow: hidden;
+    margin-bottom: 0;
+}
+
+/* Garante um tamanho mínimo consistente */
+.document-tabs-container .MuiTab-root {
+    min-height: 48px;
+    text-transform: none;
+    min-width: auto;
+    padding: 12px 16px;
+}
+
+/* Ajusta a badge para ficar corretamente posicionada */
+.document-tabs-container .MuiBadge-badge {
+    position: relative;
+    transform: none;
+}

@@ -130,14 +130,13 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, notification_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp
+        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
         app.register_blueprint(user_bp, url_prefix='/api/v1/user')
         app.register_blueprint(entity_bp, url_prefix='/api/v1')
         app.register_blueprint(document_bp, url_prefix='/api/v1')
         app.register_blueprint(meta_data_bp, url_prefix='/api/v1')
-        app.register_blueprint(notification_bp, url_prefix='/api/v1')
         app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
         app.register_blueprint(letters_bp, url_prefix='/api/v1')
         app.register_blueprint(etar_ee_bp, url_prefix='/api/v1')

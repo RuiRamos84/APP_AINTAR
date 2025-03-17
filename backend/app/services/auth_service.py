@@ -118,7 +118,7 @@ def login_user(username, password):
                 'user_name': user_info_result.client_name,
                 'profil': profil,
                 'session_id': session_id,
-                'notification_count': user_info_result.notification,
+                # 'notification_count': user_info_result.notification,
                 'dark_mode': user_info_result.darkmode,
                 'vacation': user_info_result.vacation
             }

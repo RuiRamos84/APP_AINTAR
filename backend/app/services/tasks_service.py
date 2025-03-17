@@ -1,4 +1,6 @@
 from sqlalchemy.sql import text
+from flask import current_app
+from datetime import datetime
 from ..utils.utils import format_message, db_session_manager
 
 
@@ -34,17 +36,39 @@ def create_task(name, ts_client, ts_priority, memo, current_user):
         return {'error': formatted_error}, 500
 
 
+# Modificação para add_task_note
 def add_task_note(task_id, memo, current_user):
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_task_note_new(:pnpk, :pnmemo)")
+            # Lógica existente...
+            query = text("SELECT fbo_task_note_new(:pnpk, :pnmemo)")
             session.execute(query, {"pnpk": task_id, "pnmemo": memo})
+
+            # Obter informações para notificação
+            task_query = text(
+                "SELECT pk, name, owner, ts_client FROM tb_task WHERE pk = :task_id")
+            task = session.execute(task_query, {"task_id": task_id}).fetchone()
+
+            # Determinar destinatário da notificação
+            recipient_id = task.owner if current_user == task.ts_client else task.ts_client
+
+            # Emitir notificação via Socket.IO
+            try:
+                socketio = current_app.extensions['socketio']
+                socketio.emit('task_notification', {
+                    'task_id': task_id,
+                    'task_name': task.name,
+                    'notification_type': 'new_note',
+                    'timestamp': datetime.now().isoformat()
+                }, room=f"user_{recipient_id}")
+            except Exception as e:
+                current_app.logger.error(
+                    f"Erro ao enviar notificação: {str(e)}")
+
             session.commit()
             return {'message': 'Nota adicionada com sucesso'}, 201
     except Exception as e:
-        formatted_error = format_message(str(e))
-        return {'error': formatted_error}, 500
+        return {'error': str(e)}, 500
 
 
 def update_task(task_id, name, ts_client, ts_priority, memo, current_user):
@@ -78,15 +102,22 @@ def close_task(task_id, current_user):
         return {'error': formatted_error}, 500
 
 
-def update_task_status(task_id, status_id, current_user):
+def update_task_status(task_id, status_id, user_id, current_user):
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_task_status(:pnpk, :status_id)")
-            session.execute(query, {
-                "pnpk": task_id,
-                "status_id": status_id
-            })
+            # Verificar primeiro se o usuário é o cliente
+            check_query = text(
+                "SELECT ts_client FROM tb_task WHERE pk = :task_id")
+            result = session.execute(
+                check_query, {"task_id": task_id}).scalar()
+
+            # Agora user_id deve corresponder ao ts_client corretamente
+            if result != user_id:
+                return {'error': 'Apenas o cliente pode atualizar o status'}, 403
+
+            # Resto do código como está
+            query = text("SELECT fbo_task_status(:pnpk, :status_id)")
+            session.execute(query, {"pnpk": task_id, "status_id": status_id})
             session.commit()
             return {'message': 'Status da tarefa atualizado com sucesso'}, 200
     except Exception as e:

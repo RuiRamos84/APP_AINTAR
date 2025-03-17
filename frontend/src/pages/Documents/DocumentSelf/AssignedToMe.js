@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -14,7 +14,6 @@ import {
   useTheme,
   TableSortLabel,
   CircularProgress,
-  Tabs, Tab, Badge,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
@@ -27,12 +26,9 @@ import AddDocumentAnnexModal from "../DocumentSteps/AddDocumentAnnexModal";
 import {
   notifySuccess,
   notifyError,
+  notifyInfo,
 } from "../../../components/common/Toaster/ThemedToaster";
-import {
-  getNotifications,
-  getNotificationsCount,
-} from "../../../services/notificationService";
-import { useSocket } from "../../../contexts/SocketContext";
+import { useSocket } from '../../../contexts/SocketContext';
 import DocumentTabs from '../DocumentTabs/DocumentTabs';
 import "./AssignedToMe.css";
 
@@ -56,11 +52,17 @@ const AssignedToMe = () => {
   const [error, setError] = useState(null);
   const [userOrdered, setUserOrdered] = useState(false);
   const [selectedState, setSelectedState] = useState(4);
-  const [notifications, setNotifications] = useState([]);
+  const [openRowId, setOpenRowId] = useState(null);
+
+  // Referência para guardar o temporizador de debounce
+  const refreshTimerRef = useRef(null);
+
+  // Usar o socket context para notificações e atualizações
   const {
-    globalNotificationCount,
-    fetchInitialNotifications,
-    setGlobalNotificationCount,
+    socket,
+    isConnected,
+    notificationCount,
+    refreshNotifications
   } = useSocket();
 
   const hiddenFields = [
@@ -78,8 +80,6 @@ const AssignedToMe = () => {
     try {
       const fetchedDocuments = await getDocumentsAssignedToMe();
       setDocuments(fetchedDocuments);
-      console.log(fetchedDocuments)
-      console.log(metaData)
     } catch (error) {
       console.error("Erro ao buscar documentos:", error);
       setError("Erro ao carregar documentos. Por favor, tente novamente.");
@@ -87,44 +87,66 @@ const AssignedToMe = () => {
       setLoading(false);
     }
   }, []);
-  
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const count = await getNotificationsCount();
-      setGlobalNotificationCount(count);
-      // console.log("Fetched notifications count:", count);
-    } catch (error) {
-      console.error("Erro ao buscar contagem de notificações:", error);
-      setGlobalNotificationCount(0);
+  // Função para atualizar a lista com debounce
+  const refreshDocumentsWithDebounce = useCallback(() => {
+    // Limpar o temporizador anterior, se existir
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
     }
-  }, [setGlobalNotificationCount]);
 
+    // Definir um novo temporizador (500ms)
+    refreshTimerRef.current = setTimeout(() => {
+      fetchDocuments();
+      notifyInfo("Lista de pedidos atualizada devido a alterações", { autoClose: 2000 });
+    }, 500);
+  }, [fetchDocuments]);
+
+  // Carregar documentos e configurar notificações iniciais
   useEffect(() => {
     fetchDocuments();
-    fetchInitialNotifications();
-  }, [fetchDocuments, fetchInitialNotifications]);
+    refreshNotifications();
+  }, [fetchDocuments, refreshNotifications]);
 
-  // useEffect(() => {
-  //   if (Array.isArray(notifications)) {
-  //     const notificationsMap = {};
-  //     notifications.forEach((notification) => {
-  //       notificationsMap[notification.pk] = notification.notification;
-  //     });
-  //     setNotifications(notificationsMap);
-  //   } else {
-  //     console.warn("notifications não é um array:", notifications);
-  //     setNotifications({});
-  //   }
-  // }, [notifications]);
-
+  // Configurar listeners para eventos de socket relacionados a novos pedidos/passos
   useEffect(() => {
-    const notificationCount = documents.filter(
-      (doc) => doc.notification === 1
-    ).length;
-    setGlobalNotificationCount(notificationCount);
-    // console.log("Setting global notifications:", notificationCount);
-  }, [documents, setGlobalNotificationCount]);
+    if (socket && isConnected) {
+      // Ouvir evento de nova notificação (novo pedido ou passo)
+      const handleNewNotification = (data) => {
+        console.log("Nova notificação recebida:", data);
+        refreshDocumentsWithDebounce();
+      };
+
+      // Ouvir evento de contagem de notificações atualizada
+      const handleNotificationUpdate = (data) => {
+        console.log("Atualização de contagem de notificações:", data);
+        if (data.count > 0) {
+          refreshDocumentsWithDebounce();
+        }
+      };
+
+      // Registrar handlers
+      socket.on("new_notification", handleNewNotification);
+      socket.on("notification_update", handleNotificationUpdate);
+      socket.on("new_step_added", handleNewNotification);
+      socket.on("order_assigned", handleNewNotification);
+      socket.on("new_order_created", handleNewNotification);
+
+      // Limpar handlers ao desmontar
+      return () => {
+        socket.off("new_notification", handleNewNotification);
+        socket.off("notification_update", handleNotificationUpdate);
+        socket.off("new_step_added", handleNewNotification);
+        socket.off("order_assigned", handleNewNotification);
+        socket.off("new_order_created", handleNewNotification);
+
+        // Limpar temporizador se existir
+        if (refreshTimerRef.current) {
+          clearTimeout(refreshTimerRef.current);
+        }
+      };
+    }
+  }, [socket, isConnected, refreshDocumentsWithDebounce]);
 
   const handleSearch = (term) => {
     setSearchTerm(term);
@@ -161,7 +183,7 @@ const AssignedToMe = () => {
     if (success) {
       notifySuccess("Passo adicionado com sucesso");
       await fetchDocuments();
-      await fetchNotifications();
+      refreshNotifications();
     }
   };
 
@@ -189,21 +211,22 @@ const AssignedToMe = () => {
 
   const handleSave = useCallback(async () => {
     await fetchDocuments();
-    await fetchNotifications();
-  }, [fetchDocuments, fetchNotifications]);
+    refreshNotifications();
+  }, [fetchDocuments, refreshNotifications]);
 
-  const handleReloadDocuments = useCallback(() => {
+  const handleStateChange = (newState) => {
+    setSelectedState(newState);
+    setPage(0);
+  };
+
+  const handleRowToggle = (rowId, isOpen) => {
+    setOpenRowId(isOpen ? rowId : null);
+  };
+
+  const handleRefresh = () => {
     fetchDocuments();
-    fetchNotifications();
-  }, [fetchDocuments, fetchNotifications]);
-
-  // useEffect(() => {
-  //   const notificationCount = documents.filter(
-  //     (doc) => doc.notification === 1
-  //   ).length;
-  //   setGlobalNotifications(notificationCount);
-  //   console.log("Setting global notifications:", notificationCount); // Para debug
-  // }, [documents, setGlobalNotifications]);
+    notifyInfo("Lista de pedidos atualizada manualmente");
+  };
 
   if (metaLoading || loading) {
     return (
@@ -229,15 +252,15 @@ const AssignedToMe = () => {
 
   const sortedDocuments = userOrdered
     ? filteredDocuments.sort((a, b) => {
-        if (typeof a[orderBy] === "number") {
-          return order === "asc"
-            ? a[orderBy] - b[orderBy]
-            : b[orderBy] - a[orderBy];
-        }
+      if (typeof a[orderBy] === "number") {
         return order === "asc"
-          ? a[orderBy].localeCompare(b[orderBy])
-          : b[orderBy].localeCompare(a[orderBy]);
-      })
+          ? a[orderBy] - b[orderBy]
+          : b[orderBy] - a[orderBy];
+      }
+      return order === "asc"
+        ? a[orderBy].localeCompare(b[orderBy])
+        : b[orderBy].localeCompare(a[orderBy]);
+    })
     : filteredDocuments;
 
   const desiredColumns = [
@@ -304,60 +327,62 @@ const AssignedToMe = () => {
           onEditStep={(step) => handleOpenStepModal(document, step)}
           isAssignedToMe={true}
           onUpdateRow={handleUpdateRow}
-          onSave={handleSave} // Adicionando esta linha
+          onSave={handleSave}
           customRowStyle={
             document.notification === 1 ? { fontWeight: "bold" } : {}
           }
+          // Props para controle externo:
+          isOpenControlled={true}
+          isOpen={openRowId === document.pk}
+          onToggle={handleRowToggle}
         />
       ));
   };
 
-  const handleStateChange = (newState) => {
-    setSelectedState(newState);
-    setPage(0);
-  };
-
-
   return (
-    <Paper className="paper-self" style={{
-      backgroundColor: theme.palette.background.paper,
-      color: theme.palette.text.primary,
-    }}>
-      <Grid container className="header-container-list" alignItems="center" spacing={2}>
-        <Grid item xs={4}>
+    <Paper
+      className="paper-self"
+      style={{
+        backgroundColor: theme.palette.background.paper,
+        color: theme.palette.text.primary,
+        height: 'calc(96vh - 64px)', // Igual às outras páginas
+        width: '100%',
+      }}
+    >
+      <Grid container className="header-container-self" alignItems="center" spacing={2}>
+        <Grid item xs={6}>
           <Typography variant="h4">Para tratamento</Typography>
         </Grid>
-        <Grid item xs={8} container justifyContent="flex-end" spacing={2}>
-          <Grid item xs={2}>
-            <SearchBar onSearch={handleSearch} />
-          </Grid>
-          <Grid item xs={2}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={handleCreateNewDoc}
-              fullWidth
-            >
-              Adicionar Pedido
-            </Button>
-          </Grid>
+        <Grid item xs={4} container justifyContent="flex-end">
+          <SearchBar onSearch={handleSearch} />
         </Grid>
-        <Grid item xs={12}>
-          <DocumentTabs
-            documents={documents}
-            onFilterChange={handleStateChange}
-          />
+        <Grid item xs={2} container justifyContent="center">
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleCreateNewDoc}
+            fullWidth
+          >
+            Adicionar Pedido
+          </Button>
         </Grid>
       </Grid>
+
+      {/* As tabs ficam aqui, entre o cabeçalho e a tabela */}
+      <DocumentTabs
+        documents={documents}
+        onFilterChange={handleStateChange}
+      />
+
       <TableContainer className="table-container-self">
-        <Table size="small">
-          <TableHead align="left">
+        <Table size="small" stickyHeader>
+          <TableHead>
             <TableRow
               className="table-header-self"
               style={{
-                backgroundColor: theme.palette.table.header.backgroundColor,
-                color: theme.palette.table.header.color,
+                backgroundColor: theme.palette.table?.header?.backgroundColor || theme.palette.grey[200],
+                color: theme.palette.table?.header?.color || theme.palette.text.primary,
               }}
             >
               <TableCell style={{ width: "48px" }} />
@@ -374,6 +399,7 @@ const AssignedToMe = () => {
               ))}
               <TableCell
                 align="center"
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   minWidth: '200px',
                   width: '200px'
@@ -386,6 +412,7 @@ const AssignedToMe = () => {
           <TableBody>{renderTableContent()}</TableBody>
         </Table>
       </TableContainer>
+
       <TablePagination
         className="table-pagination-self"
         rowsPerPageOptions={[10, 25, 100]}
@@ -400,6 +427,8 @@ const AssignedToMe = () => {
           `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
         }
       />
+
+      {/* Modais */}
       <CreateDocumentModal
         open={openModal}
         onClose={handleModalClose}
@@ -412,7 +441,6 @@ const AssignedToMe = () => {
         step={selectedStep}
         regnumber={selectedDocument?.regnumber}
         fetchDocuments={fetchDocuments}
-        setGlobalNotificationCount={setGlobalNotificationCount}
       />
       <AddDocumentAnnexModal
         open={openAnnexModal}

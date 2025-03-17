@@ -1,257 +1,116 @@
-/* Estilos gerais da sidebar */
-.sidebar {
-    box-sizing: border-box;
-    height: calc(100dvh - 64px);
-    margin-top: 64px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: width 0.6s ease-in-out;
-    position: relative;
-}
-
-/* Estilos para o estado aberto e fechado */
-.sidebar.closed {
-    width: 60px;
-    transition: opacity 0.6s ease-in-out,
-        width 0.6s ease-in-out;
-}
-
-.sidebar.open {
-    width: 200px;
-    transition: opacity 0.6s ease-in-out,
-        width 0.6s ease-in-out;
-}
-
-/* Conteúdo da sidebar */
-.sidebar-content {
-    display: flex;
-    flex-direction: column;
+/* Estilos modernos para a sidebar */
+.modern-sidebar {
+    --sidebar-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     height: 100%;
-    width: 100%;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
-/* Estilos dos itens do menu */
-.menu-list {
-    padding: 0;
-    width: 100%;
+/* Estilos para os três modos */
+.sidebar-mode-full {
+    width: 240px;
 }
 
+.sidebar-mode-compact {
+    width: 72px;
+}
+
+.sidebar-mode-closed {
+    width: 0;
+}
+
+/* Estilos para itens de menu */
 .menu-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 16px;
-    transition: opacity 0.6s ease-in-out,
-        width 0.6s ease-in-out;
+    border-radius: 8px !important;
+    transition: var(--sidebar-transition) !important;
+    margin: 4px 8px !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 
-/* Hover state */
-[data-theme="light"] .menu-item:hover {
-    background-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .menu-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Selected state */
-[data-theme="light"] .menu-item.selected {
-    color: #1976d2;
-    background-color: rgba(25, 118, 210, 0.08);
-}
-
-[data-theme="dark"] .menu-item.selected {
-    color: #90caf9;
-    background-color: rgba(144, 202, 249, 0.08);
-}
-
-/* Selected icons */
-[data-theme="light"] .menu-item.selected svg {
-    color: #1976d2;
-}
-
-[data-theme="dark"] .menu-item.selected svg {
-    color: #90caf9;
+.sidebar-mode-compact .menu-item {
+    margin: 4px auto !important;
+    width: 48px;
+    justify-content: center !important;
 }
 
 .menu-item:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.04) !important;
 }
 
-.menu-item.selected {
-    color: #1976d2;
-    /* Cor do item selecionado */
+[data-theme="dark"] .menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-.menu-item.selected svg {
-    color: #1976d2;
-    /* Cor do ícone do item selecionado */
+/* Indicador de item ativo */
+.menu-item.active::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 20% !important;
+    height: 60% !important;
+    width: 4px !important;
+    background-color: var(--mui-palette-primary-main) !important;
+    border-radius: 0 4px 4px 0 !important;
 }
 
-.menu-item svg {
-    font-size: 24px;
-    margin-right: 16px;
-    min-width: 24px;
+.menu-item.active {
+    background-color: rgba(25, 118, 210, 0.08) !important;
 }
 
-.menu-item.subitem-selected {
-    font-weight: bold;
+[data-theme="dark"] .menu-item.active {
+    background-color: rgba(144, 202, 249, 0.08) !important;
 }
 
-.menu-item.subitem-selected::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 16px;
-    right: 16px;
-    height: 2px;
-    background-color: #1976d2;
-    /* Ou a cor que preferir */
+/* Textos e ícones */
+.menu-item-text {
+    margin-left: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
-/* Caso queira um efeito diferente quando o sidebar estiver fechado */
-.sidebar.closed .menu-item.subitem-selected::after {
-    left: 4px;
-    right: 4px;
+.menu-item.active .list-item-text {
+    font-weight: 600 !important;
+    color: var(--mui-palette-primary-main) !important;
 }
 
-.list-item-text {
-    opacity: 1;
-    width: auto;
-    transition: opacity 0.6s ease-in-out,
-        width 0.6s ease-in-out,
-        margin-left 0.6s ease-in-out;
-    white-space: nowrap;
-    overflow: hidden;
-    margin-left: 4px;
-    /* Espaço constante entre o ícone e o texto */
+.menu-item.active svg {
+    color: var(--mui-palette-primary-main) !important;
 }
 
-.sidebar.open .list-item-text {
-    opacity: 1;
-    width: auto;
-    margin-left: 5px;
-    transition: opacity 0.6s ease-in-out,
-            width 0.6s ease-in-out;
+/* Submenu */
+.submenu-item {
+    padding-left: 24px !important;
+    border-radius: 0 8px 8px 0 !important;
 }
 
-/* Estilos para o submenu */
-.sub-menu {
-    padding-left: 16px;
+/* Customização da barra de scroll */
+.sidebar-content {
+    overflow-y: auto !important;
+    height: 100% !important;
 }
 
-.sub-menu-item {
-    padding-left: 32px;
+.sidebar-content::-webkit-scrollbar {
+    width: 4px !important;
 }
 
-/* Estilos para o botão de toggle */
-.sidebar-toggle-wrapper {
-    position: absolute;
-    bottom: 60px;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: center;
-    padding: 8px;
+.sidebar-content::-webkit-scrollbar-track {
+    background: transparent !important;
 }
 
-.sidebar-toggle-button {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    transition: background-color 0.6s;
+.sidebar-content::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 4px !important;
 }
 
-.sidebar-toggle-button:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+[data-theme="dark"] .sidebar-content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-.sidebar-toggle-button svg {
-    font-size: 24px;
-    transition: transform 0.6s ease-in-out;
-}
-
-/* Rotação do ícone */
-.sidebar.closed .sidebar-toggle-button svg {
-    transform: rotate(180deg);
-}
-
-.sidebar.open .sidebar-toggle-button svg {
-    transform: rotate(0deg);
-}
-
-.sidebar-badge {
-    display: flex;
-    align-items: center;
-    width: 24px;
-}
-
-.sidebar-badge .MuiBadge-badge {
-    right: -4px;
-    top: 0px;
-    transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
-    transform-origin: center;
-}
-
-.sidebar.closed .sidebar-badge .MuiBadge-badge {
-    right: -4px;
-    top: 0px;
-}
-
-.sidebar-badge .MuiBadge-badge.MuiBadge-invisible {
-    transform: scale(0);
-    opacity: 0;
-}
-
-/* Ajuste a posição do ícone para dar espaço ao badge */
-.sidebar-badge .MuiSvgIcon-root {
-    margin-right: -4px;
-}
-
-/* Quando a sidebar estiver fechada, reajuste a posição do ícone */
-.sidebar.closed .sidebar-badge .MuiSvgIcon-root {
-    margin-right: 0;
-}
-
-/* Estilo específico para o badge no item principal quando fechado */
-.sidebar.closed .menu-item>.sidebar-badge .MuiBadge-badge {
-    right: 0px;
-    top: 0px;
-}
-
-@media (max-width: 768px) {
-    .sidebar {
-        margin-top: 0;
-        height: 100vh;
-        position: fixed;
-        background-color: var(--mui-palette-background-paper);
-        z-index: 1200;
-        width: 250px !important;
-        /* Força largura fixa no mobile */
-        box-shadow: 4px 0 8px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Remove animação de width no mobile */
-    .sidebar.closed,
-    .sidebar.open {
-        transition: none;
-    }
-
-    /* Esconde o botão de toggle original */
-    .sidebar-toggle-wrapper {
-        display: none;
-    }
-
-    /* Ajusta o conteúdo da sidebar */
-    .sidebar-content {
-        margin-top: 64px;
-        /* Alinha com o topo da aplicação */
-    }
+/* Badge de notificação */
+.badge-notification .MuiBadge-badge {
+    right: -2px !important;
+    top: 4px !important;
+    border: 2px solid var(--mui-palette-background-paper) !important;
+    padding: '0 4px' !important;
 }
