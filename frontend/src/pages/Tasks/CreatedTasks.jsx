@@ -1,12 +1,16 @@
 import React from "react";
+import { useOutletContext } from "react-router-dom";
 import TaskBoardLayout from "./TaskBoardLayout";
 
-/**
- * Componente para exibir as tarefas criadas pelo usuário atual
- * usando o layout de quadro Kanban
- */
 const CreatedTasks = () => {
-  return <TaskBoardLayout fetchType="created" title="Tarefas Onde Sou Responsável" />;
+  const { searchTerm } = useOutletContext();
+  return (
+    <TaskBoardLayout 
+      fetchType="created" 
+      title="Tarefas Onde Sou Responsável" 
+      searchTerm={searchTerm} 
+    />
+  );
 };
 
 export default CreatedTasks;

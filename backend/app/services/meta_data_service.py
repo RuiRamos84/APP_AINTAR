@@ -1,5 +1,4 @@
 from sqlalchemy.sql import text
-from .. import db
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 from functools import lru_cache
@@ -27,6 +26,7 @@ def fetch_meta_data(current_user):
         'etar': "SELECT * FROM vbl_etar order by nome",
         'ee': "SELECT * FROM vbl_ee order by nome",
         'param': "SELECT * FROM vbl_param",
+        'param_doctype': "SELECT * FROM vbl_param_doctype",
         'presentation': "SELECT * FROM vbl_presentation",
         'spot': "SELECT * FROM vbl_readspot",
         'expense': "select * from vbl_expensedest",
@@ -36,6 +36,8 @@ def fetch_meta_data(current_user):
         'epi_deliveries': "SELECT * FROM vbl_epi_deliver ORDER BY tb_epi",
         'task_priority': "SELECT * FROM vbl_priority ORDER BY pk",
         'task_status': "SELECT * FROM vbl_notestatus ORDER BY pk",
+        'payment_method': "SELECT * FROM vbl_metodopagamento ORDER BY pk",
+        
     }
     response_data = {}
     try:

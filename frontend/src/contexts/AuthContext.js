@@ -91,6 +91,7 @@ export const AuthProvider = ({ children }) => {
       const userData = await loginService(username, password);
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
+      console.log("Usuário logado:", userData);
       localStorage.setItem("lastActivityTime", Date.now().toString());
       await connectSocket(userData.user_id);
       return userData;

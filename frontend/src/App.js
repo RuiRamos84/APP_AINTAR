@@ -1,56 +1,62 @@
-import React, { useState, useEffect } from "react";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+import React, { useEffect, useState } from "react";
 import {
-  BrowserRouter as Router,
-  Route,
-  Routes,
   Navigate,
-  useNavigate,
+  Route,
+  BrowserRouter as Router,
+  Routes,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
+import "./App.css";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 import Navbar from "./components/common/Navbar/Navbar";
 import Sidebar from "./components/common/Sidebar/Sidebar";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import InternalArea from "./pages/Internal/InternalArea";
-import DocumentPage from "./pages/DocumentPage/DocumentPage";
-import Settings from "./pages/Settings/Settings";
-import Login from "./pages/Login/Login";
-import Home from "./pages/Home/Home";
-import CreateUser from "./pages/CreateUser/CreateUser";
+import { ThemedToaster } from "./components/common/Toaster/ThemedToaster";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import PrivateRoute from "./contexts/AuthContextProvider";
+import { EpiProvider } from "./contexts/EpiContext";
+import { MetaDataProvider } from "./contexts/MetaDataContext";
+import { SidebarProvider } from './contexts/SidebarContext';
+import { SocketProvider } from "./contexts/SocketContext";
 import Activation from "./pages/Activation/Activation";
-import UserInfo from "./pages/UserInfo/UserInfo";
+import AdminDashboard from "./pages/Administration/AdminDashboard";
 import ChangePassword from "./pages/ChangePassword/ChangePassword";
-import PasswordRecovery from "./pages/PasswordRecovery/PasswordRecovery";
-import ResetPassword from "./pages/ResetPassword/ResetPassword";
-import EntityList from "./pages/Entity/EntityList/EntityList";
-import EntityDetail from "./pages/Entity/EntityDetail/EntityDetail";
-import CreateEntity from "./pages/Entity/CreateEntity/CreateEntity";
-import DocumentList from "./pages/Documents/DocumentListAll/DocumentList";
-import RamaisList from "./pages/Documents/RamaisList/RamalList";
-import RamaisListConcluded from "./pages/Documents/RamaisList/RamaisConcludedList";
+import CreateUser from "./pages/CreateUser/CreateUser";
+import Dashboard from "./pages/Dashboard/Dashboard";
+import DocumentPage from "./pages/DocumentPage/DocumentPage";
 import CreateDocument from "./pages/Documents/DocumentCreate/CreateDocument";
 import CreateDocumentModal from "./pages/Documents/DocumentCreate/CreateDocumentModal";
-import AssignedToMe from "./pages/Documents/DocumentSelf/AssignedToMe";
+import DocumentList from "./pages/Documents/DocumentListAll/DocumentList";
 import CreatedByMe from "./pages/Documents/DocumentOner/CreatedByMe";
+import AssignedToMe from "./pages/Documents/DocumentSelf/AssignedToMe";
+import RamaisListConcluded from "./pages/Documents/RamaisList/RamaisConcludedList";
+import RamaisList from "./pages/Documents/RamaisList/RamalList";
+import CreateEntity from "./pages/Entity/CreateEntity/CreateEntity";
+import EntityDetail from "./pages/Entity/EntityDetail/EntityDetail";
+import EntityList from "./pages/Entity/EntityList/EntityList";
 import EpiArea from "./pages/EPIs/EpiArea";
-import { ThemeProvider, CssBaseline } from "@mui/material";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { MetaDataProvider } from "./contexts/MetaDataContext";
-import { SocketProvider } from "./contexts/SocketContext";
-import { lightTheme, darkTheme } from "./styles/theme";
-import ErrorBoundary from "./components/common/ErrorBoundary";
-import PrivateRoute from "./contexts/AuthContextProvider";
-import { ThemedToaster } from "./components/common/Toaster/ThemedToaster";
-import { initializeSessionManagement } from "./services/authService";
+import Home from "./pages/Home/Home";
+import InternalArea from "./pages/Internal/InternalArea";
 import LetterManagement from "./pages/Letters/LetterManagement";
-import { EpiProvider } from "./contexts/EpiContext";
-import { SidebarProvider } from './contexts/SidebarContext';
+import Login from "./pages/Login/Login";
+import ModernDocuments from "./pages/ModernDocuments";
+import Operations from "./pages/Operação/Operations";
+import PasswordRecovery from "./pages/PasswordRecovery/PasswordRecovery";
+import ResetPassword from "./pages/ResetPassword/ResetPassword";
+import Settings from "./pages/Settings/Settings";
 import {
-  TaskManagement, AllTasks, MyTasks,
-  CreatedTasks, CompletedTasks
+  AllTasks,
+  CompletedTasks,
+  CreatedTasks,
+  MyTasks,
+  TaskManagement
 } from './pages/Tasks/index.js';
+import UserInfo from "./pages/UserInfo/UserInfo";
+import { initializeSessionManagement } from "./services/authService";
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
-import "./App.css";
+import { darkTheme, lightTheme } from "./styles/theme";
 
 const AppContent = () => {
   const { user, isLoading, isLoggingOut } = useAuth();
@@ -72,7 +78,6 @@ const AppContent = () => {
       isSidebarOpen ? "8.5vw" : "2.5vw"
     );
   }, [isSidebarOpen]);
-
 
   useEffect(() => {
     if (!isLoading && !user && !isLoggingOut) {
@@ -145,7 +150,6 @@ const AppContent = () => {
               <Route path="/password-recovery" element={<PasswordRecovery />} />
               <Route path="/reset-password/:id/:reset_code" element={<ResetPassword />} />
               <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-
               <Route
                 path="/user-info"
                 element={
@@ -159,6 +163,14 @@ const AppContent = () => {
                 element={
                   <PrivateRoute>
                     <ChangePassword />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <PrivateRoute requiredProfil="0">
+                    <AdminDashboard />
                   </PrivateRoute>
                 }
               />
@@ -183,6 +195,23 @@ const AppContent = () => {
                 element={
                   <PrivateRoute>
                     <CreateEntity />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/operation"
+                element={
+                  <PrivateRoute>
+                    <Operations />
+                  </PrivateRoute>
+                }
+              />
+              <Route path="/pedidos-modernos" element={<ModernDocuments />} />
+              <Route
+                path="/modern-documents"
+                element={
+                  <PrivateRoute requiredProfil="0">
+                    <ModernDocuments />
                   </PrivateRoute>
                 }
               />
@@ -253,7 +282,7 @@ const AppContent = () => {
               <Route
                 path="/settings"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requiredProfil="0">
                     <Settings />
                   </PrivateRoute>
                 }
@@ -275,7 +304,14 @@ const AppContent = () => {
                 }
               >
                 <Route path="" element={<Navigate to="/tasks/all" replace />} />
-                <Route path="all" element={<AllTasks />} />
+                <Route
+                  path="all"
+                  element={
+                    <PrivateRoute requiredProfil="0">
+                      <AllTasks />
+                    </PrivateRoute>
+                  }
+                />
                 <Route path="my" element={<MyTasks />} />
                 <Route path="created" element={<CreatedTasks />} />
                 <Route path="completed" element={<CompletedTasks />} />
@@ -291,7 +327,7 @@ const AppContent = () => {
               <Route
                 path="/epi"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute allowedUserIds={[12, 11, 82]}>
                     <EpiArea />
                   </PrivateRoute>
                 }

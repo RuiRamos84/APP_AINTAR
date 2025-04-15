@@ -8,6 +8,7 @@ from ..services.tasks_service import (
     close_task,
     update_task_status,
     get_task_history,
+    get_notification_count,
     update_task_note_notification,
 )
 from ..utils.utils import token_required, set_session, db_session_manager
@@ -109,7 +110,6 @@ def close_task_route(task_id):
 def update_task_status_route(task_id):
     """Atualizar status de uma tarefa"""
     current_user = get_jwt_identity()
-    # Extrair user_id do token
     user_id = get_jwt()["user_id"]
     data = request.json
     status_id = data.get('status_id')
@@ -141,3 +141,18 @@ def update_task_notification(task_id):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return update_task_note_notification(task_id, current_user)
+
+
+@bp.route('/notifications', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def get_notifications():
+    """Obter a contagem de notificações não lidas."""
+    current_user = get_jwt_identity()
+    user_id = get_jwt()["user_id"]
+    with db_session_manager(current_user):
+        count = get_notification_count(current_user, user_id)
+        return {"count": count}
+
+

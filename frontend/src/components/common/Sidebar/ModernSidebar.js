@@ -21,12 +21,21 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSocket } from '../../../contexts/SocketContext';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import SidebarItem from './SidebarItem';
+import TaskNotificationCenter from '../../../pages/Tasks/TaskNotificationCenter';
 import { useTheme } from '@mui/material/styles';
+import {
+    AdminPanelSettings as AdminIcon,
+    Speed as SpeedIcon,
+    Storage as StorageIcon,
+    Timeline as TimelineIcon,
+    Psychology as PsychologyIcon
+} from "@mui/icons-material";
 import ResponsiveSidebar from './ResponsiveSidebar';
 import './Sidebar.css';
 import {
     Dashboard as DashboardIcon,
     Description as DescriptionIcon,
+    WorkTwoTone as WorkIcon,
     Settings as SettingsIcon,
     ChevronLeft as ChevronLeftIcon,
     Assignment as AssignmentIcon,
@@ -41,6 +50,11 @@ import {
     WaterDrop as WaterIcon,
     AccountTree as AccountTreeIcon,
     Check as CheckIcon,
+    People as PeopleIcon,
+    Description as DocumentIcon,
+    History as HistoryIcon,
+    Notifications as NotificationIcon,
+    ViewModule as ViewModuleIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 
@@ -53,16 +67,95 @@ const iconStyle = {
 const MENU_ITEMS = [
     {
         id: "settings",
-        text: "Configurações",
-        icon: <SettingsIcon sx={iconStyle} />,
-        to: "/settings",
+        text: "Administração",
+        icon: <AdminIcon sx={iconStyle} />,
+        submenu: [
+            {
+                id: "admin_dashboard",
+                text: "Dashboard Admin",
+                icon: <SpeedIcon sx={iconStyle} />,
+                to: "/settings?tab=dashboard",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_users",
+                text: "Gestão de Utilizadores",
+                icon: <PeopleIcon sx={iconStyle} />,
+                to: "/settings?tab=users",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_documents",
+                text: "Gestão de Documentos",
+                icon: <DocumentIcon sx={iconStyle} />,
+                to: "/settings?tab=documents",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_reopen",
+                text: "Reabertura de Pedidos",
+                icon: <HistoryIcon sx={iconStyle} />,
+                to: "/settings?tab=reopen",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_database",
+                text: "Gestão de BDs",
+                icon: <StorageIcon sx={iconStyle} />,
+                to: "/settings?tab=database",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_logs",
+                text: "Logs e Auditoria",
+                icon: <NotificationIcon sx={iconStyle} />,
+                to: "/settings?tab=logs",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_reports",
+                text: "Relatórios",
+                icon: <TimelineIcon sx={iconStyle} />,
+                to: "/settings?tab=reports",
+                rolesAllowed: ["0"],
+            },
+            {
+                id: "admin_settings",
+                text: "Configurações",
+                icon: <SettingsIcon sx={iconStyle} />,
+                to: "/settings?tab=settings",
+                rolesAllowed: ["0"],
+            }
+        ],
+        to: "/settings", // Este link será usado quando o usuário clicar no item pai
         rolesAllowed: ["0"],
+    },
+    // {
+    //     id: "settings",
+    //     text: "Configurações",
+    //     icon: <SettingsIcon sx={iconStyle} />,
+    //     to: "/settings",
+    //     rolesAllowed: ["0"],
+    // },
+    {
+        id: "modern_documents",
+        text: "Gestão Moderna",
+        icon: <ViewModuleIcon sx={iconStyle} />,
+        to: "/pedidos-modernos",
+        rolesAllowed: ["0", "1"],
     },
     {
         id: "dashboard",
         text: "Dashboard",
         icon: <DashboardIcon sx={iconStyle} />,
         to: "/dashboard",
+        rolesAllowed: ["0", "1"],
+    },
+    {
+        id: "operations",
+        text: "Operação",
+        icon: <WorkIcon sx={iconStyle} />,
+        to: "/operation",
         rolesAllowed: ["0", "1"],
     },
     {
@@ -167,6 +260,8 @@ const MENU_ITEMS = [
         icon: <SecurityOutlinedIcon sx={iconStyle} />,
         to: "/epi",
         rolesAllowed: ["0", "1"],
+        allowedUserIds: [12, 11, 82],
+        
     },
     {
         id: "tasks",
@@ -174,18 +269,19 @@ const MENU_ITEMS = [
         icon: <ListAltIcon sx={iconStyle} />,
         submenu: [
             {
-                id: "all_tasks",
-                text: "Todas as Tarefas",
-                icon: <ListAltIcon sx={iconStyle} />,
-                to: "/tasks",
-                rolesAllowed: ["0", "1"],
-            },
-            {
                 id: "my_tasks",
                 text: "Minhas Tarefas",
                 icon: <PersonIcon sx={iconStyle} />,
                 to: "/tasks/my",
                 rolesAllowed: ["0", "1"],
+                isBadged: true, // Adicione esta linha para mostrar o badge
+            },
+            {
+                id: "all_tasks",
+                text: "Todas as Tarefas",
+                icon: <ListAltIcon sx={iconStyle} />,
+                to: "/tasks",
+                rolesAllowed: ["0"],
             },
             {
                 id: "completed_tasks",
@@ -196,6 +292,7 @@ const MENU_ITEMS = [
             },
         ],
         rolesAllowed: ["0", "1"],
+        isBadged: true, // Adicione esta linha para mostrar o badge no menu pai
     },
 ];
 
@@ -203,7 +300,7 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
     const theme = useTheme();
     const location = useLocation();
     const { user } = useAuth();
-    const { notificationCount, refreshNotifications } = useSocket();
+    const { notificationCount, refreshNotifications, taskNotificationCount } = useSocket(); // Adicione taskNotificationCount
     const {
         sidebarMode,
         setSidebarMode,
@@ -227,8 +324,10 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
         return () => clearTimeout(timer);
     }, [refreshNotifications]);
 
-    const hasAccess = (rolesAllowed) => {
-        return rolesAllowed.includes(user.profil);
+    const hasAccess = (rolesAllowed, allowedUserIds = []) => {
+        const hasRoleAccess = rolesAllowed.includes(user.profil);
+        const hasUserIdAccess = allowedUserIds.length === 0 || allowedUserIds.includes(user.user_id);
+        return hasRoleAccess && hasUserIdAccess;
     };
 
     const handleAction = (action) => {
@@ -239,7 +338,7 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
         }
     };
 
-    const accessibleMenuItems = MENU_ITEMS.filter(item => hasAccess(item.rolesAllowed));
+    const accessibleMenuItems = MENU_ITEMS.filter(item => hasAccess(item.rolesAllowed, item.allowedUserIds));
 
     const handleToggleSidebar = () => {
         if (typeof toggleSidebar === 'function') {
@@ -247,6 +346,10 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
         } else {
             setSidebarMode(prev => prev === 'full' ? 'compact' : 'full');
         }
+    };
+
+    const hasTaskNotifications = () => {
+        return taskNotificationCount > 0;
     };
 
     return (
@@ -260,7 +363,7 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
                     backgroundColor: theme.palette.background.paper,
                     boxShadow: theme.shadows[4],
                     overflow: 'hidden',
-                    transition: 'width 0.3s ease-in-out',
+                    transition: 'width 0.6s ease-in-out',
                     display: 'flex',
                     flexDirection: 'column',
                     position: 'relative',
@@ -284,7 +387,7 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
                             <React.Fragment key={item.id}>
                                 <SidebarItem
                                     item={item}
-                                    notificationCount={notificationCount}
+                                    // notificationCount={item.id === 'tasks' ? taskNotificationCount : notificationCount}
                                     handleAction={handleAction}
                                     isActive={location.pathname === item.to}
                                 />
@@ -292,6 +395,20 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
                         ))}
                     </List>
                 </Box>
+
+                {/* Adicione o TaskNotificationCenter antes do botão toggle */}
+                {/* {sidebarMode === 'full' && (
+                    <Box
+                        sx={{
+                            p: 1,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            borderTop: `1px solid ${theme.palette.divider}`
+                        }}
+                    >
+                        <TaskNotificationCenter />
+                    </Box>
+                )} */}
 
                 {/* Botão toggle */}
                 <Box
@@ -304,6 +421,13 @@ const ModernSidebar = ({ isOpen, toggleSidebar, openNewDocumentModal, handleOpen
                         borderTop: `1px solid ${theme.palette.divider}`
                     }}
                 >
+                    {/* Adicione o TaskNotificationCenter ao lado do botão de toggle no modo compacto */}
+                    {/* {sidebarMode === 'compact' && hasTaskNotifications() && (
+                        <Box sx={{ mr: 1 }}>
+                            <TaskNotificationCenter />
+                        </Box>
+                    )} */}
+
                     <IconButton
                         onClick={handleToggleSidebar}
                         className="sidebar-toggle-button"

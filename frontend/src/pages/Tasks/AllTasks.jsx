@@ -1,12 +1,10 @@
 import React from "react";
+import { useOutletContext } from "react-router-dom";
 import TaskBoardLayout from "./TaskBoardLayout";
 
-/**
- * Componente para exibir todas as tarefas
- * usando o layout de quadro Kanban
- */
 const AllTasks = () => {
-  return <TaskBoardLayout fetchType="all" title="Todas as Tarefas" />;
+  const { searchTerm } = useOutletContext();
+  return <TaskBoardLayout fetchType="all" title="Todas as Tarefas" searchTerm={searchTerm} />;
 };
 
 export default AllTasks;

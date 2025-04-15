@@ -27,6 +27,7 @@ from ..services.documents_service import (
     get_document_ramais_concluded,
     replicate_document_service,
     reopen_document,
+    documentById,
 )
 import jwt
 from .. import limiter
@@ -44,6 +45,18 @@ def get_documents():
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return list_documents(current_user)
+
+
+@bp.route('/document/<string:documentId>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+def documentById_route(documentId):  # Adicione o parâmetro documentId aqui
+    """Obter dados do documento"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        # Parâmetros na ordem correta
+        return documentById(documentId, current_user)
 
 
 @bp.route('/document_self', methods=['GET'])

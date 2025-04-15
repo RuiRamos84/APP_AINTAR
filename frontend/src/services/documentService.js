@@ -1,42 +1,79 @@
 import api from "./api";
+import { processApiResponse, processDocument } from "../pages/ModernDocuments/utils/documentUtils";
 
+/**
+ * Processa a resposta da API e extrai os documentos
+ * @param {Object} response - Resposta bruta da API 
+ * @returns {Array} - Array de documentos
+ */
 const handleResponse = (response) => {
-  if (response.data.document_self) {
-    return response.data.document_self;
-  } else if (response.data.document_owner) {
-    return response.data.document_owner;
-  } else if (response.data.documents) {
-    return response.data.documents;
-  } else if (response.data.mensagem) {
-    // Se há uma mensagem, provavelmente não há documentos
-    console.log(response.data.mensagem);
-    return [];
-  } else if (Array.isArray(response.data)) {
-    return response.data;
-  } else {
+  try {
+    // Usar a nova função de processamento
+    const documents = processApiResponse(response);
+
+    // Fallback para o método anterior se não encontrar documentos
+    if (documents.length === 0) {
+      // Processamento original
+      if (response.data.document_self) {
+        return response.data.document_self.map(processDocument);
+      } else if (response.data.document_owner) {
+        return response.data.document_owner.map(processDocument);
+      } else if (response.data.documents) {
+        return response.data.documents.map(processDocument);
+      }else if (response.data.documentId) {
+        return response.data.document.map(processDocument);
+      } else if (response.data.mensagem) {
+        // console.log(response.data.mensagem);
+        return [];
+      } else if (Array.isArray(response.data)) {
+        return response.data.map(processDocument);
+      }
+    }
+
+    return documents;
+  } catch (error) {
+    console.error("Erro ao processar resposta:", error);
     return [];
   }
 };
 
+/**
+ * Mapeia documentos com formatação de data adicional
+ * @deprecated Use processApiResponse diretamente
+ */
 const mapDocuments = (data) => {
   if (!Array.isArray(data) || data.length === 0) {
     return [];
   }
-  return data.map((doc) => ({
-    ...doc,
-    submissionDate: doc.submission
-      ? new Date(doc.submission).toLocaleDateString()
-      : "",
-  }));
+
+  // Usar processDocument para cada item
+  return data.map(processDocument);
 };
 
 export const getDocuments = async () => {
   try {
     const response = await api.get("/documents");
-    // console.log(response)
-    return mapDocuments(handleResponse(response));
+    // console.log("Todos os pedidos:", response);
+    return handleResponse(response);
   } catch (error) {
     console.error("Erro ao buscar documentos:", error);
+    throw error;
+  }
+};
+
+export const getDocumentById = async (documentId) => {
+  try {
+    // console.log("Buscando pedido por ID:", documentId);
+    
+
+    const response = await api.get(`/document/${documentId}`);
+    // console.log("Resposta bruta por ID:", response);
+
+    // Retorna diretamente a resposta para endpoints que já tem estrutura definida
+    return response.data; // Isso preservará { document: {...} }
+
+  } catch (error) {
+    console.error("Erro ao buscar pedido por ID:", error);
     throw error;
   }
 };
@@ -44,8 +81,8 @@ export const getDocuments = async () => {
 export const getDocumentsCreatedByMe = async () => {
   try {
     const response = await api.get("/document_owner");
-    // console.log(response);
-    return mapDocuments(handleResponse(response));
+    // console.log("Pedidos criados por mim:", response);
+    return handleResponse(response);
   } catch (error) {
     console.error("Erro ao buscar documentos criados por mim:", error);
     throw error;
@@ -55,8 +92,8 @@ export const getDocumentsCreatedByMe = async () => {
 export const getDocumentsAssignedToMe = async () => {
   try {
     const response = await api.get("/document_self");
-    // console.log(response);
-    return mapDocuments(handleResponse(response));
+    // console.log("Pedidos atribuídos a mim:", response);
+    return handleResponse(response);
   } catch (error) {
     console.error("Erro ao buscar documentos atribuídos a mim:", error);
     throw error;
@@ -71,13 +108,25 @@ export const checkVacationStatus = async (userPk) => {
   return response.data.vacation;
 };
 
+export const updateDocumentNotification = async (documentId) => {
+  try {
+    const response = await api.put(`/update_document_notification/${documentId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao atualizar notificação:", error);
+    throw error;
+  }
+};
+
 export const getDocumentStep = async (documentId) => {
   const response = await api.get(`/get_document_step/${documentId}`);
+  // console.log(response);
   return handleResponse(response);
 };
 
 export const getDocumentAnnex = async (documentId) => {
   const response = await api.get(`/get_document_anex/${documentId}`);
+  // console.log('anexos', response);
   return handleResponse(response);
 };
 
@@ -107,7 +156,7 @@ export const addDocumentAnnex = async (formData) => {
 
 export const createDocument = async (documentData) => {
   try {
-    console.log(documentData)
+    // console.log(documentData)
     const response = await api.post("/create_document", documentData, {
       headers: {
         "Content-Type": "multipart/form-data",
@@ -122,6 +171,7 @@ export const createDocument = async (documentData) => {
 export const getDocumentTypeParams = async (typeId) => {
   try {
     const response = await api.get(`/document_type_params/${typeId}`);
+    // console.log('parametro', response.data);
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar parâmetros do tipo de documento:", error);
@@ -129,9 +179,29 @@ export const getDocumentTypeParams = async (typeId) => {
   }
 };
 
-export const updateDocumentParams = async (documentId, params) => {
-  const response = await api.put(`/document_type_params/${documentId}`, { params });
-  return response.data; // Atualiza os parâmetros
+export const updateDocumentParams = async (documentId, paramsData) => {
+  try {
+    // Debug: Log what we're sending
+    // console.log('Sending params to server:', paramsData);
+
+    // Verify if paramsData is an array or has a params property
+    const params = Array.isArray(paramsData) ? paramsData : paramsData.params;
+
+    if (!Array.isArray(params)) {
+      throw new Error("Params must be an array");
+    }
+
+    const response = await api.put(`/document_type_params/${documentId}`, params, {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error in updateDocumentParams:', error);
+    throw error;
+  }
 };
 
 export const getEntityCountTypes = async (entityPk) => {
@@ -169,7 +239,7 @@ export const downloadComprovativo = async (documentId) => {
 export const getDocumentRamais = async () => {
   try {
     const response = await api.get("/document_ramais");
-    console.log(response.data);
+    // console.log(response.data);
     return response.data.ramais
   } catch (error) {
     console.error("Erro ao buscar ramais:", error);
@@ -190,7 +260,6 @@ export const updateDocumentPavenext = async (pk) => {
 export const getDocumentRamaisConcluded = async () => {
   try {
     const response = await api.get("/document_ramais_concluded");
-    // console.log(response.data);
     return response.data.ramais;
   } catch (error) {
     console.error("Erro ao buscar ramais concluídos:", error);
@@ -208,8 +277,15 @@ export const replicateDocument = async (documentId, newType) => {
       throw new Error(response.data.error);
     }
 
-    return response.data;
+    // Não force a conversão para int se o regnumber não for numérico
+    return {
+      success: true,
+      message: response.data.message || 'Documento replicado com sucesso',
+      newDocumentId: response.data.new_document_id, // Mantém como string se necessário
+      regnumber: response.data.regnumber // Adiciona o número de registro completo
+    };
   } catch (error) {
+    console.error('Erro ao replicar documento:', error);
     throw new Error(error.response?.data?.error || 'Erro ao replicar documento');
   }
 };
@@ -222,6 +298,40 @@ export const reopenDocument = async (regnumber, user_id) => {
     });
     return response.data;
   } catch (error) {
+    throw new Error(`Failed to reopen document: ${error.message}`);
+  }
+};
+
+/**
+ * Atualizar informações de pagamento de um documento
+ * @param {Object} paymentData - Dados do pagamento
+ * @returns {Promise<Object>} Resultado da operação
+ */
+export const updateDocumentPayment = async (paymentData) => {
+  try {
+    if (!paymentData.regnumber) {
+      throw new Error("Número do documento é obrigatório");
+    }
+
+    const response = await api.post(`/documents/${paymentData.regnumber}/payment`, paymentData);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao atualizar pagamento do documento:", error);
+    throw error;
+  }
+};
+
+/**
+ * Obter documento pelo número de registro
+ * @param {string} regnumber - Número de registro do documento
+ * @returns {Promise<Object>} Documento encontrado
+ */
+export const getDocumentByRegnumber = async (regnumber) => {
+  try {
+    const response = await api.get(`/documents/${regnumber}`);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar documento:", error);
     throw error;
   }
 };

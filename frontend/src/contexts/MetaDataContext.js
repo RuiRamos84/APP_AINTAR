@@ -56,7 +56,6 @@ export const MetaDataProvider = ({ children }) => {
       if (!force && cacheRef.current.metaData) {
         const { data, timestamp } = cacheRef.current.metaData;
         if (Date.now() - timestamp < CACHE_DURATION) {
-          // Cache ainda válido
           setMetaData(data);
           return data;
         }
@@ -68,6 +67,7 @@ export const MetaDataProvider = ({ children }) => {
 
       try {
         const response = await api.get("/metaData");
+        console.log("Metadados", response.data);
         const newMetaData = {
           ...response.data,
           columns: COLUMNS,

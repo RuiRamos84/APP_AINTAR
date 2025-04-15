@@ -1,66 +1,75 @@
-// src/services/NotificacaoService.js
 class NotificacaoService {
     constructor() {
-        this.tituloOriginal = document.title;
-        this.intervaloId = null;
-        this.aPiscar = false;
-        this.somNotificacao = new Audio('/sounds/notification.mp3');
+        this.originalTitle = document.title;
+        this.interval = null;
+        this.audio = null;
+        this.initializeAudio();
     }
 
-    iniciarPiscar(contador) {
-        if (this.aPiscar) return;
+    initializeAudio() {
+        try {
+            // Crie um elemento de áudio durante a inicialização
+            this.audio = new Audio('/sounds/notification.mp3'); // Ajuste o caminho conforme necessário
 
-        this.aPiscar = true;
-        let eOriginal = false;
+            // Pré-carregar o áudio
+            this.audio.load();
 
-        // Garantir que o contador é exibido, mesmo que seja zero
-        const contadorExibido = contador !== undefined ? contador : 0;
+            console.log("Áudio de notificação inicializado");
+        } catch (error) {
+            console.error("Erro ao inicializar áudio:", error);
+        }
+    }
 
-        this.intervaloId = setInterval(() => {
-            if (eOriginal) {
-                document.title = this.tituloOriginal;
-            } else {
-                // Exibir o contador na aba
-                document.title = `🔔 (${contadorExibido}) - ${this.tituloOriginal}`;
-            }
-            eOriginal = !eOriginal;
+    notificar(count) {
+        console.log("Notificando:", count);
+
+        // Atualizar título da página
+        this.piscaTitulo(`(${count}) ${this.originalTitle}`);
+
+        // Tocar som de notificação
+        this.tocarSom();
+    }
+
+    piscaTitulo(newTitle) {
+        // Limpar qualquer intervalo existente
+        this.pararPiscar();
+
+        let isOriginal = true;
+        this.interval = setInterval(() => {
+            document.title = isOriginal ? newTitle : this.originalTitle;
+            isOriginal = !isOriginal;
         }, 1000);
     }
 
     pararPiscar() {
-        if (!this.aPiscar) return;
-
-        clearInterval(this.intervaloId);
-        document.title = this.tituloOriginal;
-        this.aPiscar = false;
-    }
-
-    reproduzirSom() {
-        // Reiniciar o áudio para o início se já estiver a tocar
-        this.somNotificacao.pause();
-        this.somNotificacao.currentTime = 0;
-
-        // Reproduzir o som de notificação
-        const promessaReproducao = this.somNotificacao.play();
-
-        if (promessaReproducao !== undefined) {
-            promessaReproducao.catch(erro => {
-                console.warn('A reprodução de áudio foi impedida:', erro);
-            });
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = null;
+            document.title = this.originalTitle;
         }
     }
 
-    notificar(contador) {
-        // Se a página não estiver visível, iniciar a piscar o título
-        if (document.visibilityState !== 'visible') {
-            this.iniciarPiscar(contador);
-        }
+    tocarSom() {
+        try {
+            if (this.audio) {
+                // Reiniciar o áudio
+                this.audio.currentTime = 0;
 
-        // Reproduzir som de notificação
-        this.reproduzirSom();
+                // Reproduzir
+                const playPromise = this.audio.play();
+                console.log("Tocando som de notificação");
+
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Erro ao tocar som de notificação:", error);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao tocar som:", error);
+        }
     }
 }
 
-// Exportar uma instância única
 const notificacaoService = new NotificacaoService();
 export default notificacaoService;

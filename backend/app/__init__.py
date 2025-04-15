@@ -92,7 +92,13 @@ def create_app(config_class):
     jwt.init_app(app)
     mail.init_app(app)
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-    socket_io.init_app(app, logger=False, engineio_logger=False, cors_allowed_origins="*")
+    socket_io.init_app(app,
+                       logger=True,
+                       engineio_logger=False,
+                       cors_allowed_origins="*",
+                       async_mode='eventlet',
+                       ping_timeout=60,
+                       ping_interval=25)
 
     # Inicializar o serviço de pagamento
     payment_service.init_app(app)
@@ -130,7 +136,7 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp
+        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
         app.register_blueprint(user_bp, url_prefix='/api/v1/user')
@@ -144,6 +150,7 @@ def create_app(config_class):
         app.register_blueprint(webhook_bp, url_prefix='/api/v1')
         app.register_blueprint(payment_bp, url_prefix='/api/v1')
         app.register_blueprint(tasks_bp, url_prefix='/api/v1')
+        app.register_blueprint(operations_bp, url_prefix='/api/v1')
 
         # Configuração do search_path para o PostgreSQL
         @db.event.listens_for(db.engine, "connect")
@@ -153,8 +160,9 @@ def create_app(config_class):
             cursor.close()
 
         # Registro dos eventos do Socket.IO
-        from app.socketio.socketio_events import register_socket_events
+        from .socketio.socketio_events import register_socket_events
         register_socket_events(socket_io)
+        app.logger.info("Socket.IO events registados com sucesso!")
 
     # Configuração da limpeza de sessão após cada requisição
     from .utils.utils import cleanup_session

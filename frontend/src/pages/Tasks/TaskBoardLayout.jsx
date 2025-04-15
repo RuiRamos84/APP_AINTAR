@@ -8,7 +8,8 @@ import {
   Paper,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  Chip,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { DndProvider } from "react-dnd";
@@ -17,17 +18,19 @@ import { useTasks } from "../../hooks/useTasks";
 import { useMetaData } from "../../contexts/MetaDataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import TaskColumn from "./TaskColumn";
+import { useTheme } from "@mui/material";
 
 /**
  * Layout padrão de quadro Kanban para visualização de tarefas em colunas
  */
-const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas" }) => {
+const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = "" }) => {
+  const { tasks, loading, error, setFetchType, fetchTasks, moveTask, setSearchTerm } = useTasks(fetchType);
   const { onTaskClick } = useOutletContext();
-  const { tasks, loading, error, setFetchType, fetchTasks, moveTask } = useTasks(fetchType);
   const { metaData } = useMetaData();
   const { user } = useAuth();
   const isDarkMode = user?.dark_mode || false;
   const [expandedClient, setExpandedClient] = useState(null);
+  const theme = useTheme();
   
   // Status padrão para colunas
   const defaultStatuses = [
@@ -39,10 +42,12 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas" }) => {
   // Usar metadados se disponíveis, ou padrão
   const statuses = metaData?.task_status || defaultStatuses;
   
-  // Atualizar o tipo de busca
+  // Atualizar o termo de pesquisa
   useEffect(() => {
-    setFetchType(fetchType);
-  }, [setFetchType, fetchType]);
+    if (searchTerm !== undefined) {
+      setSearchTerm(searchTerm);
+    }
+  }, [searchTerm, setSearchTerm]);
   
   // Adicionar listener para atualização global
   useEffect(() => {
@@ -82,186 +87,128 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas" }) => {
   
   // Função para obter tarefas por status
   const getTasksByStatus = (taskList, statusId) => {
-    console.log('Filtrando tarefas:', {
-      taskListLength: taskList.length,
-      statusId,
-      tasks: taskList.map(t => ({
-        id: t.pk, 
-        status: t.ts_notestatus, 
-        name: t.name
-      }))
-    });
-
     return taskList.filter(task => task.ts_notestatus === statusId);
   };
 
-  // Verificar se precisamos mostrar por cliente (para 'all') ou não (para 'my' e 'created')
-  const showByClient = fetchType === 'all';
+  // Função para obter cores de status
+  const getStatusColor = (status) => {
+    if (!status) return "default";
+    
+    const statusLower = status.toLowerCase();
+    if (statusLower.includes('concluído') || statusLower.includes('concluido')) {
+      return 'success';
+    } else if (statusLower.includes('progresso')) {
+      return 'info';
+    } else if (statusLower.includes('fazer')) {
+      return 'warning';
+    }
+    return 'default';
+  };
 
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 3 }}>{title}</Typography>
       
       <DndProvider backend={HTML5Backend}>
-        {showByClient ? (
-          // Visualização agrupada por cliente para "Todas as Tarefas"
-          Object.keys(tasks).length === 0 ? (
-            <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
-              Nenhuma tarefa encontrada.
-            </Typography>
-          ) : (
-            Object.keys(tasks).map((clientName) => {
-              const clientTasks = Object.values(tasks[clientName].tasks).flat();
-              
-              if (clientTasks.length === 0) {
-                return null;
-              }
-              
-              const totalClientTasks = clientTasks.length;
-              
-              return (
-                <Accordion 
-                  key={clientName} 
-                  expanded={expandedClient === clientName}
-                  onChange={() => handleExpandClient(clientName)}
-                  sx={{ mb: 2 }}
-                >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography>
-                      <strong>{clientName}</strong> ({totalClientTasks} {totalClientTasks === 1 ? 'tarefa' : 'tarefas'})
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={2} sx={{ minHeight: '400px' }}>
-                      {statuses.map((status) => (
-                        <Grid item xs={12} md={4} key={status.pk}>
-                          <Paper 
-                            sx={{ 
-                              p: 2, 
-                              height: '100%', 
-                              display: 'flex', 
-                              flexDirection: 'column',
-                              bgcolor: isDarkMode ? 'background.paper' : '#f5f5f5',
-                              borderRadius: 2
-                            }}
-                          >
-                            <Typography 
-                              variant="h6" 
-                              sx={{ 
-                                pb: 1, 
-                                mb: 2, 
-                                borderBottom: '1px solid', 
-                                borderColor: 'divider'
-                              }}
-                            >
-                              {status.value} ({getTasksByStatus(clientTasks, status.pk).length})
-                            </Typography>
-                            
-                            <Box sx={{ 
-                              flexGrow: 1, 
-                              overflowY: 'auto',
-                              pr: 1,
-                              '&::-webkit-scrollbar': {
-                                width: '8px',
-                              },
-                              '&::-webkit-scrollbar-thumb': {
-                                backgroundColor: 'rgba(0,0,0,0.2)',
-                                borderRadius: '4px',
-                              }
-                            }}>
-                              <TaskColumn
-                                columnId={status.pk}
-                                columnName={status.value}
-                                tasks={getTasksByStatus(clientTasks, status.pk)}
-                                onTaskClick={onTaskClick}
-                                moveTask={(taskId, newStatusId) => moveTask(taskId, newStatusId, clientName)}
-                                isDarkMode={isDarkMode}
-                              />
-                            </Box>
-                          </Paper>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })
-          )
+        {Object.keys(tasks).length === 0 ? (
+          <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
+            Nenhuma tarefa encontrada.
+          </Typography>
         ) : (
-          // Visualização simples para "Minhas Tarefas" e "Tarefas Criadas"
-          allTasks.length === 0 ? (
-            <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
-              Nenhuma tarefa encontrada.
-            </Typography>
-          ) : (
-            <Grid container spacing={2} sx={{ height: 'calc(100vh - 250px)' }}>
-              {statuses.map((status) => {
-                const statusTasks = getTasksByStatus(allTasks, status.pk);
-                  console.log(`Tarefas para status ${status.value} (${status.pk}):`, {
-                    count: statusTasks.length,
-                    tasks: statusTasks.map(t => ({
-                      id: t.pk, 
-                      name: t.name, 
-                      status: t.ts_notestatus
-                    }))
-                  });
-                return (
-                  <Grid item xs={12} md={4} key={status.pk} sx={{ height: '100%' }}>
-                    <Paper 
-                      sx={{ 
-                        p: 2, 
-                        height: '100%', 
-                        display: 'flex', 
-                        flexDirection: 'column',
-                        bgcolor: isDarkMode ? 'background.paper' : '#f5f5f5',
-                        borderRadius: 2
-                      }}
-                    >
-                      <Typography 
-                        variant="h6" 
-                        sx={{ 
-                          pb: 1, 
-                          mb: 2, 
-                          borderBottom: '1px solid', 
-                          borderColor: 'divider'
-                        }}
-                      >
-                        {status.value} ({statusTasks.length})
-                      </Typography>
-                      
-                      <Box sx={{ 
-                        flexGrow: 1, 
-                        overflowY: 'auto',
-                        pr: 1,
-                        '&::-webkit-scrollbar': {
-                          width: '8px',
-                        },
-                        '&::-webkit-scrollbar-thumb': {
-                          backgroundColor: 'rgba(0,0,0,0.2)',
-                          borderRadius: '4px',
-                        }
-                      }}>
-                        <TaskColumn
-                          columnId={status.pk}
-                          columnName={status.value}
-                          tasks={statusTasks}
-                          onTaskClick={onTaskClick}
-                          moveTask={(taskId, newStatusId) => {
-                            const task = allTasks.find(t => t.pk === taskId);
-                            if (task) {
-                              console.log("Movendo tarefa:", taskId, "para status:", newStatusId);
-                              moveTask(taskId, newStatusId, task.ts_client_name);
+          Object.keys(tasks).map((clientName) => {
+            const clientTasks = Object.values(tasks[clientName].tasks).flat();
+            
+            if (clientTasks.length === 0) {
+              return null;
+            }
+            
+            const totalClientTasks = clientTasks.length;
+            
+            return (
+              <Accordion 
+                key={clientName} 
+                expanded={expandedClient === clientName}
+                onChange={() => handleExpandClient(clientName)}
+                sx={{ mb: 2 }}
+              >
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography>
+                    <strong>{clientName}</strong> ({totalClientTasks} {totalClientTasks === 1 ? 'tarefa' : 'tarefas'})
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={2} sx={{ minHeight: '400px' }}>
+                    {statuses.map((status) => (
+                      <Grid item xs={12} md={4} key={status.pk}>
+                        <Paper 
+                          sx={{ 
+                            p: 2, 
+                            height: '100%', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            bgcolor: isDarkMode ? theme.palette.background.paper : '#f5f5f5',
+                            borderRadius: 2,
+                            boxShadow: isDarkMode ? '0 4px 8px rgba(0, 0, 0, 0.5)' : 3,
+                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                            '& .MuiTypography-root': {
+                              color: isDarkMode ? theme.palette.text.primary : undefined
                             }
                           }}
-                          isDarkMode={isDarkMode}
-                        />
-                      </Box>
-                    </Paper>
+                        >
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              pb: 1, 
+                              mb: 2, 
+                              borderBottom: '1px solid', 
+                              borderColor: 'divider',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <span>{status.value}</span>
+                            <Chip 
+                              size="small" 
+                              label={getTasksByStatus(clientTasks, status.pk).length}
+                              color={getStatusColor(status.value)}
+                              variant={isDarkMode ? "default" : "outlined"}
+                              sx={{
+                                fontWeight: 'bold',
+                                color: isDarkMode ? 'white' : undefined
+                              }}
+                            />
+                          </Typography>
+                          
+                          <Box sx={{ 
+                            flexGrow: 1, 
+                            overflowY: 'auto',
+                            pr: 1,
+                            '&::-webkit-scrollbar': {
+                              width: '8px',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                              borderRadius: '4px',
+                            }
+                          }}>
+                            <TaskColumn
+                              columnId={status.pk}
+                              columnName={status.value}
+                              tasks={getTasksByStatus(clientTasks, status.pk)}
+                              onTaskClick={onTaskClick}
+                              moveTask={(taskId, newStatusId) => moveTask(taskId, newStatusId, clientName)}
+                              isDarkMode={isDarkMode}
+                            />
+                          </Box>
+                        </Paper>
+                      </Grid>
+                    ))}
                   </Grid>
-                );
-              })}
-            </Grid>
-          )
+                </AccordionDetails>
+              </Accordion>
+            );
+          })
         )}
       </DndProvider>
     </Box>

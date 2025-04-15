@@ -21,6 +21,7 @@ import {
   notifyInfo,
 } from "../../common/Toaster/ThemedToaster";
 import logo from "../../../assets/images/logo.png";
+import TaskNotificationCenter from '../../../pages/Tasks/TaskNotificationCenter';
 import "./Navbar.css";
 
 const Navbar = () => {
@@ -105,74 +106,81 @@ const Navbar = () => {
         <Box onClick={handleHome} className="navbar-logo-container">
           <img src={logo} alt="logo" className="navbar-logo" />
         </Box>
-        {user ? (
-          <Box display="flex" alignItems="center">
-            <IconButton
-              onClick={handleAvatarClick}
-              className="navbar-avatar"
-              size="large"
-            >
-              <Avatar />
-            </IconButton>
-            <Typography
-              onClick={handleAvatarClick}
-              variant="body1"
-              className="navbar-username"
-            >
-              {user.user_name}
-            </Typography>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-              }}
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
-            >
-              <Box display="flex" justifyContent="center" mb={1}>
-                <Tooltip title="Alternar modo escuro" placement="top">
-                  <span>
-                    <MaterialUISwitch
-                      checked={darkMode}
-                      onChange={handleDarkModeToggle}
-                      name="darkModeToggle"
-                    />
-                  </span>
-                </Tooltip>
-                <Tooltip title="Alternar estado de férias" placement="top">
-                  <span>
-                    <VacationSwitch
-                      checked={isOnVacation}
-                      onChange={handleVacationToggle}
-                      name="vacationToggle"
-                    />
-                  </span>
-                </Tooltip>
-              </Box>
-              {alertMessage && (
-                <Typography
-                  variant="body2"
-                  color="textSecondary"
-                  align="center"
-                  style={{ marginTop: 8, marginBottom: 8 }}
-                >
-                  {alertMessage}
-                </Typography>
-              )}
-              <MenuItem onClick={() => handleNavigate("/user-info")}>
-                Perfil
-              </MenuItem>
-              <MenuItem onClick={() => handleNavigate("/change-password")}>
-                Alterar Password
-              </MenuItem>
-              <MenuItem onClick={handleLogout}>Logout</MenuItem>
-            </Menu>
+        {user && (
+          <Box sx={{ display: 'flex', alignItems: 'end', mr: 'auto', ml: 2 }}>
           </Box>
+        )}
+        {user ? (
+          <>
+            <TaskNotificationCenter />
+              <Box display="flex" alignItems="center">
+                <IconButton
+                  onClick={handleAvatarClick}
+                  className="navbar-avatar"
+                  size="large"
+                >
+                  <Avatar />
+                </IconButton>
+                <Typography
+                  onClick={handleAvatarClick}
+                  variant="body1"
+                  className="navbar-username"
+                >
+                  {user.user_name}
+                </Typography>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleMenuClose}
+                  anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "right",
+                  }}
+                  transformOrigin={{
+                    vertical: "top",
+                    horizontal: "right",
+                  }}
+                >
+                  <Box display="flex" justifyContent="center" mb={1}>
+                    <Tooltip title="Alternar modo escuro" placement="top">
+                      <span>
+                        <MaterialUISwitch
+                          checked={darkMode}
+                          onChange={handleDarkModeToggle}
+                          name="darkModeToggle"
+                        />
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Alternar estado de férias" placement="top">
+                      <span>
+                        <VacationSwitch
+                          checked={isOnVacation}
+                          onChange={handleVacationToggle}
+                          name="vacationToggle"
+                        />
+                      </span>
+                    </Tooltip>
+                  </Box>
+                  {alertMessage && (
+                    <Typography
+                      variant="body2"
+                      color="textSecondary"
+                      align="center"
+                      style={{ marginTop: 8, marginBottom: 8 }}
+                    >
+                      {alertMessage}
+                    </Typography>
+                  )}
+                  <MenuItem onClick={() => handleNavigate("/user-info")}>
+                    Perfil
+                  </MenuItem>
+                  <MenuItem onClick={() => handleNavigate("/change-password")}>
+                    Alterar Password
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                </Menu>
+              </Box>
+          </>
         ) : (
           <Button color="inherit" onClick={handleLogin}>
             Login

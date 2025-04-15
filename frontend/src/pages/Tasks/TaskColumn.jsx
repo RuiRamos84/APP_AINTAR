@@ -1,9 +1,10 @@
-// TaskColumn.jsx (Corrigido)
 import React from "react";
 import { Box, Typography, Snackbar, Alert } from "@mui/material";
 import { useDrop } from "react-dnd";
 import { useAuth } from "../../contexts/AuthContext";
 import TaskCard from "./TaskCard";
+import { useTheme } from "@mui/material";
+
 
 const ItemTypes = {
   TASK: "task",
@@ -12,22 +13,13 @@ const ItemTypes = {
 const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isDarkMode }) => {
   const { user } = useAuth();
   const [error, setError] = React.useState(null);
+  const theme = useTheme();
   
   const [{ isOver }, drop] = useDrop({
     accept: ItemTypes.TASK,
-    canDrop: (item) => {
-      // Verificar se o item pode ser arrastado (com base nas informações passadas)
-      return item.canDrag;
-    },
+    canDrop: (item) => item.canDrag,
     drop: (item) => {
       try {
-        console.log("Item recebido no drop:", item);
-        console.log("Coluna de destino:", columnId);
-        
-        // Não usamos tasks.find aqui pois a tarefa não está na coluna destino ainda
-        // Apenas enviamos o ID da tarefa e o ID do novo status para a função moveTask
-        
-        // Chamar a função do useTasks para atualizar o status
         moveTask(item.id, columnId);
       } catch (error) {
         console.error("Erro ao processar o drop:", error);
@@ -39,10 +31,19 @@ const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isDark
     }),
   });
   
-  const backgroundColor = isOver 
-    ? (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)')
-    : 'transparent';
+  // Cores de fundo baseadas no tema
+  const getBackgroundColor = () => {
+    if (isOver) {
+      return isDarkMode 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.05)';
+    }
     
+    return isDarkMode 
+      ? theme.palette.background.paper 
+      : '#f5f5f5';
+  };
+  
   const handleCloseError = () => {
     setError(null);
   };
@@ -54,19 +55,25 @@ const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isDark
         sx={{ 
           minHeight: '100%',
           transition: 'background-color 0.3s',
-          backgroundColor,
-          borderRadius: 1,
-          p: 1
+          backgroundColor: getBackgroundColor(),
+          borderRadius: 2,
+          p: 2,
+          borderWidth: 1,
+          borderStyle: 'solid',
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
         }}
       >
         {tasks.length === 0 ? (
           <Typography 
             variant="body2" 
             sx={{ 
-              color: 'text.secondary',
+              color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'text.secondary',
               textAlign: 'center',
               p: 3,
-              fontStyle: 'italic'
+              fontStyle: 'italic',
+              border: '2px dashed',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+              borderRadius: 2
             }}
           >
             Nenhuma tarefa
@@ -84,7 +91,6 @@ const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isDark
         )}
       </Box>
       
-      {/* Mensagem de erro ao tentar mover tarefas sem permissão */}
       <Snackbar 
         open={!!error} 
         autoHideDuration={4000} 

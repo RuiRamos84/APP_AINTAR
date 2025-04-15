@@ -1,21 +1,35 @@
+# DEVE SER A PRIMEIRA LINHA DO ARQUIVO
 import eventlet
 eventlet.monkey_patch()
-
-import os
-from app import create_app, socket_io as socketio
-from config import get_config
 import logging
-from datetime import datetime
-import signal
-import sys
+# Configuração AGGRESSIVA de logging - DEVE VIR ANTES DE QUALQUER OUTRA IMPORTAÇÃO
+logging.basicConfig(level=logging.CRITICAL)  # Nível mais alto possível
+logging.getLogger('socketio').setLevel(logging.CRITICAL)
+logging.getLogger('engineio').setLevel(logging.CRITICAL)
+logging.getLogger('werkzeug').setLevel(logging.CRITICAL)
+logging.getLogger('flask-socketio').setLevel(logging.CRITICAL)
+# Seu logger personalizado
+logging.getLogger('custom-socketio').setLevel(logging.INFO)
+
+# Desativar completamente logs específicos
+logging.getLogger('socketio.server').disabled = True
+logging.getLogger('engineio.server').disabled = False
+
+# Agora importe os outros módulos
+from config import get_config
+from app import create_app, socket_io as socketio
 import threading
+import sys
+import signal
+from datetime import datetime
+import os
 
 
 def setup_logger():
-    logger = logging.getLogger('flask-socketio')
+    logger = logging.getLogger('custom-socketio')  # Mudei para um nome único
     logger.setLevel(logging.INFO)
     handler = logging.FileHandler('flask-socketio.log')
-    formatter = logging.Formatter('%(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
@@ -33,16 +47,16 @@ class CustomLogger(object):
 
         def custom_start_response(status, headers, exc_info=None):
             duration = datetime.now() - start_time
-            self.logger.info(f'{start_time.strftime("%Y-%m-%d %H:%M:%S")} - {environ["REMOTE_ADDR"]} - {status} - {environ["REQUEST_METHOD"]} {environ["PATH_INFO"]} - {duration.total_seconds():.3f}s')
+            self.logger.info(
+                f'{start_time.strftime("%Y-%m-%d %H:%M:%S")} - {environ["REMOTE_ADDR"]} - {status} - {environ["REQUEST_METHOD"]} {environ["PATH_INFO"]} - {duration.total_seconds():.3f}s')
             return start_response(status, headers, exc_info)
 
         return self.app(environ, custom_start_response)
 
 
 def graceful_shutdown(signum, frame):
-    # print("Recebido sinal de shutdown. Encerrando servidor...")
     socketio.stop()
-    os._exit(0)  # Força o encerramento imediato
+    os._exit(0)
 
 
 def watchdog_thread():
@@ -53,17 +67,10 @@ def watchdog_thread():
             os._exit(1)
 
 
-threading.Thread(target=watchdog_thread, daemon=True).start()
-
-
 def run_server():
     env = os.environ.get('FLASK_ENV', 'development')
-    # print(f"Ambiente atual: {env}")
-
     config = get_config()
     app = create_app(config)
-
-    # Definir o ambiente explicitamente
     app.config['ENV'] = env
 
     logger = setup_logger()
@@ -72,7 +79,16 @@ def run_server():
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
 
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, log_output=False)
+    threading.Thread(target=watchdog_thread, daemon=True).start()
+
+    # Configuração final do Socket.IO
+    socketio.init_app(app, logger=False, engineio_logger=False)
+    socketio.run(app,
+                 host='0.0.0.0',
+                 port=5000,
+                 debug=False,
+                 use_reloader=False,
+                 log_output=False)
 
 
 if __name__ == '__main__':

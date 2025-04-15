@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-    ListItem,
+    ListItemButton,
+    ListItemButtonButton,
     ListItemText,
     Tooltip,
     Box,
@@ -87,8 +88,7 @@ const SidebarItem = ({
                 disableHoverListener={sidebarMode === 'full'}
                 arrow
             >
-                <ListItem
-                    button
+                <ListItemButton     // ← Forma correta para componentes React
                     component={item.to && !hasSubmenu ? Link : "div"}
                     to={item.to && !hasSubmenu ? item.to : undefined}
                     onClick={handleClick}
@@ -184,7 +184,7 @@ const SidebarItem = ({
                             }} />
                         </Box>
                     )}
-                </ListItem>
+                </ListItemButton>
             </Tooltip>
 
             {/* Submenu expandido no modo full */}
@@ -195,9 +195,9 @@ const SidebarItem = ({
                         const isSubItemActive = subItem.to === location.pathname;
 
                         return (
-                            <ListItem
+                            <ListItemButton
                                 key={subItem.id}
-                                button
+                                button={true}
                                 component={subItem.to ? Link : "div"}
                                 to={subItem.to}
                                 onClick={() => subItem.onClick && handleAction(subItem.onClick)}
@@ -266,7 +266,7 @@ const SidebarItem = ({
                                     }
                                     className="list-item-text"
                                 />
-                            </ListItem>
+                            </ListItemButton>
                         );
                     })}
                 </List>

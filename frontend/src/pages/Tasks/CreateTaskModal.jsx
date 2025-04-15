@@ -9,9 +9,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  useTheme, // Importe o useTheme
 } from "@mui/material";
 import { createTask } from "../../services/TaskService";
-import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster"; // Ajusta o path conforme necessário
+import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
 
 const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
   const [newTask, setNewTask] = useState({
@@ -21,6 +22,7 @@ const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
     memo: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const theme = useTheme(); // Acesse o tema atual
 
   // Reinicia o estado quando o modal for fechado ou aberto
   useEffect(() => {
@@ -43,12 +45,12 @@ const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
     setIsLoading(true);
     try {
       await createTask(newTask);
-      notifySuccess("Tarefa criada com sucesso!"); // Notificação de sucesso
-      onRefresh(); // Atualiza a listagem
-      onClose();   // Fecha o modal
+      notifySuccess("Tarefa criada com sucesso!");
+      onRefresh();
+      onClose();
     } catch (error) {
       console.error("Erro ao criar tarefa:", error);
-      notifyError("Erro ao criar tarefa"); // Notificação de erro
+      notifyError("Erro ao criar tarefa");
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +67,9 @@ const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
           width: { xs: "90%", sm: 400 },
           p: 3,
           boxShadow: 24,
-          bgcolor: "#fff",
+          bgcolor: theme.palette.background.paper, // Usa a cor de fundo do tema
           borderRadius: 2,
+          color: theme.palette.text.primary, // Usa a cor do texto do tema
         }}
       >
         <Typography variant="h6" sx={{ mb: 2 }}>
@@ -79,14 +82,21 @@ const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
           sx={{ mb: 2 }}
           value={newTask.name}
           onChange={(e) => handleChange("name", e.target.value)}
+          InputLabelProps={{
+            style: { color: theme.palette.text.secondary }, // Cor do label
+          }}
+          InputProps={{
+            style: { color: theme.palette.text.primary }, // Cor do texto
+          }}
         />
 
         <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Cliente</InputLabel>
+          <InputLabel sx={{ color: theme.palette.text.secondary }}>Cliente</InputLabel>
           <Select
             value={newTask.ts_client}
             label="Cliente"
             onChange={(e) => handleChange("ts_client", e.target.value)}
+            sx={{ color: theme.palette.text.primary }} // Cor do texto
           >
             {metaData.who?.map((client) => (
               <MenuItem key={client.pk} value={client.pk}>
@@ -97,11 +107,12 @@ const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
         </FormControl>
 
         <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Prioridade</InputLabel>
+          <InputLabel sx={{ color: theme.palette.text.secondary }}>Prioridade</InputLabel>
           <Select
             value={newTask.ts_priority}
             label="Prioridade"
             onChange={(e) => handleChange("ts_priority", e.target.value)}
+            sx={{ color: theme.palette.text.primary }} // Cor do texto
           >
             {metaData.task_priority?.map((p) => (
               <MenuItem key={p.pk} value={p.pk}>
@@ -119,6 +130,12 @@ const CreateTaskModal = ({ isOpen, onClose, onRefresh, metaData }) => {
           sx={{ mb: 2 }}
           value={newTask.memo}
           onChange={(e) => handleChange("memo", e.target.value)}
+          InputLabelProps={{
+            style: { color: theme.palette.text.secondary }, // Cor do label
+          }}
+          InputProps={{
+            style: { color: theme.palette.text.primary }, // Cor do texto
+          }}
         />
 
         <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>

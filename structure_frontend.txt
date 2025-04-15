@@ -17,23 +17,23 @@
 │   │   └── notification.mp3
 │   └── static
 │       ├── css
-│       │   ├── main.e50924b5.css
-│       │   └── main.e50924b5.css.map
+│       │   ├── main.69e375e4.css
+│       │   └── main.69e375e4.css.map
 │       └── js
-│           ├── 213.6e4b8197.chunk.js
-│           ├── 213.6e4b8197.chunk.js.LICENSE.txt
-│           ├── 213.6e4b8197.chunk.js.map
-│           ├── 238.249a6cf8.chunk.js
-│           ├── 238.249a6cf8.chunk.js.LICENSE.txt
-│           ├── 238.249a6cf8.chunk.js.map
+│           ├── 133.44f8238a.chunk.js
+│           ├── 133.44f8238a.chunk.js.LICENSE.txt
+│           ├── 133.44f8238a.chunk.js.map
 │           ├── 239.dfdb0d71.chunk.js
 │           ├── 239.dfdb0d71.chunk.js.LICENSE.txt
 │           ├── 239.dfdb0d71.chunk.js.map
-│           ├── 455.feb3ac84.chunk.js
-│           ├── 455.feb3ac84.chunk.js.map
-│           ├── main.d4c189ee.js
-│           ├── main.d4c189ee.js.LICENSE.txt
-│           └── main.d4c189ee.js.map
+│           ├── 455.ec63873d.chunk.js
+│           ├── 455.ec63873d.chunk.js.map
+│           ├── 977.d75cf9f7.chunk.js
+│           ├── 977.d75cf9f7.chunk.js.LICENSE.txt
+│           ├── main.ff2e152d.js
+│           ├── main.ff2e152d.js.LICENSE.txt
+│           └── main.ff2e152d.js.map
+├── eslint.config.mjs
 ├── loadEnv.js
 ├── package-lock.json
 ├── package.json
@@ -53,7 +53,8 @@
 │   │       └── more.svg
 │   ├── components
 │   │   ├── AddressForm
-│   │   │   └── AddressForm.js
+│   │   │   ├── AddressForm.js
+│   │   │   └── ModernAddressForm.js
 │   │   ├── Chat
 │   │   │   ├── ChatComponent.css
 │   │   │   └── ChatComponent.js
@@ -70,13 +71,14 @@
 │   │   │   │   ├── SearchBar.css
 │   │   │   │   └── SearchBar.js
 │   │   │   ├── Sidebar
+│   │   │   │   ├── ModernSidebar.js
 │   │   │   │   ├── ResponsiveSidebar.js
 │   │   │   │   ├── Sidebar.css
-│   │   │   │   └── Sidebar.js
+│   │   │   │   ├── Sidebar.js
+│   │   │   │   └── SidebarItem.js
 │   │   │   └── Toaster
 │   │   │       └── ThemedToaster.js
 │   │   ├── Dashboard
-│   │   │   └── Dashboard.js
 │   │   ├── Documents
 │   │   │   ├── DocumentPDF.js
 │   │   │   ├── DocumentPreview.css
@@ -85,6 +87,7 @@
 │   │   │   └── mapselector.js
 │   │   ├── Notification
 │   │   │   └── Notification.js
+│   │   ├── Payment
 │   │   └── Socket
 │   │       └── SocketComponent.js
 │   ├── config.js
@@ -93,10 +96,35 @@
 │   │   ├── AuthContextProvider.js
 │   │   ├── EpiContext.js
 │   │   ├── MetaDataContext.js
+│   │   ├── SidebarContext.js
 │   │   ├── SocketContext.js
 │   │   └── ThemeContext.js
+│   ├── features
+│   │   └── Payment
+│   │       ├── components
+│   │       │   ├── CardPayment.js
+│   │       │   ├── MBWayPayment.js
+│   │       │   ├── MultibancoPayment.js
+│   │       │   ├── PaymentMethodSelector.js
+│   │       │   ├── PaymentModule.js
+│   │       │   ├── PaymentReceipt.js
+│   │       │   └── PaymentStatus.js
+│   │       ├── context
+│   │       │   └── PaymentContext.js
+│   │       ├── hooks
+│   │       │   └── usePayment.js
+│   │       ├── index.js
+│   │       ├── modals
+│   │       │   └── PaymentDialog.js
+│   │       ├── services
+│   │       │   ├── paymentService.js
+│   │       │   └── paymentTypes.js
+│   │       └── utils
+│   │           └── paymentUtils.js
 │   ├── hooks
 │   │   ├── useDeliveries.js
+│   │   ├── useFilePreview.js
+│   │   ├── useOperations.js
 │   │   ├── useSocket.js
 │   │   └── useTasks.js
 │   ├── index.css
@@ -108,6 +136,16 @@
 │   │   ├── Activation
 │   │   │   ├── Activation.css
 │   │   │   └── Activation.js
+│   │   ├── Administration
+│   │   │   ├── ActivityLogs.js
+│   │   │   ├── AdminDashboard.js
+│   │   │   ├── Dashboard.js
+│   │   │   ├── DatabaseManagement.js
+│   │   │   ├── DocumentManagement.js
+│   │   │   ├── ReopenDocument.js
+│   │   │   ├── Reports.js
+│   │   │   ├── SystemSettings.js
+│   │   │   └── UserManagement.js
 │   │   ├── ChangePassword
 │   │   │   ├── ChangePassword.css
 │   │   │   └── ChangePassword.js
@@ -115,8 +153,37 @@
 │   │   │   ├── CreateUser.css
 │   │   │   └── CreateUser.js
 │   │   ├── Dashboard
+│   │   │   ├── components
+│   │   │   │   ├── ChartCard.js
+│   │   │   │   ├── DashboardHeader.js
+│   │   │   │   ├── DynamicVisualization.js
+│   │   │   │   ├── ErrorView.js
+│   │   │   │   ├── LoadingView.js
+│   │   │   │   ├── StatCard.js
+│   │   │   │   ├── SummaryStats.js
+│   │   │   │   └── ViewToggle.js
+│   │   │   ├── constants.js
 │   │   │   ├── Dashboard.css
-│   │   │   └── Dashboard.js
+│   │   │   ├── Dashboard.js
+│   │   │   ├── DetailsTab.js
+│   │   │   ├── index.js
+│   │   │   ├── main.js
+│   │   │   ├── tabs
+│   │   │   │   ├── OverviewTab.js
+│   │   │   │   └── PerformanceTab.js
+│   │   │   ├── utils
+│   │   │   │   ├── dataProcessors.js
+│   │   │   │   ├── formatters.js
+│   │   │   │   └── viewHelpers.js
+│   │   │   └── visualizations
+│   │   │       ├── AreaChartView.js
+│   │   │       ├── BarChartView.js
+│   │   │       ├── FilterableChartView.js
+│   │   │       ├── LineChartView.js
+│   │   │       ├── PieChartView.js
+│   │   │       ├── RadarChartView.js
+│   │   │       ├── TableView.js
+│   │   │       └── TreeMapView.js
 │   │   ├── DocumentPage
 │   │   │   ├── DocumentPage.css
 │   │   │   └── DocumentPage.js
@@ -216,6 +283,103 @@
 │   │   ├── Login
 │   │   │   ├── Login.css
 │   │   │   └── Login.js
+│   │   ├── ModernDocuments
+│   │   │   ├── components
+│   │   │   │   ├── cards
+│   │   │   │   │   ├── DocumentCard.js
+│   │   │   │   │   ├── DocumentListItem.js
+│   │   │   │   │   └── KanbanCard.js
+│   │   │   │   ├── common
+│   │   │   │   │   ├── ActionButton.js
+│   │   │   │   │   ├── EmptyState.js
+│   │   │   │   │   └── LoadingState.js
+│   │   │   │   ├── filters
+│   │   │   │   │   ├── DocumentFilters.js
+│   │   │   │   │   └── FilterableSearch.js
+│   │   │   │   ├── layout
+│   │   │   │   │   ├── FloatingActionButton.js
+│   │   │   │   │   ├── Header.js
+│   │   │   │   │   ├── NavigationDrawer.js
+│   │   │   │   │   └── Toolbar.js
+│   │   │   │   ├── previews
+│   │   │   │   │   └── FilePreview.js
+│   │   │   │   ├── stats
+│   │   │   │   │   ├── StatCard.js
+│   │   │   │   │   └── StatisticsDashboard.js
+│   │   │   │   ├── tables
+│   │   │   │   │   └── DocumentsTable.js
+│   │   │   │   └── ViewSwitcher.js
+│   │   │   ├── context
+│   │   │   │   ├── DocumentActionsContext.js
+│   │   │   │   ├── DocumentsContext.js
+│   │   │   │   └── UIStateContext.js
+│   │   │   ├── DocumentManager.js
+│   │   │   ├── hooks
+│   │   │   │   ├── useDocumentActions.js
+│   │   │   │   ├── useDocumentFilters.js
+│   │   │   │   ├── useDocuments.js
+│   │   │   │   ├── useDocumentSorting.js
+│   │   │   │   ├── useFilePreview.js
+│   │   │   │   ├── useViewMode.js
+│   │   │   │   └── useVirtualScroll.js
+│   │   │   ├── index.js
+│   │   │   ├── modals
+│   │   │   │   ├── AddAnnexModal.js
+│   │   │   │   ├── AddStepModal.js
+│   │   │   │   ├── create
+│   │   │   │   │   ├── CreateDocumentModal.js
+│   │   │   │   │   ├── fields
+│   │   │   │   │   │   ├── EntitySearchField.js
+│   │   │   │   │   │   └── FileUploadField.js
+│   │   │   │   │   ├── hooks
+│   │   │   │   │   │   ├── useDocumentForm.js
+│   │   │   │   │   │   ├── useDocumentParams.js
+│   │   │   │   │   │   ├── useEntityData.js
+│   │   │   │   │   │   └── useFileHandling.js
+│   │   │   │   │   ├── index.js
+│   │   │   │   │   ├── PaymentPage.js
+│   │   │   │   │   └── steps
+│   │   │   │   │       ├── AddressStep.js
+│   │   │   │   │       ├── AttachmentsStep.js
+│   │   │   │   │       ├── ConfirmationStep.js
+│   │   │   │   │       ├── DetailsStep.js
+│   │   │   │   │       ├── IdentificationStep.js
+│   │   │   │   │       ├── ParametersStep.js
+│   │   │   │   │       └── PaymentStep.js
+│   │   │   │   ├── details
+│   │   │   │   │   ├── DocumentModal.js
+│   │   │   │   │   ├── DocumentPreview.js
+│   │   │   │   │   └── tabs
+│   │   │   │   │       ├── AttachmentsTab.js
+│   │   │   │   │       ├── DetailsTab.js
+│   │   │   │   │       ├── HistoryTab.js
+│   │   │   │   │       └── ParametersTab.js
+│   │   │   │   ├── payment
+│   │   │   │   │   └── DocumentPaymentFlow.js
+│   │   │   │   └── ReplicateDocumentModal.js
+│   │   │   ├── reducers
+│   │   │   │   └── DocumentManagerReducer.js
+│   │   │   ├── styles
+│   │   │   │   └── documentStyles.js
+│   │   │   ├── utils
+│   │   │   │   ├── documentUtils.js
+│   │   │   │   ├── featureUtils.js
+│   │   │   │   ├── fileUtils.js
+│   │   │   │   └── statusUtils.js
+│   │   │   └── views
+│   │   │       ├── DocumentView.js
+│   │   │       ├── GridView.js
+│   │   │       ├── KanbanView.js
+│   │   │       └── ListView.js
+│   │   ├── Operação
+│   │   │   ├── AssociateFilter.js
+│   │   │   ├── exportService.js
+│   │   │   ├── Operations.css
+│   │   │   ├── Operations.js
+│   │   │   ├── operationsHelpers.js
+│   │   │   ├── OperationsTable.js
+│   │   │   ├── TableDetails.js
+│   │   │   └── ViewCards.js
 │   │   ├── PasswordRecovery
 │   │   │   ├── PasswordRecovery.css
 │   │   │   └── PasswordRecovery.js
@@ -227,15 +391,22 @@
 │   │   │   ├── Settings.css
 │   │   │   └── Settings.js
 │   │   ├── Tasks
-│   │   │   ├── CompletedTasks.js
+│   │   │   ├── AllTasks.jsx
+│   │   │   ├── CompletedTasks.jsx
+│   │   │   ├── CreatedTasks.jsx
 │   │   │   ├── CreateTaskModal.jsx
-│   │   │   ├── MyTasks.js
+│   │   │   ├── index.js
+│   │   │   ├── MyTasks.jsx
 │   │   │   ├── TaskBoard.css
 │   │   │   ├── TaskBoard.jsx
+│   │   │   ├── TaskBoardLayout.jsx
 │   │   │   ├── TaskCard.jsx
 │   │   │   ├── TaskColumn.jsx
 │   │   │   ├── TaskList.js
+│   │   │   ├── TaskManagement.jsx
 │   │   │   ├── TaskModal.jsx
+│   │   │   ├── TaskNavigator.jsx
+│   │   │   ├── TaskNotificationCenter.jsx
 │   │   │   └── utils.js
 │   │   └── UserInfo
 │   │       ├── UserInfo.css
@@ -252,6 +423,8 @@
 │   │   ├── InternalService.js
 │   │   ├── letter_service.js
 │   │   ├── NotificacaoService.js
+│   │   ├── operationsService.js
+│   │   ├── payment
 │   │   ├── postalCodeService.js
 │   │   ├── SessionManager.js
 │   │   ├── SessionService.js

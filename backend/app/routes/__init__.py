@@ -11,6 +11,11 @@ from .epi_routes import bp as epi_bp
 from .webhook_routes import webhook_bp
 from .payment_routes import bp as payment_bp
 from .tasks_routes import bp as tasks_bp
+from .operations_routes import bp as operations_bp
 
 
-__all__ = ['auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp', 'dashboard_bp', 'letters_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp', 'tasks_bp']
+
+
+
+
+__all__ = ['auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp', 'dashboard_bp', 'letters_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp', 'tasks_bp', 'operations_bp', 'dashboard_bp']

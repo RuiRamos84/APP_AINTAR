@@ -1,15 +1,13 @@
 import React from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
-/**
- * Componente de navegação entre as diferentes vistas de tarefas
- * @returns {JSX.Element}
- */
 const TaskNavigator = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+  const { user } = useAuth(); 
+
   // Determinar qual tab está ativa com base na rota atual
   const getActiveTab = () => {
     const path = location.pathname;
@@ -34,7 +32,10 @@ const TaskNavigator = () => {
         navigate("/tasks/my");
     }
   };
-  
+
+  // Verificar se o utilizador é um administrador (profil: "0")
+  const isAdmin = user?.profil === "0";
+
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
       <Tabs
@@ -44,9 +45,9 @@ const TaskNavigator = () => {
         scrollButtons="auto"
         aria-label="task view navigation tabs"
       >
-        <Tab label="Minhas Tarefas (Como Cliente)" />
+        <Tab label="Minhas Tarefas" />
         <Tab label="Tarefas Onde Sou Responsável" />
-        <Tab label="Todas as Tarefas" />
+        {isAdmin && <Tab label="Todas as Tarefas" />}
       </Tabs>
     </Box>
   );

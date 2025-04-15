@@ -9,4 +9,4 @@ export { default as TaskModal } from './TaskModal';
 export { default as CreateTaskModal } from './CreateTaskModal';
 export { default as TaskCard } from './TaskCard';
 export { default as TaskColumn } from './TaskColumn';
-export { default as TaskBoard } from './TaskBoard';
+export { default as TaskBoard } from './TaskBoardLayout';

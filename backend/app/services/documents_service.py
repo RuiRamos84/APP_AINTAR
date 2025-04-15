@@ -54,6 +54,28 @@ def list_documents(current_user):
         return {'error': f"Erro ao obter lista de documentos: {str(e)}"}, 500
 
 
+def documentById(documentId, current_user):  # Corrigi a ordem dos parâmetros
+    try:
+        with db_session_manager(current_user) as session:
+            print(documentId)
+            document_query = text(
+                "SELECT * FROM vbl_document WHERE regnumber = :documentId")
+            document_result = session.execute(
+                document_query, {"documentId": documentId}).fetchone()
+
+            if document_result:
+                document_dict = document_result._asdict()
+                if isinstance(document_dict["submission"], datetime):
+                    document_dict["submission"] = document_dict["submission"].isoformat(
+                    )
+                print(document_dict)
+                return {'document': document_dict}, 200
+            else:
+                return {'message': 'Documento não encontrado'}, 404
+    except Exception as e:
+        return {'error': f"Erro ao obter documento: {str(e)}"}, 500
+
+
 def document_self(current_user):
     try:
         with db_session_manager(current_user) as session:
@@ -275,33 +297,53 @@ def get_document_type_param(current_user, type_id):
         return jsonify({'error': formatted_error}), 500
 
 
-def update_document_params(current_user, type_id, data):
+def update_document_params(current_user, document_id, data):
     try:
         with db_session_manager(current_user) as session:
-            for param in data.get('params', []):
-                query = text("""
+            # Accept either direct params array or wrapped in 'params' key
+            params_to_update = data.get(
+                'params', data) if isinstance(data, dict) else data
+
+            if not isinstance(params_to_update, list):
+                return {'error': 'Params must be an array'}, 400
+
+            update_count = .0
+            for param in params_to_update:
+                if not isinstance(param, dict):
+                    continue
+
+                # Ensure required fields exist
+                if 'pk' not in param or 'value' not in param:
+                    continue
+
+                # Update without RETURNING clause
+                update_query = text("""
                     UPDATE vbf_document_param 
                     SET value = :value, 
                         memo = :memo
                     WHERE pk = :pk 
-                    AND tb_document = :type_id
+                    AND tb_document = :document_id
                 """)
-                session.execute(query, {
-                    'value': param.get('value'),
-                    'memo': param.get('memo'),
-                    'pk': param.get('pk'),
-                    'type_id': type_id
+                result = session.execute(update_query, {
+                    'value': str(param.get('value', '')),
+                    'memo': str(param.get('memo', '')),
+                    'pk': int(param['pk']),
+                    'document_id': int(document_id)
                 })
+                update_count += result.rowcount
 
+            # Commit changes
             session.commit()
 
-            # Retorna os dados atualizados
-            return get_document_type_param(current_user, type_id)
+            return {
+                'success': True,
+                'message': f'Updated {update_count} parameters successfully'
+            }, 200
 
     except Exception as e:
         session.rollback()
-        formatted_error = format_message(str(e))
-        return jsonify({'error': formatted_error}), 500
+        current_app.logger.error(f"Error updating parameters: {str(e)}")
+        return {'error': str(e)}, 500
 
 
 def update_document_notification(pk, current_user):

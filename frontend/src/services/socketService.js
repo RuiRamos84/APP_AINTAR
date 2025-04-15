@@ -20,12 +20,12 @@ export const connectSocket = (userId) => {
       },
       transports: ["websocket"],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
     socket.on("connect", () => {
-      console.log("Conectado ao servidor Socket.IO com ID:", socket.id);
+      // console.log("Conectado ao servidor Socket.IO com ID:", socket.id, socket.io.engine.opts.query.userId);
       resolve(socket);
     });
 

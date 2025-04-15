@@ -124,15 +124,29 @@ const notifyCustom = (content) => {
   );
 };
 
+// Cria um objeto com todas as funções de notificação
+const notification = {
+  success: notifySuccess,
+  error: notifyError,
+  info: notifyInfo,
+  warning: notifyWarning,
+  description: notifyDescription,
+  loading: notifyLoading,
+  custom: notifyCustom,
+  action: notifyAction,
+  toast // exporta a função toast direta também
+};
+
 export {
   ThemedToaster,
+  notification, // Exporta o objeto consolidado
   notifySuccess,
   notifyError,
-  notifyAction,
-  notifyCustom,
-  notifyDescription,
-  notifyWarning,
   notifyInfo,
+  notifyWarning,
+  notifyDescription,
   notifyLoading,
-  toast,
+  notifyCustom,
+  notifyAction,
+  toast
 };

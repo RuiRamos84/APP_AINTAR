@@ -1,7 +1,24 @@
 const path = require("path");
 
 module.exports = {
-  // outras configurações...
+  // Add WASM support
+  experiments: {
+    asyncWebAssembly: true,
+  },
+
+  // Rule for handling WASM files in module.rules section if it exists
+  module: {
+    rules: [
+      // Your existing rules...
+
+      // Rule for handling WASM files
+      {
+        test: /\.wasm$/,
+        type: 'webassembly/async',
+      }
+    ],
+  },
+
   resolve: {
     fallback: {
       path: require.resolve("path-browserify"),
@@ -15,5 +32,4 @@ module.exports = {
       ),
     },
   },
-  // outras configurações...
 };

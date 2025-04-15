@@ -12,6 +12,7 @@ export const useTasks = (initialFetchType = 'all') => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [fetchType, setFetchType] = useState(initialFetchType);
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Controle de requisições
     const isFetchingRef = useRef(false);
@@ -29,6 +30,42 @@ export const useTasks = (initialFetchType = 'all') => {
 
     // Status padrão para agrupar tarefas
     const DEFAULT_STATUSES = ["A Fazer", "Em Progresso", "Concluído"];
+
+    const getFilteredTasks = useCallback(() => {
+        if (!searchTerm.trim()) return tasks;
+
+        const lowercaseSearch = searchTerm.toLowerCase();
+        const filtered = {};
+
+        Object.keys(tasks).forEach(clientName => {
+            const clientData = { ...tasks[clientName] };
+            const filteredTasks = {};
+            const filteredCounts = {};
+
+            // Filtrar tarefas em cada status
+            Object.keys(clientData.tasks).forEach(status => {
+                const matchingTasks = clientData.tasks[status].filter(
+                    task => task.name.toLowerCase().includes(lowercaseSearch) ||
+                        (task.memo && task.memo.toLowerCase().includes(lowercaseSearch))
+                );
+
+                filteredTasks[status] = matchingTasks;
+                filteredCounts[status] = matchingTasks.length;
+            });
+
+            // Adicionar cliente se alguma tarefa corresponder
+            const hasResults = Object.values(filteredCounts).some(count => count > 0);
+            if (hasResults) {
+                filtered[clientName] = {
+                    ...clientData,
+                    tasks: filteredTasks,
+                    counts: filteredCounts
+                };
+            }
+        });
+
+        return filtered;
+    }, [tasks, searchTerm]);
 
     const groupTasksByPerson = useCallback((tasks) => {
         const grouped = {};
@@ -83,15 +120,19 @@ export const useTasks = (initialFetchType = 'all') => {
 
             switch (fetchType) {
                 case 'my':
-                    filteredTasks = allTasks.filter(task => task.ts_client === user?.user_id);
+                    // Filtra tarefas onde o usuário é o cliente e que não estão fechadas
+                    filteredTasks = allTasks.filter(task => task.ts_client === user?.user_id && !task.when_stop);
                     break;
                 case 'created':
-                    filteredTasks = allTasks.filter(task => task.owner === user?.user_id);
+                    // Filtra tarefas criadas pelo usuário e que não estão fechadas
+                    filteredTasks = allTasks.filter(task => task.owner === user?.user_id && !task.when_stop);
                     break;
                 case 'all':
+                    // Filtra todas as tarefas que não estão fechadas
                     filteredTasks = allTasks.filter(task => !task.when_stop);
                     break;
                 case 'completed':
+                    // Filtra apenas tarefas fechadas
                     filteredTasks = allTasks.filter(task => task.when_stop);
                     break;
                 default:
@@ -223,7 +264,9 @@ export const useTasks = (initialFetchType = 'all') => {
     }, [fetchTasks]);
 
     return {
-        tasks,
+        tasks: searchTerm ? getFilteredTasks() : tasks,
+        setSearchTerm,
+        searchTerm,
         loading,
         error,
         fetchTasks,

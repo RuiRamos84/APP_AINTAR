@@ -38,7 +38,7 @@ const mapTasks = (data) => {
 export const getTasks = async () => {
     try {
         const response = await api.get("/tasks");
-        console.log("Tarefas:", response.data);
+        // console.log("Tarefas:", response.data);
         return mapTasks(handleResponse(response));
     } catch (error) {
         console.error("Erro ao buscar tarefas:", error);
