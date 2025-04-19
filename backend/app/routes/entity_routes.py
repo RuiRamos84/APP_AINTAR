@@ -16,15 +16,12 @@ bp = Blueprint('entity_routes', __name__)
 
 @bp.route('/entity/<int:pk>', methods=['GET'])
 @jwt_required()
-@token_required
-@set_session
 @api_error_handler
 def get_entity(pk):
     """Obter detalhes da entidade"""
     current_user = get_jwt_identity()
-    with db_session_manager(current_user):
-        return get_entity_detail(pk, current_user)
-
+    result, status_code = get_entity_detail(pk, current_user)
+    return jsonify(result), status_code
 
 @bp.route('/entity/nipc/<int:nipc>', methods=['GET'])
 @jwt_required()

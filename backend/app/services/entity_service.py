@@ -3,20 +3,19 @@ from .. import db
 from ..utils.utils import format_message, db_session_manager
 from datetime import datetime
 from flask import g, current_app
+from app.repositories import EntityRepository
 from sqlalchemy.exc import SQLAlchemyError
+
+from app.utils.serializers import model_to_dict
 
 
 def get_entity_detail(pk, current_user):
     try:
-        with db_session_manager(current_user) as session:
-            entity_query = text("SELECT * FROM vbf_entity WHERE pk = :pk")
-            entity_result = session.execute(entity_query, {'pk': pk}).fetchone()
-            if entity_result:
-                entity_dict = entity_result._asdict()
-                return {'entity': entity_dict}, 200
-            else:
-                return {'error': 'Entidade não encontrada'}, 404
-    except SQLAlchemyError as e:
+        entity = EntityRepository.get_by_id(pk)
+        if entity:
+            return {'entity': model_to_dict(entity)}, 200
+        return {'error': 'Entidade não encontrada'}, 404
+    except Exception as e:
         current_app.logger.error(
             f"Erro ao obter detalhes da entidade: {str(e)}")
         return {'error': f"Erro ao obter detalhes da entidade: {str(e)}"}, 500
