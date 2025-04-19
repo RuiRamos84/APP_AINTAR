@@ -18,12 +18,7 @@ export const DocumentActionsProvider = ({ children }) => {
     const [modalInstanceKey, setModalInstanceKey] = useState(Date.now());
 
     // Acessar contexto principal de documentos
-    const {
-        refreshDocuments,
-        handleDownloadComprovativo,
-        showNotification,
-        activeTab
-    } = useDocumentsContext();
+    const { refreshDocuments, handleDownloadComprovativo, showNotification, activeTab } = useDocumentsContext();
 
     // Lista de documentos abertos em modais em cascata
     const [openDocuments, setOpenDocuments] = useState([]);
@@ -110,8 +105,8 @@ export const DocumentActionsProvider = ({ children }) => {
         if (!document) return;
 
         try {
-            // Se o documento tem notificação, marca como lida
-            if (document.notification === 1) {
+            // Verificar se o documento tem notificação E se estamos na tab "Para tratamento" (activeTab === 1)
+            if (document.notification === 1 && activeTab === 1) {
                 try {
                     await updateDocumentNotification(document.pk);
 
@@ -145,15 +140,15 @@ export const DocumentActionsProvider = ({ children }) => {
             console.error('Erro ao abrir detalhes do documento:', error);
             showNotification('Erro ao abrir detalhes do documento', 'error');
         }
-    }, [openModal, refreshDocuments, showNotification, updateDocumentNotification]);
+    }, [openModal, refreshDocuments, showNotification, updateDocumentNotification, activeTab]);
 
     // Ver detalhes em cascata (para documentos de origem)
     const handleViewOriginDetails = useCallback(async (originDocument) => {
         if (!originDocument) return;
 
         try {
-            // Se o documento tem notificação, marca como lida
-            if (originDocument.notification === 1) {
+            // Atualizar notificação apenas se estiver na tab "Para tratamento"
+            if (originDocument.notification === 1 && activeTab === 1) {
                 try {
                     await updateDocumentNotification(originDocument.pk);
 
@@ -191,7 +186,7 @@ export const DocumentActionsProvider = ({ children }) => {
             console.error('Erro ao abrir detalhes do documento de origem:', error);
             showNotification('Erro ao abrir detalhes do documento', 'error');
         }
-    }, [refreshDocuments, showNotification, updateDocumentNotification]);
+    }, [refreshDocuments, showNotification, updateDocumentNotification, activeTab]);
 
     // Adicionar passo
     const handleAddStep = useCallback((document) => {

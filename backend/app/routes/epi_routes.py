@@ -8,6 +8,7 @@ from ..services.epi_service import (
     return_epi_delivery,
 )
 from ..utils.utils import token_required, set_session, db_session_manager
+from app.utils.error_handler import api_error_handler
 from sqlalchemy import text
 
 bp = Blueprint('epi_routes', __name__)
@@ -17,6 +18,7 @@ bp = Blueprint('epi_routes', __name__)
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_epi_deliveries_route():
     """
     Listar entregas de EPI
@@ -41,6 +43,7 @@ def get_epi_deliveries_route():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_epi_delivery_route():
     """Registrar nova entrega de EPI"""
     try:
@@ -57,6 +60,7 @@ def create_epi_delivery_route():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_epi_preferences_route(user_pk):
     """Atualizar preferências de EPI do trabalhador"""
     try:
@@ -72,6 +76,7 @@ def update_epi_preferences_route(user_pk):
 
 @bp.route('/epi/data', methods=['GET'])
 @jwt_required()
+@api_error_handler
 def get_epi_data():
     """Obtém dados de EPI"""
     try:
@@ -94,6 +99,7 @@ def get_epi_data():
 
 
 @bp.route('/epi/list', methods=['GET'])
+@api_error_handler
 def get_epi_list():
     """Obtém apenas a lista de EPIs"""
     try:
@@ -110,6 +116,7 @@ def get_epi_list():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_epi_delivery_route(pk):
     """Atualizar entrega de EPI"""
     try:
@@ -126,6 +133,7 @@ def update_epi_delivery_route(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def return_epi_delivery_route(pk):
     """Anular entrega de EPI"""
     try:
@@ -139,6 +147,7 @@ def return_epi_delivery_route(pk):
 
 
 @bp.after_request
+@api_error_handler
 def cleanup_session(response):
     if hasattr(g, 'current_user'):
         delattr(g, 'current_user')

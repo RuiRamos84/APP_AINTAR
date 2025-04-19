@@ -3,12 +3,15 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils.utils import db_session_manager
+from app.utils.error_handler import api_error_handler
+
 
 bp = Blueprint('dashboard_routes', __name__)
 
 
 @bp.route('/dashboard/<view_name>', methods=['GET'])
 @jwt_required()
+@api_error_handler
 def get_dashboard_data(view_name):
     """Obtém dados para o dashboard a partir de uma view específica"""
     try:

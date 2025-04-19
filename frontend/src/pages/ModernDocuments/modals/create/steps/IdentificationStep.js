@@ -34,8 +34,17 @@ const IdentificationStep = ({
 
     return (
         <Box>
-            {isInterProfile && (
-                <Box mb={2}>
+            <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{
+                    borderBottom: !isRepresentative ? `1px solid ${theme.palette.divider}` : 'none',
+                    pb: !isRepresentative ? 2 : 0,
+                    mb: 2
+                }}
+            >
+                {isInterProfile && (
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -45,8 +54,21 @@ const IdentificationStep = ({
                         }
                         label="Pedido Interno"
                     />
-                </Box>
-            )}
+                )}
+                <FormControlLabel
+                    label="É o representante legal?"
+                    control={
+                        <Checkbox
+                            checked={isRepresentative}
+                            onChange={handleRepresentativeToggle}
+                            disabled={isInternal}
+                            color="secondary"
+                        />
+                    }
+                    labelPlacement="start"
+                    sx={{ m: 0 }}
+                />
+            </Box>
 
             <Grid container spacing={3}>
                 <Grid item xs={12} md={isRepresentative ? 6 : 12}>
@@ -79,24 +101,6 @@ const IdentificationStep = ({
                 </Grid>
 
                 <Grid item xs={12} md={isRepresentative ? 6 : 12}>
-                    <Box
-                        sx={{
-                            borderBottom: !isRepresentative ? `1px solid ${theme.palette.divider}` : 'none',
-                            pb: !isRepresentative ? 2 : 0
-                        }}
-                        >
-                        <FormControlLabel
-                                label="Tem representante legal?"
-                            control={
-                                <Checkbox
-                                checked={isRepresentative}
-                                onChange={handleRepresentativeToggle}
-                                disabled={isInternal}
-                                color="secondary"
-                                />
-                            }
-                        />
-                    </Box>
 
                     {isRepresentative && (
                         <Box
@@ -105,7 +109,7 @@ const IdentificationStep = ({
                                 borderLeft: representativeData ? `3px solid ${theme.palette.success.main}` : `3px solid ${theme.palette.secondary.main}`,
                                 borderRadius: 1,
                                 p: 2,
-                                mt: 2
+                                // mt: 2
                             }}
                         >
                             <Box display="flex" alignItems="center" mb={2}>

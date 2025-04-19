@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..services.meta_data_service import fetch_meta_data
 from ..utils.utils import set_session, token_required, db_session_manager
 from sqlalchemy.exc import SQLAlchemyError
+from app.utils.error_handler import api_error_handler
 
 bp = Blueprint('meta_data_routes', __name__)
 
@@ -11,6 +12,7 @@ bp = Blueprint('meta_data_routes', __name__)
 @jwt_required()
 # @token_required
 # @set_session
+@api_error_handler
 def get_meta_data_route():
     """Obtém metadados"""
     try:
@@ -32,6 +34,7 @@ def get_meta_data_route():
 
 
 @bp.after_request
+@api_error_handler
 def cleanup_session(response):
     if hasattr(g, 'current_user'):
         delattr(g, 'current_user')

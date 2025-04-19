@@ -5,6 +5,7 @@ const initialState = {
     viewMode: 'grid', // 'grid', 'list', ou 'kanban'
     density: 'standard', // 'compact', 'standard', ou 'comfortable'
     showFilters: false,
+    showSorting: false, // Novo: controla a visibilidade da ordenação separadamente
     searchTerm: '',
     filters: {
         status: '',
@@ -12,7 +13,11 @@ const initialState = {
         type: '',
         notification: ''
     },
-    sortBy: 'regnumber',
+    dateRange: { // Novo: filtro por data
+        startDate: null,
+        endDate: null
+    },
+    sortBy: 'submission', // Mudei para submission como default
     sortDirection: 'desc',
     page: 0,
     itemsPerPage: 12,
@@ -24,9 +29,11 @@ const ACTIONS = {
     SET_VIEW_MODE: 'SET_VIEW_MODE',
     SET_DENSITY: 'SET_DENSITY',
     TOGGLE_FILTERS: 'TOGGLE_FILTERS',
+    TOGGLE_SORTING: 'TOGGLE_SORTING', // Novo
     SET_SEARCH_TERM: 'SET_SEARCH_TERM',
     SET_FILTER: 'SET_FILTER',
     RESET_FILTERS: 'RESET_FILTERS',
+    SET_DATE_RANGE: 'SET_DATE_RANGE', // Novo
     SET_SORT: 'SET_SORT',
     SET_PAGE: 'SET_PAGE',
     SET_ITEMS_PER_PAGE: 'SET_ITEMS_PER_PAGE',
@@ -51,11 +58,16 @@ const uiReducer = (state, action) => {
                 ...state,
                 showFilters: action.payload !== undefined ? action.payload : !state.showFilters
             };
+        case ACTIONS.TOGGLE_SORTING: // Novo
+            return {
+                ...state,
+                showSorting: action.payload !== undefined ? action.payload : !state.showSorting
+            };
         case ACTIONS.SET_SEARCH_TERM:
             return {
                 ...state,
                 searchTerm: action.payload,
-                page: 0 
+                page: 0
             };
         case ACTIONS.SET_FILTER:
             return {
@@ -64,13 +76,20 @@ const uiReducer = (state, action) => {
                     ...state.filters,
                     [action.payload.name]: action.payload.value
                 },
-                page: 0 
+                page: 0
             };
         case ACTIONS.RESET_FILTERS:
             return {
                 ...state,
                 filters: initialState.filters,
+                dateRange: initialState.dateRange, // Resetar também filtros de data
                 searchTerm: '',
+                page: 0
+            };
+        case ACTIONS.SET_DATE_RANGE: // Novo
+            return {
+                ...state,
+                dateRange: action.payload,
                 page: 0
             };
         case ACTIONS.SET_SORT:
@@ -149,9 +168,16 @@ export const UIProvider = ({ children }) => {
             payload: isOpen !== undefined ? isOpen : !state.showFilters
         });
     };
+    const toggleSorting = (isOpen) => { // Novo
+        dispatch({
+            type: ACTIONS.TOGGLE_SORTING,
+            payload: isOpen !== undefined ? isOpen : !state.showSorting
+        });
+    };
     const setSearchTerm = (term) => dispatch({ type: ACTIONS.SET_SEARCH_TERM, payload: term });
     const setFilter = (name, value) => dispatch({ type: ACTIONS.SET_FILTER, payload: { name, value } });
     const resetFilters = () => dispatch({ type: ACTIONS.RESET_FILTERS });
+    const setDateRange = (newDateRange) => dispatch({ type: ACTIONS.SET_DATE_RANGE, payload: newDateRange }); // Novo
     const setSort = (field, direction) => dispatch({
         type: ACTIONS.SET_SORT,
         payload: { field, direction }
@@ -169,9 +195,11 @@ export const UIProvider = ({ children }) => {
         setViewMode,
         setDensity,
         toggleFilters,
+        toggleSorting, // Novo
         setSearchTerm,
         setFilter,
         resetFilters,
+        setDateRange, // Novo
         setSort,
         setPage,
         setItemsPerPage,

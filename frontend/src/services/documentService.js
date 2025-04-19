@@ -67,7 +67,7 @@ export const getDocumentById = async (documentId) => {
     
 
     const response = await api.get(`/document/${documentId}`);
-    // console.log("Resposta bruta por ID:", response);
+    console.log("Resposta bruta por ID:", response);
 
     // Retorna diretamente a resposta para endpoints que já tem estrutura definida
     return response.data; // Isso preservará { document: {...} }

@@ -119,6 +119,12 @@ const ParametersStep = ({
     };
 
     const getBooleanDisplayValue = (value) => {
+        // Se o valor for undefined, null ou string vazia, não seleciona nenhuma opção
+        if (value === undefined || value === null || value === '') {
+            return '';
+        }
+
+        // Caso contrário, retorna '1' para verdadeiro ou '0' para falso
         if (value === '1' || value === 1 || value === 'true' || value === true) {
             return '1';
         }

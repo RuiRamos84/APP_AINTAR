@@ -1,12 +1,12 @@
 from config import get_config
 import logging
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import (
     JWTManager,
     get_jwt_identity,
-    verify_jwt_in_request
+    verify_jwt_in_request,
 )
 from flask_cors import CORS
 from flask_mail import Mail
@@ -17,6 +17,7 @@ from flask_caching import Cache
 import os
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from .services.payment_service import payment_service
+from app.utils.error_handler import APIError
 
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
@@ -127,6 +128,12 @@ def create_app(config_class):
     limiter.init_app(app)
 
     logger.info(f"Rate limiting initialized with in-memory storage: {''}")
+
+    @app.errorhandler(APIError)
+    def handle_api_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        return response
 
     @app.before_request
     def handle_preflight():

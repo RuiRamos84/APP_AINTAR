@@ -31,7 +31,7 @@ export const useDocumentForm = (initialNipc, onClose) => {
     // Verificar perfil do usuário (interno/externo)
     useEffect(() => {
         const userProfile = JSON.parse(localStorage.getItem("user"));
-        if (userProfile && (userProfile.profil === "1" || userProfile.profil === 1)) {
+        if (userProfile && (userProfile.profil === "1" || userProfile.profil === 1 || userProfile.profil === "0" || userProfile.profil === 0 )) {
             setIsInterProfile(true);
         } else {
             setIsInterProfile(false);

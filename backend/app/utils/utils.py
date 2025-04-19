@@ -185,6 +185,7 @@ def set_session(f):
 @contextmanager
 def db_session_manager(session_id):
     from app import db
+    session = db.session()
     try:
         if session_id:
             # current_app.logger.debug(f"Configurando sessão no banco de dados para session_id: {session_id}")
@@ -192,14 +193,14 @@ def db_session_manager(session_id):
             if not result:
                 # current_app.logger.error(f"Falha ao configurar a sessão para session_id: {session_id}")
                 raise Exception(f"Erro ao configurar a sessão com session_id: {session_id}")
-        yield db.session
-        db.session.commit()
+        yield session
+        session.commit()
     except SQLAlchemyError as e:
-        db.session.rollback()
+        session.rollback()
         current_app.logger.error(f"Erro na transação do banco de dados: {str(e)}")
         raise
     finally:
-        db.session.close()
+        session.close()
         # current_app.logger.debug(f"Sessão de banco de dados fechada para session_id: {session_id}")
 
 

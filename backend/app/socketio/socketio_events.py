@@ -6,9 +6,11 @@ from ..utils.utils import db_session_manager
 from sqlalchemy import text
 from threading import Lock
 from datetime import datetime
+from app.utils.error_handler import api_error_handler
 
 
 class SocketIOEvents(Namespace):
+    @api_error_handler
     def __init__(self, namespace=None):
         super().__init__(namespace)
         self.connected_users = {}

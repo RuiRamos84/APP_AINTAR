@@ -4,6 +4,8 @@ import hashlib
 import os
 import logging
 from base64 import b64decode
+from app.utils.error_handler import api_error_handler
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,7 @@ def verify_sibs_signature(payload, headers):
 
 
 @webhook_bp.route('/api/v1/webhook/sibs', methods=['POST'])
+@api_error_handler
 def sibs_webhook():
     try:
         # Obtém o payload raw

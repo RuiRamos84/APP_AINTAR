@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, current_app, request
 from ..services.operations_service import get_operations_data, create_internal_document
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.utils import token_required, db_session_manager, set_session
+from app.utils.error_handler import api_error_handler
 from sqlalchemy.exc import SQLAlchemyError
 
 bp = Blueprint('operations', __name__)
@@ -10,6 +11,8 @@ bp = Blueprint('operations', __name__)
 @bp.route('/operations', methods=['GET'])
 @jwt_required()
 @token_required
+@set_session
+@api_error_handler
 def get_operations():
     """Obter dados de operações (antiga funcionalidade de dashboard)"""
     current_user = get_jwt_identity()
@@ -38,6 +41,7 @@ def get_operations():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_internal_document():
     """Criar um documento interno utilizando fbo_document_createintern"""
     current_user = get_jwt_identity()

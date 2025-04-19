@@ -31,27 +31,29 @@ const AddressStep = ({
     const theme = useTheme();
 
     // Logs para depuração
-    useEffect(() => {
-        console.log("AddressStep - billingAddress:", billingAddress);
-        console.log("AddressStep - shippingAddress:", shippingAddress);
-        console.log("AddressStep - isEntityFound:", isEntityFound);
-    }, [billingAddress, shippingAddress, isEntityFound]);
+    // useEffect(() => {
+    //     console.log("AddressStep - billingAddress:", billingAddress);
+    //     console.log("AddressStep - shippingAddress:", shippingAddress);
+    //     console.log("AddressStep - isEntityFound:", isEntityFound);
+    // }, [billingAddress, shippingAddress, isEntityFound]);
 
     return (
         <Grid container spacing={3}>
             <Grid item xs={12}>
-                <Box display="flex" alignItems="center" mb={2}>
-                    <LocationIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">
-                        Morada de Pedido
-                    </Typography>
-                </Box>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                    <Box display="flex" alignItems="center">
+                        <LocationIcon color="primary" sx={{ mr: 1 }} />
+                        <Typography variant="h6">
+                            Morada de Pedido
+                        </Typography>
+                    </Box>
 
-                {isEntityFound && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
-                        Os dados da morada foram preenchidos automaticamente com os dados da entidade. Queira validar se correspondem aos dados po pedido.
-                    </Alert>
-                )}
+                    {isEntityFound && (
+                        <Alert severity="success" sx={{ ml: 2, flexGrow: 1 }}>
+                            Os dados da morada foram preenchidos automaticamente com os dados da entidade. Queira validar se correspondem aos dados po pedido.
+                        </Alert>
+                    )}
+                </Box>
 
                 {/* Passamos title="" para não mostrar o título dentro do ModernAddressForm */}
                 <ModernAddressForm
@@ -74,7 +76,7 @@ const AddressStep = ({
                             disabled={isInternal}
                         />
                     }
-                    label="Morada de correspondência diferente da morada do pedido?"
+                    label="Morada do pedido diferente da morada de faturação?"
                 />
             </Grid>
 

@@ -10,12 +10,15 @@ import pytz
 from flask_limiter.util import get_remote_address
 from .. import limiter
 from datetime import datetime, timezone
+from app.utils.error_handler import api_error_handler
+
 
 bp = Blueprint('auth', __name__)
 
 
 @bp.route('/login', methods=['POST'])
 @limiter.limit("10 per minute", key_func=get_remote_address)
+@api_error_handler
 def login():
     # current_app.logger.info("Tentativa de login iniciada")
     username = request.json.get("username")
@@ -33,6 +36,7 @@ def login():
 
 @bp.route('/logout', methods=['POST'])
 @jwt_required(optional=True)  # Permite logout mesmo com token expirado
+@api_error_handler
 def logout():
     user_identity = get_jwt_identity()
     if user_identity:
@@ -49,6 +53,7 @@ def logout():
 @bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
 @limiter.limit("5 per minute", key_func=get_remote_address)
+@api_error_handler
 def refresh():
     current_app.logger.info("Tentativa de refresh de token")
     try:
@@ -112,6 +117,7 @@ def refresh():
 @bp.route('/update_dark_mode', methods=['POST'])
 @jwt_required()
 @set_session
+@api_error_handler
 def update_dark_mode():
     try:
         current_app.logger.info(f"Atualização de dark mode para o utilizador {get_jwt_identity()}")
@@ -138,6 +144,7 @@ def update_dark_mode():
 @jwt_required()
 @set_session
 @limiter.limit("360 per hour")
+@api_error_handler
 def heartbeat():
     current_user = get_jwt_identity()
     update_last_activity(current_user)
@@ -148,6 +155,7 @@ def heartbeat():
 @bp.route('/check_session', methods=['GET'])
 @jwt_required()
 @set_session
+@api_error_handler
 def check_session():
     current_user = get_jwt_identity()
     if check_inactivity(current_user):
@@ -164,6 +172,7 @@ def check_session():
 @bp.route('/cached-activities', methods=['GET'])
 @jwt_required()
 @set_session
+@api_error_handler
 def get_cached_activities():
     current_user = get_jwt_identity()
     activities = list_cached_activities(current_user)

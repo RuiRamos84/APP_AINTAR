@@ -25,9 +25,8 @@ def get_dashboard_data(current_user):
     for view_name, friendly_name in views.items():
         try:
             with db_session_manager(current_user) as session:
-                query = text(f"SELECT * FROM aintar_server.{view_name}")
-                result = session.execute(query)
-
+                query = text("SELECT * FROM :view_name")
+                result = session.execute(query, {"view_name": view_name})
                 view_data = {
                     'name': friendly_name,
                     'total': 0,

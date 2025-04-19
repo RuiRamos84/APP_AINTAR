@@ -1,14 +1,11 @@
-// ListView.js - Com chips para filtrar por estados
-import React, { useState, useEffect, useMemo } from 'react';
+// ListView.js - Corrigido e otimizado
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     Box,
     Typography,
     Paper,
     Button,
-    IconButton,
     CircularProgress,
-    TextField,
-    InputAdornment,
     Table,
     TableBody,
     TableCell,
@@ -21,95 +18,186 @@ import {
     useTheme,
     Alert,
     Chip,
-    Stack,
-    Divider,
     Tooltip,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
     Search as SearchIcon,
-    Refresh as RefreshIcon,
-    FilterList as FilterIcon,
-    Clear as ClearIcon,
     Add as AddIcon,
     NotificationsActive as NotificationsActiveIcon
 } from '@mui/icons-material';
 
 // Componentes importados
 import DocumentListItem from '../components/cards/DocumentListItem';
-import DocumentFilters from '../components/filters/DocumentFilters';
-// import { getStatusColor, getStatusColorValue } from '../utils/statusUtils';
 import { notificationStyles } from '../styles/documentStyles';
 
-const ListView = ({
-    documents = [],
-    metaData,
-    loading = false,
-    error = null,
-    searchTerm = '',
-    onSearchChange,
-    filters = {},
-    onFilterChange,
-    onCreateDocument,
-    onRefresh,
-    showComprovativo = false,
-    isAssignedToMe = false,  // Importante: determina se estamos na aba "Para tratamento"
-    onViewDetails,
-    onAddStep,
-    onAddAnnex,
-    onReplicate,
-    onDownloadComprovativo,
-    density = 'standard',
-    page = 0,
-    rowsPerPage = 10,
-    count,
-    onPageChange,
-    onRowsPerPageChange,
-    sortBy = 'regnumber',
-    sortDirection = 'desc',
-    onSort
+// Mover funções utilitárias para fora do componente
+const getStatusColor = (statusId, theme) => {
+    const statusIdNum = parseInt(statusId);
+    switch (statusIdNum) {
+        case -1: return theme.palette.grey[500];     // ANULADO
+        case 0: return theme.palette.success.main;   // CONCLUIDO
+        case 1: return theme.palette.primary.main;   // ENTRADA
+        case 2: return theme.palette.info.main;      // PARA VALIDAÇÃO
+        case 4: return theme.palette.warning.main;   // PARA TRATAMENTO
+        case 5: return theme.palette.secondary.main; // ANÁLISE EXTERNA
+        case 6: return theme.palette.error.light;    // PEDIDO DE ELEMENTOS
+        case 7: return theme.palette.primary.dark;   // EMISSÃO DE OFÍCIO
+        case 8: return theme.palette.warning.dark;   // PARA PAVIMENTAÇÃO
+        case 9: return theme.palette.info.dark;      // PARA AVALIAÇÃO NO TERRENO
+        case 10: return theme.palette.success.dark;  // PARA EXECUÇÃO
+        case 11: return theme.palette.secondary.dark; // PARA ORÇAMENTAÇÃO
+        case 12: return theme.palette.error.main;    // PARA COBRANÇA
+        case 13: return theme.palette.primary.light; // PARA ACEITAÇÃO DE ORÇAMENTO
+        case 100: return theme.palette.warning.light; // PARA PAGAMENTO DE PAVIMENTAÇÃO
+        default: return theme.palette.grey[400];     // Outros casos
+    }
+};
+
+// Componente para os chips de estado
+const StatusChips = React.memo(({
+    groupedByState,
+    selectedStateId,
+    onChipClick,
+    density,
+    theme
 }) => {
+    if (!groupedByState || groupedByState.length === 0) return null;
+
+    return (
+        <Box
+            sx={{
+                mb: 3,
+                p: 1.5,
+                backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                borderRadius: 1,
+                boxShadow: 1,
+                display: 'flex',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                flexWrap: 'nowrap',
+                minHeight: density === 'compact' ? 54 : 64,
+                '&::-webkit-scrollbar': {
+                    height: '6px',
+                },
+                '&::-webkit-scrollbar-track': {
+                    backgroundColor: alpha(theme.palette.background.paper, 0.3),
+                    borderRadius: '3px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                    borderRadius: '3px',
+                    '&:hover': {
+                        backgroundColor: alpha(theme.palette.primary.main, 0.4),
+                    }
+                }
+            }}
+        >
+            {groupedByState.map((group) => {
+                const colorValue = group.color || theme.palette.grey[500];
+
+                return (
+                    <Box
+                        key={`chip-container-${group.id}`}
+                        sx={{
+                            position: 'relative',
+                            mr: 2,
+                            minWidth: 'fit-content',
+                            display: 'inline-block',
+                            flexShrink: 0
+                        }}
+                    >
+                        <Chip
+                            label={`${group.title} (${group.items.length})`}
+                            size={density === 'compact' ? "small" : "medium"}
+                            variant={selectedStateId === group.id ? "filled" : "outlined"}
+                            color={selectedStateId === group.id ? "primary" : "default"}
+                            sx={{
+                                borderColor: colorValue,
+                                color: selectedStateId === group.id ? undefined : colorValue,
+                                fontWeight: 'medium',
+                                whiteSpace: 'nowrap',
+                                '&:hover': {
+                                    bgcolor: selectedStateId === group.id ? undefined : alpha(colorValue, 0.1)
+                                },
+                                bgcolor: selectedStateId === group.id ? undefined : 'transparent'
+                            }}
+                            onClick={() => onChipClick(group.id)}
+                        />
+
+                        {/* Sino de notificação com Tooltip estável */}
+                        {group.hasNotifications && (
+                            <NotificationBadge
+                                count={group.notificationCount}
+                                title={group.title}
+                            />
+                        )}
+                    </Box>
+                );
+            })}
+        </Box>
+    );
+});
+
+// Componente separado para o badge de notificação
+const NotificationBadge = React.memo(({ count, title }) => (
+    <Tooltip
+        title={`${count} ${count === 1 ? 'notificação' : 'notificações'} em "${title}"`}
+        arrow
+        placement="top"
+    >
+        <div style={{ position: 'absolute', top: -8, right: -8 }}>
+            <NotificationsActiveIcon sx={notificationStyles.tableNotification} />
+        </div>
+    </Tooltip>
+));
+
+// Componente principal
+const ListView = (props) => {
+    const {
+        documents = [],
+        metaData,
+        loading = false,
+        error = null,
+        searchTerm = '',
+        filters = {},
+        onCreateDocument,
+        onRefresh,
+        showComprovativo = false,
+        isAssignedToMe = false,
+        onViewDetails,
+        onAddStep,
+        onAddAnnex,
+        onReplicate,
+        onDownloadComprovativo,
+        density = 'standard',
+        page = 0,
+        rowsPerPage = 10,
+        count,
+        onPageChange,
+        onRowsPerPageChange,
+        sortBy = 'regnumber',
+        sortDirection = 'desc',
+        onSort
+    } = props;
+
     const theme = useTheme();
-
-    // Estados locais (para quando não controlados externamente)
-    const [localPage, setLocalPage] = useState(page);
-    const [localRowsPerPage, setLocalRowsPerPage] = useState(rowsPerPage);
-    const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm || '');
-    const [localFilters, setLocalFilters] = useState(filters || {
-        status: '',
-        associate: '',
-        type: ''
-    });
-    const [localSortBy, setLocalSortBy] = useState(sortBy);
-    const [localSortDirection, setLocalSortDirection] = useState(sortDirection);
-    const [filterOpen, setFilterOpen] = useState(false);
     const [selected, setSelected] = useState([]);
-
-    // Estado para controlar qual grupo de estado está selecionado (apenas para "Para tratamento")
     const [selectedStateId, setSelectedStateId] = useState(null);
+    const initialStateIdSet = useRef(false);
 
-    const getStatusColor = (statusId) => {
-        switch (parseInt(statusId)) {
-            case -1: return theme.palette.grey[500];     // ANULADO
-            case 0: return theme.palette.success.main;   // CONCLUIDO
-            case 1: return theme.palette.primary.main;   // ENTRADA
-            case 2: return theme.palette.info.main;      // PARA VALIDAÇÃO
-            case 4: return theme.palette.warning.main;   // PARA TRATAMENTO
-            case 5: return theme.palette.secondary.main; // ANÁLISE EXTERNA
-            case 6: return theme.palette.error.light;    // PEDIDO DE ELEMENTOS
-            case 7: return theme.palette.primary.dark;   // EMISSÃO DE OFÍCIO
-            case 8: return theme.palette.warning.dark;   // PARA PAVIMENTAÇÃO
-            case 9: return theme.palette.info.dark;      // PARA AVALIAÇÃO NO TERRENO
-            case 10: return theme.palette.success.dark;  // PARA EXECUÇÃO
-            case 11: return theme.palette.secondary.dark; // PARA ORÇAMENTAÇÃO
-            case 12: return theme.palette.error.main;    // PARA COBRANÇA
-            case 13: return theme.palette.primary.light; // PARA ACEITAÇÃO DE ORÇAMENTO
-            case 100: return theme.palette.warning.light; // PARA PAGAMENTO DE PAVIMENTAÇÃO
-            default: return theme.palette.grey[400];     // Outros casos
-        }
-    };
+    // Adicionar estados locais para paginação interna 
+    const [currentPage, setCurrentPage] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Usar memoização para props controladas e estados locais
+    const isControlled = useMemo(() => ({
+        pagination: typeof onPageChange === 'function' && typeof onRowsPerPageChange === 'function',
+        sort: typeof onSort === 'function'
+    }), [onPageChange, onRowsPerPageChange, onSort]);
 
     // Agrupar documentos por estado (apenas para "Para tratamento")
+    // IMPORTANTE: Declarar antes das funções que usam esta variável
     const groupedByState = useMemo(() => {
         if (!isAssignedToMe || !metaData?.what) return null;
 
@@ -121,7 +209,7 @@ const ListView = ({
                 id: status.pk,
                 title: status.step,
                 items: [],
-                color: getStatusColor(status.pk),
+                color: getStatusColor(status.pk, theme),
                 hasNotifications: false,
                 notificationCount: 0
             };
@@ -143,182 +231,52 @@ const ListView = ({
         // Ordenar grupos por prioridade de processo
         const statusOrder = [1, 2, 4, 5, 6, 9, 11, 13, 8, 10, 7, 12, 100, 0, -1];
 
-        const sortedGroups = Object.values(groups)
+        return Object.values(groups)
             .sort((a, b) => {
                 const indexA = statusOrder.indexOf(parseInt(a.id));
                 const indexB = statusOrder.indexOf(parseInt(b.id));
                 return indexA - indexB;
             })
-            .filter(group => group.items.length > 0);  // Mostrar apenas grupos não vazios
+            .filter(group => group.items.length > 0);
+    }, [documents, metaData, isAssignedToMe, theme]);
 
-        // Selecionar o primeiro grupo por padrão se nenhum estiver selecionado
-        if (sortedGroups.length > 0 && selectedStateId === null) {
-            setSelectedStateId(sortedGroups[0].id);
+    // Corrigir a lógica de inicialização do estado selecionado
+    useEffect(() => {
+        // Executar apenas quando os grupos estiverem disponíveis
+        if (!initialStateIdSet.current && groupedByState && groupedByState.length > 0) {
+            initialStateIdSet.current = true;
+            setSelectedStateId(groupedByState[0].id);
         }
-
-        return sortedGroups;
-    }, [documents, metaData, isAssignedToMe, selectedStateId]);
-
-    // Sincronizar com props externas
-    useEffect(() => {
-        setLocalSearchTerm(searchTerm);
-    }, [searchTerm]);
-
-    useEffect(() => {
-        setLocalFilters(filters);
-    }, [filters]);
-
-    useEffect(() => {
-        setLocalPage(page);
-    }, [page]);
-
-    useEffect(() => {
-        setLocalRowsPerPage(rowsPerPage);
-    }, [rowsPerPage]);
-
-    useEffect(() => {
-        setLocalSortBy(sortBy);
-    }, [sortBy]);
-
-    useEffect(() => {
-        setLocalSortDirection(sortDirection);
-    }, [sortDirection]);
+    }, [groupedByState]);
 
     // Filtrar documentos baseado no estado selecionado (para "Para tratamento")
+    // IMPORTANTE: Declarar antes das funções que dependem dela
     const filteredDocs = useMemo(() => {
-        if (!isAssignedToMe || !groupedByState || selectedStateId === null) {
+        if (!isAssignedToMe || !groupedByState) {
+            return documents;
+        }
+
+        // Se selectedStateId for null, retorna todos os documentos
+        if (selectedStateId === null) {
             return documents;
         }
 
         const selectedGroup = groupedByState.find(group => group.id === selectedStateId);
-        return selectedGroup ? selectedGroup.items : [];
+        return selectedGroup ? selectedGroup.items : documents;
     }, [documents, isAssignedToMe, groupedByState, selectedStateId]);
 
-    // Verificar se o componente é controlado externamente
-    const isControlled = {
-        search: typeof onSearchChange === 'function',
-        filter: typeof onFilterChange === 'function',
-        pagination: typeof onPageChange === 'function' && typeof onRowsPerPageChange === 'function',
-        sort: typeof onSort === 'function'
-    };
-
-    // Handlers
-    const handleSearch = (e) => {
-        const value = e.target.value;
-        setLocalSearchTerm(value);
-
-        if (isControlled.search) {
-            onSearchChange(value);
-        }
-
-        // Resetar página
-        resetPage();
-    };
-
-    const resetPage = () => {
-        if (isControlled.pagination) {
-            onPageChange(null, 0);
-        } else {
-            setLocalPage(0);
-        }
-    };
-
-    const toggleFilters = () => {
-        setFilterOpen(!filterOpen);
-    };
-
-    const handleFilterChange = (e) => {
-        const { name, value } = e.target;
-        const updatedFilters = {
-            ...localFilters,
-            [name]: value
-        };
-
-        setLocalFilters(updatedFilters);
-
-        if (isControlled.filter) {
-            onFilterChange(name, value);
-        }
-
-        resetPage();
-    };
-
-    const handleResetFilters = () => {
-        const emptyFilters = {
-            status: '',
-            associate: '',
-            type: ''
-        };
-
-        setLocalFilters(emptyFilters);
-        setLocalSearchTerm('');
-
-        if (isControlled.filter) {
-            Object.keys(emptyFilters).forEach(key => {
-                onFilterChange(key, '');
-            });
-        }
-
-        if (isControlled.search) {
-            onSearchChange('');
-        }
-
-        resetPage();
-    };
-
-    const handleSortRequest = (field) => {
-        const newDirection =
-            field === localSortBy
-                ? localSortDirection === 'asc' ? 'desc' : 'asc'
-                : 'asc';
-
-        setLocalSortBy(field);
-        setLocalSortDirection(newDirection);
-
-        if (isControlled.sort) {
-            onSort(field);
-        }
-
-        resetPage();
-    };
-
-    // Handler para selecionar um estado específico (apenas para "Para tratamento")
-    const handleStateChipClick = (stateId) => {
-        setSelectedStateId(stateId);
-        resetPage();
-    };
-
-    // Handlers de paginação
-    const handleChangePage = (event, newPage) => {
-        if (isControlled.pagination) {
-            onPageChange(event, newPage);
-        } else {
-            setLocalPage(newPage);
-        }
-    };
-
-    const handleChangeRowsPerPage = (event) => {
-        const newValue = parseInt(event.target.value, 10);
-
-        if (isControlled.pagination) {
-            onRowsPerPageChange(event);
-        } else {
-            setLocalRowsPerPage(newValue);
-            setLocalPage(0);
-        }
-    };
-
-    // Seleção de linhas
-    const handleSelectAllClick = (event) => {
+    // IMPORTANTE: Funções agora estão depois de filteredDocs
+    // Handlers seguros, passam a referência a documentos atuais
+    const handleSelectAllClick = useCallback((event) => {
         if (event.target.checked) {
-            const newSelected = filteredDocs.map(n => n.pk);
-            setSelected(newSelected);
-            return;
+            const allIds = filteredDocs.map(doc => doc.pk);
+            setSelected(allIds);
+        } else {
+            setSelected([]);
         }
-        setSelected([]);
-    };
+    }, [filteredDocs]);
 
-    const handleSelectClick = (event, id) => {
+    const handleSelectClick = useCallback((event, id) => {
         const selectedIndex = selected.indexOf(id);
         let newSelected = [];
 
@@ -336,35 +294,76 @@ const ListView = ({
         }
 
         setSelected(newSelected);
-    };
-
-    const isSelected = (id) => selected.indexOf(id) !== -1;
+    }, [selected]);
 
     // Aplicar paginação
-    const effectivePage = isControlled.pagination ? page : localPage;
-    const effectiveRowsPerPage = isControlled.pagination ? rowsPerPage : localRowsPerPage;
+    const paginatedDocs = useMemo(() => {
+        // Se a paginação é controlada externamente, usar as props fornecidas
+        if (isControlled.pagination) {
+            return filteredDocs.slice(
+                page * rowsPerPage,
+                page * rowsPerPage + rowsPerPage
+            );
+        }
+        // Caso contrário, usar o estado local
+        else {
+            return filteredDocs.slice(
+                currentPage * itemsPerPage,
+                currentPage * itemsPerPage + itemsPerPage
+            );
+        }
+    }, [filteredDocs, isControlled.pagination, page, rowsPerPage, currentPage, itemsPerPage]);
 
-    // Calcular documentos paginados
-    const paginatedDocs = filteredDocs.slice(
-        effectivePage * effectiveRowsPerPage,
-        effectivePage * effectiveRowsPerPage + effectiveRowsPerPage
-    );
+    // Tratadores de eventos memoizados
+    const handleSortRequest = useCallback((field) => {
+        const newDirection = field === sortBy
+            ? sortDirection === 'asc' ? 'desc' : 'asc'
+            : 'asc';
 
-    // Apenas para compatibilidade com o resto do código
-    const effectiveSearchTerm = isControlled.search ? searchTerm : localSearchTerm;
-    const effectiveFilters = isControlled.filter ? filters : localFilters;
-    const effectiveSortBy = isControlled.sort ? sortBy : localSortBy;
-    const effectiveSortDirection = isControlled.sort ? sortDirection : localSortDirection;
+        if (isControlled.sort && onSort) {
+            onSort(field, newDirection);
+        }
+    }, [sortBy, sortDirection, isControlled.sort, onSort]);
+
+    const handleStateChipClick = useCallback((stateId) => {
+        setSelectedStateId(stateId);
+
+        // Resetar paginação
+        if (isControlled.pagination && onPageChange) {
+            onPageChange(null, 0);
+        }
+    }, [isControlled.pagination, onPageChange]);
+
+    const handleChangePage = useCallback((event, newPage) => {
+        if (isControlled.pagination && onPageChange) {
+            onPageChange(event, newPage);
+        }
+    }, [isControlled.pagination, onPageChange]);
+
+    const handleChangeRowsPerPage = useCallback((event) => {
+        const newValue = parseInt(event.target.value, 10);
+
+        if (isControlled.pagination && onRowsPerPageChange) {
+            onRowsPerPageChange(event);
+
+            // Resetar para primeira página
+            if (onPageChange) {
+                onPageChange(null, 0);
+            }
+        }
+    }, [isControlled.pagination, onRowsPerPageChange, onPageChange]);
 
     // Determinar o tamanho da tabela baseado na densidade
-    const getTableSize = () => {
+    const getTableSize = useCallback(() => {
         switch (density) {
             case 'compact': return 'small';
             case 'comfortable': return 'medium';
-            case 'standard':
             default: return 'medium';
         }
-    };
+    }, [density]);
+
+    // Verificar se um item está selecionado
+    const isSelected = useCallback((id) => selected.indexOf(id) !== -1, [selected]);
 
     // Renderizar conteúdo principal
     const renderContent = () => {
@@ -405,7 +404,7 @@ const ListView = ({
                         Nenhum pedido encontrado
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        {(effectiveSearchTerm || Object.values(effectiveFilters).some(v => v !== ''))
+                        {(searchTerm || Object.values(filters).some(v => v !== ''))
                             ? 'Tente ajustar os filtros ou a pesquisa'
                             : 'Adicione um novo pedido para começar'}
                     </Typography>
@@ -433,10 +432,10 @@ const ListView = ({
                                     inputProps={{ 'aria-label': 'selecionar todos' }}
                                 />
                             </TableCell>
-                            <TableCell sortDirection={effectiveSortBy === 'regnumber' ? effectiveSortDirection : false}>
+                            <TableCell sortDirection={sortBy === 'regnumber' ? sortDirection : false}>
                                 <TableSortLabel
-                                    active={effectiveSortBy === 'regnumber'}
-                                    direction={effectiveSortBy === 'regnumber' ? effectiveSortDirection : 'asc'}
+                                    active={sortBy === 'regnumber'}
+                                    direction={sortBy === 'regnumber' ? sortDirection : 'asc'}
                                     onClick={() => handleSortRequest('regnumber')}
                                 >
                                     Número
@@ -444,10 +443,10 @@ const ListView = ({
                             </TableCell>
                             <TableCell>Entidade</TableCell>
                             <TableCell>Tipo</TableCell>
-                            <TableCell sortDirection={effectiveSortBy === 'submission' ? effectiveSortDirection : false}>
+                            <TableCell sortDirection={sortBy === 'submission' ? sortDirection : false}>
                                 <TableSortLabel
-                                    active={effectiveSortBy === 'submission'}
-                                    direction={effectiveSortBy === 'submission' ? effectiveSortDirection : 'asc'}
+                                    active={sortBy === 'submission'}
+                                    direction={sortBy === 'submission' ? sortDirection : 'asc'}
                                     onClick={() => handleSortRequest('submission')}
                                 >
                                     Data
@@ -458,26 +457,22 @@ const ListView = ({
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {paginatedDocs.map((doc) => {
-                            const isItemSelected = isSelected(doc.pk);
-
-                            return (
-                                <DocumentListItem
-                                    key={doc.pk}
-                                    document={doc}
-                                    metaData={metaData}
-                                    isSelected={isItemSelected}
-                                    onClick={(event) => handleSelectClick(event, doc.pk)}
-                                    onViewDetails={onViewDetails}
-                                    onAddStep={onAddStep}
-                                    onAddAnnex={onAddAnnex}
-                                    onReplicate={onReplicate}
-                                    onDownloadComprovativo={onDownloadComprovativo}
-                                    isAssignedToMe={isAssignedToMe}
-                                    showComprovativo={showComprovativo}
-                                />
-                            );
-                        })}
+                        {paginatedDocs.map((doc) => (
+                            <DocumentListItem
+                                key={doc.pk}
+                                document={doc}
+                                metaData={metaData}
+                                isSelected={isSelected(doc.pk)}
+                                onClick={(event) => handleSelectClick(event, doc.pk)}
+                                onViewDetails={onViewDetails}
+                                onAddStep={onAddStep}
+                                onAddAnnex={onAddAnnex}
+                                onReplicate={onReplicate}
+                                onDownloadComprovativo={onDownloadComprovativo}
+                                isAssignedToMe={isAssignedToMe}
+                                showComprovativo={showComprovativo}
+                            />
+                        ))}
                     </TableBody>
                 </Table>
             </TableContainer>
@@ -486,102 +481,15 @@ const ListView = ({
 
     return (
         <Box>
-            {/* Chips de filtro por estado (fora do Paper principal) */}
-            {isAssignedToMe && groupedByState && (
-                <>
-                    <Box sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        mb: 2
-                    }}>
-                        {/* <Typography variant="subtitle1" color="text.secondary">
-                            {documents.length} pedido{documents.length !== 1 ? 's' : ''} em {groupedByState.length} estado{groupedByState.length !== 1 ? 's' : ''}
-                        </Typography> */}
-                    </Box>
-
-                    {/* Container com scroll horizontal para os chips */}
-                    <Box
-                        sx={{
-                            mb: 3,
-                            p: 1.5,
-                            backgroundColor: alpha(theme.palette.background.paper, 0.6),
-                            borderRadius: 1,
-                            boxShadow: 1,
-                            // Estilos para o scroll horizontal
-                            display: 'flex',
-                            overflowX: 'auto',
-                            overflowY: 'hidden',
-                            flexWrap: 'nowrap',
-                            // Altura fixa para evitar saltos no layout
-                            minHeight: density === 'compact' ? 54 : 64,
-                            // Estilização do scrollbar para ficar mais elegante
-                            '&::-webkit-scrollbar': {
-                                height: '6px',
-                            },
-                            '&::-webkit-scrollbar-track': {
-                                backgroundColor: alpha(theme.palette.background.paper, 0.3),
-                                borderRadius: '3px',
-                            },
-                            '&::-webkit-scrollbar-thumb': {
-                                backgroundColor: alpha(theme.palette.primary.main, 0.2),
-                                borderRadius: '3px',
-                                '&:hover': {
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.4),
-                                }
-                            }
-                        }}
-                    >
-                        {groupedByState.map((group) => {
-                            // Obter o valor da cor como string ou usar um fallback
-                            const colorValue = group.color || theme.palette.grey[500];
-
-                            return (
-                                <Box
-                                    key={`chip-container-${group.id}`}
-                                    sx={{
-                                        position: 'relative',
-                                        mr: 2,
-                                        minWidth: 'fit-content',
-                                        display: 'inline-block',
-                                        flexShrink: 0
-                                    }}
-                                >
-                                    <Chip
-                                        label={`${group.title} (${group.items.length})`}
-                                        size={density === 'compact' ? "small" : "medium"}
-                                        variant={selectedStateId === group.id ? "filled" : "outlined"}
-                                        color={selectedStateId === group.id ? "primary" : "default"}
-                                        sx={{
-                                            borderColor: colorValue,
-                                            color: selectedStateId === group.id ? undefined : colorValue,
-                                            fontWeight: 'medium',
-                                            whiteSpace: 'nowrap',
-                                            '&:hover': {
-                                                bgcolor: selectedStateId === group.id ? undefined : alpha(colorValue, 0.1)
-                                            },
-                                            bgcolor: selectedStateId === group.id ? undefined : 'transparent'
-                                        }}
-                                        onClick={() => handleStateChipClick(group.id)}
-                                    />
-
-                                    {/* Sino animado COM TOOLTIP */}
-                                    {group.hasNotifications && (
-                                        <Tooltip
-                                            title={`${group.notificationCount} ${group.notificationCount === 1 ? 'notificação' : 'notificações'} em "${group.title}"`}
-                                            arrow
-                                            placement="top"
-                                        >
-                                            <Box sx={notificationStyles.chipNotification}>
-                                                <NotificationsActiveIcon sx={notificationStyles.bellIcon(true)} />
-                                            </Box>
-                                        </Tooltip>
-                                    )}
-                                </Box>
-                            );
-                        })}
-                    </Box>
-                </>
+            {/* Chips de filtro por estado (apenas para "Para tratamento") */}
+            {isAssignedToMe && groupedByState && groupedByState.length > 0 && (
+                <StatusChips
+                    groupedByState={groupedByState}
+                    selectedStateId={selectedStateId}
+                    onChipClick={handleStateChipClick}
+                    density={density}
+                    theme={theme}
+                />
             )}
 
             {/* Paper com conteúdo principal */}
@@ -602,13 +510,17 @@ const ListView = ({
                 {/* Paginação */}
                 {filteredDocs.length > 0 && (
                     <TablePagination
-                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        rowsPerPageOptions={[10, 25, 50]}
                         component="div"
                         count={isControlled.pagination && count !== undefined ? count : filteredDocs.length}
-                        rowsPerPage={effectiveRowsPerPage}
-                        page={effectivePage}
-                        onPageChange={handleChangePage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPage={isControlled.pagination ? rowsPerPage : itemsPerPage}
+                        page={isControlled.pagination ? page : currentPage}
+                        onPageChange={isControlled.pagination ? handleChangePage : (e, newPage) => setCurrentPage(newPage)}
+                        onRowsPerPageChange={isControlled.pagination ? handleChangeRowsPerPage : (e) => {
+                            const newValue = parseInt(e.target.value, 10);
+                            setItemsPerPage(newValue);
+                            setCurrentPage(0); // Resetar para a primeira página (0-indexed)
+                        }}
                         labelRowsPerPage="Linhas por página:"
                         labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
                     />

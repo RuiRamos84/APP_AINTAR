@@ -31,7 +31,10 @@ import {
     List as ListIcon,
     ViewKanban as KanbanIcon,
     MoreVert as MoreIcon,
-    FilterAltOff as FilterOffIcon
+    FilterAltOff as FilterOffIcon,
+    SortByAlpha as SortingIcon, // Nova importação
+    FileDownload as ExportIcon,
+    DateRange as DateRangeIcon
 } from '@mui/icons-material';
 
 import SearchBar from '../../../../components/common/SearchBar/SearchBar';
@@ -53,6 +56,9 @@ const Header = ({
     viewMode,
     setViewMode,
     handleOpenCreateModal,
+    showSorting, // Novo prop
+    toggleSorting, // Nova função
+    handleExportToExcel, // Nova função para exportação
 }) => {
     const { searchTerm, setSearchTerm, filters } = useUI();
     const theme = useTheme();
@@ -173,10 +179,7 @@ const Header = ({
                                     invisible={!hasActiveFilters}
                                 >
                                     <IconButton
-                                        onClick={() => {
-                                            console.log("Toggling filters, current state:", showFilters);
-                                            toggleFilters(!showFilters); // Passando explicitamente o valor oposto
-                                        }}
+                                        onClick={() => toggleFilters(!showFilters)}
                                         color={showFilters ? "primary" : "default"}
                                         aria-label="Filtros"
                                         sx={{
@@ -188,34 +191,32 @@ const Header = ({
                                 </Badge>
                             </Tooltip>
 
-                            <Tooltip title={`Ordenar por ${sortBy} (${sortDirection === 'asc' ? 'crescente' : 'decrescente'})`} arrow>
-                                <Box sx={{ position: 'relative' }}>
-                                    <IconButton
-                                        onClick={() => handleSortChange(sortBy)}
-                                        color="primary"
-                                        aria-label="Ordenar"
-                                    >
-                                        <SortIcon />
-                                    </IconButton>
-                                    <Box
-                                        sx={{
-                                            position: 'absolute',
-                                            top: -8,
-                                            right: -8,
-                                            bgcolor: theme.palette.primary.main,
-                                            color: theme.palette.primary.contrastText,
-                                            borderRadius: '50%',
-                                            width: 18,
-                                            height: 18,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '0.75rem',
-                                        }}
-                                    >
-                                        {sortDirection === 'asc' ? '↑' : '↓'}
-                                    </Box>
-                                </Box>
+                            {/* Novo botão para ordenação separada */}
+                            <Tooltip title={showSorting ? "Ocultar ordenação" : "Mostrar ordenação"} arrow>
+                                <IconButton
+                                    onClick={() => toggleSorting(!showSorting)}
+                                    color={showSorting ? "primary" : "default"}
+                                    aria-label="Ordenação"
+                                    sx={{
+                                        bgcolor: showSorting ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                                    }}
+                                >
+                                    <SortingIcon />
+                                </IconButton>
+                            </Tooltip>
+
+                            {/* Botão para exportação Excel */}
+                            <Tooltip title="Exportar para Excel" arrow>
+                                <IconButton
+                                    onClick={handleExportToExcel}
+                                    color="primary"
+                                    aria-label="Exportar Excel"
+                                    sx={{
+                                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                    }}
+                                >
+                                    <ExportIcon />
+                                </IconButton>
                             </Tooltip>
                         </Box>
 
@@ -294,13 +295,20 @@ const Header = ({
                         <ListItemText>Atualizar dados</ListItemText>
                     </MenuItem>
 
-                    <MenuItem onClick={() => { toggleFilters(); handleCloseActionsMenu(); }}>
+                    <MenuItem onClick={() => { toggleSorting(); handleCloseActionsMenu(); }}>
                         <ListItemIcon>
-                            {showFilters ? <FilterOffIcon fontSize="small" /> : <FilterIcon fontSize="small" />}
+                            <SortingIcon fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText>{showFilters ? "Ocultar filtros" : "Mostrar filtros"}</ListItemText>
+                        <ListItemText>{showSorting ? "Ocultar ordenação" : "Mostrar ordenação"}</ListItemText>
                     </MenuItem>
 
+                    <MenuItem onClick={() => { handleExportToExcel(); handleCloseActionsMenu(); }}>
+                        <ListItemIcon>
+                            <ExportIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Exportar para Excel</ListItemText>
+                    </MenuItem>
+                    
                     <MenuItem onClick={() => { handleSortChange(sortBy); handleCloseActionsMenu(); }}>
                         <ListItemIcon>
                             <SortIcon fontSize="small" />
@@ -418,6 +426,9 @@ Header.propTypes = {
     viewMode: PropTypes.string,
     setViewMode: PropTypes.func.isRequired,
     handleOpenCreateModal: PropTypes.func.isRequired,
+    showSorting: PropTypes.bool, // Nova prop
+    toggleSorting: PropTypes.func.isRequired, // Nova função
+    handleExportToExcel: PropTypes.func.isRequired, // Nova função
 };
 
 ViewModeToggle.propTypes = {

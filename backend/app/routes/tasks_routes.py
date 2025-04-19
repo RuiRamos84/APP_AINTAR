@@ -12,6 +12,8 @@ from ..services.tasks_service import (
     update_task_note_notification,
 )
 from ..utils.utils import token_required, set_session, db_session_manager
+from app.utils.error_handler import api_error_handler
+
 
 bp = Blueprint('tasks_routes', __name__)
 
@@ -20,6 +22,7 @@ bp = Blueprint('tasks_routes', __name__)
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_tasks():
     """Listar todas as tarefas ativas"""
     current_user = get_jwt_identity()
@@ -31,6 +34,7 @@ def get_tasks():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def new_task():
     """Criar uma nova tarefa"""
     current_user = get_jwt_identity()
@@ -55,6 +59,7 @@ def new_task():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_note(task_id):
     """Adicionar nota a uma tarefa"""
     current_user = get_jwt_identity()
@@ -71,6 +76,7 @@ def add_note(task_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_task_route(task_id):
     """Atualizar detalhes de uma tarefa"""
     current_user = get_jwt_identity()
@@ -96,6 +102,7 @@ def update_task_route(task_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def close_task_route(task_id):
     """Fechar uma tarefa"""
     current_user = get_jwt_identity()
@@ -107,6 +114,7 @@ def close_task_route(task_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_task_status_route(task_id):
     """Atualizar status de uma tarefa"""
     current_user = get_jwt_identity()
@@ -125,6 +133,7 @@ def update_task_status_route(task_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_task_history_route(task_id):
     """Consultar histórico de notas de uma tarefa"""
     current_user = get_jwt_identity()
@@ -136,6 +145,7 @@ def get_task_history_route(task_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_task_notification(task_id):
     """Atualiza a notificação da tarefa (por exemplo, marca como lida)."""
     current_user = get_jwt_identity()
@@ -147,6 +157,7 @@ def update_task_notification(task_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_notifications():
     """Obter a contagem de notificações não lidas."""
     current_user = get_jwt_identity()

@@ -8,6 +8,8 @@ from ..services.entity_service import (
     list_entities
 )
 from ..utils.utils import token_required, set_session, db_session_manager
+from app.utils.error_handler import api_error_handler
+
 
 bp = Blueprint('entity_routes', __name__)
 
@@ -16,6 +18,7 @@ bp = Blueprint('entity_routes', __name__)
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_entity(pk):
     """Obter detalhes da entidade"""
     current_user = get_jwt_identity()
@@ -27,6 +30,7 @@ def get_entity(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_entity_nipc(nipc):
     """Obter detalhes da entidade"""
     current_user = get_jwt_identity()
@@ -39,6 +43,7 @@ def get_entity_nipc(nipc):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_new_entity():
     """Criar uma nova entidade"""
     current_user = get_jwt_identity()
@@ -59,6 +64,7 @@ def create_new_entity():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_entity(pk):
     """Atualizar detalhes da entidade"""
     current_user = get_jwt_identity()
@@ -71,6 +77,7 @@ def update_entity(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def list_all_entities():
     """Listar todas as entidades"""
     current_user = get_jwt_identity()
@@ -79,6 +86,7 @@ def list_all_entities():
 
 
 @bp.after_request
+@api_error_handler
 def cleanup_session(response):
     if hasattr(g, 'current_user'):
         delattr(g, 'current_user')

@@ -13,6 +13,7 @@ from ..services.user_service import (
     fsf_client_vacationclean,
 )
 from ..utils.utils import set_session, token_required, db_session_manager
+from app.utils.error_handler import api_error_handler
 
 bp = Blueprint('user', __name__)
 
@@ -20,6 +21,7 @@ bp = Blueprint('user', __name__)
 @bp.route('/send_mail', methods=['POST'])
 @jwt_required()
 @token_required
+@api_error_handler
 def send_mail():
     data = request.get_json()
     print(data)
@@ -34,11 +36,13 @@ def send_mail():
 
 
 @bp.route('/create_user_ext', methods=['POST'])
+@api_error_handler
 def create_user():
     return create_user_ext(request.get_json())
 
 
 @bp.route('/activation/<int:id>/<int:activation_code>', methods=['GET'])
+@api_error_handler
 def activate_user(id, activation_code):
     return activate_user_service(id, activation_code)
 
@@ -47,6 +51,7 @@ def activate_user(id, activation_code):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def user_info():
     try:
         current_user = get_jwt_identity()
@@ -68,6 +73,7 @@ def user_info():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def change_password_route():
     current_user = get_jwt_identity()
     data = request.get_json()
@@ -86,11 +92,13 @@ def change_password_route():
 
 
 @bp.route('/password_recovery', methods=['POST'])
+@api_error_handler
 def password_recovery_route():
     return password_recovery(request.get_json())
 
 
 @bp.route('/reset_password', methods=['POST'])
+@api_error_handler
 def reset_password_route():
     return reset_password(request.get_json())
 
@@ -99,6 +107,7 @@ def reset_password_route():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def vacation_status():
     try:
         current_user = get_jwt_identity()
@@ -122,6 +131,7 @@ def vacation_status():
 
 
 @bp.after_request
+@api_error_handler
 def cleanup_session(response):
     if hasattr(g, 'current_user'):
         delattr(g, 'current_user')

@@ -12,58 +12,60 @@ import {
     useTheme,
     Collapse,
     alpha,
-    Chip,
-    Stack,
-    Tooltip,
     Divider,
-    Badge
+    Badge,
+    TextField,
+    InputAdornment
 } from '@mui/material';
 import {
     FilterAlt as FilterIcon,
     Clear as ClearIcon,
-    Sort as SortIcon,
     Schedule as ScheduleIcon,
     KeyboardArrowDown as ExpandMoreIcon,
-    KeyboardArrowUp as ExpandLessIcon,
     Notifications as NotificationIcon,
     AccountTree as TypeIcon,
     LocationCity as AssociateIcon,
     Assignment as DocumentIcon,
-    Person as CreatorIcon
+    Person as CreatorIcon,
+    DateRange as DateRangeIcon,
+    FileDownload as ExportIcon
 } from '@mui/icons-material';
 
 const DocumentFilters = ({
     open,
     filters,
-    sortBy,
-    sortDirection,
     metaData,
     onFilterChange,
     onResetFilters,
-    onSortChange,
     density = 'standard',
+    onExportExcel,
+    dateRange,
+    onDateRangeChange
 }) => {
     const theme = useTheme();
-    const hasFilters = Object.values(filters).some(val => val !== '');
+    const hasFilters = Object.values(filters).some(val => val !== '') ||
+        (dateRange.startDate !== null || dateRange.endDate !== null);
     const hasStatusOptions = metaData?.what && Array.isArray(metaData.what);
     const hasAssociateOptions = metaData?.associates && Array.isArray(metaData.associates);
     const hasTypeOptions = metaData?.types && Array.isArray(metaData.types);
-    const activeFiltersCount = Object.values(filters).filter(v => v !== '').length;
+    const activeFiltersCount = Object.values(filters).filter(v => v !== '').length +
+        ((dateRange.startDate ? 1 : 0) + (dateRange.endDate ? 1 : 0));
 
     // Configurações baseadas na densidade
     const getPaperPadding = () => density === 'compact' ? 1.5 : density === 'comfortable' ? 3 : 2;
     const getSpacing = () => density === 'compact' ? 1.5 : density === 'comfortable' ? 3 : 2;
     const getElementSize = () => density === 'compact' ? 'small' : density === 'comfortable' ? 'medium' : 'small';
 
-    // Opções de ordenação com ícones
-    const sortOptions = [
-        { field: 'submission', label: 'Data', icon: <ScheduleIcon fontSize="small" /> },
-        { field: 'regnumber', label: 'Número', icon: <DocumentIcon fontSize="small" /> },
-        { field: 'ts_entity', label: 'Entidade', icon: <AssociateIcon fontSize="small" /> },
-        { field: 'what', label: 'Status', icon: <FilterIcon fontSize="small" /> },
-        { field: 'tt_type', label: 'Tipo', icon: <TypeIcon fontSize="small" /> },
-        { field: 'creator', label: 'Criador', icon: <CreatorIcon fontSize="small" /> },
-    ];
+    // Handle date change
+    const handleDateChange = (type, event) => {
+        const dateValue = event.target.value;
+        console.log(`Data ${type} alterada para:`, dateValue);
+
+        onDateRangeChange({
+            ...dateRange,
+            [type]: dateValue || null
+        });
+    };
 
     return (
         <Collapse in={open} timeout="auto">
@@ -103,16 +105,27 @@ const DocumentFilters = ({
                         Filtros
                     </Typography>
 
-                    <Button
-                        size={getElementSize()}
-                        variant={hasFilters ? "outlined" : "text"}
-                        color="primary"
-                        startIcon={<ClearIcon />}
-                        onClick={onResetFilters}
-                        disabled={!hasFilters}
-                    >
-                        Limpar filtros
-                    </Button>
+                    <Box display="flex" gap={1}>
+                        <Button
+                            size={getElementSize()}
+                            variant="outlined"
+                            color="primary"
+                            startIcon={<ExportIcon />}
+                            onClick={onExportExcel}
+                        >
+                            Exportar Excel
+                        </Button>
+                        <Button
+                            size={getElementSize()}
+                            variant={hasFilters ? "outlined" : "text"}
+                            color="primary"
+                            startIcon={<ClearIcon />}
+                            onClick={onResetFilters}
+                            disabled={!hasFilters}
+                        >
+                            Limpar filtros
+                        </Button>
+                    </Box>
                 </Box>
 
                 <Grid container spacing={getSpacing()}>
@@ -232,32 +245,64 @@ const DocumentFilters = ({
                     </Grid>
                 </Grid>
 
-                <Divider sx={{ my: 2 }} />
-
-                {/* Ordenação em chips */}
-                <Box>
+                <Box sx={{ mt: 3, mb: 1 }}>
                     <Typography variant="subtitle1" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                        <SortIcon sx={{ mr: 1 }} />
-                        Ordenação
+                        <DateRangeIcon sx={{ mr: 1 }} />
+                        Filtrar por data
                     </Typography>
 
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                        {sortOptions.map(({ field, label, icon }) => (
-                            <Chip
-                                key={field}
-                                label={label}
-                                icon={icon}
-                                variant={sortBy === field ? "filled" : "outlined"}
-                                color={sortBy === field ? "primary" : "default"}
-                                onClick={() => onSortChange(field)}
-                                deleteIcon={sortBy === field ? (
-                                    sortDirection === 'asc' ? <ExpandLessIcon /> : <ExpandMoreIcon />
-                                ) : undefined}
-                                onDelete={sortBy === field ? () => onSortChange(field) : undefined}
-                                sx={{ fontWeight: sortBy === field ? 'medium' : 'normal' }}
+                    <Grid container spacing={getSpacing()}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Data inicial"
+                                type="date"
+                                value={dateRange.startDate || ''}
+                                onChange={(e) => handleDateChange('startDate', e)}
+                                InputLabelProps={{ shrink: true }}
+                                fullWidth
+                                size={getElementSize()}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <ScheduleIcon fontSize="small" color={dateRange.startDate ? "primary" : "inherit"} />
+                                        </InputAdornment>
+                                    )
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '& fieldset': {
+                                            borderColor: dateRange.startDate ? theme.palette.primary.main : undefined,
+                                        },
+                                    },
+                                }}
                             />
-                        ))}
-                    </Stack>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Data final"
+                                type="date"
+                                value={dateRange.endDate || ''}
+                                onChange={(e) => handleDateChange('endDate', e)}
+                                InputLabelProps={{ shrink: true }}
+                                fullWidth
+                                size={getElementSize()}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <ScheduleIcon fontSize="small" color={dateRange.endDate ? "primary" : "inherit"} />
+                                        </InputAdornment>
+                                    )
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '& fieldset': {
+                                            borderColor: dateRange.endDate ? theme.palette.primary.main : undefined,
+                                        },
+                                    },
+                                }}
+                            />
+                        </Grid>
+                    </Grid>
                 </Box>
             </Paper>
         </Collapse>

@@ -27,6 +27,8 @@ from ..services.etar_ee_service import (
     list_equip_expenses,
     )
 from ..utils.utils import set_session, token_required
+from app.utils.error_handler import api_error_handler
+
 
 bp = Blueprint('etar_ee_routes', __name__)
 
@@ -35,6 +37,7 @@ bp = Blueprint('etar_ee_routes', __name__)
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_etar(pk):
     """Criar documento para ETAR"""
     current_user = get_jwt_identity()
@@ -46,6 +49,7 @@ def create_etar(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_ee(pk):
     """Criar documento para EE"""
     current_user = get_jwt_identity()
@@ -57,6 +61,7 @@ def create_ee(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_etar_volume():
     """Registar volume de ETAR"""
     current_user = get_jwt_identity()
@@ -74,6 +79,7 @@ def add_etar_volume():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_ee_volume():
     """Registar volume de EE"""
     current_user = get_jwt_identity()
@@ -91,6 +97,7 @@ def add_ee_volume():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_etar_volumes(tb_etar):
     """Listar volumes de ETAR para uma ETAR específica"""
     current_user = get_jwt_identity()
@@ -102,6 +109,7 @@ def get_etar_volumes(tb_etar):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_ee_volumes(tb_ee):
     """Listar volumes de EE para uma EE específica"""
     current_user = get_jwt_identity()
@@ -113,6 +121,7 @@ def get_ee_volumes(tb_ee):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_etar_energy():
     """Registar energia de ETAR"""
     current_user = get_jwt_identity()
@@ -131,6 +140,7 @@ def add_etar_energy():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_ee_energy():
     """Registar energia de EE"""
     current_user = get_jwt_identity()
@@ -149,6 +159,7 @@ def add_ee_energy():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_etar_energy(tb_etar):
     """Listar energia de ETAR para uma ETAR específica"""
     current_user = get_jwt_identity()
@@ -160,6 +171,7 @@ def get_etar_energy(tb_etar):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_ee_energy(tb_ee):
     """Listar energia de EE para uma EE específica"""
     current_user = get_jwt_identity()
@@ -171,6 +183,7 @@ def get_ee_energy(tb_ee):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_etar_expense():
     """Registar despesa em ETAR"""
     current_user = get_jwt_identity()
@@ -190,6 +203,7 @@ def add_etar_expense():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_ee_expense():
     """Registar despesa em EE"""
     current_user = get_jwt_identity()
@@ -209,6 +223,7 @@ def add_ee_expense():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_rede_expense():
     """Registar despesa na rede"""
     current_user = get_jwt_identity()
@@ -227,6 +242,7 @@ def add_rede_expense():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_ramal_expense():
     """Registar despesa no ramal"""
     current_user = get_jwt_identity()
@@ -245,6 +261,7 @@ def add_ramal_expense():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_etar_expenses(tb_etar):
     """Listar despesas para uma ETAR específica"""
     current_user = get_jwt_identity()
@@ -256,6 +273,7 @@ def get_etar_expenses(tb_etar):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_ee_expenses(tb_ee):
     """Listar despesas para uma EE específica"""
     current_user = get_jwt_identity()
@@ -267,6 +285,7 @@ def get_ee_expenses(tb_ee):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_rede_expenses():
     """Listar despesas para a rede"""
     current_user = get_jwt_identity()
@@ -278,6 +297,7 @@ def get_rede_expenses():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_ramal_expenses():
     """Listar despesas para os ramais"""
     current_user = get_jwt_identity()
@@ -289,6 +309,7 @@ def get_ramal_expenses():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_manut_expenses():
     """Listar despesas de manutenção"""
     current_user = get_jwt_identity()
@@ -300,6 +321,7 @@ def get_manut_expenses():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def created_manut_expense():
     """Criar uma despesa de manutenção"""
     current_user = get_jwt_identity()
@@ -318,6 +340,7 @@ def created_manut_expense():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_etar_details(pk):
     """
     Obter detalhes de uma ETAR específica pela PK.
@@ -331,6 +354,7 @@ def get_etar_details(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_ee_details(pk):
     """
     Obter detalhes de uma EE específica pela PK.
@@ -344,6 +368,7 @@ def get_ee_details(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_equip_expense():
     """Registar despesa de Equipamento"""
     current_user = get_jwt_identity()
@@ -364,6 +389,7 @@ def add_equip_expense():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_equip_expenses():
     """Listar despesas de Equipamento"""
     current_user = get_jwt_identity()

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
     Box,
     Tabs,
@@ -6,26 +6,11 @@ import {
     Snackbar,
     Alert,
     useMediaQuery,
-    useTheme,
-    Drawer,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    Divider,
-    Typography
+    useTheme
 } from '@mui/material';
-
-import {
-    Dashboard as DashboardIcon,
-    Description as DocumentIcon,
-    Settings as SettingsIcon,
-    Home as HomeIcon
-} from '@mui/icons-material';
 
 // Components
 import Header from './components/layout/Header';
-import Toolbar from './components/layout/Toolbar';
 import GridView from './views/GridView';
 import ListView from './views/ListView';
 import KanbanView from './views/KanbanView';
@@ -42,14 +27,19 @@ import { UIProvider, useUI } from './context/UIStateContext';
 import { DocumentsProvider, useDocumentsContext } from './context/DocumentsContext';
 import { DocumentActionsProvider, useDocumentActions } from './context/DocumentActionsContext';
 
+// Utils
 import DocumentFilters from './components/filters/DocumentFilters';
+import DocumentSorting from './components/filters/DocumentSorting';
+import * as XLSX from 'xlsx';
 
+// Importar funções existentes para utilizar
+import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtils';
+import { getStatusName, getStatusColor } from './utils/statusUtils';
 
 const DocumentManagerContent = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [currentDocument, setCurrentDocument] = useState(null);
-    const [drawerOpen, setDrawerOpen] = useState(false);
 
     // Get document context data
     const {
@@ -76,10 +66,14 @@ const DocumentManagerContent = () => {
         setSearchTerm,
         toggleFilters,
         showFilters,
+        toggleSorting,
+        showSorting,
         sortBy,
         sortDirection,
         setSort,
         filters,
+        dateRange,
+        setDateRange,
         setFilter,
         resetFilters,
     } = useUI();
@@ -89,7 +83,7 @@ const DocumentManagerContent = () => {
         selectedDocument,
         modalState,
         handleViewDetails,
-        handleViewOriginDetails, // Adicionar esta linha
+        handleViewOriginDetails,
         handleAddStep,
         handleAddAnnex,
         handleReplicate,
@@ -104,39 +98,146 @@ const DocumentManagerContent = () => {
         modalInstanceKey,
     } = useDocumentActions();
 
-    
-    // Handle sort change
-    const handleSortChange = (field) => {
-        console.log(`Ordenação clicada: ${field}, atual: ${sortBy}/${sortDirection}`);
-        setSort(field);
-    };
-
-    const handleUpdateDocument = (newDocument) => {
+    // Handler simples
+    const handleUpdateDocument = useCallback((newDocument) => {
         setCurrentDocument(newDocument);
-    };
+    }, []);
 
-    const toggleDrawer = (isOpen) => {
-        setDrawerOpen(isOpen);
-    };
+    // Handler para o sort
+    const handleSortChange = useCallback((field) => {
+        setSort(field);
+    }, [setSort]);
 
+    // Handler para dateRange
+    const handleDateRangeChange = useCallback((newDateRange) => {
+        setDateRange(newDateRange);
+    }, [setDateRange]);
 
-    // Função para filtrar documentos com base no searchTerm
-    const filterDocumentsBySearchTerm = useCallback((documents) => {
-        if (!searchTerm) return documents;
+    // Reset de filtros
+    const resetAllFilters = useCallback(() => {
+        resetFilters();
+        setDateRange({ startDate: null, endDate: null });
+    }, [resetFilters, setDateRange]);
 
-        const searchTermLower = searchTerm.toLowerCase();
-        return documents.filter(doc =>
-            doc.regnumber?.toLowerCase().includes(searchTermLower) ||
-            doc.ts_entity?.toLowerCase().includes(searchTermLower) ||
-            doc.tt_type?.toLowerCase().includes(searchTermLower) ||
-            doc.ts_associate?.toLowerCase().includes(searchTermLower) ||
-            (doc.nipc && String(doc.nipc).toLowerCase().includes(searchTermLower)) ||
-            (doc.creator && doc.creator.toLowerCase().includes(searchTermLower))
-        );
-    }, [searchTerm]);
+    // ===== FUNÇÕES DE FILTRO =====
 
-    // Função modificada para obter documentos ativos com filtragem por searchTerm
+    // Função para filtrar por status
+    const filterDocumentsByStatus = useCallback((docs, statusFilter) => {
+        if (!statusFilter || statusFilter === '') return docs;
+
+        const statusValue = Number(statusFilter);
+        return docs.filter(doc => {
+            const docWhat = typeof doc.what === 'number' ? doc.what : Number(doc.what);
+            return docWhat === statusValue;
+        });
+    }, []);
+
+    // Função para filtrar por associado
+    const filterDocumentsByAssociate = useCallback((docs, associateFilter, metaData) => {
+        if (!associateFilter || associateFilter === '') return docs;
+
+        const selectedAssociate = metaData?.associates?.find(a => a.pk === Number(associateFilter));
+        if (!selectedAssociate) return docs;
+
+        return docs.filter(doc => {
+            const docAssociateText = doc.ts_associate?.toString().trim().toLowerCase() || '';
+            const associateText = selectedAssociate.name?.toString().trim().toLowerCase() || '';
+
+            return docAssociateText.includes(associateText) ||
+                associateText.includes(docAssociateText) ||
+                docAssociateText.replace('município de ', '').includes(associateText) ||
+                associateText.includes(docAssociateText.replace('município de ', ''));
+        });
+    }, []);
+
+    // Função para filtrar por tipo
+    const filterDocumentsByType = useCallback((docs, typeFilter, metaData) => {
+        if (!typeFilter || typeFilter === '') return docs;
+
+        const selectedType = metaData?.types?.find(t => t.pk === Number(typeFilter));
+        if (!selectedType) return docs;
+
+        return docs.filter(doc => {
+            const docTypeText = doc.tt_type?.toString().trim().toLowerCase() || '';
+            const typeText = selectedType.tt_doctype_value?.toString().trim().toLowerCase() || '';
+
+            return docTypeText === typeText ||
+                docTypeText.includes(typeText) ||
+                typeText.includes(docTypeText);
+        });
+    }, []);
+
+    // Função para filtrar por notificação
+    const filterDocumentsByNotification = useCallback((docs, notificationFilter) => {
+        if (!notificationFilter || notificationFilter === '') return docs;
+
+        const notificationValue = Number(notificationFilter);
+        return docs.filter(doc => {
+            const docNotification = typeof doc.notification === 'number' ?
+                doc.notification : Number(doc.notification);
+            return docNotification === notificationValue;
+        });
+    }, []);
+
+    // Função para filtrar por datas
+    const filterDocumentsByDateRange = useCallback((docs, dateRange) => {
+        if (!dateRange.startDate && !dateRange.endDate) return docs;
+
+        return docs.filter(doc => {
+            if (!doc.submission) return true;
+
+            try {
+                // Extrair apenas a parte da data (antes de "às")
+                const datePartStr = doc.submission.split(' às ')[0];
+                if (!datePartStr) return true;
+
+                const dateParts = datePartStr.split('-');
+                if (dateParts.length !== 3) return true;
+
+                const docYear = parseInt(dateParts[0], 10);
+                const docMonth = parseInt(dateParts[1], 10);
+                const docDay = parseInt(dateParts[2], 10);
+
+                // Comparação com a data inicial
+                if (dateRange.startDate) {
+                    const startParts = dateRange.startDate.split('-');
+                    if (startParts.length === 3) {
+                        const startYear = parseInt(startParts[0], 10);
+                        const startMonth = parseInt(startParts[1], 10);
+                        const startDay = parseInt(startParts[2], 10);
+
+                        if (docYear < startYear) return false;
+                        if (docYear === startYear && docMonth < startMonth) return false;
+                        if (docYear === startYear && docMonth === startMonth && docDay < startDay) return false;
+                    }
+                }
+
+                // Comparação com a data final
+                if (dateRange.endDate) {
+                    const endParts = dateRange.endDate.split('-');
+                    if (endParts.length === 3) {
+                        const endYear = parseInt(endParts[0], 10);
+                        const endMonth = parseInt(endParts[1], 10);
+                        const endDay = parseInt(endParts[2], 10);
+
+                        if (docYear > endYear) return false;
+                        if (docYear === endYear && docMonth > endMonth) return false;
+                        if (docYear === endYear && docMonth === endMonth && docDay > endDay) return false;
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.error(`Erro ao processar data: ${doc.submission}`, error);
+                return true;
+            }
+        });
+    }, []);
+
+    // ===== FUNÇÃO PRINCIPAL PARA OBTER DOCUMENTOS ATIVOS =====
+    // IMPORTANTE: Esta função deve estar definida ANTES de qualquer função que a utilize
     const getActiveDocuments = useCallback(() => {
+        // 1. Selecionar documentos base conforme a tab ativa
         let docs;
         switch (activeTab) {
             case 0: docs = allDocuments; break;
@@ -145,118 +246,35 @@ const DocumentManagerContent = () => {
             default: docs = allDocuments;
         }
 
-        console.log("Documentos antes de filtrar:", docs.length);
-        console.log("Filtros aplicados:", filters);
-
-        // Aplicar filtros - buscar correspondências baseadas em strings ou IDs
-        if (filters.status !== '' && filters.status !== undefined) {
-            const statusValue = Number(filters.status);
-            docs = docs.filter(doc => {
-                const docWhat = typeof doc.what === 'number' ? doc.what : Number(doc.what);
-                return docWhat === statusValue;
-            });
+        // 2. Aplicar filtros em sequência
+        if (filters.status) {
+            docs = filterDocumentsByStatus(docs, filters.status);
         }
 
-        if (filters.associate !== '' && filters.associate !== undefined) {
-            // Buscar informações do associado nos metadados para comparação por texto
-            const selectedAssociate = metaData?.associates?.find(a => a.pk === Number(filters.associate));
-
-            if (selectedAssociate) {
-                docs = docs.filter(doc => {
-                    // Comparar textos de nomes de associados (incluindo remoção do prefixo "Município de")
-                    const docAssociateText = doc.ts_associate?.toString().trim().toLowerCase() || '';
-                    const associateText = selectedAssociate.name?.toString().trim().toLowerCase() || '';
-
-                    // Verificar se o texto do associado está contido no campo do documento
-                    return docAssociateText.includes(associateText) ||
-                        associateText.includes(docAssociateText) ||
-                        docAssociateText.replace('município de ', '').includes(associateText) ||
-                        associateText.includes(docAssociateText.replace('município de ', ''));
-                });
-            }
+        if (filters.associate) {
+            docs = filterDocumentsByAssociate(docs, filters.associate, metaData);
         }
 
-        if (filters.type !== '' && filters.type !== undefined) {
-            // Buscar informações do tipo nos metadados para comparação por texto
-            const selectedType = metaData?.types?.find(t => t.pk === Number(filters.type));
-
-            if (selectedType) {
-                docs = docs.filter(doc => {
-                    // Comparar textos de tipos
-                    const docTypeText = doc.tt_type?.toString().trim().toLowerCase() || '';
-                    const typeText = selectedType.tt_doctype_value?.toString().trim().toLowerCase() || '';
-
-                    // Verificar correspondência exata ou parcial
-                    return docTypeText === typeText ||
-                        docTypeText.includes(typeText) ||
-                        typeText.includes(docTypeText);
-                });
-            }
+        if (filters.type) {
+            docs = filterDocumentsByType(docs, filters.type, metaData);
         }
 
-        if (filters.notification !== '' && filters.notification !== undefined) {
-            const notificationValue = Number(filters.notification);
-            docs = docs.filter(doc => {
-                // Comparar notification como número
-                const docNotification = typeof doc.notification === 'number' ?
-                    doc.notification : Number(doc.notification);
-                return docNotification === notificationValue;
-            });
+        if (filters.notification !== undefined && filters.notification !== '') {
+            docs = filterDocumentsByNotification(docs, filters.notification);
         }
 
-        console.log("Documentos após filtrar:", docs.length);
-        docs = filterDocumentsBySearchTerm(docs);
-        console.log("Documentos após busca:", docs.length);
+        // Aplicar filtro de datas
+        docs = filterDocumentsByDateRange(docs, dateRange);
 
-        // DEPURAÇÃO: Mostrar alguns documentos antes da ordenação
-        console.log("Antes da ordenação - Primeiros 3 docs:", docs.slice(0, 3).map(d => ({
-            regnumber: d.regnumber,
-            submission: d.submission,
-            tt_type: d.tt_type,
-            what: d.what
-        })));
+        // Aplicar filtro de busca textual
+        if (searchTerm) {
+            docs = filterDocuments(docs, searchTerm);
+        }
 
-        // ORDENAÇÃO SIMPLIFICADA
+        // 3. Aplicar ordenação
         if (sortBy && sortDirection) {
-            console.log(`Ordenando por "${sortBy}" em direção "${sortDirection}"`);
-
-            const multiplier = sortDirection === 'asc' ? 1 : -1;
-
-            // Fazer cópia para não modificar o array original
-            docs = [...docs].sort((a, b) => {
-                // Extrair valores, garantindo que não sejam undefined
-                let valA = a[sortBy] === undefined ? '' : a[sortBy];
-                let valB = b[sortBy] === undefined ? '' : b[sortBy];
-
-                // Caso especial para datas
-                if (sortBy === 'submission') {
-                    const dateA = new Date(valA || 0);
-                    const dateB = new Date(valB || 0);
-                    return multiplier * (dateA - dateB);
-                }
-
-                // Números (incluindo números como strings)
-                if (!isNaN(Number(valA)) && !isNaN(Number(valB))) {
-                    return multiplier * (Number(valA) - Number(valB));
-                }
-
-                // Strings - converter para minúsculas para ordenação insensível a maiúsculas/minúsculas
-                valA = String(valA).toLowerCase();
-                valB = String(valB).toLowerCase();
-
-                if (valA < valB) return -1 * multiplier;
-                if (valA > valB) return 1 * multiplier;
-                return 0;
-            });
+            docs = sortDocuments(docs, sortBy, sortDirection);
         }
-
-        // DEPURAÇÃO: Mostrar alguns documentos após a ordenação
-        console.log("Após a ordenação - Primeiros 3 docs:", docs.slice(0, 3).map(d => ({
-            regnumber: d.regnumber,
-            submission: d.submission,
-            tt_type: d.tt_type,
-            what: d.what
-        })));
 
         return docs;
     }, [
@@ -265,17 +283,76 @@ const DocumentManagerContent = () => {
         assignedDocuments,
         createdDocuments,
         filters,
-        filterDocumentsBySearchTerm,
+        dateRange,
+        searchTerm,
         sortBy,
         sortDirection,
-        metaData // Importante: adicionei metaData como dependência
+        metaData,
+        filterDocumentsByStatus,
+        filterDocumentsByAssociate,
+        filterDocumentsByType,
+        filterDocumentsByNotification,
+        filterDocumentsByDateRange
     ]);
-    
+
+    // Function to export filtered data to Excel - AGORA definida APÓS getActiveDocuments
+    const handleExportToExcel = useCallback(() => {
+        try {
+            // Obter documentos filtrados atuais
+            const documents = getActiveDocuments();
+
+            if (documents.length === 0) {
+                showNotification('Não existem documentos para exportar', 'warning');
+                return;
+            }
+
+            // Formatar documentos para Excel
+            const excelData = documents.map(doc => ({
+                'Número': doc.regnumber || '',
+                'Data': doc.submission || '',
+                'Entidade': doc.ts_entity || '',
+                'Associado': doc.ts_associate || '',
+                'Status': getStatusName(doc.what, metaData?.what) || '',
+                'Tipo': doc.tt_type || '',
+                'Criador': doc.creator || ''
+            }));
+
+            // Criar planilha
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            worksheet['!cols'] = [
+                { wch: 15 }, // Número
+                { wch: 15 }, // Data
+                { wch: 25 }, // Entidade
+                { wch: 25 }, // Associado
+                { wch: 20 }, // Status
+                { wch: 25 }, // Tipo
+                { wch: 20 }  // Criador
+            ];
+
+            // Criar workbook
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Pedidos');
+
+            // Nome de ficheiro com data atual
+            const date = new Date().toISOString().split('T')[0];
+            const tabName = activeTab === 0 ? 'Todos' : activeTab === 1 ? 'Tratamento' : 'CriadosPorMim';
+            const filename = `Pedidos_${tabName}_${date}.xlsx`;
+
+            // Exportar ficheiro
+            XLSX.writeFile(workbook, filename);
+            showNotification('Exportação para Excel concluída com sucesso', 'success');
+        } catch (error) {
+            console.error('Erro ao exportar para Excel:', error);
+            showNotification('Erro ao exportar dados para Excel', 'error');
+        }
+    }, [activeTab, getActiveDocuments, metaData, showNotification]);
+
     // Render content based on view mode
-    const renderContent = () => {
+    const renderContent = useCallback(() => {
         const documents = getActiveDocuments();
         const isLoading = getActiveLoading();
         const isAssignedTab = activeTab === 1;
+        const isCreatedTab = activeTab === 2; // Tab "Criados por mim"
 
         // Adicionar um key que inclui ordenação para forçar a atualização
         const renderKey = `${viewMode}-${sortBy}-${sortDirection}`;
@@ -286,7 +363,7 @@ const DocumentManagerContent = () => {
             loading: isLoading,
             density,
             isAssignedToMe: isAssignedTab,
-            showComprovativo: true,
+            showComprovativo: isCreatedTab, // Mostrar apenas na tab "Criados por mim"
             // Pass action handlers from context
             onViewDetails: handleViewDetails,
             onAddStep: handleAddStep,
@@ -301,12 +378,24 @@ const DocumentManagerContent = () => {
             case 'kanban': return <KanbanView key={renderKey} {...viewProps} />;
             default: return <GridView key={renderKey} {...viewProps} />;
         }
-    };
-    
+    }, [
+        getActiveDocuments,
+        getActiveLoading,
+        activeTab, // Certifique-se de que activeTab está incluído nas dependências
+        viewMode,
+        sortBy,
+        sortDirection,
+        density,
+        metaData,
+        handleViewDetails,
+        handleAddStep,
+        handleAddAnnex,
+        handleReplicate,
+        handleDownloadCompr
+    ]);
 
     // Renderizar os modais de documentos em cascata
-
-    const renderDocumentModals = () => {
+    const renderDocumentModals = useCallback(() => {
         if (!openDocuments || openDocuments.length === 0) {
             return null;
         }
@@ -328,56 +417,49 @@ const DocumentManagerContent = () => {
                 modalKey={docData.modalInstanceKey}
                 onUpdateDocument={handleUpdateDocument}
                 onViewOriginDocument={handleViewOriginDetails}
-                tabType={tabType} // Adiciona a informação da tab atual
+                tabType={tabType}
                 style={{
                     zIndex: 1300 + index
                 }}
             />
         ));
-    };
+    }, [
+        openDocuments,
+        activeTab,
+        metaData,
+        handleCloseDocumentModal,
+        handleAddStep,
+        handleAddAnnex,
+        handleReplicate,
+        handleDownloadCompr,
+        handleUpdateDocument,
+        handleViewOriginDetails
+    ]);
+
+    // Memoize the filtered document counts
+    const documentCounts = useMemo(() => {
+        const filterBySearch = (docs) => filterDocuments(docs, searchTerm);
+
+        return {
+            all: filterBySearch(allDocuments).length,
+            assigned: filterBySearch(assignedDocuments).length,
+            created: filterBySearch(createdDocuments).length
+        };
+    }, [allDocuments, assignedDocuments, createdDocuments, searchTerm]);
 
     return (
         <Box sx={{ p: 2 }}>
-            {/* Drawer Lateral */}
-            {/* <Drawer
-                anchor="left"
-                open={drawerOpen}
-                onClose={() => toggleDrawer(false)}
-            >
-                <Box sx={{ width: 250 }}>
-                    <Box sx={{ p: 2 }}>
-                        <Typography variant="h6">Menu Principal</Typography>
-                    </Box>
-                    <Divider />
-                    <List>
-                        <ListItem button onClick={() => toggleDrawer(false)}>
-                            <ListItemIcon><HomeIcon /></ListItemIcon>
-                            <ListItemText primary="Início" />
-                        </ListItem>
-                        <ListItem button onClick={() => toggleDrawer(false)}>
-                            <ListItemIcon><DocumentIcon /></ListItemIcon>
-                            <ListItemText primary="Pedidos" />
-                        </ListItem>
-                        <ListItem button onClick={() => toggleDrawer(false)}>
-                            <ListItemIcon><DashboardIcon /></ListItemIcon>
-                            <ListItemText primary="Dashboard" />
-                        </ListItem>
-                        <ListItem button onClick={() => toggleDrawer(false)}>
-                            <ListItemIcon><SettingsIcon /></ListItemIcon>
-                            <ListItemText primary="Configurações" />
-                        </ListItem>
-                    </List>
-                </Box>
-            </Drawer> */}
             {/* Header with title and buttons */}
             <Header
                 title="Gestão de Pedidos"
                 isMobileView={isMobile}
                 refreshDocuments={refreshDocuments}
                 isLoading={getActiveLoading()}
-                toggleDrawer={toggleDrawer}
                 showFilters={showFilters}
-                toggleFilters={(value) => toggleFilters(value)} // Garante que o valor seja passado
+                toggleFilters={toggleFilters}
+                showSorting={showSorting}
+                toggleSorting={toggleSorting}
+                handleExportToExcel={handleExportToExcel}
                 density={density}
                 setDensity={setDensity}
                 sortBy={sortBy}
@@ -391,11 +473,20 @@ const DocumentManagerContent = () => {
                 <DocumentFilters
                     open={showFilters}
                     filters={filters}
-                    sortBy={sortBy}
-                    sortDirection={sortDirection}
                     metaData={metaData}
                     onFilterChange={(e) => setFilter(e.target.name, e.target.value)}
-                    onResetFilters={resetFilters}
+                    onResetFilters={resetAllFilters}
+                    onExportExcel={handleExportToExcel}
+                    dateRange={dateRange}
+                    onDateRangeChange={handleDateRangeChange}
+                    density={density}
+                />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+                <DocumentSorting
+                    open={showSorting}
+                    sortBy={sortBy}
+                    sortDirection={sortDirection}
                     onSortChange={(field) => setSort(field)}
                     density={density}
                 />
@@ -407,9 +498,9 @@ const DocumentManagerContent = () => {
                 onChange={(e, newValue) => setActiveTab(newValue)}
                 variant="fullWidth"
             >
-                <Tab label={`Todos (${filterDocumentsBySearchTerm(allDocuments).length})`} />
-                <Tab label={`Para tratamento (${filterDocumentsBySearchTerm(assignedDocuments).length})`} />
-                <Tab label={`Criados por mim (${filterDocumentsBySearchTerm(createdDocuments).length})`} />
+                <Tab label={`Todos (${documentCounts.all})`} />
+                <Tab label={`Para tratamento (${documentCounts.assigned})`} />
+                <Tab label={`Criados por mim (${documentCounts.created})`} />
             </Tabs>
 
             {/* Content area */}

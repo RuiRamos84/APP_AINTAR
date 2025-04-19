@@ -32,6 +32,8 @@ from ..services.documents_service import (
 import jwt
 from .. import limiter
 from ..utils.utils import token_required, set_session, db_session_manager
+from app.utils.error_handler import api_error_handler
+
 
 bp = Blueprint('documents_routes', __name__)
 
@@ -40,6 +42,7 @@ bp = Blueprint('documents_routes', __name__)
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_documents():
     """Listar todos os documentos"""
     current_user = get_jwt_identity()
@@ -51,6 +54,7 @@ def get_documents():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def documentById_route(documentId):  # Adicione o parâmetro documentId aqui
     """Obter dados do documento"""
     current_user = get_jwt_identity()
@@ -63,6 +67,7 @@ def documentById_route(documentId):  # Adicione o parâmetro documentId aqui
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_self():
     """Listar documentos atribuídos a si"""
     current_user = get_jwt_identity()
@@ -74,6 +79,7 @@ def get_document_self():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def check_vacation_status_route(user_pk):
     """Verificar status de férias do usuário"""
     current_user = get_jwt_identity()
@@ -85,6 +91,7 @@ def check_vacation_status_route(user_pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_new_document():
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
@@ -97,6 +104,7 @@ def create_new_document():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_document_notification_route(pk):
     """Atualizar o status de notificação de um documento"""
     current_user = get_jwt_identity()
@@ -108,6 +116,7 @@ def update_document_notification_route(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_owner():
     """Listar documentos criados por si"""
     current_user = get_jwt_identity()
@@ -120,6 +129,7 @@ def get_document_owner():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_step(pk):
     """Obter passos do documento"""
     current_user = get_jwt_identity()
@@ -131,6 +141,7 @@ def get_document_step(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_type_params(type_id):
     """Obter parâmetros do tipo de documento"""
     current_user = get_jwt_identity()
@@ -142,6 +153,7 @@ def get_document_type_params(type_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_document_type_params(type_id):
     """Atualizar parâmetros do tipo de documento"""
     current_user = get_jwt_identity()
@@ -154,6 +166,7 @@ def update_document_type_params(type_id):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_anex_step(pk):
     """Adicionar anexos ao documento"""
     current_user = get_jwt_identity()
@@ -165,6 +178,7 @@ def get_document_anex_step(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_document_steps(pk):
     """Criar ou atualizar passo do documento"""
     current_user = get_jwt_identity()
@@ -177,6 +191,7 @@ def add_document_steps(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def add_document_annex_endpoint():
     """Endpoint para adicionar anexos a um documento existente"""
     current_user = get_jwt_identity()
@@ -189,6 +204,7 @@ def add_document_annex_endpoint():
 @bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
 @jwt_required()
 @set_session
+@api_error_handler
 def download_file_route(regnumber, filename):
     """Apresentar arquivo"""
     current_user = get_jwt_identity()
@@ -217,6 +233,7 @@ def download_file_route(regnumber, filename):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_entity_count_types_route(pk):
     """Obter tipos de pedidos efetuados por uma entidade"""
     current_user = get_jwt_identity()
@@ -225,6 +242,7 @@ def get_entity_count_types_route(pk):
 
 
 @bp.route('document/create_direct', methods=['POST'])
+@api_error_handler
 def create_document_extern():
     data = request.json
     try:
@@ -246,6 +264,7 @@ def create_document_extern():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def extrair_comprovativo(pk):
     try:
         current_user = get_jwt_identity()
@@ -283,6 +302,7 @@ def extrair_comprovativo(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_etar_document(etar_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
@@ -299,6 +319,7 @@ def create_etar_document(etar_pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def create_ee_document(ee_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
@@ -315,6 +336,7 @@ def create_ee_document(ee_pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_ramais_route():
     """Obter dados dos ramais"""
     current_user = get_jwt_identity()
@@ -326,6 +348,7 @@ def get_document_ramais_route():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def update_document_pavenext_route(pk):
     """Atualizar status do documento para próximo passo"""
     current_user = get_jwt_identity()
@@ -337,6 +360,7 @@ def update_document_pavenext_route(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def get_document_ramais_concluded_route():
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
@@ -347,6 +371,7 @@ def get_document_ramais_concluded_route():
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def replicate_document(pk):
     """
     Replicar um documento existente com novo tipo.
@@ -398,6 +423,7 @@ def replicate_document(pk):
 @jwt_required()
 @token_required
 @set_session
+@api_error_handler
 def reopen_document_route():
     try:
         current_user = get_jwt_identity()
@@ -416,6 +442,7 @@ def reopen_document_route():
 
 
 @bp.after_request
+@api_error_handler
 def cleanup_session(response):
     if hasattr(g, 'current_user'):
         delattr(g, 'current_user')

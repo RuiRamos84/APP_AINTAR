@@ -1,4 +1,4 @@
-import { CssBaseline, ThemeProvider } from "@mui/material";
+import { CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import {
   Navigate,
@@ -12,9 +12,9 @@ import "./App.css";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import Navbar from "./components/common/Navbar/Navbar";
 import Sidebar from "./components/common/Sidebar/Sidebar";
+import PrivateRoute from "./contexts/AuthContextProvider";
 import { ThemedToaster } from "./components/common/Toaster/ThemedToaster";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import PrivateRoute from "./contexts/AuthContextProvider";
 import { EpiProvider } from "./contexts/EpiContext";
 import { MetaDataProvider } from "./contexts/MetaDataContext";
 import { SidebarProvider } from './contexts/SidebarContext';
@@ -42,6 +42,7 @@ import LetterManagement from "./pages/Letters/LetterManagement";
 import Login from "./pages/Login/Login";
 import ModernDocuments from "./pages/ModernDocuments";
 import Operations from "./pages/Operação/Operations";
+import TabletOperations from "./pages/Operação/TabletOperations.js";
 import PasswordRecovery from "./pages/PasswordRecovery/PasswordRecovery";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import Settings from "./pages/Settings/Settings";
@@ -64,6 +65,7 @@ const AppContent = () => {
   const isDarkMode = user ? user.dark_mode : false;
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobileOrTablet = useMediaQuery('(min-width: 1280px) and (max-width: 1366px) and (orientation: landscape)');
 
   const [isCreateDocumentModalOpen, setIsCreateDocumentModalOpen] = useState(false);
   const [isCreateEntityModalOpen, setIsCreateEntityModalOpen] = useState(false);
@@ -202,7 +204,7 @@ const AppContent = () => {
                 path="/operation"
                 element={
                   <PrivateRoute>
-                    <Operations />
+                    {isMobileOrTablet ? <TabletOperations /> : <Operations />}
                   </PrivateRoute>
                 }
               />

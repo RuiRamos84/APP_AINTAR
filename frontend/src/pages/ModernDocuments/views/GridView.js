@@ -236,7 +236,7 @@ const GridView = (props) => {
                         onPageChange={handlePageChange}
                         rowsPerPage={itemsPerPage}
                         onRowsPerPageChange={handleItemsPerPageChange}
-                        rowsPerPageOptions={[6, 12, 24, 48]}
+                        rowsPerPageOptions={[5, 10, 25, 50, 100]}
                         labelRowsPerPage="Itens por página:"
                         labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
                     />
