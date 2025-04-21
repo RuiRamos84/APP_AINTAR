@@ -1,7 +1,7 @@
 from flask import current_app, jsonify, send_file
 from flask import Blueprint, request, jsonify, g, current_app, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, decode_token
-from ..services.documents_service import (
+from ..services.documents import (
     list_documents,
     create_document,
     get_document_steps,

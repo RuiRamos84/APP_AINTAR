@@ -116,18 +116,18 @@ export const DocumentsProvider = ({ children }) => {
     };
 
     // Função para baixar comprovativo
-    const handleDownloadComprovativo = async (document) => {
+    const handleDownloadComprovativo = async (doc) => {
         try {
             showNotification('Preparando download...', 'info');
-            const pdfData = await downloadComprovativo(document.pk);
+            const pdfData = await downloadComprovativo(doc.pk);
 
             // Criar blob e link para download
             const blob = new Blob([pdfData], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
+            const link = window.document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `comprovativo_${document.regnumber}.pdf`);
-            document.body.appendChild(link);
+            link.setAttribute('download', `comprovativo_${doc.regnumber}.pdf`);
+            window.document.body.appendChild(link);
             link.click();
             link.remove();
 
