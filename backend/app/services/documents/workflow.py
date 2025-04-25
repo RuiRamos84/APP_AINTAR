@@ -74,15 +74,15 @@ def add_document_step(data, pk, current_user):
     """Adicionar ou atualizar passo do documento"""
     try:
         with db_session_manager(current_user) as session:
+            print(data)
             pk = sanitize_input(pk, 'int')
             tb_document = sanitize_input(data.get('tb_document'), 'int')
             what = sanitize_input(data.get('what'), 'int')
             who = sanitize_input(data.get('who'), 'int')
             memo = data.get('memo')
 
-            if not tb_document or not what or not who:
-                raise APIError(
-                    "Dados incompletos para o passo do documento", 400, "ERR_INVALID_INPUT")
+            if tb_document is None or what is None or who is None:
+                raise APIError("Dados incompletos para o passo do documento", 400, "ERR_INVALID_INPUT")
 
             # Verificar se o documento existe
             doc_query = text("SELECT pk FROM vbl_document WHERE pk = :pk")
@@ -137,19 +137,26 @@ def add_document_step(data, pk, current_user):
 
             except SQLAlchemyError as se:
                 session.rollback()
+                error_str = str(se)
+
+                # Verificar se é uma regra de negócio (mensagem controlada)
+                import re
+                error_match = re.search(r'<error>(.*?)</error>', error_str)
+                if error_match:
+                    error_message = error_match.group(1)
+                    # Retorna código 422 (Unprocessable Entity) em vez de 400 ou 500
+                    # que indica erro de validação de negócio, não de sintaxe ou sistema
+                    return {'error': error_message, 'code': 'VALIDATION_ERROR'}, 422
+
+                # Se for um erro técnico não previsto
                 current_app.logger.error(
                     f"Erro de BD ao salvar passo do documento: {str(se)}")
-                raise APIError(
-                    "Erro ao salvar passo do documento", 500, "ERR_DATABASE")
-
+                raise APIError("Erro ao salvar passo do documento", 500, "ERR_DATABASE")
     except ResourceNotFoundError as e:
-        return {'error': str(e)}, e.status_code
-    except APIError as e:
-        return {'error': str(e), 'code': e.error_code}, e.status_code
-    except Exception as e:
         current_app.logger.error(
-            f"Erro inesperado ao criar/atualizar passo: {str(e)}")
-        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+            f"Erro ao buscar passo do documento: {str(e)}")
+        raise APIError("Recurso não encontrado", 404, "ERR_NOT_FOUND") 
+        
 
 
 @cache_result(timeout=60)
@@ -233,15 +240,16 @@ def update_document_params(current_user, document_id, data):
                             f"Tentativa de atualizar parâmetro inexistente: {param_pk}")
                         continue
 
+
                     # Atualizar o parâmetro
                     update_query = text("""
-                        UPDATE vbf_document_param 
+                        UPDATE vbf_document_param
                         SET value = :value, memo = :memo
                         WHERE pk = :pk AND tb_document = :document_id
                     """)
                     result = session.execute(update_query, {
-                        'value': param_value,
-                        'memo': param_memo,
+                        'value': param_value if param_value is not None else '',
+                        'memo': param_memo if param_memo is not None else '',
                         'pk': param_pk,
                         'document_id': document_id
                     })

@@ -37,7 +37,7 @@ import {
 
 import { addDocumentStep, addDocumentAnnex, checkVacationStatus } from '../../../services/documentService';
 import { useSocket } from '../../../contexts/SocketContext';
-import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster.js";
+import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
 import * as pdfjsLib from "pdfjs-dist/webpack";
 
 // Componentes e funções auxiliares
@@ -48,6 +48,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
     // Estados
     const [stepData, setStepData] = useState({
+        pk: null,
         what: '',
         who: '',
         memo: '',
@@ -188,8 +189,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
     const validateForm = () => {
         const newErrors = {};
 
-        if (!stepData.what) newErrors.what = 'Estado é obrigatório';
-        if (!stepData.who) newErrors.who = 'Destinatário é obrigatório';
+        if (stepData.what !== 0 && !stepData.what) newErrors.what = 'Estado é obrigatório';
+        if (stepData.who !== 0 && !stepData.who) newErrors.who = 'Destinatário é obrigatório';
         if (!stepData.memo) newErrors.memo = 'Observações são obrigatórias';
 
         // Validação para arquivos
@@ -206,8 +207,13 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return Object.keys(newErrors).length === 0;
     };
 
-    // Manipulação de fechamento
+    // Manipulação de fechamentolClose
     const handleModalClose = () => {
+        // Remover o foco antes de fechar
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+        
         if (stepData.who || stepData.what || stepData.memo || files.length > 0) {
             setConfirmClose(true);
         } else {
@@ -215,7 +221,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         }
     };
 
-    // Envio do formulário
+    // Enviar dados diretamente como um FormData
     const handleSubmit = async () => {
         if (!validateForm()) return;
 
@@ -235,16 +241,14 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 await addDocumentAnnex(formData);
             }
 
-            // Adicionar passo
-            const stepDataToSend = {
-                pk: 0,
-                what: stepData.what,
+            const stepDataObj = {
+                tb_document: document.pk,
+                what: stepData.what === 0 ? "0" : stepData.what,
                 who: stepData.who,
-                memo: stepData.memo,
-                tb_document: document.pk
+                memo: stepData.memo
             };
 
-            await addDocumentStep(0, stepDataToSend);
+            await addDocumentStep(document.pk, stepDataObj);
 
             // Emitir evento via socket se conectado
             if (isConnected) {
@@ -256,12 +260,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 refreshNotifications();
             }
 
-            // Atualizar documentos se a função foi fornecida
             if (typeof fetchDocuments === "function") {
                 await fetchDocuments();
             }
 
-            // Disparar evento para atualizar o modal principal
             window.dispatchEvent(new CustomEvent('document-updated', {
                 detail: {
                     documentId: document.pk,
@@ -273,10 +275,38 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
             onClose(true);
         } catch (error) {
             console.error('Erro ao adicionar passo e anexos:', error);
-            notifyError("Erro ao adicionar passo e anexos");
+
+            // Extrair mensagem de erro da resposta
+            let errorMessage = "Erro ao adicionar passo e anexos";
+            let isValidationError = false;
+
+            if (error.response) {
+                // Verificar se é erro de validação (código 422)
+                isValidationError = error.response.status === 422;
+
+                if (error.response.data) {
+                    if (error.response.data.error) {
+                        errorMessage = error.response.data.error;
+                    } else if (typeof error.response.data === 'string') {
+                        errorMessage = error.response.data;
+                    }
+                }
+            }
+
+            // Mostrar uma notificação diferente se for um erro de validação
+            if (isValidationError) {
+                // Usar notifyWarning em vez de notifyError
+                notifyWarning(errorMessage);
+            } else {
+                // Continuar usando notifyError para erros técnicos
+                notifyError(errorMessage);
+            }
+
+            // Definir o erro no formulário e o tipo
             setErrors(prev => ({
                 ...prev,
-                submit: 'Erro ao adicionar passo e anexos. Por favor, tente novamente.'
+                submit: errorMessage,
+                submitType: isValidationError ? "validation" : "error"
             }));
         } finally {
             setLoading(false);
@@ -495,7 +525,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
                         {errors.submit && (
                             <Grid item xs={12}>
-                                <Alert severity="error">
+                                <Alert
+                                    severity={errors.submitType === "validation" ? "warning" : "error"}
+                                    sx={{ mb: 2 }}
+                                >
                                     {errors.submit}
                                 </Alert>
                             </Grid>
@@ -506,7 +539,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 <DialogActions sx={{ px: 3, py: 2 }}>
                     <Button
                         onClick={handleModalClose}
-                        disabled={loading}
+                        disabled={loading} 
                     >
                         Cancelar
                     </Button>
@@ -547,10 +580,21 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmClose(false)} color="primary">
+                    <Button onClick={() => setConfirmClose(false)} color="primary" autoFocus>
                         Não
                     </Button>
-                    <Button onClick={() => { setConfirmClose(false); onClose(false); }} color="primary" autoFocus>
+                    <Button
+                        onClick={() => {
+                            setConfirmClose(false);
+                            // Remover o foco antes de fechar
+                            if (document.activeElement instanceof HTMLElement) {
+                                document.activeElement.blur();
+                            }
+                            onClose(false);
+                        }}
+                        color="primary"
+                        autoFocus
+                    >
                         Sim
                     </Button>
                 </DialogActions>

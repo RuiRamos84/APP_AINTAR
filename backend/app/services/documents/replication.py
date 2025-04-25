@@ -108,6 +108,8 @@ def reopen_document(regnumber, user_id, current_user):
             regnumber = sanitize_input(regnumber)
             user_id = sanitize_input(user_id, 'int')
 
+            print(f"Reabrir documento: {regnumber} - {user_id}")
+
             # Verificar se o documento existe
             doc_query = text(
                 "SELECT pk FROM vbl_document WHERE regnumber = :regnumber")
@@ -117,8 +119,10 @@ def reopen_document(regnumber, user_id, current_user):
                 raise ResourceNotFoundError("Documento", regnumber)
 
             # Verificar se o usuário existe
-            user_query = text("SELECT pk FROM vbf_entity WHERE pk = :pk")
+            user_query = text(
+                "SELECT * FROM vst_document_step$who WHERE pk = :pk")
             user = session.execute(user_query, {'pk': user_id}).fetchone()
+            print(f"Usuário encontrado: {user}")
             if not user:
                 raise ResourceNotFoundError("Usuário", user_id)
 
@@ -135,14 +139,7 @@ def reopen_document(regnumber, user_id, current_user):
             # Processar resposta
             formatted_result = format_message(result)
 
-            # Limpar cache
-            from .core import list_documents, document_self, document_owner
-            from .workflow import get_document_steps
-
-            cache.delete_memoized(list_documents, current_user)
-            cache.delete_memoized(document_self, current_user)
-            cache.delete_memoized(document_owner, current_user)
-            cache.delete_memoized(get_document_steps, doc.pk, current_user)
+            # REMOVA COMPLETAMENTE O CÓDIGO DE CACHE
 
             return {
                 'message': 'Pedido reaberto com sucesso',
@@ -157,6 +154,9 @@ def reopen_document(regnumber, user_id, current_user):
         current_app.logger.error(f"Erro de BD ao reabrir pedido: {str(e)}")
         return {'error': "Erro ao reabrir pedido", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
+        current_app.logger.error(
+            f"Erro inesperado ao reabrir pedido: {str(e)}")
+        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
         current_app.logger.error(
             f"Erro inesperado ao reabrir pedido: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500

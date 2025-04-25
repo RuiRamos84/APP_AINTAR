@@ -2,9 +2,12 @@ import {
     Error as ErrorIcon,
     PhoneAndroid as MBWayIcon,
     AccountBalance as MultibancoIcon,
+    Euro as CashIcon,
+    Payments as BankTransferIcon,
     Schedule as PendingIcon,
     Refresh as RefreshIcon,
-    CheckCircle as SuccessIcon
+    CheckCircle as SuccessIcon,
+    HourglassTop as ValidationIcon
 } from '@mui/icons-material';
 import {
     Alert,
@@ -34,6 +37,7 @@ import {
  * @param {string} props.method - Método de pagamento
  * @param {string} props.status - Status atual do pagamento
  * @param {Function} props.onCheckStatus - Função para verificar o status atual
+ * @param {Function} props.onRestart - Função para reiniciar o pagamento
  * @param {boolean} props.loading - Indica se está carregando
  * @param {string} props.error - Mensagem de erro, se houver
  */
@@ -41,7 +45,7 @@ const PaymentStatus = ({
     method,
     status,
     onCheckStatus,
-    onRestart,  // Adicione este parâmetro
+    onRestart,
     loading: externalLoading,
     error: externalError
 }) => {
@@ -175,7 +179,8 @@ const PaymentStatus = ({
             'Declined': PAYMENT_STATUS.DECLINED,
             'Expired': PAYMENT_STATUS.EXPIRED,
             'Cancelled': PAYMENT_STATUS.CANCELLED,
-            'Processing': PAYMENT_STATUS.PROCESSING
+            'Processing': PAYMENT_STATUS.PROCESSING,
+            'PENDING_VALIDATION': PAYMENT_STATUS.PENDING_VALIDATION
         };
 
         // Tentar usar o mapeamento se o status tiver case diferente
@@ -193,6 +198,8 @@ const PaymentStatus = ({
                 return <PendingIcon color="warning" sx={{ fontSize: 64 }} />;
             case PAYMENT_STATUS.PROCESSING:
                 return <PendingIcon color="warning" sx={{ fontSize: 64 }} />;
+            case PAYMENT_STATUS.PENDING_VALIDATION:
+                return <ValidationIcon color="info" sx={{ fontSize: 64 }} />;
             default:
                 console.warn(`Ícone para status desconhecido: ${status} - usando ícone padrão`);
                 return <RefreshIcon color="primary" sx={{ fontSize: 64 }} />;
@@ -206,6 +213,10 @@ const PaymentStatus = ({
                 return <MBWayIcon color="primary" />;
             case PAYMENT_METHODS.MULTIBANCO:
                 return <MultibancoIcon color="primary" />;
+            case PAYMENT_METHODS.CASH:
+                return <CashIcon color="primary" />;
+            case PAYMENT_METHODS.BANK_TRANSFER:
+                return <BankTransferIcon color="primary" />;
             default:
                 return null;
         }
@@ -235,6 +246,21 @@ const PaymentStatus = ({
         };
     };
 
+    const getCashDetails = () => {
+        const paymentData = payment.state.paymentData || {};
+        return {
+            referenceInfo: paymentData.referenceInfo || ''
+        };
+    };
+
+    const getBankTransferDetails = () => {
+        const paymentData = payment.state.paymentData || {};
+        return {
+            transferReference: paymentData.transferReference || '',
+            transferDate: paymentData.transferDate || ''
+        };
+    };
+
     const getStatusColorSafe = (status, theme) => {
         if (!status) {
             console.warn(`Status de pagamento não definido - usando cor padrão`);
@@ -249,7 +275,8 @@ const PaymentStatus = ({
             'Declined': PAYMENT_STATUS.DECLINED,
             'Expired': PAYMENT_STATUS.EXPIRED,
             'Cancelled': PAYMENT_STATUS.CANCELLED,
-            'Processing': PAYMENT_STATUS.PROCESSING
+            'Processing': PAYMENT_STATUS.PROCESSING,
+            'PENDING_VALIDATION': PAYMENT_STATUS.PENDING_VALIDATION
         };
 
         // Tentar usar o mapeamento de case primeiro
@@ -335,9 +362,96 @@ const PaymentStatus = ({
                     </Box>
                 );
 
+            case PAYMENT_METHODS.CASH:
+                const cashDetails = getCashDetails();
+                return (
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Referência
+                        </Typography>
+                        <Typography variant="body1">
+                            {cashDetails?.referenceInfo || 'N/A'}
+                        </Typography>
+
+                        {status === PAYMENT_STATUS.PENDING_VALIDATION && (
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                O pagamento em dinheiro foi registrado e aguarda validação por um administrador.
+                            </Alert>
+                        )}
+                    </Box>
+                );
+
+            case PAYMENT_METHODS.BANK_TRANSFER:
+                const bankTransferDetails = getBankTransferDetails();
+                return (
+                    <Box sx={{ mt: 2 }}>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Referência da Transferência
+                                </Typography>
+                                <Typography variant="body1">
+                                    {bankTransferDetails?.transferReference || 'N/A'}
+                                </Typography>
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Data da Transferência
+                                </Typography>
+                                <Typography variant="body1">
+                                    {bankTransferDetails?.transferDate || 'N/A'}
+                                </Typography>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                {status === PAYMENT_STATUS.PENDING_VALIDATION && (
+                                    <Alert severity="info" sx={{ mt: 1 }}>
+                                        A transferência bancária foi registrada e aguarda validação por um administrador.
+                                    </Alert>
+                                )}
+                            </Grid>
+                        </Grid>
+                    </Box>
+                );
+
             default:
                 return null;
         }
+    };
+
+    // Obter título com base no status
+    const getStatusTitle = () => {
+        if (status === PAYMENT_STATUS.PAID)
+            return 'Pagamento Concluído';
+        if (status === PAYMENT_STATUS.PENDING)
+            return 'Aguardar Pagamento';
+        if (status === PAYMENT_STATUS.DECLINED)
+            return 'Pagamento Recusado';
+        if (status === PAYMENT_STATUS.CANCELLED)
+            return 'Pagamento Cancelado';
+        if (status === PAYMENT_STATUS.REFUNDED)
+            return 'Pagamento Reembolsado';
+        if (status === PAYMENT_STATUS.EXPIRED)
+            return 'Pagamento Expirado';
+        if (status === PAYMENT_STATUS.PENDING_VALIDATION)
+            return 'Aguardando Validação';
+
+        return 'Pagamento não concluído';
+    };
+
+    // Obter cor do chip com base no status
+    const getChipColor = () => {
+        if (status === PAYMENT_STATUS.PAID)
+            return 'success';
+        if (status === PAYMENT_STATUS.PENDING || status === PAYMENT_STATUS.EXPIRED)
+            return 'warning';
+        if (status === PAYMENT_STATUS.DECLINED || status === PAYMENT_STATUS.CANCELLED || status === PAYMENT_STATUS.FAILED)
+            return 'error';
+        if (status === PAYMENT_STATUS.PENDING_VALIDATION || status === PAYMENT_STATUS.REFUNDED)
+            return 'info';
+
+        return 'default';
     };
 
     return (
@@ -359,38 +473,12 @@ const PaymentStatus = ({
                 </Box>
 
                 <Typography variant="h5" gutterBottom>
-                    {status === PAYMENT_STATUS.PAID
-                        ? 'Pagamento Concluído'
-                        : status === PAYMENT_STATUS.PENDING
-                            ? 'Aguardar Pagamento'
-                            : status === PAYMENT_STATUS.DECLINED
-                                ? 'Pagamento Recusado'
-                                : status === PAYMENT_STATUS.CANCELED
-                                    ? 'Pagamento Cancelado'
-                                    : status === PAYMENT_STATUS.REFUNDED
-                                        ? 'Pagamento Reembolsado'
-                                        : status === PAYMENT_STATUS.EXPIRED
-                                            ? 'Pagamento Expirado'
-                            : 'Pagamento não concluído'}
+                    {getStatusTitle()}
                 </Typography>
 
                 <Chip
                     label={PAYMENT_STATUS_LABELS[status] || `${status}`}
-                    color={
-                        status === PAYMENT_STATUS.PAID
-                            ? 'success'
-                            : status === PAYMENT_STATUS.PENDING
-                                ? 'warning'
-                                : status === PAYMENT_STATUS.DECLINED
-                                    ? 'error'
-                                    : status === PAYMENT_STATUS.CANCELED
-                                        ? 'error'   
-                                        : status === PAYMENT_STATUS.REFUNDED
-                                            ? 'info'
-                                            : status === PAYMENT_STATUS.EXPIRED
-                                                ? 'warning'
-                                    : 'default'
-                    }
+                    color={getChipColor()}
                     sx={{ mb: 3 }}
                 />
 
@@ -421,7 +509,7 @@ const PaymentStatus = ({
                 {renderMethodDetails()}
 
                 {/* Botão de atualização */}
-                {status !== PAYMENT_STATUS.PAID && (
+                {status !== PAYMENT_STATUS.PAID && status !== PAYMENT_STATUS.PENDING_VALIDATION && (
                     <Box sx={{ mt: 3 }}>
                         <Button
                             variant="outlined"
@@ -480,6 +568,15 @@ const PaymentStatus = ({
                             )}
                     </Box>
                 )}
+
+                {/* Mensagem para pagamentos pendentes de validação */}
+                {status === PAYMENT_STATUS.PENDING_VALIDATION && (
+                    <Alert severity="info" sx={{ mt: 3 }}>
+                        Este pagamento foi registrado e aguarda validação por um administrador.
+                        Você será notificado quando o pagamento for validado.
+                    </Alert>
+                )}
+
                 {error && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                         {error}
@@ -490,6 +587,12 @@ const PaymentStatus = ({
             {status === PAYMENT_STATUS.PAID && (
                 <Alert severity="success" sx={{ mb: 3 }}>
                     Pagamento processado com sucesso! Obrigado pela sua compra.
+                </Alert>
+            )}
+
+            {status === PAYMENT_STATUS.PENDING_VALIDATION && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                    Pagamento registrado com sucesso! Aguardando validação pelo administrador.
                 </Alert>
             )}
         </Box>

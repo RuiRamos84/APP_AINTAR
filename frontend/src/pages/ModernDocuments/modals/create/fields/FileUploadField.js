@@ -19,8 +19,10 @@ import {
     PictureAsPdf as PdfIcon,
     Image as ImageIcon,
     InsertDriveFile as FileIcon,
-    TableChart as TableIcon
+    TableChart as TableIcon,
+    Description as DescriptionIcon
 } from '@mui/icons-material';
+import { notifyError } from "../../../../../components/common/Toaster/ThemedToaster";
 
 /**
  * Componente de upload de arquivos com suporte a drag and drop
@@ -67,13 +69,24 @@ const FileUploadField = ({
             'application/vnd.ms-excel': ['.xls'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
         },
+        maxSize: 5 * 1024 * 1024, // 5MB limite por ficheiro
         disabled,
-        maxFiles
+        maxFiles,
+        onDropRejected: (rejectedFiles) => {
+            const sizeErrors = rejectedFiles.filter(file => file.errors.some(e => e.code === 'file-too-large'));
+            if (sizeErrors.length > 0) {
+                notifyError("Alguns ficheiros são demasiado grandes. O tamanho máximo é 5MB.");
+            }
+        }
     });
 
     // Função para obter ícone baseado no tipo de arquivo
     const getFileIcon = (file) => {
-        const type = file.type.toLowerCase();
+        // Verificar se estamos a receber um objeto com propriedade 'file' ou o próprio ficheiro
+        const fileObj = file.file ? file.file : file;
+
+        // Verificar se tipo existe antes de chamar toLowerCase
+        const type = fileObj && fileObj.type ? fileObj.type.toLowerCase() : '';
 
         if (type.includes('pdf')) {
             return <PdfIcon fontSize="large" color="error" />;
@@ -81,7 +94,19 @@ const FileUploadField = ({
             return <ImageIcon fontSize="large" color="success" />;
         } else if (type.includes('excel') || type.includes('spreadsheet')) {
             return <TableIcon fontSize="large" color="primary" />;
+        } else if (type.includes('word') || type.includes('document')) {
+            return <DescriptionIcon fontSize="large" color="info" />;
         } else {
+            // Tentar identificar pelo nome se tipo não estiver disponível
+            if (fileObj && fileObj.name) {
+                const extension = fileObj.name.split('.').pop().toLowerCase();
+                if (['pdf'].includes(extension)) {
+                    return <PdfIcon fontSize="large" color="error" />;
+                } else if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
+                    return <ImageIcon fontSize="large" color="success" />;
+                }
+                // Adicionar mais extensões conforme necessário
+            }
             return <FileIcon fontSize="large" color="action" />;
         }
     };
@@ -147,42 +172,44 @@ const FileUploadField = ({
                     </Typography>
 
                     <List>
-                        {files.map((file, index) => (
-                            <ListItem
-                                key={`${file.name || 'file'}-${index}`}
-                                component={Paper}
-                                variant="outlined"
-                                sx={{
-                                    mb: 2,
-                                    p: 2,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    bgcolor: 'background.paper'
-                                }}
-                            >
-                                <ListItemIcon>
-                                    {getFileIcon(file)}
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={file.name}
-                                    secondary={
-                                        <Typography variant="caption" color="text.secondary">
-                                            {file.type} • {(file.size / 1024).toFixed(1)} KB
-                                        </Typography>
-                                    }
-                                />
-                                <Box width="60%" mx={2}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        label="Descrição do arquivo"
-                                        value={file.description || ''}
-                                        onChange={(e) => onUpdateDescription(index, e.target.value)}
-                                        required
-                                        disabled={disabled}
-                                        error={!file.description}
-                                        helperText={!file.description ? "Descrição obrigatória" : ""}
+                        {files.map((fileItem, index) => {
+                            const fileObj = fileItem.file ? fileItem.file : fileItem;
+                            return (
+                                <ListItem
+                                    key={`${fileObj.name || 'file'}-${index}`}
+                                    component={Paper}
+                                    variant="outlined"
+                                    sx={{
+                                        mb: 2,
+                                        p: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        bgcolor: 'background.paper'
+                                    }}
+                                >
+                                    <ListItemIcon>
+                                        {getFileIcon(fileItem)}
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={fileObj.name}
+                                        secondary={
+                                            <Typography variant="caption" color="text.secondary">
+                                                {fileObj.type || ''} • {(fileObj.size / 1024).toFixed(1)} KB
+                                            </Typography>
+                                        }
                                     />
+                                <Box width="60%" mx={2}>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="Descrição do arquivo"
+                                            value={fileItem.description || ''}
+                                            onChange={(e) => onUpdateDescription(index, e.target.value)}
+                                            required
+                                            disabled={disabled}
+                                            error={!fileItem.description}
+                                            helperText={!fileItem.description ? "Descrição obrigatória" : ""}
+                                        />
                                 </Box>
                                 <ListItemSecondaryAction>
                                     <IconButton
@@ -194,8 +221,9 @@ const FileUploadField = ({
                                         <DeleteIcon />
                                     </IconButton>
                                 </ListItemSecondaryAction>
-                            </ListItem>
-                        ))}
+                                </ListItem>
+                            );
+                        })}
                     </List>
                 </Box>
             )}

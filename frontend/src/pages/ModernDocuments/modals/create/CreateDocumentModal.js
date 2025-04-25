@@ -186,6 +186,9 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
         // Adicionar dados de endereço de faturação
         Object.entries(billingAddress).forEach(([key, value]) => {
+            // Adicionar sem prefixo para compatibilidade com o backend
+            submitFormData.append(key, value);
+            // Manter com prefixo para retrocompatibilidade
             submitFormData.append(`billing_${key}`, value);
         });
 

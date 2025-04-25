@@ -4,7 +4,9 @@
 export const PAYMENT_METHODS = {
     CARD: 'CARD',
     MBWAY: 'MBWAY',
-    MULTIBANCO: 'MULTIBANCO'
+    MULTIBANCO: 'MULTIBANCO',
+    CASH: 'CASH',
+    BANK_TRANSFER: 'BANK_TRANSFER'
 };
 
 /**
@@ -18,7 +20,8 @@ export const PAYMENT_STATUS = {
     CANCELLED: 'CANCELLED',
     PROCESSING: 'PROCESSING',
     UNKNOWN: 'UNKNOWN',
-    DECLINED: 'Declined'
+    DECLINED: 'Declined',
+    PENDING_VALIDATION: 'PENDING_VALIDATION'
 };
 
 /**
@@ -27,7 +30,9 @@ export const PAYMENT_STATUS = {
 export const PAYMENT_METHOD_LABELS = {
     [PAYMENT_METHODS.CARD]: 'Cartão de Crédito/Débito',
     [PAYMENT_METHODS.MBWAY]: 'MB WAY',
-    [PAYMENT_METHODS.MULTIBANCO]: 'Multibanco (Entidade e Referência)'
+    [PAYMENT_METHODS.MULTIBANCO]: 'Multibanco (Entidade e Referência)',
+    [PAYMENT_METHODS.CASH]: 'Dinheiro',
+    [PAYMENT_METHODS.BANK_TRANSFER]: 'Transferência Bancária'
 };
 
 /**
@@ -41,7 +46,8 @@ export const PAYMENT_STATUS_LABELS = {
     [PAYMENT_STATUS.CANCELLED]: 'Cancelado',
     [PAYMENT_STATUS.PROCESSING]: 'Em Processamento',
     [PAYMENT_STATUS.UNKNOWN]: 'Desconhecido',
-    [PAYMENT_STATUS.DECLINED]: 'Recusado'
+    [PAYMENT_STATUS.DECLINED]: 'Recusado',
+    [PAYMENT_STATUS.PENDING_VALIDATION]: 'Aguardando Validação'
 };
 
 /**
@@ -55,5 +61,6 @@ export const PAYMENT_STATUS_COLORS = {
     [PAYMENT_STATUS.CANCELLED]: 'text.disabled',
     [PAYMENT_STATUS.PROCESSING]: 'info.main',
     [PAYMENT_STATUS.UNKNOWN]: 'text.secondary',
-    [PAYMENT_STATUS.DECLINED]: 'error.main'
+    [PAYMENT_STATUS.DECLINED]: 'error.main',
+    [PAYMENT_STATUS.PENDING_VALIDATION]: 'info.light'
 };

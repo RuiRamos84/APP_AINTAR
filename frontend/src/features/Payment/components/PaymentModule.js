@@ -5,6 +5,8 @@ import { PaymentContext } from '../context/PaymentContext';
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../services/paymentTypes';
 import MBWayPayment from './MBWayPayment';
 import MultibancoPayment from './MultibancoPayment';
+import CashPayment from './CashPayment';
+import BankTransferPayment from './BankTransferPayment';
 import PaymentMethodSelector from './PaymentMethodSelector';
 import PaymentStatus from './PaymentStatus';
 
@@ -21,13 +23,28 @@ const steps = [
  * @param {number} props.amount - Valor a pagar
  * @param {Function} props.onComplete - Função chamada quando o pagamento for concluído
  * @param {Function} props.onCancel - Função chamada quando o usuário cancelar o pagamento
+ * @param {Object} props.userInfo - Informações do usuário atual
  */
-const PaymentModule = ({ orderId, amount, onComplete, onCancel }) => {
+const PaymentModule = ({ orderId, amount, onComplete, onCancel, userInfo }) => {
     const theme = useTheme();
     const payment = useContext(PaymentContext);
 
     // Estados locais
     const [activeStep, setActiveStep] = React.useState(0);
+
+    // Determinar métodos de pagamento disponíveis com base no perfil do usuário
+    const getAvailableMethods = () => {
+        // Métodos padrão disponíveis para todos
+        const methods = [PAYMENT_METHODS.CARD, PAYMENT_METHODS.MBWAY, PAYMENT_METHODS.MULTIBANCO];
+
+        // Verificar se o usuário tem profil 0, 1 ou 2 para mostrar métodos adicionais
+        const userProfile = userInfo?.profil;
+        if (userProfile && ['0', '1', '2'].includes(userProfile)) {
+            methods.push(PAYMENT_METHODS.CASH, PAYMENT_METHODS.BANK_TRANSFER);
+        }
+
+        return methods;
+    };
 
     // Configurar dados do pedido ao montar o componente
     useEffect(() => {
@@ -41,7 +58,9 @@ const PaymentModule = ({ orderId, amount, onComplete, onCancel }) => {
 
     // Observar status do pagamento
     useEffect(() => {
-        if (payment.state.status === PAYMENT_STATUS.PAID && onComplete) {
+        if ((payment.state.status === PAYMENT_STATUS.PAID ||
+            payment.state.status === PAYMENT_STATUS.PENDING_VALIDATION) &&
+            onComplete) {
             onComplete({
                 orderId: payment.state.orderId,
                 transactionId: payment.state.transactionId,
@@ -89,34 +108,56 @@ const PaymentModule = ({ orderId, amount, onComplete, onCancel }) => {
                     <PaymentMethodSelector
                         onSelect={handleSelectMethod}
                         selectedMethod={payment.state.selectedMethod}
+                        availableMethods={getAvailableMethods()}
+                        userInfo={userInfo}
                     />
                 );
 
             case 1: // Detalhes específicos do método
-                if (payment.state.selectedMethod === PAYMENT_METHODS.MBWAY) {
-                    return (
-                        <MBWayPayment
-                            onSubmit={handleNext}
-                            loading={payment.state.loading}
-                            error={payment.state.error}
-                        />
-                    );
-                } else if (payment.state.selectedMethod === PAYMENT_METHODS.MULTIBANCO) {
-                    return (
-                        <MultibancoPayment
-                            onGenerate={handleNext}
-                            loading={payment.state.loading}
-                            error={payment.state.error}
-                        />
-                    );
+                switch (payment.state.selectedMethod) {
+                    case PAYMENT_METHODS.MBWAY:
+                        return (
+                            <MBWayPayment
+                                onSubmit={handleNext}
+                                loading={payment.state.loading}
+                                error={payment.state.error}
+                            />
+                        );
+                    case PAYMENT_METHODS.MULTIBANCO:
+                        return (
+                            <MultibancoPayment
+                                onGenerate={handleNext}
+                                loading={payment.state.loading}
+                                error={payment.state.error}
+                            />
+                        );
+                    case PAYMENT_METHODS.CASH:
+                        return (
+                            <CashPayment
+                                onSubmit={handleNext}
+                                loading={payment.state.loading}
+                                error={payment.state.error}
+                                userInfo={userInfo}
+                            />
+                        );
+                    case PAYMENT_METHODS.BANK_TRANSFER:
+                        return (
+                            <BankTransferPayment
+                                onSubmit={handleNext}
+                                loading={payment.state.loading}
+                                error={payment.state.error}
+                                userInfo={userInfo}
+                            />
+                        );
+                    default:
+                        return (
+                            <Box p={4} textAlign="center">
+                                <Typography color="error">
+                                    Método de pagamento não implementado
+                                </Typography>
+                            </Box>
+                        );
                 }
-                return (
-                    <Box p={4} textAlign="center">
-                        <Typography color="error">
-                            Método de pagamento não implementado
-                        </Typography>
-                    </Box>
-                );
 
             case 2: // Status/confirmação
                 return (
@@ -124,9 +165,10 @@ const PaymentModule = ({ orderId, amount, onComplete, onCancel }) => {
                         method={payment.state.selectedMethod}
                         status={payment.state.status}
                         onCheckStatus={() => payment.checkStatus()}
-                        onRestart={handleRestart}  // Adicionar esta prop
+                        onRestart={handleRestart}
                         loading={payment.state.loading}
                         error={payment.state.error}
+                        userInfo={userInfo}
                     />
                 );
 
@@ -168,19 +210,6 @@ const PaymentModule = ({ orderId, amount, onComplete, onCancel }) => {
                 boxShadow: theme.shadows[3]
             }}
         >
-            {/* <Typography variant="h5" gutterBottom>
-                Pagamento
-            </Typography>
-
-            <Box mb={4}>
-                <Typography variant="h6" color="primary" fontWeight="bold">
-                    {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(amount)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Pedido: {orderId}
-                </Typography>
-            </Box> */}
-
             <Stepper activeStep={activeStep} sx={{ mb: 4 }} alternativeLabel>
                 {steps.map((step) => (
                     <Step key={step.label}>
@@ -228,7 +257,9 @@ const PaymentModule = ({ orderId, amount, onComplete, onCancel }) => {
                             variant="contained"
                             color="primary"
                             onClick={onComplete}
-                            disabled={buttonState.finish.disabled || payment.state.status !== PAYMENT_STATUS.PAID}
+                            disabled={buttonState.finish.disabled ||
+                                (payment.state.status !== PAYMENT_STATUS.PAID &&
+                                    payment.state.status !== PAYMENT_STATUS.PENDING_VALIDATION)}
                         >
                             Finalizar
                         </Button>

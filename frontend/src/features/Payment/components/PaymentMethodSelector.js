@@ -1,7 +1,9 @@
 import {
     CreditCard as CardIcon,
     PhoneAndroid as MBWayIcon,
-    AccountBalance as MultibancoIcon
+    AccountBalance as MultibancoIcon,
+    Euro as CashIcon,
+    Payments as BankTransferIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -25,14 +27,18 @@ import {
  * @param {Object} props - Propriedades do componente
  * @param {Function} props.onSelect - Função chamada quando um método é selecionado
  * @param {string} props.selectedMethod - Método atualmente selecionado
+ * @param {Array} props.availableMethods - Lista de métodos disponíveis (opcional)
  */
-const PaymentMethodSelector = ({ onSelect, selectedMethod }) => {
+const PaymentMethodSelector = ({ onSelect, selectedMethod, availableMethods }) => {
     const theme = useTheme();
 
     // Handler para mudança de método
     const handleChange = (event) => {
         onSelect(event.target.value);
     };
+
+    // Lista de métodos a mostrar (todos ou apenas os disponíveis se especificado)
+    const methodsToShow = availableMethods || Object.values(PAYMENT_METHODS);
 
     // Configurações dos métodos de pagamento
     const paymentMethods = [
@@ -53,8 +59,20 @@ const PaymentMethodSelector = ({ onSelect, selectedMethod }) => {
             label: PAYMENT_METHOD_LABELS[PAYMENT_METHODS.MULTIBANCO],
             icon: <MultibancoIcon fontSize="large" />,
             description: 'Pague no multibanco ou homebanking com referência'
+        },
+        {
+            id: PAYMENT_METHODS.CASH,
+            label: PAYMENT_METHOD_LABELS[PAYMENT_METHODS.CASH],
+            icon: <CashIcon fontSize="large" />,
+            description: 'Registe um pagamento em dinheiro (sujeito a validação)'
+        },
+        {
+            id: PAYMENT_METHODS.BANK_TRANSFER,
+            label: PAYMENT_METHOD_LABELS[PAYMENT_METHODS.BANK_TRANSFER],
+            icon: <BankTransferIcon fontSize="large" />,
+            description: 'Pague por transferência bancária (sujeito a validação)'
         }
-    ];
+    ].filter(method => methodsToShow.includes(method.id));
 
     return (
         <Box>

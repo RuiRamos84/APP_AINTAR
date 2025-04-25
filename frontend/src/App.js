@@ -59,6 +59,11 @@ import "./styles/global.css";
 import "./styles/sessionAlert.css";
 import { darkTheme, lightTheme } from "./styles/theme";
 
+// Importar componentes de pagamento
+import { PaymentProvider } from './features/Payment/context/PaymentContext';
+import DocumentPaymentFlow from './features/Payment/modals/DocumentPaymentFlow';
+import PaymentAdminPage from './features/Payment/components/PaymentAdminPage';
+
 const AppContent = () => {
   const { user, isLoading, isLoggingOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -334,6 +339,24 @@ const AppContent = () => {
                   </PrivateRoute>
                 }
               />
+
+              {/* Novas rotas para funcionalidades de pagamento */}
+              <Route
+                path="/payment/:regnumber"
+                element={
+                  <PrivateRoute>
+                    <DocumentPaymentFlow userInfo={user} />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/payment-admin"
+                element={
+                  <PrivateRoute allowedUserIds={[15, 16]}>
+                    <PaymentAdminPage userInfo={user} />
+                  </PrivateRoute>
+                }
+              />
             </Routes>
           </div>
         </div>
@@ -354,7 +377,10 @@ function App() {
             <SocketProvider>
               <MetaDataProvider>
                 <EpiProvider>
-                  <AppContent />
+                  {/* Adicionar PaymentProvider aqui */}
+                  <PaymentProvider>
+                    <AppContent />
+                  </PaymentProvider>
                 </EpiProvider>
               </MetaDataProvider>
             </SocketProvider>

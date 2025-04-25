@@ -379,7 +379,7 @@ const AddAnnexModal = ({ open, onClose, document }) => {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmClose(false)} color="primary">
+                    <Button onClick={() => setConfirmClose(false)} color="primary" autoFocus>
                         Não
                     </Button>
                     <Button onClick={() => { setConfirmClose(false); onClose(false); }} color="primary" autoFocus>

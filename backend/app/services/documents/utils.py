@@ -78,9 +78,16 @@ def validate_document_data(data):
     """
     Valida os dados de um documento com verificações detalhadas
     """
-    required_fields = ['tt_type', 'ts_associate', 'memo']
+    # Verificar campos sempre obrigatórios
+    basic_fields = ['tt_type', 'ts_associate']
     missing = [
-        field for field in required_fields if field not in data or not data.get(field)]
+        field for field in basic_fields if field not in data or not data.get(field)]
+
+    # Verificar se há anexos ou memo
+    has_files = 'files' in request.files and len(
+        request.files.getlist('files')) > 0
+    if not has_files and (not 'memo' in data or not data.get('memo')):
+        missing.append('memo')
 
     if missing:
         return False, f"Campos obrigatórios em falta: {', '.join(missing)}"

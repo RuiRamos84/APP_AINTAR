@@ -26,7 +26,7 @@ import os
 
 
 def setup_logger():
-    logger = logging.getLogger('custom-socketio')  # Mudei para um nome único
+    logger = logging.getLogger('socketio')  # Mudei para um nome único
     logger.setLevel(logging.INFO)
     handler = logging.FileHandler('flask-socketio.log')
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')

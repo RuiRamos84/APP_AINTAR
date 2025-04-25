@@ -508,6 +508,134 @@ export const PaymentProvider = ({ children, initialData }) => {
             }
         },
 
+        // Registrar pagamento manual (dinheiro ou transferência)
+        // Registrar pagamento manual (dinheiro ou transferência)
+        registerManualPayment: async (orderId, amount, paymentType, referenceInfo) => {
+            if (!orderId || !amount || !paymentType || !referenceInfo) {
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_ERROR,
+                    payload: 'Dados incompletos para registro de pagamento manual'
+                });
+                return { success: false, error: 'Dados incompletos para registro de pagamento manual' };
+            }
+
+            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
+            console.log(`Registrando pagamento manual: tipo=${paymentType}, orderId=${orderId}, amount=${amount}`);
+
+            try {
+                // Chamar serviço para registrar pagamento manual
+                const paymentResponse = await paymentService.registerManualPayment(
+                    orderId,
+                    amount,
+                    paymentType,
+                    referenceInfo
+                );
+
+                console.log("Resposta do registro manual:", paymentResponse);
+
+                // Verificar se temos uma resposta simulada (contorno temporário para problema do backend)
+                const isWorkaround = paymentResponse._note && paymentResponse._note.includes("simulada");
+                if (isWorkaround) {
+                    console.log("Usando resposta simulada devido a problema no backend");
+                }
+
+                if (!paymentResponse.success) {
+                    throw new Error(paymentResponse.error || 'Falha no registro do pagamento manual');
+                }
+
+                // Guardar dados da transação
+                if (paymentResponse.transaction_id) {
+                    dispatch({
+                        type: PAYMENT_ACTIONS.SET_TRANSACTION_DATA,
+                        payload: {
+                            transactionId: paymentResponse.transaction_id
+                        }
+                    });
+                }
+
+                // Definir resultado do pagamento
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_PAYMENT_RESULT,
+                    payload: paymentResponse
+                });
+
+                // Definir status do pagamento como pendente de validação
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_PAYMENT_STATUS,
+                    payload: { status: PAYMENT_STATUS.PENDING_VALIDATION }
+                });
+
+                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
+                return { success: true, data: paymentResponse };
+
+            } catch (error) {
+                console.error("Erro em registerManualPayment:", error.message);
+
+                let errorMessage = error.message;
+
+                // Melhorar mensagens de erro
+                if (error.message.includes("500") || error.message.includes("Internal Server Error")) {
+                    errorMessage = "Erro no servidor ao registrar pagamento. Por favor, contacte o suporte.";
+                } else if (error.message.includes("'str' object has no attribute 'profile'") ||
+                    error.message.includes("permission") ||
+                    error.message.includes("permissão")) {
+                    errorMessage = "Erro de permissão: Não tem autorização para realizar esta operação.";
+                }
+
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_ERROR,
+                    payload: errorMessage
+                });
+                return { success: false, error: errorMessage };
+            } finally {
+                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
+            }
+        },
+
+        // Aprovar/validar um pagamento manual (apenas para admin)
+        approvePayment: async (paymentPk) => {
+            if (!paymentPk) {
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_ERROR,
+                    payload: 'ID de pagamento não fornecido'
+                });
+                return { success: false, error: 'ID de pagamento não fornecido' };
+            }
+
+            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
+            console.log(`Aprovando pagamento: pk=${paymentPk}`);
+
+            try {
+                // Chamar serviço para aprovar pagamento
+                const response = await paymentService.approvePayment(paymentPk);
+
+                console.log("Resposta da aprovação:", response);
+
+                if (!response.success) {
+                    throw new Error(response.error || 'Falha na aprovação do pagamento');
+                }
+
+                // Atualizar status do pagamento para PAID
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_PAYMENT_STATUS,
+                    payload: { status: PAYMENT_STATUS.PAID }
+                });
+
+                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
+                return { success: true, data: response };
+
+            } catch (error) {
+                console.error("Erro em approvePayment:", error.message);
+                dispatch({
+                    type: PAYMENT_ACTIONS.SET_ERROR,
+                    payload: error.message
+                });
+                return { success: false, error: error.message };
+            } finally {
+                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
+            }
+        },
+
         // Resetar o pagamento (manter apenas os detalhes do pedido)
         resetPayment: () => {
             // Parar polling, se existir
