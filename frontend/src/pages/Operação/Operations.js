@@ -1,18 +1,18 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Box, CircularProgress, Typography, Button, Tooltip, FormControlLabel, Switch } from "@mui/material";
-import { FileDownload, TabletAndroid, PhoneAndroid } from "@mui/icons-material";
+import React, { useState, useEffect } from "react";
+import { Box, useMediaQuery, useTheme, CircularProgress, Typography } from "@mui/material";
+import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
+import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
+
+// Componentes existentes
 import AssociateFilter from "./AssociateFilter";
 import ViewCards from "./ViewCards";
 import OperationsTable from "./OperationsTable";
-import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
-import { exportToExcel } from "./exportService";
-import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
-
-import TabletOperations from './TabletOperations';
-
+import TabletOperations from "./TabletOperations";
 
 const Operations = () => {
+    const theme = useTheme();
+    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
     // Dados principais
     const { operationsData, loading, error, associates } = useOperationsData();
 
@@ -39,16 +39,7 @@ const Operations = () => {
         getAddressString
     } = useOperationsTable(filteredData, selectedView);
 
-    const [tabletMode, setTabletMode] = useState(false);
-
-    // if (tabletMode) return <TabletOperations />;
-
-    const handleExportExcel = () => {
-        if (isFossaView && selectedView && filteredData[selectedView]) {
-            exportToExcel(filteredData, selectedView);
-        }
-    };
-
+    // Render helper para células da tabela
     const renderCell = (column, row) => {
         if (column.format) {
             return column.format(row[column.id]);
@@ -73,95 +64,81 @@ const Operations = () => {
     if (Object.keys(operationsData).length === 0)
         return <Typography>Nenhum dado disponível no momento.</Typography>;
 
-    return (
-        <Box sx={{ height: "100dh", display: "flex", flexDirection: "column" }}>
-            <Button
-                variant="outlined"
-                color={tabletMode ? "primary" : "default"}
-                startIcon={tabletMode ? <PhoneAndroid /> : <TabletAndroid />}
-                onClick={() => setTabletMode(!tabletMode)}
-                sx={{ alignSelf: "flex-end", m: 1 }}
-            >
-                {tabletMode ? "Modo Normal" : "Modo Tablet"}
-            </Button>
+    // Renderizar versão para tablet baseado no tamanho da tela
+    return isTablet ? (
+        <TabletOperations
+            operationsData={operationsData}
+            associates={associates}
+            selectedAssociate={selectedAssociate}
+            selectedView={selectedView}
+            isFossaView={isFossaView}
+            isRamaisView={isRamaisView}
+            filteredData={filteredData}
+            sortedViews={sortedViews}
+            orderBy={orderBy}
+            order={order}
+            expandedRows={expandedRows}
+            sortedData={sortedData}
+            handleViewChange={handleViewChange}
+            handleAssociateChange={handleAssociateChange}
+            handleRequestSort={handleRequestSort}
+            toggleRowExpand={toggleRowExpand}
+            getAddressString={getAddressString}
+        />
+    ) : (
+        <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+            <Box sx={{ flexShrink: 0 }}>
+                <AssociateFilter
+                    associates={associates}
+                    selectedAssociate={selectedAssociate}
+                    onAssociateChange={handleAssociateChange}
+                />
 
-            {tabletMode ? (
-                <TabletOperations />
-            ) : (
-                    <>
-                    <Box sx={{ flexShrink: 0 }}>
-                        <AssociateFilter
-                            associates={associates}
-                            selectedAssociate={selectedAssociate}
-                            onAssociateChange={handleAssociateChange}
-                        />
+                <ViewCards
+                    views={sortedViews}
+                    selectedView={selectedView}
+                    onViewClick={handleViewChange}
+                />
+            </Box>
 
-                        <ViewCards
-                            views={sortedViews}
-                            selectedView={selectedView}
-                            onViewClick={handleViewChange}
-                        />
+            {selectedView &&
+                filteredData[selectedView] &&
+                filteredData[selectedView].data.length > 0 && (
+                    <Box
+                        mt={4}
+                        sx={{
+                            flexGrow: 1,
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                        }}
+                    >
+                        <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            mb={2}
+                        >
+                            <Typography variant="h5" gutterBottom>
+                                Detalhes de {filteredData[selectedView].name}
+                            </Typography>
                         </Box>
-                    {selectedView &&
-                        filteredData[selectedView] &&
-                        filteredData[selectedView].data.length > 0 && (
-                            <Box
-                                mt={4}
-                                sx={{
-                                    flexGrow: 1,
-                                    overflow: "hidden",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                }}
-                            >
-                                <Box
-                                    display="flex"
-                                    justifyContent="space-between"
-                                    alignItems="center"
-                                    mb={2}
-                                >
-                                    <Typography variant="h5" gutterBottom>
-                                        Detalhes de {filteredData[selectedView].name}
-                                    </Typography>
-                                    <Tooltip
-                                        title={
-                                            isFossaView
-                                                ? "Exportar dados para Excel"
-                                                : "Exportação disponível apenas para limpezas de fossas"
-                                        }
-                                    >
-                                        <span>
-                                            <Button
-                                                variant="contained"
-                                                color="primary"
-                                                startIcon={<FileDownload />}
-                                                onClick={handleExportExcel}
-                                                disabled={!isFossaView}
-                                                style={{ opacity: isFossaView ? 1 : 0.5 }}
-                                            >
-                                                Exportar para Excel
-                                            </Button>
-                                        </span>
-                                    </Tooltip>
-                                </Box>
 
-                                <OperationsTable
-                                    data={sortedData}
-                                    columns={getColumnsForView(selectedView)}
-                                    orderBy={orderBy}
-                                    order={order}
-                                    onRequestSort={handleRequestSort}
-                                    expandedRows={expandedRows}
-                                    toggleRowExpand={toggleRowExpand}
-                                    isRamaisView={isRamaisView}
-                                    getRemainingDaysColor={getRemainingDaysColor}
-                                    getAddressString={getAddressString}
-                                    renderCell={renderCell}
-                                />
-                            </Box>
-                        )}
-                </>
-            )}
+                        <OperationsTable
+                            data={sortedData}
+                            columns={getColumnsForView(selectedView)}
+                            orderBy={orderBy}
+                            order={order}
+                            onRequestSort={handleRequestSort}
+                            expandedRows={expandedRows}
+                            toggleRowExpand={toggleRowExpand}
+                            isRamaisView={isRamaisView}
+                            getRemainingDaysColor={getRemainingDaysColor}
+                            getAddressString={getAddressString}
+                            renderCell={renderCell}
+                        />
+                    </Box>
+                )}
         </Box>
     );
 };

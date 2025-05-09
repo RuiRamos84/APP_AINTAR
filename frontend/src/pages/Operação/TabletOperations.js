@@ -1,102 +1,121 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-    Box,
-    Paper,
-    Typography,
-    Button,
-    Grid,
-    Fab,
-    SwipeableDrawer,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemIcon,
-    IconButton,
-    Divider,
-    Card,
-    CardContent,
-    CardActions,
-    Chip,
-    Tooltip,
-    ToggleButtonGroup,
-    ToggleButton,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Alert
+    Box, Paper, Typography, Button, Grid, Fab,
+    SwipeableDrawer, List, ListItem, ListItemButton, ListItemText,
+    ListItemIcon, IconButton, Divider, Card, CardContent,
+    CardActions, Chip, Tooltip, ToggleButtonGroup,
+    ToggleButton, Dialog, DialogTitle, DialogContent,
+    DialogActions, TextField, Alert, Skeleton
 } from "@mui/material";
 import {
-    FilterList as FilterIcon,
-    Send as SendIcon,
-    Attachment as AttachmentIcon,
-    Edit as EditIcon,
-    Assignment as AssignmentIcon,
-    LocationOn as LocationIcon,
-    Phone as PhoneIcon,
-    EventNote as EventIcon,
-    AccessTime as TimeIcon,
-    CheckCircle as CheckIcon,
-    FileDownload as DownloadIcon,
-    SwipeRight as SwipeIcon,
-    Sort as SortIcon,
-    ViewList as ListViewIcon,
-    ViewModule as GridViewIcon,
-    MyLocation as MyLocationIcon,
-    DirectionsCar as CarIcon,
-    Close as CloseIcon
+    FilterList, Send, Attachment, Edit, Assignment,
+    LocationOn, Phone, EventNote, AccessTime, CheckCircle,
+    FileDownload, SwipeRight, Sort, ViewList, ViewModule,
+    MyLocation, DirectionsCar, Close, Refresh
 } from "@mui/icons-material";
 import CircularProgress from '@mui/material/CircularProgress';
-import ParametersTab from '../ModernDocuments/modals/details/tabs/ParametersTab';
+import SimpleParametersEditor from './SimpleParametersEditor';
 import AssociateFilter from "./AssociateFilter";
 import ViewCards from "./ViewCards";
 import OperationsTable from "./OperationsTable";
 import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
 import { exportToExcel } from "./exportService";
-import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
 import { getDocumentTypeParams, addDocumentStep } from "../../services/documentService";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
-import SimpleParametersEditor from './SimpleParametersEditor';
 import { useMetaData } from '../../contexts/MetaDataContext';
+import { useInView } from 'react-intersection-observer'; // Adicionar esta dependência para lazy loading
 
-const TabletOperations = () => {
-    // Estados originais
-    const { operationsData, loading, error, associates } = useOperationsData();
-    const {
-        selectedAssociate,
-        selectedView,
-        isFossaView,
-        isRamaisView,
-        filteredData,
-        sortedViews,
-        handleViewChange,
-        handleAssociateChange
-    } = useOperationsFiltering(operationsData);
-    const {
-        orderBy,
-        order,
-        expandedRows,
-        sortedData,
-        handleRequestSort,
-        toggleRowExpand,
-        getAddressString
-    } = useOperationsTable(filteredData, selectedView);
+// Componente para swipe com gestos
+const SwipeableCard = ({ children, onSwipeRight, onSwipeLeft, minDistance = 50 }) => {
+    const [touchStart, setTouchStart] = useState(null);
+    const [touchEnd, setTouchEnd] = useState(null);
 
-    // Novos estados para interface tablet
+    // Capturar eventos de toque
+    const onTouchStart = (e) => {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e) => {
+        setTouchEnd(e.targetTouches[0].clientX);
+    };
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > minDistance;
+        const isRightSwipe = distance < -minDistance;
+
+        if (isRightSwipe && onSwipeRight) {
+            onSwipeRight();
+        }
+
+        if (isLeftSwipe && onSwipeLeft) {
+            onSwipeLeft();
+        }
+    };
+
+    return (
+        <div
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
+            {children}
+        </div>
+    );
+};
+
+const TabletOperations = ({
+    operationsData,
+    associates,
+    selectedAssociate,
+    selectedView,
+    isFossaView,
+    isRamaisView,
+    filteredData,
+    sortedViews,
+    orderBy,
+    order,
+    expandedRows,
+    sortedData,
+    handleViewChange,
+    handleAssociateChange,
+    handleRequestSort,
+    toggleRowExpand,
+    getAddressString
+}) => {
+    // Estados para interface
     const [viewMode, setViewMode] = useState('grid');
     const [detailsDrawer, setDetailsDrawer] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [actionDrawer, setActionDrawer] = useState(false);
-
-    // Estados para implementação de conclusão de fossas
     const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
     const [paramsDialogOpen, setParamsDialogOpen] = useState(false);
     const [metaData, setMetaData] = useState(null);
     const [completionNote, setCompletionNote] = useState('');
     const [paramsLoading, setParamsLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [cardSwiping, setCardSwiping] = useState({}); // Rastrear cards sendo deslizados
+
+    // Referência para o último elemento para lazy loading
+    const { ref: lastItemRef, inView } = useInView({
+        threshold: 0.1,
+    });
 
     const { metaData: globalMetaData } = useMetaData();
+
+    // Carregar mais itens quando chegar ao final
+    useEffect(() => {
+        if (inView && !loadingMore) {
+            setLoadingMore(true);
+            // Simular carregamento adicional - substituir por API real
+            setTimeout(() => {
+                // TODO: Implementar carregamento de mais dados da API
+                setLoadingMore(false);
+            }, 1000);
+        }
+    }, [inView]);
 
     // Carregar metadados quando um item de fossa é selecionado
     useEffect(() => {
@@ -110,10 +129,7 @@ const TabletOperations = () => {
 
         setParamsLoading(true);
         try {
-            // Buscar apenas os parâmetros específicos do documento
             const response = await getDocumentTypeParams(selectedItem.pk);
-
-            // Usar os metadados globais já carregados
             setMetaData({
                 ...response,
                 etar: globalMetaData?.etar || [],
@@ -128,6 +144,36 @@ const TabletOperations = () => {
         }
     };
 
+    // Cache para offline - usar localStorage como fallback básico
+    const saveToLocalCache = useCallback((key, data) => {
+        try {
+            localStorage.setItem(`operations_${key}`, JSON.stringify({
+                timestamp: Date.now(),
+                data
+            }));
+        } catch (error) {
+            console.error("Erro ao salvar em cache:", error);
+        }
+    }, []);
+
+    const loadFromLocalCache = useCallback((key) => {
+        try {
+            const cached = localStorage.getItem(`operations_${key}`);
+            if (cached) {
+                const parsedCache = JSON.parse(cached);
+                // Verificar se o cache está expirado (1 hora)
+                if (Date.now() - parsedCache.timestamp < 3600000) {
+                    return parsedCache.data;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error("Erro ao carregar do cache:", error);
+            return null;
+        }
+    }, []);
+
+    // Manipuladores de ações
     const handleCompleteProcess = () => {
         if (isFossaView && selectedItem) {
             setParamsDialogOpen(true);
@@ -148,21 +194,34 @@ const TabletOperations = () => {
                 memo: completionNote || "Serviço concluído pelo operador de terreno"
             };
 
-            await addDocumentStep(selectedItem.pk, stepData);
-            notifySuccess("Pedido concluído com sucesso!");
+            // Tentar executar online, ou guardar para sincronização posterior
+            try {
+                await addDocumentStep(selectedItem.pk, stepData);
+                notifySuccess("Pedido concluído com sucesso!");
+            } catch (error) {
+                // Guardar para sincronização offline
+                const pendingActions = loadFromLocalCache('pendingActions') || [];
+                pendingActions.push({
+                    action: 'addDocumentStep',
+                    params: { documentId: selectedItem.pk, stepData },
+                    timestamp: Date.now()
+                });
+                saveToLocalCache('pendingActions', pendingActions);
+                notifySuccess("Pedido guardado para sincronização posterior");
+            }
+
             setCompleteDialogOpen(false);
             setDetailsDrawer(false);
 
-            // Em vez de usar o hook, recarregue a página ou busque novamente os dados
-            window.location.reload();
-            // Ou implemente um método para recarregar os dados
+            // Atualizar UI localmente
+            // Implementar lógica para atualizar dados localmente sem recarregar
         } catch (error) {
             notifyError("Erro ao concluir o pedido");
             console.error("Erro ao concluir pedido:", error);
         }
     };
 
-    // Manipuladores para os novos estados
+    // Manipuladores de UI
     const handleViewModeChange = (event, newViewMode) => {
         if (newViewMode !== null) {
             setViewMode(newViewMode);
@@ -189,101 +248,174 @@ const TabletOperations = () => {
     };
 
     const handleMarkComplete = () => {
-        console.log("Marcar como concluído:", selectedItem?.regnumber);
+        handleCompleteProcess();
         setActionDrawer(false);
     };
 
-    const handleNavigate = () => {
-        console.log("Navegar para:", getAddressString(selectedItem));
-        // Implementar abertura de app de navegação
-        if (selectedItem?.latitude && selectedItem?.longitude) {
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedItem.latitude},${selectedItem.longitude}`);
+
+    const handleNavigate = (item) => {
+        const target = item || selectedItem;
+        if (!target) return;
+
+        if (target.latitude && target.longitude) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}`);
         } else {
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getAddressString(selectedItem))}`);
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getAddressString(target))}`);
         }
     };
 
-    const handleCall = () => {
-        if (selectedItem?.phone) {
-            window.location.href = `tel:${selectedItem.phone}`;
+    const handleCall = (item) => {
+        const target = item || selectedItem;
+        if (!target) return;
+
+        if (target.phone) {
+            window.location.href = `tel:${target.phone}`;
         }
+    };
+
+    // Manipuladores de swipe
+    const handleSwipeRight = (index) => {
+        setCardSwiping(prev => ({ ...prev, [index]: 'right' }));
+        setTimeout(() => {
+            setCardSwiping(prev => ({ ...prev, [index]: null }));
+            handleNavigate(sortedData[index]);
+        }, 300);
+    };
+
+    const handleSwipeLeft = (index) => {
+        setCardSwiping(prev => ({ ...prev, [index]: 'left' }));
+        setTimeout(() => {
+            setCardSwiping(prev => ({ ...prev, [index]: null }));
+            if (isFossaView) {
+                setSelectedItem(sortedData[index]);
+                handleCompleteProcess();
+            }
+        }, 300);
     };
 
     // Renderização de cards para visualização em grelha
     const renderGridView = () => (
         <Grid container spacing={2}>
-            {sortedData.map((item, index) => (
-                <Grid item xs={12} sm={6} key={index}>
-                    <Card
-                        sx={{
-                            cursor: 'pointer',
-                            '&:hover': { boxShadow: 6 },
-                            borderLeft: isRamaisView ? `4px solid ${getRemainingDaysColor(item.restdays)}` : undefined
-                        }}
-                        onClick={() => handleItemClick(item)}
-                    >
+            {sortedData.map((item, index) => {
+                const isLastItem = index === sortedData.length - 1;
+                const refProps = isLastItem ? { ref: lastItemRef } : {};
+
+                return (
+                    <Grid item xs={12} sm={6} key={index} {...refProps}>
+                        <SwipeableCard
+                            onSwipeRight={() => handleSwipeRight(index)}
+                            onSwipeLeft={() => handleSwipeLeft(index)}
+                        >
+                            <Card
+                                sx={{
+                                    cursor: 'pointer',
+                                    '&:hover': { boxShadow: 6 },
+                                    borderLeft: isRamaisView ? `4px solid ${getRemainingDaysColor(item.restdays)}` : undefined,
+                                    transform: cardSwiping[index] === 'right' ? 'translateX(100px)' :
+                                        cardSwiping[index] === 'left' ? 'translateX(-100px)' : 'translateX(0)',
+                                    transition: 'transform 0.3s ease',
+                                }}
+                                onClick={() => handleItemClick(item)}
+                            >
+                                <CardContent>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                        <Typography variant="subtitle1" fontWeight="bold">
+                                            {item.regnumber}
+                                        </Typography>
+                                        {isRamaisView && (
+                                            <Chip
+                                                label={`${Math.floor(item.restdays)} dias`}
+                                                color={item.restdays <= 0 ? "error" : item.restdays <= 15 ? "warning" : "success"}
+                                                size="small"
+                                            />
+                                        )}
+                                    </Box>
+
+                                    <Typography variant="body2" gutterBottom noWrap>
+                                        <LocationOn fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                                        {getAddressString(item)}
+                                    </Typography>
+
+                                    <Typography variant="body2" gutterBottom>
+                                        <Phone fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                                        {item.phone || "Sem contacto"}
+                                    </Typography>
+
+                                    <Typography variant="body2" gutterBottom>
+                                        <EventNote fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                                        {item.submission}
+                                    </Typography>
+
+                                    {isRamaisView && item.limitdate && (
+                                        <Typography variant="body2" gutterBottom>
+                                            <AccessTime fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                                            Limite: {item.limitdate}
+                                        </Typography>
+                                    )}
+                                </CardContent>
+                                <CardActions>
+                                    <Tooltip title="Ver detalhes">
+                                        <IconButton size="small" color="primary">
+                                            <Assignment />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Navegar até local">
+                                        <IconButton
+                                            size="small"
+                                            color="secondary"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleNavigate(item);
+                                            }}
+                                        >
+                                            <MyLocation />
+                                        </IconButton>
+                                    </Tooltip>
+                                    {item.phone && (
+                                        <Tooltip title="Ligar">
+                                            <IconButton
+                                                size="small"
+                                                color="success"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCall(item);
+                                                }}
+                                            >
+                                                <Phone />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                    <Box flexGrow={1} />
+                                    <Tooltip title={isFossaView ? "Deslize para concluir" : "Deslize para navegação"}>
+                                        <IconButton size="small">
+                                            <SwipeRight />
+                                        </IconButton>
+                                    </Tooltip>
+                                </CardActions>
+                            </Card>
+                        </SwipeableCard>
+                    </Grid>
+                );
+            })}
+
+            {/* Indicador de carregamento */}
+            {loadingMore && (
+                <Grid item xs={12} sm={6}>
+                    <Card>
                         <CardContent>
-                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                <Typography variant="subtitle1" fontWeight="bold">
-                                    {item.regnumber}
-                                </Typography>
-                                {isRamaisView && (
-                                    <Chip
-                                        label={`${Math.floor(item.restdays)} dias`}
-                                        color={item.restdays <= 0 ? "error" : item.restdays <= 15 ? "warning" : "success"}
-                                        size="small"
-                                    />
-                                )}
-                            </Box>
-
-                            <Typography variant="body2" gutterBottom noWrap>
-                                <LocationIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                                {getAddressString(item)}
-                            </Typography>
-
-                            <Typography variant="body2" gutterBottom>
-                                <PhoneIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                                {item.phone || "Sem contacto"}
-                            </Typography>
-
-                            <Typography variant="body2" gutterBottom>
-                                <EventIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                                {item.submission}
-                            </Typography>
-
-                            {isRamaisView && item.limitdate && (
-                                <Typography variant="body2" gutterBottom>
-                                    <TimeIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                                    Limite: {item.limitdate}
-                                </Typography>
-                            )}
+                            <Skeleton variant="text" width="60%" height={30} />
+                            <Skeleton variant="text" width="100%" />
+                            <Skeleton variant="text" width="40%" />
+                            <Skeleton variant="text" width="70%" />
                         </CardContent>
                         <CardActions>
-                            <Tooltip title="Ver detalhes">
-                                <IconButton size="small" color="primary">
-                                    <AssignmentIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Navegar até local">
-                                <IconButton size="small" color="secondary">
-                                    <MyLocationIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Ligar">
-                                <IconButton size="small" color="success">
-                                    <PhoneIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Box flexGrow={1} />
-                            <Tooltip title="Deslizar para ações">
-                                <IconButton>
-                                    <SwipeIcon />
-                                </IconButton>
-                            </Tooltip>
+                            <Skeleton variant="circular" width={30} height={30} sx={{ mr: 1 }} />
+                            <Skeleton variant="circular" width={30} height={30} sx={{ mr: 1 }} />
+                            <Skeleton variant="circular" width={30} height={30} />
                         </CardActions>
                     </Card>
                 </Grid>
-            ))}
+            )}
         </Grid>
     );
 
@@ -313,17 +445,21 @@ const TabletOperations = () => {
                         <Box>
                             <Tooltip title="Adicionar passo">
                                 <IconButton color="primary" onClick={handleActionClick}>
-                                    <SendIcon />
+                                    <Send />
                                 </IconButton>
                             </Tooltip>
                             <Tooltip title="Navegar até local">
-                                <IconButton color="secondary" onClick={handleNavigate}>
-                                    <MyLocationIcon />
+                                <IconButton color="secondary" onClick={() => handleNavigate(selectedItem)}>
+                                    <MyLocation />
                                 </IconButton>
                             </Tooltip>
                             <Tooltip title="Ligar">
-                                <IconButton color="success" onClick={handleCall}>
-                                    <PhoneIcon />
+                                <IconButton
+                                    color="success"
+                                    onClick={() => handleCall(selectedItem)}
+                                    disabled={!selectedItem.phone}
+                                >
+                                    <Phone />
                                 </IconButton>
                             </Tooltip>
                         </Box>
@@ -385,9 +521,10 @@ const TabletOperations = () => {
                             <Button
                                 variant="contained"
                                 color="success"
-                                startIcon={<CheckIcon />}
+                                startIcon={<CheckCircle />}
                                 onClick={handleCompleteProcess}
                                 fullWidth
+                                sx={{ py: 1.5 }} // Botão maior para toque mais fácil
                             >
                                 Concluir Serviço
                             </Button>
@@ -396,20 +533,20 @@ const TabletOperations = () => {
                                 <Button
                                     variant="contained"
                                     color="primary"
-                                    startIcon={<SendIcon />}
+                                    startIcon={<Send />}
                                     onClick={handleActionClick}
                                     fullWidth
-                                    sx={{ mr: 1 }}
+                                    sx={{ mr: 1, py: 1.5 }}
                                 >
                                     Adicionar Passo
                                 </Button>
                                 <Button
                                     variant="outlined"
                                     color="success"
-                                    startIcon={<CheckIcon />}
+                                    startIcon={<CheckCircle />}
                                     onClick={handleMarkComplete}
                                     fullWidth
-                                    sx={{ ml: 1 }}
+                                    sx={{ ml: 1, py: 1.5 }}
                                 >
                                     Marcar Concluído
                                 </Button>
@@ -446,34 +583,183 @@ const TabletOperations = () => {
                 </Typography>
 
                 <List>
-                    <ListItem component="button" onClick={handleAddStep}>
+                    <ListItemButton
+                        onClick={handleAddStep}
+                        sx={{ borderRadius: 2, mb: 1 }}
+                    >
                         <ListItemIcon>
-                            <SendIcon color="primary" />
+                            <Send color="primary" />
                         </ListItemIcon>
                         <ListItemText primary="Adicionar Passo" secondary="Atualiza o estado do pedido" />
-                    </ListItem>
-                    <ListItem component="button" onClick={handleAddAnnex}>
+                    </ListItemButton>
+
+                    <ListItem
+                        button
+                        onClick={handleAddAnnex}
+                        sx={{ borderRadius: 2, mb: 1 }}
+                    >
                         <ListItemIcon>
-                            <AttachmentIcon color="secondary" />
+                            <Attachment color="secondary" />
                         </ListItemIcon>
                         <ListItemText primary="Adicionar Anexo" secondary="Fotos ou documentos" />
                     </ListItem>
-                    <ListItem component="button" onClick={handleMarkComplete}>
+
+                    <ListItem
+                        button
+                        onClick={handleMarkComplete}
+                        sx={{ borderRadius: 2, mb: 1 }}
+                    >
                         <ListItemIcon>
-                            <CheckIcon color="success" />
+                            <CheckCircle color="success" />
                         </ListItemIcon>
                         <ListItemText primary="Marcar Concluído" secondary="Finaliza o processo" />
                     </ListItem>
-                    <ListItem component="button" onClick={handleNavigate}>
+
+                    <ListItemButton
+                        onClick={() => handleNavigate(selectedItem)}
+                        sx={{ borderRadius: 2 }}
+                    >
                         <ListItemIcon>
-                            <CarIcon color="info" />
+                            <DirectionsCar color="info" />
                         </ListItemIcon>
                         <ListItemText primary="Navegar até Local" secondary="Abre app de navegação" />
-                    </ListItem>
+                    </ListItemButton>
                 </List>
             </Box>
         </SwipeableDrawer>
     );
+
+    // Componente para status de conexão
+    const ConnectionStatus = () => {
+        const [isOnline, setIsOnline] = useState(navigator.onLine);
+        const [hasPendingActions, setHasPendingActions] = useState(false);
+        const [pendingActions, setPendingActions] = useState([]);
+
+        useEffect(() => {
+            const handleOnline = () => setIsOnline(true);
+            const handleOffline = () => setIsOnline(false);
+
+            window.addEventListener('online', handleOnline);
+            window.addEventListener('offline', handleOffline);
+
+            // Verificar ações pendentes no início
+            const pendingActionsFromCache = loadFromLocalCache('pendingActions') || [];
+            setPendingActions(pendingActionsFromCache);
+            setHasPendingActions(pendingActionsFromCache.length > 0);
+
+            return () => {
+                window.removeEventListener('online', handleOnline);
+                window.removeEventListener('offline', handleOffline);
+            };
+        }, [loadFromLocalCache]);
+
+        const handleSync = useCallback(async () => {
+            if (!isOnline) return;
+
+            const pendingActionsFromCache = loadFromLocalCache('pendingActions') || [];
+            if (pendingActionsFromCache.length === 0) return;
+
+            // Processar ações pendentes
+            let successCount = 0;
+            for (const action of pendingActionsFromCache) {
+                try {
+                    if (action.action === 'addDocumentStep') {
+                        await addDocumentStep(
+                            action.params.documentId,
+                            action.params.stepData
+                        );
+                        successCount++;
+                    }
+                    // Adicionar outros tipos de ações aqui
+                } catch (error) {
+                    console.error("Erro ao sincronizar ação:", error);
+                }
+            }
+
+            if (successCount > 0) {
+                notifySuccess(`${successCount} ações sincronizadas com sucesso`);
+                // Limpar ações bem-sucedidas
+                saveToLocalCache('pendingActions', []);
+                setPendingActions([]);
+                setHasPendingActions(false);
+                // Recarregar dados
+                window.location.reload();
+            }
+        }, [isOnline, loadFromLocalCache, saveToLocalCache]);
+
+        const handleDiscardPendingChanges = useCallback(() => {
+            // Limpar todas as ações pendentes
+            saveToLocalCache('pendingActions', []);
+            setPendingActions([]);
+            setHasPendingActions(false);
+            notifySuccess("Alterações pendentes descartadas");
+        }, [saveToLocalCache]);
+
+        // Tentar sincronizar quando voltar online
+        useEffect(() => {
+            if (isOnline && hasPendingActions) {
+                handleSync();
+            }
+        }, [isOnline, hasPendingActions, handleSync]);
+
+        if (!isOnline || hasPendingActions) {
+            return (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        bottom: 80,  // Acima dos FABs
+                        left: 0,
+                        right: 0,
+                        zIndex: 9999,
+                        display: 'flex',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            bgcolor: isOnline ? 'warning.light' : 'error.light',
+                            color: isOnline ? 'warning.contrastText' : 'error.contrastText',
+                            borderRadius: 2,
+                            py: 1,
+                            px: 2,
+                            maxWidth: '90%'
+                        }}
+                    >
+                        <Typography variant="body2" sx={{ mr: 1 }}>
+                            {isOnline
+                                ? `${pendingActions.length} operações pendentes de sincronização`
+                                : "Offline - As alterações serão guardadas localmente"}
+                        </Typography>
+                        {isOnline && (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleSync}
+                                    sx={{ color: 'inherit' }}
+                                    title="Sincronizar"
+                                >
+                                    <Refresh fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleDiscardPendingChanges}
+                                    sx={{ color: 'inherit' }}
+                                    title="Descartar"
+                                >
+                                    <Close fontSize="small" />
+                                </IconButton>
+                            </>
+                        )}
+                    </Paper>
+                </Box>
+            );
+        }
+
+        return null;
+    };
 
     return (
         <Box sx={{ p: 2, pb: 8 }}>
@@ -482,8 +768,8 @@ const TabletOperations = () => {
                 <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} md={6}>
                         <AssociateFilter
-                            associates={associates}
-                            selectedAssociate={selectedAssociate}
+                            associates={associates || []}
+                            selectedAssociate={selectedAssociate || ''}
                             onAssociateChange={handleAssociateChange}
                         />
                     </Grid>
@@ -497,22 +783,22 @@ const TabletOperations = () => {
                                 sx={{ mr: 1 }}
                             >
                                 <ToggleButton value="grid" aria-label="grid view">
-                                    <GridViewIcon />
+                                    <ViewModule />
                                 </ToggleButton>
                                 <ToggleButton value="list" aria-label="list view">
-                                    <ListViewIcon />
+                                    <ViewList />
                                 </ToggleButton>
                             </ToggleButtonGroup>
 
                             <Tooltip title="Filtros avançados">
                                 <IconButton>
-                                    <FilterIcon />
+                                    <FilterList />
                                 </IconButton>
                             </Tooltip>
 
                             <Tooltip title="Ordenar">
                                 <IconButton>
-                                    <SortIcon />
+                                    <Sort />
                                 </IconButton>
                             </Tooltip>
                         </Box>
@@ -567,6 +853,7 @@ const TabletOperations = () => {
                                 return row[column.id || column];
                             }}
                             onRowClick={handleItemClick}
+                            sx={{ '& .MuiTableCell-root': { fontSize: '1rem', py: 1.5 } }} // Células maiores para toque
                         />
                     )}
                 </Box>
@@ -583,7 +870,7 @@ const TabletOperations = () => {
                             sx={{ mb: 1, mr: 1 }}
                             onClick={() => exportToExcel(filteredData, selectedView)}
                         >
-                            <DownloadIcon />
+                            <FileDownload />
                         </Fab>
                     </Tooltip>
                 )}
@@ -595,7 +882,7 @@ const TabletOperations = () => {
                             aria-label="actions"
                             onClick={handleActionClick}
                         >
-                            <EditIcon />
+                            <Edit />
                         </Fab>
                     </Tooltip>
                 )}
@@ -607,6 +894,7 @@ const TabletOperations = () => {
                 onClose={() => setParamsDialogOpen(false)}
                 fullWidth
                 maxWidth="md"
+                PaperProps={{ sx: { borderRadius: 2 } }}
             >
                 <DialogTitle>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -614,7 +902,7 @@ const TabletOperations = () => {
                             Parâmetros do Serviço
                         </Typography>
                         <IconButton onClick={() => setParamsDialogOpen(false)}>
-                            <CloseIcon />
+                            <Close />
                         </IconButton>
                     </Box>
                 </DialogTitle>
@@ -642,6 +930,7 @@ const TabletOperations = () => {
                 onClose={() => setCompleteDialogOpen(false)}
                 fullWidth
                 maxWidth="sm"
+                PaperProps={{ sx: { borderRadius: 2 } }}
             >
                 <DialogTitle>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -649,9 +938,10 @@ const TabletOperations = () => {
                             Concluir Serviço
                         </Typography>
                         <IconButton onClick={() => setCompleteDialogOpen(false)}>
-                            <CloseIcon />
+                            <Close />
                         </IconButton>
                     </Box>
+
                 </DialogTitle>
                 <DialogContent dividers>
                     <TextField
@@ -672,11 +962,15 @@ const TabletOperations = () => {
                         onClick={handleAddFinalStep}
                         variant="contained"
                         color="success"
+                        sx={{ px: 4, py: 1 }} // Botão maior para toque
                     >
                         Confirmar Conclusão
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Componente de estado de conexão */}
+            <ConnectionStatus />
 
             {/* Drawers */}
             {renderDetailsDrawer()}
