@@ -209,7 +209,9 @@ const AppContent = () => {
                 path="/operation"
                 element={
                   <PrivateRoute>
-                    {isMobileOrTablet ? <TabletOperations /> : <Operations />}
+                    {isMobileOrTablet || new URLSearchParams(window.location.search).get('tablet') === 'true'
+                      ? <TabletOperations />
+                      : <Operations />}
                   </PrivateRoute>
                 }
               />

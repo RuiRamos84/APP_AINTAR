@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box,
     Paper,
@@ -17,11 +17,15 @@ import {
     CardContent,
     CardActions,
     Chip,
-    Avatar,
-    Badge,
     Tooltip,
     ToggleButtonGroup,
-    ToggleButton
+    ToggleButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Alert
 } from "@mui/material";
 import {
     FilterList as FilterIcon,
@@ -40,15 +44,21 @@ import {
     ViewList as ListViewIcon,
     ViewModule as GridViewIcon,
     MyLocation as MyLocationIcon,
-    DirectionsCar as CarIcon
+    DirectionsCar as CarIcon,
+    Close as CloseIcon
 } from "@mui/icons-material";
-
+import CircularProgress from '@mui/material/CircularProgress';
+import ParametersTab from '../ModernDocuments/modals/details/tabs/ParametersTab';
 import AssociateFilter from "./AssociateFilter";
 import ViewCards from "./ViewCards";
 import OperationsTable from "./OperationsTable";
 import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
 import { exportToExcel } from "./exportService";
 import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
+import { getDocumentTypeParams, addDocumentStep } from "../../services/documentService";
+import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
+import SimpleParametersEditor from './SimpleParametersEditor';
+import { useMetaData } from '../../contexts/MetaDataContext';
 
 const TabletOperations = () => {
     // Estados originais
@@ -74,10 +84,83 @@ const TabletOperations = () => {
     } = useOperationsTable(filteredData, selectedView);
 
     // Novos estados para interface tablet
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+    const [viewMode, setViewMode] = useState('grid');
     const [detailsDrawer, setDetailsDrawer] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [actionDrawer, setActionDrawer] = useState(false);
+
+    // Estados para implementação de conclusão de fossas
+    const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+    const [paramsDialogOpen, setParamsDialogOpen] = useState(false);
+    const [metaData, setMetaData] = useState(null);
+    const [completionNote, setCompletionNote] = useState('');
+    const [paramsLoading, setParamsLoading] = useState(false);
+
+    const { metaData: globalMetaData } = useMetaData();
+
+    // Carregar metadados quando um item de fossa é selecionado
+    useEffect(() => {
+        if (selectedItem && isFossaView) {
+            fetchMetaData();
+        }
+    }, [selectedItem, isFossaView]);
+
+    const fetchMetaData = async () => {
+        if (!selectedItem?.pk) return;
+
+        setParamsLoading(true);
+        try {
+            // Buscar apenas os parâmetros específicos do documento
+            const response = await getDocumentTypeParams(selectedItem.pk);
+
+            // Usar os metadados globais já carregados
+            setMetaData({
+                ...response,
+                etar: globalMetaData?.etar || [],
+                who: globalMetaData?.who || [],
+                payment_method: globalMetaData?.payment_method || []
+            });
+        } catch (error) {
+            console.error("Erro ao buscar metadados:", error);
+            notifyError("Erro ao carregar informações do pedido");
+        } finally {
+            setParamsLoading(false);
+        }
+    };
+
+    const handleCompleteProcess = () => {
+        if (isFossaView && selectedItem) {
+            setParamsDialogOpen(true);
+        }
+    };
+
+    const handleParamsSaved = () => {
+        setParamsDialogOpen(false);
+        setCompleteDialogOpen(true);
+    };
+
+    const handleAddFinalStep = async () => {
+        try {
+            const stepData = {
+                tb_document: selectedItem.pk,
+                what: "4", // ID do estado de conclusão
+                who: "81", // ID do usuário administrativo
+                memo: completionNote || "Serviço concluído pelo operador de terreno"
+            };
+
+            await addDocumentStep(selectedItem.pk, stepData);
+            notifySuccess("Pedido concluído com sucesso!");
+            setCompleteDialogOpen(false);
+            setDetailsDrawer(false);
+
+            // Em vez de usar o hook, recarregue a página ou busque novamente os dados
+            window.location.reload();
+            // Ou implemente um método para recarregar os dados
+        } catch (error) {
+            notifyError("Erro ao concluir o pedido");
+            console.error("Erro ao concluir pedido:", error);
+        }
+    };
 
     // Manipuladores para os novos estados
     const handleViewModeChange = (event, newViewMode) => {
@@ -96,31 +179,31 @@ const TabletOperations = () => {
     };
 
     const handleAddStep = () => {
-        // Implementar a lógica para adicionar passo
         console.log("Adicionar passo para:", selectedItem?.regnumber);
         setActionDrawer(false);
     };
 
     const handleAddAnnex = () => {
-        // Implementar a lógica para adicionar anexo
         console.log("Adicionar anexo para:", selectedItem?.regnumber);
         setActionDrawer(false);
     };
 
     const handleMarkComplete = () => {
-        // Implementar a lógica para marcar como concluído
         console.log("Marcar como concluído:", selectedItem?.regnumber);
         setActionDrawer(false);
     };
 
     const handleNavigate = () => {
-        // Implementar a navegação para o local
         console.log("Navegar para:", getAddressString(selectedItem));
-        // Aqui poderia abrir o Google Maps ou outra app de navegação
+        // Implementar abertura de app de navegação
+        if (selectedItem?.latitude && selectedItem?.longitude) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedItem.latitude},${selectedItem.longitude}`);
+        } else {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getAddressString(selectedItem))}`);
+        }
     };
 
     const handleCall = () => {
-        // Implementar a chamada telefónica
         if (selectedItem?.phone) {
             window.location.href = `tel:${selectedItem.phone}`;
         }
@@ -298,26 +381,40 @@ const TabletOperations = () => {
                     </Paper>
 
                     <Box display="flex" justifyContent="space-around" mt={3}>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<SendIcon />}
-                            onClick={handleActionClick}
-                            fullWidth
-                            sx={{ mr: 1 }}
-                        >
-                            Adicionar Passo
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            color="success"
-                            startIcon={<CheckIcon />}
-                            onClick={handleMarkComplete}
-                            fullWidth
-                            sx={{ ml: 1 }}
-                        >
-                            Marcar Concluído
-                        </Button>
+                        {isFossaView ? (
+                            <Button
+                                variant="contained"
+                                color="success"
+                                startIcon={<CheckIcon />}
+                                onClick={handleCompleteProcess}
+                                fullWidth
+                            >
+                                Concluir Serviço
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    startIcon={<SendIcon />}
+                                    onClick={handleActionClick}
+                                    fullWidth
+                                    sx={{ mr: 1 }}
+                                >
+                                    Adicionar Passo
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    color="success"
+                                    startIcon={<CheckIcon />}
+                                    onClick={handleMarkComplete}
+                                    fullWidth
+                                    sx={{ ml: 1 }}
+                                >
+                                    Marcar Concluído
+                                </Button>
+                            </>
+                        )}
                     </Box>
                 </Box>
             )}
@@ -503,6 +600,83 @@ const TabletOperations = () => {
                     </Tooltip>
                 )}
             </Box>
+
+            {/* Diálogo de parâmetros */}
+            <Dialog
+                open={paramsDialogOpen}
+                onClose={() => setParamsDialogOpen(false)}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Typography variant="h6">
+                            Parâmetros do Serviço
+                        </Typography>
+                        <IconButton onClick={() => setParamsDialogOpen(false)}>
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Preencha todos os parâmetros necessários para concluir o serviço.
+                    </Alert>
+                    {paramsLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : (
+                        <SimpleParametersEditor
+                            document={selectedItem}
+                            metaData={metaData}
+                            onSave={handleParamsSaved}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Diálogo de conclusão */}
+            <Dialog
+                open={completeDialogOpen}
+                onClose={() => setCompleteDialogOpen(false)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Typography variant="h6">
+                            Concluir Serviço
+                        </Typography>
+                        <IconButton onClick={() => setCompleteDialogOpen(false)}>
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Observações finais (opcional)"
+                        fullWidth
+                        multiline
+                        rows={4}
+                        variant="outlined"
+                        value={completionNote}
+                        onChange={(e) => setCompletionNote(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCompleteDialogOpen(false)}>Cancelar</Button>
+                    <Button
+                        onClick={handleAddFinalStep}
+                        variant="contained"
+                        color="success"
+                    >
+                        Confirmar Conclusão
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Drawers */}
             {renderDetailsDrawer()}

@@ -52,20 +52,20 @@ def replicate_document_service(pk, new_type, current_user):
 
             # Extrair PK do novo documento (assumindo formato padrão da resposta)
             try:
-                new_pk = int(formatted_result.split(": ")[1].split()[0])
+                if "Documento replicado com sucesso" in formatted_result:
+                    # Get the new document by its registration number
+                    regnumber = formatted_result.split(": ")[1].strip()
+                    new_doc_query = text(
+                        """SELECT pk, regnumber FROM vbl_document WHERE regnumber = :regnumber""")
+                    new_doc = session.execute(
+                        new_doc_query, {'regnumber': regnumber}).fetchone()
 
-                # Buscar detalhes do novo documento
-                new_doc_query = text(
-                    "SELECT pk, regnumber FROM vbl_document WHERE pk = :pk")
-                new_doc = session.execute(
-                    new_doc_query, {'pk': new_pk}).fetchone()
-
-                if new_doc:
-                    # Limpar cache
-                    from .core import list_documents, document_self, document_owner
-                    cache.delete_memoized(list_documents, current_user)
-                    cache.delete_memoized(document_self, current_user)
-                    cache.delete_memoized(document_owner, current_user)
+                    if new_doc:
+                        # Limpar cache
+                        from .core import list_documents, document_self, document_owner
+                        cache.delete_memoized(list_documents, current_user)
+                        cache.delete_memoized(document_self, current_user)
+                        cache.delete_memoized(document_owner, current_user)
 
                     return {
                         'message': f'Documento replicado com sucesso',

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site em Manutenção - app.aintar.pt</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            text-align: center;
+            padding: 50px 20px;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #d9534f;
+            margin-bottom: 20px;
+        }
+        .logo {
+            margin-bottom: 30px;
+            width: 150px;
+        }
+        .timer {
+            font-size: 18px;
+            margin: 20px 0;
+            color: #666;
+        }
+        .message {
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Site em Manutenção</h1>
+        <div class="message">
+            <p>Estamos a realizar trabalhos de manutenção para melhorar a sua experiência.</p>
+            <p>Pedimos desculpa pelo incómodo. O serviço estará disponível em breve.</p>
+        </div>
+        <div class="timer">
+            <p>Tempo estimado de conclusão: <span id="countdown">30</span> minutos</p>
+        </div>
+        <p>Obrigado pela sua compreensão.</p>
+        <p><small>Equipa app.aintar.pt</small></p>
+    </div>
+    <script>
+        // Script opcional para contagem decrescente
+        // Pode remover esta parte se não quiser usar
+        var countdown = 30; // Minutos
+        setInterval(function() {
+            if(countdown <= 0) return;
+            countdown--;
+            document.getElementById('countdown').textContent = countdown;
+        }, 60000); // Atualiza a cada minuto
+    </script>
+</body>
+</html>

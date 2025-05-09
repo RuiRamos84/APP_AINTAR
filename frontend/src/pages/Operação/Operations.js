@@ -1,12 +1,16 @@
-import React from "react";
-import { Box, CircularProgress, Typography, Button, Tooltip } from "@mui/material";
-import { FileDownload } from "@mui/icons-material";
+import React, { useState } from "react";
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Box, CircularProgress, Typography, Button, Tooltip, FormControlLabel, Switch } from "@mui/material";
+import { FileDownload, TabletAndroid, PhoneAndroid } from "@mui/icons-material";
 import AssociateFilter from "./AssociateFilter";
 import ViewCards from "./ViewCards";
 import OperationsTable from "./OperationsTable";
 import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
 import { exportToExcel } from "./exportService";
 import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
+
+import TabletOperations from './TabletOperations';
+
 
 const Operations = () => {
     // Dados principais
@@ -34,6 +38,10 @@ const Operations = () => {
         toggleRowExpand,
         getAddressString
     } = useOperationsTable(filteredData, selectedView);
+
+    const [tabletMode, setTabletMode] = useState(false);
+
+    // if (tabletMode) return <TabletOperations />;
 
     const handleExportExcel = () => {
         if (isFossaView && selectedView && filteredData[selectedView]) {
@@ -67,78 +75,93 @@ const Operations = () => {
 
     return (
         <Box sx={{ height: "100dh", display: "flex", flexDirection: "column" }}>
-            <Box sx={{ flexShrink: 0 }}>
-                <AssociateFilter
-                    associates={associates}
-                    selectedAssociate={selectedAssociate}
-                    onAssociateChange={handleAssociateChange}
-                />
+            <Button
+                variant="outlined"
+                color={tabletMode ? "primary" : "default"}
+                startIcon={tabletMode ? <PhoneAndroid /> : <TabletAndroid />}
+                onClick={() => setTabletMode(!tabletMode)}
+                sx={{ alignSelf: "flex-end", m: 1 }}
+            >
+                {tabletMode ? "Modo Normal" : "Modo Tablet"}
+            </Button>
 
-                <ViewCards
-                    views={sortedViews}
-                    selectedView={selectedView}
-                    onViewClick={handleViewChange}
-                />
-            </Box>
-
-            {selectedView &&
-                filteredData[selectedView] &&
-                filteredData[selectedView].data.length > 0 && (
-                    <Box
-                        mt={4}
-                        sx={{
-                            flexGrow: 1,
-                            overflow: "hidden",
-                            display: "flex",
-                            flexDirection: "column",
-                        }}
-                    >
-                        <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mb={2}
-                        >
-                            <Typography variant="h5" gutterBottom>
-                                Detalhes de {filteredData[selectedView].name}
-                            </Typography>
-                            <Tooltip
-                                title={
-                                    isFossaView
-                                        ? "Exportar dados para Excel"
-                                        : "Exportação disponível apenas para limpezas de fossas"
-                                }
-                            >
-                                <span>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        startIcon={<FileDownload />}
-                                        onClick={handleExportExcel}
-                                        disabled={!isFossaView}
-                                        style={{ opacity: isFossaView ? 1 : 0.5 }}
-                                    >
-                                        Exportar para Excel
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                        </Box>
-
-                        <OperationsTable
-                            data={sortedData}
-                            columns={getColumnsForView(selectedView)}
-                            orderBy={orderBy}
-                            order={order}
-                            onRequestSort={handleRequestSort}
-                            expandedRows={expandedRows}
-                            toggleRowExpand={toggleRowExpand}
-                            isRamaisView={isRamaisView}
-                            getRemainingDaysColor={getRemainingDaysColor}
-                            getAddressString={getAddressString}
-                            renderCell={renderCell}
+            {tabletMode ? (
+                <TabletOperations />
+            ) : (
+                    <>
+                    <Box sx={{ flexShrink: 0 }}>
+                        <AssociateFilter
+                            associates={associates}
+                            selectedAssociate={selectedAssociate}
+                            onAssociateChange={handleAssociateChange}
                         />
-                    </Box>
-                )}
+
+                        <ViewCards
+                            views={sortedViews}
+                            selectedView={selectedView}
+                            onViewClick={handleViewChange}
+                        />
+                        </Box>
+                    {selectedView &&
+                        filteredData[selectedView] &&
+                        filteredData[selectedView].data.length > 0 && (
+                            <Box
+                                mt={4}
+                                sx={{
+                                    flexGrow: 1,
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                }}
+                            >
+                                <Box
+                                    display="flex"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    mb={2}
+                                >
+                                    <Typography variant="h5" gutterBottom>
+                                        Detalhes de {filteredData[selectedView].name}
+                                    </Typography>
+                                    <Tooltip
+                                        title={
+                                            isFossaView
+                                                ? "Exportar dados para Excel"
+                                                : "Exportação disponível apenas para limpezas de fossas"
+                                        }
+                                    >
+                                        <span>
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                startIcon={<FileDownload />}
+                                                onClick={handleExportExcel}
+                                                disabled={!isFossaView}
+                                                style={{ opacity: isFossaView ? 1 : 0.5 }}
+                                            >
+                                                Exportar para Excel
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
+                                </Box>
+
+                                <OperationsTable
+                                    data={sortedData}
+                                    columns={getColumnsForView(selectedView)}
+                                    orderBy={orderBy}
+                                    order={order}
+                                    onRequestSort={handleRequestSort}
+                                    expandedRows={expandedRows}
+                                    toggleRowExpand={toggleRowExpand}
+                                    isRamaisView={isRamaisView}
+                                    getRemainingDaysColor={getRemainingDaysColor}
+                                    getAddressString={getAddressString}
+                                    renderCell={renderCell}
+                                />
+                            </Box>
+                        )}
+                </>
+            )}
         </Box>
     );
 };

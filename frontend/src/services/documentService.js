@@ -171,7 +171,7 @@ export const createDocument = async (documentData) => {
 export const getDocumentTypeParams = async (typeId) => {
   try {
     const response = await api.get(`/document_type_params/${typeId}`);
-    // console.log('parametro', response.data);
+    console.log('parametro', response.data);
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar parâmetros do tipo de documento:", error);
