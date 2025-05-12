@@ -70,7 +70,9 @@ const AppContent = () => {
   const isDarkMode = user ? user.dark_mode : false;
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobileOrTablet = useMediaQuery('(min-width: 1280px) and (max-width: 1366px) and (orientation: landscape)');
+  const isTablet = useMediaQuery('(max-width: 1920px) and (min-width: 768px)')
+  const isTouch = 'ontouchstart' in window;
+  const isMobileOrTablet = isTablet || isTouch;
 
   const [isCreateDocumentModalOpen, setIsCreateDocumentModalOpen] = useState(false);
   const [isCreateEntityModalOpen, setIsCreateEntityModalOpen] = useState(false);
@@ -134,6 +136,11 @@ const AppContent = () => {
       : lightTheme.palette.background.default;
     updateThemeColor(themeColor);
   }, [isDarkMode]);
+
+  if (isTablet && isTouch) {
+    // Aplicar configurações específicas para tablet
+    document.body.style.touchAction = 'pan-y';
+  }
 
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
@@ -209,9 +216,7 @@ const AppContent = () => {
                 path="/operation"
                 element={
                   <PrivateRoute>
-                    {isMobileOrTablet || new URLSearchParams(window.location.search).get('tablet') === 'true'
-                      ? <TabletOperations />
-                      : <Operations />}
+                    <Operations />
                   </PrivateRoute>
                 }
               />

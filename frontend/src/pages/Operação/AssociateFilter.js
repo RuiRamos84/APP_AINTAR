@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
 import {
     FormControl, InputLabel, Select, MenuItem,
     useMediaQuery, useTheme, IconButton,
     SwipeableDrawer, List, ListItemButton, ListItemText,
-    Box, Typography, Divider, TextField, InputAdornment
+    Box, Typography, Divider, TextField, InputAdornment, Chip
 } from '@mui/material';
-import { FilterList, Search, Check } from '@mui/icons-material';
+import { FilterList, Search, Check, KeyboardArrowDown } from '@mui/icons-material';
+import { useState } from 'react';
 
 const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) => {
     const theme = useTheme();
@@ -19,7 +19,7 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
             associate.toLowerCase().includes(searchTerm.toLowerCase()))
         : associates;
 
-    // Caso seja tablet, mostrar um drawer de seleção mais amigável para toque
+    // Versão para tablet com drawer optimizado
     if (isTablet) {
         return (
             <>
@@ -31,22 +31,37 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
+                            borderRadius: 2,
                             p: 1.5,
                             cursor: 'pointer',
                             '&:hover': {
                                 borderColor: theme.palette.primary.main,
-                            }
+                                backgroundColor: 'action.hover'
+                            },
+                            '&:active': {
+                                transform: 'scale(0.98)',
+                                transition: 'transform 0.1s'
+                            },
+                            transition: 'all 0.2s ease',
+                            minHeight: 56
                         }}
                     >
-                        <Typography>
-                            {selectedAssociate === "all"
-                                ? "Todos os Associados"
-                                : `Associado: ${selectedAssociate}`}
-                        </Typography>
-                        <IconButton size="small">
-                            <FilterList />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography>
+                                {selectedAssociate === "all"
+                                    ? "Todos os Associados"
+                                    : `${selectedAssociate}`}
+                            </Typography>
+                            {selectedAssociate !== "all" && (
+                                <Chip
+                                    size="small"
+                                    label="Filtrado"
+                                    color="primary"
+                                    sx={{ ml: 1 }}
+                                />
+                            )}
+                        </Box>
+                        <KeyboardArrowDown sx={{ color: 'text.secondary' }} />
                     </Box>
                 </FormControl>
 
@@ -58,15 +73,22 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
                     disableSwipeToOpen
                     PaperProps={{
                         sx: {
-                            borderTopLeftRadius: 16,
-                            borderTopRightRadius: 16,
-                            maxHeight: '80%',
+                            borderTopLeftRadius: 20,
+                            borderTopRightRadius: 20,
+                            maxHeight: '85%',
                             pt: 1
                         }
                     }}
                 >
-                    <Box sx={{ p: 2 }}>
-                        <Box sx={{ width: '100px', height: '4px', bgcolor: 'grey.300', borderRadius: '2px', mx: 'auto', mb: 2 }} />
+                    <Box sx={{ p: 2, pb: 3 }}>
+                        <Box sx={{
+                            width: '60px',
+                            height: '4px',
+                            bgcolor: 'grey.300',
+                            borderRadius: '2px',
+                            mx: 'auto',
+                            mb: 3
+                        }} />
 
                         <Typography variant="h6" gutterBottom align="center">
                             Filtrar por Associado
@@ -86,23 +108,39 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
                                     </InputAdornment>
                                 ),
                             }}
+                            sx={{
+                                mb: 2,
+                                '& .MuiOutlinedInput-root': {
+                                    height: 56
+                                }
+                            }}
                         />
 
                         <Divider sx={{ my: 2 }} />
 
-                        <List sx={{ pt: 0 }}>
+                        <List sx={{ pt: 0, maxHeight: '60vh', overflow: 'auto' }}>
                             <ListItemButton
                                 onClick={() => {
                                     onAssociateChange("all");
                                     setDrawerOpen(false);
                                 }}
                                 sx={{
-                                    borderRadius: 1,
+                                    borderRadius: 2,
                                     mb: 1,
-                                    bgcolor: selectedAssociate === "all" ? 'primary.light' : 'transparent'
+                                    bgcolor: selectedAssociate === "all" ? 'primary.light' : 'transparent',
+                                    minHeight: 60,
+                                    '&:hover': {
+                                        bgcolor: selectedAssociate === "all" ? 'primary.light' : 'action.hover'
+                                    }
                                 }}
                             >
-                                <ListItemText primary="Todos os Associados" />
+                                <ListItemText
+                                    primary="Todos os Associados"
+                                    primaryTypographyProps={{
+                                        fontWeight: selectedAssociate === "all" ? 600 : 400,
+                                        fontSize: '1.1rem'
+                                    }}
+                                />
                                 {selectedAssociate === "all" && (
                                     <Check color="primary" />
                                 )}
@@ -117,12 +155,22 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
                                             setDrawerOpen(false);
                                         }}
                                         sx={{
-                                            borderRadius: 1,
+                                            borderRadius: 2,
                                             mb: 1,
-                                            bgcolor: selectedAssociate === associate ? 'primary.light' : 'transparent'
+                                            bgcolor: selectedAssociate === associate ? 'primary.light' : 'transparent',
+                                            minHeight: 60,
+                                            '&:hover': {
+                                                bgcolor: selectedAssociate === associate ? 'primary.light' : 'action.hover'
+                                            }
                                         }}
                                     >
-                                        <ListItemText primary={associate} />
+                                        <ListItemText
+                                            primary={associate}
+                                            primaryTypographyProps={{
+                                                fontWeight: selectedAssociate === associate ? 600 : 400,
+                                                fontSize: '1.1rem'
+                                            }}
+                                        />
                                         {selectedAssociate === associate && (
                                             <Check color="primary" />
                                         )}
@@ -130,13 +178,21 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
                                 )
                             ))}
                         </List>
+
+                        {filteredAssociates.length === 1 && searchTerm && (
+                            <Box sx={{ textAlign: 'center', mt: 3, color: 'text.secondary' }}>
+                                <Typography variant="body2">
+                                    Nenhum associado encontrado
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
                 </SwipeableDrawer>
             </>
         );
     }
 
-    // Versão desktop (original)
+    // Versão desktop com melhorias
     return (
         <FormControl fullWidth margin="normal">
             <InputLabel id="associate-select-label">
@@ -147,11 +203,35 @@ const AssociateFilter = ({ associates, selectedAssociate, onAssociateChange }) =
                 value={selectedAssociate}
                 onChange={(e) => onAssociateChange(e.target.value)}
                 label="Filtrar por Associado"
+                renderValue={(selected) => {
+                    if (selected === "all") {
+                        return "Todos os Associados";
+                    }
+                    return selected;
+                }}
+                MenuProps={{
+                    PaperProps: {
+                        style: {
+                            maxHeight: 400,
+                            width: 350,
+                        },
+                    },
+                }}
             >
+                <MenuItem value="all" sx={{ fontWeight: selectedAssociate === "all" ? 600 : 400 }}>
+                    Todos os Associados
+                </MenuItem>
+                <Divider />
                 {(associates || []).map((associate) => (
-                    <MenuItem key={associate} value={associate}>
-                        {associate === "all" ? "Todos" : associate}
-                    </MenuItem>
+                    associate !== "all" && (
+                        <MenuItem
+                            key={associate}
+                            value={associate}
+                            sx={{ fontWeight: selectedAssociate === associate ? 600 : 400 }}
+                        >
+                            {associate}
+                        </MenuItem>
+                    )
                 ))}
             </Select>
         </FormControl>

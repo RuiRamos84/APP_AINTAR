@@ -2,7 +2,7 @@ import React from 'react';
 import { Grid, Card, CardContent, Typography, useMediaQuery, useTheme, Box, Badge } from '@mui/material';
 import {
     CleaningServices, CallMade, LocalDrink, Construction,
-    RouteOutlined, NetworkCheck
+    RouteOutlined, NetworkCheck, SwipeRight
 } from '@mui/icons-material';
 
 // Mapeamento de ícones para cada tipo de vista
@@ -11,7 +11,7 @@ const viewIcons = {
     vbr_document_ramais: <CallMade />,
     vbr_document_caixas: <Construction />,
     vbr_document_desobstrucao: <LocalDrink />,
-    vbr_document_pavimentacao: <RouteOutlined />, // Substituído Road por RouteOutlined
+    vbr_document_pavimentacao: <RouteOutlined />,
     vbr_document_rede: <NetworkCheck />
 };
 
@@ -24,6 +24,7 @@ const getViewIcon = (viewKey) => {
     }
     return null;
 };
+
 
 const ViewCards = ({ views = [], selectedView, onViewClick }) => {
     const theme = useTheme();
@@ -40,7 +41,7 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
     return (
         <Grid container spacing={2}>
             {views.map(([key, value]) => {
-                if (!value || !key) return null; // Skip invalid entries
+                if (!value || !key) return null;
 
                 const icon = getViewIcon(key);
                 const hasItems = value.total > 0;
@@ -51,13 +52,14 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
                             onClick={() => onViewClick(key)}
                             sx={{
                                 cursor: "pointer",
-                                transition: "all 0.2s",
+                                transition: "transform 0.2s, box-shadow 0.2s",
                                 "&:hover": {
-                                    transform: "translateY(-5px)",
+                                    transform: "translateY(-4px)",
                                     boxShadow: 4,
                                 },
                                 "&:active": {
-                                    transform: "translateY(0px)",
+                                    transform: "scale(0.98)",
+                                    transition: "transform 0.1s"
                                 },
                                 bgcolor: selectedView === key ? "primary.light" : "background.paper",
                                 color: selectedView === key ? "primary.contrastText" : "text.primary",
@@ -67,29 +69,36 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
                                 justifyContent: "space-between",
                                 borderRadius: 2,
                                 // Aumentar tamanho dos cards em tablet para toque mais fácil
-                                minHeight: isTablet ? 120 : 100,
+                                minHeight: isTablet ? 140 : 120,
+                                // Bordas para melhor contraste
+                                border: selectedView === key ? `1px solid ${theme.palette.primary.main}` : '1px solid transparent',
+                                // Animação de hover
+                                '&:hover .swipe-indicator': {
+                                    opacity: 1,
+                                },
+                                position: 'relative',
+                                overflow: 'hidden'
                             }}
                         >
-                            <CardContent sx={{ p: isTablet ? 2 : 3 }}>
+                            <CardContent sx={{ p: isTablet ? 2.5 : 3 }}>
                                 <Box
                                     display="flex"
                                     alignItems="center"
                                     justifyContent="space-between"
-                                    mb={1}
+                                    mb={1.5}
                                 >
                                     <Typography
                                         variant={isTablet ? "subtitle1" : "h6"}
                                         component="div"
                                         sx={{
                                             fontWeight: "bold",
-                                            // Limitar a 2 linhas e mostrar ellipsis
                                             overflow: "hidden",
                                             textOverflow: "ellipsis",
                                             display: "-webkit-box",
                                             WebkitLineClamp: 2,
                                             WebkitBoxOrient: "vertical",
-                                            lineHeight: 1.2,
-                                            height: isTablet ? "2.4em" : "2.4em"
+                                            lineHeight: 1.3,
+                                            height: isTablet ? "2.6em" : "3em"
                                         }}
                                     >
                                         {value.name || "Sem nome"}
@@ -99,8 +108,12 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
                                         <Box
                                             sx={{
                                                 color: selectedView === key ? "primary.contrastText" : "primary.main",
-                                                opacity: 0.7,
-                                                ml: 1
+                                                opacity: 0.8,
+                                                ml: 1,
+                                                transition: 'transform 0.3s ease',
+                                                '&:hover': {
+                                                    transform: 'scale(1.1)'
+                                                }
                                             }}
                                         >
                                             {icon}
@@ -111,7 +124,7 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
                                 <Box
                                     display="flex"
                                     alignItems="baseline"
-                                    sx={{ mt: isTablet ? 1 : 2 }}
+                                    sx={{ mt: isTablet ? 1.5 : 2 }}
                                 >
                                     <Badge
                                         color={hasItems ? "error" : "default"}
@@ -120,18 +133,23 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
                                             "& .MuiBadge-badge": {
                                                 top: -8,
                                                 right: -8,
-                                                display: hasItems ? "flex" : "none"
+                                                display: hasItems ? "flex" : "none",
+                                                // Badge maior para tablets
+                                                width: isTablet ? 20 : 18,
+                                                height: isTablet ? 20 : 18,
+                                                fontSize: isTablet ? '0.75rem' : '0.7rem'
                                             }
                                         }}
                                     >
                                         <Typography
-                                            variant={isTablet ? "h5" : "h4"}
+                                            variant={isTablet ? "h4" : "h3"}
                                             component="div"
                                             sx={{
                                                 fontWeight: "bold",
                                                 color: hasItems
                                                     ? (selectedView === key ? "white" : "error.main")
-                                                    : (selectedView === key ? "rgba(255,255,255,0.7)" : "text.secondary")
+                                                    : (selectedView === key ? "rgba(255,255,255,0.8)" : "text.secondary"),
+                                                transition: 'color 0.3s ease'
                                             }}
                                         >
                                             {value.total || 0}
@@ -143,13 +161,31 @@ const ViewCards = ({ views = [], selectedView, onViewClick }) => {
                                         component="div"
                                         sx={{
                                             ml: 1,
-                                            color: selectedView === key ? "rgba(255,255,255,0.7)" : "text.secondary"
+                                            color: selectedView === key ? "rgba(255,255,255,0.8)" : "text.secondary",
+                                            fontSize: isTablet ? '0.9rem' : '0.875rem'
                                         }}
                                     >
                                         {value.total === 1 ? "pedido" : "pedidos"}
                                     </Typography>
                                 </Box>
                             </CardContent>
+
+                            {/* Indicador de swipe apenas em tablets */}
+                            {isTablet && (
+                                <Box
+                                    className="swipe-indicator"
+                                    sx={{
+                                        position: 'absolute',
+                                        right: 12,
+                                        bottom: 12,
+                                        opacity: 0,
+                                        transition: 'opacity 0.3s ease',
+                                        color: selectedView === key ? "primary.contrastText" : "text.secondary"
+                                    }}
+                                >
+                                    <SwipeRight fontSize="small" />
+                                </Box>
+                            )}
                         </Card>
                     </Grid>
                 );

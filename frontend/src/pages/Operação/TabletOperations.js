@@ -5,54 +5,80 @@ import {
     ListItemIcon, IconButton, Divider, Card, CardContent,
     CardActions, Chip, Tooltip, ToggleButtonGroup,
     ToggleButton, Dialog, DialogTitle, DialogContent,
-    DialogActions, TextField, Alert, Skeleton
+    DialogActions, TextField, Alert, Skeleton, Tabs, Tab
 } from "@mui/material";
 import {
     FilterList, Send, Attachment, Edit, Assignment,
     LocationOn, Phone, EventNote, AccessTime, CheckCircle,
     FileDownload, SwipeRight, Sort, ViewList, ViewModule,
-    MyLocation, DirectionsCar, Close, Refresh
+    MyLocation, DirectionsCar, Close, Refresh,
+    CloudOff, ChevronLeft, ChevronRight
 } from "@mui/icons-material";
 import CircularProgress from '@mui/material/CircularProgress';
 import SimpleParametersEditor from './SimpleParametersEditor';
 import AssociateFilter from "./AssociateFilter";
-import ViewCards from "./ViewCards";
 import OperationsTable from "./OperationsTable";
 import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
 import { exportToExcel } from "./exportService";
 import { getDocumentTypeParams, addDocumentStep } from "../../services/documentService";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
 import { useMetaData } from '../../contexts/MetaDataContext';
-import { useInView } from 'react-intersection-observer'; // Adicionar esta dependência para lazy loading
+import { useInView } from 'react-intersection-observer';
 
-// Componente para swipe com gestos
-const SwipeableCard = ({ children, onSwipeRight, onSwipeLeft, minDistance = 50 }) => {
+// Componente para swipe com gestos aprimorado
+const SwipeableCard = ({ children, onSwipeRight, onSwipeLeft, onSwipeUp, minDistance = 50 }) => {
     const [touchStart, setTouchStart] = useState(null);
-    const [touchEnd, setTouchEnd] = useState(null);
+    const [touchCurrent, setTouchCurrent] = useState(null);
+    const [swiping, setSwiping] = useState(false);
 
-    // Capturar eventos de toque
     const onTouchStart = (e) => {
-        setTouchEnd(null);
-        setTouchStart(e.targetTouches[0].clientX);
+        setSwiping(false);
+        setTouchStart({
+            x: e.targetTouches[0].clientX,
+            y: e.targetTouches[0].clientY
+        });
     };
 
     const onTouchMove = (e) => {
-        setTouchEnd(e.targetTouches[0].clientX);
+        if (!touchStart) return;
+
+        setTouchCurrent({
+            x: e.targetTouches[0].clientX,
+            y: e.targetTouches[0].clientY
+        });
+
+        const deltaX = Math.abs(e.targetTouches[0].clientX - touchStart.x);
+        const deltaY = Math.abs(e.targetTouches[0].clientY - touchStart.y);
+
+        // Se movimento horizontal é maior que vertical, permitir swipe
+        if (deltaX > deltaY && deltaX > 10) {
+            e.preventDefault();
+            setSwiping(true);
+        }
     };
 
     const onTouchEnd = () => {
-        if (!touchStart || !touchEnd) return;
-        const distance = touchStart - touchEnd;
-        const isLeftSwipe = distance > minDistance;
-        const isRightSwipe = distance < -minDistance;
+        if (!touchStart || !touchCurrent) return;
 
-        if (isRightSwipe && onSwipeRight) {
-            onSwipeRight();
+        const deltaX = touchStart.x - touchCurrent.x;
+        const deltaY = touchStart.y - touchCurrent.y;
+        const isLeftSwipe = deltaX > minDistance;
+        const isRightSwipe = deltaX < -minDistance;
+        const isUpSwipe = deltaY > minDistance;
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (isRightSwipe && onSwipeRight) {
+                onSwipeRight();
+            } else if (isLeftSwipe && onSwipeLeft) {
+                onSwipeLeft();
+            }
+        } else if (isUpSwipe && onSwipeUp) {
+            onSwipeUp();
         }
 
-        if (isLeftSwipe && onSwipeLeft) {
-            onSwipeLeft();
-        }
+        setTouchStart(null);
+        setTouchCurrent(null);
+        setSwiping(false);
     };
 
     return (
@@ -60,10 +86,197 @@ const SwipeableCard = ({ children, onSwipeRight, onSwipeLeft, minDistance = 50 }
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
+            style={{
+                transform: swiping && touchCurrent && touchStart
+                    ? `translateX(${(touchCurrent.x - touchStart.x) * 0.5}px)`
+                    : 'translateX(0px)',
+                transition: swiping ? 'none' : 'transform 0.3s ease'
+            }}
         >
             {children}
         </div>
     );
+};
+
+// Componente para Pull-to-Refresh
+const PullToRefresh = ({ onRefresh, children }) => {
+    const [pullDistance, setPullDistance] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
+    const [touchStartY, setTouchStartY] = useState(0);
+    const containerRef = useRef(null);
+
+    const handleTouchStart = (e) => {
+        if (containerRef.current?.scrollTop === 0) {
+            setTouchStartY(e.touches[0].clientY);
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        if (containerRef.current?.scrollTop === 0 && touchStartY) {
+            const deltaY = e.touches[0].clientY - touchStartY;
+            if (deltaY > 0) {
+                e.preventDefault();
+                setPullDistance(Math.min(deltaY, 100));
+            }
+        }
+    };
+
+    const handleTouchEnd = async () => {
+        if (pullDistance > 50) {
+            setRefreshing(true);
+            try {
+                await onRefresh();
+            } finally {
+                setRefreshing(false);
+            }
+        }
+        setPullDistance(0);
+        setTouchStartY(0);
+    };
+
+    return (
+        <Box
+            ref={containerRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            sx={{
+                position: 'relative',
+                overflow: 'auto',
+                height: '100%'
+            }}
+        >
+            {pullDistance > 0 && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: '50%',
+                        transform: `translateX(-50%) translateY(${pullDistance - 40}px)`,
+                        zIndex: 1
+                    }}
+                >
+                    {refreshing ? (
+                        <CircularProgress size={24} />
+                    ) : (
+                        <Refresh sx={{
+                            transform: `rotate(${pullDistance * 3.6}deg)`,
+                            transition: 'transform 0.1s'
+                        }} />
+                    )}
+                </Box>
+            )}
+            <Box
+                sx={{
+                    transform: `translateY(${pullDistance > 0 ? pullDistance : 0}px)`,
+                    transition: refreshing || pullDistance === 0 ? 'transform 0.3s ease' : 'none'
+                }}
+            >
+                {children}
+            </Box>
+        </Box>
+    );
+};
+
+// Componente para FABs de ação rápida
+const QuickActionsFab = ({ selectedItem, onNavigate, onCall, onComplete, onFilter }) => (
+    <Box sx={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2
+    }}>
+        <Fab
+            color="default"
+            size="medium"
+            onClick={onFilter}
+            sx={{ boxShadow: 4 }}
+        >
+            <FilterList />
+        </Fab>
+        {selectedItem && (
+            <>
+                <Fab
+                    color="secondary"
+                    size="medium"
+                    onClick={() => onNavigate(selectedItem)}
+                    sx={{ boxShadow: 4 }}
+                >
+                    <MyLocation />
+                </Fab>
+                {selectedItem.phone && (
+                    <Fab
+                        color="info"
+                        size="medium"
+                        onClick={() => onCall(selectedItem)}
+                        sx={{ boxShadow: 4 }}
+                    >
+                        <Phone />
+                    </Fab>
+                )}
+                <Fab
+                    color="success"
+                    size="medium"
+                    onClick={() => onComplete(selectedItem)}
+                    sx={{ boxShadow: 4 }}
+                >
+                    <CheckCircle />
+                </Fab>
+            </>
+        )}
+    </Box>
+);
+
+// Componente para status offline/online aprimorado
+const ConnectionStatus = ({ isOnline, pendingActions, onSync, onDiscard }) => {
+    if (!isOnline || pendingActions.length > 0) {
+        return (
+            <Box
+                sx={{
+                    position: 'sticky',
+                    top: 0,
+                    bgcolor: isOnline ? 'warning.main' : 'error.main',
+                    color: isOnline ? 'warning.contrastText' : 'error.contrastText',
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1,
+                    zIndex: 100
+                }}
+            >
+                <CloudOff fontSize="small" />
+                <Typography variant="body2">
+                    {isOnline
+                        ? `${pendingActions.length} operações pendentes`
+                        : "Modo Offline"}
+                </Typography>
+                {isOnline && (
+                    <>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{ ml: 2, color: 'inherit', borderColor: 'inherit' }}
+                            onClick={onSync}
+                        >
+                            Sincronizar
+                        </Button>
+                        <IconButton
+                            size="small"
+                            sx={{ color: 'inherit' }}
+                            onClick={onDiscard}
+                        >
+                            <Close fontSize="small" />
+                        </IconButton>
+                    </>
+                )}
+            </Box>
+        );
+    }
+    return null;
 };
 
 const TabletOperations = ({
@@ -92,11 +305,16 @@ const TabletOperations = ({
     const [actionDrawer, setActionDrawer] = useState(false);
     const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
     const [paramsDialogOpen, setParamsDialogOpen] = useState(false);
+    const [filterDrawer, setFilterDrawer] = useState(false);
     const [metaData, setMetaData] = useState(null);
     const [completionNote, setCompletionNote] = useState('');
     const [paramsLoading, setParamsLoading] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [cardSwiping, setCardSwiping] = useState({}); // Rastrear cards sendo deslizados
+    const [cardSwiping, setCardSwiping] = useState({});
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [splitScreen, setSplitScreen] = useState(false);
+    const [pendingActions, setPendingActions] = useState([]);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [searchValue, setSearchValue] = useState('');
 
     // Referência para o último elemento para lazy loading
     const { ref: lastItemRef, inView } = useInView({
@@ -105,14 +323,63 @@ const TabletOperations = ({
 
     const { metaData: globalMetaData } = useMetaData();
 
+    // Detectar split screen
+    useEffect(() => {
+        const checkSplitScreen = () => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            if (width > height && width < 1024) {
+                setSplitScreen(true);
+            } else {
+                setSplitScreen(false);
+            }
+        };
+
+        window.addEventListener('resize', checkSplitScreen);
+        checkSplitScreen();
+
+        return () => window.removeEventListener('resize', checkSplitScreen);
+    }, []);
+
+    // Monitorar status da conexão
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Carregar ações pendentes
+    useEffect(() => {
+        const loadPendingActions = () => {
+            try {
+                const cached = localStorage.getItem('operations_pendingActions');
+                if (cached) {
+                    setPendingActions(JSON.parse(cached));
+                }
+            } catch (error) {
+                console.error('Erro ao carregar ações pendentes:', error);
+            }
+        };
+
+        loadPendingActions();
+    }, []);
+
     // Carregar mais itens quando chegar ao final
     useEffect(() => {
-        if (inView && !loadingMore) {
-            setLoadingMore(true);
+        if (inView && !isRefreshing) {
+            setIsRefreshing(true);
             // Simular carregamento adicional - substituir por API real
             setTimeout(() => {
                 // TODO: Implementar carregamento de mais dados da API
-                setLoadingMore(false);
+                setIsRefreshing(false);
             }, 1000);
         }
     }, [inView]);
@@ -144,35 +411,6 @@ const TabletOperations = ({
         }
     };
 
-    // Cache para offline - usar localStorage como fallback básico
-    const saveToLocalCache = useCallback((key, data) => {
-        try {
-            localStorage.setItem(`operations_${key}`, JSON.stringify({
-                timestamp: Date.now(),
-                data
-            }));
-        } catch (error) {
-            console.error("Erro ao salvar em cache:", error);
-        }
-    }, []);
-
-    const loadFromLocalCache = useCallback((key) => {
-        try {
-            const cached = localStorage.getItem(`operations_${key}`);
-            if (cached) {
-                const parsedCache = JSON.parse(cached);
-                // Verificar se o cache está expirado (1 hora)
-                if (Date.now() - parsedCache.timestamp < 3600000) {
-                    return parsedCache.data;
-                }
-            }
-            return null;
-        } catch (error) {
-            console.error("Erro ao carregar do cache:", error);
-            return null;
-        }
-    }, []);
-
     // Manipuladores de ações
     const handleCompleteProcess = () => {
         if (isFossaView && selectedItem) {
@@ -200,21 +438,22 @@ const TabletOperations = ({
                 notifySuccess("Pedido concluído com sucesso!");
             } catch (error) {
                 // Guardar para sincronização offline
-                const pendingActions = loadFromLocalCache('pendingActions') || [];
-                pendingActions.push({
+                const newPendingAction = {
                     action: 'addDocumentStep',
                     params: { documentId: selectedItem.pk, stepData },
-                    timestamp: Date.now()
-                });
-                saveToLocalCache('pendingActions', pendingActions);
+                    timestamp: Date.now(),
+                    id: Date.now() + Math.random().toString(36).substring(2, 9)
+                };
+
+                const updatedPendingActions = [...pendingActions, newPendingAction];
+                setPendingActions(updatedPendingActions);
+                localStorage.setItem('operations_pendingActions', JSON.stringify(updatedPendingActions));
+
                 notifySuccess("Pedido guardado para sincronização posterior");
             }
 
             setCompleteDialogOpen(false);
             setDetailsDrawer(false);
-
-            // Atualizar UI localmente
-            // Implementar lógica para atualizar dados localmente sem recarregar
         } catch (error) {
             notifyError("Erro ao concluir o pedido");
             console.error("Erro ao concluir pedido:", error);
@@ -251,7 +490,6 @@ const TabletOperations = ({
         handleCompleteProcess();
         setActionDrawer(false);
     };
-
 
     const handleNavigate = (item) => {
         const target = item || selectedItem;
@@ -293,6 +531,56 @@ const TabletOperations = ({
         }, 300);
     };
 
+    const handleSwipeUp = (index) => {
+        setSelectedItem(sortedData[index]);
+        setDetailsDrawer(true);
+    };
+
+    // Sincronização offline
+    const handleSyncPendingActions = async () => {
+        if (!isOnline || pendingActions.length === 0) return;
+
+        let successCount = 0;
+        const remainingActions = [];
+
+        for (const action of pendingActions) {
+            try {
+                if (action.action === 'addDocumentStep') {
+                    await addDocumentStep(
+                        action.params.documentId,
+                        action.params.stepData
+                    );
+                    successCount++;
+                }
+            } catch (error) {
+                console.error("Erro ao sincronizar ação:", error);
+                remainingActions.push(action);
+            }
+        }
+
+        setPendingActions(remainingActions);
+        localStorage.setItem('operations_pendingActions', JSON.stringify(remainingActions));
+
+        if (successCount > 0) {
+            notifySuccess(`${successCount} ações sincronizadas com sucesso`);
+            // Recarregar dados
+            window.location.reload();
+        }
+    };
+
+    const handleDiscardPendingActions = () => {
+        setPendingActions([]);
+        localStorage.setItem('operations_pendingActions', JSON.stringify([]));
+        notifySuccess("Alterações pendentes descartadas");
+    };
+
+    // Pull to refresh
+    const handleRefresh = async () => {
+        // Implementar refresh de dados
+        console.log("Refreshing data...");
+        // TODO: Chamar API para recarregar dados
+    };
+
     // Renderização de cards para visualização em grelha
     const renderGridView = () => (
         <Grid container spacing={2}>
@@ -305,6 +593,7 @@ const TabletOperations = ({
                         <SwipeableCard
                             onSwipeRight={() => handleSwipeRight(index)}
                             onSwipeLeft={() => handleSwipeLeft(index)}
+                            onSwipeUp={() => handleSwipeUp(index)}
                         >
                             <Card
                                 sx={{
@@ -314,6 +603,20 @@ const TabletOperations = ({
                                     transform: cardSwiping[index] === 'right' ? 'translateX(100px)' :
                                         cardSwiping[index] === 'left' ? 'translateX(-100px)' : 'translateX(0)',
                                     transition: 'transform 0.3s ease',
+                                    minHeight: 160,
+                                    position: 'relative',
+                                    '&::after': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        right: 8,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        width: 4,
+                                        height: 24,
+                                        bgcolor: 'primary.main',
+                                        borderRadius: 2,
+                                        opacity: 0.5
+                                    }
                                 }}
                                 onClick={() => handleItemClick(item)}
                             >
@@ -352,6 +655,21 @@ const TabletOperations = ({
                                             Limite: {item.limitdate}
                                         </Typography>
                                     )}
+
+                                    {/* Indicador de swipe */}
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            bottom: 8,
+                                            right: 8,
+                                            display: 'flex',
+                                            gap: 0.5,
+                                            opacity: 0.6
+                                        }}
+                                    >
+                                        <ChevronLeft fontSize="small" />
+                                        <ChevronRight fontSize="small" />
+                                    </Box>
                                 </CardContent>
                                 <CardActions>
                                     <Tooltip title="Ver detalhes">
@@ -399,7 +717,7 @@ const TabletOperations = ({
             })}
 
             {/* Indicador de carregamento */}
-            {loadingMore && (
+            {isRefreshing && (
                 <Grid item xs={12} sm={6}>
                     <Card>
                         <CardContent>
@@ -419,474 +737,220 @@ const TabletOperations = ({
         </Grid>
     );
 
-    // Drawer com detalhes do item
-    const renderDetailsDrawer = () => (
-        <SwipeableDrawer
-            anchor="bottom"
-            open={detailsDrawer}
-            onClose={() => setDetailsDrawer(false)}
-            onOpen={() => setDetailsDrawer(true)}
-            disableSwipeToOpen
-            PaperProps={{
-                sx: {
-                    borderTopLeftRadius: 16,
-                    borderTopRightRadius: 16,
-                    height: '70%',
-                    pt: 1
-                }
-            }}
-        >
-            {selectedItem && (
-                <Box sx={{ p: 2 }}>
-                    <Box sx={{ width: '100px', height: '4px', bgcolor: 'grey.300', borderRadius: '2px', mx: 'auto', mb: 2 }} />
+    return (
+        <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+            {/* Status de conexão */}
+            <ConnectionStatus
+                isOnline={isOnline}
+                pendingActions={pendingActions}
+                onSync={handleSyncPendingActions}
+                onDiscard={handleDiscardPendingActions}
+            />
 
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                        <Typography variant="h6">{selectedItem.regnumber}</Typography>
-                        <Box>
-                            <Tooltip title="Adicionar passo">
-                                <IconButton color="primary" onClick={handleActionClick}>
-                                    <Send />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Navegar até local">
-                                <IconButton color="secondary" onClick={() => handleNavigate(selectedItem)}>
-                                    <MyLocation />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Ligar">
-                                <IconButton
-                                    color="success"
-                                    onClick={() => handleCall(selectedItem)}
-                                    disabled={!selectedItem.phone}
-                                >
-                                    <Phone />
-                                </IconButton>
-                            </Tooltip>
-                        </Box>
-                    </Box>
+            {/* Tabs horizontais para vistas */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+                <Tabs
+                    value={selectedView}
+                    onChange={(e, newValue) => handleViewChange(newValue)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                        '& .MuiTab-root': {
+                            minHeight: 60,
+                            minWidth: 140,
+                            fontSize: '1rem',
+                            '& .MuiSvgIcon-root': {
+                                fontSize: '1.5rem'
+                            }
+                        },
+                        '& .MuiTabs-indicator': {
+                            height: 3
+                        }
+                    }}
+                >
+                    {sortedViews.map(([key, value]) => (
+                        <Tab
+                            key={key}
+                            value={key}
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography>{value.name}</Typography>
+                                    <Chip
+                                        size="small"
+                                        label={value.total || 0}
+                                        sx={{
+                                            height: 20,
+                                            bgcolor: value.total > 0 ? 'error.main' : 'grey.300',
+                                            color: value.total > 0 ? 'white' : 'text.secondary'
+                                        }}
+                                    />
+                                </Box>
+                            }
+                        />
+                    ))}
+                </Tabs>
+            </Box>
 
-                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 2, mb: 2 }}>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                                <Typography variant="body2" color="text.secondary">Requerente</Typography>
-                                <Typography variant="body1">{selectedItem.ts_entity}</Typography>
+            {/* Pull to refresh container */}
+            <PullToRefresh onRefresh={handleRefresh}>
+                <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
+                    {/* Filtros */}
+                    <Paper sx={{ p: 2, mb: 2 }}>
+                        <Grid container spacing={2} alignItems="center">
+                            <Grid item xs={12} md={8}>
+                                <AssociateFilter
+                                    associates={associates || []}
+                                    selectedAssociate={selectedAssociate || ''}
+                                    onAssociateChange={handleAssociateChange}
+                                />
                             </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="text.secondary">Contacto</Typography>
-                                <Typography variant="body1">{selectedItem.phone || "Não definido"}</Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="text.secondary">Data Submissão</Typography>
-                                <Typography variant="body1">{selectedItem.submission}</Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                                <Typography variant="body2" color="text.secondary">Morada</Typography>
-                                <Typography variant="body1">{getAddressString(selectedItem)}</Typography>
-                            </Grid>
-                            {isRamaisView && (
-                                <>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="body2" color="text.secondary">Data Execução</Typography>
-                                        <Typography variant="body1">{selectedItem.execution || "Não definida"}</Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="body2" color="text.secondary">Data Limite</Typography>
-                                        <Typography variant="body1" sx={{ color: getRemainingDaysColor(selectedItem.restdays) }}>
-                                            {selectedItem.limitdate} ({Math.floor(selectedItem.restdays)} dias)
-                                        </Typography>
-                                    </Grid>
-                                </>
-                            )}
-                            {isFossaView && (
-                                <>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="body2" color="text.secondary">Nº Cisternas</Typography>
-                                        <Typography variant="body1">{selectedItem.n_cisternas || "Não definido"}</Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="body2" color="text.secondary">Local Descarga</Typography>
-                                        <Typography variant="body1">{selectedItem.local_descarga || "Não definido"}</Typography>
-                                    </Grid>
-                                </>
-                            )}
-                            <Grid item xs={12}>
-                                <Typography variant="body2" color="text.secondary">Observações</Typography>
-                                <Typography variant="body1">{selectedItem.memo || "Sem observações"}</Typography>
+                            <Grid item xs={12} md={4}>
+                                <Box display="flex" justifyContent="flex-end" alignItems="center">
+                                    <ToggleButtonGroup
+                                        value={viewMode}
+                                        exclusive
+                                        onChange={handleViewModeChange}
+                                        size="small"
+                                        sx={{ mr: 1 }}
+                                    >
+                                        <ToggleButton value="grid" aria-label="grid view">
+                                            <ViewModule />
+                                        </ToggleButton>
+                                        <ToggleButton value="list" aria-label="list view">
+                                            <ViewList />
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+
+                                    <Tooltip title="Ordenar">
+                                        <IconButton>
+                                            <Sort />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
                             </Grid>
                         </Grid>
                     </Paper>
 
-                    <Box display="flex" justifyContent="space-around" mt={3}>
-                        {isFossaView ? (
-                            <Button
-                                variant="contained"
-                                color="success"
-                                startIcon={<CheckCircle />}
-                                onClick={handleCompleteProcess}
-                                fullWidth
-                                sx={{ py: 1.5 }} // Botão maior para toque mais fácil
-                            >
-                                Concluir Serviço
-                            </Button>
-                        ) : (
-                            <>
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    startIcon={<Send />}
-                                    onClick={handleActionClick}
-                                    fullWidth
-                                    sx={{ mr: 1, py: 1.5 }}
-                                >
-                                    Adicionar Passo
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    color="success"
-                                    startIcon={<CheckCircle />}
-                                    onClick={handleMarkComplete}
-                                    fullWidth
-                                    sx={{ ml: 1, py: 1.5 }}
-                                >
-                                    Marcar Concluído
-                                </Button>
-                            </>
-                        )}
-                    </Box>
-                </Box>
-            )}
-        </SwipeableDrawer>
-    );
+                    {/* Conteúdo principal - Alternar entre grid e list */}
+                    {selectedView && filteredData[selectedView] && filteredData[selectedView].data.length > 0 && (
+                        <Box>
+                            <Typography variant="h6" gutterBottom>
+                                {filteredData[selectedView].name} - {filteredData[selectedView].data.length} registos
+                            </Typography>
 
-    // Drawer com ações rápidas
-    const renderActionDrawer = () => (
-        <SwipeableDrawer
-            anchor="bottom"
-            open={actionDrawer}
-            onClose={() => setActionDrawer(false)}
-            onOpen={() => setActionDrawer(true)}
-            disableSwipeToOpen
-            PaperProps={{
-                sx: {
-                    borderTopLeftRadius: 16,
-                    borderTopRightRadius: 16,
-                    maxHeight: '50%',
-                    pt: 1
-                }
-            }}
-        >
-            <Box sx={{ p: 2 }}>
-                <Box sx={{ width: '100px', height: '4px', bgcolor: 'grey.300', borderRadius: '2px', mx: 'auto', mb: 2 }} />
-
-                <Typography variant="h6" gutterBottom align="center">
-                    Ações para {selectedItem?.regnumber || ""}
-                </Typography>
-
-                <List>
-                    <ListItemButton
-                        onClick={handleAddStep}
-                        sx={{ borderRadius: 2, mb: 1 }}
-                    >
-                        <ListItemIcon>
-                            <Send color="primary" />
-                        </ListItemIcon>
-                        <ListItemText primary="Adicionar Passo" secondary="Atualiza o estado do pedido" />
-                    </ListItemButton>
-
-                    <ListItem
-                        button
-                        onClick={handleAddAnnex}
-                        sx={{ borderRadius: 2, mb: 1 }}
-                    >
-                        <ListItemIcon>
-                            <Attachment color="secondary" />
-                        </ListItemIcon>
-                        <ListItemText primary="Adicionar Anexo" secondary="Fotos ou documentos" />
-                    </ListItem>
-
-                    <ListItem
-                        button
-                        onClick={handleMarkComplete}
-                        sx={{ borderRadius: 2, mb: 1 }}
-                    >
-                        <ListItemIcon>
-                            <CheckCircle color="success" />
-                        </ListItemIcon>
-                        <ListItemText primary="Marcar Concluído" secondary="Finaliza o processo" />
-                    </ListItem>
-
-                    <ListItemButton
-                        onClick={() => handleNavigate(selectedItem)}
-                        sx={{ borderRadius: 2 }}
-                    >
-                        <ListItemIcon>
-                            <DirectionsCar color="info" />
-                        </ListItemIcon>
-                        <ListItemText primary="Navegar até Local" secondary="Abre app de navegação" />
-                    </ListItemButton>
-                </List>
-            </Box>
-        </SwipeableDrawer>
-    );
-
-    // Componente para status de conexão
-    const ConnectionStatus = () => {
-        const [isOnline, setIsOnline] = useState(navigator.onLine);
-        const [hasPendingActions, setHasPendingActions] = useState(false);
-        const [pendingActions, setPendingActions] = useState([]);
-
-        useEffect(() => {
-            const handleOnline = () => setIsOnline(true);
-            const handleOffline = () => setIsOnline(false);
-
-            window.addEventListener('online', handleOnline);
-            window.addEventListener('offline', handleOffline);
-
-            // Verificar ações pendentes no início
-            const pendingActionsFromCache = loadFromLocalCache('pendingActions') || [];
-            setPendingActions(pendingActionsFromCache);
-            setHasPendingActions(pendingActionsFromCache.length > 0);
-
-            return () => {
-                window.removeEventListener('online', handleOnline);
-                window.removeEventListener('offline', handleOffline);
-            };
-        }, [loadFromLocalCache]);
-
-        const handleSync = useCallback(async () => {
-            if (!isOnline) return;
-
-            const pendingActionsFromCache = loadFromLocalCache('pendingActions') || [];
-            if (pendingActionsFromCache.length === 0) return;
-
-            // Processar ações pendentes
-            let successCount = 0;
-            for (const action of pendingActionsFromCache) {
-                try {
-                    if (action.action === 'addDocumentStep') {
-                        await addDocumentStep(
-                            action.params.documentId,
-                            action.params.stepData
-                        );
-                        successCount++;
-                    }
-                    // Adicionar outros tipos de ações aqui
-                } catch (error) {
-                    console.error("Erro ao sincronizar ação:", error);
-                }
-            }
-
-            if (successCount > 0) {
-                notifySuccess(`${successCount} ações sincronizadas com sucesso`);
-                // Limpar ações bem-sucedidas
-                saveToLocalCache('pendingActions', []);
-                setPendingActions([]);
-                setHasPendingActions(false);
-                // Recarregar dados
-                window.location.reload();
-            }
-        }, [isOnline, loadFromLocalCache, saveToLocalCache]);
-
-        const handleDiscardPendingChanges = useCallback(() => {
-            // Limpar todas as ações pendentes
-            saveToLocalCache('pendingActions', []);
-            setPendingActions([]);
-            setHasPendingActions(false);
-            notifySuccess("Alterações pendentes descartadas");
-        }, [saveToLocalCache]);
-
-        // Tentar sincronizar quando voltar online
-        useEffect(() => {
-            if (isOnline && hasPendingActions) {
-                handleSync();
-            }
-        }, [isOnline, hasPendingActions, handleSync]);
-
-        if (!isOnline || hasPendingActions) {
-            return (
-                <Box
-                    sx={{
-                        position: 'fixed',
-                        bottom: 80,  // Acima dos FABs
-                        left: 0,
-                        right: 0,
-                        zIndex: 9999,
-                        display: 'flex',
-                        justifyContent: 'center',
-                    }}
-                >
-                    <Paper
-                        elevation={3}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            bgcolor: isOnline ? 'warning.light' : 'error.light',
-                            color: isOnline ? 'warning.contrastText' : 'error.contrastText',
-                            borderRadius: 2,
-                            py: 1,
-                            px: 2,
-                            maxWidth: '90%'
-                        }}
-                    >
-                        <Typography variant="body2" sx={{ mr: 1 }}>
-                            {isOnline
-                                ? `${pendingActions.length} operações pendentes de sincronização`
-                                : "Offline - As alterações serão guardadas localmente"}
-                        </Typography>
-                        {isOnline && (
-                            <>
-                                <IconButton
-                                    size="small"
-                                    onClick={handleSync}
-                                    sx={{ color: 'inherit' }}
-                                    title="Sincronizar"
-                                >
-                                    <Refresh fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                    size="small"
-                                    onClick={handleDiscardPendingChanges}
-                                    sx={{ color: 'inherit' }}
-                                    title="Descartar"
-                                >
-                                    <Close fontSize="small" />
-                                </IconButton>
-                            </>
-                        )}
-                    </Paper>
-                </Box>
-            );
-        }
-
-        return null;
-    };
-
-    return (
-        <Box sx={{ p: 2, pb: 8 }}>
-            {/* Filtros e seleção de vista */}
-            <Paper sx={{ p: 2, mb: 2 }}>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={6}>
-                        <AssociateFilter
-                            associates={associates || []}
-                            selectedAssociate={selectedAssociate || ''}
-                            onAssociateChange={handleAssociateChange}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <Box display="flex" justifyContent="flex-end" alignItems="center">
-                            <ToggleButtonGroup
-                                value={viewMode}
-                                exclusive
-                                onChange={handleViewModeChange}
-                                size="small"
-                                sx={{ mr: 1 }}
-                            >
-                                <ToggleButton value="grid" aria-label="grid view">
-                                    <ViewModule />
-                                </ToggleButton>
-                                <ToggleButton value="list" aria-label="list view">
-                                    <ViewList />
-                                </ToggleButton>
-                            </ToggleButtonGroup>
-
-                            <Tooltip title="Filtros avançados">
-                                <IconButton>
-                                    <FilterList />
-                                </IconButton>
-                            </Tooltip>
-
-                            <Tooltip title="Ordenar">
-                                <IconButton>
-                                    <Sort />
-                                </IconButton>
-                            </Tooltip>
+                            {viewMode === 'grid' ? (
+                                renderGridView()
+                            ) : (
+                                <OperationsTable
+                                    data={sortedData}
+                                    columns={getColumnsForView(selectedView)}
+                                    orderBy={orderBy}
+                                    order={order}
+                                    onRequestSort={handleRequestSort}
+                                    expandedRows={expandedRows}
+                                    toggleRowExpand={toggleRowExpand}
+                                    isRamaisView={isRamaisView}
+                                    getRemainingDaysColor={getRemainingDaysColor}
+                                    getAddressString={getAddressString}
+                                    renderCell={(column, row) => {
+                                        if (column.format) {
+                                            return column.format(row[column.id]);
+                                        }
+                                        if (isRamaisView && column.id === 'restdays') {
+                                            return (
+                                                <Box sx={{
+                                                    color: getRemainingDaysColor(row[column.id]),
+                                                    fontWeight: 'bold'
+                                                }}>
+                                                    {Math.floor(row[column.id])} dias
+                                                </Box>
+                                            );
+                                        }
+                                        return row[column.id || column];
+                                    }}
+                                    onRowClick={handleItemClick}
+                                    sx={{
+                                        '& .MuiTableCell-root': {
+                                            fontSize: '1rem',
+                                            py: 1.5,
+                                            px: 2,
+                                            minHeight: 60
+                                        }
+                                    }}
+                                />
+                            )}
                         </Box>
-                    </Grid>
-                </Grid>
-            </Paper>
-
-            {/* Cards das vistas */}
-            <Box sx={{ mb: 3, mt: 2 }}>
-                <ViewCards
-                    views={sortedViews}
-                    selectedView={selectedView}
-                    onViewClick={handleViewChange}
-                />
-            </Box>
-
-            {/* Conteúdo principal - Alternar entre grid e list */}
-            {selectedView && filteredData[selectedView] && filteredData[selectedView].data.length > 0 && (
-                <Box mt={2} sx={{ pb: 10 }}>
-                    <Typography variant="h6" gutterBottom>
-                        {filteredData[selectedView].name} - {filteredData[selectedView].data.length} registos
-                    </Typography>
-
-                    {viewMode === 'grid' ? (
-                        renderGridView()
-                    ) : (
-                        <OperationsTable
-                            data={sortedData}
-                            columns={getColumnsForView(selectedView)}
-                            orderBy={orderBy}
-                            order={order}
-                            onRequestSort={handleRequestSort}
-                            expandedRows={expandedRows}
-                            toggleRowExpand={toggleRowExpand}
-                            isRamaisView={isRamaisView}
-                            getRemainingDaysColor={getRemainingDaysColor}
-                            getAddressString={getAddressString}
-                            renderCell={(column, row) => {
-                                if (column.format) {
-                                    return column.format(row[column.id]);
-                                }
-                                if (isRamaisView && column.id === 'restdays') {
-                                    return (
-                                        <Box sx={{
-                                            color: getRemainingDaysColor(row[column.id]),
-                                            fontWeight: 'bold'
-                                        }}>
-                                            {Math.floor(row[column.id])} dias
-                                        </Box>
-                                    );
-                                }
-                                return row[column.id || column];
-                            }}
-                            onRowClick={handleItemClick}
-                            sx={{ '& .MuiTableCell-root': { fontSize: '1rem', py: 1.5 } }} // Células maiores para toque
-                        />
                     )}
                 </Box>
-            )}
+            </PullToRefresh>
 
-            {/* FAB para ações rápidas e exportação */}
-            <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 2 }}>
-                {isFossaView && (
-                    <Tooltip title="Exportar para Excel">
-                        <Fab
-                            color="default"
-                            aria-label="export"
-                            size="medium"
-                            sx={{ mb: 1, mr: 1 }}
-                            onClick={() => exportToExcel(filteredData, selectedView)}
-                        >
-                            <FileDownload />
-                        </Fab>
-                    </Tooltip>
-                )}
+            {/* FABs de ação rápida */}
+            <QuickActionsFab
+                selectedItem={selectedItem}
+                onNavigate={handleNavigate}
+                onCall={handleCall}
+                onComplete={handleMarkComplete}
+                onFilter={() => setFilterDrawer(true)}
+            />
 
-                {selectedItem && (
-                    <Tooltip title="Ações rápidas">
-                        <Fab
-                            color="primary"
-                            aria-label="actions"
-                            onClick={handleActionClick}
-                        >
-                            <Edit />
-                        </Fab>
-                    </Tooltip>
-                )}
-            </Box>
+            {/* Drawer de filtros */}
+            <SwipeableDrawer
+                anchor="bottom"
+                open={filterDrawer}
+                onClose={() => setFilterDrawer(false)}
+                onOpen={() => setFilterDrawer(true)}
+                disableSwipeToOpen
+                PaperProps={{
+                    sx: {
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        maxHeight: '60vh',
+                        pt: 1
+                    }
+                }}
+            >
+                <Box sx={{ p: 3 }}>
+                    <Box sx={{
+                        width: 60,
+                        height: 4,
+                        bgcolor: 'grey.300',
+                        borderRadius: 2,
+                        mx: 'auto',
+                        mb: 3
+                    }} />
+
+                    <Typography variant="h6" gutterBottom>
+                        Filtros
+                    </Typography>
+
+                    <Grid container spacing={3}>
+                        <Grid item xs={12}>
+                            <AssociateFilter
+                                associates={associates || []}
+                                selectedAssociate={selectedAssociate || ''}
+                                onAssociateChange={handleAssociateChange}
+                            />
+                        </Grid>
+                        {/* Adicionar mais filtros conforme necessário */}
+                        <Grid item xs={12}>
+                            <TextField
+                                label="Pesquisar"
+                                value={searchValue} 
+                                onChange={(e) => setSearchValue(e.target.value)}
+                                fullWidth
+                                variant="outlined"
+                                sx={{ mb: 3 }}
+                            />
+                        </Grid>
+                    </Grid>
+
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button onClick={() => setFilterDrawer(false)}>
+                            Fechar
+                        </Button>
+                    </Box>
+                </Box>
+            </SwipeableDrawer>
 
             {/* Diálogo de parâmetros */}
             <Dialog
@@ -941,7 +1005,6 @@ const TabletOperations = ({
                             <Close />
                         </IconButton>
                     </Box>
-
                 </DialogTitle>
                 <DialogContent dividers>
                     <TextField
@@ -962,19 +1025,218 @@ const TabletOperations = ({
                         onClick={handleAddFinalStep}
                         variant="contained"
                         color="success"
-                        sx={{ px: 4, py: 1 }} // Botão maior para toque
+                        sx={{ px: 4, py: 1 }}
                     >
                         Confirmar Conclusão
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Componente de estado de conexão */}
-            <ConnectionStatus />
+            {/* Drawer com detalhes do item */}
+            <SwipeableDrawer
+                anchor="bottom"
+                open={detailsDrawer}
+                onClose={() => setDetailsDrawer(false)}
+                onOpen={() => setDetailsDrawer(true)}
+                disableSwipeToOpen
+                PaperProps={{
+                    sx: {
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        height: '70%',
+                        pt: 1
+                    }
+                }}
+            >
+                {selectedItem && (
+                    <Box sx={{ p: 2 }}>
+                        <Box sx={{ width: '100px', height: '4px', bgcolor: 'grey.300', borderRadius: '2px', mx: 'auto', mb: 2 }} />
 
-            {/* Drawers */}
-            {renderDetailsDrawer()}
-            {renderActionDrawer()}
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                            <Typography variant="h6">{selectedItem.regnumber}</Typography>
+                            <Box>
+                                <Tooltip title="Adicionar passo">
+                                    <IconButton color="primary" onClick={handleActionClick}>
+                                        <Send />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Navegar até local">
+                                    <IconButton color="secondary" onClick={() => handleNavigate(selectedItem)}>
+                                        <MyLocation />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Ligar">
+                                    <IconButton
+                                        color="success"
+                                        onClick={() => handleCall(selectedItem)}
+                                        disabled={!selectedItem.phone}
+                                    >
+                                        <Phone />
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
+                        </Box>
+
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 2, mb: 2 }}>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12}>
+                                    <Typography variant="body2" color="text.secondary">Requerente</Typography>
+                                    <Typography variant="body1">{selectedItem.ts_entity}</Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <Typography variant="body2" color="text.secondary">Contacto</Typography>
+                                    <Typography variant="body1">{selectedItem.phone || "Não definido"}</Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <Typography variant="body2" color="text.secondary">Data Submissão</Typography>
+                                    <Typography variant="body1">{selectedItem.submission}</Typography>
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Typography variant="body2" color="text.secondary">Morada</Typography>
+                                    <Typography variant="body1">{getAddressString(selectedItem)}</Typography>
+                                </Grid>
+                                {isRamaisView && (
+                                    <>
+                                        <Grid item xs={12} sm={6}>
+                                            <Typography variant="body2" color="text.secondary">Data Execução</Typography>
+                                            <Typography variant="body1">{selectedItem.execution || "Não definida"}</Typography>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Typography variant="body2" color="text.secondary">Data Limite</Typography>
+                                            <Typography variant="body1" sx={{ color: getRemainingDaysColor(selectedItem.restdays) }}>
+                                                {selectedItem.limitdate} ({Math.floor(selectedItem.restdays)} dias)
+                                            </Typography>
+                                        </Grid>
+                                    </>
+                                )}
+                                {isFossaView && (
+                                    <>
+                                        <Grid item xs={12} sm={6}>
+                                            <Typography variant="body2" color="text.secondary">Nº Cisternas</Typography>
+                                            <Typography variant="body1">{selectedItem.n_cisternas || "Não definido"}</Typography>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Typography variant="body2" color="text.secondary">Local Descarga</Typography>
+                                            <Typography variant="body1">{selectedItem.local_descarga || "Não definido"}</Typography>
+                                        </Grid>
+                                    </>
+                                )}
+                                <Grid item xs={12}>
+                                    <Typography variant="body2" color="text.secondary">Observações</Typography>
+                                    <Typography variant="body1">{selectedItem.memo || "Sem observações"}</Typography>
+                                </Grid>
+                            </Grid>
+                        </Paper>
+
+                        <Box display="flex" justifyContent="space-around" mt={3}>
+                            {isFossaView ? (
+                                <Button
+                                    variant="contained"
+                                    color="success"
+                                    startIcon={<CheckCircle />}
+                                    onClick={handleCompleteProcess}
+                                    fullWidth
+                                    sx={{ py: 1.5 }}
+                                >
+                                    Concluir Serviço
+                                </Button>
+                            ) : (
+                                <>
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        startIcon={<Send />}
+                                        onClick={handleActionClick}
+                                        fullWidth
+                                        sx={{ mr: 1, py: 1.5 }}
+                                    >
+                                        Adicionar Passo
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="success"
+                                        startIcon={<CheckCircle />}
+                                        onClick={handleMarkComplete}
+                                        fullWidth
+                                        sx={{ ml: 1, py: 1.5 }}
+                                    >
+                                        Marcar Concluído
+                                    </Button>
+                                </>
+                            )}
+                        </Box>
+                    </Box>
+                )}
+            </SwipeableDrawer>
+
+            {/* Drawer com ações rápidas */}
+            <SwipeableDrawer
+                anchor="bottom"
+                open={actionDrawer}
+                onClose={() => setActionDrawer(false)}
+                onOpen={() => setActionDrawer(true)}
+                disableSwipeToOpen
+                PaperProps={{
+                    sx: {
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        maxHeight: '50%',
+                        pt: 1
+                    }
+                }}
+            >
+                <Box sx={{ p: 2 }}>
+                    <Box sx={{ width: '100px', height: '4px', bgcolor: 'grey.300', borderRadius: '2px', mx: 'auto', mb: 2 }} />
+
+                    <Typography variant="h6" gutterBottom align="center">
+                        Ações para {selectedItem?.regnumber || ""}
+                    </Typography>
+
+                    <List>
+                        <ListItemButton
+                            onClick={handleAddStep}
+                            sx={{ borderRadius: 2, mb: 1 }}
+                        >
+                            <ListItemIcon>
+                                <Send color="primary" />
+                            </ListItemIcon>
+                            <ListItemText primary="Adicionar Passo" secondary="Atualiza o estado do pedido" />
+                        </ListItemButton>
+
+                        <ListItem
+                            button
+                            onClick={handleAddAnnex}
+                            sx={{ borderRadius: 2, mb: 1 }}
+                        >
+                            <ListItemIcon>
+                                <Attachment color="secondary" />
+                            </ListItemIcon>
+                            <ListItemText primary="Adicionar Anexo" secondary="Fotos ou documentos" />
+                        </ListItem>
+
+                        <ListItem
+                            button
+                            onClick={handleMarkComplete}
+                            sx={{ borderRadius: 2, mb: 1 }}
+                        >
+                            <ListItemIcon>
+                                <CheckCircle color="success" />
+                            </ListItemIcon>
+                            <ListItemText primary="Marcar Concluído" secondary="Finaliza o processo" />
+                        </ListItem>
+
+                        <ListItemButton
+                            onClick={() => handleNavigate(selectedItem)}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            <ListItemIcon>
+                                <DirectionsCar color="info" />
+                            </ListItemIcon>
+                            <ListItemText primary="Navegar até Local" secondary="Abre app de navegação" />
+                        </ListItemButton>
+                    </List>
+                </Box>
+            </SwipeableDrawer>
         </Box>
     );
 };

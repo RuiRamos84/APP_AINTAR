@@ -86,3 +86,17 @@ body {
 .card-icon img:last-child {
     margin-left: 20px;
 }
+
+.card-swipe-enter {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+.card-swipe-exit {
+    transform: translateX(-100%);
+    opacity: 0;
+}
+
+.table-row-slide {
+    transition: transform 0.3s ease;
+}

@@ -11,7 +11,7 @@ import TabletOperations from "./TabletOperations";
 
 const Operations = () => {
     const theme = useTheme();
-    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+    const isTablet = useMediaQuery(theme.breakpoints.down('xl')); // 1536px
 
     // Dados principais
     const { operationsData, loading, error, associates } = useOperationsData();
