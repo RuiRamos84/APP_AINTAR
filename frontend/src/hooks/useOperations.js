@@ -113,6 +113,7 @@ export const useOperationsFiltering = (operationsData) => {
         };
     }, [selectedAssociate]);
 
+
     const filteredData = useMemo(
         () => filterDataByAssociate(operationsData),
         [filterDataByAssociate, operationsData]
@@ -123,13 +124,26 @@ export const useOperationsFiltering = (operationsData) => {
         [filteredData]
     );
 
+    // Adicionar este useEffect
+    useEffect(() => {
+        // Se vista atual não existe nos dados filtrados, selecionar primeira disponível
+        if (selectedView && !filteredData[selectedView]) {
+            if (sortedViews.length > 0) {
+                setSelectedView(sortedViews[0][0]);
+            } else {
+                setSelectedView(null);
+            }
+        }
+    }, [filteredData, selectedView, sortedViews]);
+
     const handleViewChange = (viewName) => {
         setSelectedView(viewName === selectedView ? null : viewName);
     };
 
     const handleAssociateChange = (value) => {
         setSelectedAssociate(value);
-        setSelectedView(null);
+        // Não define null aqui, mantém a vista selecionada
+        // setSelectedView(null);
     };
 
     return {

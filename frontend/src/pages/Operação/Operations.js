@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Box, useMediaQuery, useTheme, CircularProgress, Typography } from "@mui/material";
 import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
 import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
+import { useMetaData } from '../../contexts/MetaDataContext';
 
 // Componentes existentes
 import AssociateFilter from "./AssociateFilter";
@@ -12,6 +13,8 @@ import TabletOperations from "./TabletOperations";
 const Operations = () => {
     const theme = useTheme();
     const isTablet = useMediaQuery(theme.breakpoints.down('xl')); // 1536px
+
+    const { metaData } = useMetaData();
 
     // Dados principais
     const { operationsData, loading, error, associates } = useOperationsData();
@@ -42,7 +45,7 @@ const Operations = () => {
     // Render helper para células da tabela
     const renderCell = (column, row) => {
         if (column.format) {
-            return column.format(row[column.id]);
+            return column.format(row[column.id], metaData); // Passa metadados
         }
 
         if (isRamaisView && column.id === 'restdays') {
@@ -126,7 +129,7 @@ const Operations = () => {
 
                         <OperationsTable
                             data={sortedData}
-                            columns={getColumnsForView(selectedView)}
+                            columns={getColumnsForView(selectedView, metaData)}
                             orderBy={orderBy}
                             order={order}
                             onRequestSort={handleRequestSort}

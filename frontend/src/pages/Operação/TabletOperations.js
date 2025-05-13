@@ -5,14 +5,20 @@ import {
     ListItemIcon, IconButton, Divider, Card, CardContent,
     CardActions, Chip, Tooltip, ToggleButtonGroup,
     ToggleButton, Dialog, DialogTitle, DialogContent,
-    DialogActions, TextField, Alert, Skeleton, Tabs, Tab
+    DialogActions, TextField, Alert, Skeleton, Tabs, Tab, FormControlLabel, Checkbox, LinearProgress,
+    Stack,
+    SpeedDial,
+    SpeedDialIcon,
+    SpeedDialAction,
 } from "@mui/material";
 import {
     FilterList, Send, Attachment, Edit, Assignment,
     LocationOn, Phone, EventNote, AccessTime, CheckCircle,
     FileDownload, SwipeRight, Sort, ViewList, ViewModule,
     MyLocation, DirectionsCar, Close, Refresh,
-    CloudOff, ChevronLeft, ChevronRight
+    CloudOff, ChevronLeft, ChevronRight, Lock, LockOpen, CalendarToday,
+    TouchApp,
+    MoreVert,
 } from "@mui/icons-material";
 import CircularProgress from '@mui/material/CircularProgress';
 import SimpleParametersEditor from './SimpleParametersEditor';
@@ -24,6 +30,9 @@ import { getDocumentTypeParams, addDocumentStep } from "../../services/documentS
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
 import { useMetaData } from '../../contexts/MetaDataContext';
 import { useInView } from 'react-intersection-observer';
+import { getUserNameByPk } from "./operationsHelpers";
+import { useAuth } from '../../contexts/AuthContext';
+
 
 // Componente para swipe com gestos aprimorado
 const SwipeableCard = ({ children, onSwipeRight, onSwipeLeft, onSwipeUp, minDistance = 50 }) => {
@@ -179,7 +188,7 @@ const PullToRefresh = ({ onRefresh, children }) => {
 };
 
 // Componente para FABs de ação rápida
-const QuickActionsFab = ({ selectedItem, onNavigate, onCall, onComplete, onFilter }) => (
+const QuickActionsFab = ({ selectedItem, onNavigate, onCall, onComplete, onFilter, currentUserPk }) => (
     <Box sx={{
         position: 'fixed',
         bottom: 24,
@@ -217,14 +226,17 @@ const QuickActionsFab = ({ selectedItem, onNavigate, onCall, onComplete, onFilte
                         <Phone />
                     </Fab>
                 )}
-                <Fab
-                    color="success"
-                    size="medium"
-                    onClick={() => onComplete(selectedItem)}
-                    sx={{ boxShadow: 4 }}
-                >
-                    <CheckCircle />
-                </Fab>
+                {/* Só mostra o FAB de conclusão se o pedido está atribuído ao utilizador atual */}
+                {Number(selectedItem.who) === currentUserPk && (
+                    <Fab
+                        color="success"
+                        size="medium"
+                        onClick={() => onComplete(selectedItem)}
+                        sx={{ boxShadow: 4 }}
+                    >
+                        <CheckCircle />
+                    </Fab>
+                )}
             </>
         )}
     </Box>
@@ -315,11 +327,53 @@ const TabletOperations = ({
     const [pendingActions, setPendingActions] = useState([]);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [searchValue, setSearchValue] = useState('');
+    const firstViewKey = sortedViews[0]?.[0] || null;
+    const currentView = selectedView || firstViewKey;
+    const { user: currentUser } = useAuth(); 
+
+    const [showOnlyMyTasks, setShowOnlyMyTasks] = useState(false);
+
+    // Filtrar dados baseado na checkbox
+    const getFilteredByUser = () => {
+        if (!showOnlyMyTasks) return sortedData;
+
+        return sortedData.filter(item =>
+            Number(item.who) === Number(currentUser?.user_id)
+        );
+    };
+
+    const renderCell = (column, row) => {
+        if (column.format) {
+            return column.format(row[column.id], globalMetaData);
+        }
+
+        if (isRamaisView && column.id === 'restdays') {
+            return (
+                <Box sx={{
+                    color: getRemainingDaysColor(row[column.id]),
+                    fontWeight: 'bold'
+                }}>
+                    {Math.floor(row[column.id])} dias
+                </Box>
+            );
+        }
+
+        return row[column.id || column];
+    };
+
+    const displayData = getFilteredByUser();
 
     // Referência para o último elemento para lazy loading
     const { ref: lastItemRef, inView } = useInView({
         threshold: 0.1,
     });
+
+    // Função para verificar se o utilizador pode executar ações
+    const canExecuteActions = (item) => {
+        console.log("Verificando ações para:", item.who);
+        console.log("Utilizador atual:", currentUser?.user_id);
+        return Number(item.who) === Number(currentUser?.user_id) || item.who === null;
+    };
 
     const { metaData: globalMetaData } = useMetaData();
 
@@ -584,15 +638,14 @@ const TabletOperations = ({
     // Renderização de cards para visualização em grelha
     const renderGridView = () => (
         <Grid container spacing={2}>
-            {sortedData.map((item, index) => {
-                const isLastItem = index === sortedData.length - 1;
-                const refProps = isLastItem ? { ref: lastItemRef } : {};
+            {displayData.map((item, index) => {
+                const canAct = canExecuteActions(item);
 
                 return (
-                    <Grid item xs={12} sm={6} key={index} {...refProps}>
+                    <Grid item xs={12} sm={6} key={index}>
                         <SwipeableCard
                             onSwipeRight={() => handleSwipeRight(index)}
-                            onSwipeLeft={() => handleSwipeLeft(index)}
+                            onSwipeLeft={() => canAct ? handleSwipeLeft(index) : null} // Só permite swipe se tem permissão
                             onSwipeUp={() => handleSwipeUp(index)}
                         >
                             <Card
@@ -600,6 +653,7 @@ const TabletOperations = ({
                                     cursor: 'pointer',
                                     '&:hover': { boxShadow: 6 },
                                     borderLeft: isRamaisView ? `4px solid ${getRemainingDaysColor(item.restdays)}` : undefined,
+                                    borderRight: canAct ? '4px solid #4caf50' : '4px solid #9e9e9e',
                                     transform: cardSwiping[index] === 'right' ? 'translateX(100px)' :
                                         cardSwiping[index] === 'left' ? 'translateX(-100px)' : 'translateX(0)',
                                     transition: 'transform 0.3s ease',
@@ -625,14 +679,29 @@ const TabletOperations = ({
                                         <Typography variant="subtitle1" fontWeight="bold">
                                             {item.regnumber}
                                         </Typography>
-                                        {isRamaisView && (
-                                            <Chip
-                                                label={`${Math.floor(item.restdays)} dias`}
-                                                color={item.restdays <= 0 ? "error" : item.restdays <= 15 ? "warning" : "success"}
-                                                size="small"
-                                            />
-                                        )}
+
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            {item.who && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {getUserNameByPk(item.who, globalMetaData)}
+                                                </Typography>
+                                            )}
+                                            {canAct ? (
+                                                <LockOpen fontSize="small" color="success" />
+                                            ) : (
+                                                <Lock fontSize="small" color="disabled" />
+                                            )}
+                                        </Box>
                                     </Box>
+
+                                    {isRamaisView && (
+                                        <Chip
+                                            label={`${Math.floor(item.restdays)} dias`}
+                                            color={item.restdays <= 0 ? "error" : item.restdays <= 15 ? "warning" : "success"}
+                                            size="small"
+                                            sx={{ mb: 1 }}
+                                        />
+                                    )}
 
                                     <Typography variant="body2" gutterBottom noWrap>
                                         <LocationOn fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
@@ -738,7 +807,7 @@ const TabletOperations = ({
     );
 
     return (
-        <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ height: "100vh", display: "flex", flexDirection: "column", bgcolor: 'background.default' }}>
             {/* Status de conexão */}
             <ConnectionStatus
                 isOnline={isOnline}
@@ -747,24 +816,109 @@ const TabletOperations = ({
                 onDiscard={handleDiscardPendingActions}
             />
 
-            {/* Tabs horizontais para vistas */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+            {/* Filtros principais - otimizado para toque */}
+            <Paper sx={{
+                p: 2,
+                m: 2,
+                mb: 0,
+                borderRadius: 3,
+                boxShadow: 3
+            }}>
+                <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={5} md={4}>
+                        <AssociateFilter
+                            associates={associates || []}
+                            selectedAssociate={selectedAssociate}
+                            onAssociateChange={handleAssociateChange}
+                        />
+                    </Grid>
+                    <Grid item xs={8} sm={4} md={3}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={showOnlyMyTasks}
+                                    onChange={(e) => setShowOnlyMyTasks(e.target.checked)}
+                                    color="primary"
+                                    sx={{ transform: 'scale(1.2)' }} // Maior para tablets
+                                />
+                            }
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="body1">Meus pedidos</Typography>
+                                    <Chip
+                                        size="small"
+                                        label={sortedData.filter(item => Number(item.who) === currentUser?.user_id).length} // Mudar pk para user_id
+                                        color={showOnlyMyTasks ? "primary" : "default"}
+                                        sx={{ height: 24, minWidth: 32 }}
+                                    />
+                                </Box>
+                            }
+                            sx={{ ml: 0, mr: 'auto' }}
+                        />
+                    </Grid>
+                    <Grid item xs={4} sm={3} md={5}>
+                        <Box display="flex" justifyContent="flex-end" alignItems="center" gap={1}>
+                            <ToggleButtonGroup
+                                value={viewMode}
+                                exclusive
+                                onChange={handleViewModeChange}
+                                size="medium" // Maior para tablets
+                                sx={{
+                                    '& .MuiToggleButton-root': {
+                                        minWidth: 48,
+                                        minHeight: 48,
+                                        px: 2
+                                    }
+                                }}
+                            >
+                                <ToggleButton value="grid" aria-label="vista grelha">
+                                    <ViewModule fontSize="medium" />
+                                </ToggleButton>
+                                <ToggleButton value="list" aria-label="vista lista">
+                                    <ViewList fontSize="medium" />
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                            <IconButton
+                                size="large"
+                                onClick={() => setFilterDrawer(true)}
+                                sx={{ display: { xs: 'inline-flex', md: 'none' } }}
+                            >
+                                <FilterList />
+                            </IconButton>
+                        </Box>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            {/* Tabs otimizadas para toque */}
+            <Box sx={{
+                borderBottom: 1,
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                mx: 2,
+                borderRadius: '12px 12px 0 0',
+                mt: 2
+            }}>
                 <Tabs
-                    value={selectedView}
+                    value={currentView || false}
                     onChange={(e, newValue) => handleViewChange(newValue)}
                     variant="scrollable"
                     scrollButtons="auto"
                     sx={{
                         '& .MuiTab-root': {
-                            minHeight: 60,
-                            minWidth: 140,
-                            fontSize: '1rem',
-                            '& .MuiSvgIcon-root': {
-                                fontSize: '1.5rem'
+                            minHeight: 64,
+                            minWidth: 120,
+                            fontSize: '1.1rem',
+                            fontWeight: 500,
+                            px: 3,
+                            transition: 'all 0.3s',
+                            '&:hover': {
+                                backgroundColor: 'action.hover'
                             }
                         },
                         '& .MuiTabs-indicator': {
-                            height: 3
+                            height: 3,
+                            borderRadius: '3px 3px 0 0'
                         }
                     }}
                 >
@@ -773,17 +927,29 @@ const TabletOperations = ({
                             key={key}
                             value={key}
                             label={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography>{value.name}</Typography>
-                                    <Chip
-                                        size="small"
-                                        label={value.total || 0}
-                                        sx={{
-                                            height: 20,
-                                            bgcolor: value.total > 0 ? 'error.main' : 'grey.300',
-                                            color: value.total > 0 ? 'white' : 'text.secondary'
-                                        }}
-                                    />
+                                <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    py: 1
+                                }}>
+                                    <Box>
+                                        <Typography variant="body1">{value.name}</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {value.total || 0} {value.total === 1 ? 'pedido' : 'pedidos'}
+                                        </Typography>
+                                    </Box>
+                                    {value.total > 0 && (
+                                        <Box
+                                            sx={{
+                                                width: 8,
+                                                height: 8,
+                                                borderRadius: '50%',
+                                                bgcolor: 'error.main',
+                                                animation: 'pulse 2s infinite'
+                                            }}
+                                        />
+                                    )}
                                 </Box>
                             }
                         />
@@ -791,107 +957,293 @@ const TabletOperations = ({
                 </Tabs>
             </Box>
 
-            {/* Pull to refresh container */}
+            {/* Área de conteúdo com scroll suave */}
             <PullToRefresh onRefresh={handleRefresh}>
-                <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
-                    {/* Filtros */}
-                    <Paper sx={{ p: 2, mb: 2 }}>
-                        <Grid container spacing={2} alignItems="center">
-                            <Grid item xs={12} md={8}>
-                                <AssociateFilter
-                                    associates={associates || []}
-                                    selectedAssociate={selectedAssociate || ''}
-                                    onAssociateChange={handleAssociateChange}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                                <Box display="flex" justifyContent="flex-end" alignItems="center">
-                                    <ToggleButtonGroup
-                                        value={viewMode}
-                                        exclusive
-                                        onChange={handleViewModeChange}
-                                        size="small"
-                                        sx={{ mr: 1 }}
-                                    >
-                                        <ToggleButton value="grid" aria-label="grid view">
-                                            <ViewModule />
-                                        </ToggleButton>
-                                        <ToggleButton value="list" aria-label="list view">
-                                            <ViewList />
-                                        </ToggleButton>
-                                    </ToggleButtonGroup>
-
-                                    <Tooltip title="Ordenar">
-                                        <IconButton>
-                                            <Sort />
-                                        </IconButton>
-                                    </Tooltip>
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    </Paper>
-
-                    {/* Conteúdo principal - Alternar entre grid e list */}
-                    {selectedView && filteredData[selectedView] && filteredData[selectedView].data.length > 0 && (
-                        <Box>
-                            <Typography variant="h6" gutterBottom>
-                                {filteredData[selectedView].name} - {filteredData[selectedView].data.length} registos
+                <Box sx={{
+                    flexGrow: 1,
+                    overflow: 'auto',
+                    p: 2,
+                    px: { xs: 2, sm: 3 },
+                    WebkitOverflowScrolling: 'touch',
+                    scrollBehavior: 'smooth'
+                }}>
+                    {selectedView && filteredData[selectedView] && (
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mb: 3,
+                            px: 1
+                        }}>
+                            <Typography variant="h6" fontWeight="medium">
+                                {displayData.length} {displayData.length === 1 ? 'registo' : 'registos'}
                             </Typography>
-
-                            {viewMode === 'grid' ? (
-                                renderGridView()
-                            ) : (
-                                <OperationsTable
-                                    data={sortedData}
-                                    columns={getColumnsForView(selectedView)}
-                                    orderBy={orderBy}
-                                    order={order}
-                                    onRequestSort={handleRequestSort}
-                                    expandedRows={expandedRows}
-                                    toggleRowExpand={toggleRowExpand}
-                                    isRamaisView={isRamaisView}
-                                    getRemainingDaysColor={getRemainingDaysColor}
-                                    getAddressString={getAddressString}
-                                    renderCell={(column, row) => {
-                                        if (column.format) {
-                                            return column.format(row[column.id]);
-                                        }
-                                        if (isRamaisView && column.id === 'restdays') {
-                                            return (
-                                                <Box sx={{
-                                                    color: getRemainingDaysColor(row[column.id]),
-                                                    fontWeight: 'bold'
-                                                }}>
-                                                    {Math.floor(row[column.id])} dias
-                                                </Box>
-                                            );
-                                        }
-                                        return row[column.id || column];
-                                    }}
-                                    onRowClick={handleItemClick}
-                                    sx={{
-                                        '& .MuiTableCell-root': {
-                                            fontSize: '1rem',
-                                            py: 1.5,
-                                            px: 2,
-                                            minHeight: 60
-                                        }
-                                    }}
-                                />
+                            {isOnline && (
+                                <Typography variant="caption" color="text.secondary">
+                                    Última atualização: {new Date().toLocaleTimeString('pt-PT', {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </Typography>
                             )}
+                        </Box>
+                    )}
+
+                    {/* Conteúdo principal */}
+                    {viewMode === 'grid' ? (
+                        <Grid container spacing={3}>
+                            {displayData.map((item, index) => {
+                                const canAct = Number(item.who) === Number(currentUser?.user_id);
+                                const isLastItem = index === displayData.length - 1;
+                                const refProps = isLastItem ? { ref: lastItemRef } : {};
+
+                                return (
+                                    <Grid item xs={12} sm={6} lg={4} key={index} {...refProps}>
+                                        <SwipeableCard
+                                            onSwipeRight={() => handleSwipeRight(index)}
+                                            onSwipeLeft={() => canAct ? handleSwipeLeft(index) : null}
+                                            onSwipeUp={() => handleSwipeUp(index)}
+                                        >
+                                            <Card
+                                                sx={{
+                                                    cursor: 'pointer',
+                                                    position: 'relative',
+                                                    minHeight: 200,
+                                                    transition: 'all 0.3s ease',
+                                                    '&:hover': {
+                                                        transform: 'translateY(-4px)',
+                                                        boxShadow: 6
+                                                    },
+                                                    borderLeft: isRamaisView ?
+                                                        `6px solid ${getRemainingDaysColor(item.restdays)}` :
+                                                        undefined,
+                                                    borderRadius: 3,
+                                                    overflow: 'hidden'
+                                                }}
+                                                onClick={() => handleItemClick(item)}
+                                            >
+                                                <CardContent sx={{ p: 3 }}>
+                                                    {/* Cabeçalho */}
+                                                    <Box display="flex" justifyContent="space-between" mb={2}>
+                                                        <Typography
+                                                            variant="h6"
+                                                            fontWeight="bold"
+                                                            sx={{ fontSize: '1.2rem' }}
+                                                        >
+                                                            {item.regnumber}
+                                                        </Typography>
+
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            {item.who && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={getUserNameByPk(item.who, globalMetaData)}
+                                                                    color={canAct ? "primary" : "default"}
+                                                                    sx={{ maxWidth: 150 }}
+                                                                />
+                                                            )}
+                                                            {canAct ? (
+                                                                <LockOpen fontSize="small" color="success" />
+                                                            ) : (
+                                                                <Lock fontSize="small" color="disabled" />
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+
+                                                    {/* Status para ramais */}
+                                                    {isRamaisView && (
+                                                        <Box mb={2}>
+                                                            <LinearProgress
+                                                                variant="determinate"
+                                                                value={Math.max(0, Math.min(100, (item.restdays / 30) * 100))}
+                                                                sx={{
+                                                                    height: 8,
+                                                                    borderRadius: 4,
+                                                                    bgcolor: 'grey.200',
+                                                                    '& .MuiLinearProgress-bar': {
+                                                                        bgcolor: getRemainingDaysColor(item.restdays),
+                                                                        borderRadius: 4
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <Typography
+                                                                variant="caption"
+                                                                color={getRemainingDaysColor(item.restdays)}
+                                                                sx={{ mt: 0.5, display: 'block' }}
+                                                            >
+                                                                {Math.floor(item.restdays)} dias restantes
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+
+                                                    {/* Informações */}
+                                                    <Stack spacing={1.5}>
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <LocationOn fontSize="small" color="action" />
+                                                            <Typography variant="body2" noWrap>
+                                                                {getAddressString(item)}
+                                                            </Typography>
+                                                        </Box>
+
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <Phone fontSize="small" color="action" />
+                                                            <Typography variant="body2">
+                                                                {item.phone || "Sem contacto"}
+                                                            </Typography>
+                                                        </Box>
+
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <CalendarToday fontSize="small" color="action" />
+                                                            <Typography variant="body2">
+                                                                {item.submission}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Stack>
+
+                                                    {/* Indicadores de ação */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            bottom: 12,
+                                                            right: 12,
+                                                            display: 'flex',
+                                                            gap: 0.5,
+                                                            opacity: 0.7
+                                                        }}
+                                                    >
+                                                        <TouchApp fontSize="small" />
+                                                    </Box>
+                                                </CardContent>
+
+                                                {/* Ações rápidas no hover */}
+                                                <CardActions
+                                                    sx={{
+                                                        justifyContent: 'space-around',
+                                                        p: 1.5,
+                                                        bgcolor: 'action.hover',
+                                                        borderTop: 1,
+                                                        borderColor: 'divider'
+                                                    }}
+                                                >
+                                                    <Tooltip title="Navegar">
+                                                        <IconButton
+                                                            size="large"
+                                                            color="primary"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleNavigate(item);
+                                                            }}
+                                                        >
+                                                            <MyLocation />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    {item.phone && (
+                                                        <Tooltip title="Ligar">
+                                                            <IconButton
+                                                                size="large"
+                                                                color="success"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleCall(item);
+                                                                }}
+                                                            >
+                                                                <Phone />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                    {canAct && (
+                                                        <Tooltip title="Ações">
+                                                            <IconButton
+                                                                size="large"
+                                                                color="secondary"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedItem(item);
+                                                                    setActionDrawer(true);
+                                                                }}
+                                                            >
+                                                                <MoreVert />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                </CardActions>
+                                            </Card>
+                                        </SwipeableCard>
+                                    </Grid>
+                                );
+                            })}
+                        </Grid>
+                    ) : (
+                        <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
+                            <OperationsTable
+                                data={displayData}
+                                columns={getColumnsForView(selectedView, globalMetaData)}
+                                orderBy={orderBy}
+                                order={order}
+                                onRequestSort={handleRequestSort}
+                                expandedRows={expandedRows}
+                                toggleRowExpand={toggleRowExpand}
+                                isRamaisView={isRamaisView}
+                                getRemainingDaysColor={getRemainingDaysColor}
+                                getAddressString={getAddressString}
+                                renderCell={renderCell}
+                                onRowClick={handleItemClick}
+                                sx={{
+                                    '& .MuiTableRow-root': {
+                                        minHeight: 72,
+                                        cursor: 'pointer',
+                                        '&:hover': {
+                                            backgroundColor: 'action.hover'
+                                        }
+                                    }
+                                }}
+                            />
+                        </Paper>
+                    )}
+
+                    {/* Loading mais itens */}
+                    {isRefreshing && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                            <CircularProgress />
                         </Box>
                     )}
                 </Box>
             </PullToRefresh>
 
-            {/* FABs de ação rápida */}
-            <QuickActionsFab
-                selectedItem={selectedItem}
-                onNavigate={handleNavigate}
-                onCall={handleCall}
-                onComplete={handleMarkComplete}
-                onFilter={() => setFilterDrawer(true)}
-            />
+            {/* FABs flutuantes */}
+            <SpeedDial
+                ariaLabel="Ações rápidas"
+                sx={{ position: 'fixed', bottom: 24, right: 24 }}
+                icon={<SpeedDialIcon />}
+                direction="up"
+            >
+                <SpeedDialAction
+                    icon={<FilterList />}
+                    tooltipTitle="Filtros"
+                    onClick={() => setFilterDrawer(true)}
+                />
+                {selectedItem && Number(selectedItem.who) === Number(currentUser?.user_id) && (
+                    <SpeedDialAction
+                        icon={<CheckCircle />}
+                        tooltipTitle="Concluir"
+                        onClick={() => handleMarkComplete()}
+                    />
+                )}
+                {selectedItem && (
+                    <SpeedDialAction
+                        icon={<MyLocation />}
+                        tooltipTitle="Navegar"
+                        onClick={() => handleNavigate(selectedItem)}
+                    />
+                )}
+                {selectedItem?.phone && (
+                    <SpeedDialAction
+                        icon={<Phone />}
+                        tooltipTitle="Ligar"
+                        onClick={() => handleCall(selectedItem)}
+                    />
+                )}
+            </SpeedDial>
 
             {/* Drawer de filtros */}
             <SwipeableDrawer
@@ -900,6 +1252,11 @@ const TabletOperations = ({
                 onClose={() => setFilterDrawer(false)}
                 onOpen={() => setFilterDrawer(true)}
                 disableSwipeToOpen
+                disableBackdropTransition // Adiciona isto
+                disableDiscovery // Adiciona isto
+                ModalProps={{
+                    keepMounted: false
+                }}
                 PaperProps={{
                     sx: {
                         borderTopLeftRadius: 20,
@@ -1039,6 +1396,11 @@ const TabletOperations = ({
                 onClose={() => setDetailsDrawer(false)}
                 onOpen={() => setDetailsDrawer(true)}
                 disableSwipeToOpen
+                disableBackdropTransition // Adiciona isto
+                disableDiscovery // Adiciona isto
+                ModalProps={{
+                    keepMounted: false
+                }}
                 PaperProps={{
                     sx: {
                         borderTopLeftRadius: 16,
@@ -1054,27 +1416,49 @@ const TabletOperations = ({
 
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="h6">{selectedItem.regnumber}</Typography>
-                            <Box>
-                                <Tooltip title="Adicionar passo">
-                                    <IconButton color="primary" onClick={handleActionClick}>
-                                        <Send />
-                                    </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Navegar até local">
-                                    <IconButton color="secondary" onClick={() => handleNavigate(selectedItem)}>
-                                        <MyLocation />
-                                    </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Ligar">
-                                    <IconButton
-                                        color="success"
-                                        onClick={() => handleCall(selectedItem)}
-                                        disabled={!selectedItem.phone}
-                                    >
-                                        <Phone />
-                                    </IconButton>
-                                </Tooltip>
-                            </Box>
+
+                            {Number(selectedItem.who) === Number(currentUser?.user_id) ? (
+                                // Mostra botões se tem permissão
+                                <Box>
+                                    <Tooltip title="Adicionar passo">
+                                        <IconButton color="primary" onClick={handleActionClick}>
+                                            <Send />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Navegar até local">
+                                        <IconButton color="secondary" onClick={() => handleNavigate(selectedItem)}>
+                                            <MyLocation />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Ligar">
+                                        <IconButton
+                                            color="success"
+                                            onClick={() => handleCall(selectedItem)}
+                                            disabled={!selectedItem.phone}
+                                        >
+                                            <Phone />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                            ) : (
+                                // Apenas navegação e telefone se não tem permissão
+                                <Box>
+                                    <Tooltip title="Navegar até local">
+                                        <IconButton color="secondary" onClick={() => handleNavigate(selectedItem)}>
+                                            <MyLocation />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Ligar">
+                                        <IconButton
+                                            color="success"
+                                            onClick={() => handleCall(selectedItem)}
+                                            disabled={!selectedItem.phone}
+                                        >
+                                            <Phone />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                            )}
                         </Box>
 
                         <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 2, mb: 2 }}>
@@ -1129,40 +1513,50 @@ const TabletOperations = ({
                         </Paper>
 
                         <Box display="flex" justifyContent="space-around" mt={3}>
-                            {isFossaView ? (
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    startIcon={<CheckCircle />}
-                                    onClick={handleCompleteProcess}
-                                    fullWidth
-                                    sx={{ py: 1.5 }}
-                                >
-                                    Concluir Serviço
-                                </Button>
-                            ) : (
-                                <>
+                            {/* Verificar se o pedido está atribuído ao utilizador atual */}
+                            {Number(selectedItem.who) === Number(currentUser?.user_id) ? (
+                                // Mostrar botões de ações se atribuído ao utilizador
+                                isFossaView ? (
                                     <Button
                                         variant="contained"
-                                        color="primary"
-                                        startIcon={<Send />}
-                                        onClick={handleActionClick}
-                                        fullWidth
-                                        sx={{ mr: 1, py: 1.5 }}
-                                    >
-                                        Adicionar Passo
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
                                         color="success"
                                         startIcon={<CheckCircle />}
-                                        onClick={handleMarkComplete}
+                                        onClick={handleCompleteProcess}
                                         fullWidth
-                                        sx={{ ml: 1, py: 1.5 }}
+                                        sx={{ py: 1.5 }}
                                     >
-                                        Marcar Concluído
+                                        Concluir Serviço
                                     </Button>
-                                </>
+                                ) : (
+                                    <>
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            startIcon={<Send />}
+                                            onClick={handleActionClick}
+                                            fullWidth
+                                            sx={{ mr: 1, py: 1.5 }}
+                                        >
+                                            Adicionar Passo
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            color="success"
+                                            startIcon={<CheckCircle />}
+                                            onClick={handleMarkComplete}
+                                            fullWidth
+                                            sx={{ ml: 1, py: 1.5 }}
+                                        >
+                                            Marcar Concluído
+                                        </Button>
+                                    </>
+                                )
+                            ) : (
+                                // Mostrar mensagem se não atribuído ao utilizador
+                                <Alert severity="info" sx={{ width: '100%' }}>
+                                    Este pedido está atribuído a {getUserNameByPk(selectedItem.who, globalMetaData)}.
+                                    Não tem permissões para executar ações neste pedido.
+                                </Alert>
                             )}
                         </Box>
                     </Box>
@@ -1176,6 +1570,11 @@ const TabletOperations = ({
                 onClose={() => setActionDrawer(false)}
                 onOpen={() => setActionDrawer(true)}
                 disableSwipeToOpen
+                disableBackdropTransition // Adiciona isto
+                disableDiscovery // Adiciona isto
+                ModalProps={{
+                    keepMounted: false
+                }}
                 PaperProps={{
                     sx: {
                         borderTopLeftRadius: 16,
@@ -1186,8 +1585,6 @@ const TabletOperations = ({
                 }}
             >
                 <Box sx={{ p: 2 }}>
-                    <Box sx={{ width: '100px', height: '4px', bgcolor: 'grey.300', borderRadius: '2px', mx: 'auto', mb: 2 }} />
-
                     <Typography variant="h6" gutterBottom align="center">
                         Ações para {selectedItem?.regnumber || ""}
                     </Typography>
@@ -1203,8 +1600,7 @@ const TabletOperations = ({
                             <ListItemText primary="Adicionar Passo" secondary="Atualiza o estado do pedido" />
                         </ListItemButton>
 
-                        <ListItem
-                            button
+                        <ListItemButton
                             onClick={handleAddAnnex}
                             sx={{ borderRadius: 2, mb: 1 }}
                         >
@@ -1212,10 +1608,9 @@ const TabletOperations = ({
                                 <Attachment color="secondary" />
                             </ListItemIcon>
                             <ListItemText primary="Adicionar Anexo" secondary="Fotos ou documentos" />
-                        </ListItem>
+                        </ListItemButton>
 
-                        <ListItem
-                            button
+                        <ListItemButton
                             onClick={handleMarkComplete}
                             sx={{ borderRadius: 2, mb: 1 }}
                         >
@@ -1223,7 +1618,7 @@ const TabletOperations = ({
                                 <CheckCircle color="success" />
                             </ListItemIcon>
                             <ListItemText primary="Marcar Concluído" secondary="Finaliza o processo" />
-                        </ListItem>
+                        </ListItemButton>
 
                         <ListItemButton
                             onClick={() => handleNavigate(selectedItem)}

@@ -16,7 +16,14 @@ export const formatDate = (value) => {
     });
 };
 
-export const getColumnsForView = (viewName) => {
+export const getUserNameByPk = (userPk, metaData) => {
+    if (!userPk || !metaData?.who) return "Não atribuído";
+
+    const user = metaData.who.find(u => u.pk === Number(userPk));
+    return user ? user.name : `Utilizador #${userPk}`;  // Mudar 'nome' para 'name'
+};
+
+export const getColumnsForView = (viewName, metaData = null) => {
     const baseColumns = [
         { id: "regnumber", label: "Nº Processo" },
         {
@@ -26,6 +33,11 @@ export const getColumnsForView = (viewName) => {
         },
         { id: "ts_entity", label: "Requerente" },
         { id: "phone", label: "Contacto" },
+        {
+            id: "who",
+            label: "Atribuído a",
+            format: (value) => getUserNameByPk(value, metaData)
+        }
     ];
 
     const viewSpecificColumns = {
