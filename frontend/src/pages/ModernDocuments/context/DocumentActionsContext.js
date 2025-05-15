@@ -292,37 +292,46 @@ export const DocumentActionsProvider = ({ children }) => {
         setOpenDocuments(prev => prev.filter(item => String(item.modalInstanceKey) !== String(modalKey)));
     }, []);
 
+    // Atualizar o handler de closeStepModal
     const handleCloseStepModal = useCallback((success) => {
         const result = closeModal('step', success);
         if (result) {
             smartRefresh('ADD_STEP', {
                 documentId: selectedDocument?.pk,
-                statusChanged: true // se o status mudou
+                statusChanged: true // Isto deve ser determinado com base nas mudanças reais
             });
             showNotification('Passo adicionado com sucesso', 'success');
         }
     }, [closeModal, selectedDocument, smartRefresh, showNotification]);
 
+    // Atualizar o handler de closeAnnexModal
     const handleCloseAnnexModal = useCallback((success) => {
         const result = closeModal('annex', success);
         if (result) {
+            smartRefresh('ADD_ANNEX', {
+                documentId: selectedDocument?.pk
+            });
             showNotification('Anexo adicionado com sucesso', 'success');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal, selectedDocument, smartRefresh, showNotification]);
 
+    // Atualizar o handler de closeReplicateModal
     const handleCloseReplicateModal = useCallback((success) => {
         const result = closeModal('replicate', success);
         if (result) {
+            smartRefresh('REPLICATE');
             showNotification('Documento replicado com sucesso', 'success');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal, smartRefresh, showNotification]);
 
+    // Atualizar o handler de closeCreateModal
     const handleCloseCreateModal = useCallback((success) => {
         const result = closeModal('create', success);
         if (result) {
+            smartRefresh('CREATE_DOCUMENT');
             showNotification('Pedido criado com sucesso', 'success');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal, smartRefresh, showNotification]);
 
     // Verificação de disponibilidade de features
     const canAddStep = checkFeatureAvailability('addStep');

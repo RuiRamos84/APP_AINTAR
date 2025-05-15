@@ -1,58 +1,89 @@
 // frontend/src/pages/ModernDocuments/hooks/useSmartRefresh.js
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useDocumentsContext } from '../context/DocumentsContext';
 
 export const useSmartRefresh = () => {
     const refreshQueue = useRef(new Set());
+    const queueProcessingTimeout = useRef(null);
     const {
         fetchAllDocuments,
         fetchAssignedDocuments,
         fetchCreatedDocuments,
-        updateDocumentInList,
         refreshDocument
     } = useDocumentsContext();
 
-    const enqueueRefresh = useCallback((refreshType, documentId = null) => {
-        refreshQueue.current.add({ type: refreshType, documentId });
+    // Limpar timeout ao desmontar componente
+    useEffect(() => {
+        return () => {
+            if (queueProcessingTimeout.current) {
+                clearTimeout(queueProcessingTimeout.current);
+            }
+        };
+    }, []);
+
+    const enqueueRefresh = useCallback((refreshType, context = {}) => {
+        refreshQueue.current.add({ type: refreshType, ...context });
     }, []);
 
     const processRefreshQueue = useCallback(async () => {
+        if (refreshQueue.current.size === 0) return;
+
         const queue = Array.from(refreshQueue.current);
         refreshQueue.current.clear();
 
-        // Agrupar atualizações por tipo
-        const hasListUpdate = queue.some(item =>
-            ['all', 'assigned', 'created'].includes(item.type)
-        );
+        console.log('[SmartRefresh] Processando fila:', queue);
 
-        const documentUpdates = queue
-            .filter(item => item.type === 'document')
+        // Agrupar operações por tipo
+        const needsAllRefresh = queue.some(item => item.type === 'all');
+        const needsAssignedRefresh = queue.some(item => item.type === 'assigned');
+        const needsCreatedRefresh = queue.some(item => item.type === 'created');
+
+        // Documentos individuais para atualizar
+        const documentIds = queue
+            .filter(item => item.type === 'document' && item.documentId)
             .map(item => item.documentId);
 
-        // Executar atualizações otimizadas
+        // Executar atualizações em paralelo
         const promises = [];
 
-        if (hasListUpdate) {
-            if (queue.some(item => item.type === 'all')) promises.push(fetchAllDocuments());
-            if (queue.some(item => item.type === 'assigned')) promises.push(fetchAssignedDocuments());
-            if (queue.some(item => item.type === 'created')) promises.push(fetchCreatedDocuments());
-        }
+        if (needsAllRefresh) promises.push(fetchAllDocuments());
+        if (needsAssignedRefresh) promises.push(fetchAssignedDocuments());
+        if (needsCreatedRefresh) promises.push(fetchCreatedDocuments());
 
         // Atualizar documentos individuais
-        documentUpdates.forEach(docId => {
+        const uniqueDocumentIds = [...new Set(documentIds)];
+        uniqueDocumentIds.forEach(docId => {
             promises.push(refreshDocument(docId));
         });
 
-        await Promise.all(promises);
+        // Disparar eventos para notificar componentes
+        if (uniqueDocumentIds.length > 0) {
+            uniqueDocumentIds.forEach(docId => {
+                window.dispatchEvent(new CustomEvent('document-refreshed', {
+                    detail: { documentId: docId }
+                }));
+            });
+        }
+
+        try {
+            await Promise.all(promises);
+            console.log('[SmartRefresh] Atualização concluída');
+        } catch (error) {
+            console.error('[SmartRefresh] Erro ao atualizar dados:', error);
+        }
     }, [fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, refreshDocument]);
 
     const smartRefresh = useCallback((action, context = {}) => {
-        const { documentId, tabType, statusChanged, ownerChanged } = context;
+        const { documentId, statusChanged, documentTypeChanged, ownerChanged } = context;
+
+        console.log(`[SmartRefresh] Ação: ${action}, Contexto:`, context);
 
         switch (action) {
             case 'ADD_STEP':
-                // Atualizar sempre o documento e lista "para tratamento"
-                enqueueRefresh('document', documentId);
+                // Sempre atualiza o documento específico
+                enqueueRefresh('document', { documentId });
+
+                // Se o status mudou, também atualiza as listas
                 if (statusChanged) {
                     enqueueRefresh('assigned');
                     enqueueRefresh('all');
@@ -60,43 +91,54 @@ export const useSmartRefresh = () => {
                 break;
 
             case 'ADD_ANNEX':
-                // Só atualizar o documento
-                enqueueRefresh('document', documentId);
+                // Apenas atualiza o documento específico
+                enqueueRefresh('document', { documentId });
                 break;
 
             case 'REPLICATE':
-                // Atualizar todas as listas
+                // Sempre atualiza todas as listas pois um novo documento foi criado
+                enqueueRefresh('all');
+                enqueueRefresh('created');
+                break;
+
+            case 'CREATE_DOCUMENT':
+                // Atualiza todas as listas
                 enqueueRefresh('all');
                 enqueueRefresh('created');
                 break;
 
             case 'UPDATE_PARAMS':
-                // Só atualizar o documento
-                enqueueRefresh('document', documentId);
-                break;
-
-            case 'CREATE_DOCUMENT':
-                // Atualizar todas as listas
-                enqueueRefresh('all');
-                enqueueRefresh('created');
+                // Apenas atualiza o documento específico
+                enqueueRefresh('document', { documentId });
                 break;
 
             case 'UPDATE_STATUS':
-                // Atualizar documento e listas afetadas
-                enqueueRefresh('document', documentId);
-                enqueueRefresh('all');
-                if (statusChanged) enqueueRefresh('assigned');
+                // Atualiza documento e possivelmente listas
+                enqueueRefresh('document', { documentId });
+
+                if (statusChanged) {
+                    enqueueRefresh('all');
+                    enqueueRefresh('assigned');
+                }
+                break;
+
+            case 'UPDATE_PAYMENT':
+                // Atualiza apenas o documento específico
+                enqueueRefresh('document', { documentId });
                 break;
 
             default:
-                // Refresh completo como fallback
+                // Fallback para atualização completa
                 enqueueRefresh('all');
                 enqueueRefresh('assigned');
                 enqueueRefresh('created');
         }
 
-        // Processar queue com debounce
-        setTimeout(processRefreshQueue, 100);
+        // Debounce o processamento da fila para colapsar múltiplas atualizações
+        if (queueProcessingTimeout.current) {
+            clearTimeout(queueProcessingTimeout.current);
+        }
+        queueProcessingTimeout.current = setTimeout(processRefreshQueue, 300);
     }, [enqueueRefresh, processRefreshQueue]);
 
     return { smartRefresh };

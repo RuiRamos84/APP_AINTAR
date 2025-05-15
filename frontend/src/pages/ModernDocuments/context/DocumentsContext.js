@@ -187,6 +187,32 @@ export const DocumentsProvider = ({ children }) => {
         return assignedDocuments.filter(doc => doc.notification === 1).length;
     };
 
+    // Adicionar uma função de atualização seletiva
+    const refreshDocumentSelective = useCallback(async (documentId, updateTypes = []) => {
+        if (!documentId) return;
+
+        try {
+            const response = await getDocumentById(documentId);
+            if (response?.document) {
+                updateDocumentInList(response.document);
+
+                // Disparar evento para atualizar componentes específicos
+                window.dispatchEvent(new CustomEvent('document-refreshed', {
+                    detail: {
+                        documentId,
+                        document: response.document,
+                        updateTypes
+                    }
+                }));
+
+                return response.document;
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar documento:', error);
+        }
+        return null;
+    }, [updateDocumentInList]);
+
     // Objeto com todos os valores e funções para o contexto
     const contextValue = {
         // Dados
@@ -208,6 +234,7 @@ export const DocumentsProvider = ({ children }) => {
         fetchCreatedDocuments,
         refreshDocuments,
         refreshDocument,
+        refreshDocumentSelective,
 
 
         // Métodos para visualização

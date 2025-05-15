@@ -42,6 +42,7 @@ import {
     notifySuccess,
     notifyError,
 } from '../../../../../components/common/Toaster/ThemedToaster';
+import { useSmartRefresh } from '../../hooks/useSmartRefresh';
 
 // Helpers
 const normalizeZoneName = (zoneName) => {
@@ -70,6 +71,7 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
     const [openParamModal, setOpenParamModal] = useState(false);
     const [savingParams, setSavingParams] = useState(false);
     const [etars, setEtars] = useState([]);
+    const { smartRefresh } = useSmartRefresh();
 
     // Fetch parameters
     const fetchParams = useCallback(async () => {
@@ -119,7 +121,6 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
         try {
             const paramsToSend = updatedParams.map(param => ({
                 pk: Number(param.pk),
-                // IMPORTANTE: Não forçar "0" como padrão para booleanos
                 value: param.value !== null && param.value !== undefined ? String(param.value) : "",
                 memo: String(param.memo || "")
             }));
@@ -131,16 +132,28 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
                 updateContextParams(document.pk, updatedParams);
             }
 
+            // Disparar evento para notificar componentes interessados
+            window.dispatchEvent(new CustomEvent('document-updated', {
+                detail: {
+                    documentId: document.pk,
+                    type: 'params-updated'
+                }
+            }));
+
+            // Usar o sistema de refresh inteligente
+            smartRefresh('UPDATE_PARAMS', {
+                documentId: document.pk
+            });
+
             setOpenParamModal(false);
             notifySuccess("Parâmetros atualizados com sucesso");
-
         } catch (error) {
             console.error("Error saving parameters:", error);
             notifyError(error.message || "Erro ao atualizar parâmetros");
         } finally {
             setSavingParams(false);
         }
-    }, [document.pk, updateContextParams]);
+    }, [document.pk, updateContextParams, smartRefresh]);
 
     // Get display value for parameter
     const getDisplayValueForParam = useCallback((param) => {

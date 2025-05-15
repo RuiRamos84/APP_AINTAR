@@ -227,6 +227,27 @@ const DocumentModal = ({
         }
     };
 
+    const fetchParams = async () => {
+    if (!document || !document.pk) return;
+    
+    try {
+        const response = await getDocumentTypeParams(document.pk);
+        // Atualizar os parâmetros no estado local ou passar para a tab relevante
+        if (response && response.params) {
+            // Se houver uma referência à tab de parâmetros, atualizar diretamente
+            const paramTabRef = /* referência à tab se disponível */;
+            if (paramTabRef && paramTabRef.current) {
+                paramTabRef.current.updateParams(response.params);
+            } else {
+                // Guardar para atualização posterior
+                setDocumentParams(response.params);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao carregar parâmetros:', error);
+    }
+};
+
     // Manipulador de mudança de tab
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
@@ -303,27 +324,51 @@ const DocumentModal = ({
     // Esta função será usada para verificar periodicamente se os dados precisam ser atualizados
     const [needsRefresh, setNeedsRefresh] = useState(false);
 
-    // Substituir polling por sistema de eventos
     useEffect(() => {
         const handleDocumentUpdate = (event) => {
             // Verificar se o evento é para este documento específico
             if (event.detail &&
-                (event.detail.documentId === document?.pk ||
-                    event.detail.documentId === String(document?.pk))) {
+                event.detail.documentId === document?.pk) {
 
-                console.log("[DEBUG] Atualizando dados do documento:", document?.pk);
-                refreshData();
+                console.log("Atualizando dados do documento:", document?.pk);
+
+                // Atualizar apenas os dados necessários com base no tipo de operação
+                const updateType = event.detail.type;
+
+                if (updateType === 'step-added' || updateType === 'status-changed') {
+                    fetchSteps();
+                }
+
+                if (updateType === 'annex-added') {
+                    fetchAnnexes();
+                }
+
+                if (updateType === 'params-updated') {
+                    fetchParams();
+                }
+
+                // Para atualizações completas ou desconhecidas
+                if (!updateType || updateType === 'full-update') {
+                    Promise.all([
+                        fetchSteps(),
+                        fetchAnnexes(),
+                        fetchParams(),
+                        fetchInvoiceAmount()
+                    ]);
+                }
             }
         };
 
         // Registrar o listener
         window.addEventListener('document-updated', handleDocumentUpdate);
+        window.addEventListener('document-refreshed', handleDocumentUpdate);
 
         // Limpar o listener quando o componente for desmontado
         return () => {
             window.removeEventListener('document-updated', handleDocumentUpdate);
+            window.removeEventListener('document-refreshed', handleDocumentUpdate);
         };
-    }, [document?.pk, refreshData]);
+    }, [document?.pk, fetchSteps, fetchAnnexes, fetchParams, fetchInvoiceAmount]);
 
     useEffect(() => {
         // Quando o invoice amount mudar, pode mudar o layout das tabs
