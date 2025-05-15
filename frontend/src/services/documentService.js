@@ -168,38 +168,22 @@ export const createDocument = async (documentData) => {
   }
 };
 
-export const getDocumentTypeParams = async (typeId) => {
+export const getDocumentTypeParams = async (documentId) => {
   try {
-    const response = await api.get(`/document_type_params/${typeId}`);
-    console.log('parametro', response.data);
+    const response = await api.get(`/document/${documentId}/params`);
     return response.data;
   } catch (error) {
-    console.error("Erro ao buscar parâmetros do tipo de documento:", error);
+    console.error("Erro ao buscar parâmetros:", error);
     throw error;
   }
 };
 
 export const updateDocumentParams = async (documentId, paramsData) => {
   try {
-    // Debug: Log what we're sending
-    // console.log('Sending params to server:', paramsData);
-
-    // Verify if paramsData is an array or has a params property
     const params = Array.isArray(paramsData) ? paramsData : paramsData.params;
-
-    if (!Array.isArray(params)) {
-      throw new Error("Params must be an array");
-    }
-
-    const response = await api.put(`/document_type_params/${documentId}`, params, {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-
+    const response = await api.put(`/document/${documentId}/params`, params);
     return response.data;
   } catch (error) {
-    console.error('Error in updateDocumentParams:', error);
     throw error;
   }
 };
@@ -237,14 +221,9 @@ export const downloadComprovativo = async (documentId) => {
 };
 
 export const getDocumentRamais = async () => {
-  try {
-    const response = await api.get("/document_ramais");
-    // console.log(response.data);
-    return response.data.ramais
-  } catch (error) {
-    console.error("Erro ao buscar ramais:", error);
-    throw error;
-  }
+  const response = await api.get("/document_ramais");
+  // console.log(response.data);
+  return response.data.ramais;
 };
 
 export const updateDocumentPavenext = async (pk) => {

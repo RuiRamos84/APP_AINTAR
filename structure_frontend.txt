@@ -17,8 +17,8 @@
 │   │   └── notification.mp3
 │   └── static
 │       ├── css
-│       │   ├── main.69e375e4.css
-│       │   └── main.69e375e4.css.map
+│       │   ├── main.94ceef82.css
+│       │   └── main.94ceef82.css.map
 │       └── js
 │           ├── 133.44f8238a.chunk.js
 │           ├── 133.44f8238a.chunk.js.LICENSE.txt
@@ -28,11 +28,13 @@
 │           ├── 239.dfdb0d71.chunk.js.map
 │           ├── 455.ec63873d.chunk.js
 │           ├── 455.ec63873d.chunk.js.map
+│           ├── 521.d7a9c49e.chunk.js
+│           ├── 521.d7a9c49e.chunk.js.map
 │           ├── 977.d75cf9f7.chunk.js
 │           ├── 977.d75cf9f7.chunk.js.LICENSE.txt
-│           ├── main.ff2e152d.js
-│           ├── main.ff2e152d.js.LICENSE.txt
-│           └── main.ff2e152d.js.map
+│           ├── main.88d22df0.js
+│           ├── main.88d22df0.js.LICENSE.txt
+│           └── main.88d22df0.js.map
 ├── eslint.config.mjs
 ├── loadEnv.js
 ├── package-lock.json
@@ -102,9 +104,13 @@
 │   ├── features
 │   │   └── Payment
 │   │       ├── components
+│   │       │   ├── BankTransferPayment.js
 │   │       │   ├── CardPayment.js
+│   │       │   ├── CashPayment.js
 │   │       │   ├── MBWayPayment.js
 │   │       │   ├── MultibancoPayment.js
+│   │       │   ├── PaymentAdminPage.js
+│   │       │   ├── PaymentApproval.js
 │   │       │   ├── PaymentMethodSelector.js
 │   │       │   ├── PaymentModule.js
 │   │       │   ├── PaymentReceipt.js
@@ -115,11 +121,13 @@
 │   │       │   └── usePayment.js
 │   │       ├── index.js
 │   │       ├── modals
+│   │       │   ├── DocumentPaymentFlow.js
 │   │       │   └── PaymentDialog.js
 │   │       ├── services
 │   │       │   ├── paymentService.js
 │   │       │   └── paymentTypes.js
 │   │       └── utils
+│   │           ├── paymentIntegration.js
 │   │           └── paymentUtils.js
 │   ├── hooks
 │   │   ├── useDeliveries.js
@@ -295,6 +303,7 @@
 │   │   │   │   │   └── LoadingState.js
 │   │   │   │   ├── filters
 │   │   │   │   │   ├── DocumentFilters.js
+│   │   │   │   │   ├── DocumentSorting.js
 │   │   │   │   │   └── FilterableSearch.js
 │   │   │   │   ├── layout
 │   │   │   │   │   ├── FloatingActionButton.js
@@ -353,16 +362,18 @@
 │   │   │   │   │       ├── AttachmentsTab.js
 │   │   │   │   │       ├── DetailsTab.js
 │   │   │   │   │       ├── HistoryTab.js
-│   │   │   │   │       └── ParametersTab.js
-│   │   │   │   ├── payment
-│   │   │   │   │   └── DocumentPaymentFlow.js
+│   │   │   │   │       ├── ParametersTab.js
+│   │   │   │   │       └── PaymentsTab .js
 │   │   │   │   └── ReplicateDocumentModal.js
 │   │   │   ├── reducers
 │   │   │   │   └── DocumentManagerReducer.js
 │   │   │   ├── styles
 │   │   │   │   └── documentStyles.js
 │   │   │   ├── utils
+│   │   │   │   ├── DateUtils.js
+│   │   │   │   ├── DocumentFilterUtils.js
 │   │   │   │   ├── documentUtils.js
+│   │   │   │   ├── ExcelExporter.js
 │   │   │   │   ├── featureUtils.js
 │   │   │   │   ├── fileUtils.js
 │   │   │   │   └── statusUtils.js
@@ -373,12 +384,70 @@
 │   │   │       └── ListView.js
 │   │   ├── Operação
 │   │   │   ├── AssociateFilter.js
+│   │   │   ├── components
+│   │   │   │   ├── AssociateFilter
+│   │   │   │   │   └── AssociateFilter.js
+│   │   │   │   ├── common
+│   │   │   │   │   ├── ConnectionStatus.js
+│   │   │   │   │   ├── PullToRefresh.js
+│   │   │   │   │   └── QuickActionsFab.js
+│   │   │   │   ├── OperationCard
+│   │   │   │   │   ├── OperationCard.js
+│   │   │   │   │   └── OperationCard.styles.js
+│   │   │   │   ├── OperationsTable
+│   │   │   │   │   ├── OperationsTable.js
+│   │   │   │   │   └── TableDetails.js
+│   │   │   │   ├── SwipeableCard
+│   │   │   │   │   └── SwipeableCard.js
+│   │   │   │   └── ViewCards
+│   │   │   │       └── ViewCards.js
+│   │   │   ├── containers
+│   │   │   │   ├── ActionDrawer
+│   │   │   │   │   └── ActionDrawer.js
+│   │   │   │   ├── DetailsDrawer
+│   │   │   │   │   └── DetailsDrawer.js
+│   │   │   │   ├── OperationsContainer.js
+│   │   │   │   └── TabletOperationsContainer.js
 │   │   │   ├── exportService.js
+│   │   │   ├── hooks
+│   │   │   │   ├── useGestureNavigation.js
+│   │   │   │   ├── useOfflineSync.js
+│   │   │   │   ├── useOperations.js
+│   │   │   │   ├── useOperationsData.js
+│   │   │   │   ├── useOperationsFiltering.js
+│   │   │   │   ├── useOperationsTable.js
+│   │   │   │   └── usePageNavigation.js
+│   │   │   ├── modals
+│   │   │   │   ├── CompletionModal
+│   │   │   │   │   └── CompletionModal.js
+│   │   │   │   └── ParametersModal
+│   │   │   │       ├── ParametersModal.js
+│   │   │   │       └── SimpleParametersEditor.js
 │   │   │   ├── Operations.css
 │   │   │   ├── Operations.js
 │   │   │   ├── operationsHelpers.js
 │   │   │   ├── OperationsTable.js
+│   │   │   ├── services
+│   │   │   │   ├── exportService.js
+│   │   │   │   ├── operationsService.js
+│   │   │   │   └── syncService.js
+│   │   │   ├── SimpleParametersEditor.js
+│   │   │   ├── store
+│   │   │   │   ├── filtersStore.js
+│   │   │   │   └── operationsStore.js
+│   │   │   ├── styles
+│   │   │   │   ├── Operations.styles.js
+│   │   │   │   └── theme.js
 │   │   │   ├── TableDetails.js
+│   │   │   ├── TabletOperations.js
+│   │   │   ├── useGestureNavigation.js
+│   │   │   ├── useOfflineSync.js
+│   │   │   ├── useOperationsData.js
+│   │   │   ├── utils
+│   │   │   │   ├── constants.js
+│   │   │   │   ├── formatters.js
+│   │   │   │   ├── operationsHelpers.js
+│   │   │   │   └── validators.js
 │   │   │   └── ViewCards.js
 │   │   ├── PasswordRecovery
 │   │   │   ├── PasswordRecovery.css

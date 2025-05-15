@@ -158,8 +158,7 @@ def add_document_step(data, pk, current_user):
         raise APIError("Recurso não encontrado", 404, "ERR_NOT_FOUND") 
         
 
-
-@cache_result(timeout=60)
+# @cache_result(timeout=60)
 def get_document_type_param(current_user, type_id):
     """Obter parâmetros do tipo de documento"""
     try:
@@ -208,12 +207,12 @@ def update_document_params(current_user, document_id, data):
             if not doc:
                 raise ResourceNotFoundError("Documento", document_id)
 
-            # Processar parâmetros
-            params_to_update = data.get(
-                'params', data) if isinstance(data, dict) else data
-            if not isinstance(params_to_update, list):
-                raise APIError('Formato de parâmetros inválido',
-                               400, "ERR_INVALID_FORMAT")
+            # Data já é um array aqui, não precisa do .get('params')
+            params_to_update = data if isinstance(data, list) else []
+
+            if not params_to_update:
+                raise APIError('Nenhum parâmetro para atualizar',
+                               400, "ERR_NO_PARAMS")
 
             update_count = 0
             try:
@@ -279,7 +278,10 @@ def update_document_params(current_user, document_id, data):
     except Exception as e:
         current_app.logger.error(
             f"Erro inesperado ao atualizar parâmetros: {str(e)}")
-        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+        return {
+            'success': False,
+            'error': str(e)
+        }, 500
 
 
 def update_document_pavenext(pk, current_user):

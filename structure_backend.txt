@@ -4,7 +4,24 @@
 ├── app
 │   ├── blacklist.py
 │   ├── models
+│   │   ├── document.py
+│   │   ├── entity.py
+│   │   ├── epi.py
+│   │   ├── etar_ee.py
+│   │   ├── letter.py
 │   │   ├── models.py
+│   │   ├── payment.py
+│   │   ├── task.py
+│   │   ├── user.py
+│   │   ├── __init__.py
+│   ├── repositories
+│   │   ├── base_repository.py
+│   │   ├── document_repository.py
+│   │   ├── entity_repository.py
+│   │   ├── etar_ee_repository.py
+│   │   ├── payment_repository.py
+│   │   ├── task_repository.py
+│   │   ├── user_repository.py
 │   │   ├── __init__.py
 │   ├── routes
 │   │   ├── auth_routes.py
@@ -24,6 +41,15 @@
 │   ├── services
 │   │   ├── auth_service.py
 │   │   ├── dashboard_service.py
+│   │   ├── documents
+│   │   │   ├── attachments.py
+│   │   │   ├── core.py
+│   │   │   ├── replication.py
+│   │   │   ├── reports.py
+│   │   │   ├── specialized.py
+│   │   │   ├── utils.py
+│   │   │   ├── workflow.py
+│   │   │   ├── __init__.py
 │   │   ├── documents_service.py
 │   │   ├── entity_service.py
 │   │   ├── epi_service.py
@@ -42,6 +68,7 @@
 │   │   ├── __init__.py
 │   ├── uploads
 │   ├── utils
+│   │   ├── error_handler.py
 │   │   ├── FORMULARIO_AINTAR_V04.pdf
 │   │   ├── FORMULARIO_AINTAR_V05.docx
 │   │   ├── FORMULARIO_AINTAR_V05.pdf
@@ -51,6 +78,7 @@
 │   │   │   ├── OficioLivre.docx
 │   │   │   └── OficioLivre.html
 │   │   ├── logo_aintar.png
+│   │   ├── serializers.py
 │   │   ├── utils.py
 │   │   ├── __init__.py
 │   ├── __init__.py

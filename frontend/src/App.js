@@ -41,8 +41,10 @@ import InternalArea from "./pages/Internal/InternalArea";
 import LetterManagement from "./pages/Letters/LetterManagement";
 import Login from "./pages/Login/Login";
 import ModernDocuments from "./pages/ModernDocuments";
-import Operations from "./pages/Operação/Operations";
-import TabletOperations from "./pages/Operação/TabletOperations.js";
+
+// Importar o container de operações refatorado
+import OperationsContainer from "./pages/Operação/containers/OperationsContainer";
+
 import PasswordRecovery from "./pages/PasswordRecovery/PasswordRecovery";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import Settings from "./pages/Settings/Settings";
@@ -70,9 +72,8 @@ const AppContent = () => {
   const isDarkMode = user ? user.dark_mode : false;
   const navigate = useNavigate();
   const location = useLocation();
-  const isTablet = useMediaQuery('(max-width: 1920px) and (min-width: 768px)')
+  const isTablet = useMediaQuery('(max-width: 1920px) and (min-width: 768px)');
   const isTouch = 'ontouchstart' in window;
-  const isMobileOrTablet = isTablet || isTouch;
 
   const [isCreateDocumentModalOpen, setIsCreateDocumentModalOpen] = useState(false);
   const [isCreateEntityModalOpen, setIsCreateEntityModalOpen] = useState(false);
@@ -121,11 +122,11 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    // Atualiza a cor do meta tag theme-color conforme o tema selecionado
     const updateThemeColor = (color) => {
       let metaThemeColor = document.querySelector("meta[name=theme-color]");
       if (!metaThemeColor) {
         metaThemeColor = document.createElement("meta");
+        metaThemeColor.name = "theme-color";
         document.getElementsByTagName("head")[0].appendChild(metaThemeColor);
       }
       metaThemeColor.content = color;
@@ -138,7 +139,6 @@ const AppContent = () => {
   }, [isDarkMode]);
 
   if (isTablet && isTouch) {
-    // Aplicar configurações específicas para tablet
     document.body.style.touchAction = 'pan-y';
   }
 
@@ -212,11 +212,12 @@ const AppContent = () => {
                   </PrivateRoute>
                 }
               />
+              {/* Usar o novo container de operações */}
               <Route
                 path="/operation"
                 element={
                   <PrivateRoute>
-                    <Operations />
+                    <OperationsContainer />
                   </PrivateRoute>
                 }
               />
@@ -294,14 +295,6 @@ const AppContent = () => {
                 }
               />
               <Route
-                path="/settings"
-                element={
-                  <PrivateRoute requiredProfil="0">
-                    <Settings />
-                  </PrivateRoute>
-                }
-              />
-              <Route
                 path="/letters"
                 element={
                   <PrivateRoute>
@@ -346,8 +339,6 @@ const AppContent = () => {
                   </PrivateRoute>
                 }
               />
-
-              {/* Novas rotas para funcionalidades de pagamento */}
               <Route
                 path="/payment/:regnumber"
                 element={
@@ -384,7 +375,6 @@ function App() {
             <SocketProvider>
               <MetaDataProvider>
                 <EpiProvider>
-                  {/* Adicionar PaymentProvider aqui */}
                   <PaymentProvider>
                     <AppContent />
                   </PaymentProvider>

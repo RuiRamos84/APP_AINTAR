@@ -137,28 +137,28 @@ def get_document_step(pk):
         return jsonify(get_document_steps(pk, current_user))
 
 
-@bp.route('/document_type_params/<int:type_id>', methods=['GET'])
+@bp.route('/document/<int:document_id>/params', methods=['GET'])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
-def get_document_type_params(type_id):
-    """Obter parâmetros do tipo de documento"""
+def get_document_params(document_id):
+    """Obter parâmetros do documento"""
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
-        return get_document_type_param(current_user, type_id)
+        return get_document_type_param(current_user, document_id)
 
 
-@bp.route('/document_type_params/<int:type_id>', methods=['PUT'])
+@bp.route('/document/<int:document_id>/params', methods=['PUT'])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
-def update_document_type_params(type_id):
-    """Atualizar parâmetros do tipo de documento"""
+def update_document_params_route(document_id):
+    """Atualizar parâmetros do documento"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    return update_document_params(current_user, type_id, data)
+    return update_document_params(current_user, document_id, data)
 
 
 @bp.route('/get_document_anex/<int:pk>', methods=['GET'])

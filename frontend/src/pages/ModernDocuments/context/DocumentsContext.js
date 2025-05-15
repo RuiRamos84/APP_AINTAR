@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     getDocuments,
+    getDocumentById,
     getDocumentsAssignedToMe,
     getDocumentsCreatedByMe,
     downloadComprovativo
@@ -31,13 +32,27 @@ export const DocumentsProvider = ({ children }) => {
     const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list', ou 'kanban'
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
+    // Função para mostrar notificação
+    const showNotification = useCallback((message, severity = 'info') => {
+        setNotification({
+            open: true,
+            message,
+            severity
+        });
+    }, []);
+
+    // Função para forçar atualização
+    const refreshDocuments = useCallback(() => {
+        setRefreshTrigger(prev => prev + 1);
+        showNotification('Atualizando dados...', 'info');
+    }, [showNotification]);
+
     // Funções para buscar documentos
     const fetchAllDocuments = useCallback(async () => {
         setLoadingAll(true);
         setError(null);
         try {
             const docs = await getDocuments();
-            // console.log('Todos os documentos:', docs);
             setAllDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar todos os documentos:', err);
@@ -46,14 +61,13 @@ export const DocumentsProvider = ({ children }) => {
         } finally {
             setLoadingAll(false);
         }
-    }, []);
+    }, [showNotification]);
 
     const fetchAssignedDocuments = useCallback(async () => {
         setLoadingAssigned(true);
         setError(null);
         try {
             const docs = await getDocumentsAssignedToMe();
-            // console.log('Documentos assignados:', docs);
             setAssignedDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos assignados:', err);
@@ -62,14 +76,13 @@ export const DocumentsProvider = ({ children }) => {
         } finally {
             setLoadingAssigned(false);
         }
-    }, []);
+    }, [showNotification]);
 
     const fetchCreatedDocuments = useCallback(async () => {
         setLoadingCreated(true);
         setError(null);
         try {
             const docs = await getDocumentsCreatedByMe();
-            // console.log('Documentos criados:', docs);
             setCreatedDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos criados:', err);
@@ -78,34 +91,25 @@ export const DocumentsProvider = ({ children }) => {
         } finally {
             setLoadingCreated(false);
         }
-    }, []);
+    }, [showNotification]);
 
-    // Efeito para buscar documentos
-    useEffect(() => {
-        const loadData = async () => {
-            await Promise.all([
-                fetchAllDocuments(),
-                fetchAssignedDocuments(),
-                fetchCreatedDocuments()
-            ]);
-        };
+    // Adicionar ao contextValue
+    const refreshDocument = async (documentId) => {
+        if (!documentId) return;
 
-        loadData();
-    }, [fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, refreshTrigger]);
+        try {
+            const response = await getDocumentById(documentId);
+            if (response?.document) {
+                updateDocumentInList(response.document);
 
-    // Função para forçar atualização
-    const refreshDocuments = () => {
-        setRefreshTrigger(prev => prev + 1);
-        showNotification('Atualizando dados...', 'info');
-    };
-
-    // Função para mostrar notificação
-    const showNotification = (message, severity = 'info') => {
-        setNotification({
-            open: true,
-            message,
-            severity
-        });
+                // Disparar evento para atualizar modais abertos
+                window.dispatchEvent(new CustomEvent('document-refreshed', {
+                    detail: { documentId, document: response.document }
+                }));
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar documento:', error);
+        }
     };
 
     const handleCloseNotification = () => {
@@ -203,6 +207,8 @@ export const DocumentsProvider = ({ children }) => {
         fetchAssignedDocuments,
         fetchCreatedDocuments,
         refreshDocuments,
+        refreshDocument,
+
 
         // Métodos para visualização
         setActiveTab,

@@ -46,6 +46,7 @@ import DocumentPreview from './DocumentPreview';
 import HistoryIcon from '@mui/icons-material/History';
 import { useDocumentsContext } from '../../../ModernDocuments/context/DocumentsContext';
 import { useDocumentActions } from '../../context/DocumentActionsContext';
+import { useDocumentRefresh } from '../../hooks/useDocumentRefresh';
 
 // Serviços e utilitários
 import {
@@ -93,6 +94,7 @@ const DocumentModal = ({
     const theme = useTheme();
 
     // Estados
+    const { documentParams } = useDocumentActions();
     const [tabValue, setTabValue] = useState(0);
     const [steps, setSteps] = useState([]);
     const [annexes, setAnnexes] = useState([]);
@@ -116,6 +118,7 @@ const DocumentModal = ({
     const [stepModalOpen, setStepModalOpen] = useState(false);
     const [annexModalOpen, setAnnexModalOpen] = useState(false);
     const [replicateModalOpen, setReplicateModalOpen] = useState(false);
+    const { refreshDocument } = useDocumentRefresh(document?.pk);
 
     useEffect(() => {
         if (document) {
@@ -302,15 +305,14 @@ const DocumentModal = ({
 
     // Substituir polling por sistema de eventos
     useEffect(() => {
-        // Criar um listener para eventos de atualização de documento
         const handleDocumentUpdate = (event) => {
-            // console.log("[DEBUG] Evento recebido:", event.detail);
-            if (event.detail && event.detail.documentId === document?.pk) {
-                // console.log("[DEBUG] Atualizando documento:", document?.pk);
+            // Verificar se o evento é para este documento específico
+            if (event.detail &&
+                (event.detail.documentId === document?.pk ||
+                    event.detail.documentId === String(document?.pk))) {
+
+                console.log("[DEBUG] Atualizando dados do documento:", document?.pk);
                 refreshData();
-            } else {
-                console.log("[DEBUG] Ignorando evento para documento:" ,
-                event.detail?.documentId, "vs atual:", document?.pk);
             }
         };
 
@@ -321,7 +323,7 @@ const DocumentModal = ({
         return () => {
             window.removeEventListener('document-updated', handleDocumentUpdate);
         };
-    }, [document?.pk]);
+    }, [document?.pk, refreshData]);
 
     useEffect(() => {
         // Quando o invoice amount mudar, pode mudar o layout das tabs

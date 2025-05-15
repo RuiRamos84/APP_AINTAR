@@ -29,7 +29,7 @@ def cache_result(timeout=300):
     return decorator
 
 
-@cache_result(timeout=60)
+# @cache_result(timeout=60)
 def list_documents(current_user):
     """Listar todos os documentos com cache estratégico"""
     try:
@@ -92,7 +92,7 @@ def documentById(documentId, current_user):
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
 
-@cache_result(timeout=60)
+# @cache_result(timeout=60)
 def document_self(current_user):
     """Listar documentos atribuídos a si"""
     try:
@@ -123,7 +123,7 @@ def document_self(current_user):
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
 
-@cache_result(timeout=60)
+# @cache_result(timeout=60)
 def document_owner(current_user):
     """Listar documentos criados por si"""
     try:

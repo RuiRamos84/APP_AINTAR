@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
 import { isFeatureAvailable } from '../utils/featureUtils';
 import { updateDocumentNotification } from '../../../services/documentService';
+import { useSmartRefresh } from '../hooks/useSmartRefresh';
 
 // Criar o contexto
 const DocumentActionsContext = createContext();
@@ -16,6 +17,8 @@ export const useDocumentActions = () => useContext(DocumentActionsContext);
 export const DocumentActionsProvider = ({ children }) => {
 
     const [modalInstanceKey, setModalInstanceKey] = useState(Date.now());
+    const [documentParams, setDocumentParams] = useState({});
+    const { smartRefresh } = useSmartRefresh();
 
     // Acessar contexto principal de documentos
     const { refreshDocuments, handleDownloadComprovativo, showNotification, activeTab } = useDocumentsContext();
@@ -206,6 +209,14 @@ export const DocumentActionsProvider = ({ children }) => {
         openModal('step');
     }, [selectedDocument, openModal, showNotification, checkFeatureAvailability]);
 
+    // Atualizar parâmetros de um documento específico
+    const updateDocumentParams = useCallback((documentId, params) => {
+        setDocumentParams(prev => ({
+            ...prev,
+            [documentId]: params
+        }));
+    }, []);
+
     // Adicionar anexo
     const handleAddAnnex = useCallback((document) => {
         const targetDoc = document || selectedDocument;
@@ -284,9 +295,13 @@ export const DocumentActionsProvider = ({ children }) => {
     const handleCloseStepModal = useCallback((success) => {
         const result = closeModal('step', success);
         if (result) {
+            smartRefresh('ADD_STEP', {
+                documentId: selectedDocument?.pk,
+                statusChanged: true // se o status mudou
+            });
             showNotification('Passo adicionado com sucesso', 'success');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal, selectedDocument, smartRefresh, showNotification]);
 
     const handleCloseAnnexModal = useCallback((success) => {
         const result = closeModal('annex', success);
@@ -328,6 +343,7 @@ export const DocumentActionsProvider = ({ children }) => {
         canAddAnnex,
         canReplicate,
         canDownloadComprovativo,
+        documentParams,
 
         // Ações de documento
         handleViewDetails,
@@ -337,6 +353,7 @@ export const DocumentActionsProvider = ({ children }) => {
         handleReplicate,
         handleDownloadCompr,
         handleOpenCreateModal,
+        updateDocumentParams,
 
         // Handlers de modais
         handleCloseDocumentModal,
