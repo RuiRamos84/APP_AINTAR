@@ -368,3 +368,292 @@ def list_equip_expenses(current_user):
             return {'expenses': expenses}, 200
     except Exception as e:
         return {'error': f"Erro ao listar despesas de Equipamento: {str(e)}"}, 500
+
+
+def create_etar_desmatacao(pnts_associate, pnmemo, pnpk_etar, current_user):
+    """Criar pedido de desmatação para ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(20, :pnts_associate, :pnmemo, :pnpk_etar, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_etar': pnpk_etar
+            }).scalar()
+            return {'message': 'Pedido de desmatação para ETAR criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de desmatação para ETAR: {str(e)}"}, 500
+
+
+def create_etar_retirada_lamas(pnts_associate, pnmemo, pnpk_etar, current_user):
+    """Criar pedido de retirada de lamas para ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(40, :pnts_associate, :pnmemo, :pnpk_etar, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_etar': pnpk_etar
+            }).scalar()
+            return {'message': 'Pedido de retirada de lamas para ETAR criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de retirada de lamas para ETAR: {str(e)}"}, 500
+
+
+def create_etar_reparacao(pnts_associate, pnmemo, pnpk_etar, current_user):
+    """Criar pedido de reparação para ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(45, :pnts_associate, :pnmemo, :pnpk_etar, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_etar': pnpk_etar
+            }).scalar()
+            return {'message': 'Pedido de reparação para ETAR criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de reparação para ETAR: {str(e)}"}, 500
+
+
+def create_etar_vedacao(pnts_associate, pnmemo, pnpk_etar, current_user):
+    """Criar pedido de vedação para ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(47, :pnts_associate, :pnmemo, :pnpk_etar, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_etar': pnpk_etar
+            }).scalar()
+            return {'message': 'Pedido de vedação para ETAR criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de vedação para ETAR: {str(e)}"}, 500
+
+
+def create_etar_qualidade_ambiental(pnts_associate, pnmemo, pnpk_etar, current_user):
+    """Criar pedido de controlo de qualidade ambiental para ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(49, :pnts_associate, :pnmemo, :pnpk_etar, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_etar': pnpk_etar
+            }).scalar()
+            return {'message': 'Pedido de controlo de qualidade ambiental para ETAR criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de controlo de qualidade ambiental para ETAR: {str(e)}"}, 500
+
+# Funções para EE
+
+
+def create_ee_desmatacao(pnts_associate, pnmemo, pnpk_ee, current_user):
+    """Criar pedido de desmatação para EE"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(20, :pnts_associate, :pnmemo, NULL, :pnpk_ee)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_ee': pnpk_ee
+            }).scalar()
+            return {'message': 'Pedido de desmatação para EE criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de desmatação para EE: {str(e)}"}, 500
+
+
+def create_ee_retirada_lamas(pnts_associate, pnmemo, pnpk_ee, current_user):
+    """Criar pedido de retirada de lamas para EE"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(41, :pnts_associate, :pnmemo, NULL, :pnpk_ee)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_ee': pnpk_ee
+            }).scalar()
+            return {'message': 'Pedido de retirada de lamas para EE criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de retirada de lamas para EE: {str(e)}"}, 500
+
+
+def create_ee_reparacao(pnts_associate, pnmemo, pnpk_ee, current_user):
+    """Criar pedido de reparação para EE"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(46, :pnts_associate, :pnmemo, NULL, :pnpk_ee)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_ee': pnpk_ee
+            }).scalar()
+            return {'message': 'Pedido de reparação para EE criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de reparação para EE: {str(e)}"}, 500
+
+
+def create_ee_vedacao(pnts_associate, pnmemo, pnpk_ee, current_user):
+    """Criar pedido de vedação para EE"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(48, :pnts_associate, :pnmemo, NULL, :pnpk_ee)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_ee': pnpk_ee
+            }).scalar()
+            return {'message': 'Pedido de vedação para EE criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de vedação para EE: {str(e)}"}, 500
+
+
+def create_ee_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user):
+    """Criar pedido de controlo de qualidade ambiental para EE"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(49, :pnts_associate, :pnmemo, NULL, :pnpk_ee)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo,
+                'pnpk_ee': pnpk_ee
+            }).scalar()
+            return {'message': 'Pedido de controlo de qualidade ambiental para EE criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de controlo de qualidade ambiental para EE: {str(e)}"}, 500
+
+# Funções para Rede
+
+
+def create_rede_desobstrucao(pnts_associate, pnmemo, current_user):
+    """Criar pedido de desobstrução para Rede"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(28, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de desobstrução para Rede criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de desobstrução para Rede: {str(e)}"}, 500
+
+
+def create_rede_reparacao_colapso(pnts_associate, pnmemo, current_user):
+    """Criar pedido de reparação/colapso para Rede"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(27, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de reparação/colapso para Rede criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de reparação/colapso para Rede: {str(e)}"}, 500
+
+# Funções para Caixas
+
+
+def create_caixa_desobstrucao(pnts_associate, pnmemo, current_user):
+    """Criar pedido de desobstrução para Caixas"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(23, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de desobstrução para Caixas criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de desobstrução para Caixas: {str(e)}"}, 500
+
+
+def create_caixa_reparacao(pnts_associate, pnmemo, current_user):
+    """Criar pedido de reparação para Caixas"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(22, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de reparação para Caixas criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de reparação para Caixas: {str(e)}"}, 500
+
+
+def create_caixa_reparacao_tampa(pnts_associate, pnmemo, current_user):
+    """Criar pedido de reparação de tampa para Caixas"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(29, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de reparação de tampa para Caixas criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de reparação de tampa para Caixas: {str(e)}"}, 500
+
+# Funções para Ramais
+
+
+def create_ramal_desobstrucao(pnts_associate, pnmemo, current_user):
+    """Criar pedido de desobstrução para Ramais"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(25, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de desobstrução para Ramais criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de desobstrução para Ramais: {str(e)}"}, 500
+
+
+def create_ramal_reparacao(pnts_associate, pnmemo, current_user):
+    """Criar pedido de reparação para Ramais"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(24, :pnts_associate, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnts_associate': pnts_associate,
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de reparação para Ramais criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de reparação para Ramais: {str(e)}"}, 500
+
+# Função para Requisição Interna
+
+
+def create_requisicao_interna(pnmemo, current_user):
+    """Criar pedido de requisição interna"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_document_createintern(19, NULL, :pnmemo, NULL, NULL)")
+            result = session.execute(query, {
+                'pnmemo': pnmemo
+            }).scalar()
+            return {'message': 'Pedido de requisição interna criado com sucesso', 'document_id': result}, 201
+    except Exception as e:
+        return {'error': f"Erro ao criar pedido de requisição interna: {str(e)}"}, 500

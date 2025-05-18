@@ -8,29 +8,24 @@ import { processApiResponse, processDocument } from "../pages/ModernDocuments/ut
  */
 const handleResponse = (response) => {
   try {
-    // Usar a nova função de processamento
-    const documents = processApiResponse(response);
-
-    // Fallback para o método anterior se não encontrar documentos
-    if (documents.length === 0) {
-      // Processamento original
-      if (response.data.document_self) {
-        return response.data.document_self.map(processDocument);
-      } else if (response.data.document_owner) {
-        return response.data.document_owner.map(processDocument);
-      } else if (response.data.documents) {
-        return response.data.documents.map(processDocument);
-      }else if (response.data.documentId) {
-        return response.data.document.map(processDocument);
-      } else if (response.data.mensagem) {
-        // console.log(response.data.mensagem);
-        return [];
-      } else if (Array.isArray(response.data)) {
-        return response.data.map(processDocument);
-      }
+    // Verificar primeiro se é uma resposta direta
+    if (response.data.document) {
+      return [processDocument(response.data.document)];
     }
 
-    return documents;
+    // Depois verificar arrays conhecidos
+    if (response.data.document_self) {
+      return response.data.document_self.map(processDocument);
+    } else if (response.data.document_owner) {
+      return response.data.document_owner.map(processDocument);
+    } else if (response.data.documents) {
+      return response.data.documents.map(processDocument);
+    } else if (Array.isArray(response.data)) {
+      return response.data.map(processDocument);
+    }
+
+    // Caso seja apenas uma mensagem ou objeto vazio
+    return [];
   } catch (error) {
     console.error("Erro ao processar resposta:", error);
     return [];
@@ -61,17 +56,11 @@ export const getDocuments = async () => {
   }
 };
 
+// Corrigir o serviço para usar o formato correto
 export const getDocumentById = async (documentId) => {
   try {
-    // console.log("Buscando pedido por ID:", documentId);
-    
-
     const response = await api.get(`/document/${documentId}`);
-    console.log("Resposta bruta por ID:", response);
-
-    // Retorna diretamente a resposta para endpoints que já tem estrutura definida
-    return response.data; // Isso preservará { document: {...} }
-
+    return response.data;
   } catch (error) {
     console.error("Erro ao buscar pedido por ID:", error);
     throw error;

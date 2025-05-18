@@ -42,7 +42,7 @@ import {
     notifySuccess,
     notifyError,
 } from '../../../../../components/common/Toaster/ThemedToaster';
-import { useSmartRefresh } from '../../hooks/useSmartRefresh';
+import { useSmartRefresh } from '../../../hooks/useSmartRefresh';
 
 // Helpers
 const normalizeZoneName = (zoneName) => {
@@ -284,12 +284,20 @@ const EditParametersModal = React.memo(({
     saving = false
 }) => {
     const [localParams, setLocalParams] = useState([]);
+    const [filteredEtars, setFilteredEtars] = useState([]);
 
     useEffect(() => {
         if (open && params?.length) {
             setLocalParams(params.map(param => ({ ...param })));
         }
     }, [open, params]);
+
+    // Garantir que temos as ETARs corretas com base no TS associado
+    useEffect(() => {
+        if (etars?.length) {
+            setFilteredEtars(etars);
+        }
+    }, [etars]);
 
     const handleParamChange = useCallback((paramPk, field, newValue) => {
         setLocalParams(prev => prev.map(param =>
@@ -300,6 +308,23 @@ const EditParametersModal = React.memo(({
     const handleSave = useCallback(() => {
         onSave(localParams);
     }, [localParams, onSave]);
+
+    // Função para obter o nome do valor selecionado
+    const getSelectedName = useCallback((paramName, value) => {
+        if (!value) return "";
+
+        switch (paramName) {
+            case "Local de descarga/ETAR":
+            case "ETAR":
+                return metaData?.etar?.find(e => String(e.pk) === String(value))?.nome || "";
+            case "EE":
+                return metaData?.ee?.find(e => String(e.pk) === String(value))?.nome || "";
+            case "Método de pagamento":
+                return metaData?.payment_method?.find(m => String(m.pk) === String(value))?.value || "";
+            default:
+                return value;
+        }
+    }, [metaData]);
 
     if (!localParams?.length) return null;
 
@@ -335,7 +360,7 @@ const EditParametersModal = React.memo(({
                             gap: 3,
                             alignItems: 'flex-start'
                         }}>
-                            {param.name === "Local de descarga/ETAR" ? (
+                            {param.name === "Local de descarga/ETAR" || param.name === "ETAR" ? (
                                 <FormControl fullWidth>
                                     <InputLabel>ETAR</InputLabel>
                                     <Select
@@ -343,16 +368,47 @@ const EditParametersModal = React.memo(({
                                         onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
                                         label="ETAR"
                                         size="medium"
+                                        displayEmpty
                                     >
                                         <MenuItem value="">
                                             <em>Selecione uma ETAR</em>
                                         </MenuItem>
-                                        {etars.map((etar) => (
+                                        {filteredEtars.map((etar) => (
                                             <MenuItem key={etar.pk} value={String(etar.pk)}>
                                                 {etar.nome}
                                             </MenuItem>
                                         ))}
                                     </Select>
+                                    {param.value && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                                            Selecionado: {getSelectedName(param.name, param.value)}
+                                        </Typography>
+                                    )}
+                                </FormControl>
+                            ) : param.name === "EE" && metaData?.ee ? (
+                                <FormControl fullWidth>
+                                    <InputLabel>Estação Elevatória</InputLabel>
+                                    <Select
+                                        value={param.value || ""}
+                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                                        label="Estação Elevatória"
+                                        size="medium"
+                                        displayEmpty
+                                    >
+                                        <MenuItem value="">
+                                            <em>Selecione uma EE</em>
+                                        </MenuItem>
+                                        {metaData.ee?.map((ee) => (
+                                            <MenuItem key={ee.pk} value={String(ee.pk)}>
+                                                {ee.nome}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                    {param.value && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                                            Selecionado: {getSelectedName(param.name, param.value)}
+                                        </Typography>
+                                    )}
                                 </FormControl>
                             ) : param.name === "Método de pagamento" && metaData?.payment_method ? (
                                 <FormControl fullWidth>
@@ -362,6 +418,7 @@ const EditParametersModal = React.memo(({
                                         onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
                                         label="Método de Pagamento"
                                         size="medium"
+                                        displayEmpty
                                     >
                                         <MenuItem value="">
                                             <em>Selecione um método</em>
@@ -372,63 +429,68 @@ const EditParametersModal = React.memo(({
                                             </MenuItem>
                                         ))}
                                     </Select>
-                                </FormControl>
-                                ) : isBooleanParam(param.name) ? (
-                                    <Box sx={{
-                                        pt: 1,
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        width: '100%'
-                                    }}>
-                                        <RadioGroup
-                                            row
-                                            value={param.value === "1" || param.value === "0" ? String(param.value) : ""}
-                                            onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                            sx={{ gap: 4 }}
-                                        >
-                                            <FormControlLabel
-                                                value="1"
-                                                control={<Radio size="medium" />}
-                                                label="Sim"
-                                                sx={{ '& .MuiFormControlLabel-label': { fontSize: '1.1rem' } }}
-                                            />
-                                            <FormControlLabel
-                                                value="0"
-                                                control={<Radio size="medium" />}
-                                                label="Não"
-                                                sx={{ '& .MuiFormControlLabel-label': { fontSize: '1.1rem' } }}
-                                            />
-                                        </RadioGroup>
-                                </Box>
-                                    ) : param.name === "Número de cisternas" ? (
-                                        <TextField
-                                            fullWidth
-                                                label="Cisternas"
-                                            value={param.value || ""}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                // Aceitar apenas números inteiros
-                                                if (value === "" || /^\d+$/.test(value)) {
-                                                    handleParamChange(param.pk, "value", value);
-                                                }
-                                            }}
-                                            variant="outlined"
-                                            size="medium"
-                                            inputProps={{
-                                                pattern: "[0-9]*",
-                                                inputMode: "numeric"
-                                            }}
-                                        />
-                                    ) : (
-                                        <TextField
-                                            fullWidth
-                                            label="Valor"
-                                            value={param.value || ""}
-                                            onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                            variant="outlined"
-                                            size="medium"
-                                        />
+                                    {param.value && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                                            Selecionado: {getSelectedName(param.name, param.value)}
+                                        </Typography>
                                     )}
+                                </FormControl>
+                            ) : isBooleanParam(param.name) ? (
+                                <Box sx={{
+                                    pt: 1,
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    width: '100%'
+                                }}>
+                                    <RadioGroup
+                                        row
+                                        value={param.value === "1" || param.value === "0" ? String(param.value) : ""}
+                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                                        sx={{ gap: 4 }}
+                                    >
+                                        <FormControlLabel
+                                            value="1"
+                                            control={<Radio size="medium" />}
+                                            label="Sim"
+                                            sx={{ '& .MuiFormControlLabel-label': { fontSize: '1.1rem' } }}
+                                        />
+                                        <FormControlLabel
+                                            value="0"
+                                            control={<Radio size="medium" />}
+                                            label="Não"
+                                            sx={{ '& .MuiFormControlLabel-label': { fontSize: '1.1rem' } }}
+                                        />
+                                    </RadioGroup>
+                                </Box>
+                            ) : param.name === "Número de cisternas" ? (
+                                <TextField
+                                    fullWidth
+                                    label="Cisternas"
+                                    value={param.value || ""}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        // Aceitar apenas números inteiros
+                                        if (value === "" || /^\d+$/.test(value)) {
+                                            handleParamChange(param.pk, "value", value);
+                                        }
+                                    }}
+                                    variant="outlined"
+                                    size="medium"
+                                    inputProps={{
+                                        pattern: "[0-9]*",
+                                        inputMode: "numeric"
+                                    }}
+                                />
+                            ) : (
+                                <TextField
+                                    fullWidth
+                                    label="Valor"
+                                    value={param.value || ""}
+                                    onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                                    variant="outlined"
+                                    size="medium"
+                                />
+                            )}
                             <TextField
                                 fullWidth
                                 label="Observações"

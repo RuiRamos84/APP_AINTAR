@@ -25,6 +25,25 @@ from ..services.etar_ee_service import (
     create_manut_expense,
     create_equip_expense,
     list_equip_expenses,
+    # create_internal_request,
+    create_etar_desmatacao,
+    create_etar_retirada_lamas,
+    create_etar_reparacao,
+    create_etar_vedacao,
+    create_etar_qualidade_ambiental,
+    create_ee_desmatacao,
+    create_ee_retirada_lamas,
+    create_ee_reparacao,
+    create_ee_vedacao,
+    create_ee_qualidade_ambiental,
+    create_rede_desobstrucao,
+    create_rede_reparacao_colapso,
+    create_caixa_desobstrucao,
+    create_caixa_reparacao,
+    create_caixa_reparacao_tampa,
+    create_ramal_desobstrucao,
+    create_ramal_reparacao,
+    create_requisicao_interna
     )
 from ..utils.utils import set_session, token_required
 from app.utils.error_handler import api_error_handler
@@ -394,4 +413,410 @@ def get_equip_expenses():
     """Listar despesas de Equipamento"""
     current_user = get_jwt_identity()
     result, status_code = list_equip_expenses(current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/internal_request', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def create_internal_request_route():
+    """Criar pedido interno"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+
+    # Parâmetros obrigatórios
+    pntype = data.get('pntype')
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    # Parâmetros opcionais - ETAR ou EE associada
+    pnpk_etar = data.get('pnpk_etar')
+    pnpk_ee = data.get('pnpk_ee')
+
+    if not all([pntype, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_internal_request(
+        pntype, pnts_associate, pnmemo, pnpk_etar, pnpk_ee, current_user)
+
+    return jsonify(result), status_code
+
+
+@bp.route('/etar/desmatacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_etar_desmatacao():
+    """Criar pedido de desmatação para ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_etar = data.get('pnpk_etar')
+
+    if not all([pnts_associate, pnmemo, pnpk_etar]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_etar_desmatacao(
+        pnts_associate, pnmemo, pnpk_etar, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar/retirada_lamas', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_etar_retirada_lamas():
+    """Criar pedido de retirada de lamas para ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_etar = data.get('pnpk_etar')
+
+    if not all([pnts_associate, pnmemo, pnpk_etar]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_etar_retirada_lamas(
+        pnts_associate, pnmemo, pnpk_etar, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar/reparacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_etar_reparacao():
+    """Criar pedido de reparação para ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_etar = data.get('pnpk_etar')
+
+    if not all([pnts_associate, pnmemo, pnpk_etar]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_etar_reparacao(
+        pnts_associate, pnmemo, pnpk_etar, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar/vedacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_etar_vedacao():
+    """Criar pedido de vedação para ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_etar = data.get('pnpk_etar')
+
+    if not all([pnts_associate, pnmemo, pnpk_etar]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_etar_vedacao(
+        pnts_associate, pnmemo, pnpk_etar, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar/qualidade_ambiental', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_etar_qualidade_ambiental():
+    """Criar pedido de controlo de qualidade ambiental para ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_etar = data.get('pnpk_etar')
+
+    if not all([pnts_associate, pnmemo, pnpk_etar]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_etar_qualidade_ambiental(
+        pnts_associate, pnmemo, pnpk_etar, current_user)
+    return jsonify(result), status_code
+
+# Rotas para EE
+
+
+@bp.route('/ee/desmatacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ee_desmatacao():
+    """Criar pedido de desmatação para EE"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_ee = data.get('pnpk_ee')
+
+    if not all([pnts_associate, pnmemo, pnpk_ee]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ee_desmatacao(
+        pnts_associate, pnmemo, pnpk_ee, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ee/retirada_lamas', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ee_retirada_lamas():
+    """Criar pedido de retirada de lamas para EE"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_ee = data.get('pnpk_ee')
+
+    if not all([pnts_associate, pnmemo, pnpk_ee]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ee_retirada_lamas(
+        pnts_associate, pnmemo, pnpk_ee, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ee/reparacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ee_reparacao():
+    """Criar pedido de reparação para EE"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_ee = data.get('pnpk_ee')
+
+    if not all([pnts_associate, pnmemo, pnpk_ee]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ee_reparacao(
+        pnts_associate, pnmemo, pnpk_ee, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ee/vedacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ee_vedacao():
+    """Criar pedido de vedação para EE"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_ee = data.get('pnpk_ee')
+
+    if not all([pnts_associate, pnmemo, pnpk_ee]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ee_vedacao(
+        pnts_associate, pnmemo, pnpk_ee, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ee/qualidade_ambiental', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ee_qualidade_ambiental():
+    """Criar pedido de controlo de qualidade ambiental para EE"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+    pnpk_ee = data.get('pnpk_ee')
+
+    if not all([pnts_associate, pnmemo, pnpk_ee]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ee_qualidade_ambiental(
+        pnts_associate, pnmemo, pnpk_ee, current_user)
+    return jsonify(result), status_code
+
+# Rotas para Rede
+
+
+@bp.route('/rede/desobstrucao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_rede_desobstrucao():
+    """Criar pedido de desobstrução para Rede"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_rede_desobstrucao(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/rede/reparacao_colapso', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_rede_reparacao_colapso():
+    """Criar pedido de reparação/colapso para Rede"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_rede_reparacao_colapso(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+# Rotas para Caixas
+
+
+@bp.route('/caixas/desobstrucao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_caixa_desobstrucao():
+    """Criar pedido de desobstrução para Caixas"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_desobstrucao(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/caixas/reparacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_caixa_reparacao():
+    """Criar pedido de reparação para Caixas"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_reparacao(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/caixas/reparacao_tampa', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_caixa_reparacao_tampa():
+    """Criar pedido de reparação de tampa para Caixas"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_reparacao_tampa(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+# Rotas para Ramais
+
+
+@bp.route('/ramais/desobstrucao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ramal_desobstrucao():
+    """Criar pedido de desobstrução para Ramais"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ramal_desobstrucao(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ramais/reparacao', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_ramal_reparacao():
+    """Criar pedido de reparação para Ramais"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnts_associate = data.get('pnts_associate')
+    pnmemo = data.get('pnmemo')
+
+    if not all([pnts_associate, pnmemo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_ramal_reparacao(
+        pnts_associate, pnmemo, current_user)
+    return jsonify(result), status_code
+
+# Rota para Requisição Interna
+
+
+@bp.route('/requisicao_interna', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_requisicao_interna():
+    """Criar pedido de requisição interna"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnmemo = data.get('pnmemo')
+
+    if not pnmemo:
+        return jsonify({'error': 'Descrição do pedido é obrigatória'}), 400
+
+    result, status_code = create_requisicao_interna(pnmemo, current_user)
     return jsonify(result), status_code

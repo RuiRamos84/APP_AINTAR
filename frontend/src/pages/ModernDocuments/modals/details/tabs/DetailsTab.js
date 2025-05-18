@@ -53,7 +53,6 @@ import { useDocumentActions } from '../../../context/DocumentActionsContext';
 import { useDocumentsContext } from '../../../../ModernDocuments/context/DocumentsContext';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import HistoryIcon from '@mui/icons-material/History';
-import { useDocumentListener } from '../../hooks/useDocumentListener';
 
 // Componente para o modal de detalhes do representante
 const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
@@ -265,7 +264,6 @@ const DetailsTab = ({
 
         return username;
     };
-    
 
     // Buscar dados do representante legal quando o documento for carregado
     useEffect(() => {

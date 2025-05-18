@@ -58,7 +58,7 @@ class PaymentService:
                     return invoice_data
                 # se não existe, chama a função e repete
                 query_fn = text(
-                    """SELECT fbo_document_invoicegetset(:document_id) as amount"""
+                    """SELECT fbo_document_invoice$getset(:document_id) as amount"""
                 )
                 fn_result = session.execute(
                     query_fn, {"document_id": document_id}).fetchone()

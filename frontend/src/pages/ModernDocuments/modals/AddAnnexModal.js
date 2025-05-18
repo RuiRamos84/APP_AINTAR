@@ -36,15 +36,12 @@ import { notifySuccess, notifyError } from "../../../components/common/Toaster/T
 // Componentes e funções auxiliares
 import { FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
 
-import { useSmartRefresh } from '../../hooks/useSmartRefresh';
-
 const AddAnnexModal = ({ open, onClose, document }) => {
     // Estados
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [confirmClose, setConfirmClose] = useState(false);
-    const { smartRefresh } = useSmartRefresh();
 
     // Lista de tipos de arquivos permitidos para exibição
     const fileTypes = [
@@ -180,16 +177,8 @@ const AddAnnexModal = ({ open, onClose, document }) => {
                         type: 'annex-added'
                     }
                 }));
-
-                // Usar smartRefresh para atualização seletiva
-                smartRefresh('ADD_ANNEX', {
-                    documentId: document.pk
-                });
-
                 notifySuccess("Anexos adicionados com sucesso");
                 onClose(true);
-                setFiles([]);
-                setError('');
             } else {
                 throw new Error('Erro ao adicionar anexos');
             }

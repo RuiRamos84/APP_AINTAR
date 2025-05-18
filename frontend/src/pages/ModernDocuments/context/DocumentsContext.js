@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     getDocuments,
-    getDocumentById,
     getDocumentsAssignedToMe,
     getDocumentsCreatedByMe,
-    downloadComprovativo
+    downloadComprovativo,
+    getDocumentById
 } from '../../../services/documentService';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 
@@ -32,27 +32,13 @@ export const DocumentsProvider = ({ children }) => {
     const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list', ou 'kanban'
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
-    // Função para mostrar notificação
-    const showNotification = useCallback((message, severity = 'info') => {
-        setNotification({
-            open: true,
-            message,
-            severity
-        });
-    }, []);
-
-    // Função para forçar atualização
-    const refreshDocuments = useCallback(() => {
-        setRefreshTrigger(prev => prev + 1);
-        showNotification('Atualizando dados...', 'info');
-    }, [showNotification]);
-
     // Funções para buscar documentos
     const fetchAllDocuments = useCallback(async () => {
         setLoadingAll(true);
         setError(null);
         try {
             const docs = await getDocuments();
+            // console.log('Todos os documentos:', docs);
             setAllDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar todos os documentos:', err);
@@ -61,13 +47,14 @@ export const DocumentsProvider = ({ children }) => {
         } finally {
             setLoadingAll(false);
         }
-    }, [showNotification]);
+    }, []);
 
     const fetchAssignedDocuments = useCallback(async () => {
         setLoadingAssigned(true);
         setError(null);
         try {
             const docs = await getDocumentsAssignedToMe();
+            // console.log('Documentos assignados:', docs);
             setAssignedDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos assignados:', err);
@@ -76,13 +63,14 @@ export const DocumentsProvider = ({ children }) => {
         } finally {
             setLoadingAssigned(false);
         }
-    }, [showNotification]);
+    }, []);
 
     const fetchCreatedDocuments = useCallback(async () => {
         setLoadingCreated(true);
         setError(null);
         try {
             const docs = await getDocumentsCreatedByMe();
+            // console.log('Documentos criados:', docs);
             setCreatedDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos criados:', err);
@@ -91,26 +79,37 @@ export const DocumentsProvider = ({ children }) => {
         } finally {
             setLoadingCreated(false);
         }
-    }, [showNotification]);
+    }, []);
 
-    // Adicionar ao contextValue
-    const refreshDocument = async (documentId) => {
-        if (!documentId) return;
+    // Efeito para buscar documentos
+    useEffect(() => {
+        const loadData = async () => {
+            await Promise.all([
+                fetchAllDocuments(),
+                fetchAssignedDocuments(),
+                fetchCreatedDocuments()
+            ]);
+        };
 
-        try {
-            const response = await getDocumentById(documentId);
-            if (response?.document) {
-                updateDocumentInList(response.document);
+        loadData();
+    }, [fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, refreshTrigger]);
 
-                // Disparar evento para atualizar modais abertos
-                window.dispatchEvent(new CustomEvent('document-refreshed', {
-                    detail: { documentId, document: response.document }
-                }));
-            }
-        } catch (error) {
-            console.error('Erro ao atualizar documento:', error);
-        }
+    // Função para forçar atualização
+    const refreshDocuments = () => {
+        setRefreshTrigger(prev => prev + 1);
+        showNotification('Atualizando dados...', 'info');
     };
+
+    // Função para mostrar notificação
+    const showNotification = (message, severity = 'info') => {
+        setNotification({
+            open: true,
+            message,
+            severity
+        });
+    };
+
+    
 
     const handleCloseNotification = () => {
         setNotification(prev => ({
@@ -171,23 +170,6 @@ export const DocumentsProvider = ({ children }) => {
         }
     };
 
-    const addDocumentToList = (document) => {
-        if (document) {
-            // Adicionar apenas à lista principal
-            setAllDocuments(prev => [document, ...prev]);
-        }
-    };
-
-    // Funções para contagem baseadas em status (metadados)
-    const countByStatus = (statusId) => {
-        return allDocuments.filter(doc => doc.what === statusId).length;
-    };
-
-    const countWithNotifications = () => {
-        return assignedDocuments.filter(doc => doc.notification === 1).length;
-    };
-
-    // Adicionar uma função de atualização seletiva
     const refreshDocumentSelective = useCallback(async (documentId, updateTypes = []) => {
         if (!documentId) return;
 
@@ -213,6 +195,22 @@ export const DocumentsProvider = ({ children }) => {
         return null;
     }, [updateDocumentInList]);
 
+    const addDocumentToList = (document) => {
+        if (document) {
+            // Adicionar apenas à lista principal
+            setAllDocuments(prev => [document, ...prev]);
+        }
+    };
+
+    // Funções para contagem baseadas em status (metadados)
+    const countByStatus = (statusId) => {
+        return allDocuments.filter(doc => doc.what === statusId).length;
+    };
+
+    const countWithNotifications = () => {
+        return assignedDocuments.filter(doc => doc.notification === 1).length;
+    };
+
     // Objeto com todos os valores e funções para o contexto
     const contextValue = {
         // Dados
@@ -233,9 +231,7 @@ export const DocumentsProvider = ({ children }) => {
         fetchAssignedDocuments,
         fetchCreatedDocuments,
         refreshDocuments,
-        refreshDocument,
         refreshDocumentSelective,
-
 
         // Métodos para visualização
         setActiveTab,

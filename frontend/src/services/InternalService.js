@@ -41,6 +41,7 @@ export const getEnergyRecords = async (areaId, pk) => {
         const response = await api.get(url);
         return response.data;
     } catch (error) {
+        console.error("Erro ao buscar registros de energia:", error);
         throw error;
     }
 };
@@ -53,6 +54,7 @@ export const addEnergyRecord = async (areaId, data) => {
         const response = await api.post(url, data);
         return response.data;
     } catch (error) {
+        console.error("Erro ao adicionar registro de energia:", error);
         throw error;
     }
 };
@@ -86,6 +88,7 @@ export const getExpenseRecords = async (type, pk) => {
         const response = await api.get(url);
         return response.data;
     } catch (error) {
+        console.error("Erro ao buscar registros de despesas:", error);
         throw error;
     }
 };
@@ -170,6 +173,7 @@ export const getInterventionRecords = async (type, pk) => {
         if (!url) throw new Error("Invalid type");
         return await api.get(url);
     } catch (error) {
+        console.error("Erro ao buscar registros de intervenção:", error);
         throw error;
     }
 };
@@ -181,6 +185,7 @@ export const addInterventionRecord = async (type, data) => {
         if (!url) throw new Error("Invalid type");
         return await api.post(url, data);
     } catch (error) {
+        console.error("Erro ao adicionar registro de intervenção:", error);
         throw error;
     }
 };
@@ -192,6 +197,7 @@ export const getUnblockingRecords = async (type, pk) => {
         if (!url) throw new Error("Invalid type");
         return await api.get(url);
     } catch (error) {
+        console.error("Erro ao buscar registros de desbloqueio:", error);
         throw error;
     }
 };
@@ -203,6 +209,78 @@ export const addUnblockingRecord = async (type, data) => {
         if (!url) throw new Error("Invalid type");
         return await api.post(url, data);
     } catch (error) {
+        console.error("Erro ao adicionar registro de desbloqueio:", error);
+        throw error;
+    }
+};
+
+export const createInternalRequest = async (data, scope) => {
+    try {
+        let url;
+
+        switch (scope) {
+            case "etar_desmatacao":
+                url = "/etar/desmatacao";
+                break;
+            case "etar_retirada_lamas":
+                url = "/etar/retirada_lamas";
+                break;
+            case "etar_reparacao":
+                url = "/etar/reparacao";
+                break;
+            case "etar_vedacao":
+                url = "/etar/vedacao";
+                break;
+            case "etar_qualidade_ambiental":
+                url = "/etar/qualidade_ambiental";
+                break;
+            case "ee_desmatacao":
+                url = "/ee/desmatacao";
+                break;
+            case "ee_retirada_lamas":
+                url = "/ee/retirada_lamas";
+                break;
+            case "ee_reparacao":
+                url = "/ee/reparacao";
+                break;
+            case "ee_vedacao":
+                url = "/ee/vedacao";
+                break;
+            case "ee_qualidade_ambiental":
+                url = "/ee/qualidade_ambiental";
+                break;
+            case "rede_desobstrucao":
+                url = "/rede/desobstrucao";
+                break;
+            case "rede_reparacao_colapso":
+                url = "/rede/reparacao_colapso";
+                break;
+            case "caixa_desobstrucao":
+                url = "/caixas/desobstrucao";
+                break;
+            case "caixa_reparacao":
+                url = "/caixas/reparacao";
+                break;
+            case "caixa_reparacao_tampa":
+                url = "/caixas/reparacao_tampa";
+                break;
+            case "ramal_desobstrucao":
+                url = "/ramais/desobstrucao";
+                break;
+            case "ramal_reparacao":
+                url = "/ramais/reparacao";
+                break;
+            case "requisicao_interna":
+                url = "/requisicao_interna";
+                break;
+            default:
+                throw new Error("Tipo de pedido inválido");
+        }
+
+        const response = await api.post(url, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar pedido interno:", error);
         throw error;
     }
 };

@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
 import { isFeatureAvailable } from '../utils/featureUtils';
 import { updateDocumentNotification } from '../../../services/documentService';
-import { useSmartRefresh } from '../hooks/useSmartRefresh';
 
 // Criar o contexto
 const DocumentActionsContext = createContext();
@@ -17,8 +16,6 @@ export const useDocumentActions = () => useContext(DocumentActionsContext);
 export const DocumentActionsProvider = ({ children }) => {
 
     const [modalInstanceKey, setModalInstanceKey] = useState(Date.now());
-    const [documentParams, setDocumentParams] = useState({});
-    const { smartRefresh } = useSmartRefresh();
 
     // Acessar contexto principal de documentos
     const { refreshDocuments, handleDownloadComprovativo, showNotification, activeTab } = useDocumentsContext();
@@ -209,14 +206,6 @@ export const DocumentActionsProvider = ({ children }) => {
         openModal('step');
     }, [selectedDocument, openModal, showNotification, checkFeatureAvailability]);
 
-    // Atualizar parâmetros de um documento específico
-    const updateDocumentParams = useCallback((documentId, params) => {
-        setDocumentParams(prev => ({
-            ...prev,
-            [documentId]: params
-        }));
-    }, []);
-
     // Adicionar anexo
     const handleAddAnnex = useCallback((document) => {
         const targetDoc = document || selectedDocument;
@@ -292,46 +281,33 @@ export const DocumentActionsProvider = ({ children }) => {
         setOpenDocuments(prev => prev.filter(item => String(item.modalInstanceKey) !== String(modalKey)));
     }, []);
 
-    // Atualizar o handler de closeStepModal
     const handleCloseStepModal = useCallback((success) => {
         const result = closeModal('step', success);
         if (result) {
-            smartRefresh('ADD_STEP', {
-                documentId: selectedDocument?.pk,
-                statusChanged: true // Isto deve ser determinado com base nas mudanças reais
-            });
             showNotification('Passo adicionado com sucesso', 'success');
         }
-    }, [closeModal, selectedDocument, smartRefresh, showNotification]);
+    }, [closeModal, showNotification]);
 
-    // Atualizar o handler de closeAnnexModal
     const handleCloseAnnexModal = useCallback((success) => {
         const result = closeModal('annex', success);
         if (result) {
-            smartRefresh('ADD_ANNEX', {
-                documentId: selectedDocument?.pk
-            });
             showNotification('Anexo adicionado com sucesso', 'success');
         }
-    }, [closeModal, selectedDocument, smartRefresh, showNotification]);
+    }, [closeModal, showNotification]);
 
-    // Atualizar o handler de closeReplicateModal
     const handleCloseReplicateModal = useCallback((success) => {
         const result = closeModal('replicate', success);
         if (result) {
-            smartRefresh('REPLICATE');
             showNotification('Documento replicado com sucesso', 'success');
         }
-    }, [closeModal, smartRefresh, showNotification]);
+    }, [closeModal, showNotification]);
 
-    // Atualizar o handler de closeCreateModal
     const handleCloseCreateModal = useCallback((success) => {
         const result = closeModal('create', success);
         if (result) {
-            smartRefresh('CREATE_DOCUMENT');
             showNotification('Pedido criado com sucesso', 'success');
         }
-    }, [closeModal, smartRefresh, showNotification]);
+    }, [closeModal, showNotification]);
 
     // Verificação de disponibilidade de features
     const canAddStep = checkFeatureAvailability('addStep');
@@ -352,7 +328,6 @@ export const DocumentActionsProvider = ({ children }) => {
         canAddAnnex,
         canReplicate,
         canDownloadComprovativo,
-        documentParams,
 
         // Ações de documento
         handleViewDetails,
@@ -362,7 +337,6 @@ export const DocumentActionsProvider = ({ children }) => {
         handleReplicate,
         handleDownloadCompr,
         handleOpenCreateModal,
-        updateDocumentParams,
 
         // Handlers de modais
         handleCloseDocumentModal,
