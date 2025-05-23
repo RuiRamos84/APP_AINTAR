@@ -214,11 +214,28 @@ export const addUnblockingRecord = async (type, data) => {
     }
 };
 
-export const createInternalRequest = async (data, scope) => {
+// Função para atualizar detalhes da entidade
+export const updateEntityDetails = async (areaId, pk, data) => {
+    try {
+        const url = areaId === 1
+            ? `/etar_update/${pk}`
+            : `/ee_update/${pk}`;
+
+        const response = await api.put(url, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar detalhes da entidade:", error);
+        throw error;
+    }
+  };
+
+// Versão completa e melhorada da função para criar pedidos internos
+export const createInternalRequest = async (data, requestType) => {
     try {
         let url;
 
-        switch (scope) {
+        switch (requestType) {
+            // ETAR
             case "etar_desmatacao":
                 url = "/etar/desmatacao";
                 break;
@@ -234,6 +251,8 @@ export const createInternalRequest = async (data, scope) => {
             case "etar_qualidade_ambiental":
                 url = "/etar/qualidade_ambiental";
                 break;
+
+            // EE
             case "ee_desmatacao":
                 url = "/ee/desmatacao";
                 break;
@@ -249,12 +268,16 @@ export const createInternalRequest = async (data, scope) => {
             case "ee_qualidade_ambiental":
                 url = "/ee/qualidade_ambiental";
                 break;
+
+            // Rede
             case "rede_desobstrucao":
                 url = "/rede/desobstrucao";
                 break;
             case "rede_reparacao_colapso":
                 url = "/rede/reparacao_colapso";
                 break;
+
+            // Caixas
             case "caixa_desobstrucao":
                 url = "/caixas/desobstrucao";
                 break;
@@ -264,17 +287,22 @@ export const createInternalRequest = async (data, scope) => {
             case "caixa_reparacao_tampa":
                 url = "/caixas/reparacao_tampa";
                 break;
+
+            // Ramais
             case "ramal_desobstrucao":
                 url = "/ramais/desobstrucao";
                 break;
             case "ramal_reparacao":
                 url = "/ramais/reparacao";
                 break;
+
+            // Requisição Interna
             case "requisicao_interna":
                 url = "/requisicao_interna";
                 break;
+
             default:
-                throw new Error("Tipo de pedido inválido");
+                throw new Error(`Tipo de pedido inválido: ${requestType}`);
         }
 
         const response = await api.post(url, data);
@@ -283,4 +311,4 @@ export const createInternalRequest = async (data, scope) => {
         console.error("Erro ao criar pedido interno:", error);
         throw error;
     }
-};
+  };

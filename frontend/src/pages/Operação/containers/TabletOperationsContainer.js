@@ -20,6 +20,8 @@ import ParametersModal from '../modals/ParametersModal/ParametersModal';
 import { getColumnsForView, getRemainingDaysColor, getUserNameByPk } from '../utils/operationsHelpers';
 import { SpeedDial, SpeedDialIcon, SpeedDialAction } from '@mui/material';
 import { FilterList, CheckCircle, MyLocation, Phone } from '@mui/icons-material';
+import { exportToExcel } from '../services/exportService';
+import { GetApp } from '@mui/icons-material';
 
 const TabletOperationsContainer = ({
     operationsData,
@@ -298,6 +300,11 @@ const TabletOperationsContainer = ({
                 icon={<SpeedDialIcon />}
                 direction="up"
             >
+                <SpeedDialAction
+                    icon={<GetApp />}
+                    tooltipTitle="Exportar"
+                    onClick={() => exportToExcel(filteredData, selectedView)}
+                />
                 <SpeedDialAction
                     icon={<FilterList />}
                     tooltipTitle="Filtros"

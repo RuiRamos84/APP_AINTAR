@@ -37,7 +37,7 @@ import EntityDetail from "./pages/Entity/EntityDetail/EntityDetail";
 import EntityList from "./pages/Entity/EntityList/EntityList";
 import EpiArea from "./pages/EPIs/EpiArea";
 import Home from "./pages/Home/Home";
-import InternalArea from "./pages/Internal/InternalArea";
+import InternalArea from "./pages/Internal/index";
 import LetterManagement from "./pages/Letters/LetterManagement";
 import Login from "./pages/Login/Login";
 import ModernDocuments from "./pages/ModernDocuments";

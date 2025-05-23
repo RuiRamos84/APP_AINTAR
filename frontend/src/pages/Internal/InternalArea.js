@@ -1,225 +1,160 @@
+// Refatorado: InternalArea.js com animações framer-motion
 import React, { useState } from "react";
-import { Box, Grid, Card, CardContent, Typography, Button } from "@mui/material";
+import {
+    Box, Grid, CardContent, Typography, Button
+} from "@mui/material";
+import { motion } from "framer-motion";
 import { useMetaData } from "../../contexts/MetaDataContext";
 import InternalDetails from "./InternalDetails";
 import InternalMaintenance from "./InternalMaintenance";
 import ExpenseRecordsTable from "./ExpenseRecordsTable";
-import MaintenanceRecordsTable from "./MaintenanceRecordsTable";
 import EquipExpenseTable from "./EquipExpenseTable";
+
+const AREAS = [
+    { id: 1, name: "ETAR", description: "Gestão de ETAR" },
+    { id: 2, name: "EEAR", description: "Gestão de EEAR" },
+    { id: 3, name: "Rede", description: "Gestão de Rede" },
+    { id: 4, name: "Ramais", description: "Gestão de Ramais" },
+    { id: 5, name: "Manutenção", description: "Gestão de Manutenção" },
+    { id: 6, name: "Equipamento Básico", description: "Gestão de Equipamento Básico" }
+];
+
+const SUB_AREAS = [
+    { id: 1, name: "Detalhes/Características" },
+    { id: 2, name: "Agendamento de Manutenção" },
+];
+
+const OPTIONS = {
+    3: [{ id: "despesa", name: "Registo de Despesa" }],
+    4: [{ id: "despesa", name: "Registo de Despesa" }],
+    5: [{ id: "despesa", name: "Registo de Despesa" }],
+    6: [{ id: "despesa", name: "Registo de Despesa" }],
+};
+
+const MotionCard = motion(Box);
 
 const InternalArea = () => {
     const { metaData } = useMetaData();
-    const [selectedArea, setSelectedArea] = useState(null);
-    const [selectedSubArea, setSelectedSubArea] = useState(null);
-    const [selectedOption, setSelectedOption] = useState(null);
-    const [selectedLocation, setSelectedLocation] = useState("");
-    const [filteredEntities, setFilteredEntities] = useState([]);
-    const [selectedEntity, setSelectedEntity] = useState(null);
-    const [selectedEntities, setSelectedEntities] = useState([]);
+    const [state, setState] = useState({
+        selectedArea: null,
+        selectedSubArea: null,
+        selectedOption: null,
+        selectedLocation: "",
+        filteredEntities: [],
+        selectedEntity: null,
+        selectedEntities: [],
+    });
 
-    const areas = [
-        { id: 1, name: "ETAR", description: "Gestão de ETAR" },
-        { id: 2, name: "EEAR", description: "Gestão de EEAR" },
-        { id: 3, name: "Rede", description: "Gestão de Rede" },
-        { id: 4, name: "Ramais", description: "Gestão de Ramais" },
-        { id: 5, name: "Manutenção", description: "Gestão de Manutenção" },
-        { id: 6, name: 'Equipamento Básico', description: 'Gestão de Equipamento Básico' }
-    ];
+    const updateState = (updates) => setState(prev => ({ ...prev, ...updates }));
 
-    const etarEeSubAreas = [
-        { id: 1, name: "Detalhes/Características" },
-        { id: 2, name: "Agendamento de Manutenção" },
-    ];
-
-    // Opções para áreas 3 a 6
-    const getOptionsForArea = (areaId) => {
-        switch (areaId) {
-            case 3: // Rede
-                return [
-                    { id: 'despesa', name: 'Registo de Despesa' }
-                ];
-            case 4: // Ramais
-                return [
-                    { id: 'despesa', name: 'Registo de Despesa' }
-                ];
-            case 5: // Manutenção
-                return [
-                    { id: 'despesa', name: 'Registo de Despesa' }
-                ];
-            case 6: // Despesas Equipamento
-                return [
-                    { id: 'despesa', name: 'Registo de Despesa' }
-                ];
-            default:
-                return [];
-        }
+    const handleBack = () => {
+        if (state.selectedOption) return updateState({ selectedOption: null });
+        if (state.selectedSubArea) return updateState({ selectedSubArea: null });
+        if (state.selectedArea) return updateState({ selectedArea: null });
     };
 
-    const handleAreaClick = (areaId) => {
-        setSelectedArea(areaId);
-        setSelectedSubArea(null);
-        setSelectedOption(null);
-    };
+    const renderCard = (item, onClick) => (
+        <MotionCard
+            key={item.id}
+            onClick={() => onClick(item.id)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            sx={{ cursor: "pointer", backgroundColor: "white", borderRadius: 2, boxShadow: 2, p: 2 }}
+        >
+            <CardContent>
+                <Typography variant="h6">{item.name}</Typography>
+                {item.description && <Typography variant="body2">{item.description}</Typography>}
+            </CardContent>
+        </MotionCard>
+    );
 
-    const handleSubAreaClick = (subAreaId) => {
-        setSelectedSubArea(subAreaId);
-    };
+    const renderAreaCards = () => (
+        <Grid container spacing={2}>
+            {AREAS.map((area) => (
+                <Grid item xs={12} sm={6} md={3} key={area.id}>
+                    {renderCard(area, (id) => updateState({ selectedArea: id }))}
+                </Grid>
+            ))}
+        </Grid>
+    );
 
-    const handleOptionClick = (option) => {
-        setSelectedOption(option);
-    };
+    const renderSubAreaCards = () => (
+        <Grid container spacing={2}>
+            {SUB_AREAS.map((subArea) => (
+                <Grid item xs={12} sm={6} md={4} key={subArea.id}>
+                    {renderCard(subArea, (id) => updateState({ selectedSubArea: id }))}
+                </Grid>
+            ))}
+        </Grid>
+    );
 
-    const renderContentByArea = () => {
-        if (!selectedArea) return null;
+    const renderOptionCards = () => (
+        <Grid container spacing={2}>
+            {(OPTIONS[state.selectedArea] || []).map((opt) => (
+                <Grid item xs={12} sm={6} md={4} key={opt.id}>
+                    {renderCard(opt, (id) => updateState({ selectedOption: id }))}
+                </Grid>
+            ))}
+        </Grid>
+    );
 
-        // ETAR ou EEAR (áreas 1 e 2)
+    const renderContent = () => {
+        const {
+            selectedArea, selectedSubArea, selectedOption, selectedLocation,
+            filteredEntities, selectedEntity, selectedEntities
+        } = state;
+
+        if (!selectedArea) return renderAreaCards();
+
         if (selectedArea <= 2) {
-            if (!selectedSubArea) {
-                return (
-                    <Grid container spacing={2}>
-                        {etarEeSubAreas.map((subArea) => (
-                            <Grid item xs={12} sm={6} md={4} key={subArea.id}>
-                                <Card
-                                    onClick={() => handleSubAreaClick(subArea.id)}
-                                    sx={{
-                                        cursor: "pointer",
-                                        transition: "all 0.3s",
-                                        "&:hover": { transform: "scale(1.05)" }
-                                    }}
-                                >
-                                    <CardContent>
-                                        <Typography variant="h6">{subArea.name}</Typography>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-                        ))}
-                    </Grid>
-                );
-            }
+            if (!selectedSubArea) return renderSubAreaCards();
 
             switch (selectedSubArea) {
                 case 1:
-                    return (
-                        <InternalDetails
-                            metaData={metaData}
-                            selectedArea={selectedArea}
-                            selectedLocation={selectedLocation}
-                            setSelectedLocation={setSelectedLocation}
-                            filteredEntities={filteredEntities}
-                            setFilteredEntities={setFilteredEntities}
-                            selectedEntity={selectedEntity}
-                            setSelectedEntity={setSelectedEntity}
-                        />
-                    );
+                    return <InternalDetails
+                        metaData={metaData} selectedArea={selectedArea}
+                        selectedLocation={selectedLocation} setSelectedLocation={(v) => updateState({ selectedLocation: v })}
+                        filteredEntities={filteredEntities} setFilteredEntities={(v) => updateState({ filteredEntities: v })}
+                        selectedEntity={selectedEntity} setSelectedEntity={(v) => updateState({ selectedEntity: v })}
+                    />;
                 case 2:
-                    return (
-                        <InternalMaintenance
-                            metaData={metaData}
-                            selectedArea={selectedArea}
-                            selectedLocation={selectedLocation}
-                            setSelectedLocation={setSelectedLocation}
-                            filteredEntities={filteredEntities}
-                            setFilteredEntities={setFilteredEntities}
-                            selectedEntities={selectedEntities}
-                            setSelectedEntities={setSelectedEntities}
-                        />
-                    );
+                    return <InternalMaintenance
+                        metaData={metaData} selectedArea={selectedArea}
+                        selectedLocation={selectedLocation} setSelectedLocation={(v) => updateState({ selectedLocation: v })}
+                        filteredEntities={filteredEntities} setFilteredEntities={(v) => updateState({ filteredEntities: v })}
+                        selectedEntities={selectedEntities} setSelectedEntities={(v) => updateState({ selectedEntities: v })}
+                    />;
                 default:
                     return null;
             }
         }
 
-        // Rede, Ramais, Manutenção, Despesas Equipamento (áreas 3, 4, 5, 6)
-        // Mostrar submenu de opções
-        const options = getOptionsForArea(selectedArea);
+        if (!selectedOption) return renderOptionCards();
 
-        if (!selectedOption) {
-            return (
-                <Grid container spacing={2}>
-                    {options.map((option) => (
-                        <Grid item xs={12} sm={6} md={4} key={option.id}>
-                            <Card
-                                onClick={() => handleOptionClick(option.id)}
-                                sx={{
-                                    cursor: "pointer",
-                                    transition: "all 0.3s",
-                                    "&:hover": { transform: "scale(1.05)" }
-                                }}
-                            >
-                                <CardContent>
-                                    <Typography variant="h6">{option.name}</Typography>
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-            );
-        }
-
-        // Renderizar o componente adequado com base na opção selecionada
         switch (selectedOption) {
-            case 'despesa':
-                if (selectedArea === 6) {
-                    return <EquipExpenseTable metaData={metaData} />;
-                }
-                return <ExpenseRecordsTable selectedArea={selectedArea} metaData={metaData} />;
+            case "despesa":
+                return selectedArea === 6
+                    ? <EquipExpenseTable metaData={metaData} />
+                    : <ExpenseRecordsTable selectedArea={selectedArea} metaData={metaData} />;
             default:
-                return null;
+                return <Typography>Opção não suportada</Typography>;
         }
-    };
-
-    const handleBack = () => {
-        if (selectedOption) {
-            setSelectedOption(null);
-        } else if (selectedSubArea) {
-            setSelectedSubArea(null);
-        } else if (selectedArea) {
-            setSelectedArea(null);
-        }
-
-        // Limpar todas as seleções
-        setSelectedLocation("");
-        setFilteredEntities([]);
-        setSelectedEntity(null);
-        setSelectedEntities([]);
     };
 
     return (
-        <Box sx={{ padding: 4 }}>
+        <Box sx={{ p: 4 }}>
             <Box display="flex" justifyContent="space-between" mb={4}>
                 <Typography variant="h4">
-                    {selectedArea ? areas.find(a => a.id === selectedArea)?.name : ""}
+                    {state.selectedArea ? AREAS.find(a => a.id === state.selectedArea)?.name : ""}
                 </Typography>
-                {(selectedArea || selectedSubArea || selectedOption) && (
-                    <Button variant="outlined" onClick={handleBack}>
-                        Voltar
-                    </Button>
+                {(state.selectedArea || state.selectedSubArea || state.selectedOption) && (
+                    <Button variant="outlined" onClick={handleBack}>Voltar</Button>
                 )}
             </Box>
-
-            {!selectedArea ? (
-                <Grid container spacing={2}>
-                    {areas.map((area) => (
-                        <Grid item xs={12} sm={6} md={3} key={area.id}>
-                            <Card
-                                onClick={() => handleAreaClick(area.id)}
-                                sx={{
-                                    cursor: "pointer",
-                                    transition: "all 0.3s",
-                                    "&:hover": { transform: "scale(1.05)" }
-                                }}
-                            >
-                                <CardContent>
-                                    <Typography variant="h6">{area.name}</Typography>
-                                    <Typography variant="body2">{area.description}</Typography>
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-            ) : (
-                renderContentByArea()
-            )}
+            {renderContent()}
         </Box>
     );
 };

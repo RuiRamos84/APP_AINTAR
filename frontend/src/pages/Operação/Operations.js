@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Box, useMediaQuery, useTheme, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { useMetaData } from '../../contexts/MetaDataContext';
 import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
 import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
-import { useMetaData } from '../../contexts/MetaDataContext';
+import { exportToExcel } from "./services/exportService";
 
 // Componentes existentes
 import AssociateFilter from "./AssociateFilter";
-import ViewCards from "./ViewCards";
 import OperationsTable from "./OperationsTable";
 import TabletOperations from "./TabletOperations";
+import ViewCards from "./ViewCards";
+import ExportButton from "./components/ExportButton";
 
 const Operations = () => {
     const theme = useTheme();
@@ -41,6 +42,12 @@ const Operations = () => {
         toggleRowExpand,
         getAddressString
     } = useOperationsTable(filteredData, selectedView);
+
+    const handleExport = () => {
+        if (selectedView && filteredData[selectedView]) {
+            exportToExcel(filteredData, selectedView);
+        }
+    };
 
     // Render helper para células da tabela
     const renderCell = (column, row) => {
@@ -116,15 +123,18 @@ const Operations = () => {
                             flexDirection: "column",
                         }}
                     >
-                        <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mb={2}
-                        >
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="h5" gutterBottom>
                                 Detalhes de {filteredData[selectedView].name}
                             </Typography>
+                            <Button
+                                variant="outlined"
+                                startIcon={<GetApp />}
+                                onClick={handleExport}
+                                disabled={!sortedData.length}
+                            >
+                                Exportar Excel
+                            </Button>
                         </Box>
 
                         <OperationsTable
