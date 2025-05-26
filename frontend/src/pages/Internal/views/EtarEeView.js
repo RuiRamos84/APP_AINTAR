@@ -43,6 +43,7 @@ import { formatDate, formatCurrency } from "../utils/recordsFormatter";
 import { getCurrentDateTime } from "../../../utils/dataUtils";
 import { createInternalRequest, updateEntityDetails } from "../../../services/InternalService";
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster";
+import EntityDetailsView from '../components/EntityDetailsView';
 
 // Colunas para tabelas de dados
 const volumeColumns = [
@@ -140,7 +141,7 @@ const EtarEeView = ({ areaId }) => {
             notifySuccess("Detalhes atualizados com sucesso");
             fetchDetails();
         } catch (error) {
-            notifyError("Erro ao atualizar detalhes");
+            notifyError("Erro ao atualizar detalhes", error.message);
         }
     };
 
@@ -227,32 +228,11 @@ const EtarEeView = ({ areaId }) => {
         switch (selectedSubArea) {
             case 'caracteristicas':
                 return (
-                    <Box>
-                        <Button
-                            variant="contained"
-                            onClick={handleOpenDetails}
-                            startIcon={<InfoIcon />}
-                        >
-                            Ver Detalhes Completos
-                        </Button>
-
-                        {/* Cards resumidos com as info principais */}
-                        <Grid container spacing={2} sx={{ mt: 2 }}>
-                            <Grid item xs={12} sm={6} md={4}>
-                                <Paper sx={{ p: 2 }}>
-                                    <Typography variant="subtitle1" color="text.secondary">Nome</Typography>
-                                    <Typography variant="h6">{selectedEntity.nome || "-"}</Typography>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={4}>
-                                <Paper sx={{ p: 2 }}>
-                                    <Typography variant="subtitle1" color="text.secondary">Localização</Typography>
-                                    <Typography variant="h6">{selectedEntity.ts_entity || "-"}</Typography>
-                                </Paper>
-                            </Grid>
-                            {/* Outros cards de informação... */}
-                        </Grid>
-                    </Box>
+                    <EntityDetailsView
+                        entity={selectedEntity}
+                        entityType={areaId}
+                        onEdit={handleOpenDetails}
+                    />
                 );
             case 'volumes':
                 return <VolumeTab areaId={areaId} entity={selectedEntity} />;
@@ -399,14 +379,142 @@ const VolumeTab = ({ areaId, entity }) => {
     );
 };
 
-// Componente para a tab de energia (similar ao VolumeTab)
 const EnergyTab = ({ areaId, entity }) => {
-    // Implementação similar ao VolumeTab...
+    const { state, dispatch } = useInternalContext();
+    const { records, loading, newRecord, setNewRecord, addRecord } = useRecords("energy");
+    const { metaData } = useMetaData();
+
+    useEffect(() => {
+        dispatch({ type: "SET_ENTITY", payload: entity });
+    }, [entity, dispatch]);
+
+    const handleAddRecord = async () => {
+        const payload = {
+            pnpk: entity.pk,
+            pndate: newRecord.date,
+            pnval_vazio: parseFloat(newRecord.vazio),
+            pnval_ponta: parseFloat(newRecord.ponta),
+            pnval_cheia: parseFloat(newRecord.cheia)
+        };
+
+        if (await addRecord(payload)) {
+            setNewRecord({
+                date: getCurrentDateTime(),
+                vazio: "",
+                ponta: "",
+                cheia: ""
+            });
+        }
+    };
+
+    const energyFieldsConfig = [
+        { name: "date", label: "Data", type: "datetime-local", required: true, size: 3 },
+        { name: "vazio", label: "Consumo Vazio", type: "number", required: true, size: 3 },
+        { name: "ponta", label: "Consumo Ponta", type: "number", required: true, size: 3 },
+        { name: "cheia", label: "Consumo Cheia", type: "number", required: true, size: 3 }
+    ];
+
+    return (
+        <GenericTable
+            title={`Registos de Energia - ${entity.nome}`}
+            columns={energyColumns}
+            records={records}
+            loading={loading}
+            formatters={{ data: formatDate }}
+            renderForm={() => (
+                <RecordForm
+                    recordType="energy"
+                    formData={newRecord}
+                    setFormData={setNewRecord}
+                    onSubmit={handleAddRecord}
+                    metaData={metaData}
+                    fieldsConfig={energyFieldsConfig}
+                />
+            )}
+        />
+    );
 };
 
-// Componente para a tab de despesas (similar ao VolumeTab)
+// Componente para a tab de despesas
 const ExpenseTab = ({ areaId, entity }) => {
-    // Implementação similar ao VolumeTab...
+    const { state, dispatch } = useInternalContext();
+    const { records, loading, newRecord, setNewRecord, addRecord } = useRecords("expense");
+    const { metaData } = useMetaData();
+
+    useEffect(() => {
+        dispatch({ type: "SET_ENTITY", payload: entity });
+    }, [entity, dispatch]);
+
+    const handleAddRecord = async () => {
+        const payload = {
+            pntt_expensedest: parseInt(newRecord.expenseDest, 10),
+            pndate: newRecord.date,
+            pnval: parseFloat(newRecord.value),
+            pnmemo: newRecord.memo,
+            pnts_associate: newRecord.associate ? parseInt(newRecord.associate, 10) : undefined
+        };
+
+        if (areaId === 1) {
+            payload.pntt_etar = entity.pk;
+        } else {
+            payload.pntt_ee = entity.pk;
+        }
+
+        if (await addRecord(payload)) {
+            setNewRecord({
+                date: getCurrentDateTime(),
+                expenseDest: "",
+                value: "",
+                memo: "",
+                associate: ""
+            });
+        }
+    };
+
+    const expenseFieldsConfig = [
+        { name: "date", label: "Data", type: "datetime-local", required: true, size: 3 },
+        {
+            name: "expenseDest",
+            label: "Tipo da Despesa",
+            type: "select",
+            options: metaData?.expense || [],
+            required: true,
+            size: 3
+        },
+        { name: "value", label: "Valor (€)", type: "number", required: true, size: 2 },
+        { name: "memo", label: "Descrição", type: "text", required: true, size: 3 },
+        {
+            name: "associate",
+            label: "Associado",
+            type: "select",
+            options: metaData?.associates || [],
+            required: false,
+            size: 3
+        }
+    ];
+
+    return (
+        <GenericTable
+            title={`Registos de Despesas - ${entity.nome}`}
+            columns={expenseColumns}
+            records={records}
+            loading={loading}
+            formatters={{
+                data: formatDate,
+                valor: formatCurrency
+            }}
+            renderForm={() => (
+                <RecordForm
+                    recordType="expense"
+                    formData={newRecord}
+                    setFormData={setNewRecord}
+                    onSubmit={handleAddRecord}
+                    metaData={metaData}
+                    fieldsConfig={expenseFieldsConfig}
+                />
+            )}
+        />
+    );
 };
 
 // Componente para solicitações individuais

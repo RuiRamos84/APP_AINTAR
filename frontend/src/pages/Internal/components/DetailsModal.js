@@ -1,5 +1,5 @@
 // /components/DetailsModal.js
-import React from "react";
+import React, { useState } from "react";
 import {
     Dialog,
     DialogTitle,
@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { formatDate } from "../utils/recordsFormatter";
+import { notifyError } from "../../../components/common/Toaster/ThemedToaster";
 
 const FIELD_LABELS = {
     "ener_cpe": "CPE de Energia",
@@ -80,15 +81,79 @@ const DetailsModal = ({
     entityType,
     loading = false
 }) => {
+    const [errors, setErrors] = useState({});
+
+    console.log("DetailsModal props:", details);
+
+    // Definir tipos de campos
+    const FIELD_TYPES = {
+        coord_m: 'number',
+        coord_p: 'number',
+        ener_entidade: 'integer',
+        ener_potencia: 'number',
+        ener_val: 'integer',
+        apa_data_ini: 'date',
+        apa_data_fim: 'date'
+    };
+
+    const validateField = (field, value) => {
+        const type = FIELD_TYPES[field];
+        if (!type || !value) return true;
+
+        switch (type) {
+            case 'number':
+                return !isNaN(parseFloat(value));
+            case 'integer':
+                return /^\d+$/.test(value);
+            case 'date':
+                return !isNaN(Date.parse(value));
+            default:
+                return true;
+        }
+    };
+
     const handleFieldChange = (field, value) => {
         setEditableDetails(prev => ({
             ...prev,
             [field]: value
         }));
+
+        // Validar campo
+        if (!validateField(field, value) && value !== '') {
+            setErrors(prev => ({
+                ...prev,
+                [field]: `Campo deve ser ${FIELD_TYPES[field] === 'integer' ? 'número inteiro' : 'numérico'}`
+            }));
+        } else {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
     };
 
     const handleSave = () => {
-        onSave(editableDetails);
+        // Verificar se há erros
+        if (Object.keys(errors).length > 0) {
+            notifyError("Corrija os erros antes de guardar");
+            return;
+        }
+
+        // Preparar dados com tipos correctos
+        const preparedData = { ...editableDetails };
+        Object.keys(FIELD_TYPES).forEach(field => {
+            if (preparedData[field]) {
+                const type = FIELD_TYPES[field];
+                if (type === 'integer') {
+                    preparedData[field] = parseInt(preparedData[field]);
+                } else if (type === 'number') {
+                    preparedData[field] = parseFloat(preparedData[field]);
+                }
+            }
+        });
+
+        onSave(preparedData);
     };
 
     const handleCancel = () => {
@@ -138,27 +203,25 @@ const DetailsModal = ({
                                                 label={FIELD_LABELS[field] || field.replace(/_/g, " ")}
                                             />
                                         ) : (
-                                            <TextField
-                                                label={FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                                                value={
-                                                    field.includes("data")
-                                                        ? formatDate(editableDetails[field])
-                                                        : editableDetails[field] || ""
-                                                }
-                                                onChange={(e) => isEditMode &&
-                                                    EDITABLE_FIELDS.includes(field) &&
-                                                    handleFieldChange(field, e.target.value)}
-                                                variant="outlined"
-                                                fullWidth
-                                                InputProps={{
-                                                    readOnly: !isEditMode || !EDITABLE_FIELDS.includes(field),
-                                                }}
-                                                sx={{
-                                                    backgroundColor: isEditMode && EDITABLE_FIELDS.includes(field)
-                                                        ? "#e8f5e9"
-                                                        : "transparent",
-                                                }}
-                                            />
+                                                <TextField
+                                                    label={FIELD_LABELS[field] || field.replace(/_/g, " ")}
+                                                    value={editableDetails[field] || ""}
+                                                    onChange={(e) => isEditMode &&
+                                                        EDITABLE_FIELDS.includes(field) &&
+                                                        handleFieldChange(field, e.target.value)}
+                                                    variant="outlined"
+                                                    fullWidth
+                                                    error={!!errors[field]}
+                                                    helperText={errors[field]}
+                                                    InputProps={{
+                                                        readOnly: !isEditMode || !EDITABLE_FIELDS.includes(field),
+                                                    }}
+                                                    sx={{
+                                                        backgroundColor: isEditMode && EDITABLE_FIELDS.includes(field)
+                                                            ? "#e8f5e9"
+                                                            : "transparent",
+                                                    }}
+                                                />
                                         )}
                                     </Grid>
                                 ))}

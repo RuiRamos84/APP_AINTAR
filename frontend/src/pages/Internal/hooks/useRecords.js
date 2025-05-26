@@ -63,26 +63,22 @@ export function useRecords(recordType) {
 
             const areaType = getTypeByArea(selectedArea);
 
-            // Chamar o método correto com base no tipo de registo
-            let addFunction;
-            switch (recordType) {
-                case "volume":
-                    addFunction = InternalService.addVolumeRecord;
-                    break;
-                case "energy":
-                    addFunction = InternalService.addEnergyRecord;
-                    break;
-                case "expense":
-                    addFunction = InternalService.addExpenseRecord;
-                    break;
-                default:
-                    throw new Error(`Tipo de registo inválido: ${recordType}`);
+            // Preparar payload com base no tipo de registo
+            let finalPayload = { ...data };
+
+            // Para volume e energia, usar selectedArea diretamente
+            if (recordType === "volume" || recordType === "energy") {
+                await InternalService[`add${capitalizeFirst(recordType)}Record`](selectedArea, finalPayload);
+            }
+            // Para despesas, usar areaType
+            else if (recordType === "expense") {
+                await InternalService.addExpenseRecord(areaType, finalPayload);
+            } else {
+                throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
 
-            // Executar a função de adição
-            await addFunction(areaType, data);
             notifySuccess(`Registo de ${getRecordTypeName(recordType)} adicionado com sucesso`);
-            fetchRecords();
+            await fetchRecords();
             return true;
         } catch (error) {
             handleApiError(error, `Erro ao adicionar registo de ${getRecordTypeName(recordType)}`);
@@ -91,6 +87,9 @@ export function useRecords(recordType) {
             setSubmitting(false);
         }
     };
+
+    // Função auxiliar
+    const capitalizeFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
     const getTypeByArea = (area) => {
         switch (area) {

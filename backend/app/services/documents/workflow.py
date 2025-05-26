@@ -196,16 +196,37 @@ def get_document_type_param(current_user, type_id):
 
 
 def update_document_params(current_user, document_id, data):
-    """Atualizar parâmetros do documento"""
+    """Atualizar parâmetros do documento e calcular invoice"""
+
+    # Mapeamento entre tipos de documento e funções invoice
+    TYPE_TO_INVOICE = {
+        "Ramal: Execução": {
+            "id": 1,
+            "function": "fbo_document_invoice$1"
+        },
+        "Pedido de Limpeza de Fossa": {
+            "id": 2,
+            "function": "fbo_document_invoice$2"
+        },
+        # Adicionar novos tipos aqui:
+        # "Novo Tipo": {
+        #     "id": 3,
+        #     "function": "fbo_document_invoice$3"
+        # },
+    }
+
     try:
         with db_session_manager(current_user) as session:
             document_id = sanitize_input(document_id, 'int')
 
-            # Verificar se o documento existe
-            doc_query = text("SELECT pk FROM vbl_document WHERE pk = :pk")
+            # Verificar se o documento existe e obter o tipo
+            doc_query = text(
+                "SELECT pk, tt_type FROM vbl_document WHERE pk = :pk")
             doc = session.execute(doc_query, {'pk': document_id}).fetchone()
             if not doc:
                 raise ResourceNotFoundError("Documento", document_id)
+
+            document_type = doc.tt_type
 
             # Data já é um array aqui, não precisa do .get('params')
             params_to_update = data if isinstance(data, list) else []
@@ -239,7 +260,6 @@ def update_document_params(current_user, document_id, data):
                             f"Tentativa de atualizar parâmetro inexistente: {param_pk}")
                         continue
 
-
                     # Atualizar o parâmetro
                     update_query = text("""
                         UPDATE vbf_document_param
@@ -254,6 +274,35 @@ def update_document_params(current_user, document_id, data):
                     })
                     update_count += result.rowcount
 
+                # Chamar a função de invoice se o tipo estiver configurado
+                invoice_info = None
+
+                # Verificar se document_type é string (nome) ou número (id)
+                if isinstance(document_type, str) and document_type in TYPE_TO_INVOICE:
+                    invoice_info = TYPE_TO_INVOICE[document_type]
+                elif isinstance(document_type, (int, float)):
+                    # Procurar pelo ID no mapeamento
+                    for type_name, info in TYPE_TO_INVOICE.items():
+                        if info["id"] == int(document_type):
+                            invoice_info = info
+                            break
+
+                if invoice_info:
+                    invoice_function = invoice_info["function"]
+                    invoice_query = text(f"""
+                        SELECT {invoice_function}(:pnpk) AS result
+                    """)
+                    invoice_result = session.execute(invoice_query, {
+                        'pnpk': document_id
+                    }).scalar()
+
+                    if invoice_result:
+                        current_app.logger.info(
+                            f"Invoice calculado para documento {document_id} (tipo {document_type}): {invoice_result}")
+                    else:
+                        current_app.logger.warning(
+                            f"Falha ao calcular invoice para documento {document_id} (tipo {document_type})")
+
                 session.commit()
 
                 # Limpar cache relacionado
@@ -261,7 +310,8 @@ def update_document_params(current_user, document_id, data):
 
                 return {
                     'success': True,
-                    'message': f'Atualizados {update_count} parâmetros com sucesso'
+                    'message': f'Atualizados {update_count} parâmetros com sucesso',
+                    'invoice_updated': invoice_info is not None
                 }, 200
 
             except SQLAlchemyError as se:
@@ -282,7 +332,7 @@ def update_document_params(current_user, document_id, data):
             'success': False,
             'error': str(e)
         }, 500
-
+        
 
 def update_document_pavenext(pk, current_user):
     """Atualizar o documento usando a função fbo_document_pavenext"""

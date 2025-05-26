@@ -43,13 +43,42 @@ from ..services.etar_ee_service import (
     create_caixa_reparacao_tampa,
     create_ramal_desobstrucao,
     create_ramal_reparacao,
-    create_requisicao_interna
+    create_requisicao_interna,
+    update_etar_details,
+    update_ee_details,
+
     )
 from ..utils.utils import set_session, token_required
 from app.utils.error_handler import api_error_handler
 
 
 bp = Blueprint('etar_ee_routes', __name__)
+
+
+@bp.route('/etar_update/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def update_etar(pk):
+    """Atualizar dados de uma ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    result, status_code = update_etar_details(pk, data, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ee_update/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def update_ee(pk):
+    """Atualizar dados de uma EE"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    result, status_code = update_ee_details(pk, data, current_user)
+    return jsonify(result), status_code
 
 
 @bp.route('/etar_maintenance/<int:pk>', methods=['POST'])

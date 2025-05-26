@@ -2,6 +2,80 @@ from sqlalchemy.sql import text
 from ..utils.utils import db_session_manager, format_message
 
 
+def update_etar_details(pk, data, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT fbf_etar(
+                    1, -- pop = 1 para UPDATE
+                    :pk,
+                    :nome,
+                    :coord_m,
+                    :coord_p,
+                    :apa_licenca,
+                    :apa_data_ini,
+                    :apa_data_fim,
+                    :ener_entidade,
+                    :ener_cpe,
+                    :ener_potencia,
+                    :ener_val
+                )
+            """)
+
+            params = {
+                'pk': pk,
+                'nome': data.get('nome'),
+                'coord_m': float(data.get('coord_m')) if data.get('coord_m') else None,
+                'coord_p': float(data.get('coord_p')) if data.get('coord_p') else None,
+                'apa_licenca': data.get('apa_licenca'),
+                'apa_data_ini': data.get('apa_data_ini'),
+                'apa_data_fim': data.get('apa_data_fim'),
+                'ener_entidade': int(data.get('ener_entidade')) if data.get('ener_entidade') else None,
+                'ener_cpe': data.get('ener_cpe'),
+                'ener_potencia': float(data.get('ener_potencia')) if data.get('ener_potencia') else None,
+                'ener_val': int(data.get('ener_val')) if data.get('ener_val') else None
+            }
+
+            result = session.execute(query, params).scalar()
+            return {'message': 'ETAR actualizada com sucesso', 'pk': result}, 200
+    except Exception as e:
+        return {'error': f"Erro ao actualizar ETAR: {str(e)}"}, 500
+
+
+def update_ee_details(pk, data, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT fbf_ee(
+                    1, -- pop = 1 para UPDATE
+                    :pk,
+                    :nome,
+                    :coord_m,
+                    :coord_p,
+                    :ener_entidade,
+                    :ener_cpe,
+                    :ener_potencia,
+                    :ener_val
+                )
+            """)
+
+            params = {
+                'pk': pk,
+                'nome': data.get('nome'),
+                'coord_m': float(data.get('coord_m')) if data.get('coord_m') else None,
+                'coord_p': float(data.get('coord_p')) if data.get('coord_p') else None,
+                'ener_entidade': int(data.get('ener_entidade')) if data.get('ener_entidade') else None,
+                'ener_cpe': data.get('ener_cpe'),
+                'ener_potencia': float(data.get('ener_potencia')) if data.get('ener_potencia') else None,
+                'ener_val': int(data.get('ener_val')) if data.get('ener_val') else None
+            }
+
+            result = session.execute(query, params).scalar()
+            return {'message': 'EE actualizada com sucesso', 'pk': result}, 200
+    except Exception as e:
+        return {'error': f"Erro ao actualizar EE: {str(e)}"}, 500
+
+
 def create_etar_document(pk, current_user):
     try:
         with db_session_manager(current_user) as session:

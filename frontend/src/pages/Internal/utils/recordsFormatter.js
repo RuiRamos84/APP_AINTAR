@@ -1,16 +1,24 @@
 // /utils/recordsFormatter.js
 export const formatDate = (dateString) => {
-    if (!dateString) return "-";
+    if (!dateString) return null;
+
     try {
-        return new Date(dateString).toLocaleDateString("pt-PT", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
+        // Para strings no formato "Sun, 30 Apr 2023 00:00:00 GMT"
+        const date = new Date(dateString);
+
+        // Verificar se a data é válida
+        if (isNaN(date.getTime())) {
+            console.warn('Data inválida:', dateString);
+            return dateString;
+        }
+
+        return date.toLocaleDateString('pt-PT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
         });
     } catch (error) {
-        console.error("Erro ao formatar data:", error);
+        console.error('Erro ao formatar data:', error);
         return dateString;
     }
 };
