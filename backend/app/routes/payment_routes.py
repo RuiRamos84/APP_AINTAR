@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.payment_service import payment_service
 from ..utils.utils import token_required, set_session
 import logging
@@ -20,6 +20,31 @@ def get_invoice_amount(document_id):
     if not data:
         return jsonify({"success": False, "message": "Fatura não encontrada"}), 404
     return jsonify({"success": True, "invoice_data": data}), 200
+
+
+@bp.route("/payments/pending", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_pending_payments():
+    """Obter pagamentos pendentes de validação"""
+    current_user = get_jwt_identity()
+    user = get_jwt()["user_id"]
+    # print(f"User: {user}")
+
+    # Verificar permissões
+    user_id = user.get('user_id') if isinstance(user, dict) else user
+    # print(f"User ID: {user_id}")
+    if user_id not in (12, 16):
+        return jsonify({"error": "Sem permissão"}), 403
+
+    try:
+        payments = payment_service.get_pending_payments(current_user)
+        return jsonify({"success": True, "payments": payments}), 200
+    except Exception as e:
+        logger.error(f"Erro ao obter pagamentos pendentes: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @bp.route("/payments/mbway", methods=["POST"])
@@ -104,15 +129,11 @@ def manual_payment():
     if not all(k in data for k in required):
         return jsonify({"error": "Dados incompletos para pagamento manual"}), 400
 
-    # Get user_id from JWT
     user = get_jwt_identity()
-
-    # Extract user_id if it's a dictionary with user_id attribute
     user_id = user.get('user_id') if isinstance(user, dict) else user
 
-    # Check if user has permission (in either user_id or pk format)
-    # Modified to accept user_id 15 and 16 based on your token structure
-    if user_id not in (15, 16, 17):  # Added 17 per your token example
+    # Verificar permissões
+    if user_id not in (12, 16, 17):
         logger.warning(f"User {user_id} attempted unauthorized manual payment")
         return jsonify({"error": "Sem permissão"}), 403
 
@@ -134,18 +155,14 @@ def manual_payment():
 @set_session
 @api_error_handler
 def approve_payment(payment_pk):
-    # Get user_id from JWT
     user = get_jwt_identity()
-
-    # Extract user_id if it's a dictionary with user_id attribute
     user_id = user.get('user_id') if isinstance(user, dict) else user
-
-    # Check if user has permission to approve payments (only user_id 15 and 16)
-    if user_id not in (15, 16):
+    # print(f"User ID: {user_id}")
+    # Verificar permissões
+    if user_id not in (12, 16):
         logger.warning(
             f"User {user_id} attempted unauthorized payment approval")
         return jsonify({"error": "Sem permissão"}), 403
 
-    # Use user_id as the user.pk for the approve_payment method
     resp = payment_service.approve_payment(payment_pk, user_id)
     return jsonify(resp), (200 if resp.get("success") else 400)

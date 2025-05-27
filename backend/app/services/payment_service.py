@@ -316,5 +316,65 @@ class PaymentService:
             logger.error(f"Erro em approve_payment: {e}")
             return {"success": False, "error": str(e)}
 
+    def get_pending_payments(self, current_user):
+        """
+        Obtém todos os pagamentos pendentes de validação
+        Retorna apenas pagamentos manuais (CASH e BANK_TRANSFER) com status PENDING_VALIDATION
+        """
+        try:
+            with db_session_manager(current_user) as session:
+                query = text("""
+                    SELECT 
+                        s.pk,
+                        s.order_id,
+                        s.transaction_id,
+                        s.amount,
+                        s.payment_method,
+                        s.payment_status,
+                        s.payment_reference,
+                        s.created_at,
+                        s.entity,
+                        di.tb_document,
+                        d.regnumber,
+                        d.memo as document_descr,
+                        u.name as submitted_by_name
+                    FROM vbf_sibs s
+                    LEFT JOIN vbl_document_invoice di ON di.order_id = s.order_id
+                    LEFT JOIN vbl_document d ON d.pk = di.tb_document
+                    LEFT JOIN vst_document_step$who u ON u.username = COALESCE(
+                        (s.payment_reference::json->>'submitted_by')::json->>'username',
+                        d.creator
+                    )
+                    WHERE s.payment_status = 'PENDING_VALIDATION'
+                    AND s.payment_method IN ('CASH', 'BANK_TRANSFER')
+                    ORDER BY s.created_at DESC
+                """)
+
+                results = session.execute(query).fetchall()
+
+                payments = []
+                for row in results:
+                    payment_data = {
+                        'pk': row.pk,
+                        'order_id': row.order_id,
+                        'transaction_id': row.transaction_id,
+                        'amount': float(row.amount) if row.amount else 0,
+                        'payment_method': row.payment_method,
+                        'payment_status': row.payment_status,
+                        'payment_reference': row.payment_reference,
+                        'created_at': row.created_at.isoformat() if row.created_at else None,
+                        'entity': row.entity,
+                        'document_id': row.tb_document,
+                        'document_regnumber': row.regnumber,
+                        'document_descr': row.document_descr,
+                        'submitted_by_name': row.submitted_by_name
+                    }
+                    payments.append(payment_data)
+
+                return payments
+        except Exception as e:
+            logger.error(f"Erro ao obter pagamentos pendentes: {e}")
+            raise
+
 
 payment_service = PaymentService()

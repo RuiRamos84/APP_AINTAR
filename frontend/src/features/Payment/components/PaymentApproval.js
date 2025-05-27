@@ -21,22 +21,20 @@ import {
     TableRow,
     Typography,
     Alert,
-    useTheme
+    useTheme,
+    Tooltip
 } from '@mui/material';
 import {
     CheckCircle as ApproveIcon,
     Visibility as ViewIcon,
     Refresh as RefreshIcon,
-    Warning as WarningIcon
+    Warning as WarningIcon,
+    Description as DocumentIcon,
+    Person as PersonIcon
 } from '@mui/icons-material';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS } from '../services/paymentTypes';
 import paymentService from '../services/paymentService';
 
-/**
- * Componente para aprovação de pagamentos manuais (admin)
- * @param {Object} props - Propriedades do componente
- * @param {Object} props.userInfo - Informações do usuário atual
- */
 const PaymentApproval = ({ userInfo }) => {
     const theme = useTheme();
     const [payments, setPayments] = useState([]);
@@ -47,15 +45,13 @@ const PaymentApproval = ({ userInfo }) => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState(null);
     const [authorized, setAuthorized] = useState(false);
+    const [approving, setApproving] = useState(false);
 
-    // Verificar autorização do usuário
+    // Verificar autorização do utilizador
     useEffect(() => {
-        // Checar se o usuário tem permissão para aprovar pagamentos
-        // Precisa ter profil 0, 1 ou 2 E user_id 15 ou 16
-        const isAuthorized =
-            userInfo &&
+        const isAuthorized = userInfo &&
             ['0', '1', '2'].includes(userInfo.profil) &&
-            [15, 16].includes(Number(userInfo.user_id));
+            [12, 16].includes(Number(userInfo.user_id));
 
         setAuthorized(isAuthorized);
 
@@ -72,44 +68,16 @@ const PaymentApproval = ({ userInfo }) => {
         setError(null);
 
         try {
-            // Em um cenário real, você chamaria a API para obter os pagamentos pendentes
-            // const response = await paymentService.getPendingPayments();
+            const response = await paymentService.getPendingPayments();
 
-            // Mock de dados para demonstração
-            const mockPayments = [
-                {
-                    pk: 1,
-                    order_id: 'ORD-2023-001',
-                    transaction_id: 'MANUAL-123456',
-                    amount: 150.00,
-                    payment_method: PAYMENT_METHODS.CASH,
-                    payment_status: PAYMENT_STATUS.PENDING_VALIDATION,
-                    created_at: '2023-04-22T14:30:00',
-                    payment_reference: JSON.stringify({
-                        referenceInfo: 'Pagamento em dinheiro na sede'
-                    }),
-                    entity: 'MANUAL'
-                },
-                {
-                    pk: 2,
-                    order_id: 'ORD-2023-002',
-                    transaction_id: 'MANUAL-234567',
-                    amount: 299.99,
-                    payment_method: PAYMENT_METHODS.BANK_TRANSFER,
-                    payment_status: PAYMENT_STATUS.PENDING_VALIDATION,
-                    created_at: '2023-04-22T15:45:00',
-                    payment_reference: JSON.stringify({
-                        transferReference: 'REF123456',
-                        transferDate: '2023-04-22'
-                    }),
-                    entity: 'MANUAL'
-                }
-            ];
-
-            setPayments(mockPayments);
+            if (response.success) {
+                setPayments(response.payments);
+            } else {
+                setError(response.error || 'Não foi possível carregar os pagamentos pendentes');
+            }
         } catch (err) {
             console.error('Erro ao obter pagamentos pendentes:', err);
-            setError('Não foi possível carregar os pagamentos pendentes');
+            setError('Erro ao carregar pagamentos pendentes');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -135,7 +103,7 @@ const PaymentApproval = ({ userInfo }) => {
         return new Intl.NumberFormat('pt-PT', {
             style: 'currency',
             currency: 'EUR'
-        }).format(amount);
+        }).format(amount || 0);
     };
 
     // Abrir modal de detalhes do pagamento
@@ -156,19 +124,26 @@ const PaymentApproval = ({ userInfo }) => {
     const handleApprovePayment = async () => {
         if (!authorized || !selectedPayment) return;
 
-        setLoading(true);
+        setApproving(true);
         setError(null);
 
         try {
-            // Em um ambiente real, você chamaria o serviço de aprovação
             const result = await paymentService.approvePayment(selectedPayment.pk);
 
             if (result.success) {
                 // Remover o pagamento aprovado da lista
-                setPayments(payments.filter(p => p.pk !== selectedPayment.pk));
+                setPayments(prevPayments =>
+                    prevPayments.filter(p => p.pk !== selectedPayment.pk)
+                );
                 setConfirmOpen(false);
+                setDetailsOpen(false);
 
-                // Em um aplicativo real, você poderia mostrar uma notificação de sucesso
+                // Disparar evento para atualizar documentos se necessário
+                if (selectedPayment.document_id) {
+                    window.dispatchEvent(new CustomEvent('document-updated', {
+                        detail: { documentId: selectedPayment.document_id }
+                    }));
+                }
             } else {
                 throw new Error(result.error || 'Não foi possível aprovar o pagamento');
             }
@@ -176,7 +151,7 @@ const PaymentApproval = ({ userInfo }) => {
             console.error('Erro ao aprovar pagamento:', err);
             setError('Erro ao aprovar pagamento: ' + err.message);
         } finally {
-            setLoading(false);
+            setApproving(false);
         }
     };
 
@@ -192,9 +167,32 @@ const PaymentApproval = ({ userInfo }) => {
             referenceDetails = { error: 'Erro ao analisar dados de referência' };
         }
 
-        switch (selectedPayment.payment_method) {
-            case PAYMENT_METHODS.CASH:
-                return (
+        return (
+            <Box>
+                {/* Informações do documento */}
+                {selectedPayment.document_regnumber && (
+                    <Card variant="outlined" sx={{ mb: 2 }}>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <DocumentIcon fontSize="small" color="primary" />
+                                <Typography variant="subtitle1" fontWeight="bold">
+                                    Documento Associado
+                                </Typography>
+                            </Box>
+                            <Typography variant="body2">
+                                <strong>Nº Registo:</strong> {selectedPayment.document_regnumber}
+                            </Typography>
+                            {selectedPayment.document_descr && (
+                                <Typography variant="body2">
+                                    <strong>Descrição:</strong> {selectedPayment.document_descr}
+                                </Typography>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Informações do pagamento */}
+                {selectedPayment.payment_method === PAYMENT_METHODS.CASH && (
                     <Box>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Informações de Referência
@@ -202,11 +200,18 @@ const PaymentApproval = ({ userInfo }) => {
                         <Typography variant="body1" paragraph>
                             {referenceDetails.referenceInfo || 'N/A'}
                         </Typography>
+                        {selectedPayment.submitted_by_name && (
+                            <Box display="flex" alignItems="center" gap={1} mt={2}>
+                                <PersonIcon fontSize="small" color="action" />
+                                <Typography variant="body2" color="text.secondary">
+                                    Submetido por: <strong>{selectedPayment.submitted_by_name}</strong>
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
-                );
+                )}
 
-            case PAYMENT_METHODS.BANK_TRANSFER:
-                return (
+                {selectedPayment.payment_method === PAYMENT_METHODS.BANK_TRANSFER && (
                     <Box>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Detalhes da Transferência
@@ -216,22 +221,39 @@ const PaymentApproval = ({ userInfo }) => {
                             <strong>Referência:</strong> {referenceDetails.transferReference || 'N/A'}
                         </Typography>
 
-                        <Typography variant="body2">
+                        <Typography variant="body2" sx={{ mb: 1 }}>
                             <strong>Data:</strong> {referenceDetails.transferDate || 'N/A'}
                         </Typography>
-                    </Box>
-                );
 
-            default:
-                return (
-                    <Typography variant="body2" color="text.secondary">
-                        Detalhes não disponíveis para este método de pagamento.
-                    </Typography>
-                );
-        }
+                        {referenceDetails.bankInfo && (
+                            <Box mt={2}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Dados Bancários Utilizados
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>IBAN:</strong> {referenceDetails.bankInfo.iban || 'N/A'}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Banco:</strong> {referenceDetails.bankInfo.bankName || 'N/A'}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {selectedPayment.submitted_by_name && (
+                            <Box display="flex" alignItems="center" gap={1} mt={2}>
+                                <PersonIcon fontSize="small" color="action" />
+                                <Typography variant="body2" color="text.secondary">
+                                    Submetido por: <strong>{selectedPayment.submitted_by_name}</strong>
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
+                )}
+            </Box>
+        );
     };
 
-    // Se o usuário não tem autorização, mostrar mensagem de acesso negado
+    // Se o utilizador não tem autorização
     if (!authorized) {
         return (
             <Box>
@@ -241,7 +263,7 @@ const PaymentApproval = ({ userInfo }) => {
                         Acesso Negado
                     </Typography>
                     <Typography variant="body1">
-                        Você não tem permissão para aprovar pagamentos. Esta funcionalidade é restrita a administradores específicos.
+                        Não tem permissão para aprovar pagamentos. Esta funcionalidade é restrita a utilizadores específicos da contabilidade.
                     </Typography>
                 </Paper>
             </Box>
@@ -271,7 +293,7 @@ const PaymentApproval = ({ userInfo }) => {
                     }}
                     disabled={refreshing}
                 >
-                    Atualizar
+                    Actualizar
                 </Button>
             </Box>
 
@@ -284,7 +306,7 @@ const PaymentApproval = ({ userInfo }) => {
             {payments.length === 0 ? (
                 <Paper sx={{ p: 3, textAlign: 'center' }}>
                     <Typography variant="body1" color="text.secondary">
-                        Não há pagamentos pendentes de validação no momento.
+                        Não há pagamentos pendentes de validação neste momento.
                     </Typography>
                 </Paper>
             ) : (
@@ -292,18 +314,29 @@ const PaymentApproval = ({ userInfo }) => {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>ID do Pedido</TableCell>
+                                <TableCell>Documento</TableCell>
                                 <TableCell>Método</TableCell>
                                 <TableCell>Valor</TableCell>
                                 <TableCell>Data</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell align="right">Ações</TableCell>
+                                <TableCell>Submetido por</TableCell>
+                                <TableCell align="right">Acções</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {payments.map((payment) => (
-                                <TableRow key={payment.pk}>
-                                    <TableCell>{payment.order_id}</TableCell>
+                                <TableRow key={payment.pk} hover>
+                                    <TableCell>
+                                        <Box>
+                                            <Typography variant="body2" fontWeight="medium">
+                                                {payment.document_regnumber || payment.order_id}
+                                            </Typography>
+                                            {payment.document_descr && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {payment.document_descr}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </TableCell>
                                     <TableCell>
                                         <Chip
                                             label={PAYMENT_METHOD_LABELS[payment.payment_method]}
@@ -315,28 +348,28 @@ const PaymentApproval = ({ userInfo }) => {
                                     <TableCell>{formatAmount(payment.amount)}</TableCell>
                                     <TableCell>{formatDate(payment.created_at)}</TableCell>
                                     <TableCell>
-                                        <Chip
-                                            label="Pendente Validação"
-                                            size="small"
-                                            color="warning"
-                                        />
+                                        {payment.submitted_by_name || '-'}
                                     </TableCell>
                                     <TableCell align="right">
-                                        <IconButton
-                                            color="info"
-                                            onClick={() => handleViewDetails(payment)}
-                                            size="small"
-                                            sx={{ mr: 1 }}
-                                        >
-                                            <ViewIcon />
-                                        </IconButton>
-                                        <IconButton
-                                            color="success"
-                                            onClick={() => handleApproveClick(payment)}
-                                            size="small"
-                                        >
-                                            <ApproveIcon />
-                                        </IconButton>
+                                        <Tooltip title="Ver detalhes">
+                                            <IconButton
+                                                color="info"
+                                                onClick={() => handleViewDetails(payment)}
+                                                size="small"
+                                                sx={{ mr: 1 }}
+                                            >
+                                                <ViewIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Aprovar pagamento">
+                                            <IconButton
+                                                color="success"
+                                                onClick={() => handleApproveClick(payment)}
+                                                size="small"
+                                            >
+                                                <ApproveIcon />
+                                            </IconButton>
+                                        </Tooltip>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -356,7 +389,7 @@ const PaymentApproval = ({ userInfo }) => {
                             <Card variant="outlined" sx={{ mb: 2 }}>
                                 <CardContent>
                                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Pedido
+                                        Identificador
                                     </Typography>
                                     <Typography variant="h6" gutterBottom>
                                         {selectedPayment.order_id}
@@ -385,20 +418,18 @@ const PaymentApproval = ({ userInfo }) => {
 
                                     <Box mt={3}>
                                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                            Data do Registro
+                                            Data do Registo
                                         </Typography>
                                         <Typography variant="body1">
                                             {formatDate(selectedPayment.created_at)}
                                         </Typography>
                                     </Box>
-
-                                    <Box mt={3}>
-                                        {renderPaymentDetails()}
-                                    </Box>
                                 </CardContent>
                             </Card>
 
-                            <Box display="flex" justifyContent="flex-end">
+                            {renderPaymentDetails()}
+
+                            <Box display="flex" justifyContent="flex-end" mt={3}>
                                 <Button
                                     variant="contained"
                                     color="success"
@@ -420,20 +451,20 @@ const PaymentApproval = ({ userInfo }) => {
             {/* Modal de confirmação */}
             <Dialog
                 open={confirmOpen}
-                onClose={() => !loading && setConfirmOpen(false)}
+                onClose={() => !approving && setConfirmOpen(false)}
             >
                 <DialogTitle>
                     Confirmar Aprovação
                 </DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Tem certeza que deseja aprovar este pagamento?
+                        Tem a certeza que deseja aprovar este pagamento?
                         {selectedPayment && (
                             <>
                                 <br /><br />
-                                <strong>Pedido:</strong> {selectedPayment.order_id}<br />
-                                <strong>Valor:</strong> {selectedPayment && formatAmount(selectedPayment.amount)}<br />
-                                <strong>Método:</strong> {selectedPayment && PAYMENT_METHOD_LABELS[selectedPayment.payment_method]}
+                                <strong>Documento:</strong> {selectedPayment.document_regnumber || selectedPayment.order_id}<br />
+                                <strong>Valor:</strong> {formatAmount(selectedPayment.amount)}<br />
+                                <strong>Método:</strong> {PAYMENT_METHOD_LABELS[selectedPayment.payment_method]}
                             </>
                         )}
                     </DialogContentText>
@@ -441,7 +472,7 @@ const PaymentApproval = ({ userInfo }) => {
                 <DialogActions>
                     <Button
                         onClick={() => setConfirmOpen(false)}
-                        disabled={loading}
+                        disabled={approving}
                     >
                         Cancelar
                     </Button>
@@ -449,10 +480,10 @@ const PaymentApproval = ({ userInfo }) => {
                         onClick={handleApprovePayment}
                         variant="contained"
                         color="success"
-                        disabled={loading || !authorized}
-                        startIcon={loading ? <CircularProgress size={20} /> : <ApproveIcon />}
+                        disabled={approving || !authorized}
+                        startIcon={approving ? <CircularProgress size={20} /> : <ApproveIcon />}
                     >
-                        {loading ? 'Processando...' : 'Aprovar'}
+                        {approving ? 'A processar...' : 'Aprovar'}
                     </Button>
                 </DialogActions>
             </Dialog>

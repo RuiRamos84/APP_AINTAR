@@ -432,6 +432,48 @@ class PaymentService {
             throw error;
         }
     }
+    /**
+     * Obtém pagamentos pendentes de validação
+     * @returns {Promise<Object>} - Lista de pagamentos pendentes
+     */
+    async getPendingPayments() {
+        try {
+            console.log("Obtendo pagamentos pendentes de validação...");
+
+            const response = await this.api.get('/payments/pending');
+
+            if (response.data.success) {
+                return {
+                    success: true,
+                    payments: response.data.payments || []
+                };
+            } else {
+                return {
+                    success: false,
+                    error: response.data.error || 'Erro ao obter pagamentos pendentes',
+                    payments: []
+                };
+            }
+        } catch (error) {
+            console.error('Erro ao obter pagamentos pendentes:', error);
+
+            // Tratar erros específicos
+            if (error.response && error.response.status === 403) {
+                return {
+                    success: false,
+                    error: 'Sem permissão para visualizar pagamentos pendentes',
+                    payments: []
+                };
+            }
+
+            this._handleError(error, 'Erro ao obter pagamentos pendentes');
+            return {
+                success: false,
+                error: error.message || 'Erro ao obter pagamentos pendentes',
+                payments: []
+            };
+        }
+    }
 }
 
 // Exportar uma instância singleton para uso em toda a aplicação

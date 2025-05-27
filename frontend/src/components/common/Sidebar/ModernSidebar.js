@@ -57,6 +57,7 @@ import {
     ViewModule as ViewModuleIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
+import { AccountBalance as PaymentIcon } from '@mui/icons-material';
 
 const iconStyle = {
     fontSize: '24px',
@@ -130,13 +131,14 @@ const MENU_ITEMS = [
         to: "/settings", // Este link será usado quando o usuário clicar no item pai
         rolesAllowed: ["0"],
     },
-    // {
-    //     id: "settings",
-    //     text: "Configurações",
-    //     icon: <SettingsIcon sx={iconStyle} />,
-    //     to: "/settings",
-    //     rolesAllowed: ["0"],
-    // },
+    {
+        id: "payments",
+        text: "Validar Pagamentos",
+        icon: <PaymentIcon sx={iconStyle} />,
+        to: "/payment-admin",
+        rolesAllowed: ["1"],
+        allowedUserIds: [12, 11, 82],
+    },
     {
         id: "modern_documents",
         text: "Gestão Moderna",

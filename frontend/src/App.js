@@ -350,7 +350,7 @@ const AppContent = () => {
               <Route
                 path="/payment-admin"
                 element={
-                  <PrivateRoute allowedUserIds={[15, 16]}>
+                  <PrivateRoute requiredProfiles={['0', '1']} allowedUserIds={[12, 16]}>
                     <PaymentAdminPage userInfo={user} />
                   </PrivateRoute>
                 }
