@@ -28,7 +28,8 @@ import {
     PAYMENT_METHOD_LABELS,
     PAYMENT_STATUS,
     PAYMENT_STATUS_COLORS,
-    PAYMENT_STATUS_LABELS
+    PAYMENT_STATUS_LABELS,
+    statusMapping,
 } from '../services/paymentTypes';
 
 /**
@@ -111,9 +112,9 @@ const PaymentStatus = ({
         if (payment.state.transactionId) {
             console.log("Usando transaction ID do estado:", payment.state.transactionId);
             if (onCheckStatus) {
-                onCheckStatus(payment.state.transactionId);
+                onCheckStatus(payment.state.transactionId, payment.state.orderId);
             } else {
-                payment.checkStatus(payment.state.transactionId);
+                payment.checkStatus(payment.state.transactionId, payment.state.orderId);
             }
             return;
         }
@@ -150,7 +151,7 @@ const PaymentStatus = ({
             if (onCheckStatus) {
                 onCheckStatus(transactionId);
             } else {
-                payment.checkStatus(transactionId);
+                payment.checkStatus(transactionId, payment.state.orderId);
             }
         } else {
             console.error("Nenhum ID de transação encontrado");
@@ -224,8 +225,7 @@ const PaymentStatus = ({
 
     // Funções auxiliares para obter detalhes dos métodos de pagamento
     const getMBWayDetails = () => {
-        const phoneNumber = payment.state.paymentData.phoneNumber || '';
-        // Remover o prefixo 351# se existir
+        const phoneNumber = payment.state.paymentData?.phoneNumber || '';  // SAFE ACCESS
         const formattedPhone = phoneNumber.replace('351#', '');
 
         return {

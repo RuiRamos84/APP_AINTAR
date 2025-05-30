@@ -1,204 +1,164 @@
-// src/hooks/usePayment.js
-import { useState } from 'react';
-import paymentService from '../services/paymentService';
-import { PAYMENT_METHODS, PAYMENT_STATUS } from '../services/paymentTypes';
+// frontend/src/features/Payment/hooks/usePayment.js
 
-export const usePayment = () => {
-    const [selectedMethod, setSelectedMethod] = useState(null);
-    const [transactionId, setTransactionId] = useState(null);
-    const [transactionSignature, setTransactionSignature] = useState(null);
-    const [orderId, setOrderId] = useState(null);
-    const [amount, setAmount] = useState(0);
-    const [status, setStatus] = useState(PAYMENT_STATUS.PENDING);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [paymentData, setPaymentData] = useState({});
+import { useContext, useCallback, useEffect, useState } from 'react';
+import { PaymentContext } from '../context/PaymentContext';
+import { PAYMENT_STATUS } from '../services/paymentTypes';
+import { getAvailableMethodsForProfile } from '../services/paymentTypes';
 
-    // Definir dados do pedido
-    const setOrderDetails = (id, value) => {
-        setOrderId(id);
-        setAmount(value);
-    };
+/**
+ * Hook customizado para gestão de pagamentos
+ */
+export const usePayment = (userInfo) => {
+    const context = useContext(PaymentContext);
+    const [availableMethods, setAvailableMethods] = useState([]);
+    const [isInitialized, setIsInitialized] = useState(false);
 
-    // Selecionar método de pagamento
-    const selectPaymentMethod = (method) => {
-        setSelectedMethod(method);
-    };
+    if (!context) {
+        throw new Error('usePayment must be used within PaymentProvider');
+    }
 
-    // Processar pagamento MBWay
-    const payWithMBWay = async (phoneNumber) => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            console.log('Iniciando pagamento MBWay:', { orderId, amount, phoneNumber });
-
-            // Usar o paymentService para processar o pagamento
-            const response = await paymentService.processMBWayPayment(
-                orderId,
-                amount,
-                phoneNumber
-            );
-
-            console.log('Resposta MB WAY:', response);
-
-            if (response.success) {
-                // Extrair IDs da transação
-                setTransactionId(response.transaction_id);
-                setTransactionSignature(response.transaction_signature);
-                setStatus(PAYMENT_STATUS.PENDING);
-
-                // Atualizar dados de pagamento
-                setPaymentData({
-                    ...paymentData,
-                    phoneNumber: phoneNumber.replace('351#', '')
-                });
-
-                return {
-                    success: true,
-                    method: PAYMENT_METHODS.MBWAY,
-                    transactionId: response.transaction_id
-                };
-            } else {
-                throw new Error(response.error || 'Falha ao processar pagamento MBWay');
-            }
-        } catch (err) {
-            console.error('Erro no pagamento MBWay:', err);
-            setError(err.message || 'Erro ao processar pagamento MBWay');
-            return { success: false, error: err.message };
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Processar pagamento Multibanco
-    const payWithMultibanco = async (expiryDays) => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            // Calcular data de expiração
-            const expiryDate = new Date();
-            expiryDate.setDate(expiryDate.getDate() + expiryDays);
-            const expiryDateString = expiryDate.toISOString();
-
-            console.log('Iniciando pagamento Multibanco:', { orderId, amount, expiryDate: expiryDateString });
-
-            // Usar o paymentService para gerar referência multibanco
-            const response = await paymentService.generateMultibancoReference(
-                orderId,
-                amount,
-                expiryDateString
-            );
-
-            console.log('Resposta Multibanco:', response);
-
-            if (response.success) {
-                // Extrair IDs da transação e dados do multibanco
-                setTransactionId(response.transaction_id);
-                setTransactionSignature(response.transaction_signature);
-
-                // Extrair dados do multibanco
-                const multibancoDetails = response.multibanco_response || {};
-
-                // Atualizar dados de pagamento
-                setPaymentData({
-                    ...paymentData,
-                    entity: multibancoDetails.entity,
-                    reference: multibancoDetails.reference,
-                    expiryDate: multibancoDetails.expiryDate,
-                    amount: multibancoDetails.amount?.value || amount
-                });
-
-                setStatus(PAYMENT_STATUS.PENDING);
-
-                return {
-                    success: true,
-                    method: PAYMENT_METHODS.MULTIBANCO,
-                    transactionId: response.transaction_id
-                };
-            } else {
-                throw new Error(response.error || 'Falha ao gerar referência Multibanco');
-            }
-        } catch (err) {
-            console.error('Erro ao gerar referência Multibanco:', err);
-            setError(err.message || 'Erro ao gerar referência Multibanco');
-            return { success: false, error: err.message };
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Verificar status do pagamento
-    const checkStatus = async () => {
-        if (!transactionId) {
-            setError('ID de transação não disponível');
-            return { success: false };
-        }
-
-        setLoading(true);
-        try {
-            const response = await paymentService.checkPaymentStatus(transactionId);
-
-            if (response.success) {
-                // Obter status correto da resposta
-                const paymentStatus = response.status.paymentStatus;
-                setStatus(paymentStatus);
-
-                return { success: true, status: paymentStatus };
-            } else {
-                throw new Error(response.error || 'Falha ao verificar status');
-            }
-        } catch (err) {
-            setError(err.message);
-            return { success: false, error: err.message };
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Métodos auxiliares
-    const getMBWayDetails = () => {
-        return {
-            phoneNumber: paymentData.phoneNumber,
-            transactionId
-        };
-    };
-
-    const getMultibancoDetails = () => {
-        return {
-            entity: paymentData.entity,
-            reference: paymentData.reference,
-            amount: paymentData.amount || amount,
-            expiryDate: paymentData.expiryDate
-        };
-    };
-
-    return {
-        selectedMethod,
-        transactionId,
-        transactionSignature,
-        orderId,
-        amount,
-        status,
-        loading,
-        error,
-        paymentData,
+    const {
+        state,
         setOrderDetails,
         selectPaymentMethod,
-        payWithMBWay,
-        payWithMultibanco,  // Novo método implementado
+        updatePaymentData,
+        generateMultibancoReference,
+        processMBWayPayment,
+        registerManualPayment,
         checkStatus,
-        getMBWayDetails,
-        getMultibancoDetails,  // Novo método implementado
-        updatePaymentData: (data) => setPaymentData({ ...paymentData, ...data }),
-        resetPayment: () => {
-            setSelectedMethod(null);
-            setTransactionId(null);
-            setTransactionSignature(null);
-            setStatus(PAYMENT_STATUS.PENDING);
-            setError(null);
-            setPaymentData({});
+        resetPayment
+    } = context;
+
+    // Determinar métodos disponíveis com base no perfil
+    useEffect(() => {
+        if (userInfo?.profil !== undefined) {
+            const methods = getAvailableMethodsForProfile(userInfo.profil);
+            setAvailableMethods(methods);
+            setIsInitialized(true);
         }
+    }, [userInfo?.profil]);
+
+    // Verificar se o pagamento está completo
+    const isPaymentComplete = useCallback(() => {
+        return state.status === PAYMENT_STATUS.PAID ||
+            state.status === PAYMENT_STATUS.PENDING_VALIDATION;
+    }, [state.status]);
+
+    // Verificar se pode prosseguir para o próximo passo
+    const canProceed = useCallback(() => {
+        if (!state.selectedMethod) return false;
+
+        switch (state.status) {
+            case PAYMENT_STATUS.PENDING:
+                return true;
+            case PAYMENT_STATUS.PENDING_PAYMENT:
+                return state.referenceInfo || state.transactionId;
+            case PAYMENT_STATUS.PAID:
+            case PAYMENT_STATUS.PENDING_VALIDATION:
+                return true;
+            default:
+                return false;
+        }
+    }, [state.selectedMethod, state.status, state.referenceInfo, state.transactionId]);
+
+    // Obter mensagem de status
+    const getStatusMessage = useCallback(() => {
+        switch (state.status) {
+            case PAYMENT_STATUS.PENDING:
+                return 'Aguardando seleção do método de pagamento';
+            case PAYMENT_STATUS.PENDING_PAYMENT:
+                return 'Aguardando confirmação do pagamento';
+            case PAYMENT_STATUS.PAID:
+                return 'Pagamento confirmado com sucesso';
+            case PAYMENT_STATUS.PENDING_VALIDATION:
+                return 'Pagamento registado, aguardando validação';
+            case PAYMENT_STATUS.FAILED:
+                return 'Pagamento falhado';
+            case PAYMENT_STATUS.CANCELLED:
+                return 'Pagamento cancelado';
+            default:
+                return 'Estado desconhecido';
+        }
+    }, [state.status]);
+
+    // Validar montante
+    const validateAmount = useCallback((amount) => {
+        const numAmount = parseFloat(amount);
+        return !isNaN(numAmount) && numAmount > 0 && numAmount <= 10000;
+    }, []);
+
+    // Retry payment
+    const retryPayment = useCallback(() => {
+        resetPayment();
+    }, [resetPayment]);
+
+    // Auto-check status for pending payments
+    useEffect(() => {
+        let interval;
+
+        if (state.status === PAYMENT_STATUS.PENDING_PAYMENT && state.transactionId) {
+            interval = setInterval(() => {
+                checkStatus();
+            }, 5000); // Check every 5 seconds
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [state.status, state.transactionId, checkStatus]);
+
+    return {
+        // State
+        paymentState: state,
+        availableMethods,
+        isInitialized,
+
+        // Status helpers
+        isPaymentComplete,
+        canProceed,
+        getStatusMessage,
+
+        // Actions
+        initializePayment: setOrderDetails,
+        selectMethod: selectPaymentMethod,
+        updateData: updatePaymentData,
+        generateReference: generateMultibancoReference,
+        processMBWay: processMBWayPayment,
+        registerManual: registerManualPayment,
+        checkPaymentStatus: checkStatus,
+        retry: retryPayment,
+        reset: resetPayment,
+
+        // Validators
+        validateAmount
+    };
+};
+
+// Hook para monitorizar performance
+export const usePaymentPerformance = () => {
+    const [metrics, setMetrics] = useState({
+        loadTime: 0,
+        transactionTime: 0,
+        errorCount: 0
+    });
+
+    const startTimer = useCallback(() => {
+        const startTime = performance.now();
+        return () => performance.now() - startTime;
+    }, []);
+
+    const trackError = useCallback(() => {
+        setMetrics(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
+    }, []);
+
+    const trackTransaction = useCallback((time) => {
+        setMetrics(prev => ({ ...prev, transactionTime: time }));
+    }, []);
+
+    return {
+        metrics,
+        startTimer,
+        trackError,
+        trackTransaction
     };
 };

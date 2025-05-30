@@ -95,11 +95,8 @@ const MBWayPayment = ({ onSubmit, loading: externalLoading, error: externalError
             console.log("Iniciando pagamento com número:", formattedNumber);
 
             // Processar pagamento
-            const result = await payment.processMBWayPayment(
-                payment.state.orderId,
-                payment.state.amount,
-                formattedNumber
-            );
+            // CORRETO
+            const result = await payment.processMBWayPayment(formattedNumber);
 
             console.log("Resultado do pagamento:", result);
 
@@ -118,7 +115,11 @@ const MBWayPayment = ({ onSubmit, loading: externalLoading, error: externalError
 
                 if (transactionId) {
                     // Garantir que o ID esteja no state para verificação posterior
-                    payment.updatePaymentData({ transactionId });
+                    payment.updatePaymentData({
+                        phoneNumber: phoneNumber,  // <-- ADICIONAR
+                        transactionId: result.data.transaction_id,
+                        paymentResult: result.data
+                    });
                 }
 
                 console.log("Pagamento MB WAY iniciado com sucesso");

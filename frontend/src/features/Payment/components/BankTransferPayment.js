@@ -1,328 +1,345 @@
-import { AccountBalance as BankIcon, ContentCopy as CopyIcon } from '@mui/icons-material';
+import React, { useState, useContext } from 'react';
 import {
-    Alert,
     Box,
     Button,
-    CircularProgress,
-    Divider,
-    Grid,
-    Paper,
     TextField,
     Typography,
-    useTheme
+    Alert,
+    CircularProgress,
+    Paper,
+    InputAdornment,
+    FormControl,
+    FormLabel,
+    IconButton,
+    List,
+    ListItem,
+    ListItemText,
+    ListItemIcon,
+    Chip
 } from '@mui/material';
-import React, { useContext, useState, useEffect } from 'react';
+import {
+    CloudUpload as UploadIcon,
+    AttachFile as FileIcon,
+    Delete as DeleteIcon,
+    CheckCircle as CheckIcon,
+    AccountBalance as BankIcon
+} from '@mui/icons-material';
+import paymentService from '../services/paymentService';
+import { addDocumentAnnex } from '../../../services/documentService';
 import { PaymentContext } from '../context/PaymentContext';
-import { PAYMENT_METHODS } from '../services/paymentTypes';
 
-/**
- * Componente para pagamento por transferência bancária
- * @param {Object} props - Propriedades do componente
- * @param {Function} props.onSubmit - Função chamada após submissão bem-sucedida
- * @param {boolean} props.loading - Indica se está processando o pagamento
- * @param {string} props.error - Mensagem de erro, se houver
- * @param {Object} props.userInfo - Informações do usuário atual
- */
-const BankTransferPayment = ({ onSubmit, loading: externalLoading, error: externalError, userInfo }) => {
-    const theme = useTheme();
+const BankTransferPayment = ({ orderId, amount = 0, onSubmit, onSuccess, loading, error, userInfo, documentId }) => {
+    console.log('[BankTransferPayment] Props recebidas:', { orderId, amount, documentId });
+
     const payment = useContext(PaymentContext);
+    const numericAmount = Number(amount) || 0;
 
-    // Estado local
-    const [transferReference, setTransferReference] = useState('');
-    const [transferDate, setTransferDate] = useState('');
-    const [localError, setLocalError] = useState('');
-    const [success, setSuccess] = useState(false);
-    const [copied, setCopied] = useState({ iban: false, accountName: false });
-    const [authorized, setAuthorized] = useState(false);
-    const loading = externalLoading || payment.state.loading;
-    const error = externalError || payment.state.error || localError;
+    const [formData, setFormData] = useState({
+        accountHolder: '',
+        iban: '',
+        transferDate: new Date().toISOString().split('T')[0],
+        transferReference: '',
+        notes: ''
+    });
 
-    // Verificar se o usuário tem permissão para este método de pagamento
-    useEffect(() => {
-        const hasPermission = userInfo && ['0', '1', '2'].includes(userInfo.profil);
-        setAuthorized(hasPermission);
+    const [file, setFile] = useState(null);
+    const [fileError, setFileError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-        if (!hasPermission) {
-            setLocalError('Você não tem permissão para usar este método de pagamento.');
-        }
-    }, [userInfo]);
-
-    // Informações bancárias da empresa (substituir pelos valores reais)
-    const bankInfo = {
-        iban: 'PT50000000000000000000000',
-        accountName: 'Nome da Empresa',
-        bankName: 'Nome do Banco'
+    const formatIBAN = (value) => {
+        // Remove espaços e converte para maiúsculas
+        const cleaned = value.replace(/\s/g, '').toUpperCase();
+        // Adiciona espaços a cada 4 caracteres
+        return cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
     };
 
-    // Garantir que o método de pagamento está definido como BANK_TRANSFER
-    useEffect(() => {
-        if (payment.state.selectedMethod !== PAYMENT_METHODS.BANK_TRANSFER) {
-            console.log("Selecionando método de pagamento por transferência bancária");
-            payment.selectPaymentMethod(PAYMENT_METHODS.BANK_TRANSFER);
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        if (name === 'iban') {
+            setFormData(prev => ({ ...prev, [name]: formatIBAN(value) }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
         }
-    }, []);
-
-    // Copiar para a área de transferência
-    const copyToClipboard = (text, field) => {
-        navigator.clipboard.writeText(text).then(
-            () => {
-                setCopied({ ...copied, [field]: true });
-                setTimeout(() => setCopied({ ...copied, [field]: false }), 2000);
-            },
-            (err) => console.error('Não foi possível copiar: ', err)
-        );
     };
 
-    // Submeter pagamento por transferência bancária
-    const handlePay = async () => {
-        if (!authorized) {
-            setLocalError('Sem permissão para usar este método de pagamento.');
-            return;
+    const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
+        setFileError('');
+
+        if (selectedFile) {
+            // Validar tipo de arquivo
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+            if (!allowedTypes.includes(selectedFile.type)) {
+                setFileError('Apenas ficheiros JPG, PNG ou PDF são permitidos');
+                return;
+            }
+
+            // Validar tamanho (máx 5MB)
+            if (selectedFile.size > 5 * 1024 * 1024) {
+                setFileError('O ficheiro não pode exceder 5MB');
+                return;
+            }
+
+            setFile(selectedFile);
         }
+    };
 
-        console.log("Iniciando registro de pagamento por transferência bancária");
+    const handleRemoveFile = () => {
+        setFile(null);
+        setFileError('');
+    };
 
-        if (!transferReference.trim()) {
-            setLocalError('Por favor, forneça a referência da transferência');
-            return;
+    const validateForm = () => {
+        if (!formData.accountHolder.trim()) {
+            throw new Error('Nome do titular é obrigatório');
         }
-
-        if (!transferDate.trim()) {
-            setLocalError('Por favor, forneça a data da transferência');
-            return;
+        if (!formData.iban.trim() || formData.iban.replace(/\s/g, '').length < 15) {
+            throw new Error('IBAN inválido');
         }
+        if (!formData.transferDate) {
+            throw new Error('Data da transferência é obrigatória');
+        }
+        if (!file) {
+            throw new Error('Comprovativo de transferência é obrigatório');
+        }
+    };
 
-        setLocalError('');
-
+    const handleSubmit = async () => {
         try {
-            // Construir informações de referência
-            const referenceInfo = JSON.stringify({
-                transferReference: transferReference,
-                transferDate: transferDate,
-                bankInfo: {
-                    iban: bankInfo.iban,
-                    accountName: bankInfo.accountName,
-                    bankName: bankInfo.bankName
-                }
-            });
+            setIsSubmitting(true);
+            setFileError('');
 
-            // Atualizar dados de pagamento
-            payment.updatePaymentData({
-                referenceInfo: referenceInfo,
-                transferReference: transferReference,
-                transferDate: transferDate
-            });
+            // Validar formulário
+            validateForm();
 
-            console.log("Registrando pagamento por transferência:", {
-                orderId: payment.state.orderId,
-                amount: payment.state.amount,
-                referenceInfo: referenceInfo
-            });
-
-            // Processar pagamento manual
-            const result = await payment.registerManualPayment(
-                payment.state.orderId,
-                payment.state.amount,
-                PAYMENT_METHODS.BANK_TRANSFER,
-                referenceInfo
+            // 1. Registrar o pagamento manual
+            const paymentResult = await paymentService.registerManualPayment(
+                orderId,
+                numericAmount,
+                'BANK_TRANSFER',
+                JSON.stringify(formData) // Converter formData para string JSON
             );
 
-            console.log("Resultado do registro:", result);
+            console.log('[BankTransferPayment] Resultado do pagamento:', paymentResult);
 
-            if (result && result.success) {
-                let transactionId = null;
+            if (!paymentResult || (!paymentResult.success && !paymentResult.transaction_id)) {
+                throw new Error(paymentResult?.error || 'Erro ao registrar pagamento');
+            }
 
-                if (result.data && result.data.transaction_id) {
-                    transactionId = result.data.transaction_id;
-                }
+            // Atualizar o transactionId no contexto se existir
+            const transactionId = paymentResult.transaction_id ||
+                (paymentResult.data && paymentResult.data.transaction_id);
 
-                if (transactionId) {
-                    payment.updatePaymentData({ transactionId });
-                }
+            if (transactionId) {
+                await payment.updatePaymentData({
+                    transactionId: transactionId,
+                    status: 'PENDING_VALIDATION'
+                });
 
-                console.log("Pagamento por transferência registrado com sucesso");
-                setSuccess(true);
+                console.log('[BankTransferPayment] Transaction ID atualizado:', transactionId);
+            }
 
-                if (onSubmit) onSubmit();
-            } else {
-                const errorMsg = (result && result.error) || 'Erro ao registrar pagamento por transferência';
-                console.error("Erro no registro de pagamento:", errorMsg);
+            // 2. Fazer upload do comprovativo como anexo do documento
+            if (file && documentId) {
+                try {
+                    const formDataUpload = new FormData();
+                    formDataUpload.append('tb_document', documentId);
+                    formDataUpload.append('files', file);
+                    formDataUpload.append('descr', `Comprovativo de Transferência - ${formData.transferReference || 'Ref. ' + Date.now()}`);
 
-                // Mensagem mais amigável para o usuário
-                if (errorMsg.includes("'str' object has no attribute 'profile'") ||
-                    errorMsg.includes("permission") ||
-                    errorMsg.includes("permissão")) {
-                    setLocalError("Não foi possível processar o pagamento: problema com permissões de usuário. Por favor, contacte o suporte.");
-                } else {
-                    setLocalError(errorMsg);
+                    await addDocumentAnnex(formDataUpload);
+                } catch (uploadError) {
+                    console.error('Erro no upload do comprovativo:', uploadError);
+                    // Não falhar o processo completo por erro de upload
                 }
             }
+
+            // 3. Chamar callback de sucesso
+            if (onSuccess) {
+                await onSuccess(paymentResult);
+            }
+
         } catch (err) {
-            console.error('Erro ao processar o pagamento:', err);
-            // Mensagem mais amigável
-            const errorMessage = err.message || 'Erro desconhecido';
-            if (errorMessage.includes("500") || errorMessage.includes("Internal Server Error")) {
-                setLocalError('Erro no servidor ao processar o pagamento. Por favor, tente novamente ou contacte o suporte.');
-            } else {
-                setLocalError('Erro ao processar o pagamento: ' + errorMessage);
-            }
+            console.error('Erro ao processar transferência:', err);
+            setFileError(err.message || 'Erro ao processar pagamento');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>
-                Pagamento por Transferência Bancária
-            </Typography>
+            <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <BankIcon color="primary" fontSize="large" />
+                    <Typography variant="h6">
+                        Dados da Transferência Bancária
+                    </Typography>
+                </Box>
 
-            <Typography variant="body2" paragraph>
-                Realize uma transferência bancária e registre os dados da operação. Este pagamento necessitará de validação posterior.
-            </Typography>
-
-            {(error || localError) && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                    {error || localError}
-                </Alert>
-            )}
-
-            {success && (
-                <Alert severity="success" sx={{ mb: 3 }}>
-                    Pagamento por transferência registrado com sucesso. Aguardando validação.
-                </Alert>
-            )}
-
-            <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                    Dados Bancários
+                <Typography variant="body2" color="text.secondary" paragraph>
+                    Realize a transferência para a conta indicada e anexe o comprovativo.
                 </Typography>
 
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={12}>
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                bgcolor: theme.palette.grey[100],
-                                p: 1.5,
-                                borderRadius: 1,
-                                mb: 1
-                            }}
-                        >
-                            <Box>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    IBAN
-                                </Typography>
-                                <Typography variant="body1" fontFamily="monospace" fontWeight="medium">
-                                    {bankInfo.iban}
-                                </Typography>
-                            </Box>
-                            <Button
-                                size="small"
-                                onClick={() => copyToClipboard(bankInfo.iban, 'iban')}
-                                startIcon={<CopyIcon />}
-                                color={copied.iban ? 'success' : 'primary'}
-                            >
-                                {copied.iban ? 'Copiado' : 'Copiar'}
-                            </Button>
-                        </Box>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                            Banco
-                        </Typography>
-                        <Typography variant="body1">
-                            {bankInfo.bankName}
-                        </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6}>
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between'
-                            }}
-                        >
-                            <Typography variant="subtitle2" color="text.secondary">
-                                Nome da Conta
-                            </Typography>
-                            <Button
-                                size="small"
-                                onClick={() => copyToClipboard(bankInfo.accountName, 'accountName')}
-                                startIcon={<CopyIcon />}
-                                color={copied.accountName ? 'success' : 'primary'}
-                            >
-                                {copied.accountName ? 'Copiado' : 'Copiar'}
-                            </Button>
-                        </Box>
-                        <Typography variant="body1">
-                            {bankInfo.accountName}
-                        </Typography>
-                    </Grid>
-                </Grid>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Typography variant="subtitle1" gutterBottom>
-                    Dados da Transferência
-                </Typography>
-
-                <Box display="flex" flexDirection="column" gap={2}>
-                    <TextField
-                        fullWidth
-                        label="Referência da Transferência"
-                        variant="outlined"
-                        value={transferReference}
-                        onChange={(e) => setTransferReference(e.target.value)}
-                        disabled={loading || success || !authorized}
-                        error={!!localError && !transferReference.trim()}
-                        helperText={(!transferReference.trim() && localError) ? "Campo obrigatório" : "Ex: Número da operação ou comprovativo"}
-                    />
-
-                    <TextField
-                        fullWidth
-                        label="Data da Transferência"
-                        variant="outlined"
-                        type="date"
-                        value={transferDate}
-                        onChange={(e) => setTransferDate(e.target.value)}
-                        disabled={loading || success || !authorized}
-                        error={!!localError && !transferDate.trim()}
-                        helperText={(!transferDate.trim() && localError) ? "Campo obrigatório" : ""}
-                        InputLabelProps={{
-                            shrink: true,
-                        }}
-                    />
-
-                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            size="large"
-                            onClick={handlePay}
-                            disabled={loading || success || !transferReference.trim() || !transferDate.trim() || !authorized}
-                            startIcon={loading ? <CircularProgress size={20} /> : <BankIcon />}
-                            sx={{ minWidth: 200 }}
-                        >
-                            {loading ? 'A processar...' : 'Registrar Transferência'}
-                        </Button>
-                    </Box>
+                <Box sx={{ backgroundColor: '#e3f2fd', p: 2, borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                        <strong>Dados para Transferência:</strong>
+                    </Typography>
+                    <Typography variant="body2">IBAN: PT50 0033 0000 4570 8378 2190 5</Typography>
+                    <Typography variant="body2">Titular: AINTAR ASSOC MUN SIS INT AGUAS RESID</Typography>
+                    <Typography variant="body2">Valor: €{numericAmount.toFixed(2)}</Typography>
+                    <Typography variant="body2">Referência: {orderId}</Typography>
                 </Box>
             </Paper>
 
-            <Box sx={{ mt: 4, p: 2, bgcolor: theme.palette.info.light + '20', borderRadius: 1 }}>
-                <Typography variant="subtitle2" gutterBottom color="info.main">
-                    Como funciona:
-                </Typography>
-                <Typography variant="body2">
-                    1. Realize a transferência bancária para a conta indicada acima<br />
-                    2. Anote o número de referência da operação (disponível no comprovativo de transferência)<br />
-                    3. Preencha o formulário com os dados da transferência<br />
-                    4. O pagamento será validado após confirmação da transferência<br />
-                    5. Guarde o comprovativo de transferência
-                </Typography>
+            <Box component="form" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                <TextField
+                    fullWidth
+                    required
+                    label="Nome do Titular da Conta Origem"
+                    name="accountHolder"
+                    value={formData.accountHolder}
+                    onChange={handleInputChange}
+                    margin="normal"
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <BankIcon />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
+
+                <TextField
+                    fullWidth
+                    required
+                    label="IBAN da Conta de Origem"
+                    name="iban"
+                    value={formData.iban}
+                    onChange={handleInputChange}
+                    margin="normal"
+                    placeholder="PT50 0000 0000 0000 0000 0000 0"
+                    helperText="IBAN da conta de onde foi feita a transferência"
+                />
+
+                <TextField
+                    fullWidth
+                    required
+                    label="Data da Transferência"
+                    name="transferDate"
+                    type="date"
+                    value={formData.transferDate}
+                    onChange={handleInputChange}
+                    margin="normal"
+                    InputLabelProps={{ shrink: true }}
+                />
+
+                <TextField
+                    fullWidth
+                    label="Referência da Transferência (Opcional)"
+                    name="transferReference"
+                    value={formData.transferReference}
+                    onChange={handleInputChange}
+                    margin="normal"
+                    helperText="Número de referência fornecido pelo banco"
+                />
+
+                <TextField
+                    fullWidth
+                    label="Observações (Opcional)"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    margin="normal"
+                    multiline
+                    rows={2}
+                />
+
+                <Box mt={3}>
+                    <FormControl fullWidth>
+                        <FormLabel required sx={{ mb: 1 }}>
+                            Comprovativo de Transferência
+                        </FormLabel>
+
+                        {!file ? (
+                            <Button
+                                variant="outlined"
+                                component="label"
+                                startIcon={<UploadIcon />}
+                                sx={{
+                                    height: 80,
+                                    border: '2px dashed #ccc',
+                                    '&:hover': {
+                                        border: '2px dashed #1976d2',
+                                        backgroundColor: '#f5f5f5'
+                                    }
+                                }}
+                            >
+                                Selecionar Comprovativo
+                                <input
+                                    type="file"
+                                    hidden
+                                    accept="image/*,.pdf"
+                                    onChange={handleFileChange}
+                                />
+                            </Button>
+                        ) : (
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                                <List dense>
+                                    <ListItem
+                                        secondaryAction={
+                                            <IconButton
+                                                edge="end"
+                                                onClick={handleRemoveFile}
+                                                disabled={isSubmitting}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        }
+                                    >
+                                        <ListItemIcon>
+                                            <FileIcon color="primary" />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={file.name}
+                                            secondary={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                                        />
+                                        <Chip
+                                            size="small"
+                                            icon={<CheckIcon />}
+                                            label="Pronto"
+                                            color="success"
+                                            variant="outlined"
+                                        />
+                                    </ListItem>
+                                </List>
+                            </Paper>
+                        )}
+
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                            Formatos aceitos: JPG, PNG, PDF (máx. 5MB)
+                        </Typography>
+                    </FormControl>
+                </Box>
+
+                {(error || fileError) && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                        {error || fileError}
+                    </Alert>
+                )}
+
+                <Box mt={3} display="flex" gap={2}>
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        color="primary"
+                        type="submit"
+                        disabled={loading || isSubmitting || !file}
+                        startIcon={isSubmitting ? <CircularProgress size={20} /> : <CheckIcon />}
+                    >
+                        {isSubmitting ? 'A processar...' : 'Confirmar Pagamento'}
+                    </Button>
+                </Box>
             </Box>
         </Box>
     );

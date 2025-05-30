@@ -1,107 +1,96 @@
-import React, { createContext, useEffect, useReducer } from 'react';
-import paymentService from '../services/paymentService';
-import { PAYMENT_METHODS, PAYMENT_STATUS } from '../services/paymentTypes';
+// frontend/src/features/Payment/context/PaymentContext.js
 
-// Estado inicial
+import React, { createContext, useReducer, useCallback, useEffect } from 'react';
+import paymentService from '../services/paymentService';
+import { PAYMENT_STATUS } from '../services/paymentTypes';
+import {
+    generateSessionToken,
+    isSessionTokenValid,
+    paymentRateLimiter,
+    sanitizeInput,
+    generateChecksum
+} from '../utils/securityUtils';
+import {
+    paymentCache,
+    paymentRequestQueue,
+    debounce
+} from '../utils/performanceUtils';
+
+// Actions
+const ACTIONS = {
+    SET_ORDER_DETAILS: 'SET_ORDER_DETAILS',
+    SELECT_PAYMENT_METHOD: 'SELECT_PAYMENT_METHOD',
+    UPDATE_PAYMENT_DATA: 'UPDATE_PAYMENT_DATA',
+    SET_LOADING: 'SET_LOADING',
+    SET_ERROR: 'SET_ERROR',
+    SET_STATUS: 'SET_STATUS',
+    RESET_PAYMENT: 'RESET_PAYMENT',
+    SET_SESSION_TOKEN: 'SET_SESSION_TOKEN'
+};
+
+// Initial state
 const initialState = {
     orderId: null,
     amount: 0,
     selectedMethod: null,
-    transactionId: null,
-    transactionSignature: null,
     status: PAYMENT_STATUS.PENDING,
-    statusDetails: null,
-    error: null,
+    transactionId: null,
+    referenceInfo: null,
     loading: false,
-    paymentData: {},
-    paymentResult: null
+    error: null,
+    sessionToken: null,
+    checksum: null
 };
 
-// Tipos de ações
-export const PAYMENT_ACTIONS = {
-    SET_ORDER_DETAILS: 'SET_ORDER_DETAILS',
-    SET_PAYMENT_METHOD: 'SET_PAYMENT_METHOD',
-    SET_TRANSACTION_DATA: 'SET_TRANSACTION_DATA',
-    SET_PAYMENT_DATA: 'SET_PAYMENT_DATA',
-    SET_PAYMENT_STATUS: 'SET_PAYMENT_STATUS',
-    SET_PAYMENT_RESULT: 'SET_PAYMENT_RESULT',
-    SET_LOADING: 'SET_LOADING',
-    SET_ERROR: 'SET_ERROR',
-    RESET_PAYMENT: 'RESET_PAYMENT'
-};
-
-// Reducer para gerenciar o estado
-function paymentReducer(state, action) {
+// Reducer
+const paymentReducer = (state, action) => {
     switch (action.type) {
-        case PAYMENT_ACTIONS.SET_ORDER_DETAILS:
+        case ACTIONS.SET_ORDER_DETAILS:
             return {
                 ...state,
                 orderId: action.payload.orderId,
                 amount: action.payload.amount
             };
 
-        case PAYMENT_ACTIONS.SET_PAYMENT_METHOD:
+        case ACTIONS.SELECT_PAYMENT_METHOD:
             return {
                 ...state,
                 selectedMethod: action.payload,
-                paymentData: {} // Limpar dados do método anterior
+                error: null
             };
 
-        case PAYMENT_ACTIONS.SET_TRANSACTION_DATA:
+        case ACTIONS.UPDATE_PAYMENT_DATA:
             return {
                 ...state,
-                transactionId: action.payload.transactionId,
-                transactionSignature: action.payload.transactionSignature
-            };
-
-        case PAYMENT_ACTIONS.SET_PAYMENT_DATA:
-            // Cuidado especial com o transactionId quando vier nos dados
-            { const newPaymentData = {
-                ...state.paymentData,
                 ...action.payload
             };
 
-            // Se estiver atualizando com transactionId nos dados, também atualize o estado principal
-            const updatedState = {
-                ...state,
-                paymentData: newPaymentData
-            };
-
-            // Se tiver transactionId nos dados e o estado principal estiver vazio
-            if (action.payload.transactionId && !state.transactionId) {
-                console.log("Atualizando transactionId de paymentData para estado principal:", action.payload.transactionId);
-                updatedState.transactionId = action.payload.transactionId;
-            }
-
-            return updatedState; }
-
-        case PAYMENT_ACTIONS.SET_PAYMENT_STATUS:
-            return {
-                ...state,
-                status: action.payload.status,
-                statusDetails: action.payload.details || state.statusDetails
-            };
-
-        case PAYMENT_ACTIONS.SET_PAYMENT_RESULT:
-            return {
-                ...state,
-                paymentResult: action.payload
-            };
-
-        case PAYMENT_ACTIONS.SET_LOADING:
+        case ACTIONS.SET_LOADING:
             return {
                 ...state,
                 loading: action.payload
             };
 
-        case PAYMENT_ACTIONS.SET_ERROR:
+        case ACTIONS.SET_ERROR:
             return {
                 ...state,
                 error: action.payload,
                 loading: false
             };
 
-        case PAYMENT_ACTIONS.RESET_PAYMENT:
+        case ACTIONS.SET_STATUS:
+            return {
+                ...state,
+                status: action.payload
+            };
+
+        case ACTIONS.SET_SESSION_TOKEN:
+            return {
+                ...state,
+                sessionToken: action.payload
+            };
+
+        case ACTIONS.RESET_PAYMENT:
             return {
                 ...initialState,
                 orderId: state.orderId,
@@ -111,545 +100,260 @@ function paymentReducer(state, action) {
         default:
             return state;
     }
-}
+};
 
-// Criar contexto
+// Context
 export const PaymentContext = createContext();
 
-// Provider component
-export const PaymentProvider = ({ children, initialData }) => {
+// Provider
+export const PaymentProvider = ({ children }) => {
     const [state, dispatch] = useReducer(paymentReducer, initialState);
 
-    // Referência para o polling de status
-    let statusPolling = null;
-
+    // Inicializar sessão
     useEffect(() => {
-        if (initialData && initialData.orderId && initialData.amount) {
-            console.log('Inicializando contexto com:', initialData);
-            dispatch({
-                type: PAYMENT_ACTIONS.SET_ORDER_DETAILS,
-                payload: {
-                    orderId: initialData.orderId,
-                    amount: initialData.amount
-                }
-            });
-        }
-    }, [initialData]);
-
-    // Limpar polling quando o componente for desmontado
-    useEffect(() => {
-        return () => {
-            if (statusPolling) {
-                statusPolling.stop();
-            }
-        };
+        const token = generateSessionToken();
+        dispatch({ type: ACTIONS.SET_SESSION_TOKEN, payload: token });
     }, []);
 
-    // Ações disponíveis
-    const actions = {
-        // Definir detalhes do pedido
-        setOrderDetails: (orderId, amount) => {
-            dispatch({
-                type: PAYMENT_ACTIONS.SET_ORDER_DETAILS,
-                payload: { orderId, amount }
-            });
-        },
+    // Verificar validade da sessão
+    const checkSessionValidity = useCallback(() => {
+        if (!isSessionTokenValid(state.sessionToken)) {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: 'Sessão expirada. Por favor, recarregue a página.' });
+            return false;
+        }
+        return true;
+    }, [state.sessionToken]);
 
-        // Selecionar método de pagamento
-        selectPaymentMethod: (method) => {
-            dispatch({
-                type: PAYMENT_ACTIONS.SET_PAYMENT_METHOD,
-                payload: method
-            });
-        },
+    // Set order details
+    const setOrderDetails = useCallback((orderId, amount) => {
+        if (!orderId || amount <= 0) {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: 'Dados do pedido inválidos' });
+            return;
+        }
 
-        // Atualizar dados do método de pagamento
-        updatePaymentData: (data) => {
-            dispatch({
-                type: PAYMENT_ACTIONS.SET_PAYMENT_DATA,
-                payload: data
-            });
-        },
+        const checksum = generateChecksum({ orderId, amount });
 
-        // Obter valor da fatura para um documento
-        fetchInvoiceAmount: async (documentId) => {
-            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
+        dispatch({
+            type: ACTIONS.SET_ORDER_DETAILS,
+            payload: { orderId, amount }
+        });
 
-            try {
-                const result = await paymentService.getInvoiceAmount(documentId);
+        dispatch({
+            type: ACTIONS.UPDATE_PAYMENT_DATA,
+            payload: { checksum }
+        });
+    }, []);
 
-                if (result.success && result.invoice_data) {
-                    // Armazenar dados completos da fatura
-                    const invoiceData = result.invoice_data;
+    // Select payment method
+    const selectPaymentMethod = useCallback((method) => {
+        dispatch({ type: ACTIONS.SELECT_PAYMENT_METHOD, payload: method });
+    }, []);
 
-                    // Atualizar estado com detalhes do pedido
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_ORDER_DETAILS,
-                        payload: {
-                            orderId: documentId.toString(),
-                            amount: invoiceData.invoice || invoiceData.amount || 0
-                        }
-                    });
+    // Update payment data
+    const updatePaymentData = useCallback((data) => {
+        // Sanitizar dados antes de atualizar
+        const sanitizedData = Object.keys(data).reduce((acc, key) => {
+            acc[key] = typeof data[key] === 'string' ? sanitizeInput(data[key]) : data[key];
+            return acc;
+        }, {});
 
-                    // Também armazenar os dados completos da fatura para referência
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_PAYMENT_DATA,
-                        payload: {
-                            invoiceDetails: invoiceData,
-                            hasPaymentData: !!invoiceData.updated_at // Indica se já tem pagamento associado
-                        }
-                    });
+        dispatch({ type: ACTIONS.UPDATE_PAYMENT_DATA, payload: sanitizedData });
+    }, []);
 
-                    return {
-                        success: true,
-                        amount: invoiceData.invoice || invoiceData.amount || 0,
-                        invoiceData: invoiceData,
-                        hasPaymentData: !!invoiceData.updated_at
-                    };
-                } else {
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_ERROR,
-                        payload: result.error || 'Valor não disponível para este documento'
-                    });
-                    return { success: false, error: result.error };
-                }
-            } catch (error) {
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: error.message
-                });
-                return { success: false, error: error.message };
-            } finally {
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-            }
-        },
+    // Generate Multibanco reference
+    const generateMultibancoReference = useCallback(async () => {
+        if (!checkSessionValidity()) return null;
 
-        // Processar pagamento MBWay diretamente (sem depender do state)
-        processMBWayPayment: async (orderId, amount, phoneNumber) => {
-            if (!orderId || !amount || !phoneNumber) {
-                console.error("Dados incompletos para processamento MBWay:", { orderId, amount, phoneNumber });
-                return {
-                    success: false,
-                    error: "Dados incompletos para pagamento MBWay"
-                };
-            }
+        // Check rate limiting
+        if (!paymentRateLimiter.isAllowed(`mb-${state.orderId}`)) {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: 'Demasiadas tentativas. Aguarde um momento.' });
+            return null;
+        }
 
-            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
-            console.log(`Processando MBWay direto: orderId=${orderId}, amount=${amount}, phone=${phoneNumber}`);
+        // Check cache
+        const cacheKey = `mb-ref-${state.orderId}-${state.amount}`;
+        const cached = paymentCache.get(cacheKey);
+        if (cached) return cached;
 
-            try {
-                // Atualizar estado com telefone (para rastreabilidade)
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_PAYMENT_DATA,
-                    payload: { phoneNumber }
-                });
+        dispatch({ type: ACTIONS.SET_LOADING, payload: true });
 
-                // Chamar serviço diretamente
-                const paymentResponse = await paymentService.processMBWayPayment(
-                    orderId,
-                    amount,
-                    phoneNumber
-                );
-
-                console.log("Resposta do processamento MBWAY:", paymentResponse);
-
-                // Verificar resultado
-                if (!paymentResponse.success) {
-                    throw new Error(paymentResponse.error || 'Falha no processamento do pagamento MBWay');
-                }
-
-                // Extrair o ID da transação, que pode estar em locais diferentes dependendo da resposta da API
-                let transactionId = null;
-                let transactionSignature = null;
-
-                if (paymentResponse.transaction_id) {
-                    // Formato antigo/padrão
-                    transactionId = paymentResponse.transaction_id;
-                    transactionSignature = paymentResponse.transaction_signature;
-                } else if (paymentResponse.mbway_response && paymentResponse.mbway_response.transactionID) {
-                    // Formato da API MBWAY real
-                    transactionId = paymentResponse.mbway_response.transactionID;
-                    console.log("Extraindo transactionID da resposta MBWAY:", transactionId);
-                }
-
-                // Verificar se temos um ID de transação
-                if (!transactionId) {
-                    console.error("Resposta MBWAY não contém ID de transação:", paymentResponse);
-                }
-
-                // Guardar dados da transação
-                if (transactionId) {
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_TRANSACTION_DATA,
-                        payload: {
-                            transactionId: transactionId,
-                            transactionSignature: transactionSignature
-                        }
-                    });
-                } else {
-                    console.error("Não foi possível extrair o ID da transação da resposta:", paymentResponse);
-                }
-
-                // Definir resultado do pagamento
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_PAYMENT_RESULT,
-                    payload: paymentResponse
-                });
-
-                // Iniciar polling de status se tivermos um ID de transação
-                if (paymentResponse.transaction_id) {
-                    actions.startStatusPolling(paymentResponse.transaction_id);
-                }
-
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-                return { success: true, data: paymentResponse };
-
-            } catch (error) {
-                console.error("Erro em processMBWayPayment:", error.message);
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: error.message
-                });
-                return { success: false, error: error.message };
-            } finally {
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-            }
-        },
-
-        // Iniciar o processo de pagamento baseado no método selecionado
-        startPayment: async (overrideData = null) => {
-            if (!state.orderId || !state.amount || !state.selectedMethod) {
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: 'Dados de pagamento incompletos'
-                });
-                return { success: false, error: 'Dados de pagamento incompletos' };
-            }
-
-            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
-            console.log(`Processando pagamento: método=${state.selectedMethod}, orderId=${state.orderId}, amount=${state.amount}`);
-
-            try {
-                // Combinar dados do estado com override, se fornecido
-                const paymentData = overrideData
-                    ? { ...state.paymentData, ...overrideData }
-                    : state.paymentData;
-
-                // Processar método específico de pagamento diretamente
-                let paymentResponse;
-
-                switch (state.selectedMethod) {
-                    case PAYMENT_METHODS.MBWAY:
-                        if (!paymentData.phoneNumber) {
-                            throw new Error('Número de telefone obrigatório para MB WAY');
-                        }
-
-                        console.log(`Iniciando pagamento MBWAY: telefone=${paymentData.phoneNumber}`);
-
-                        paymentResponse = await paymentService.processMBWayPayment(
-                            state.orderId,
-                            state.amount,
-                            paymentData.phoneNumber
-                        );
-
-                        console.log("Resposta do processamento MBWAY:", paymentResponse);
-                        break;
-
-                    case PAYMENT_METHODS.MULTIBANCO:
-                        // Calcular data de expiração (por padrão, 2 dias)
-                        const expiryDate = paymentData.expiryDate ||
-                            new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
-
-                        paymentResponse = await paymentService.generateMultibancoReference(
-                            state.orderId,
-                            state.amount,
-                            expiryDate
-                        );
-                        break;
-
-                    default:
-                        throw new Error(`Método de pagamento não suportado: ${state.selectedMethod}`);
-                }
-
-                // Verificar resultado
-                if (!paymentResponse.success) {
-                    throw new Error(paymentResponse.error || 'Falha no processamento do pagamento');
-                }
-
-                // Guardar dados da transação
-                if (paymentResponse.transaction_id) {
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_TRANSACTION_DATA,
-                        payload: {
-                            transactionId: paymentResponse.transaction_id,
-                            transactionSignature: paymentResponse.transaction_signature
-                        }
-                    });
-                }
-
-                // Definir resultado do pagamento
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_PAYMENT_RESULT,
-                    payload: paymentResponse
-                });
-
-                // Iniciar polling de status para MBWay se tivermos um ID de transação
-                if (state.selectedMethod === PAYMENT_METHODS.MBWAY && paymentResponse.transaction_id) {
-                    actions.startStatusPolling(paymentResponse.transaction_id);
-                }
-
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-                return { success: true, data: paymentResponse };
-
-            } catch (error) {
-                console.error("Erro em startPayment:", error.message);
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: error.message
-                });
-                return { success: false, error: error.message };
-            } finally {
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-            }
-        },
-
-        // Iniciar polling para verificar status
-        startStatusPolling: (transactionId) => {
-            // Parar polling anterior, se existir
-            if (statusPolling) {
-                statusPolling.stop();
-            }
-
-            // Iniciar novo polling
-            statusPolling = paymentService.pollPaymentStatus(
-                transactionId,
-                (status, details) => {
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_PAYMENT_STATUS,
-                        payload: { status, details }
-                    });
-
-                    // Notificar usuário se o status mudar para pago ou falha
-                    if (status === PAYMENT_STATUS.PAID || status === PAYMENT_STATUS.FAILED) {
-                        // Aqui você pode adicionar alguma notificação
-                        console.log(`Pagamento ${status === PAYMENT_STATUS.PAID ? 'confirmado' : 'falhou'}`);
-                    }
-                },
-                10000,  // 10 segundos entre verificações
-                300000  // 5 minutos de timeout
+        try {
+            const result = await paymentRequestQueue.add(() =>
+                paymentService.generateMultibancoReference(state.orderId, state.amount)
             );
-        },
 
-        // Verificar status manualmente
-        checkStatus: async (transactionId) => {
-            const txId = transactionId || state.transactionId;
-
-            // Validar o ID de transação
-            if (!txId) {
-                console.warn("Tentativa de verificar status sem ID de transação");
+            if (result.success && result.data) {
                 dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: "Não é possível verificar o status: pagamento não foi iniciado"
+                    type: ACTIONS.UPDATE_PAYMENT_DATA,
+                    payload: {
+                        referenceInfo: result.data,
+                        status: PAYMENT_STATUS.PENDING_PAYMENT
+                    }
                 });
-                return {
-                    success: false,
-                    error: "ID de transação não disponível",
-                    status: { paymentStatus: PAYMENT_STATUS.UNKNOWN }
-                };
+
+                // Cache result
+                paymentCache.set(cacheKey, result);
+
+                return result;
+            } else {
+                dispatch({ type: ACTIONS.SET_ERROR, payload: result.error || 'Erro ao gerar referência' });
+                return null;
             }
+        } catch (error) {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
+            return null;
+        } finally {
+            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+        }
+    }, [state.orderId, state.amount, checkSessionValidity]);
 
-            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
-            console.log("Verificando status para transação:", txId);
+    // Process MBWay payment
+    const processMBWayPayment = useCallback(async (phoneNumber) => {
+        if (!checkSessionValidity()) return null;
 
-            try {
-                // Log antes da chamada API
-                console.log("Chamando API para verificar status...");
+        // Check rate limiting
+        if (!paymentRateLimiter.isAllowed(`mbway-${state.orderId}`)) {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: 'Demasiadas tentativas. Aguarde um momento.' });
+            return null;
+        }
 
-                // Verificar se estamos usando simulação
-                if (paymentService._shouldUseSimulation) {
-                    console.log("ATENÇÃO: Usando modo de simulação - chamada à API não será realizada");
-                }
+        dispatch({ type: ACTIONS.SET_LOADING, payload: true });
 
-                // Forçar useSimulation = false durante esta chamada
-                const originalSimFunction = paymentService._shouldUseSimulation;
-                paymentService._shouldUseSimulation = () => false;
+        try {
+            const result = await paymentRequestQueue.add(() =>
+                paymentService.processMBWayPayment(state.orderId, state.amount, phoneNumber)
+            );
 
-                // Chamada real à API
-                const statusData = await paymentService.checkPaymentStatus(txId);
+            if (result.success) {
+                dispatch({
+                    type: ACTIONS.UPDATE_PAYMENT_DATA,
+                    payload: {
+                        transactionId: result.data.transaction_id,
+                        status: PAYMENT_STATUS.PENDING_PAYMENT
+                    }
+                });
+                return result;
+            } else {
+                dispatch({ type: ACTIONS.SET_ERROR, payload: result.error || 'Erro no pagamento MBWay' });
+                return null;
+            }
+        } catch (error) {
+            dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
+            return null;
+        } finally {
+            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+        }
+    }, [state.orderId, state.amount, checkSessionValidity]);
 
-                // Restaurar função original
-                paymentService._shouldUseSimulation = originalSimFunction;
+    /**
+ * Registra um pagamento manual
+ * @param {string} orderId - ID do pedido
+ * @param {number} amount - Valor do pagamento
+ * @param {string} paymentType - Tipo de pagamento (CASH, BANK_TRANSFER, etc)
+ * @param {string} referenceInfo - Informações de referência
+ * @returns {Promise<Object>} Resultado do registro
+ */
+    const registerManualPayment = async (orderId, amount, paymentType, referenceInfo) => {
+        try {
+            dispatch({ type: 'SET_LOADING', payload: true });
 
-                console.log("Resposta da verificação de status:", statusData);
+            // Chamar o serviço de pagamento
+            const result = await paymentService.registerManualPayment(
+                orderId,
+                amount,
+                paymentType,
+                referenceInfo
+            );
 
-                if (statusData.success) {
-                    const status = statusData?.status?.paymentStatus || PAYMENT_STATUS.UNKNOWN;
-                    console.log("Status de pagamento recebido:", status);
+            console.log('[PaymentContext] Resultado do registerManualPayment:', result);
 
+            // Verificar se o resultado é válido
+            if (result) {
+                // Atualizar o estado com o transaction_id se existir
+                if (result.transaction_id) {
                     dispatch({
-                        type: PAYMENT_ACTIONS.SET_PAYMENT_STATUS,
-                        payload: { status, details: statusData.status }
-                    });
-                } else {
-                    console.error("Erro na resposta de status:", statusData.error);
-                }
-
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-                return statusData;
-            } catch (error) {
-                console.error("Erro ao verificar status:", error);
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: error.message
-                });
-                return { success: false, error: error.message };
-            } finally {
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-            }
-        },
-
-        // Registrar pagamento manual (dinheiro ou transferência)
-        // Registrar pagamento manual (dinheiro ou transferência)
-        registerManualPayment: async (orderId, amount, paymentType, referenceInfo) => {
-            if (!orderId || !amount || !paymentType || !referenceInfo) {
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: 'Dados incompletos para registro de pagamento manual'
-                });
-                return { success: false, error: 'Dados incompletos para registro de pagamento manual' };
-            }
-
-            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
-            console.log(`Registrando pagamento manual: tipo=${paymentType}, orderId=${orderId}, amount=${amount}`);
-
-            try {
-                // Chamar serviço para registrar pagamento manual
-                const paymentResponse = await paymentService.registerManualPayment(
-                    orderId,
-                    amount,
-                    paymentType,
-                    referenceInfo
-                );
-
-                console.log("Resposta do registro manual:", paymentResponse);
-
-                // Verificar se temos uma resposta simulada (contorno temporário para problema do backend)
-                const isWorkaround = paymentResponse._note && paymentResponse._note.includes("simulada");
-                if (isWorkaround) {
-                    console.log("Usando resposta simulada devido a problema no backend");
-                }
-
-                if (!paymentResponse.success) {
-                    throw new Error(paymentResponse.error || 'Falha no registro do pagamento manual');
-                }
-
-                // Guardar dados da transação
-                if (paymentResponse.transaction_id) {
-                    dispatch({
-                        type: PAYMENT_ACTIONS.SET_TRANSACTION_DATA,
+                        type: 'UPDATE_PAYMENT_DATA',
                         payload: {
-                            transactionId: paymentResponse.transaction_id
+                            transactionId: result.transaction_id,
+                            status: 'PENDING_VALIDATION'
                         }
                     });
                 }
 
-                // Definir resultado do pagamento
+                // Retornar o resultado completo
+                return result;
+            } else {
+                // Se o resultado for null ou undefined
+                console.error('[PaymentContext] Resultado inválido do paymentService');
                 dispatch({
-                    type: PAYMENT_ACTIONS.SET_PAYMENT_RESULT,
-                    payload: paymentResponse
+                    type: 'SET_ERROR',
+                    payload: 'Erro ao processar pagamento'
                 });
-
-                // Definir status do pagamento como pendente de validação
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_PAYMENT_STATUS,
-                    payload: { status: PAYMENT_STATUS.PENDING_VALIDATION }
-                });
-
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-                return { success: true, data: paymentResponse };
-
-            } catch (error) {
-                console.error("Erro em registerManualPayment:", error.message);
-
-                let errorMessage = error.message;
-
-                // Melhorar mensagens de erro
-                if (error.message.includes("500") || error.message.includes("Internal Server Error")) {
-                    errorMessage = "Erro no servidor ao registrar pagamento. Por favor, contacte o suporte.";
-                } else if (error.message.includes("'str' object has no attribute 'profile'") ||
-                    error.message.includes("permission") ||
-                    error.message.includes("permissão")) {
-                    errorMessage = "Erro de permissão: Não tem autorização para realizar esta operação.";
-                }
-
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: errorMessage
-                });
-                return { success: false, error: errorMessage };
-            } finally {
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
+                return {
+                    success: false,
+                    error: 'Resposta inválida do servidor'
+                };
             }
-        },
+        } catch (error) {
+            console.error('[PaymentContext] Erro no registerManualPayment:', error);
+            dispatch({
+                type: 'SET_ERROR',
+                payload: error.message || 'Erro ao registrar pagamento'
+            });
 
-        // Aprovar/validar um pagamento manual (apenas para admin)
-        approvePayment: async (paymentPk) => {
-            if (!paymentPk) {
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: 'ID de pagamento não fornecido'
-                });
-                return { success: false, error: 'ID de pagamento não fornecido' };
-            }
-
-            dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: true });
-            console.log(`Aprovando pagamento: pk=${paymentPk}`);
-
-            try {
-                // Chamar serviço para aprovar pagamento
-                const response = await paymentService.approvePayment(paymentPk);
-
-                console.log("Resposta da aprovação:", response);
-
-                if (!response.success) {
-                    throw new Error(response.error || 'Falha na aprovação do pagamento');
-                }
-
-                // Atualizar status do pagamento para PAID
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_PAYMENT_STATUS,
-                    payload: { status: PAYMENT_STATUS.PAID }
-                });
-
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-                return { success: true, data: response };
-
-            } catch (error) {
-                console.error("Erro em approvePayment:", error.message);
-                dispatch({
-                    type: PAYMENT_ACTIONS.SET_ERROR,
-                    payload: error.message
-                });
-                return { success: false, error: error.message };
-            } finally {
-                dispatch({ type: PAYMENT_ACTIONS.SET_LOADING, payload: false });
-            }
-        },
-
-        // Resetar o pagamento (manter apenas os detalhes do pedido)
-        resetPayment: () => {
-            // Parar polling, se existir
-            if (statusPolling) {
-                statusPolling.stop();
-                statusPolling = null;
-            }
-
-            dispatch({ type: PAYMENT_ACTIONS.RESET_PAYMENT });
+            // Retornar objeto de erro
+            return {
+                success: false,
+                error: error.message || 'Erro ao registrar pagamento'
+            };
+        } finally {
+            dispatch({ type: 'SET_LOADING', payload: false });
         }
     };
 
+    // Check payment status (with debounce)
+    const checkStatus = useCallback(
+        debounce(async () => {
+            if (!state.transactionId || !checkSessionValidity()) return;
+
+            dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+
+            try {
+                const result = await paymentService.checkPaymentStatus(state.transactionId, state.documentId || state.orderId);
+
+                if (result.success) {
+                    dispatch({ type: ACTIONS.SET_STATUS, payload: result.data.status });
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+            } finally {
+                dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+            }
+        }, 1000),
+        [state.transactionId, checkSessionValidity]
+    );
+
+    // Reset payment
+    const resetPayment = useCallback(() => {
+        dispatch({ type: ACTIONS.RESET_PAYMENT });
+        paymentCache.clear();
+    }, []);
+
+    // Context value
+    const value = {
+        state,
+        setOrderDetails,
+        selectPaymentMethod,
+        updatePaymentData,
+        generateMultibancoReference,
+        processMBWayPayment,
+        registerManualPayment,
+        checkStatus,
+        resetPayment
+    };
+
     return (
-        <PaymentContext.Provider value={{ state, ...actions }}>
+        <PaymentContext.Provider value={value}>
             {children}
         </PaymentContext.Provider>
     );

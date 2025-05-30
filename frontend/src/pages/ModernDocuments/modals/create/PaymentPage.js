@@ -15,9 +15,14 @@ import { notifyError, notifySuccess } from '../../../../components/common/Toaste
 import PaymentModule from '../../../../features/Payment/components/PaymentModule';
 import { PaymentProvider } from '../../../../features/Payment/context/PaymentContext';
 import { updateDocumentPayment } from '../../../../services/documentService';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 const PaymentPage = ({ regnumber, documentData, onBack, onComplete }) => {
     const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
+    console.log("PaymentPage - user:", user);
+
+
 
     // Callback quando o pagamento é completado
     const handlePaymentComplete = async (paymentResult) => {
@@ -80,6 +85,7 @@ const PaymentPage = ({ regnumber, documentData, onBack, onComplete }) => {
                         amount={documentData.amount || 50}
                         onComplete={handlePaymentComplete}
                         onCancel={handlePaymentCancel}
+                        userInfo={user ? { ...user } : null}
                     />
                 </PaymentProvider>
 

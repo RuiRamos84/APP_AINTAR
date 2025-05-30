@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 // Importar componentes do módulo de pagamento
 import PaymentModule from '../../../../../features/Payment/components/PaymentModule';
 import { PaymentProvider } from '../../../../../features/Payment/context/PaymentContext';
+import { useAuth } from '../../../../../contexts/AuthContext';
 
 /**
  * Componente PaymentStep ajustado para usar o novo módulo de pagamentos
@@ -33,6 +34,7 @@ const PaymentStep = ({
     lastDocument
 }) => {
     const theme = useTheme();
+    const { user } = useAuth();
     const [paymentComplete, setPaymentComplete] = useState(false);
     const [paymentError, setPaymentError] = useState(null);
 
@@ -172,6 +174,7 @@ const PaymentStep = ({
                                 amount={calculatePaymentAmount()}
                                 onComplete={handlePaymentComplete}
                                 onCancel={handlePaymentCancel}
+                                userInfo={user}
                             />
                         </PaymentProvider>
                     )}
