@@ -69,7 +69,6 @@ def get_document_payment_status(document_id):
 @set_session
 @api_error_handler
 def create_checkout():
-    """Criar sessão checkout (rápido)"""
     data = request.json or {}
     required = ["document_id", "amount", "payment_method"]
 
@@ -87,7 +86,6 @@ def create_checkout():
         )
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro no checkout: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

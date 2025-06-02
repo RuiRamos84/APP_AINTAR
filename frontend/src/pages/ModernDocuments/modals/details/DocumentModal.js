@@ -33,6 +33,8 @@ import { alpha } from '@mui/material/styles';
 import React, { useEffect, useState } from 'react';
 
 // Componentes das tabs
+import paymentService from '../../../../features/Payment/services/paymentService';
+import paymentIntegration from '../../../../features/Payment/utils/paymentIntegration';
 import PaymentDialog from '../../../../features/Payment/modals/PaymentDialog';
 import AttachmentsTab from './tabs/AttachmentsTab';
 import DetailsTab from './tabs/DetailsTab';
@@ -108,6 +110,7 @@ const DocumentModal = ({
     const [previewFile, setPreviewFile] = useState({ url: '', type: '', name: '' });
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [paymentData, setPaymentData] = useState(null);
+    const isPaid = ['SUCCESS', 'PAID'].includes(invoiceAmount?.invoice_data?.payment_status);
 
     // Carregamento inicial dos dados
     useEffect(() => {
@@ -198,19 +201,13 @@ const DocumentModal = ({
     };
 
     const fetchInvoiceAmount = async () => {
-        if (!document || !document.pk) return;
+        if (!document?.pk) return;
 
         try {
-            const paymentService = (await import('../../../../features/Payment/services/paymentService')).default;
             const result = await paymentService.getInvoiceAmount(document.pk);
-
-            if (result.success) {
-                setInvoiceAmount(result);
-            } else {
-                setInvoiceAmount(null);
-            }
+            setInvoiceAmount(result.success ? result : null);
         } catch (error) {
-            console.error('Erro ao buscar valor da factura:', error);
+            console.error('Erro fatura:', error);
             setInvoiceAmount(null);
         }
     };
@@ -236,18 +233,22 @@ const DocumentModal = ({
         return false;
     };
 
-    const shouldShowPaymentButton = () => {
-        if (!invoiceAmount || invoiceAmount.invoice_data == null) return false;
-
-        const invoiceData = invoiceAmount.invoice_data;
-
-        if (invoiceData.invoice && canManagePayments()) {
-            if (!invoiceData.payment_status || !invoiceData.payment_method || !invoiceData.payment_reference) {
-                return true;
-            }
+    const getPaymentState = () => {
+        if (!invoiceAmount?.invoice_data || !canManagePayments()) {
+            return 'hidden';
         }
 
-        return false;
+        const { payment_status, invoice } = invoiceAmount.invoice_data;
+
+        if (['SUCCESS', 'PAID'].includes(payment_status)) {
+            return 'paid';
+        }
+
+        if (invoice && !payment_status) {
+            return 'pending';
+        }
+
+        return 'hidden';
     };
 
     // Funções auxiliares
@@ -312,20 +313,16 @@ const DocumentModal = ({
 
     const handlePaymentClick = async (doc) => {
         try {
-            const paymentIntegration = (await import('../../../../features/Payment/utils/paymentIntegration')).default;
+            const result = await paymentService.getInvoiceAmount(doc.pk);
+            if (!result.success) throw new Error(result.error);
 
-            await paymentIntegration.initiateDocumentPayment(
-                doc,
-                (paymentData) => {
-                    setPaymentData(paymentData);
-                    setPaymentDialogOpen(true);
-                },
-                null,
-                showGlobalNotification
-            );
+            setPaymentData({
+                documentId: doc.pk,
+                amount: result.invoice_data.invoice
+            });
+            setPaymentDialogOpen(true);
         } catch (error) {
-            console.error('Erro ao iniciar pagamento:', error);
-            showGlobalNotification('Erro ao iniciar processo de pagamento', 'error');
+            showGlobalNotification('Erro ao iniciar pagamento', 'error');
         }
     };
 
@@ -521,36 +518,38 @@ const DocumentModal = ({
                 }
             }
 
-            // Botão de pagamento - disponível com permissão
-            if (canManagePayments() && shouldShowPaymentButton()) {
-                actions.push(
-                    <Button
-                        key="payment"
-                        variant="contained"
-                        color="success"
-                        startIcon={<PaymentIcon />}
-                        onClick={() => handlePaymentClick(document)}
-                        sx={{ mr: 1 }}
-                    >
-                        Pagar {invoiceAmount?.invoice_data?.invoice}€
-                    </Button>
-                );
-            } else if (canManagePayments() &&
-                (invoiceAmount?.invoice_data?.payment_status === "Success" ||
-                    invoiceAmount?.invoice_data?.payment_status === "SUCCESS")) {
-                actions.push(
-                    <Chip
-                        key="payment-done"
-                        icon={<CheckCircleIcon />}
-                        label="Pagamento efectuado"
-                        color="success"
-                        variant="outlined"
-                        sx={{ mr: 1, height: 36 }}
-                    />
-                );
+            // Gestão de pagamentos
+            if (canManagePayments() && invoiceAmount?.invoice_data) {
+                const { payment_status, invoice } = invoiceAmount.invoice_data;
+
+                if (['SUCCESS', 'PAID'].includes(payment_status)) {
+                    actions.push(
+                        <Chip
+                            key="payment-done"
+                            icon={<CheckCircleIcon />}
+                            label="Pagamento efectuado"
+                            color="success"
+                            variant="outlined"
+                            sx={{ mr: 1, height: 36 }}
+                        />
+                    );
+                } else if (invoice && !payment_status) {
+                    actions.push(
+                        <Button
+                            key="payment"
+                            variant="contained"
+                            color="success"
+                            startIcon={<PaymentIcon />}
+                            onClick={() => handlePaymentClick(document)}
+                            sx={{ mr: 1 }}
+                        >
+                            Pagar {invoice}€
+                        </Button>
+                    );
+                }
             }
 
-            // Botão de comprovativo - disponível para criador ou perfil 1
+            // Botão de comprovativo
             if ((tabType === 'created' || user?.profil === "1" || user?.profil === 1) && onDownloadComprovativo) {
                 actions.push(
                     <Button
@@ -835,28 +834,14 @@ const DocumentModal = ({
                     open={paymentDialogOpen}
                     onClose={(success, result) => {
                         setPaymentDialogOpen(false);
-
-                        import('../../../../features/Payment/utils/paymentIntegration')
-                            .then(module => {
-                                const paymentIntegration = module.default;
-                                paymentIntegration.processPaymentResult(
-                                    { success, result },
-                                    document,
-                                    null,
-                                    showGlobalNotification,
-                                    refreshData
-                                );
-                            })
-                            .catch(error => {
-                                console.error('Erro ao processar resultado do pagamento:', error);
-                                if (success) {
-                                    showGlobalNotification('Pagamento processado com sucesso!', 'success');
-                                    refreshData();
-                                }
-                            });
+                        if (success) {
+                            showGlobalNotification('Pagamento processado!', 'success');
+                            refreshData();
+                        }
                     }}
-                    paymentData={paymentData}
-                />
+                    documentId={paymentData?.documentId}
+                    amount={paymentData?.amount}
+            />
             )}
         </>
     );

@@ -1,85 +1,47 @@
-// src/features/Payment/utils/paymentIntegration.js
 import paymentService from '../services/paymentService';
 
-/**
- * Utilitário para integração do módulo de pagamentos com outros módulos da aplicação
- */
-const paymentIntegration = {
+export const paymentIntegration = {
     /**
- * Inicia um processo de pagamento para um documento
- * @param {Object} document - Documento a ser pago
- * @param {Function} onSuccess - Callback a ser chamado em caso de sucesso
- * @param {Function} onError - Callback a ser chamado em caso de erro
- * @param {Function} showNotification - Função para exibir notificações
- * @returns {Promise<Object>} - Dados de pagamento ou erro
- */
-    async initiateDocumentPayment(document, onSuccess, onError, showNotification) {
-        if (!document || !document.pk) {
-            const error = "Documento inválido ou sem identificador";
-            if (onError) onError(error);
-            if (showNotification) showNotification(error, 'error');
-            return { success: false, error };
-        }
+     * Iniciar pagamento documento
+     */
+    async initDocumentPayment(document) {
+        if (!document?.pk) throw new Error('Documento inválido');
 
-        try {
-            if (showNotification) showNotification('Obtendo dados de pagamento...', 'info');
+        const response = await paymentService.getInvoiceData(document.pk);
+        if (!response.success) throw new Error(response.error);
 
-            // Obter valor a ser pago
-            const response = await paymentService.getInvoiceAmount(document.pk);
-
-            if (response.success && response.invoice_data) {
-                const invoiceData = response.invoice_data;
-                const hasPaymentData = !!invoiceData.updated_at;
-
-                // Preparar dados de pagamento
-                const paymentData = {
-                    orderId: document.regnumber || document.pk.toString(),
-                    documentId: document.pk,
-                    amount: invoiceData.invoice || 0,
-                    description: document.descr || 'Pagamento de documento',
-                    invoiceData: invoiceData,
-                    hasPaymentData: hasPaymentData
-                };
-
-                // Chamar callback de sucesso
-                if (onSuccess) onSuccess(paymentData);
-                return {
-                    success: true,
-                    paymentData,
-                    hasPaymentData
-                };
-            } else {
-                const error = response.error || 'Não foi possível obter os dados da fatura para este documento';
-                if (onError) onError(error);
-                if (showNotification) showNotification(error, 'error');
-                return { success: false, error };
-            }
-        } catch (error) {
-            console.error('Erro ao iniciar pagamento:', error);
-            const errorMessage = error.message || 'Erro ao iniciar processo de pagamento';
-            if (onError) onError(errorMessage);
-            if (showNotification) showNotification(errorMessage, 'error');
-            return { success: false, error: errorMessage };
-        }
+        return {
+            documentId: document.pk,
+            amount: response.invoice_data.invoice,
+            orderId: document.regnumber
+        };
     },
 
     /**
-     * Processa o resultado do pagamento e atualiza o documento se necessário
-     * @param {Object} paymentResult - Resultado do pagamento
-     * @param {Object} document - Documento que foi pago
-     * @param {Function} onComplete - Callback a ser chamado após processamento
-     * @param {Function} showNotification - Função para exibir notificações
-     * @param {Function} refreshData - Função para atualizar dados
+     * Abrir modal pagamento
      */
-    processPaymentResult(paymentResult, document, onComplete, showNotification, refreshData) {
-        if (paymentResult && paymentResult.success) {
-            if (showNotification) showNotification('Pagamento processado com sucesso!', 'success');
+    openPaymentDialog(documentData, onComplete) {
+        // Implementar conforme modal system da app
+        return {
+            component: 'PaymentDialog',
+            props: {
+                documentId: documentData.documentId,
+                amount: documentData.amount,
+                onComplete
+            }
+        };
+    },
 
-            // Atualizar documento se necessário
-            if (refreshData) refreshData();
+    /**
+     * Processar resultado
+     */
+    processResult(result, onSuccess, onError) {
+        if (result.success) {
+            onSuccess?.(result);
+            return true;
         }
-
-        if (onComplete) onComplete(paymentResult);
+        onError?.(result.error);
+        return false;
     }
 };
 

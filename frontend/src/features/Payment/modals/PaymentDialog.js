@@ -1,52 +1,32 @@
-import { Close as CloseIcon } from '@mui/icons-material';
-import {
-    Box,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    IconButton, Typography
-} from '@mui/material';
 import React from 'react';
-import PaymentModule from '../components/PaymentModule';
+import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import { PaymentProvider } from '../context/PaymentContext';
+import PaymentModule from '../components/PaymentModule';
 
-const PaymentDialog = ({ open, onClose, paymentData }) => {
+const PaymentDialog = ({ open, onClose, documentId, amount }) => {
     const handleComplete = (result) => {
-        console.log('Pagamento concluído:', result);
         onClose(true, result);
     };
 
-    const handleCancel = () => {
-        onClose(false);
-    };
-
-    if (!paymentData) return null;
-
     return (
-        <Dialog
-            open={open}
-            onClose={handleCancel}
-            maxWidth="md"
-            fullWidth
-        >
+        <Dialog open={open} onClose={() => onClose(false)} maxWidth="md" fullWidth>
             <DialogTitle>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6">
-                        Pagamento de Documento - {paymentData.orderId} ({paymentData.amount}€)
-                    </Typography>
-                    <IconButton edge="end" onClick={handleCancel}>
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
+                Pagamento - €{amount}
+                <IconButton
+                    onClick={() => onClose(false)}
+                    sx={{ position: 'absolute', right: 8, top: 8 }}
+                >
+                    <Close />
+                </IconButton>
             </DialogTitle>
 
             <DialogContent>
-                <PaymentProvider initialData={paymentData}>
+                <PaymentProvider>
                     <PaymentModule
-                        orderId={paymentData.orderId}
-                        amount={paymentData.amount}
+                        documentId={documentId}
+                        amount={amount}
                         onComplete={handleComplete}
-                        onCancel={handleCancel}
                     />
                 </PaymentProvider>
             </DialogContent>

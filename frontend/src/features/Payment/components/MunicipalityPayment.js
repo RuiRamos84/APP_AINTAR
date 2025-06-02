@@ -1,235 +1,125 @@
-// frontend/src/features/Payment/components/MunicipalityPayment.js
-
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import {
-    Box,
-    Typography,
-    Paper,
-    TextField,
-    Button,
-    Alert,
-    CircularProgress,
-    Autocomplete,
-    useTheme,
-    useMediaQuery
+    Box, Button, TextField, Typography, Alert, CircularProgress,
+    Autocomplete
 } from '@mui/material';
 import { LocationCity as MunicipalityIcon } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
-import { PAYMENT_METHODS } from '../services/paymentTypes';
 
-const MunicipalityPayment = ({ onSubmit, loading: externalLoading, error: externalError, userInfo }) => {
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const payment = useContext(PaymentContext);
+const municipalities = [
+    'Lisboa', 'Porto', 'Setúbal', 'Almada', 'Seixal', 'Barreiro',
+    'Montijo', 'Alcochete', 'Moita', 'Sesimbra'
+];
 
-    // Estados
-    const [municipality, setMunicipality] = useState('');
-    const [paymentReference, setPaymentReference] = useState('');
-    const [paymentDate, setPaymentDate] = useState('');
-    const [localError, setLocalError] = useState('');
-    const [success, setSuccess] = useState(false);
-    const [authorized, setAuthorized] = useState(false);
+const MunicipalityPayment = ({ onSuccess, userInfo }) => {
+    const { state, payManual } = useContext(PaymentContext);
+    const [formData, setFormData] = useState({
+        municipality: '',
+        reference: '',
+        paymentDate: new Date().toISOString().split('T')[0]
+    });
+    const [error, setError] = useState('');
 
-    const loading = externalLoading || payment.state.loading;
-    const error = externalError || payment.state.error || localError;
+    const hasPermission = userInfo && ['0', '2'].includes(userInfo.profil);
 
-    // Lista de municípios (exemplo - deve vir do backend)
-    const municipalities = [
-        { id: 1, name: 'Lisboa' },
-        { id: 2, name: 'Porto' },
-        { id: 3, name: 'Setúbal' },
-        { id: 4, name: 'Almada' },
-        { id: 5, name: 'Seixal' },
-        // Adicionar mais conforme necessário
-    ];
-
-    // Verificar autorização
-    useEffect(() => {
-        const hasPermission = userInfo && ['0', '2'].includes(userInfo.profil);
-        setAuthorized(hasPermission);
-
-        if (!hasPermission) {
-            setLocalError('Não tem permissão para usar este método de pagamento.');
-        }
-    }, [userInfo]);
-
-    // Definir método de pagamento
-    useEffect(() => {
-        if (payment.state.selectedMethod !== PAYMENT_METHODS.MUNICIPALITY) {
-            payment.selectPaymentMethod(PAYMENT_METHODS.MUNICIPALITY);
-        }
-    }, []);
+    const validateForm = () => {
+        if (!formData.municipality) return 'Município obrigatório';
+        if (!formData.reference.trim()) return 'Referência obrigatória';
+        if (!formData.paymentDate) return 'Data obrigatória';
+        return null;
+    };
 
     const handlePay = async () => {
-        if (!authorized) {
-            setLocalError('Sem permissão para usar este método de pagamento.');
+        const validation = validateForm();
+        if (validation) {
+            setError(validation);
             return;
         }
 
-        // Validações
-        if (!municipality) {
-            setLocalError('Por favor, selecione o município');
-            return;
-        }
-
-        if (!paymentReference.trim()) {
-            setLocalError('Por favor, forneça a referência do pagamento');
-            return;
-        }
-
-        if (!paymentDate) {
-            setLocalError('Por favor, forneça a data do pagamento');
-            return;
-        }
-
-        setLocalError('');
-
+        setError('');
         try {
-            const referenceInfo = JSON.stringify({
-                municipality: municipality,
-                paymentReference: paymentReference,
-                paymentDate: paymentDate,
-                paymentLocation: `Município de ${municipality}`
-            });
+            const details = {
+                municipality: formData.municipality,
+                paymentReference: formData.reference,
+                paymentDate: formData.paymentDate,
+                paymentLocation: `Município de ${formData.municipality}`
+            };
 
-            payment.updatePaymentData({
-                referenceInfo: referenceInfo,
-                municipality: municipality,
-                paymentReference: paymentReference,
-                paymentDate: paymentDate
-            });
-
-            const result = await payment.registerManualPayment(
-                payment.state.orderId,
-                payment.state.amount,
-                PAYMENT_METHODS.MUNICIPALITY,
-                referenceInfo
-            );
-
-            if (result && result.success) {
-                // Atualizar o transactionId e status no contexto
-                if (result.data && result.data.transaction_id) {
-                    payment.updatePaymentData({
-                        transactionId: result.data.transaction_id,
-                        status: result.data.status || 'PENDING_VALIDATION'
-                    });
-                }
-
-                setSuccess(true);
-                if (onSubmit) onSubmit();
-            } else {
-                const errorMsg = (result && result.error) || 'Erro ao registar pagamento';
-                setLocalError(errorMsg);
-            }
+            const result = await payManual('MUNICIPALITY', details);
+            onSuccess?.(result);
         } catch (err) {
-            console.error('Erro ao processar pagamento:', err);
-            setLocalError('Erro ao processar pagamento: ' + (err.message || 'Erro desconhecido'));
+            setError(err.message);
         }
     };
 
-    return (
-        <Box>
-            <Typography variant="h6" gutterBottom>
-                Pagamento nos Municípios
-            </Typography>
+    if (!hasPermission) {
+        return (
+            <Alert severity="warning" sx={{ m: 3 }}>
+                Sem permissão para este método.
+            </Alert>
+        );
+    }
 
-            <Typography variant="body2" paragraph>
-                Registe um pagamento realizado nos balcões municipais.
-            </Typography>
+    return (
+        <Box sx={{ p: 3 }}>
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <MunicipalityIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+                <Typography variant="h6">Pagamento Municipal</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Registo de pagamento nos balcões municipais
+                </Typography>
+            </Box>
+
+            <Autocomplete
+                options={municipalities}
+                value={formData.municipality}
+                onChange={(_, value) => setFormData(prev => ({ ...prev, municipality: value }))}
+                renderInput={(params) => (
+                    <TextField {...params} label="Município" required />
+                )}
+                sx={{ mb: 2 }}
+            />
+
+            <TextField
+                fullWidth
+                required
+                label="Referência do pagamento"
+                value={formData.reference}
+                onChange={(e) => setFormData(prev => ({ ...prev, reference: e.target.value }))}
+                placeholder="Ex: Recibo nº 12345"
+                sx={{ mb: 2 }}
+            />
+
+            <TextField
+                fullWidth
+                required
+                type="date"
+                label="Data do pagamento"
+                value={formData.paymentDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, paymentDate: e.target.value }))}
+                InputLabelProps={{ shrink: true }}
+                sx={{ mb: 2 }}
+            />
 
             {error && (
-                <Alert severity="error" sx={{ mb: 3 }}>
+                <Alert severity="error" sx={{ mb: 2 }}>
                     {error}
                 </Alert>
             )}
 
-            {success && (
-                <Alert severity="success" sx={{ mb: 3 }}>
-                    Pagamento registado com sucesso. Aguardando validação.
-                </Alert>
-            )}
+            <Button
+                fullWidth
+                variant="contained"
+                onClick={handlePay}
+                disabled={state.loading || !formData.municipality || !formData.reference.trim()}
+                startIcon={state.loading ? <CircularProgress size={20} /> : <MunicipalityIcon />}
+            >
+                {state.loading ? 'A registar...' : 'Registar Pagamento'}
+            </Button>
 
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-                <Box display="flex" flexDirection="column" gap={2}>
-                    <Autocomplete
-                        options={municipalities.map(m => m.name)}
-                        value={municipality}
-                        onChange={(_, newValue) => setMunicipality(newValue)}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Município"
-                                variant="outlined"
-                                error={!!localError && !municipality}
-                                helperText={(!municipality && localError) ? "Campo obrigatório" : ""}
-                            />
-                        )}
-                        disabled={loading || success || !authorized}
-                        fullWidth
-                    />
-
-                    <TextField
-                        fullWidth
-                        label="Referência do Pagamento"
-                        variant="outlined"
-                        value={paymentReference}
-                        onChange={(e) => setPaymentReference(e.target.value)}
-                        disabled={loading || success || !authorized}
-                        error={!!localError && !paymentReference.trim()}
-                        helperText={(!paymentReference.trim() && localError) ? "Campo obrigatório" : "Ex: Recibo nº 12345"}
-                    />
-
-                    <TextField
-                        fullWidth
-                        label="Data do Pagamento"
-                        variant="outlined"
-                        type="date"
-                        value={paymentDate}
-                        onChange={(e) => setPaymentDate(e.target.value)}
-                        disabled={loading || success || !authorized}
-                        error={!!localError && !paymentDate}
-                        helperText={(!paymentDate && localError) ? "Campo obrigatório" : ""}
-                        InputLabelProps={{
-                            shrink: true,
-                        }}
-                    />
-
-                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            size="large"
-                            onClick={handlePay}
-                            disabled={loading || success || !municipality || !paymentReference.trim() || !paymentDate || !authorized}
-                            startIcon={loading ? <CircularProgress size={20} /> : <MunicipalityIcon />}
-                            sx={{
-                                minWidth: { xs: '100%', sm: 200 },
-                                py: isMobile ? 1.5 : 1
-                            }}
-                        >
-                            {loading ? 'A processar...' : 'Registar Pagamento'}
-                        </Button>
-                    </Box>
-                </Box>
-            </Paper>
-
-            <Box sx={{
-                mt: 4,
-                p: 2,
-                bgcolor: theme.palette.info.light + '20',
-                borderRadius: 1,
-                fontSize: isMobile ? '0.875rem' : '1rem'
-            }}>
-                <Typography variant="subtitle2" gutterBottom color="info.main">
-                    Informações Importantes:
-                </Typography>
-                <Typography variant="body2">
-                    1. Este pagamento está sujeito a validação posterior<br />
-                    2. Guarde o recibo emitido pelo município<br />
-                    3. A referência do pagamento deve corresponder ao recibo oficial<br />
-                    4. O pagamento será confirmado após validação administrativa
-                </Typography>
-            </Box>
+            <Alert severity="info" sx={{ mt: 2 }}>
+                Necessita validação posterior.
+            </Alert>
         </Box>
     );
 };

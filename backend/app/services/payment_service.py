@@ -4,6 +4,7 @@ import logging
 from app.utils.utils import db_session_manager
 from sqlalchemy import text
 import json
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,6 @@ class PaymentService:
         """Obter dados da fatura"""
         try:
             with db_session_manager(current_user) as session:
-                # Tentar obter dados existentes
                 query = text("""
                     SELECT * FROM vbl_document_invoice 
                     WHERE tb_document = :document_id
@@ -71,12 +71,10 @@ class PaymentService:
                 if result:
                     return dict(result._mapping)
 
-                # Se não existe, criar via função
                 session.execute(text("""
                     SELECT fbo_document_invoice$getset(:document_id)
                 """), {"document_id": document_id})
 
-                # Tentar novamente
                 result = session.execute(
                     query, {"document_id": document_id}).fetchone()
                 return dict(result._mapping) if result else None
@@ -86,16 +84,19 @@ class PaymentService:
             raise
 
     def create_checkout(self, document_id, amount, payment_method, current_user):
-        """Criar sessão checkout SIBS (rápido)"""
         try:
-            data = self._validate_payment_data(
-                {"document_id": document_id, "amount": amount},
-                ["document_id", "amount"]
-            )
+            if payment_method in ['MBWAY', 'MULTIBANCO']:
+                return self._create_sibs_checkout(document_id, amount, payment_method, current_user)
+            else:
+                return self._create_manual_checkout(document_id, amount, payment_method, current_user)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-            order_id = str(document_id)  # document_id = order_id
-            now = datetime.utcnow().isoformat() + 'Z'
-            expiry = (datetime.utcnow() + timedelta(days=2)).isoformat() + 'Z'
+    def _create_sibs_checkout(self, document_id, amount, payment_method, current_user):
+        try:
+            order_id = str(document_id)
+            now = datetime.utcnow().isoformat()
+            expiry = (datetime.utcnow() + timedelta(days=2)).isoformat()
 
             payload = {
                 "merchant": {
@@ -108,60 +109,60 @@ class PaymentService:
                     "description": f"Pagamento documento {document_id}",
                     "moto": False,
                     "paymentType": "PURS",
-                    "amount": {"value": data['amount'], "currency": "EUR"},
+                    "amount": {"value": float(amount), "currency": "EUR"},
                     "paymentMethod": ["CARD", "MBWAY", "REFERENCE"],
                     "paymentReference": {
                         "initialDatetime": now,
                         "finalDatetime": expiry,
-                        "maxAmount": {"value": data['amount'], "currency": "EUR"},
-                        "minAmount": {"value": data['amount'], "currency": "EUR"},
+                        "maxAmount": {"value": float(amount), "currency": "EUR"},
+                        "minAmount": {"value": float(amount), "currency": "EUR"},
                         "entity": self.entity
                     }
                 }
             }
 
-            # Chamada SIBS
-            url = f"{self.base_url}/payments"
             resp = requests.post(
-                url, json=payload, headers=self._get_headers(), timeout=30)
+                f"{self.base_url}/payments", json=payload, headers=self._get_headers())
             resp.raise_for_status()
+            data = resp.json()
 
-            sibs_data = resp.json()
-            transaction_id = sibs_data.get("transactionID")
-            transaction_signature = sibs_data.get("transactionSignature")
+            transaction_id = data["transactionID"]
+            transaction_signature = data.get("transactionSignature")
 
             if not transaction_id or not transaction_signature:
                 raise Exception("Resposta SIBS inválida")
 
-            # Guardar na BD (transação atómica)
             with db_session_manager(current_user) as db:
-                # Inserir registo SIBS
+                # Gerar novo PK
+                new_pk = db.execute(
+                    text("SELECT nextval('sq_codes')")).scalar()
+
+                # Inserir via função (16 parâmetros corretos)
                 sibs_result = db.execute(text("""
-                    INSERT INTO vbf_sibs
-                      (pk, order_id, transaction_id, transaction_signature,
-                       amount, currency, payment_method, payment_status,
-                       payment_reference, entity, expiry_date, created_at)
-                    VALUES
-                      (nextval('sq_codes'), :order_id, :transaction_id, :transaction_signature,
-                       :amount, 'EUR', :method, :status, :pref, :entity, :expiry, NOW())
-                    RETURNING pk
+                    SELECT aintar_server.fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                   :transaction_signature, :amount, :currency, 
+                                   :method, :status, :pref, :entity, 
+                                   :expiry, :created_at, NULL, NULL, NULL)
                 """), {
+                    "pk": new_pk,
                     "order_id": order_id,
                     "transaction_id": transaction_id,
                     "transaction_signature": transaction_signature,
-                    "amount": data['amount'],
+                    "amount": float(amount),
+                    "currency": "EUR",
                     "method": payment_method,
                     "status": PaymentStatus.CREATED,
-                    "pref": json.dumps(payload["transaction"]["paymentReference"]),
+                    "pref": json.dumps(data.get("paymentReference", {})),
                     "entity": self.entity,
-                    "expiry": expiry
+                    "expiry": expiry,
+                    "created_at": now
                 })
 
                 sibs_pk = sibs_result.scalar()
 
-                # Ligar invoice ao pagamento SIBS
+                # Ligar à invoice (usar tabela base tb_document_invoice)
                 db.execute(text("""
-                    UPDATE vbf_document_invoice 
+                    UPDATE tb_document_invoice 
                     SET tb_sibs = :sibs_pk 
                     WHERE tb_document = :document_id
                 """), {"sibs_pk": sibs_pk, "document_id": document_id})
@@ -173,22 +174,57 @@ class PaymentService:
                 "success": True,
                 "transaction_id": transaction_id,
                 "transaction_signature": transaction_signature,
-                "amount": data['amount'],
+                "amount": amount,
                 "expiry_date": expiry
             }
 
         except Exception as e:
-            logger.error(f"Erro em create_checkout: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Erro em _create_sibs_checkout: {e}")
+            raise
+
+    def _create_manual_checkout(self, document_id, amount, payment_method, current_user):
+        try:
+            transaction_id = f"LOCAL-{document_id}-{int(time.time())}"
+
+            with db_session_manager(current_user) as db:
+                new_pk = db.execute(
+                    text("SELECT nextval('sq_codes')")).scalar()
+
+                result = db.execute(text("""
+                    SELECT aintar_server.fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                   'MANUAL', :amount, 'EUR', 
+                                   :method, 'CREATED', NULL, 'MANUAL', 
+                                   NULL, :created_at, NULL, NULL, NULL)
+                """), {
+                    "pk": new_pk,
+                    "order_id": str(document_id),
+                    "transaction_id": transaction_id,
+                    "amount": float(amount),
+                    "method": payment_method,
+                    "created_at": datetime.utcnow()
+                })
+
+                sibs_pk = result.scalar()
+
+                db.execute(text("UPDATE tb_document_invoice SET tb_sibs = :pk WHERE tb_document = :doc"),
+                           {"pk": sibs_pk, "doc": document_id})
+
+            return {
+                "success": True,
+                "transaction_id": transaction_id,
+                "amount": amount
+            }
+        except Exception as e:
+            logger.error(f"Erro em _create_manual_checkout: {e}")
+            raise
 
     def process_mbway_payment(self, transaction_id, phone_number, current_user):
         """Processar pagamento MBWay"""
         try:
-            # Obter dados SIBS
             with db_session_manager(current_user) as db:
                 sibs_data = db.execute(text("""
                     SELECT transaction_signature, payment_status
-                    FROM vbf_sibs 
+                    FROM vbl_sibs 
                     WHERE transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
 
@@ -197,11 +233,9 @@ class PaymentService:
 
                 transaction_signature = sibs_data.transaction_signature
 
-            # Formatar telefone
             if not phone_number.startswith("351#"):
                 phone_number = f"351#{phone_number.replace('+351', '').replace(' ', '')}"
 
-            # Chamada SIBS MBWay
             url = f"{self.base_url}/payments/{transaction_id}/mbway-id/purchase"
             headers = self._get_headers("Digest", transaction_signature)
 
@@ -216,7 +250,6 @@ class PaymentService:
             data = resp.json()
             payment_status = data.get("paymentStatus", "UNKNOWN")
 
-            # Mapear estado
             status_map = {
                 "Success": PaymentStatus.PENDING_VALIDATION,
                 "Pending": PaymentStatus.PENDING,
@@ -226,10 +259,9 @@ class PaymentService:
             internal_status = status_map.get(
                 payment_status, PaymentStatus.PENDING)
 
-            # Actualizar BD
             with db_session_manager(current_user) as db:
                 db.execute(text("""
-                    UPDATE vbf_sibs
+                    UPDATE tb_sibs
                     SET payment_status = :status,
                         payment_reference = :pref, 
                         updated_at = NOW()
@@ -258,7 +290,7 @@ class PaymentService:
             with db_session_manager(current_user) as db:
                 sibs_data = db.execute(text("""
                     SELECT transaction_signature, payment_status
-                    FROM vbf_sibs 
+                    FROM vbl_sibs 
                     WHERE transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
 
@@ -279,7 +311,7 @@ class PaymentService:
             # Actualizar BD
             with db_session_manager(current_user) as db:
                 db.execute(text("""
-                    UPDATE vbf_sibs
+                    UPDATE tb_sibs
                     SET payment_status = :status,
                         payment_reference = :pref, 
                         updated_at = NOW()
@@ -307,7 +339,7 @@ class PaymentService:
             with db_session_manager(current_user) as db:
                 local_data = db.execute(text("""
                     SELECT s.payment_status, s.order_id, di.tb_document
-                    FROM vbf_sibs s
+                    FROM vbl_sibs s
                     LEFT JOIN vbl_document_invoice di ON di.order_id = s.order_id
                     WHERE s.transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
@@ -338,7 +370,7 @@ class PaymentService:
                 if new_status != local_data.payment_status:
                     with db_session_manager(current_user) as db:
                         db.execute(text("""
-                            UPDATE vbf_sibs
+                            UPDATE tb_sibs
                             SET payment_status = :status,
                                 payment_reference = :pref,
                                 updated_at = NOW()
@@ -374,7 +406,7 @@ class PaymentService:
             with db_session_manager(current_user) as db:
                 sibs_data = db.execute(text("""
                     SELECT payment_method, payment_status, order_id
-                    FROM vbf_sibs 
+                    FROM vbl_sibs 
                     WHERE transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
 
@@ -391,7 +423,7 @@ class PaymentService:
             # Actualizar para pendente validação
             with db_session_manager(current_user) as db:
                 db.execute(text("""
-                    UPDATE vbf_sibs
+                    UPDATE tb_sibs
                     SET payment_status = :status,
                         payment_reference = :pref, 
                         updated_at = NOW()
@@ -413,7 +445,7 @@ class PaymentService:
             return {"success": False, "error": str(e)}
 
     def register_manual_payment(self, document_id, amount, payment_type, reference_info, current_user):
-        """Registar pagamento manual"""
+        """Registar pagamento manual direto (sem checkout prévio)"""
         try:
             data = self._validate_payment_data(
                 {"document_id": document_id, "amount": amount},
@@ -431,30 +463,31 @@ class PaymentService:
             }
 
             with db_session_manager(current_user) as db:
+                new_pk = db.execute(
+                    text("SELECT nextval('sq_codes')")).scalar()
+
                 # Inserir SIBS manual
                 sibs_result = db.execute(text("""
-                    INSERT INTO vbf_sibs
-                      (pk, order_id, transaction_id, transaction_signature,
-                       amount, currency, payment_method, payment_status,
-                       payment_reference, entity, created_at)
-                    VALUES
-                      (nextval('sq_codes'), :order_id, :transaction_id, 'MANUAL',
-                       :amount, 'EUR', :payment_method, :status, :payment_reference, 'MANUAL', NOW())
-                    RETURNING pk
+                    SELECT aintar_server.fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                   'MANUAL', :amount, 'EUR', :payment_method, 
+                                   :status, :payment_reference, 'MANUAL', 
+                                   NULL, :created_at, NULL, NULL, NULL)
                 """), {
+                    "pk": new_pk,
                     "order_id": order_id,
                     "transaction_id": transaction_id,
-                    "amount": data['amount'],
+                    "amount": float(data['amount']),
                     "payment_method": payment_type,
                     "status": PaymentStatus.PENDING_VALIDATION,
-                    "payment_reference": json.dumps(meta)
+                    "payment_reference": json.dumps(meta),
+                    "created_at": datetime.utcnow()
                 })
 
                 sibs_pk = sibs_result.scalar()
 
                 # Ligar à invoice
                 db.execute(text("""
-                    UPDATE vbf_document_invoice 
+                    UPDATE tb_document_invoice 
                     SET tb_sibs = :sibs_pk 
                     WHERE tb_document = :document_id
                 """), {"sibs_pk": sibs_pk, "document_id": document_id})
@@ -471,7 +504,7 @@ class PaymentService:
             with db_session_manager(current_user) as db:
                 # Actualizar estado
                 db.execute(text("""
-                    UPDATE vbf_sibs
+                    UPDATE tb_sibs
                     SET payment_status = :status,
                         validated_by = :user_pk,
                         validated_at = NOW(),
@@ -486,8 +519,8 @@ class PaymentService:
                 # Obter document_id e actualizar invoice
                 document_id = db.execute(text("""
                     SELECT di.tb_document
-                    FROM vbf_sibs s
-                    JOIN vbl_document_invoice di ON di.order_id = s.order_id
+                    FROM tb_sibs s
+                    JOIN tb_document_invoice di ON di.tb_sibs = s.pk
                     WHERE s.pk = :payment_pk
                 """), {"payment_pk": payment_pk}).scalar()
 
@@ -503,7 +536,7 @@ class PaymentService:
             return {"success": False, "error": str(e)}
 
     def get_pending_payments(self, current_user):
-        """Obter pagamentos pendentes"""
+        """Obter pagamentos pendentes de validação"""
         try:
             with db_session_manager(current_user) as session:
                 query = text("""
@@ -512,9 +545,9 @@ class PaymentService:
                         s.payment_method, s.payment_status, s.payment_reference,
                         s.created_at, s.entity, di.tb_document,
                         d.regnumber, d.memo as document_descr
-                    FROM vbf_sibs s
-                    LEFT JOIN vbl_document_invoice di ON di.order_id = s.order_id
-                    LEFT JOIN vbl_document d ON d.pk = di.tb_document
+                    FROM tb_sibs s
+                    LEFT JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                    LEFT JOIN tb_document d ON d.pk = di.tb_document
                     WHERE s.payment_status = :status
                     ORDER BY s.created_at DESC
                 """)
@@ -530,7 +563,7 @@ class PaymentService:
             raise
 
     def get_document_payment_status(self, document_id, current_user):
-        """Estado do pagamento de um documento"""
+        """Estado completo do pagamento de um documento"""
         try:
             with db_session_manager(current_user) as session:
                 query = text("""
@@ -539,8 +572,8 @@ class PaymentService:
                         di.accepted, di.payed, di.closed,
                         s.pk as sibs_pk, s.transaction_id, s.payment_status,
                         s.payment_method, s.amount, s.created_at as payment_created
-                    FROM vbl_document_invoice di
-                    LEFT JOIN vbf_sibs s ON s.pk = di.tb_sibs
+                    FROM tb_document_invoice di
+                    LEFT JOIN tb_sibs s ON s.pk = di.tb_sibs
                     WHERE di.tb_document = :document_id
                 """)
 
@@ -552,6 +585,69 @@ class PaymentService:
             logger.error(
                 f"Erro ao obter estado do documento {document_id}: {e}")
             raise
+
+    def process_webhook(self, webhook_data):
+        """Processar webhook SIBS (notificações automáticas)"""
+        try:
+            transaction_id = webhook_data.get("transactionID")
+            payment_status = webhook_data.get("paymentStatus")
+
+            if not transaction_id:
+                return {"success": False, "error": "Transaction ID missing"}
+
+            # Mapear status SIBS para interno
+            status_map = {
+                "Success": PaymentStatus.SUCCESS,
+                "Pending": PaymentStatus.PENDING,
+                "Declined": PaymentStatus.DECLINED,
+                "Expired": PaymentStatus.EXPIRED
+            }
+
+            internal_status = status_map.get(
+                payment_status, PaymentStatus.PENDING)
+
+            with db_session_manager("system") as db:
+                # Actualizar status
+                db.execute(text("""
+                    UPDATE tb_sibs
+                    SET payment_status = :status,
+                        payment_reference = :pref,
+                        updated_at = NOW()
+                    WHERE transaction_id = :transaction_id
+                """), {
+                    "status": internal_status,
+                    "pref": json.dumps(webhook_data),
+                    "transaction_id": transaction_id
+                })
+
+                # Se sucesso, actualizar invoice
+                if internal_status == PaymentStatus.SUCCESS:
+                    document_id = db.execute(text("""
+                        SELECT di.tb_document
+                        FROM tb_sibs s
+                        JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                        WHERE s.transaction_id = :transaction_id
+                    """), {"transaction_id": transaction_id}).scalar()
+
+                    if document_id:
+                        db.execute(text("""
+                            SELECT fbo_document_invoice$sibs(:doc, (
+                                SELECT pk FROM tb_sibs WHERE transaction_id = :transaction_id
+                            ))
+                        """), {"doc": document_id, "transaction_id": transaction_id})
+
+            logger.info(
+                f"Webhook processado: {transaction_id} -> {internal_status}")
+
+            return {
+                "success": True,
+                "transaction_id": transaction_id,
+                "status": internal_status
+            }
+
+        except Exception as e:
+            logger.error(f"Erro no webhook: {e}")
+            return {"success": False, "error": str(e)}
 
 
 payment_service = PaymentService()
