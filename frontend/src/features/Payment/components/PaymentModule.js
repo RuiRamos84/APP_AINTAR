@@ -23,7 +23,7 @@ const steps = [
     { label: 'Confirmação', icon: 'check' }
 ];
 
-const PaymentModule = ({ documentId, amount, onComplete }) => {
+const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
     const { user } = useAuth();
     const payment = useContext(PaymentContext);
     const [step, setStep] = useState(0);
@@ -32,8 +32,8 @@ const PaymentModule = ({ documentId, amount, onComplete }) => {
     const availableMethods = getAvailableMethodsForProfile(user?.profil);
 
     useEffect(() => {
-        payment.setOrderDetails(documentId, amount, availableMethods);
-    }, [documentId, amount]);
+        payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
+    }, [documentId, amount, documentNumber]);
 
     // Auto-avançar quando método selecionado
     useEffect(() => {
@@ -64,6 +64,10 @@ const PaymentModule = ({ documentId, amount, onComplete }) => {
     };
 
     const handleNext = () => {
+        if (step === 0 && !payment.state.selectedMethod) {
+            // Mostrar erro: selecionar método
+            return;
+        }
         setDirection('forward');
         setStep(Math.min(2, step + 1));
     };

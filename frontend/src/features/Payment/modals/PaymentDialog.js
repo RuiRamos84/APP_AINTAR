@@ -14,6 +14,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) => {
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
+    console.log('documentId:', documentId, documentNumber); // Verificar se o ID do documento é passado corretamente
 
     const handleComplete = (result) => {
         onClose(true, result);
@@ -50,14 +51,20 @@ const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) =>
             >
                 {/* Close Button */}
                 <IconButton
-                    onClick={handleClose}
                     sx={{
                         position: 'absolute',
                         right: 16,
                         top: 16,
                         color: 'white',
                         bgcolor: 'rgba(255,255,255,0.1)',
+                        zIndex: 9999, // ADICIONAR
                         '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
+                    }}
+                    onClick={(e) => {
+                        console.log('CLICKED'); // Verificar se aparece
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onClose(false);
                     }}
                 >
                     <Close />

@@ -14,16 +14,16 @@ import { PaymentContext } from '../context/PaymentContext';
 
 const MultibancoPayment = ({ onSuccess }) => {
     const { state, payWithMultibanco } = useContext(PaymentContext);
-    const [reference, setReference] = useState(null);
+    const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
-    const [step, setStep] = useState('generate'); // 'generate', 'reference'
+    const [step, setStep] = useState('generate');
 
     const handleGenerate = async () => {
         try {
             const result = await payWithMultibanco();
-            setReference(result.reference);
+            setReferenceData(result);
             setStep('reference');
-            onSuccess?.(result);
+            // NÃO chamar onSuccess - só mostrar referência
         } catch (err) {
             console.error(err);
         }
@@ -38,7 +38,6 @@ const MultibancoPayment = ({ onSuccess }) => {
     const renderGenerate = () => (
         <Fade in={true}>
             <Box sx={{ textAlign: 'center', py: 4 }}>
-                {/* Header */}
                 <Avatar
                     sx={{
                         width: 100,
@@ -59,7 +58,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                     Gere a sua referência para pagar no ATM ou homebanking
                 </Typography>
 
-                {/* Amount Display */}
                 <Paper
                     sx={{
                         p: 3,
@@ -77,7 +75,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                     </Typography>
                 </Paper>
 
-                {/* Features */}
                 <Grid container spacing={2} sx={{ mb: 4 }}>
                     <Grid item xs={4}>
                         <Card sx={{ bgcolor: 'info.light', color: 'white', textAlign: 'center' }}>
@@ -111,7 +108,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                     </Grid>
                 </Grid>
 
-                {/* Generate Button */}
                 <Button
                     variant="contained"
                     size="large"
@@ -131,15 +127,11 @@ const MultibancoPayment = ({ onSuccess }) => {
                     {state.loading ? 'A gerar...' : 'Gerar Referência'}
                 </Button>
 
-                {/* Info */}
                 <Alert severity="info" sx={{ mt: 3, textAlign: 'left' }}>
                     <Typography variant="body2">
-                        <strong>Como funciona:</strong>
-                        <br />
-                        1. Clique em "Gerar Referência"
-                        <br />
-                        2. Use os dados no Multibanco ou homebanking
-                        <br />
+                        <strong>Como funciona:</strong><br />
+                        1. Clique em "Gerar Referência"<br />
+                        2. Use os dados no Multibanco ou homebanking<br />
                         3. O pagamento é confirmado automaticamente
                     </Typography>
                 </Alert>
@@ -150,7 +142,6 @@ const MultibancoPayment = ({ onSuccess }) => {
     const renderReference = () => (
         <Fade in={true}>
             <Box sx={{ py: 3 }}>
-                {/* Header */}
                 <Box sx={{ textAlign: 'center', mb: 4 }}>
                     <Avatar
                         sx={{
@@ -171,7 +162,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                     </Typography>
                 </Box>
 
-                {/* Reference Card */}
                 <Paper
                     elevation={8}
                     sx={{
@@ -184,7 +174,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                         overflow: 'hidden'
                     }}
                 >
-                    {/* Background Pattern */}
                     <Box
                         sx={{
                             position: 'absolute',
@@ -198,7 +187,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                     />
 
                     <Grid container spacing={3}>
-                        {/* Entidade */}
                         <Grid item xs={12} sm={4}>
                             <Typography variant="subtitle2" sx={{ opacity: 0.8, mb: 1 }}>
                                 Entidade
@@ -212,11 +200,11 @@ const MultibancoPayment = ({ onSuccess }) => {
                                         letterSpacing: 2
                                     }}
                                 >
-                                    {reference?.entity || '11249'}
+                                    {referenceData?.entity || '11249'}
                                 </Typography>
                                 <IconButton
                                     size="small"
-                                    onClick={() => copyToClipboard(reference?.entity || '11249', 'entity')}
+                                    onClick={() => copyToClipboard(referenceData?.entity, 'entity')}
                                     sx={{ color: 'white' }}
                                 >
                                     <CopyIcon fontSize="small" />
@@ -231,7 +219,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                             )}
                         </Grid>
 
-                        {/* Referência */}
                         <Grid item xs={12} sm={8}>
                             <Typography variant="subtitle2" sx={{ opacity: 0.8, mb: 1 }}>
                                 Referência
@@ -245,11 +232,11 @@ const MultibancoPayment = ({ onSuccess }) => {
                                         letterSpacing: 2
                                     }}
                                 >
-                                    {reference?.reference || '123 456 789'}
+                                    {referenceData?.reference || 'A carregar...'}
                                 </Typography>
                                 <IconButton
                                     size="small"
-                                    onClick={() => copyToClipboard(reference?.reference || '123 456 789', 'ref')}
+                                    onClick={() => copyToClipboard(referenceData?.reference, 'ref')}
                                     sx={{ color: 'white' }}
                                 >
                                     <CopyIcon fontSize="small" />
@@ -265,7 +252,6 @@ const MultibancoPayment = ({ onSuccess }) => {
                         </Grid>
                     </Grid>
 
-                    {/* Amount */}
                     <Box sx={{ textAlign: 'center', mt: 3, pt: 3, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
                         <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
                             Valor
@@ -273,23 +259,23 @@ const MultibancoPayment = ({ onSuccess }) => {
                         <Typography variant="h3" sx={{ fontWeight: 600 }}>
                             €{Number(state.amount || 0).toFixed(2)}
                         </Typography>
+                        {referenceData?.expire_date && (
+                            <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1 }}>
+                                Válida até: {new Date(referenceData.expire_date).toLocaleDateString('pt-PT')}
+                            </Typography>
+                        )}
                     </Box>
                 </Paper>
 
-                {/* Instructions */}
                 <Alert severity="info" sx={{ mb: 3 }}>
                     <Typography variant="body2">
-                        <strong>Instruções:</strong>
-                        <br />
-                        • No Multibanco: Pagamentos → Outros Pagamentos → Entidade + Referência
-                        <br />
-                        • No Homebanking: Use os dados acima na secção de pagamentos
-                        <br />
+                        <strong>Instruções:</strong><br />
+                        • No Multibanco: Pagamentos → Outros Pagamentos → Entidade + Referência<br />
+                        • No Homebanking: Use os dados acima na secção de pagamentos<br />
                         • O pagamento é confirmado automaticamente
                     </Typography>
                 </Alert>
 
-                {/* QR Code Option */}
                 <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.50' }}>
                     <QrCode sx={{ fontSize: 40, color: 'grey.600', mb: 1 }} />
                     <Typography variant="body2" color="text.secondary">

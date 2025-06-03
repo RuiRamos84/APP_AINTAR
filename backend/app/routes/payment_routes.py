@@ -78,7 +78,7 @@ def create_checkout():
     user = get_jwt_identity()
 
     try:
-        result = payment_service.create_checkout(
+        result = payment_service.create_checkout_only(
             data["document_id"],
             data["amount"],
             data["payment_method"],
@@ -95,7 +95,6 @@ def create_checkout():
 @set_session
 @api_error_handler
 def process_mbway():
-    """Processar pagamento MBWay"""
     data = request.json or {}
     required = ["transaction_id", "phone_number"]
 
@@ -105,24 +104,23 @@ def process_mbway():
     user = get_jwt_identity()
 
     try:
-        result = payment_service.process_mbway_payment(
+        result = payment_service.process_mbway_from_checkout(
             data["transaction_id"],
             data["phone_number"],
             user
         )
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro no MBWay: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# MULTIBANCO (usa checkout)
 @bp.route("/payments/multibanco", methods=["POST"])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
 def process_multibanco():
-    """Processar pagamento Multibanco"""
     data = request.json or {}
     required = ["transaction_id"]
 
@@ -132,13 +130,12 @@ def process_multibanco():
     user = get_jwt_identity()
 
     try:
-        result = payment_service.process_multibanco_payment(
+        result = payment_service.process_multibanco_from_checkout(
             data["transaction_id"],
             user
         )
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro no Multibanco: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -165,30 +162,28 @@ def check_payment_status(transaction_id):
 @set_session
 @api_error_handler
 def process_manual_payment():
-    """Processar pagamento manual"""
     data = request.json or {}
-    required = ["transaction_id", "payment_details"]
+    required = ["document_id", "amount", "payment_type", "payment_details"]
 
     if not all(k in data for k in required):
         return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
 
-    # Verificar permissões
     has_permission, user_id = check_payment_permissions("submit")
     if not has_permission:
-        logger.warning(f"User {user_id} tentou pagamento manual sem permissão")
         return jsonify({"error": "Sem permissão"}), 403
 
     user = get_jwt_identity()
 
     try:
-        result = payment_service.process_manual_payment(
-            data["transaction_id"],
+        result = payment_service.process_manual_direct(
+            data["document_id"],
+            data["amount"],
+            data["payment_type"],
             data["payment_details"],
             user
         )
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro no pagamento manual: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

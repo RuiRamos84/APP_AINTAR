@@ -19,12 +19,15 @@ class PaymentStatus:
 
 
 class PaymentService:
+    """Serviço de integração com SIBS Payments"""
+
     def __init__(self):
         self.base_url = None
         self.terminal_id = None
         self.client_id = None
         self.entity = None
         self.api_token = None
+        self.checkout_cache = {}  # Cache de instância
 
     def init_app(self, app):
         self.base_url = "https://api.qly.sibspayments.com/sibs/spg/v2"
@@ -43,19 +46,13 @@ class PaymentService:
             "X-IBM-Client-Id": self.client_id
         }
 
-    def _validate_payment_data(self, data, required_fields):
-        """Validação centralizada"""
-        missing = [f for f in required_fields if f not in data]
-        if missing:
-            raise ValueError(f"Campos obrigatórios: {missing}")
-
-        if 'amount' in data:
-            try:
-                data['amount'] = round(float(data['amount']), 2)
-            except (ValueError, TypeError):
-                raise ValueError("Valor inválido")
-
-        return data
+    def _cleanup_expired_cache(self):
+        """Limpeza automática de cache expirado"""
+        now = time.time()
+        expired = [k for k, v in self.checkout_cache.items()
+                   if now - v["timestamp"] > 900]
+        for k in expired:
+            del self.checkout_cache[k]
 
     def get_invoice_data(self, document_id, current_user):
         """Obter dados da fatura"""
@@ -83,50 +80,24 @@ class PaymentService:
             logger.error(f"Erro ao obter dados da fatura {document_id}: {e}")
             raise
 
-    def create_checkout(self, document_id, amount, payment_method, current_user):
+    def create_checkout_only(self, document_id, amount, payment_method, current_user):
+        """Criar checkout SIBS sem gravar BD"""
         try:
-            # Verificar se já existe pagamento para este documento
+            if payment_method not in ['MBWAY', 'MULTIBANCO']:
+                return {"success": False, "error": "Método inválido para checkout SIBS"}
+
+            # Limpeza do cache
+            self._cleanup_expired_cache()
+
             with db_session_manager(current_user) as db:
-                existing = db.execute(text("""
-                    SELECT s.payment_status, s.transaction_id, s.payment_method
-                    FROM tb_sibs s
-                    JOIN tb_document_invoice di ON di.tb_sibs = s.pk
-                    WHERE di.tb_document = :document_id
-                    ORDER BY s.created_at DESC
-                    LIMIT 1
-                """), {"document_id": document_id}).fetchone()
+                regnumber = db.execute(text("""
+                    SELECT regnumber FROM tb_document WHERE pk = :doc_id
+                """), {"doc_id": document_id}).scalar()
 
-                if existing:
-                    if existing.payment_status == PaymentStatus.SUCCESS:
-                        return {"success": False, "error": "Documento já pago"}
+                if not regnumber:
+                    return {"success": False, "error": "Documento não encontrado"}
 
-                    # Se pendente, actualizar método se diferente
-                    if existing.payment_status in [PaymentStatus.CREATED, PaymentStatus.PENDING]:
-                        if existing.payment_method != payment_method:
-                            db.execute(text("""
-                                UPDATE tb_sibs 
-                                SET payment_method = :method, updated_at = NOW()
-                                WHERE transaction_id = :tx_id
-                            """), {"method": payment_method, "tx_id": existing.transaction_id})
-
-                        return {
-                            "success": True,
-                            "transaction_id": existing.transaction_id,
-                            "message": "Checkout existente actualizado"
-                        }
-
-            # Criar novo se não existe ou está em estado final
-            if payment_method in ['MBWAY', 'MULTIBANCO']:
-                return self._create_sibs_checkout(document_id, amount, payment_method, current_user)
-            else:
-                return self._create_manual_checkout(document_id, amount, payment_method, current_user)
-
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    def _create_sibs_checkout(self, document_id, amount, payment_method, current_user):
-        try:
-            order_id = str(document_id)
+            # Criar checkout SIBS
             now = datetime.utcnow().isoformat()
             expiry = (datetime.utcnow() + timedelta(days=2)).isoformat()
 
@@ -134,11 +105,11 @@ class PaymentService:
                 "merchant": {
                     "terminalId": self.terminal_id,
                     "channel": "web",
-                    "merchantTransactionId": order_id
+                    "merchantTransactionId": regnumber
                 },
                 "transaction": {
                     "transactionTimestamp": now,
-                    "description": f"Pagamento documento {document_id}",
+                    "description": f"Pagamento do pedido {regnumber}",
                     "moto": False,
                     "paymentType": "PURS",
                     "amount": {"value": float(amount), "currency": "EUR"},
@@ -153,134 +124,68 @@ class PaymentService:
                 }
             }
 
-            resp = requests.post(
-                f"{self.base_url}/payments", json=payload, headers=self._get_headers())
+            resp = requests.post(f"{self.base_url}/payments",
+                                 json=payload, headers=self._get_headers())
             resp.raise_for_status()
             data = resp.json()
 
             transaction_id = data["transactionID"]
-            transaction_signature = data.get("transactionSignature")
 
-            if not transaction_id or not transaction_signature:
-                raise Exception("Resposta SIBS inválida")
-
-            with db_session_manager(current_user) as db:
-                # Gerar novo PK
-                new_pk = db.execute(
-                    text("SELECT nextval('sq_codes')")).scalar()
-
-                # Inserir via função (16 parâmetros corretos)
-                sibs_result = db.execute(text("""
-                    SELECT aintar_server.fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                   :transaction_signature, :amount, :currency, 
-                                   :method, :status, :pref, :entity, 
-                                   :expiry, :created_at, NULL, NULL, NULL)
-                """), {
-                    "pk": new_pk,
-                    "order_id": order_id,
-                    "transaction_id": transaction_id,
-                    "transaction_signature": transaction_signature,
-                    "amount": float(amount),
-                    "currency": "EUR",
-                    "method": payment_method,
-                    "status": PaymentStatus.CREATED,
-                    "pref": json.dumps(data.get("paymentReference", {})),
-                    "entity": self.entity,
-                    "expiry": expiry,
-                    "created_at": now
-                })
-
-                sibs_pk = sibs_result.scalar()
-
-                # Ligar à invoice (usar tabela base tb_document_invoice)
-                db.execute(text("""
-                    UPDATE tb_document_invoice 
-                    SET tb_sibs = :sibs_pk 
-                    WHERE tb_document = :document_id
-                """), {"sibs_pk": sibs_pk, "document_id": document_id})
-
-            logger.info(
-                f"Checkout criado - Doc: {document_id}, TxID: {transaction_id}")
+            # Guardar no cache (15 min)
+            self.checkout_cache[transaction_id] = {
+                "document_id": document_id,
+                "amount": amount,
+                "order_id": regnumber,
+                "transaction_signature": data.get("transactionSignature"),
+                "payment_reference": data.get("paymentReference", {}),
+                "timestamp": time.time()
+            }
 
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "transaction_signature": transaction_signature,
                 "amount": amount,
                 "expiry_date": expiry
             }
 
         except Exception as e:
-            logger.error(f"Erro em _create_sibs_checkout: {e}")
-            raise
+            logger.error(f"Erro create_checkout_only: {e}")
+            return {"success": False, "error": str(e)}
 
-    def _create_manual_checkout(self, document_id, amount, payment_method, current_user):
+    def _get_checkout_data(self, transaction_id):
+        """Recuperar dados do cache"""
+        data = self.checkout_cache.get(transaction_id)
+        if not data:
+            return None
+
+        # Verificar expiração (15 min)
+        if time.time() - data["timestamp"] > 900:
+            del self.checkout_cache[transaction_id]
+            return None
+
+        return data
+
+    def process_mbway_from_checkout(self, transaction_id, phone_number, current_user):
+        """MBWay usando checkout cache"""
         try:
-            transaction_id = f"LOCAL-{document_id}-{int(time.time())}"
+            checkout_data = self._get_checkout_data(transaction_id)
+            if not checkout_data:
+                return {"success": False, "error": "Checkout expirado"}
 
-            with db_session_manager(current_user) as db:
-                new_pk = db.execute(
-                    text("SELECT nextval('sq_codes')")).scalar()
-
-                result = db.execute(text("""
-                    SELECT aintar_server.fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                   'MANUAL', :amount, 'EUR', 
-                                   :method, 'CREATED', NULL, 'MANUAL', 
-                                   NULL, :created_at, NULL, NULL, NULL)
-                """), {
-                    "pk": new_pk,
-                    "order_id": str(document_id),
-                    "transaction_id": transaction_id,
-                    "amount": float(amount),
-                    "method": payment_method,
-                    "created_at": datetime.utcnow()
-                })
-
-                sibs_pk = result.scalar()
-
-                db.execute(text("UPDATE tb_document_invoice SET tb_sibs = :pk WHERE tb_document = :doc"),
-                           {"pk": sibs_pk, "doc": document_id})
-
-            return {
-                "success": True,
-                "transaction_id": transaction_id,
-                "amount": amount
-            }
-        except Exception as e:
-            logger.error(f"Erro em _create_manual_checkout: {e}")
-            raise
-
-    def process_mbway_payment(self, transaction_id, phone_number, current_user):
-        """Processar pagamento MBWay"""
-        try:
-            with db_session_manager(current_user) as db:
-                sibs_data = db.execute(text("""
-                    SELECT transaction_signature, payment_status
-                    FROM vbl_sibs 
-                    WHERE transaction_id = :transaction_id
-                """), {"transaction_id": transaction_id}).fetchone()
-
-                if not sibs_data or sibs_data.payment_status != PaymentStatus.CREATED:
-                    raise Exception("Transação não encontrada ou inválida")
-
-                transaction_signature = sibs_data.transaction_signature
-
+            # Processar MBWay
             if not phone_number.startswith("351#"):
                 phone_number = f"351#{phone_number.replace('+351', '').replace(' ', '')}"
 
             url = f"{self.base_url}/payments/{transaction_id}/mbway-id/purchase"
-            headers = self._get_headers("Digest", transaction_signature)
+            headers = self._get_headers(
+                "Digest", checkout_data["transaction_signature"])
 
             resp = requests.post(
-                url,
-                json={"customerPhone": phone_number},
-                headers=headers,
-                timeout=30
-            )
+                url, json={"customerPhone": phone_number}, headers=headers, timeout=30)
             resp.raise_for_status()
 
-            data = resp.json()
-            payment_status = data.get("paymentStatus", "UNKNOWN")
+            sibs_response = resp.json()
+            payment_status = sibs_response.get("paymentStatus", "UNKNOWN")
 
             status_map = {
                 "Success": PaymentStatus.PENDING_VALIDATION,
@@ -291,49 +196,64 @@ class PaymentService:
             internal_status = status_map.get(
                 payment_status, PaymentStatus.PENDING)
 
+            # Gravar na BD
             with db_session_manager(current_user) as db:
-                db.execute(text("""
-                    UPDATE tb_sibs
-                    SET payment_status = :status,
-                        payment_reference = :pref, 
-                        updated_at = NOW()
-                    WHERE transaction_id = :transaction_id
+                new_pk = db.execute(
+                    text("SELECT nextval('sq_codes')")).scalar()
+
+                sibs_result = db.execute(text("""
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                :transaction_signature, :amount, :currency, 
+                                :method, :status, :pref, :entity, 
+                                :expiry, :created_at, NULL, NULL, NULL)
                 """), {
+                    "pk": new_pk,
+                    "order_id": checkout_data["order_id"],
+                    "transaction_id": transaction_id,
+                    "transaction_signature": checkout_data["transaction_signature"],
+                    "amount": float(checkout_data["amount"]),
+                    "currency": "EUR",
+                    "method": "MBWAY",
                     "status": internal_status,
-                    "pref": json.dumps(data),
-                    "transaction_id": transaction_id
+                    "pref": json.dumps(sibs_response),
+                    "entity": self.entity,
+                    "expiry": None,
+                    "created_at": datetime.utcnow()
                 })
+
+                sibs_pk = sibs_result.scalar()
+
+                db.execute(text("""
+                    UPDATE tb_document_invoice 
+                    SET tb_sibs = :sibs_pk 
+                    WHERE tb_document = :document_id
+                """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
+
+            # Limpar cache
+            del self.checkout_cache[transaction_id]
 
             return {
                 "success": True,
                 "transaction_id": transaction_id,
                 "payment_status": internal_status,
-                "mbway_response": data
+                "mbway_response": sibs_response
             }
 
         except Exception as e:
-            logger.error(f"Erro em process_mbway_payment: {e}")
+            logger.error(f"Erro process_mbway_from_checkout: {e}")
             return {"success": False, "error": str(e)}
 
-    def process_multibanco_payment(self, transaction_id, current_user):
-        """Processar pagamento Multibanco"""
+    def process_multibanco_from_checkout(self, transaction_id, current_user):
+        """Multibanco usando checkout cache"""
         try:
-            # Obter dados SIBS
-            with db_session_manager(current_user) as db:
-                sibs_data = db.execute(text("""
-                    SELECT transaction_signature, payment_status
-                    FROM vbl_sibs 
-                    WHERE transaction_id = :transaction_id
-                """), {"transaction_id": transaction_id}).fetchone()
-
-                if not sibs_data or sibs_data.payment_status != PaymentStatus.CREATED:
-                    raise Exception("Transação não encontrada ou inválida")
-
-                transaction_signature = sibs_data.transaction_signature
+            checkout_data = self._get_checkout_data(transaction_id)
+            if not checkout_data:
+                return {"success": False, "error": "Checkout expirado"}
 
             # Gerar referência MB
             url = f"{self.base_url}/payments/{transaction_id}/service-reference/generate"
-            headers = self._get_headers("Digest", transaction_signature)
+            headers = self._get_headers(
+                "Digest", checkout_data["transaction_signature"])
 
             resp = requests.post(url, json={}, headers=headers, timeout=30)
             resp.raise_for_status()
@@ -344,25 +264,42 @@ class PaymentService:
             entity = payment_ref.get('entity')
             reference = payment_ref.get('reference')
             expire_date = payment_ref.get('expireDate')
-            status = payment_ref.get('status')
 
-            # CORRECÇÃO: Remover duplicado payment_status
+            # Gravar na BD
             with db_session_manager(current_user) as db:
-                db.execute(text("""
-                    UPDATE tb_sibs
-                    SET payment_status = :status,
-                        payment_reference = :reference,
-                        entity = :entity,
-                        expiry_date = :expire_date,
-                        updated_at = NOW()
-                    WHERE transaction_id = :transaction_id
+                new_pk = db.execute(
+                    text("SELECT nextval('sq_codes')")).scalar()
+
+                sibs_result = db.execute(text("""
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                :transaction_signature, :amount, :currency, 
+                                :method, :status, :pref, :entity, 
+                                :expiry, :created_at, NULL, NULL, NULL)
                 """), {
-                    "status": PaymentStatus.PENDING,  # Status interno, não SIBS
-                    "reference": reference,
+                    "pk": new_pk,
+                    "order_id": checkout_data["order_id"],
+                    "transaction_id": transaction_id,
+                    "transaction_signature": checkout_data["transaction_signature"],
+                    "amount": float(checkout_data["amount"]),
+                    "currency": "EUR",
+                    "method": "MULTIBANCO",
+                    "status": PaymentStatus.PENDING,
+                    "pref": reference,
                     "entity": entity,
-                    "expire_date": expire_date,
-                    "transaction_id": transaction_id
+                    "expiry": expire_date,
+                    "created_at": datetime.utcnow()
                 })
+
+                sibs_pk = sibs_result.scalar()
+
+                db.execute(text("""
+                    UPDATE tb_document_invoice 
+                    SET tb_sibs = :sibs_pk 
+                    WHERE tb_document = :document_id
+                """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
+
+            # Limpar cache
+            del self.checkout_cache[transaction_id]
 
             return {
                 "success": True,
@@ -373,7 +310,61 @@ class PaymentService:
             }
 
         except Exception as e:
-            logger.error(f"Erro em process_multibanco_payment: {e}")
+            logger.error(f"Erro process_multibanco_from_checkout: {e}")
+            return {"success": False, "error": str(e)}
+
+    def process_manual_direct(self, document_id, amount, payment_type, payment_details, current_user):
+        """Pagamento manual directo (sem checkout SIBS)"""
+        try:
+            with db_session_manager(current_user) as db:
+                regnumber = db.execute(text("""
+                    SELECT regnumber FROM tb_document WHERE pk = :doc_id
+                """), {"doc_id": document_id}).scalar()
+
+                if not regnumber:
+                    return {"success": False, "error": "Documento não encontrado"}
+
+            transaction_id = f"MANUAL-{document_id}-{datetime.utcnow():%Y%m%d%H%M%S}"
+
+            meta = {
+                "manual_payment": True,
+                "payment_details": payment_details,
+                "submitted_by": current_user,
+                "submitted_at": datetime.utcnow().isoformat()
+            }
+
+            with db_session_manager(current_user) as db:
+                new_pk = db.execute(
+                    text("SELECT nextval('sq_codes')")).scalar()
+
+                sibs_result = db.execute(text("""
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                'MANUAL', :amount, 'EUR', :payment_method, 
+                                :status, :payment_reference, 'MANUAL', 
+                                NULL, :created_at, NULL, NULL, NULL)
+                """), {
+                    "pk": new_pk,
+                    "order_id": regnumber,
+                    "transaction_id": transaction_id,
+                    "amount": float(amount),
+                    "payment_method": payment_type,
+                    "status": PaymentStatus.PENDING_VALIDATION,
+                    "payment_reference": json.dumps(meta),
+                    "created_at": datetime.utcnow()
+                })
+
+                sibs_pk = sibs_result.scalar()
+
+                db.execute(text("""
+                    UPDATE tb_document_invoice 
+                    SET tb_sibs = :sibs_pk 
+                    WHERE tb_document = :document_id
+                """), {"sibs_pk": sibs_pk, "document_id": document_id})
+
+            return {"success": True, "transaction_id": transaction_id}
+
+        except Exception as e:
+            logger.error(f"Erro process_manual_direct: {e}")
             return {"success": False, "error": str(e)}
 
     def check_payment_status(self, transaction_id, current_user):
@@ -441,105 +432,6 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro em check_payment_status: {e}")
-            return {"success": False, "error": str(e)}
-
-    def process_manual_payment(self, transaction_id, payment_details, current_user):
-        """Processar pagamento manual (Cash/Transfer/Municipality)"""
-        try:
-            # Obter dados SIBS
-            with db_session_manager(current_user) as db:
-                sibs_data = db.execute(text("""
-                    SELECT payment_method, payment_status, order_id
-                    FROM vbl_sibs 
-                    WHERE transaction_id = :transaction_id
-                """), {"transaction_id": transaction_id}).fetchone()
-
-                if not sibs_data or sibs_data.payment_status != PaymentStatus.CREATED:
-                    raise Exception("Transação não encontrada ou inválida")
-
-            meta = {
-                "manual_payment": True,
-                "payment_details": payment_details,
-                "submitted_by": current_user,
-                "submitted_at": datetime.utcnow().isoformat()
-            }
-
-            # Actualizar para pendente validação
-            with db_session_manager(current_user) as db:
-                db.execute(text("""
-                    UPDATE tb_sibs
-                    SET payment_status = :status,
-                        payment_reference = :pref, 
-                        updated_at = NOW()
-                    WHERE transaction_id = :transaction_id
-                """), {
-                    "status": PaymentStatus.PENDING_VALIDATION,
-                    "pref": json.dumps(meta),
-                    "transaction_id": transaction_id
-                })
-
-            return {
-                "success": True,
-                "transaction_id": transaction_id,
-                "payment_status": PaymentStatus.PENDING_VALIDATION
-            }
-
-        except Exception as e:
-            logger.error(f"Erro em process_manual_payment: {e}")
-            return {"success": False, "error": str(e)}
-
-    def register_manual_payment(self, document_id, amount, payment_type, reference_info, current_user):
-        """Registar pagamento manual direto (sem checkout prévio)"""
-        try:
-            data = self._validate_payment_data(
-                {"document_id": document_id, "amount": amount},
-                ["document_id", "amount"]
-            )
-
-            order_id = str(document_id)
-            transaction_id = f"MANUAL-{order_id}-{datetime.utcnow():%Y%m%d%H%M%S}"
-
-            meta = {
-                "manual_payment": True,
-                "reference_info": reference_info,
-                "submitted_by": current_user,
-                "submitted_at": datetime.utcnow().isoformat()
-            }
-
-            with db_session_manager(current_user) as db:
-                new_pk = db.execute(
-                    text("SELECT nextval('sq_codes')")).scalar()
-
-                # Inserir SIBS manual
-                sibs_result = db.execute(text("""
-                    SELECT aintar_server.fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                   'MANUAL', :amount, 'EUR', :payment_method, 
-                                   :status, :payment_reference, 'MANUAL', 
-                                   NULL, :created_at, NULL, NULL, NULL)
-                """), {
-                    "pk": new_pk,
-                    "order_id": order_id,
-                    "transaction_id": transaction_id,
-                    "amount": float(data['amount']),
-                    "payment_method": payment_type,
-                    "status": PaymentStatus.PENDING_VALIDATION,
-                    "payment_reference": json.dumps(meta),
-                    "created_at": datetime.utcnow()
-                })
-
-                sibs_pk = sibs_result.scalar()
-
-                # Ligar à invoice
-                db.execute(text("""
-                    UPDATE tb_document_invoice 
-                    SET tb_sibs = :sibs_pk 
-                    WHERE tb_document = :document_id
-                """), {"sibs_pk": sibs_pk, "document_id": document_id})
-
-            return {"success": True, "transaction_id": transaction_id}
-
-        except Exception as e:
-            logger.error(f"Erro em register_manual_payment: {e}")
             return {"success": False, "error": str(e)}
 
     def approve_payment(self, payment_pk, user_pk, current_user):
@@ -641,7 +533,8 @@ class PaymentService:
                 params = {}
 
                 if filters.get('start_date'):
-                    where_conditions.append("DATE(s.created_at) >= :start_date")
+                    where_conditions.append(
+                        "DATE(s.created_at) >= :start_date")
                     params['start_date'] = filters['start_date']
 
                 if filters.get('end_date'):

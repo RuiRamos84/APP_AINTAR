@@ -3,36 +3,25 @@ import api from '../../../services/api';
 class PaymentService {
     constructor() {
         this.api = api;
-        this.checkoutCache = new Map(); // Cache de checkouts
     }
 
     /**
-     * CHECKOUT AUTOMÁTICO (invisível ao user)
+     * CHECKOUT PREVENTIVO - Criar logo ao entrar no módulo
      */
-    async _ensureCheckout(documentId, amount, method) {
-        const key = `${documentId}-${amount}-${method}`;
-
-        // Usar cache se existir
-        if (this.checkoutCache.has(key)) {
-            return this.checkoutCache.get(key);
-        }
-
-        // Criar novo checkout
+    async createPreventiveCheckout(documentId, amount) {
         const response = await this.api.post('/payments/checkout', {
             document_id: documentId,
             amount,
-            payment_method: method
+            payment_method: 'MBWAY' // Qualquer um serve para checkout SIBS
         });
 
         if (response.data.success) {
-            this.checkoutCache.set(key, response.data);
             return response.data;
         }
 
         throw new Error(response.data.error || 'Erro no checkout');
     }
 
-    // Adicionar ao PaymentService
     async getInvoiceAmount(documentId) {
         try {
             const response = await this.api.get(`/payments/invoice/${documentId}`);
@@ -43,85 +32,81 @@ class PaymentService {
     }
 
     /**
-     * MBWAY - tudo num passo
+     * MBWAY - Usa checkout existente
      */
-    async processMBWay(documentId, amount, phoneNumber) {
-        try {
-            // 1. Checkout automático
-            const checkout = await this._ensureCheckout(documentId, amount, 'MBWAY');
+    async processMBWay(transactionId, phoneNumber) {
+        const response = await this.api.post('/payments/mbway', {
+            transaction_id: transactionId,
+            phone_number: phoneNumber
+        });
 
-            // 2. Processar MBWay
-            const response = await this.api.post('/payments/mbway', {
-                transaction_id: checkout.transaction_id,
-                phone_number: phoneNumber
-            });
-
-            return {
-                success: true,
-                transaction_id: checkout.transaction_id,
-                data: response.data
-            };
-        } catch (error) {
-            throw new Error(error.message || 'Erro MBWay');
+        if (response.data.success) {
+            return response.data;
         }
+
+        throw new Error(response.data.error || 'Erro MBWay');
     }
 
     /**
-     * MULTIBANCO - tudo num passo
+     * MULTIBANCO - Usa checkout existente
      */
-    async processMultibanco(documentId, amount) {
-        try {
-            const checkout = await this._ensureCheckout(documentId, amount, 'MULTIBANCO');
+    async processMultibanco(transactionId) {
+        const response = await this.api.post('/payments/multibanco', {
+            transaction_id: transactionId
+        });
 
-            const response = await this.api.post('/payments/multibanco', {
-                transaction_id: checkout.transaction_id
-            });
-
-            return {
-                success: true,
-                transaction_id: checkout.transaction_id,
-                reference: response.data.multibanco_reference
-            };
-        } catch (error) {
-            throw new Error(error.message || 'Erro Multibanco');
+        if (response.data.success) {
+            return response.data;
         }
+
+        throw new Error(response.data.error || 'Erro Multibanco');
     }
 
     /**
-     * MANUAL - tudo num passo
+     * MANUAL - Direto (sem checkout SIBS)
      */
     async processManual(documentId, amount, paymentType, details) {
+        const response = await this.api.post('/payments/manual', {
+            document_id: documentId,
+            amount,
+            payment_type: paymentType,
+            payment_details: details
+        });
+
+        if (response.data.success) {
+            return response.data;
+        }
+
+        throw new Error(response.data.error || 'Erro pagamento manual');
+    }
+
+    /**
+     * FLUXO COMPLETO - Para métodos SIBS
+     */
+    async processFullPayment(documentId, amount, method, extraData = {}) {
         try {
-            const checkout = await this._ensureCheckout(documentId, amount, paymentType);
+            // 1. Criar checkout
+            const checkout = await this.createCheckout(documentId, amount, method);
 
-            const response = await this.api.post('/payments/manual', {
-                transaction_id: checkout.transaction_id,
-                payment_details: details
-            });
+            // 2. Processar pagamento
+            switch (method) {
+                case 'MBWAY':
+                    if (!extraData.phoneNumber) {
+                        throw new Error('Número de telefone obrigatório');
+                    }
+                    return await this.processMBWay(checkout.transaction_id, extraData.phoneNumber);
 
-            return {
-                success: true,
-                transaction_id: checkout.transaction_id,
-                status: 'PENDING_VALIDATION'
-            };
+                case 'MULTIBANCO':
+                    return await this.processMultibanco(checkout.transaction_id);
+
+                default:
+                    throw new Error('Método inválido para checkout SIBS');
+            }
         } catch (error) {
-            throw new Error(error.message || 'Erro pagamento manual');
+            throw new Error(error.message || 'Erro no pagamento');
         }
     }
 
-    /**
-     * PRÉ-CHECKOUT - para acelerar seleção
-     */
-    async preloadCheckouts(documentId, amount, methods) {
-        const promises = methods.map(method =>
-            this._ensureCheckout(documentId, amount, method).catch(() => null)
-        );
-        await Promise.all(promises);
-    }
-
-    /**
-     * Outros métodos inalterados...
-     */
     async checkStatus(transactionId) {
         const response = await this.api.get(`/payments/status/${transactionId}`);
         return response.data;
@@ -153,13 +138,6 @@ class PaymentService {
             throw new Error(error.message || 'Erro histórico');
         }
     }
-    
-    // Limpar cache
-    clearCache() {
-        this.checkoutCache.clear();
-    }
-
-
 }
 
 export default new PaymentService();

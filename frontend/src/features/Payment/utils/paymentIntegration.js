@@ -21,12 +21,12 @@ export const paymentIntegration = {
      * Abrir modal pagamento
      */
     openPaymentDialog(documentData, onComplete) {
-        // Implementar conforme modal system da app
         return {
             component: 'PaymentDialog',
             props: {
                 documentId: documentData.documentId,
                 amount: documentData.amount,
+                documentNumber: documentData.orderId, 
                 onComplete
             }
         };
