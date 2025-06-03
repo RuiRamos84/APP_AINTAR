@@ -42,7 +42,8 @@ export const PaymentProvider = ({ children }) => {
 
     // Configurar pedido + preload
     const setOrderDetails = useCallback(async (documentId, amount, availableMethods) => {
-        dispatch({ type: 'SET_ORDER', documentId, amount });
+        const safeAmount = Number(amount || 0);
+        dispatch({ type: 'SET_ORDER', documentId, amount: safeAmount });
 
         // Preload checkouts em background
         if (availableMethods?.length > 0) {

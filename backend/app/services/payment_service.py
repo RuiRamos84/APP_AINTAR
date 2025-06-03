@@ -85,10 +85,42 @@ class PaymentService:
 
     def create_checkout(self, document_id, amount, payment_method, current_user):
         try:
+            # Verificar se já existe pagamento para este documento
+            with db_session_manager(current_user) as db:
+                existing = db.execute(text("""
+                    SELECT s.payment_status, s.transaction_id, s.payment_method
+                    FROM tb_sibs s
+                    JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                    WHERE di.tb_document = :document_id
+                    ORDER BY s.created_at DESC
+                    LIMIT 1
+                """), {"document_id": document_id}).fetchone()
+
+                if existing:
+                    if existing.payment_status == PaymentStatus.SUCCESS:
+                        return {"success": False, "error": "Documento já pago"}
+
+                    # Se pendente, actualizar método se diferente
+                    if existing.payment_status in [PaymentStatus.CREATED, PaymentStatus.PENDING]:
+                        if existing.payment_method != payment_method:
+                            db.execute(text("""
+                                UPDATE tb_sibs 
+                                SET payment_method = :method, updated_at = NOW()
+                                WHERE transaction_id = :tx_id
+                            """), {"method": payment_method, "tx_id": existing.transaction_id})
+
+                        return {
+                            "success": True,
+                            "transaction_id": existing.transaction_id,
+                            "message": "Checkout existente actualizado"
+                        }
+
+            # Criar novo se não existe ou está em estado final
             if payment_method in ['MBWAY', 'MULTIBANCO']:
                 return self._create_sibs_checkout(document_id, amount, payment_method, current_user)
             else:
                 return self._create_manual_checkout(document_id, amount, payment_method, current_user)
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -307,25 +339,37 @@ class PaymentService:
             resp.raise_for_status()
 
             data = resp.json()
+            payment_ref = data.get('paymentReference', {})
 
-            # Actualizar BD
+            entity = payment_ref.get('entity')
+            reference = payment_ref.get('reference')
+            expire_date = payment_ref.get('expireDate')
+            status = payment_ref.get('status')
+
+            # CORRECÇÃO: Remover duplicado payment_status
             with db_session_manager(current_user) as db:
                 db.execute(text("""
                     UPDATE tb_sibs
                     SET payment_status = :status,
-                        payment_reference = :pref, 
+                        payment_reference = :reference,
+                        entity = :entity,
+                        expiry_date = :expire_date,
                         updated_at = NOW()
                     WHERE transaction_id = :transaction_id
                 """), {
-                    "status": PaymentStatus.PENDING,
-                    "pref": json.dumps(data),
+                    "status": PaymentStatus.PENDING,  # Status interno, não SIBS
+                    "reference": reference,
+                    "entity": entity,
+                    "expire_date": expire_date,
                     "transaction_id": transaction_id
                 })
 
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "multibanco_reference": data
+                "entity": entity,
+                "reference": reference,
+                "expire_date": expire_date
             }
 
         except Exception as e:
@@ -584,6 +628,78 @@ class PaymentService:
         except Exception as e:
             logger.error(
                 f"Erro ao obter estado do documento {document_id}: {e}")
+            raise
+
+    def get_payment_history(self, current_user, page, page_size, filters):
+        """Histórico de pagamentos - exclui PENDING_VALIDATION"""
+        try:
+            with db_session_manager(current_user) as session:
+                # Base: excluir CREATED e PENDING_VALIDATION
+                where_conditions = [
+                    "s.payment_status NOT IN ('CREATED', 'PENDING_VALIDATION')"
+                ]
+                params = {}
+
+                if filters.get('start_date'):
+                    where_conditions.append("DATE(s.created_at) >= :start_date")
+                    params['start_date'] = filters['start_date']
+
+                if filters.get('end_date'):
+                    where_conditions.append("DATE(s.created_at) <= :end_date")
+                    params['end_date'] = filters['end_date']
+
+                if filters.get('method'):
+                    where_conditions.append("s.payment_method = :method")
+                    params['method'] = filters['method']
+
+                if filters.get('status'):
+                    where_conditions.append("s.payment_status = :status")
+                    params['status'] = filters['status']
+
+                where_clause = " AND ".join(where_conditions)
+
+                # Query total
+                count_query = text(f"""
+                    SELECT COUNT(*) as total
+                    FROM tb_sibs s
+                    LEFT JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                    WHERE {where_clause}
+                """)
+
+                total = session.execute(count_query, params).scalar()
+
+                # Query paginada
+                offset = (page - 1) * page_size
+                params.update({'limit': page_size, 'offset': offset})
+
+                data_query = text(f"""
+                    SELECT
+                        s.pk, s.order_id, s.transaction_id, s.amount,
+                        s.payment_method, s.payment_status, s.payment_reference,
+                        s.created_at, s.updated_at, s.validated_by, s.validated_at,
+                        di.tb_document, d.regnumber, d.memo as document_descr
+                    FROM tb_sibs s
+                    LEFT JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                    LEFT JOIN tb_document d ON d.pk = di.tb_document
+                    WHERE {where_clause}
+                    ORDER BY s.created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+
+                results = session.execute(data_query, params).fetchall()
+                payments = [dict(row._mapping) for row in results]
+
+                return {
+                    "success": True,
+                    "payments": payments,
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                    "total_pages": (total + page_size - 1) // page_size
+                }
+
+        except Exception as e:
+            logger.error(f"Erro get_payment_history: {e}")
             raise
 
     def process_webhook(self, webhook_data):

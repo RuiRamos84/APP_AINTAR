@@ -192,6 +192,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
         // Tentar extrair entidade e referência dos dados disponíveis
         let entity = 'N/D';
         let reference = 'N/D';
+        console.log('Payment Details:', hasInvoiceData, paymentDetails);
 
         if (paymentDetails) {
             // Tentar diferentes propriedades onde os dados podem estar

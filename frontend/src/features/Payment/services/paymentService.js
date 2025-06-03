@@ -137,10 +137,29 @@ class PaymentService {
         return response.data;
     }
 
+    async getPaymentHistory(params = {}) {
+        try {
+            const queryParams = new URLSearchParams();
+
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== '') {
+                    queryParams.append(key, value);
+                }
+            });
+
+            const response = await this.api.get(`/payments/history?${queryParams}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(error.message || 'Erro histórico');
+        }
+    }
+    
     // Limpar cache
     clearCache() {
         this.checkoutCache.clear();
     }
+
+
 }
 
 export default new PaymentService();

@@ -243,6 +243,7 @@ def get_pending_payments():
 
     try:
         payments = payment_service.get_pending_payments(user)
+        print(f"Pagamentos pendentes: {payments}")  # Debugging line
         return jsonify({"success": True, "payments": payments}), 200
     except Exception as e:
         logger.error(f"Erro ao obter pagamentos pendentes: {e}")
@@ -283,4 +284,38 @@ def webhook():
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
         logger.error(f"Erro no webhook: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route("/payments/history", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_payment_history():
+    """Histórico de pagamentos com filtros e paginação"""
+    has_permission, user_id = check_payment_permissions("admin")
+    if not has_permission:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+
+    # Parâmetros de paginação
+    page = int(request.args.get('page', 1))
+    page_size = min(int(request.args.get('page_size', 10)), 50)
+
+    # Filtros
+    filters = {
+        'start_date': request.args.get('start_date'),
+        'end_date': request.args.get('end_date'),
+        'method': request.args.get('method'),
+        'status': request.args.get('status')
+    }
+
+    try:
+        result = payment_service.get_payment_history(
+            user, page, page_size, filters)
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Erro histórico: {e}")
         return jsonify({"success": False, "error": str(e)}), 500

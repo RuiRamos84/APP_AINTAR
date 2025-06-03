@@ -63,7 +63,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 </Typography>
                 <Typography variant="body2">IBAN: PT50 0033 0000 4570 8378 2190 5</Typography>
                 <Typography variant="body2">Titular: AINTAR</Typography>
-                <Typography variant="body2">Valor: €{state.amount?.toFixed(2)}</Typography>
+                <Typography variant="body2">Valor: €{Number(state.amount || 0).toFixed(2)}</Typography>
                 <Typography variant="body2">Referência: {state.documentId}</Typography>
             </Paper>
 

@@ -73,18 +73,18 @@ export const formatExpiryDate = (dateString) => {
  * @param {string} currency - Moeda (default: EUR)
  * @returns {string} - Valor formatado
  */
-export const formatCurrency = (amount, currency = 'EUR') => {
-    if (amount === null || amount === undefined) return 'N/A';
+export const safeAmount = (value) => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+};
 
-    try {
-        return new Intl.NumberFormat('pt-PT', {
-            style: 'currency',
-            currency
-        }).format(amount);
-    } catch (e) {
-        console.error('Erro ao formatar valor:', e);
-        return `${amount} ${currency}`;
-    }
+export const formatAmount = (value, decimals = 2) => {
+    return safeAmount(value).toFixed(decimals);
+};
+
+export const formatCurrency = (value, currency = 'EUR') => {
+    const amount = safeAmount(value);
+    return `€${amount.toFixed(2)}`;
 };
 
 /**

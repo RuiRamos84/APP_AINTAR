@@ -1,5 +1,9 @@
-import React, { useContext, useEffect } from 'react';
-import { Box, Paper, Stepper, Step, StepLabel, Button } from '@mui/material';
+import React, { useContext, useEffect, useState } from 'react';
+import {
+    Box, Paper, Stepper, Step, StepLabel, Button,
+    Fade, Slide, Typography, LinearProgress
+} from '@mui/material';
+import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
 import { getAvailableMethodsForProfile } from '../services/paymentTypes';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -13,23 +17,28 @@ import BankTransferPayment from './BankTransferPayment';
 import MunicipalityPayment from './MunicipalityPayment';
 import PaymentStatus from './PaymentStatus';
 
-const steps = ['Método', 'Pagamento', 'Confirmação'];
+const steps = [
+    { label: 'Método', icon: 'payment' },
+    { label: 'Pagamento', icon: 'process' },
+    { label: 'Confirmação', icon: 'check' }
+];
 
 const PaymentModule = ({ documentId, amount, onComplete }) => {
     const { user } = useAuth();
     const payment = useContext(PaymentContext);
-    const [step, setStep] = React.useState(0);
+    const [step, setStep] = useState(0);
+    const [direction, setDirection] = useState('forward');
 
     const availableMethods = getAvailableMethodsForProfile(user?.profil);
 
     useEffect(() => {
-        // Configurar + preload
         payment.setOrderDetails(documentId, amount, availableMethods);
     }, [documentId, amount]);
 
-    // Auto-avançar quando método seleccionado
+    // Auto-avançar quando método selecionado
     useEffect(() => {
         if (payment.state.selectedMethod && step === 0) {
+            setDirection('forward');
             setStep(1);
         }
     }, [payment.state.selectedMethod, step]);
@@ -37,6 +46,7 @@ const PaymentModule = ({ documentId, amount, onComplete }) => {
     // Auto-avançar quando pagamento concluído
     useEffect(() => {
         if (payment.state.transactionId && step === 1) {
+            setDirection('forward');
             setStep(2);
         }
     }, [payment.state.transactionId, step]);
@@ -45,84 +55,197 @@ const PaymentModule = ({ documentId, amount, onComplete }) => {
         payment.setMethod(method);
     };
 
-    const handlePaymentSuccess = () => {
-        // Já avança automaticamente
+    const handleBack = () => {
+        setDirection('backward');
+        if (step === 1) {
+            payment.setMethod(null);
+        }
+        setStep(Math.max(0, step - 1));
     };
 
-    const renderContent = () => {
-        switch (step) {
-            case 0:
-                return (
-                    <PaymentMethodSelector
-                        availableMethods={availableMethods}
-                        onSelect={handleMethodSelect}
-                    />
-                );
-            case 1:
-                return renderPaymentMethod();
-            case 2:
-                return (
-                    <PaymentStatus
-                        transactionId={payment.state.transactionId}
-                        onComplete={onComplete}
-                    />
-                );
-            default:
-                return null;
-        }
+    const handleNext = () => {
+        setDirection('forward');
+        setStep(Math.min(2, step + 1));
     };
 
     const renderPaymentMethod = () => {
         const props = {
-            onSuccess: handlePaymentSuccess,
+            onSuccess: () => { }, // Auto-avança via useEffect
             userInfo: user
         };
 
-        switch (payment.state.selectedMethod) {
-            case 'MBWAY':
-                return <MBWayPayment {...props} />;
-            case 'MULTIBANCO':
-                return <MultibancoPayment {...props} />;
-            case 'CASH':
-                return <CashPayment {...props} />;
-            case 'BANK_TRANSFER':
-                return <BankTransferPayment {...props} />;
-            case 'MUNICIPALITY':
-                return <MunicipalityPayment {...props} />;
-            default:
-                return null;
-        }
+        const components = {
+            'MBWAY': MBWayPayment,
+            'MULTIBANCO': MultibancoPayment,
+            'CASH': CashPayment,
+            'BANK_TRANSFER': BankTransferPayment,
+            'MUNICIPALITY': MunicipalityPayment
+        };
+
+        const Component = components[payment.state.selectedMethod];
+        return Component ? <Component {...props} /> : null;
+    };
+
+    const renderStepContent = () => {
+        const contents = [
+            <PaymentMethodSelector
+                key="selector"
+                availableMethods={availableMethods}
+                selectedMethod={payment.state.selectedMethod}
+                onSelect={handleMethodSelect}
+                amount={amount}
+            />,
+            renderPaymentMethod(),
+            <PaymentStatus
+                key="status"
+                transactionId={payment.state.transactionId}
+                onComplete={onComplete}
+            />
+        ];
+
+        return (
+            <Slide
+                key={step}
+                direction={direction === 'forward' ? 'left' : 'right'}
+                in={true}
+                timeout={300}
+            >
+                <Box sx={{ minHeight: 400 }}>
+                    {contents[step]}
+                </Box>
+            </Slide>
+        );
     };
 
     return (
-        <Paper sx={{ p: 3 }}>
-            <Stepper activeStep={step} sx={{ mb: 3 }}>
-                {steps.map((label) => (
-                    <Step key={label}>
-                        <StepLabel>{label}</StepLabel>
-                    </Step>
-                ))}
-            </Stepper>
+        <Paper
+            elevation={3}
+            sx={{
+                overflow: 'hidden',
+                background: 'linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%)',
+                position: 'relative'
+            }}
+        >
+            {/* Progress Bar */}
+            {payment.state.loading && (
+                <LinearProgress
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 1
+                    }}
+                />
+            )}
 
-            <Box sx={{ minHeight: 300 }}>
-                {renderContent()}
+            {/* Header */}
+            <Box
+                sx={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    p: 3,
+                    textAlign: 'center'
+                }}
+            >
+                <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                    Pagamento de Documento
+                </Typography>
+
+                {/* Custom Stepper */}
+                <Box sx={{ mt: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        {steps.map((stepItem, index) => (
+                            <Box key={index} sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Box
+                                    sx={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: '50%',
+                                        backgroundColor: index <= step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
+                                        color: index <= step ? 'primary.main' : 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 600,
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
+                                    {index + 1}
+                                </Box>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        ml: 1,
+                                        opacity: index <= step ? 1 : 0.7,
+                                        fontWeight: index === step ? 600 : 400
+                                    }}
+                                >
+                                    {stepItem.label}
+                                </Typography>
+                                {index < steps.length - 1 && (
+                                    <Box
+                                        sx={{
+                                            width: 80,
+                                            height: 2,
+                                            backgroundColor: index < step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
+                                            mx: 2,
+                                            transition: 'all 0.3s ease'
+                                        }}
+                                    />
+                                )}
+                            </Box>
+                        ))}
+                    </Box>
+                </Box>
             </Box>
 
-            {step > 0 && (
-                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
-                    <Button onClick={() => setStep(step - 1)}>
-                        Voltar
-                    </Button>
+            {/* Content */}
+            <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                {renderStepContent()}
+            </Box>
 
-                    {step === 2 && (
-                        <Button
-                            variant="contained"
-                            onClick={() => onComplete?.(payment.state)}
-                        >
-                            Concluir
-                        </Button>
-                    )}
-                </Box>
+            {/* Navigation */}
+            {(step > 0 || step === 2) && (
+                <Fade in={true}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            p: 3,
+                            backgroundColor: 'background.paper',
+                            borderTop: 1,
+                            borderColor: 'divider'
+                        }}
+                    >
+                        {step > 0 && step < 2 && (
+                            <Button
+                                startIcon={<ArrowBack />}
+                                onClick={handleBack}
+                                disabled={payment.state.loading}
+                                sx={{ minWidth: 120 }}
+                            >
+                                Voltar
+                            </Button>
+                        )}
+
+                        <Box sx={{ flexGrow: 1 }} />
+
+                        {step === 2 && (
+                            <Button
+                                variant="contained"
+                                endIcon={<ArrowForward />}
+                                onClick={() => onComplete?.(payment.state)}
+                                sx={{
+                                    minWidth: 120,
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                }}
+                            >
+                                Concluir
+                            </Button>
+                        )}
+                    </Box>
+                </Fade>
             )}
         </Paper>
     );
