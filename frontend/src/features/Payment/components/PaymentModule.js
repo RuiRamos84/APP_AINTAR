@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
     Box, Paper, Stepper, Step, StepLabel, Button,
-    Fade, Slide, Typography, LinearProgress
+    Fade, Slide, Typography, LinearProgress, Alert
 } from '@mui/material';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
@@ -28,20 +28,37 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
     const payment = useContext(PaymentContext);
     const [step, setStep] = useState(0);
     const [direction, setDirection] = useState('forward');
+    const [checkoutReady, setCheckoutReady] = useState(false);
 
     const availableMethods = getAvailableMethodsForProfile(user?.profil);
 
+    // Configurar pedido + checkout preventivo
     useEffect(() => {
-        payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
+        const initPayment = async () => {
+            try {
+                payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
+
+                // Checkout preventivo só para SIBS
+                if (availableMethods.includes('MBWAY') || availableMethods.includes('MULTIBANCO')) {
+                    await payment.createPreventiveCheckout(documentId, amount);
+                }
+
+                setCheckoutReady(true);
+            } catch (error) {
+                console.error('Erro no checkout:', error);
+            }
+        };
+
+        initPayment();
     }, [documentId, amount, documentNumber]);
 
     // Auto-avançar quando método selecionado
     useEffect(() => {
-        if (payment.state.selectedMethod && step === 0) {
+        if (payment.state.selectedMethod && step === 0 && checkoutReady) {
             setDirection('forward');
             setStep(1);
         }
-    }, [payment.state.selectedMethod, step]);
+    }, [payment.state.selectedMethod, step, checkoutReady]);
 
     // Auto-avançar quando pagamento concluído
     useEffect(() => {
@@ -63,19 +80,11 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
         setStep(Math.max(0, step - 1));
     };
 
-    const handleNext = () => {
-        if (step === 0 && !payment.state.selectedMethod) {
-            // Mostrar erro: selecionar método
-            return;
-        }
-        setDirection('forward');
-        setStep(Math.min(2, step + 1));
-    };
-
     const renderPaymentMethod = () => {
         const props = {
             onSuccess: () => { }, // Auto-avança via useEffect
-            userInfo: user
+            userInfo: user,
+            transactionId: payment.state.transactionId // NOVO
         };
 
         const components = {
@@ -91,6 +100,30 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
     };
 
     const renderStepContent = () => {
+        if (!checkoutReady && step === 0) {
+            return (
+                <Box sx={{ textAlign: 'center', py: 6 }}>
+                    <Typography variant="h6" gutterBottom>
+                        A preparar checkout...
+                    </Typography>
+                    <LinearProgress sx={{ mt: 2 }} />
+                </Box>
+            );
+        }
+
+        if (payment.state.error) {
+            return (
+                <Box sx={{ p: 3 }}>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {payment.state.error}
+                    </Alert>
+                    <Button onClick={() => window.location.reload()}>
+                        Tentar novamente
+                    </Button>
+                </Box>
+            );
+        }
+
         const contents = [
             <PaymentMethodSelector
                 key="selector"
@@ -98,6 +131,8 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                 selectedMethod={payment.state.selectedMethod}
                 onSelect={handleMethodSelect}
                 amount={amount}
+                transactionId={payment.state.transactionId}
+                checkoutLoading={payment.state.loading && !payment.state.transactionId}
             />,
             renderPaymentMethod(),
             <PaymentStatus

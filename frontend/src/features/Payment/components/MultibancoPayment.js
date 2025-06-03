@@ -12,13 +12,18 @@ import {
 } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
 
-const MultibancoPayment = ({ onSuccess }) => {
+const MultibancoPayment = ({ onSuccess, transactionId }) => {
     const { state, payWithMultibanco } = useContext(PaymentContext);
     const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
     const [step, setStep] = useState('generate');
 
     const handleGenerate = async () => {
+        if (!transactionId) {
+            console.error('Transaction ID não encontrado');
+            return;
+        }
+
         try {
             const result = await payWithMultibanco();
             setReferenceData(result);

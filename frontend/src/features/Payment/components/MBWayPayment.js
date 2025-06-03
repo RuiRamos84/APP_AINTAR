@@ -11,26 +11,19 @@ import { PaymentContext } from '../context/PaymentContext';
 
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
-const MBWayPayment = ({ onSuccess }) => {
+const MBWayPayment = ({ onSuccess, transactionId }) => {
     const { state, payWithMBWay } = useContext(PaymentContext);
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
 
-    // Derivar step do estado do contexto
-    const getActiveStep = () => {
-        if (state.transactionId) return 2;
-        if (state.loading) return 1;
-        return 0;
-    };
+    const [localStep, setLocalStep] = useState(0);
 
-    const activeStep = getActiveStep();
-
-    // Auto-chamar onSuccess quando transacção criada
     useEffect(() => {
-        if (state.transactionId && activeStep === 2) {
+        if (state.transactionId && localStep === 1) {
+            setLocalStep(2);
             onSuccess?.();
         }
-    }, [state.transactionId, activeStep, onSuccess]);
+    }, [state.transactionId, localStep, onSuccess]);
 
     const formatPhone = (value) => {
         const numbers = value.replace(/\D/g, '');
@@ -57,13 +50,20 @@ const MBWayPayment = ({ onSuccess }) => {
             return;
         }
 
+        if (!transactionId) {
+            setError('Checkout não criado');
+            return;
+        }
+
         setError('');
+        setLocalStep(1); // Avançar para processing
 
         try {
             await payWithMBWay(cleanPhone);
-            // Estado gerido pelo contexto
+            // Estado gerido pelo contexto + useEffect
         } catch (err) {
             setError(err.message);
+            setLocalStep(0); // Voltar ao início
         }
     };
 
@@ -87,7 +87,7 @@ const MBWayPayment = ({ onSuccess }) => {
             </Box>
 
             {/* Stepper */}
-            <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+            <Stepper activeStep={localStep} sx={{ mb: 4 }}>
                 {steps.map((label) => (
                     <Step key={label}>
                         <StepLabel>{label}</StepLabel>
@@ -103,7 +103,7 @@ const MBWayPayment = ({ onSuccess }) => {
             )}
 
             {/* Step 0: Input */}
-            {activeStep === 0 && (
+            {localStep === 0 && (
                 <Fade in timeout={300}>
                     <Box>
                         <TextField
@@ -169,7 +169,7 @@ const MBWayPayment = ({ onSuccess }) => {
             )}
 
             {/* Step 1: Processing */}
-            {activeStep === 1 && (
+            {localStep === 1 && (
                 <Fade in timeout={300}>
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <CircularProgress size={60} sx={{ mb: 3 }} />
@@ -195,7 +195,7 @@ const MBWayPayment = ({ onSuccess }) => {
             )}
 
             {/* Step 2: Success */}
-            {activeStep === 2 && (
+            {localStep === 2 && (
                 <Fade in timeout={300}>
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <CheckCircle sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />

@@ -54,7 +54,10 @@ const PaymentStatus = ({ transactionId, onComplete }) => {
     const [progress, setProgress] = useState(0);
 
     const checkStatus = async () => {
-        if (!transactionId) return;
+        if (!transactionId || transactionId.startsWith('s2f8r')) {
+            console.warn('Transaction ID inválido:', transactionId);
+            return;
+        }
 
         setLoading(true);
         try {
@@ -62,6 +65,7 @@ const PaymentStatus = ({ transactionId, onComplete }) => {
             setStatus(result.payment_status || 'PENDING');
         } catch (error) {
             console.error('Erro verificação:', error);
+            setStatus('PENDING'); // Estado seguro
         } finally {
             setLoading(false);
         }

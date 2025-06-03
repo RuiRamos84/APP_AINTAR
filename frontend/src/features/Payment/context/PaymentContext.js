@@ -4,9 +4,10 @@ import paymentService from '../services/paymentService';
 const initialState = {
     documentId: null,
     amount: 0,
-    regnumber: null, // ADICIONAR
+    regnumber: null,
     selectedMethod: null,
     transactionId: null,
+    checkoutData: null, // NOVO
     loading: false,
     error: null,
     status: 'PENDING'
@@ -21,6 +22,13 @@ const paymentReducer = (state, action) => {
                 amount: action.amount,
                 regnumber: action.regnumber
             };
+        case 'SET_CHECKOUT':
+            return {
+                ...state,
+                checkoutData: action.checkoutData,
+                transactionId: action.checkoutData?.transaction_id,
+                loading: false
+            };
         case 'SET_METHOD':
             return { ...state, selectedMethod: action.method, error: null };
         case 'SET_LOADING':
@@ -30,7 +38,7 @@ const paymentReducer = (state, action) => {
         case 'SET_SUCCESS':
             return {
                 ...state,
-                transactionId: action.transactionId,
+                transactionId: action.transactionId || state.transactionId,
                 status: action.status || 'SUCCESS',
                 loading: false
             };
@@ -46,75 +54,77 @@ export const PaymentContext = createContext();
 export const PaymentProvider = ({ children }) => {
     const [state, dispatch] = useReducer(paymentReducer, initialState);
 
-    // Configurar pedido
+    // Checkout preventivo
+    const createPreventiveCheckout = useCallback(async (documentId, amount) => {
+        dispatch({ type: 'SET_LOADING', loading: true });
+        try {
+            const checkoutData = await paymentService.createPreventiveCheckout(documentId, amount);
+            dispatch({ type: 'SET_CHECKOUT', checkoutData });
+            return checkoutData;
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', error: error.message });
+            throw error;
+        }
+    }, []);
+
     const setOrderDetails = useCallback((documentId, amount, availableMethods, regnumber) => {
-        const safeAmount = Number(amount || 0);
         dispatch({
             type: 'SET_ORDER',
             documentId,
-            amount: safeAmount,
+            amount: Number(amount || 0),
             regnumber
         });
     }, []);
 
-    // MBWay - checkout só quando chamado
+    // MBWay - usa transaction_id existente
     const payWithMBWay = useCallback(async (phoneNumber) => {
+        if (!state.transactionId) {
+            throw new Error('Checkout não criado');
+        }
+
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
-            const result = await paymentService.processMBWay(
-                state.documentId, state.amount, phoneNumber
-            );
-
+            const result = await paymentService.processMBWay(state.transactionId, phoneNumber);
             dispatch({
                 type: 'SET_SUCCESS',
-                transactionId: result.transaction_id,
-                status: 'PENDING'
+                status: result.payment_status || 'PENDING'
             });
-
             return result;
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
             throw error;
         }
-    }, [state.documentId, state.amount]);
+    }, [state.transactionId]);
 
-    // Multibanco - só gerar referência
+    // Multibanco - usa transaction_id existente
     const payWithMultibanco = useCallback(async () => {
+        if (!state.transactionId) {
+            throw new Error('Checkout não criado');
+        }
+
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
-            const result = await paymentService.processMultibanco(
-                state.documentId, state.amount, state.regnumber
-            );
-
-            // NÃO actualizar status - só parar loading
+            const result = await paymentService.processMultibanco(state.transactionId);
             dispatch({ type: 'SET_LOADING', loading: false });
-
-            return {
-                transaction_id: result.transaction_id,
-                reference: result.reference,
-                entity: result.entity,
-                expire_date: result.expire_date
-            };
+            return result;
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
             throw error;
         }
-    }, [state.documentId, state.amount, state.regnumber]);
+    }, [state.transactionId]);
 
-    // Manual - checkout só quando chamado
+    // Manual - directo
     const payManual = useCallback(async (paymentType, details) => {
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
             const result = await paymentService.processManual(
                 state.documentId, state.amount, paymentType, details
             );
-
             dispatch({
                 type: 'SET_SUCCESS',
                 transactionId: result.transaction_id,
                 status: 'PENDING_VALIDATION'
             });
-
             return result;
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
@@ -122,16 +132,13 @@ export const PaymentProvider = ({ children }) => {
         }
     }, [state.documentId, state.amount]);
 
-    // Verificar estado
     const checkStatus = useCallback(async () => {
         if (!state.transactionId) return;
-
         try {
             const result = await paymentService.checkStatus(state.transactionId);
             if (result.payment_status) {
                 dispatch({
                     type: 'SET_SUCCESS',
-                    transactionId: state.transactionId,
                     status: result.payment_status
                 });
             }
@@ -142,6 +149,7 @@ export const PaymentProvider = ({ children }) => {
 
     const value = {
         state,
+        createPreventiveCheckout,
         setOrderDetails,
         setMethod: (method) => dispatch({ type: 'SET_METHOD', method }),
         payWithMBWay,
