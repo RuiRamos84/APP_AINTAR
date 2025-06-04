@@ -84,7 +84,7 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
         const props = {
             onSuccess: () => { }, // Auto-avança via useEffect
             userInfo: user,
-            transactionId: payment.state.transactionId // NOVO
+            transactionId: payment.state.transactionId
         };
 
         const components = {
