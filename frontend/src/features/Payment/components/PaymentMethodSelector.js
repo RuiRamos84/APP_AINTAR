@@ -1,28 +1,48 @@
 import React from 'react';
-import { Box, Card, CardContent, Grid, Typography, Radio, Chip } from '@mui/material';
+import { Box, Card, CardContent, Grid, Typography, Radio, Chip, Avatar, Tooltip } from '@mui/material';
 import {
     Euro, Payments, LocationCity, Schedule, Lock
 } from '@mui/icons-material';
 
+// Ícones SIBS reais
+const MBWayIcon = ({ sx, ...props }) => (
+    <img
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Logo_MBWay.svg/512px-Logo_MBWay.svg.png?20201121193832"
+        alt="MB Way"
+        style={{ width: 48, height: 24, ...sx }}
+        {...props}
+    />
+);
+
+// Para Multibanco:
+const MultibancoIcon = ({ sx, ...props }) => (
+    <img
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Multibanco.svg/512px-Multibanco.svg.png?20201121201922"
+        alt="Multibanco"
+        style={{ width: 24, height: 34, ...sx }}
+        {...props}
+    />
+);
+
 const methods = {
     MBWAY: {
         label: 'MB WAY',
+        icon: MBWayIcon,
         color: '#3b5998',
         description: 'Pagamento via telemóvel',
         features: ['Imediato'],
         time: 'Instantâneo',
         bgGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Logo_MBWay.svg/512px-Logo_MBWay.svg.png',
         requiresCheckout: true
     },
     MULTIBANCO: {
         label: 'Multibanco',
+        icon: MultibancoIcon,
         color: '#0066cc',
         description: 'Referência ATM/homebanking',
         features: ['Tradicional'],
         time: '24h',
         bgGradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Multibanco.svg/512px-Multibanco.svg.png',
         requiresCheckout: true
     },
     BANK_TRANSFER: {
@@ -82,7 +102,7 @@ const PaymentMethodSelector = ({
 
     return (
         <Box sx={{ p: 2 }}>
-            {/* Header */}
+            {/* Header compacto */}
             <Box sx={{ textAlign: 'center', mb: 3 }}>
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
                     Escolha como pagar
@@ -92,7 +112,7 @@ const PaymentMethodSelector = ({
                 </Typography>
             </Box>
 
-            {/* Grid */}
+            {/* Grid compacto */}
             <Grid container spacing={2}>
                 {availableMethods.map((methodId) => {
                     const method = methods[methodId];
@@ -107,7 +127,7 @@ const PaymentMethodSelector = ({
                             <Card
                                 sx={{
                                     cursor: isAvailable ? 'pointer' : 'not-allowed',
-                                    height: 140,
+                                    height: '100%',
                                     border: isSelected ? 2 : 1,
                                     borderColor: isSelected ? method.color : 'divider',
                                     transform: isSelected ? 'scale(1.02)' : 'scale(1)',
@@ -116,7 +136,6 @@ const PaymentMethodSelector = ({
                                     color: isSelected ? 'white' : 'inherit',
                                     opacity: isAvailable ? 1 : 0.4,
                                     position: 'relative',
-                                    overflow: 'hidden',
                                     '&:hover': isAvailable ? {
                                         transform: 'scale(1.02)',
                                         borderColor: method.color
@@ -124,41 +143,29 @@ const PaymentMethodSelector = ({
                                 }}
                                 onClick={() => handleSelect(methodId)}
                             >
-                                {/* Logo como fundo para SIBS */}
-                                {method.logoUrl && (
-                                    <Box
-                                        sx={{
+                                <CardContent sx={{ p: 2 }}>
+                                    {/* Lock para indisponíveis */}
+                                    {!isAvailable && method.requiresCheckout && (
+                                        <Lock sx={{
                                             position: 'absolute',
-                                            top: 0,
-                                            right: 0,
-                                            width: 80,
-                                            height: 80,
-                                            backgroundImage: `url(${method.logoUrl})`,
-                                            backgroundSize: 'contain',
-                                            backgroundRepeat: 'no-repeat',
-                                            backgroundPosition: 'center',
-                                            opacity: isSelected ? 0.3 : 0.1,
-                                            transition: 'opacity 0.3s ease'
-                                        }}
-                                    />
-                                )}
+                                            top: 8,
+                                            right: 8,
+                                            fontSize: 16,
+                                            opacity: 0.5
+                                        }} />
+                                    )}
 
-                                <CardContent sx={{ p: 2, position: 'relative', zIndex: 1 }}>
-                                    {/* Header */}
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            {/* Ícone só para não-SIBS */}
-                                            {Icon && !method.logoUrl && (
-                                                <Icon sx={{
-                                                    fontSize: 24,
-                                                    color: isSelected ? 'white' : method.color
-                                                }} />
-                                            )}
-                                            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-                                                {method.label}
-                                            </Typography>
-                                        </Box>
-
+                                    {/* Header do card */}
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                                        <Avatar
+                                            sx={{
+                                                bgcolor: isSelected ? 'rgba(255,255,255,0.2)' : `${method.color}15`,
+                                                width: 40,
+                                                height: 40
+                                            }}
+                                        >
+                                            <Icon sx={{ color: isSelected ? 'white' : method.color }} />
+                                        </Avatar>
                                         <Radio
                                             checked={isSelected}
                                             disabled={!isAvailable}
@@ -170,36 +177,18 @@ const PaymentMethodSelector = ({
                                         />
                                     </Box>
 
-                                    {/* Lock */}
-                                    {!isAvailable && method.requiresCheckout && (
-                                        <Lock sx={{
-                                            position: 'absolute',
-                                            top: 8,
-                                            left: 8,
-                                            fontSize: 16,
-                                            opacity: 0.5
-                                        }} />
-                                    )}
+                                    {/* Nome */}
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                        {method.label}
+                                    </Typography>
 
                                     {/* Descrição */}
-                                    <Typography variant="body2" sx={{
-                                        opacity: 0.8,
-                                        mb: 2,
-                                        fontSize: '0.8rem'
-                                    }}>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mb: 1.5 }}>
                                         {method.description}
                                     </Typography>
 
-                                    {/* Bottom info */}
-                                    <Box sx={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        position: 'absolute',
-                                        bottom: 16,
-                                        left: 16,
-                                        right: 16
-                                    }}>
+                                    {/* Features + Time */}
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <Chip
                                             label={method.features[0]}
                                             size="small"
@@ -207,12 +196,12 @@ const PaymentMethodSelector = ({
                                                 bgcolor: isSelected ? 'rgba(255,255,255,0.2)' : `${method.color}15`,
                                                 color: isSelected ? 'white' : method.color,
                                                 fontSize: '0.7rem',
-                                                height: 20
+                                                height: 24
                                             }}
                                         />
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Schedule sx={{ fontSize: 10, opacity: 0.7 }} />
-                                            <Typography variant="caption" sx={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                                            <Schedule sx={{ fontSize: 12, opacity: 0.7 }} />
+                                            <Typography variant="caption" sx={{ fontSize: '0.7rem', opacity: 0.8 }}>
                                                 {method.time}
                                             </Typography>
                                         </Box>
@@ -220,20 +209,15 @@ const PaymentMethodSelector = ({
 
                                     {/* Status SIBS */}
                                     {method.requiresCheckout && (
-                                        <Box sx={{
-                                            position: 'absolute',
-                                            bottom: 45,
-                                            left: 16,
-                                            right: 16
-                                        }}>
+                                        <Box sx={{ mt: 1, textAlign: 'center' }}>
                                             {checkoutLoading && (
-                                                <Chip label="A preparar..." size="small" color="warning" sx={{ fontSize: '0.6rem', height: 18 }} />
+                                                <Chip label="A preparar..." size="small" color="warning" sx={{ fontSize: '0.65rem', height: 20 }} />
                                             )}
                                             {!checkoutLoading && !transactionId && (
-                                                <Chip label="Aguarda" size="small" color="default" sx={{ fontSize: '0.6rem', height: 18 }} />
+                                                <Chip label="Aguarda" size="small" color="default" sx={{ fontSize: '0.65rem', height: 20 }} />
                                             )}
                                             {!checkoutLoading && transactionId && (
-                                                <Chip label="Pronto" size="small" color="success" sx={{ fontSize: '0.6rem', height: 18 }} />
+                                                <Chip label="Pronto" size="small" color="success" sx={{ fontSize: '0.65rem', height: 20 }} />
                                             )}
                                         </Box>
                                     )}
