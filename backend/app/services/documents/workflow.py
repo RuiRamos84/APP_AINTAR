@@ -360,10 +360,15 @@ def update_document_pavenext(pk, current_user):
             session.commit()
 
             # Limpar caches relacionados
-            cache.delete_memoized(get_document_steps, pk, current_user)
-            cache.delete_memoized(list_documents, current_user)
-            cache.delete_memoized(document_self, current_user)
-            cache.delete_memoized(document_owner, current_user)
+            try:
+                from .core import list_documents, document_self, document_owner
+                cache.delete_memoized(get_document_steps, pk, current_user)
+                cache.delete_memoized(list_documents, current_user)
+                cache.delete_memoized(document_self, current_user)
+                cache.delete_memoized(document_owner, current_user)
+            except Exception as cache_error:
+                current_app.logger.warning(
+                    f"Erro ao limpar cache: {cache_error}")
 
             return {
                 'message': 'Documento atualizado com sucesso',

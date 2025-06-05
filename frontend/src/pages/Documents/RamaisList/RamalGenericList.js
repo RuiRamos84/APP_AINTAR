@@ -12,13 +12,17 @@ import {
 import SearchBar from "../../../components/common/SearchBar/SearchBar";
 import RamalGenericRow from "./RamalGenericRow";
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster";
+import { prepareRamaisDataForExport, generateExcelFileName } from "./excelExportUtils";
+import ExportExcelButton from "./ExportExcelButton";
 import "../DocumentListAll/DocumentList.css";
 
 const RamalGenericList = ({
     title,
     getData,
     onComplete,
-    isConcluded
+    isConcluded,
+    showExport = false,
+    exportType = 'active'
 }) => {
     const theme = useTheme();
     const [documents, setDocuments] = useState([]);
@@ -54,7 +58,43 @@ const RamalGenericList = ({
         fetchDocuments();
     }, []);
 
-    // Efeito para processar o agrupamento quando os documentos ou o tipo de agrupamento mudam
+    // Função para extrair o ano-mês de uma data
+    const getYearMonth = (dateString) => {
+        if (!dateString) return 'Sem data';
+
+        try {
+            // Para datas no formato "2025-02-27 às 11:29"
+            if (dateString.includes(' às ')) {
+                const datePart = dateString.split(' às ')[0];
+                const [year, month] = datePart.split('-');
+                return `${year}-${month}`;
+            }
+            // Para outros formatos, tentar parseamento genérico
+            const date = new Date(dateString);
+            if (!isNaN(date)) {
+                return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            }
+            return 'Formato inválido';
+        } catch (error) {
+            console.error('Erro ao processar data:', dateString, error);
+            return 'Formato inválido';
+        }
+    };
+
+    // Função para formatar o nome do mês para exibição
+    const formatYearMonth = (yearMonth) => {
+        if (yearMonth === 'Sem data' || yearMonth === 'Formato inválido') return yearMonth;
+
+        const [year, month] = yearMonth.split('-');
+        const monthNames = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+
+        return `${monthNames[parseInt(month) - 1]} de ${year}`;
+    };
+
+    // Efeito para processar o agrupamento
     useEffect(() => {
         if (!groupBy) {
             setGroupedDocuments({});
@@ -65,15 +105,35 @@ const RamalGenericList = ({
         const expandedState = {};
 
         filteredDocuments.forEach(doc => {
-            const groupValue = doc[groupBy] || 'Sem valor';
+            let groupValue;
+
+            // Tratamento especial para agrupamento por data
+            if (groupBy === 'submission') {
+                groupValue = getYearMonth(doc[groupBy]);
+            } else {
+                groupValue = doc[groupBy] || 'Sem valor';
+            }
+
             if (!groups[groupValue]) {
                 groups[groupValue] = [];
-                expandedState[groupValue] = true;  // Por padrão, expandir todos os grupos
+                expandedState[groupValue] = true;
             }
             groups[groupValue].push(doc);
         });
 
-        setGroupedDocuments(groups);
+        // Ordenar grupos de data cronologicamente
+        if (groupBy === 'submission') {
+            const orderedGroups = {};
+            Object.keys(groups)
+                .sort((a, b) => b.localeCompare(a))
+                .forEach(key => {
+                    orderedGroups[key] = groups[key];
+                });
+            setGroupedDocuments(orderedGroups);
+        } else {
+            setGroupedDocuments(groups);
+        }
+
         setExpandedGroups(expandedState);
     }, [documents, searchTerm, groupBy]);
 
@@ -81,7 +141,10 @@ const RamalGenericList = ({
         try {
             await onComplete(pk);
             notifySuccess("Pedido atualizado com sucesso");
-            fetchDocuments();
+
+            // Remover da lista local
+            setDocuments(prevDocs => prevDocs.filter(doc => doc.pk !== pk));
+
         } catch (error) {
             notifyError("Erro ao atualizar pedido");
         }
@@ -94,20 +157,17 @@ const RamalGenericList = ({
         setPage(0);
     };
 
-    // Funções para lidar com a ordenação
     const handleRequestSort = (property) => {
         const isAsc = orderBy === property && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
     };
 
-    // Função para lidar com a mudança do tipo de agrupamento
     const handleGroupChange = (event) => {
         setGroupBy(event.target.value);
-        setPage(0); // Resetar para a primeira página ao mudar o agrupamento
+        setPage(0);
     };
 
-    // Função para alternar a expansão de um grupo
     const toggleGroupExpand = (groupName) => {
         setExpandedGroups(prev => ({
             ...prev,
@@ -116,26 +176,42 @@ const RamalGenericList = ({
     };
 
     function descendingComparator(a, b, orderBy) {
-        // Verificar se os valores são numéricos para ordenação apropriada
-        if (typeof a[orderBy] === 'number' && typeof b[orderBy] === 'number') {
-            return b[orderBy] - a[orderBy];
+        // Cálculo dinâmico para totais
+        if (orderBy === 'comprimento_total') {
+            const totalA = (parseFloat(a.comprimento_bet || 0) + parseFloat(a.comprimento_gra || 0) + parseFloat(a.comprimento_pav || 0));
+            const totalB = (parseFloat(b.comprimento_bet || 0) + parseFloat(b.comprimento_gra || 0) + parseFloat(b.comprimento_pav || 0));
+            return totalB - totalA;
         }
 
-        // Ordenação para datas (assumindo formato DD/MM/YYYY ou similar)
-        if (orderBy === 'submission' || orderBy === 'when_stop') {
-            const dateA = a[orderBy] ? new Date(a[orderBy].split('/').reverse().join('-')) : new Date(0);
-            const dateB = b[orderBy] ? new Date(b[orderBy].split('/').reverse().join('-')) : new Date(0);
+        if (orderBy === 'area_total') {
+            const totalA = (parseFloat(a.area_bet || 0) + parseFloat(a.area_gra || 0) + parseFloat(a.area_pav || 0));
+            const totalB = (parseFloat(b.area_bet || 0) + parseFloat(b.area_gra || 0) + parseFloat(b.area_pav || 0));
+            return totalB - totalA;
+        }
+
+        // Valores numéricos individuais
+        if (['comprimento_gra', 'area_gra', 'comprimento_bet', 'area_bet', 'comprimento_pav', 'area_pav'].includes(orderBy)) {
+            const valA = parseFloat(a[orderBy] || 0);
+            const valB = parseFloat(b[orderBy] || 0);
+            return valB - valA;
+        }
+
+        // Datas
+        if (orderBy === 'submission') {
+            if (a[orderBy] && a[orderBy].includes(' às ')) {
+                const datePartA = a[orderBy].split(' às ')[0];
+                const datePartB = b[orderBy] ? b[orderBy].split(' às ')[0] : '';
+                return datePartB.localeCompare(datePartA);
+            }
+            const dateA = a[orderBy] ? new Date(a[orderBy]) : new Date(0);
+            const dateB = b[orderBy] ? new Date(b[orderBy]) : new Date(0);
             return dateB - dateA;
         }
 
-        // Ordenação para strings
-        if (b[orderBy] < a[orderBy]) {
-            return -1;
-        }
-        if (b[orderBy] > a[orderBy]) {
-            return 1;
-        }
-        return 0;
+        // Strings
+        const valA = a[orderBy] || '';
+        const valB = b[orderBy] || '';
+        return valB.toString().localeCompare(valA.toString());
     }
 
     function getComparator(order, orderBy) {
@@ -144,20 +220,25 @@ const RamalGenericList = ({
             : (a, b) => -descendingComparator(a, b, orderBy);
     }
 
-    // Filtrar documentos baseado no termo de pesquisa
+    // Filtrar documentos
     const filteredDocuments = documents.filter(doc =>
         Object.values(doc).some(value =>
             value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
         )
     );
 
-    // Ordenar os documentos filtrados
+    // Ordenar documentos
     const sortedDocuments = filteredDocuments.sort(getComparator(order, orderBy));
 
-    // Aplicar paginação quando não há agrupamento
+    // Paginação (quando não há agrupamento)
     const displayedDocuments = !groupBy
         ? sortedDocuments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
         : sortedDocuments;
+
+    // Dados para exportação
+    const getExportData = () => {
+        return prepareRamaisDataForExport(filteredDocuments, exportType);
+    };
 
     if (loading) return (
         <div style={{
@@ -172,30 +253,33 @@ const RamalGenericList = ({
 
     if (error) return <Typography color="error">{error}</Typography>;
 
-    // Opções para agrupamento
+    // Opções de agrupamento
     const groupOptions = [
         { value: '', label: 'Sem agrupamento' },
-        { value: 'ts_entity', label: 'Entidade' },
         { value: 'nut4', label: 'Localidade' },
         { value: 'nut3', label: 'Freguesia' },
-        { value: 'nut2', label: 'Concelho' }
+        { value: 'nut2', label: 'Concelho' },
+        { value: 'submission', label: isConcluded ? 'Data de Conclusão' : 'Data de Submissão' }
     ];
+
+    // Colunas da tabela
+    const getDateColumn = () => 'submission';
+    const getDateLabel = () => isConcluded ? 'Concluído em' : 'Submissão';
 
     return (
         <Paper className="paper-list">
-            <Grid container className="header-container-list" alignItems="center" spacing={2}>
-                <Grid item xs={12} md={4}>
-                    <Typography variant="h4">{title}</Typography>
+            <Grid container className="header-container-list" alignItems="center" spacing={2} style={{ padding: 16 }}>
+                <Grid item style={{ flexGrow: 1 }}>
+                    <Typography variant="h5">{title}</Typography>
                 </Grid>
-                <Grid item xs={12} md={4}>
+
+                <Grid item style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                     <SearchBar onSearch={handleSearch} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                    <FormControl fullWidth variant="outlined" size="small">
+
+                    <FormControl variant="outlined" size="small" style={{ minWidth: 180 }}>
                         <InputLabel id="group-by-label">Agrupar por</InputLabel>
                         <Select
                             labelId="group-by-label"
-                            id="group-by"
                             value={groupBy}
                             onChange={handleGroupChange}
                             label="Agrupar por"
@@ -207,6 +291,14 @@ const RamalGenericList = ({
                             ))}
                         </Select>
                     </FormControl>
+
+                    {showExport && (
+                        <ExportExcelButton
+                            data={getExportData()}
+                            fileName={generateExcelFileName(title.toLowerCase().replace(/\s+/g, '_'))}
+                            buttonProps={{ size: "medium" }}
+                        />
+                    )}
                 </Grid>
             </Grid>
 
@@ -244,29 +336,29 @@ const RamalGenericList = ({
                             </TableCell>
                             <TableCell>
                                 <TableSortLabel
-                                    active={orderBy === 'comprimento_gra'}
-                                    direction={orderBy === 'comprimento_gra' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('comprimento_gra')}
+                                    active={orderBy === 'comprimento_total'}
+                                    direction={orderBy === 'comprimento_total' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('comprimento_total')}
                                 >
                                     Comprimento
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell>
                                 <TableSortLabel
-                                    active={orderBy === 'area_gra'}
-                                    direction={orderBy === 'area_gra' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('area_gra')}
+                                    active={orderBy === 'area_total'}
+                                    direction={orderBy === 'area_total' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('area_total')}
                                 >
                                     Área
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell>
                                 <TableSortLabel
-                                    active={orderBy === (isConcluded ? 'when_stop' : 'submission')}
-                                    direction={orderBy === (isConcluded ? 'when_stop' : 'submission') ? order : 'asc'}
-                                    onClick={() => handleRequestSort(isConcluded ? 'when_stop' : 'submission')}
+                                    active={orderBy === getDateColumn()}
+                                    direction={orderBy === getDateColumn() ? order : 'asc'}
+                                    onClick={() => handleRequestSort(getDateColumn())}
                                 >
-                                    {isConcluded ? "Concluído em" : "Submissão"}
+                                    {getDateLabel()}
                                 </TableSortLabel>
                             </TableCell>
                             {!isConcluded && <TableCell>Ações</TableCell>}
@@ -274,7 +366,7 @@ const RamalGenericList = ({
                     </TableHead>
                     <TableBody>
                         {!groupBy ? (
-                            // Exibição sem agrupamento
+                            // Sem agrupamento
                             displayedDocuments.map((doc) => (
                                 <RamalGenericRow
                                     key={doc.pk}
@@ -284,7 +376,7 @@ const RamalGenericList = ({
                                 />
                             ))
                         ) : (
-                            // Exibição com agrupamento
+                            // Com agrupamento
                             Object.entries(groupedDocuments).map(([groupName, groupDocs]) => (
                                 <React.Fragment key={groupName}>
                                     <TableRow>
@@ -297,7 +389,10 @@ const RamalGenericList = ({
                                                     }
                                                 </IconButton>
                                                 <Typography variant="subtitle1" style={{ fontWeight: 'bold', marginLeft: 8 }}>
-                                                    {groupOptions.find(opt => opt.value === groupBy)?.label}: {groupName}
+                                                    {groupBy === 'submission'
+                                                        ? `${groupOptions.find(opt => opt.value === groupBy)?.label}: ${formatYearMonth(groupName)}`
+                                                        : `${groupOptions.find(opt => opt.value === groupBy)?.label}: ${groupName}`
+                                                    }
                                                 </Typography>
                                                 <Chip
                                                     label={`${groupDocs.length} ${groupDocs.length === 1 ? 'item' : 'itens'}`}
