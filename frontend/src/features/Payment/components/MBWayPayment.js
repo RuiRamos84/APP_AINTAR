@@ -12,11 +12,19 @@ import { PaymentContext } from '../context/PaymentContext';
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
 const MBWayPayment = ({ onSuccess, transactionId }) => {
-    const { state, payWithMBWay } = useContext(PaymentContext);
+    const { state, payWithMBWay, checkStatus } = useContext(PaymentContext);
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
 
     const [localStep, setLocalStep] = useState(0);
+
+    // Polling automático
+    useEffect(() => {
+        if (localStep === 2 && state.transactionId) {
+            const interval = setInterval(() => checkStatus(), 30000);
+            return () => clearInterval(interval);
+        }
+    }, [localStep, state.transactionId, checkStatus]);
 
     useEffect(() => {
         if (state.transactionId && localStep === 1) {
@@ -194,7 +202,6 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                 </Fade>
             )}
 
-            {/* Step 2: Success */}
             {localStep === 2 && (
                 <Fade in timeout={300}>
                     <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -208,8 +215,19 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                             Confirme no telemóvel {phone}
                         </Typography>
 
+                        {/* Botão verificação manual */}
+                        <Button
+                            variant="outlined"
+                            onClick={() => checkStatus()}
+                            disabled={state.loading}
+                            startIcon={state.loading ? <CircularProgress size={16} /> : null}
+                            sx={{ mt: 2 }}
+                        >
+                            {state.loading ? 'A verificar...' : 'Verificar Status'}
+                        </Button>
+
                         <Alert severity="success" sx={{ mt: 2 }}>
-                            O pagamento será processado automaticamente após confirmação.
+                            Verificação automática a cada 30s
                         </Alert>
                     </Box>
                 </Fade>

@@ -1,286 +1,302 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
-    Box, Typography, Alert, Button, CircularProgress, Chip,
-    Card, CardContent, Avatar, Fade, Zoom
+    Box, Paper, Button, Fade, Slide, Typography, LinearProgress, Alert,
+    useTheme, useMediaQuery
 } from '@mui/material';
-import {
-    CheckCircle, Error, Schedule, Refresh, HourglassEmpty,
-    Cancel, AccessTime
-} from '@mui/icons-material';
-import paymentService from '../services/paymentService';
+import { ArrowBack, ArrowForward } from '@mui/icons-material';
+import { PaymentContext } from '../context/PaymentContext';
+import { getAvailableMethodsForProfile } from '../services/paymentTypes';
+import { useAuth } from '../../../contexts/AuthContext';
 
-const statusConfig = {
-    'SUCCESS': {
-        icon: CheckCircle,
-        color: 'success',
-        label: 'Pagamento Confirmado',
-        bgGradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-        description: 'O seu pagamento foi processado com sucesso'
-    },
-    'PENDING': {
-        icon: Schedule,
-        color: 'warning',
-        label: 'A Processar',
-        bgGradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-        description: 'O pagamento está a ser processado'
-    },
-    'PENDING_VALIDATION': {
-        icon: HourglassEmpty,
-        color: 'info',
-        label: 'Aguarda Validação',
-        bgGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        description: 'O pagamento necessita de validação manual'
-    },
-    'DECLINED': {
-        icon: Error,
-        color: 'error',
-        label: 'Pagamento Rejeitado',
-        bgGradient: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-        description: 'O pagamento não foi aceite'
-    },
-    'EXPIRED': {
-        icon: Cancel,
-        color: 'error',
-        label: 'Pagamento Expirado',
-        bgGradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-        description: 'O prazo para pagamento expirou'
-    }
-};
+// Componentes
+import PaymentMethodSelector from './PaymentMethodSelector';
+import MBWayPayment from './MBWayPayment';
+import MultibancoPayment from './MultibancoPayment';
+import CashPayment from './CashPayment';
+import BankTransferPayment from './BankTransferPayment';
+import MunicipalityPayment from './MunicipalityPayment';
+import PaymentStatus from './PaymentStatus';
 
-const PaymentStatus = ({ transactionId, onComplete }) => {
-    const [status, setStatus] = useState('PENDING');
-    const [loading, setLoading] = useState(false);
-    const [polling, setPolling] = useState(false);
-    const [progress, setProgress] = useState(0);
+const steps = [
+    { label: 'Método', icon: 'payment' },
+    { label: 'Pagamento', icon: 'process' },
+    { label: 'Confirmação', icon: 'check' }
+];
 
-    const checkStatus = async () => {
-        if (!transactionId || transactionId.startsWith('s2f8r')) {
-            console.warn('Transaction ID inválido:', transactionId);
-            return;
+const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const { user } = useAuth();
+    const payment = useContext(PaymentContext);
+    const [step, setStep] = useState(0);
+    const [direction, setDirection] = useState('forward');
+    const [checkoutReady, setCheckoutReady] = useState(false);
+
+    const availableMethods = getAvailableMethodsForProfile(user?.profil);
+
+    useEffect(() => {
+        const initPayment = async () => {
+            payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
+
+            const needsSibsCheckout = availableMethods.includes('MBWAY') ||
+                availableMethods.includes('MULTIBANCO');
+
+            if (needsSibsCheckout) {
+                try {
+                    await payment.createPreventiveCheckout(documentId, amount);
+                    setCheckoutReady(true);
+                } catch (error) {
+                    console.error('Erro checkout:', error);
+                    setCheckoutReady(true);
+                }
+            } else {
+                setCheckoutReady(true);
+            }
+        };
+
+        initPayment();
+    }, [documentId, amount, documentNumber]);
+
+    // Auto-avançar quando método selecionado
+    useEffect(() => {
+        if (payment.state.selectedMethod && step === 0 && checkoutReady) {
+            setDirection('forward');
+            setStep(1);
         }
+    }, [payment.state.selectedMethod, step, checkoutReady]);
 
-        setLoading(true);
-        try {
-            const result = await paymentService.checkStatus(transactionId);
-            setStatus(result.payment_status || 'PENDING');
-        } catch (error) {
-            console.error('Erro verificação:', error);
-            setStatus('PENDING'); // Estado seguro
-        } finally {
-            setLoading(false);
+    useEffect(() => {
+        if (payment.state.status === 'SUCCESS' ||
+            payment.state.status === 'PENDING_VALIDATION' ||
+            payment.state.status === 'REFERENCE_GENERATED') {
+            setDirection('forward');
+            setStep(2);
         }
+    }, [payment.state.status, step]);
+
+    const handleMethodSelect = (method) => {
+        payment.setMethod(method);
     };
 
-    // Polling + progress simulation
-    useEffect(() => {
-        if (status === 'PENDING' && !polling) {
-            setPolling(true);
-
-            // Progress animation
-            const progressInterval = setInterval(() => {
-                setProgress(prev => prev >= 90 ? 90 : prev + 10);
-            }, 1000);
-
-            // Status checking
-            const statusInterval = setInterval(checkStatus, 5000);
-
-            return () => {
-                clearInterval(progressInterval);
-                clearInterval(statusInterval);
-            };
+    const handleBack = () => {
+        setDirection('backward');
+        if (step === 1) {
+            payment.setMethod(null);
         }
-    }, [status, transactionId]);
+        setStep(Math.max(0, step - 1));
+    };
 
-    const config = statusConfig[status] || statusConfig['PENDING'];
-    const StatusIcon = config.icon;
+    const renderPaymentMethod = () => {
+        const props = {
+            onSuccess: () => { },
+            onComplete,
+            userInfo: user,
+            transactionId: payment.state.transactionId
+        };
 
-    const isComplete = ['SUCCESS', 'PENDING_VALIDATION'].includes(status);
-    const isFailed = ['DECLINED', 'EXPIRED'].includes(status);
+        const components = {
+            'MBWAY': MBWayPayment,
+            'MULTIBANCO': MultibancoPayment,
+            'CASH': CashPayment,
+            'BANK_TRANSFER': BankTransferPayment,
+            'MUNICIPALITY': MunicipalityPayment
+        };
+
+        const Component = components[payment.state.selectedMethod];
+        return Component ? <Component {...props} /> : null;
+    };
+
+    const needsSibsCheckout = availableMethods.includes('MBWAY') ||
+        availableMethods.includes('MULTIBANCO');
+
+    const renderStepContent = () => {
+        if (payment.state.error) {
+            return (
+                <Box sx={{ p: 3 }}>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {payment.state.error}
+                    </Alert>
+                    <Button onClick={() => window.location.reload()}>
+                        Tentar novamente
+                    </Button>
+                </Box>
+            );
+        }
+
+        const contents = [
+            <PaymentMethodSelector
+                key="selector"
+                availableMethods={availableMethods}
+                selectedMethod={payment.state.selectedMethod}
+                onSelect={handleMethodSelect}
+                amount={amount}
+                transactionId={payment.state.transactionId}
+                checkoutLoading={
+                    payment.state.loading ||
+                    (needsSibsCheckout && !payment.state.transactionId)
+                }
+            />,
+            renderPaymentMethod(),
+            payment.state.selectedMethod === 'MULTIBANCO' && payment.state.status === 'REFERENCE_GENERATED'
+                ? renderPaymentMethod()
+                : <PaymentStatus key="status" transactionId={payment.state.transactionId} onComplete={onComplete} />
+        ];
+
+        return (
+            <Slide
+                key={step}
+                direction={direction === 'forward' ? 'left' : 'right'}
+                in={true}
+                timeout={300}
+            >
+                <Box sx={{ minHeight: isMobile ? 300 : 400 }}>
+                    {contents[step]}
+                </Box>
+            </Slide>
+        );
+    };
 
     return (
-        <Box sx={{ p: 4, textAlign: 'center' }}>
-            {/* Status Animation */}
-            <Zoom in={true} timeout={500}>
-                <Card
+        <Paper
+            elevation={0}
+            sx={{
+                overflow: 'hidden',
+                background: 'transparent',
+                position: 'relative'
+            }}
+        >
+            {/* Progress Bar */}
+            {payment.state.loading && (
+                <LinearProgress
                     sx={{
-                        background: config.bgGradient,
-                        color: 'white',
-                        mb: 3,
-                        overflow: 'hidden',
-                        position: 'relative'
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 1
                     }}
-                >
-                    <CardContent sx={{ p: 4 }}>
-                        {/* Animated Icon */}
-                        <Avatar
-                            sx={{
-                                width: 80,
-                                height: 80,
-                                bgcolor: 'rgba(255,255,255,0.2)',
-                                mx: 'auto',
-                                mb: 2,
-                                animation: status === 'PENDING' ? 'pulse 2s infinite' : 'none',
-                                '@keyframes pulse': {
-                                    '0%': { transform: 'scale(1)' },
-                                    '50%': { transform: 'scale(1.1)' },
-                                    '100%': { transform: 'scale(1)' }
-                                }
-                            }}
-                        >
-                            <StatusIcon sx={{ fontSize: 40 }} />
-                        </Avatar>
+                />
+            )}
 
-                        {/* Status Title */}
-                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
-                            {config.label}
-                        </Typography>
-
-                        {/* Description */}
-                        <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
-                            {config.description}
-                        </Typography>
-
-                        {/* Transaction ID */}
-                        {transactionId && (
-                            <Chip
-                                label={`ID: ${transactionId.slice(-8)}`}
+            {/* Stepper */}
+            <Box
+                sx={{
+                    background: 'rgba(255,255,255,0.9)',
+                    p: { xs: 2, md: 3 },
+                    borderBottom: 1,
+                    borderColor: 'divider'
+                }}
+            >
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: isMobile ? 2 : 0
+                }}>
+                    {steps.map((stepItem, index) => (
+                        <Box key={index} sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            flex: isMobile ? 'none' : 1,
+                            justifyContent: isMobile ? 'center' : 'flex-start'
+                        }}>
+                            <Box
                                 sx={{
-                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    width: { xs: 32, md: 40 },
+                                    height: { xs: 32, md: 40 },
+                                    borderRadius: '50%',
+                                    backgroundColor: index <= step ? 'primary.main' : 'grey.300',
                                     color: 'white',
-                                    fontFamily: 'monospace'
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 600,
+                                    fontSize: { xs: 14, md: 16 },
+                                    transition: 'all 0.3s ease'
                                 }}
-                            />
-                        )}
-                    </CardContent>
-
-                    {/* Progress Bar for Pending */}
-                    {status === 'PENDING' && (
-                        <Box
-                            sx={{
-                                position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                width: `${progress}%`,
-                                height: 4,
-                                bgcolor: 'rgba(255,255,255,0.5)',
-                                transition: 'width 1s ease'
-                            }}
-                        />
-                    )}
-                </Card>
-            </Zoom>
-
-            {/* Status Messages */}
-            <Fade in={true} timeout={800}>
-                <Box sx={{ mb: 3 }}>
-                    {status === 'PENDING' && (
-                        <Alert
-                            severity="info"
-                            icon={<AccessTime />}
-                            sx={{ mb: 2, textAlign: 'left' }}
-                        >
-                            <Typography variant="body2">
-                                A verificar o estado do pagamento...
-                                <br />
-                                <small>Este processo pode demorar alguns minutos</small>
+                            >
+                                {index + 1}
+                            </Box>
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    ml: 1,
+                                    opacity: index <= step ? 1 : 0.7,
+                                    fontWeight: index === step ? 600 : 400,
+                                    color: 'text.primary',
+                                    fontSize: { xs: 12, md: 14 }
+                                }}
+                            >
+                                {stepItem.label}
                             </Typography>
-                        </Alert>
-                    )}
-
-                    {status === 'PENDING_VALIDATION' && (
-                        <Alert
-                            severity="info"
-                            sx={{ mb: 2, textAlign: 'left' }}
-                        >
-                            <Typography variant="body2">
-                                Pagamento registado com sucesso.
-                                <br />
-                                <small>Aguarda validação manual pela nossa equipa</small>
-                            </Typography>
-                        </Alert>
-                    )}
-
-                    {status === 'SUCCESS' && (
-                        <Alert
-                            severity="success"
-                            sx={{ mb: 2, textAlign: 'left' }}
-                        >
-                            <Typography variant="body2">
-                                Pagamento confirmado!
-                                <br />
-                                <small>Receberá um email de confirmação em breve</small>
-                            </Typography>
-                        </Alert>
-                    )}
-
-                    {isFailed && (
-                        <Alert
-                            severity="error"
-                            sx={{ mb: 2, textAlign: 'left' }}
-                        >
-                            <Typography variant="body2">
-                                {status === 'EXPIRED'
-                                    ? 'O prazo para pagamento expirou. Pode tentar novamente.'
-                                    : 'O pagamento não foi aceite. Verifique os dados e tente novamente.'
-                                }
-                            </Typography>
-                        </Alert>
-                    )}
+                            {!isMobile && index < steps.length - 1 && (
+                                <Box
+                                    sx={{
+                                        width: 60,
+                                        height: 2,
+                                        backgroundColor: index < step ? 'primary.main' : 'grey.300',
+                                        mx: 2,
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                />
+                            )}
+                        </Box>
+                    ))}
                 </Box>
-            </Fade>
-
-            {/* Actions */}
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                {!isComplete && !isFailed && (
-                    <Button
-                        variant="outlined"
-                        onClick={checkStatus}
-                        disabled={loading}
-                        startIcon={loading ? <CircularProgress size={20} /> : <Refresh />}
-                    >
-                        {loading ? 'A verificar...' : 'Actualizar'}
-                    </Button>
-                )}
-
-                {isComplete && (
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={() => onComplete?.({ status, transactionId })}
-                        sx={{
-                            px: 4,
-                            py: 1.5,
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        }}
-                    >
-                        Continuar
-                    </Button>
-                )}
-
-                {isFailed && (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => window.location.reload()}
-                        sx={{ px: 4, py: 1.5 }}
-                    >
-                        Tentar Novamente
-                    </Button>
-                )}
             </Box>
 
-            {/* Additional Info */}
-            {status === 'PENDING' && (
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block', mt: 2 }}
-                >
-                    Não feche esta janela durante o processamento
-                </Typography>
+            {/* Content */}
+            <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                {renderStepContent()}
+            </Box>
+
+            {/* Navigation */}
+            {(step > 0 || step === 2) && (
+                <Fade in={true}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            p: { xs: 2, md: 3 },
+                            backgroundColor: 'background.paper',
+                            borderTop: 1,
+                            borderColor: 'divider'
+                        }}
+                    >
+                        {step > 0 && step < 2 && (
+                            <Button
+                                startIcon={<ArrowBack />}
+                                onClick={handleBack}
+                                disabled={payment.state.loading}
+                                sx={{ minWidth: { xs: 100, md: 120 } }}
+                                size={isMobile ? "small" : "medium"}
+                            >
+                                Voltar
+                            </Button>
+                        )}
+
+                        <Box sx={{ flexGrow: 1 }} />
+
+                        {step === 2 && (
+                            <Button
+                                variant="contained"
+                                endIcon={<ArrowForward />}
+                                onClick={() => onComplete?.(payment.state)}
+                                sx={{
+                                    minWidth: { xs: 100, md: 120 },
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                }}
+                                size={isMobile ? "small" : "medium"}
+                            >
+                                Concluir
+                            </Button>
+                        )}
+                    </Box>
+                </Fade>
             )}
-        </Box>
+        </Paper>
     );
 };
 
-export default PaymentStatus;
+export default PaymentModule;

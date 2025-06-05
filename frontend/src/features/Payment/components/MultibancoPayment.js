@@ -12,7 +12,7 @@ import {
 } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
 
-const MultibancoPayment = ({ onSuccess, transactionId }) => {
+const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
     const { state, payWithMultibanco } = useContext(PaymentContext);
     const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
@@ -28,7 +28,6 @@ const MultibancoPayment = ({ onSuccess, transactionId }) => {
             const result = await payWithMultibanco();
             setReferenceData(result);
             setStep('reference');
-            // NÃO chamar onSuccess - só mostrar referência
         } catch (err) {
             console.error(err);
         }
@@ -287,6 +286,20 @@ const MultibancoPayment = ({ onSuccess, transactionId }) => {
                         Código QR disponível na versão mobile
                     </Typography>
                 </Paper>
+                <Box sx={{ textAlign: 'center', mt: 3 }}>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        onClick={() => onComplete?.({ status: 'REFERENCE_GENERATED', transactionId })}
+                        sx={{
+                            px: 4,
+                            py: 1.5,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        }}
+                    >
+                        Continuar
+                    </Button>
+                </Box>
             </Box>
         </Fade>
     );

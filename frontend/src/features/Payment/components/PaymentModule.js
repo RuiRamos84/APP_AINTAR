@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
-    Box, Paper, Stepper, Step, StepLabel, Button,
-    Fade, Slide, Typography, LinearProgress, Alert
+    Box, Button, Fade, Slide, Typography, Alert,
+    useTheme, useMediaQuery
 } from '@mui/material';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
@@ -17,36 +17,49 @@ import BankTransferPayment from './BankTransferPayment';
 import MunicipalityPayment from './MunicipalityPayment';
 import PaymentStatus from './PaymentStatus';
 
-const steps = [
-    { label: 'Método', icon: 'payment' },
-    { label: 'Pagamento', icon: 'process' },
-    { label: 'Confirmação', icon: 'check' }
-];
-
-const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
+const PaymentModule = ({
+    documentId,
+    amount,
+    documentNumber,
+    step,
+    onStepChange,
+    onLoadingChange,
+    onComplete
+}) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { user } = useAuth();
     const payment = useContext(PaymentContext);
-    const [step, setStep] = useState(0);
     const [direction, setDirection] = useState('forward');
     const [checkoutReady, setCheckoutReady] = useState(false);
 
     const availableMethods = getAvailableMethodsForProfile(user?.profil);
 
-    // Configurar pedido + checkout preventivo
+    // Sync loading state
+    useEffect(() => {
+        onLoadingChange?.(payment.state.loading);
+    }, [payment.state.loading, onLoadingChange]);
+
     useEffect(() => {
         const initPayment = async () => {
-            try {
-                payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
+            onLoadingChange?.(true);
+            payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
 
-                // Checkout preventivo só para SIBS
-                if (availableMethods.includes('MBWAY') || availableMethods.includes('MULTIBANCO')) {
+            const needsSibsCheckout = availableMethods.includes('MBWAY') ||
+                availableMethods.includes('MULTIBANCO');
+
+            if (needsSibsCheckout) {
+                try {
                     await payment.createPreventiveCheckout(documentId, amount);
+                    setCheckoutReady(true);
+                } catch (error) {
+                    console.error('Erro checkout:', error);
+                    setCheckoutReady(true);
                 }
-
+            } else {
                 setCheckoutReady(true);
-            } catch (error) {
-                console.error('Erro no checkout:', error);
             }
+            onLoadingChange?.(false);
         };
 
         initPayment();
@@ -56,17 +69,19 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
     useEffect(() => {
         if (payment.state.selectedMethod && step === 0 && checkoutReady) {
             setDirection('forward');
-            setStep(1);
+            onStepChange?.(1);
         }
-    }, [payment.state.selectedMethod, step, checkoutReady]);
+    }, [payment.state.selectedMethod, step, checkoutReady, onStepChange]);
 
-    // Auto-avançar quando pagamento concluído
+    // Auto-avançar para confirmação
     useEffect(() => {
-        if (payment.state.transactionId && step === 1) {
+        if (payment.state.status === 'SUCCESS' ||
+            payment.state.status === 'PENDING_VALIDATION' ||
+            payment.state.status === 'REFERENCE_GENERATED') {
             setDirection('forward');
-            setStep(2);
+            onStepChange?.(2);
         }
-    }, [payment.state.transactionId, step]);
+    }, [payment.state.status, onStepChange]);
 
     const handleMethodSelect = (method) => {
         payment.setMethod(method);
@@ -77,12 +92,13 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
         if (step === 1) {
             payment.setMethod(null);
         }
-        setStep(Math.max(0, step - 1));
+        onStepChange?.(Math.max(0, step - 1));
     };
 
     const renderPaymentMethod = () => {
         const props = {
-            onSuccess: () => { }, // Auto-avança via useEffect
+            onSuccess: () => { },
+            onComplete,
             userInfo: user,
             transactionId: payment.state.transactionId
         };
@@ -99,18 +115,10 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
         return Component ? <Component {...props} /> : null;
     };
 
-    const renderStepContent = () => {
-        if (!checkoutReady && step === 0) {
-            return (
-                <Box sx={{ textAlign: 'center', py: 6 }}>
-                    <Typography variant="h6" gutterBottom>
-                        A preparar checkout...
-                    </Typography>
-                    <LinearProgress sx={{ mt: 2 }} />
-                </Box>
-            );
-        }
+    const needsSibsCheckout = availableMethods.includes('MBWAY') ||
+        availableMethods.includes('MULTIBANCO');
 
+    const renderStepContent = () => {
         if (payment.state.error) {
             return (
                 <Box sx={{ p: 3 }}>
@@ -132,14 +140,15 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                 onSelect={handleMethodSelect}
                 amount={amount}
                 transactionId={payment.state.transactionId}
-                checkoutLoading={payment.state.loading && !payment.state.transactionId}
+                checkoutLoading={
+                    payment.state.loading ||
+                    (needsSibsCheckout && !payment.state.transactionId)
+                }
             />,
             renderPaymentMethod(),
-            <PaymentStatus
-                key="status"
-                transactionId={payment.state.transactionId}
-                onComplete={onComplete}
-            />
+            payment.state.selectedMethod === 'MULTIBANCO' && payment.state.status === 'REFERENCE_GENERATED'
+                ? renderPaymentMethod()
+                : <PaymentStatus key="status" transactionId={payment.state.transactionId} onComplete={onComplete} />
         ];
 
         return (
@@ -149,7 +158,7 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                 in={true}
                 timeout={300}
             >
-                <Box sx={{ minHeight: 400 }}>
+                <Box sx={{ minHeight: isMobile ? 300 : 400, p: { xs: 2, md: 3 } }}>
                     {contents[step]}
                 </Box>
             </Slide>
@@ -157,88 +166,7 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
     };
 
     return (
-        <Paper
-            elevation={3}
-            sx={{
-                overflow: 'hidden',
-                background: 'linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%)',
-                position: 'relative'
-            }}
-        >
-            {/* Progress Bar */}
-            {payment.state.loading && (
-                <LinearProgress
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        zIndex: 1
-                    }}
-                />
-            )}
-
-            {/* Header */}
-            <Box
-                sx={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    p: 3,
-                    textAlign: 'center'
-                }}
-            >
-                <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-                    Pagamento de Documento
-                </Typography>
-
-                {/* Custom Stepper */}
-                <Box sx={{ mt: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        {steps.map((stepItem, index) => (
-                            <Box key={index} sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Box
-                                    sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '50%',
-                                        backgroundColor: index <= step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
-                                        color: index <= step ? 'primary.main' : 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontWeight: 600,
-                                        transition: 'all 0.3s ease'
-                                    }}
-                                >
-                                    {index + 1}
-                                </Box>
-                                <Typography
-                                    variant="caption"
-                                    sx={{
-                                        ml: 1,
-                                        opacity: index <= step ? 1 : 0.7,
-                                        fontWeight: index === step ? 600 : 400
-                                    }}
-                                >
-                                    {stepItem.label}
-                                </Typography>
-                                {index < steps.length - 1 && (
-                                    <Box
-                                        sx={{
-                                            width: 80,
-                                            height: 2,
-                                            backgroundColor: index < step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
-                                            mx: 2,
-                                            transition: 'all 0.3s ease'
-                                        }}
-                                    />
-                                )}
-                            </Box>
-                        ))}
-                    </Box>
-                </Box>
-            </Box>
-
+        <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: 'transparent' }}>
             {/* Content */}
             <Box sx={{ position: 'relative', overflow: 'hidden' }}>
                 {renderStepContent()}
@@ -251,7 +179,7 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                         sx={{
                             display: 'flex',
                             justifyContent: 'space-between',
-                            p: 3,
+                            p: { xs: 2, md: 3 },
                             backgroundColor: 'background.paper',
                             borderTop: 1,
                             borderColor: 'divider'
@@ -262,7 +190,8 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                                 startIcon={<ArrowBack />}
                                 onClick={handleBack}
                                 disabled={payment.state.loading}
-                                sx={{ minWidth: 120 }}
+                                sx={{ minWidth: { xs: 100, md: 120 } }}
+                                size={isMobile ? "small" : "medium"}
                             >
                                 Voltar
                             </Button>
@@ -276,9 +205,10 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                                 endIcon={<ArrowForward />}
                                 onClick={() => onComplete?.(payment.state)}
                                 sx={{
-                                    minWidth: 120,
+                                    minWidth: { xs: 100, md: 120 },
                                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                 }}
+                                size={isMobile ? "small" : "medium"}
                             >
                                 Concluir
                             </Button>
@@ -286,7 +216,7 @@ const PaymentModule = ({ documentId, amount, onComplete, documentNumber }) => {
                     </Box>
                 </Fade>
             )}
-        </Paper>
+        </Box>
     );
 };
 

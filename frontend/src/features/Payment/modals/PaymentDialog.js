@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Dialog, DialogContent, IconButton, Box, Typography,
-    Slide, Paper, useTheme, useMediaQuery
+    Slide, useTheme, useMediaQuery, LinearProgress
 } from '@mui/material';
 import { Close, Receipt } from '@mui/icons-material';
 import { PaymentProvider } from '../context/PaymentContext';
@@ -11,10 +11,19 @@ const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
 });
 
+const steps = [
+    { label: 'Método', icon: 'payment' },
+    { label: 'Pagamento', icon: 'process' },
+    { label: 'Confirmação', icon: 'check' }
+];
+
 const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) => {
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
-    console.log('documentId:', documentId, documentNumber); // Verificar se o ID do documento é passado corretamente
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+    const [step, setStep] = useState(0);
+    const [loading, setLoading] = useState(false);
 
     const handleComplete = (result) => {
         onClose(true, result);
@@ -40,12 +49,25 @@ const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) =>
                 }
             }}
         >
+            {/* Progress Bar */}
+            {loading && (
+                <LinearProgress
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 10000
+                    }}
+                />
+            )}
+
             {/* Header */}
             <Box
                 sx={{
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     color: 'white',
-                    p: 3,
+                    p: { xs: 1.5, md: 2 },
                     position: 'relative'
                 }}
             >
@@ -53,72 +75,101 @@ const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) =>
                 <IconButton
                     sx={{
                         position: 'absolute',
-                        right: 16,
-                        top: 16,
+                        right: 8,
+                        top: 8,
                         color: 'white',
                         bgcolor: 'rgba(255,255,255,0.1)',
-                        zIndex: 9999, // ADICIONAR
+                        zIndex: 9999,
+                        size: 'small',
                         '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
                     }}
-                    onClick={(e) => {
-                        console.log('CLICKED'); // Verificar se aparece
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onClose(false);
-                    }}
+                    onClick={handleClose}
                 >
-                    <Close />
+                    <Close fontSize="small" />
                 </IconButton>
 
-                {/* Header Content */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 6 }}>
-                    <Paper
+                {/* Compact Header */}
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    pr: 5,
+                    mb: 2
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Receipt sx={{ fontSize: 24, opacity: 0.9 }} />
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                                Pagamento {documentNumber && `#${documentNumber}`}
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    <Box
                         sx={{
-                            p: 2,
-                            bgcolor: 'rgba(255,255,255,0.15)',
+                            bgcolor: 'rgba(255,255,255,0.2)',
+                            px: 2,
+                            py: 0.5,
                             borderRadius: 2
                         }}
                     >
-                        <Receipt sx={{ fontSize: 32, color: 'white' }} />
-                    </Paper>
-
-                    <Box>
-                        <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
-                            Pagamento de Documento
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            €{Number(amount || 0).toFixed(2)}
                         </Typography>
-
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                                {documentNumber && `Doc: ${documentNumber}`}
-                            </Typography>
-                            <Box
-                                sx={{
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    px: 2,
-                                    py: 0.5,
-                                    borderRadius: 2
-                                }}
-                            >
-                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                    €{Number(amount || 0).toFixed(2)}
-                                </Typography>
-                            </Box>
-                        </Box>
                     </Box>
                 </Box>
 
-                {/* Background Decorations */}
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: 200,
-                        height: 200,
-                        background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
-                        transform: 'translate(50%, -50%)'
-                    }}
-                />
+                {/* Compact Stepper */}
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 3
+                }}>
+                    {steps.map((stepItem, index) => (
+                        <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box
+                                sx={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: '50%',
+                                    backgroundColor: index <= step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
+                                    color: index <= step ? 'primary.main' : 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 600,
+                                    fontSize: 12,
+                                    transition: 'all 0.3s ease'
+                                }}
+                            >
+                                {index + 1}
+                            </Box>
+                            {!isMobile && (
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        opacity: index <= step ? 1 : 0.7,
+                                        fontWeight: index === step ? 600 : 400,
+                                        fontSize: 11
+                                    }}
+                                >
+                                    {stepItem.label}
+                                </Typography>
+                            )}
+                            {index < steps.length - 1 && (
+                                <Box
+                                    sx={{
+                                        width: 30,
+                                        height: 1,
+                                        backgroundColor: index < step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
+                                        mx: 1
+                                    }}
+                                />
+                            )}
+                        </Box>
+                    ))}
+                </Box>
             </Box>
 
             {/* Content */}
@@ -127,6 +178,10 @@ const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) =>
                     <PaymentModule
                         documentId={documentId}
                         amount={Number(amount || 0)}
+                        documentNumber={documentNumber}
+                        step={step}
+                        onStepChange={setStep}
+                        onLoadingChange={setLoading}
                         onComplete={handleComplete}
                     />
                 </PaymentProvider>

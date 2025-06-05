@@ -186,7 +186,7 @@ class PaymentService:
 
             sibs_response = resp.json()
             payment_status = sibs_response.get("paymentStatus", "UNKNOWN")
-
+            print(f"SIBS Response: {sibs_response}")  # ADICIONAR LOG
             status_map = {
                 "Success": PaymentStatus.PENDING_VALIDATION,
                 "Pending": PaymentStatus.PENDING,
@@ -391,6 +391,7 @@ class PaymentService:
 
                 sibs_data = resp.json()
                 payment_status = sibs_data.get("paymentStatus")
+                print(f"SIBS Response: {sibs_data}")  # ADICIONAR LOG
 
                 # Mapear e actualizar se mudou
                 status_map = {

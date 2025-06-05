@@ -109,6 +109,7 @@ class PaymentService {
 
     async checkStatus(transactionId) {
         const response = await this.api.get(`/payments/status/${transactionId}`);
+        console.log('Frontend recebeu:', response.data); // ✅ 
         return response.data;
     }
 

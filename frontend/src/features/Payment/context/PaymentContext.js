@@ -15,6 +15,12 @@ const initialState = {
 
 const paymentReducer = (state, action) => {
     switch (action.type) {
+        case 'SET_CHECKOUT_ERROR':
+            return {
+                ...state,
+                loading: false,
+                error: action.error,
+            };
         case 'SET_ORDER':
             return {
                 ...state,
@@ -26,9 +32,10 @@ const paymentReducer = (state, action) => {
             return {
                 ...state,
                 checkoutData: action.checkoutData,
-                transactionId: action.checkoutData?.transaction_id,
-                loading: false
-            };
+                transactionId: action.checkoutData?.transaction_id, // ✅ CORRECTO
+                loading: false,
+                error: null // ✅ ADICIONAR
+                };
         case 'SET_METHOD':
             return { ...state, selectedMethod: action.method, error: null };
         case 'SET_LOADING':
@@ -41,6 +48,13 @@ const paymentReducer = (state, action) => {
                 transactionId: action.transactionId || state.transactionId,
                 status: action.status || 'SUCCESS',
                 loading: false
+            };
+        case 'SET_STATUS':
+            return {
+                ...state,
+                status: action.status,        // ✅ CORRECTO?
+                loading: false,
+                error: null
             };
         case 'RESET':
             return initialState;
@@ -98,14 +112,16 @@ export const PaymentProvider = ({ children }) => {
 
     // Multibanco - usa transaction_id existente
     const payWithMultibanco = useCallback(async () => {
-        if (!state.transactionId) {
-            throw new Error('Checkout não criado');
-        }
-
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
             const result = await paymentService.processMultibanco(state.transactionId);
-            dispatch({ type: 'SET_LOADING', loading: false });
+
+            // ✅ Status específico para referência gerada
+            dispatch({
+                type: 'SET_SUCCESS',
+                status: 'REFERENCE_GENERATED'
+            });
+
             return result;
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
@@ -132,20 +148,21 @@ export const PaymentProvider = ({ children }) => {
         }
     }, [state.documentId, state.amount]);
 
-    const checkStatus = useCallback(async () => {
-        if (!state.transactionId) return;
+    const checkStatus = async () => {
         try {
+            dispatch({ type: 'SET_LOADING', loading: true });
+
             const result = await paymentService.checkStatus(state.transactionId);
-            if (result.payment_status) {
-                dispatch({
-                    type: 'SET_SUCCESS',
-                    status: result.payment_status
-                });
-            }
+            console.log('Context recebeu:', result); // ✅ DEBUG
+
+            dispatch({
+                type: 'SET_STATUS',
+                status: result.payment_status  // ✅ verificar campo exacto
+            });
         } catch (error) {
-            console.error('Erro verificação:', error);
+            dispatch({ type: 'SET_ERROR', error: error.message });
         }
-    }, [state.transactionId]);
+    };
 
     const value = {
         state,

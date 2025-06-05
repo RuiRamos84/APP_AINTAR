@@ -8,6 +8,8 @@ import { PaymentContext } from '../context/PaymentContext';
 
 const BankTransferPayment = ({ onSuccess, userInfo }) => {
     const { state, payManual } = useContext(PaymentContext);
+    console.log('BankTransferPayment state:', state); // DEBUG
+    
     const [formData, setFormData] = useState({
         accountHolder: '',
         iban: '',
