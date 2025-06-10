@@ -7,7 +7,9 @@ const initialState = {
     regnumber: null,
     selectedMethod: null,
     transactionId: null,
-    checkoutData: null, // NOVO
+    sibsTransactionId: null,  // NOVO: ID da SIBS
+    internalTransactionId: null,  // NOVO: ID interno
+    checkoutData: null,
     loading: false,
     error: null,
     status: 'PENDING'
@@ -15,27 +17,32 @@ const initialState = {
 
 const paymentReducer = (state, action) => {
     switch (action.type) {
-        case 'SET_CHECKOUT_ERROR':
-            return {
-                ...state,
-                loading: false,
-                error: action.error,
-            };
         case 'SET_ORDER':
             return {
                 ...state,
                 documentId: action.documentId,
                 amount: action.amount,
-                regnumber: action.regnumber
+                regnumber: action.regnumber,
+                initialized: true  // Marcar como inicializado
             };
-        case 'SET_CHECKOUT':
+        case 'SET_SIBS_CHECKOUT':
             return {
                 ...state,
                 checkoutData: action.checkoutData,
-                transactionId: action.checkoutData?.transaction_id, // ✅ CORRECTO
+                sibsTransactionId: action.checkoutData?.transaction_id,
+                transactionId: action.checkoutData?.transaction_id, // compatibilidade
                 loading: false,
-                error: null // ✅ ADICIONAR
-                };
+                error: null
+            };
+        case 'SET_INTERNAL_CHECKOUT':
+            return {
+                ...state,
+                internalTransactionId: action.transactionId,
+                // Só definir transactionId se não houver SIBS
+                transactionId: state.sibsTransactionId || action.transactionId,
+                loading: false,
+                error: null
+            };
         case 'SET_METHOD':
             return { ...state, selectedMethod: action.method, error: null };
         case 'SET_LOADING':
@@ -52,7 +59,7 @@ const paymentReducer = (state, action) => {
         case 'SET_STATUS':
             return {
                 ...state,
-                status: action.status,        // ✅ CORRECTO?
+                status: action.status,
                 loading: false,
                 error: null
             };
@@ -68,12 +75,17 @@ export const PaymentContext = createContext();
 export const PaymentProvider = ({ children }) => {
     const [state, dispatch] = useReducer(paymentReducer, initialState);
 
-    // Checkout preventivo
-    const createPreventiveCheckout = useCallback(async (documentId, amount) => {
+    // Determinar métodos que precisam SIBS
+    const needsSibsCheckout = (methods) => {
+        return Array.isArray(methods) && methods.some(method => ['MBWAY', 'MULTIBANCO'].includes(method));
+    };
+
+    // Checkout SIBS (apenas para MBWay e Multibanco)
+    const createSibsCheckout = useCallback(async (documentId, amount) => {
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
             const checkoutData = await paymentService.createPreventiveCheckout(documentId, amount);
-            dispatch({ type: 'SET_CHECKOUT', checkoutData });
+            dispatch({ type: 'SET_SIBS_CHECKOUT', checkoutData });
             return checkoutData;
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
@@ -81,24 +93,49 @@ export const PaymentProvider = ({ children }) => {
         }
     }, []);
 
+    // Checkout interno (para métodos manuais)
+    const createInternalCheckout = useCallback((documentId, amount) => {
+        const internalTransactionId = `INTERNAL-${documentId}-${Date.now()}`;
+        dispatch({
+            type: 'SET_INTERNAL_CHECKOUT',
+            transactionId: internalTransactionId
+        });
+        return internalTransactionId;
+    }, []);
+
     const setOrderDetails = useCallback((documentId, amount, availableMethods, regnumber) => {
+        // Evitar re-inicialização
+        if (state.initialized && state.documentId === documentId) {
+            return;
+        }
+
         dispatch({
             type: 'SET_ORDER',
             documentId,
             amount: Number(amount || 0),
             regnumber
         });
-    }, []);
 
-    // MBWay - usa transaction_id existente
+        const hasSibs = needsSibsCheckout(availableMethods);
+
+        // Interno sempre primeiro
+        createInternalCheckout(documentId, amount);
+
+        // SIBS só se necessário
+        if (hasSibs) {
+            createSibsCheckout(documentId, amount).catch(console.error);
+        }
+    }, [state.initialized, state.documentId, createSibsCheckout, createInternalCheckout]);
+
+    // MBWay - requer checkout SIBS
     const payWithMBWay = useCallback(async (phoneNumber) => {
-        if (!state.transactionId) {
-            throw new Error('Checkout não criado');
+        if (!state.sibsTransactionId) {
+            throw new Error('Checkout SIBS não disponível para MBWay');
         }
 
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
-            const result = await paymentService.processMBWay(state.transactionId, phoneNumber);
+            const result = await paymentService.processMBWay(state.sibsTransactionId, phoneNumber);
             dispatch({
                 type: 'SET_SUCCESS',
                 status: result.payment_status || 'PENDING'
@@ -108,34 +145,40 @@ export const PaymentProvider = ({ children }) => {
             dispatch({ type: 'SET_ERROR', error: error.message });
             throw error;
         }
-    }, [state.transactionId]);
+    }, [state.sibsTransactionId]);
 
-    // Multibanco - usa transaction_id existente
+    // Multibanco - requer checkout SIBS
     const payWithMultibanco = useCallback(async () => {
+        if (!state.sibsTransactionId) {
+            throw new Error('Checkout SIBS não disponível para Multibanco');
+        }
+
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
-            const result = await paymentService.processMultibanco(state.transactionId);
-
-            // ✅ Status específico para referência gerada
+            const result = await paymentService.processMultibanco(state.sibsTransactionId);
             dispatch({
                 type: 'SET_SUCCESS',
                 status: 'REFERENCE_GENERATED'
             });
-
             return result;
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
             throw error;
         }
-    }, [state.transactionId]);
+    }, [state.sibsTransactionId]);
 
-    // Manual - directo
+    // Métodos manuais - usam checkout interno
     const payManual = useCallback(async (paymentType, details) => {
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
             const result = await paymentService.processManual(
-                state.documentId, state.amount, paymentType, details
+                state.documentId,
+                state.amount,
+                paymentType,
+                details
             );
+
+            // Atualizar com transaction_id retornado pelo backend
             dispatch({
                 type: 'SET_SUCCESS',
                 transactionId: result.transaction_id,
@@ -148,32 +191,43 @@ export const PaymentProvider = ({ children }) => {
         }
     }, [state.documentId, state.amount]);
 
-    const checkStatus = async () => {
+    const checkStatus = useCallback(async () => {
+        if (!state.transactionId) return;
+
         try {
             dispatch({ type: 'SET_LOADING', loading: true });
-
             const result = await paymentService.checkStatus(state.transactionId);
-            console.log('Context recebeu:', result); // ✅ DEBUG
-
             dispatch({
                 type: 'SET_STATUS',
-                status: result.payment_status  // ✅ verificar campo exacto
+                status: result.payment_status
             });
         } catch (error) {
             dispatch({ type: 'SET_ERROR', error: error.message });
         }
+    }, [state.transactionId]);
+
+    const resetPayment = () => {
+        dispatch({ type: 'RESET' });
     };
 
     const value = {
         state,
-        createPreventiveCheckout,
         setOrderDetails,
         setMethod: (method) => dispatch({ type: 'SET_METHOD', method }),
         payWithMBWay,
         payWithMultibanco,
         payManual,
         checkStatus,
-        reset: () => dispatch({ type: 'RESET' })
+        resetPayment,
+        reset: resetPayment,
+        // Expor utilitários
+        isMethodReady: (method) => {
+            if (!method) return false;
+            const needsSibs = ['MBWAY', 'MULTIBANCO'].includes(method);
+            return needsSibs ? !!state.sibsTransactionId : !!state.internalTransactionId;
+        },
+        getSibsReady: () => !!state.sibsTransactionId,
+        getInternalReady: () => !!state.internalTransactionId
     };
 
     return (

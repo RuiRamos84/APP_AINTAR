@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
     Box, Button, Typography, Alert, CircularProgress, Paper, Grid,
     Chip, IconButton, Avatar, Fade, Card, CardContent
@@ -13,10 +13,23 @@ import {
 import { PaymentContext } from '../context/PaymentContext';
 
 const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
-    const { state, payWithMultibanco } = useContext(PaymentContext);
+    const { state, payWithMultibanco, resetPayment } = useContext(PaymentContext);
     const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
     const [step, setStep] = useState('generate');
+    
+
+    // Auto-detectar se já tem referência no state
+    useEffect(() => {
+        if (state.reference && state.entity) {
+            setReferenceData({
+                reference: state.reference,
+                entity: state.entity,
+                amount: state.amount
+            });
+            setStep('reference');
+        }
+    }, [state.reference, state.entity, state.amount]);
 
     const handleGenerate = async () => {
         if (!transactionId) {
@@ -26,10 +39,19 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
 
         try {
             const result = await payWithMultibanco();
-            setReferenceData(result);
+
+            // Fallback: se result não tem dados, usar do state
+            const refData = result || {
+                reference: state.reference,
+                entity: state.entity || '11249',
+                amount: state.amount
+            };
+
+            console.log('🏦 Dados Multibanco:', refData);
+            setReferenceData(refData);
             setStep('reference');
         } catch (err) {
-            console.error(err);
+            console.error('❌ Erro Multibanco:', err);
         }
     };
 
@@ -37,6 +59,17 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
         navigator.clipboard.writeText(text);
         setCopied({ ...copied, [field]: true });
         setTimeout(() => setCopied({ ...copied, [field]: false }), 2000);
+    };
+
+    const isExpired = () => {
+        if (!referenceData?.expire_date) return false;
+        return new Date() > new Date(referenceData.expire_date);
+    };
+
+    const handleGenerateNew = async () => {
+        setReferenceData(null);
+        setStep('generate');
+        resetPayment();
     };
 
     const renderGenerate = () => (
@@ -79,39 +112,6 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                     </Typography>
                 </Paper>
 
-                <Grid container spacing={2} sx={{ mb: 4 }}>
-                    <Grid item xs={4}>
-                        <Card sx={{ bgcolor: 'info.light', color: 'white', textAlign: 'center' }}>
-                            <CardContent sx={{ p: 2 }}>
-                                <Schedule sx={{ mb: 1 }} />
-                                <Typography variant="caption" display="block">
-                                    Válido 48h
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={4}>
-                        <Card sx={{ bgcolor: 'success.light', color: 'white', textAlign: 'center' }}>
-                            <CardContent sx={{ p: 2 }}>
-                                <BankIcon sx={{ mb: 1 }} />
-                                <Typography variant="caption" display="block">
-                                    Todos os bancos
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={4}>
-                        <Card sx={{ bgcolor: 'warning.light', color: 'white', textAlign: 'center' }}>
-                            <CardContent sx={{ p: 2 }}>
-                                <Security sx={{ mb: 1 }} />
-                                <Typography variant="caption" display="block">
-                                    100% seguro
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
-
                 <Button
                     variant="contained"
                     size="large"
@@ -122,23 +122,11 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                         px: 4,
                         py: 1.5,
                         fontSize: '1.1rem',
-                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                        '&:hover': {
-                            background: 'linear-gradient(135deg, #e081ff 0%, #ff4081 100%)'
-                        }
+                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
                     }}
                 >
                     {state.loading ? 'A gerar...' : 'Gerar Referência'}
                 </Button>
-
-                <Alert severity="info" sx={{ mt: 3, textAlign: 'left' }}>
-                    <Typography variant="body2">
-                        <strong>Como funciona:</strong><br />
-                        1. Clique em "Gerar Referência"<br />
-                        2. Use os dados no Multibanco ou homebanking<br />
-                        3. O pagamento é confirmado automaticamente
-                    </Typography>
-                </Alert>
             </Box>
         </Fade>
     );
@@ -161,9 +149,6 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                     <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
                         Referência Gerada!
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Use estes dados para pagar no Multibanco
-                    </Typography>
                 </Box>
 
                 <Paper
@@ -173,23 +158,9 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                         mb: 3,
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         color: 'white',
-                        borderRadius: 4,
-                        position: 'relative',
-                        overflow: 'hidden'
+                        borderRadius: 4
                     }}
                 >
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            top: 0,
-                            right: 0,
-                            width: 200,
-                            height: 200,
-                            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
-                            transform: 'translate(50%, -50%)'
-                        }}
-                    />
-
                     <Grid container spacing={3}>
                         <Grid item xs={12} sm={4}>
                             <Typography variant="subtitle2" sx={{ opacity: 0.8, mb: 1 }}>
@@ -204,11 +175,11 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                                         letterSpacing: 2
                                     }}
                                 >
-                                    {referenceData?.entity || '11249'}
+                                    {referenceData?.entity || state.entity || '11249'}
                                 </Typography>
                                 <IconButton
                                     size="small"
-                                    onClick={() => copyToClipboard(referenceData?.entity, 'entity')}
+                                    onClick={() => copyToClipboard(referenceData?.entity || state.entity, 'entity')}
                                     sx={{ color: 'white' }}
                                 >
                                     <CopyIcon fontSize="small" />
@@ -236,11 +207,11 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                                         letterSpacing: 2
                                     }}
                                 >
-                                    {referenceData?.reference || 'A carregar...'}
+                                    {referenceData?.reference || state.reference || 'A carregar...'}
                                 </Typography>
                                 <IconButton
                                     size="small"
-                                    onClick={() => copyToClipboard(referenceData?.reference, 'ref')}
+                                    onClick={() => copyToClipboard(referenceData?.reference || state.reference, 'ref')}
                                     sx={{ color: 'white' }}
                                 >
                                     <CopyIcon fontSize="small" />
@@ -263,11 +234,6 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                         <Typography variant="h3" sx={{ fontWeight: 600 }}>
                             €{Number(state.amount || 0).toFixed(2)}
                         </Typography>
-                        {referenceData?.expire_date && (
-                            <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1 }}>
-                                Válida até: {new Date(referenceData.expire_date).toLocaleDateString('pt-PT')}
-                            </Typography>
-                        )}
                     </Box>
                 </Paper>
 
@@ -280,12 +246,6 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                     </Typography>
                 </Alert>
 
-                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.50' }}>
-                    <QrCode sx={{ fontSize: 40, color: 'grey.600', mb: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
-                        Código QR disponível na versão mobile
-                    </Typography>
-                </Paper>
                 <Box sx={{ textAlign: 'center', mt: 3 }}>
                     <Button
                         variant="contained"
@@ -301,6 +261,19 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                     </Button>
                 </Box>
             </Box>
+                {isExpired() && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Referência expirada. Gere uma nova.
+                    </Alert>
+                )}
+
+                <Button
+                    variant="outlined"
+                    onClick={handleGenerateNew}
+                    sx={{ mt: 2 }}
+                >
+                    {isExpired() ? 'Gerar Nova Referência' : 'Alterar Método'}
+                </Button>
         </Fade>
     );
 

@@ -17,7 +17,7 @@ const steps = [
     { label: 'Confirmação', icon: 'check' }
 ];
 
-const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) => {
+const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber, paymentStatus }) => {
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -183,6 +183,7 @@ const PaymentDialog = ({ open, onClose, documentId, amount, documentNumber }) =>
                         onStepChange={setStep}
                         onLoadingChange={setLoading}
                         onComplete={handleComplete}
+                        paymentStatus={paymentStatus}
                     />
                 </PaymentProvider>
             </DialogContent>

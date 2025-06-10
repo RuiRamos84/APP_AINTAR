@@ -531,10 +531,18 @@ const SingleRequestTab = ({ areaId, entity, requestType, title }) => {
     };
 
     const handleSubmit = async () => {
-        if (!formData.pnmemo) {
+        // Validações no início
+        if (!entity) {
+            notifyError("Selecione uma ETAR primeiro");
+            return;
+        }
+
+        if (!formData.pnmemo || formData.pnmemo.trim() === "") {
             notifyError("Descrição é obrigatória");
             return;
         }
+        console.log("Entity PK:", entity.pk); // Debug
+        console.log("Form data:", formData); // Debug
 
         setLoading(true);
         try {
@@ -594,6 +602,8 @@ const SingleRequestTab = ({ areaId, entity, requestType, title }) => {
                             rows={4}
                             fullWidth
                             required
+                            error={!formData.pnmemo} // Adicionar indicação visual
+                            helperText={!formData.pnmemo ? "Campo obrigatório" : ""}
                         />
                     </Grid>
 
@@ -602,7 +612,7 @@ const SingleRequestTab = ({ areaId, entity, requestType, title }) => {
                             variant="contained"
                             color="primary"
                             onClick={handleSubmit}
-                            disabled={!formData.pnmemo || loading}
+                            disabled={!formData.pnmemo || !formData.pnmemo.trim() || loading}
                             startIcon={loading ? <CircularProgress size={20} /> : null}
                         >
                             {loading ? "A processar..." : "Criar Solicitação"}
@@ -621,6 +631,7 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
     const [selectedItems, setSelectedItems] = useState([]);
     const [commonMemo, setCommonMemo] = useState("");
     const [loading, setLoading] = useState(false);
+    const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
     // Obter entidades filtradas pelo associado selecionado
     const getFilteredEntities = () => {
@@ -683,14 +694,23 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
     };
 
     const areAllItemsValid = () => {
-        return selectedItems.length > 0;
+        return selectedItems.length > 0 &&
+            selectedItems.every(item => item.memo && item.memo.trim() !== "");
     };
 
     const handleSubmit = async () => {
+        setHasAttemptedSubmit(true); // Activar validação visual
+
         if (!selectedAssociate) {
             notifyError("Selecione um associado");
             return;
         }
+
+        if (!areAllItemsValid()) {
+            notifyError("Preencha a descrição para todas as instalações selecionadas");
+            return;
+        }
+        
 
         // if (!areAllItemsValid()) {
         //     notifyError("Preencha a descrição para todas as instalações selecionadas");
@@ -976,7 +996,9 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
                                         size="small"
                                         variant="outlined"
                                         multiline
-                                            
+                                        required
+                                        error={hasAttemptedSubmit && (!item.memo || item.memo.trim() === "")}
+                                        helperText={hasAttemptedSubmit && (!item.memo || item.memo.trim() === "") ? "Campo obrigatório" : ""}
                                     />
                                 </Grid>
                             </Grid>

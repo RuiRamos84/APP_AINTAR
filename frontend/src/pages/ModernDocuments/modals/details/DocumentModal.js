@@ -165,6 +165,21 @@ const DocumentModal = ({
         }
     }, [document?.pk]);
 
+    // Polling durante pagamento
+    useEffect(() => {
+        let pollInterval;
+
+        if (paymentDialogOpen) {
+            pollInterval = setInterval(() => {
+                fetchInvoiceAmount();
+            }, 3000);
+        }
+
+        return () => {
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    }, [paymentDialogOpen]);
+
     // Funções de busca de dados
     const fetchSteps = async () => {
         setLoadingSteps(true);
@@ -205,7 +220,16 @@ const DocumentModal = ({
 
         try {
             const result = await paymentService.getInvoiceAmount(document.pk);
-            setInvoiceAmount(result.success ? result : null);
+            const newInvoiceAmount = result.success ? result : null;
+
+            // Comparar com estado anterior para forçar re-render
+            setInvoiceAmount(prev => {
+                if (JSON.stringify(prev) !== JSON.stringify(newInvoiceAmount)) {
+                    console.log('💰 Invoice actualizada:', newInvoiceAmount);
+                    return newInvoiceAmount;
+                }
+                return prev;
+            });
         } catch (error) {
             console.error('Erro fatura:', error);
             setInvoiceAmount(null);
@@ -280,6 +304,9 @@ const DocumentModal = ({
 
     // Handlers
     const handleTabChange = (event, newValue) => {
+        if (newValue === 4) { // Tab pagamentos
+            fetchInvoiceAmount();
+        }
         setTabValue(newValue);
     };
 
@@ -836,12 +863,18 @@ const DocumentModal = ({
                         setPaymentDialogOpen(false);
                         if (success) {
                             showGlobalNotification('Pagamento processado!', 'success');
+                            // REFRESH COMPLETO DOS DADOS
+                            fetchInvoiceAmount();
                             refreshData();
+
+                            // Forçar re-render das tabs
+                            setTabValue(4); // Tab pagamentos
                         }
                     }}
                     documentId={paymentData?.documentId}
                     amount={paymentData?.amount}
-            />
+                    paymentStatus={invoiceAmount?.invoice_data?.payment_status}
+                />
             )}
         </>
     );

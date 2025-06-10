@@ -1,15 +1,14 @@
 import React, { useState, useContext } from 'react';
 import {
     Box, Button, TextField, Typography, Alert, CircularProgress,
-    Paper, InputAdornment
+    Paper, InputAdornment, Grid
 } from '@mui/material';
 import { AccountBalance as BankIcon } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
 
 const BankTransferPayment = ({ onSuccess, userInfo }) => {
     const { state, payManual } = useContext(PaymentContext);
-    console.log('BankTransferPayment state:', state); // DEBUG
-    
+
     const [formData, setFormData] = useState({
         accountHolder: '',
         iban: '',
@@ -45,31 +44,78 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
 
         setError('');
         try {
-            const result = await payManual('BANK_TRANSFER', formData);
+            console.log('🏦 Processando transferência bancária:', {
+                amount: state.amount,
+                formData
+            });
+
+            // Criar estrutura de dados detalhada
+            const transferDetails = {
+                type: 'BANK_TRANSFER',
+                accountHolder: formData.accountHolder.trim(),
+                iban: formData.iban.replace(/\s/g, ''),
+                transferDate: formData.transferDate,
+                transferReference: formData.transferReference.trim(),
+                notes: formData.notes.trim(),
+                amount: state.amount,
+                submitted_at: new Date().toISOString()
+            };
+
+            // Criar descrição legível para reference_info
+            const referenceInfo = `Transferência bancária de ${formData.accountHolder} (IBAN: ${formData.iban}) realizada em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''}`;
+
+            const result = await payManual('BANK_TRANSFER', referenceInfo);
+
+            console.log('✅ Transferência registada:', result);
             onSuccess?.(result);
         } catch (err) {
+            console.error('❌ Erro transferência:', err);
             setError(err.message);
         }
     };
 
     return (
         <Box sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-                Transferência Bancária
-            </Typography>
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <BankIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+                <Typography variant="h6" gutterBottom>
+                    Transferência Bancária
+                </Typography>
+                <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
+                    €{Number(state.amount || 0).toFixed(2)}
+                </Typography>
+            </Box>
 
             {/* Dados para transferência */}
-            <Paper sx={{ p: 2, mb: 3, bgcolor: 'info.light' }}>
-                <Typography variant="subtitle2" gutterBottom>
-                    <strong>Dados para transferência:</strong>
+            <Paper sx={{ p: 2, mb: 3, bgcolor: 'info.light', color: 'white' }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                    🏛️ Dados para transferência:
                 </Typography>
-                <Typography variant="body2">IBAN: PT50 0033 0000 4570 8378 2190 5</Typography>
-                <Typography variant="body2">Titular: AINTAR</Typography>
-                <Typography variant="body2">Valor: €{Number(state.amount || 0).toFixed(2)}</Typography>
-                <Typography variant="body2">Referência: {state.documentId}</Typography>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                    <Grid item xs={12} sm={6}>
+                        <Typography variant="body2">
+                            <strong>IBAN:</strong> PT50 0033 0000 4570 8378 2190 5
+                        </Typography>
+                        <Typography variant="body2">
+                            <strong>Titular:</strong> AINTAR
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Typography variant="body2">
+                            <strong>Valor:</strong> €{Number(state.amount || 0).toFixed(2)}
+                        </Typography>
+                        <Typography variant="body2">
+                            <strong>Referência:</strong> {state.documentId}
+                        </Typography>
+                    </Grid>
+                </Grid>
             </Paper>
 
-            {/* Formulário */}
+            {/* Formulário de confirmação */}
+            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                📝 Confirmação da transferência realizada:
+            </Typography>
+
             <TextField
                 fullWidth
                 required
@@ -80,6 +126,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                     startAdornment: <InputAdornment position="start"><BankIcon /></InputAdornment>
                 }}
                 sx={{ mb: 2 }}
+                helperText="Nome do titular da conta que fez a transferência"
             />
 
             <TextField
@@ -90,6 +137,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 onChange={handleChange('iban')}
                 placeholder="PT50 0000 0000 0000 0000 0000 0"
                 sx={{ mb: 2 }}
+                helperText="IBAN da conta que fez a transferência"
             />
 
             <TextField
@@ -109,6 +157,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 value={formData.transferReference}
                 onChange={handleChange('transferReference')}
                 sx={{ mb: 2 }}
+                helperText="Referência ou número da operação (se disponível)"
             />
 
             <TextField
@@ -119,6 +168,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 value={formData.notes}
                 onChange={handleChange('notes')}
                 sx={{ mb: 2 }}
+                helperText="Informações adicionais que possam ajudar na validação"
             />
 
             {error && (
@@ -133,12 +183,23 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 onClick={handlePay}
                 disabled={state.loading}
                 startIcon={state.loading ? <CircularProgress size={20} /> : <BankIcon />}
+                sx={{
+                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    '&:hover': {
+                        background: 'linear-gradient(135deg, #3f9cfe 0%, #00e2fe 100%)'
+                    }
+                }}
             >
                 {state.loading ? 'A registar...' : 'Confirmar Transferência'}
             </Button>
 
             <Alert severity="info" sx={{ mt: 2 }}>
-                Necessita validação posterior.
+                <Typography variant="body2">
+                    <strong>Nota importante:</strong><br />
+                    • Este registo confirma que a transferência já foi realizada<br />
+                    • Será necessária validação posterior para aprovação<br />
+                    • Certifique-se de que os dados estão corretos
+                </Typography>
             </Alert>
         </Box>
     );

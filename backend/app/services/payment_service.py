@@ -313,8 +313,8 @@ class PaymentService:
             logger.error(f"Erro process_multibanco_from_checkout: {e}")
             return {"success": False, "error": str(e)}
 
-    def process_manual_direct(self, document_id, amount, payment_type, payment_details, current_user):
-        """Pagamento manual directo (sem checkout SIBS)"""
+    def register_manual_payment_direct(self, document_id, amount, payment_type, reference_info, current_user):
+        """Pagamento manual direto - SEM checkout SIBS"""
         try:
             with db_session_manager(current_user) as db:
                 regnumber = db.execute(text("""
@@ -324,19 +324,23 @@ class PaymentService:
                 if not regnumber:
                     return {"success": False, "error": "Documento não encontrado"}
 
+            # Gerar transaction_id interno único
             transaction_id = f"MANUAL-{document_id}-{datetime.utcnow():%Y%m%d%H%M%S}"
 
+            # Metadados do pagamento manual
             meta = {
                 "manual_payment": True,
-                "payment_details": payment_details,
+                "payment_details": reference_info,
                 "submitted_by": current_user,
-                "submitted_at": datetime.utcnow().isoformat()
+                "submitted_at": datetime.utcnow().isoformat(),
+                "payment_type": payment_type
             }
 
             with db_session_manager(current_user) as db:
                 new_pk = db.execute(
                     text("SELECT nextval('sq_codes')")).scalar()
 
+                # Inserir diretamente como pagamento manual
                 sibs_result = db.execute(text("""
                     SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
                                 'MANUAL', :amount, 'EUR', :payment_method, 
@@ -355,17 +359,31 @@ class PaymentService:
 
                 sibs_pk = sibs_result.scalar()
 
+                # Atualizar invoice
                 db.execute(text("""
                     UPDATE tb_document_invoice 
                     SET tb_sibs = :sibs_pk 
                     WHERE tb_document = :document_id
                 """), {"sibs_pk": sibs_pk, "document_id": document_id})
 
-            return {"success": True, "transaction_id": transaction_id}
+            logger.info(
+                f"Pagamento manual criado: {transaction_id} para documento {document_id}")
+
+            return {
+                "success": True,
+                "transaction_id": transaction_id,
+                "status": PaymentStatus.PENDING_VALIDATION,
+                "message": "Pagamento registado para validação"
+            }
 
         except Exception as e:
-            logger.error(f"Erro process_manual_direct: {e}")
+            logger.error(f"Erro register_manual_payment_direct: {e}")
             return {"success": False, "error": str(e)}
+
+    # MANTER compatibilidade com método antigo
+    def process_manual_direct(self, document_id, amount, payment_type, payment_details, current_user):
+        """DEPRECATED: Usar register_manual_payment_direct"""
+        return self.register_manual_payment_direct(document_id, amount, payment_type, payment_details, current_user)
 
     def check_payment_status(self, transaction_id, current_user):
         """Verificar estado do pagamento"""
@@ -594,6 +612,21 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro get_payment_history: {e}")
+            raise
+
+    def get_sibs_data(self, order_id, current_user):
+        """Dados completos SIBS"""
+        try:
+            with db_session_manager(current_user) as session:
+                query = text("""
+                    SELECT entity, payment_reference, expiry_date 
+                    FROM vbf_sibs 
+                    WHERE order_id = :order_id
+                """)
+                result = session.execute(query, {"order_id": order_id}).fetchone()
+                return dict(result._mapping) if result else None
+        except Exception as e:
+            logger.error(f"Erro get_sibs_data: {e}")
             raise
 
     def process_webhook(self, webhook_data):

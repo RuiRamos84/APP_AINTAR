@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
     Box, Button, Fade, Slide, Typography, Alert,
-    useTheme, useMediaQuery
+    useTheme, useMediaQuery, AlertTitle
 } from '@mui/material';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
@@ -24,66 +24,73 @@ const PaymentModule = ({
     step,
     onStepChange,
     onLoadingChange,
-    onComplete
+    onComplete, 
+    paymentStatus
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { user } = useAuth();
     const payment = useContext(PaymentContext);
     const [direction, setDirection] = useState('forward');
-    const [checkoutReady, setCheckoutReady] = useState(false);
+    const [initialized, setInitialized] = useState(false);
 
     const availableMethods = getAvailableMethodsForProfile(user?.profil);
+
+    // Determinar se precisa checkout SIBS
+    const hasSibsMethods = availableMethods.some(method =>
+        ['MBWAY', 'MULTIBANCO'].includes(method)
+    );
 
     // Sync loading state
     useEffect(() => {
         onLoadingChange?.(payment.state.loading);
     }, [payment.state.loading, onLoadingChange]);
 
+    // Inicialização inteligente
     useEffect(() => {
-        const initPayment = async () => {
-            onLoadingChange?.(true);
+        if (!initialized) {
+            console.log('🚀 Inicializando pagamento:', {
+                documentId,
+                amount,
+                availableMethods,
+                hasSibsMethods
+            });
+
             payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
-
-            const needsSibsCheckout = availableMethods.includes('MBWAY') ||
-                availableMethods.includes('MULTIBANCO');
-
-            if (needsSibsCheckout) {
-                try {
-                    await payment.createPreventiveCheckout(documentId, amount);
-                    setCheckoutReady(true);
-                } catch (error) {
-                    console.error('Erro checkout:', error);
-                    setCheckoutReady(true);
-                }
-            } else {
-                setCheckoutReady(true);
-            }
-            onLoadingChange?.(false);
-        };
-
-        initPayment();
-    }, [documentId, amount, documentNumber]);
+            setInitialized(true);
+        }
+    }, [documentId, amount, documentNumber, initialized, availableMethods, hasSibsMethods]);
 
     // Auto-avançar quando método selecionado
     useEffect(() => {
-        if (payment.state.selectedMethod && step === 0 && checkoutReady) {
-            setDirection('forward');
-            onStepChange?.(1);
+        if (payment.state.selectedMethod && step === 0) {
+            const selectedMethod = payment.state.selectedMethod;
+
+            if (isMethodReady(selectedMethod)) {
+                console.log('✅ Avançando para pagamento:', {
+                    method: selectedMethod,
+                    sibsReady: payment.getSibsReady?.(),
+                    internalReady: payment.getInternalReady?.(),
+                    transactionId: payment.state.transactionId
+                });
+
+                setDirection('forward');
+                onStepChange?.(1);
+            }
         }
-    }, [payment.state.selectedMethod, step, checkoutReady, onStepChange]);
+    }, [payment.state.selectedMethod, payment.state.sibsTransactionId, payment.state.internalTransactionId, step, onStepChange]);
 
     // Auto-avançar para confirmação
     useEffect(() => {
         if (payment.state.status === 'SUCCESS' ||
-            payment.state.status === 'PENDING_VALIDATION' ||
-            payment.state.status === 'REFERENCE_GENERATED') {
+            payment.state.status === 'PENDING_VALIDATION') {
             setDirection('forward');
             onStepChange?.(2);
         }
     }, [payment.state.status, onStepChange]);
 
     const handleMethodSelect = (method) => {
+        console.log('🎯 Método selecionado:', method);
         payment.setMethod(method);
     };
 
@@ -115,8 +122,9 @@ const PaymentModule = ({
         return Component ? <Component {...props} /> : null;
     };
 
-    const needsSibsCheckout = availableMethods.includes('MBWAY') ||
-        availableMethods.includes('MULTIBANCO');
+    const isMethodReady = (method) => {
+        return payment.isMethodReady ? payment.isMethodReady(method) : false;
+    };
 
     const renderStepContent = () => {
         if (payment.state.error) {
@@ -139,16 +147,18 @@ const PaymentModule = ({
                 selectedMethod={payment.state.selectedMethod}
                 onSelect={handleMethodSelect}
                 amount={amount}
-                transactionId={payment.state.transactionId}
-                checkoutLoading={
-                    payment.state.loading ||
-                    (needsSibsCheckout && !payment.state.transactionId)
-                }
+                user={user}
+                sibsReady={payment.getSibsReady?.() || false}
+                internalReady={payment.getInternalReady?.() || false}
+                loading={payment.state.loading}
             />,
             renderPaymentMethod(),
             payment.state.selectedMethod === 'MULTIBANCO' && payment.state.status === 'REFERENCE_GENERATED'
                 ? renderPaymentMethod()
-                : <PaymentStatus key="status" transactionId={payment.state.transactionId} onComplete={onComplete} />
+                : <PaymentStatus
+                    transactionId={payment.state.transactionId}
+                    onComplete={onComplete}
+            />
         ];
 
         return (
@@ -165,9 +175,38 @@ const PaymentModule = ({
         );
     };
 
+    // Debug info
+    if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 PaymentModule State:', {
+            step,
+            selectedMethod: payment.state.selectedMethod,
+            sibsReady: payment.getSibsReady?.(),
+            internalReady: payment.getInternalReady?.(),
+            sibsTransactionId: payment.state.sibsTransactionId,
+            internalTransactionId: payment.state.internalTransactionId,
+            transactionId: payment.state.transactionId,
+            status: payment.state.status,
+            loading: payment.state.loading,
+            error: payment.state.error
+        });
+    }
+
+    if (paymentStatus === 'success') {
+        return (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Alert severity="success">
+                    <AlertTitle>Pagamento Concluído</AlertTitle>
+                    Este documento já foi pago.
+                </Alert>
+            </Box>
+        );
+    }
+
     return (
+
         <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: 'transparent' }}>
             {/* Content */}
+            
             <Box sx={{ position: 'relative', overflow: 'hidden' }}>
                 {renderStepContent()}
             </Box>

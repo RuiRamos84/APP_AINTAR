@@ -1,23 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Typography,
-    Box,
-    Stepper,
-    Step,
-    StepLabel,
-    IconButton,
-    CircularProgress
+    Dialog, DialogTitle, DialogContent, DialogActions,
+    Button, Typography, Box, Stepper, Step, StepLabel,
+    IconButton, CircularProgress, Alert
 } from '@mui/material';
 import {
     Close as CloseIcon,
     NavigateNext as NextIcon,
     NavigateBefore as BackIcon,
-    Send as SendIcon
+    Send as SendIcon,
+    Payment as PaymentIcon
 } from '@mui/icons-material';
 
 // Componentes de passos
@@ -26,7 +18,6 @@ import AddressStep from './steps/AddressStep';
 import DetailsStep from './steps/DetailsStep';
 import ParametersStep from './steps/ParametersStep';
 import AttachmentsStep from './steps/AttachmentsStep';
-import PaymentStep from './steps/PaymentStep';
 import ConfirmationStep from './steps/ConfirmationStep';
 
 // Modais relacionados a entidades
@@ -39,20 +30,27 @@ import { useEntityData } from './hooks/useEntityData';
 import { useDocumentParams } from './hooks/useDocumentParams';
 import { useFileHandling } from './hooks/useFileHandling';
 import { useMetaData } from '../../../../contexts/MetaDataContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 // Serviços
 import { createDocument } from '../../../../services/documentService';
-import { notifySuccess, notifyError } from '../../../../components/common/Toaster/ThemedToaster';
+import { notifySuccess, notifyError, notifyInfo } from '../../../../components/common/Toaster/ThemedToaster';
+import paymentService from '../../../../features/Payment/services/paymentService';
+
+// Provider para o módulo de pagamento
+import { PaymentProvider } from '../../../../features/Payment/context/PaymentContext';
+import PaymentModule from '../../../../features/Payment/components/PaymentModule';
 
 /**
  * Modal de criação de documentos com formulário por passos
- * @param {Object} props - Propriedades do componente
- * @param {boolean} props.open - Se o modal está aberto
- * @param {Function} props.onClose - Função de callback para fechar o modal
- * @param {string} props.initialNipc - NIPC inicial (opcional)
  */
 const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const { metaData } = useMetaData();
+    const { user } = useAuth();
+
+    // Estado para controlar o modo de pagamento
+    const [paymentMode, setPaymentMode] = useState(false);
+    const [createdDocumentInfo, setCreatedDocumentInfo] = useState(null);
 
     // Definição dos passos do stepper
     const steps = [
@@ -61,7 +59,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         { label: 'Detalhes', description: 'Tipo de pedido, associado e informações' },
         { label: 'Parâmetros', description: 'Parâmetros adicionais' },
         { label: 'Anexos', description: 'Adicione documentos relacionados ao pedido' },
-        { label: 'Confirmação', description: 'Rever e confirmar os dados do pedido' }
+        { label: 'Confirmação', description: 'Rever e confirmar os dados do pedido' },
+        { label: 'Pagamento', description: 'Efetuar pagamento do pedido' }
     ];
 
     // Estados para diálogos
@@ -104,6 +103,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     useEffect(() => {
         if (open) {
             resetForm();
+            setPaymentMode(false);
+            setCreatedDocumentInfo(null);
 
             if (initialNipc) {
                 setFormData(prev => ({ ...prev, nipc: initialNipc }));
@@ -137,7 +138,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 nut4: entityData.nut4 || "",
             };
 
-            console.log("Sincronizando billingAddress com os dados da entidade:", addressData);
             setBillingAddress(addressData);
 
             if (!isDifferentAddress) {
@@ -162,6 +162,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
     // Voltar ao passo anterior
     const handleBack = () => {
+        if (paymentMode) {
+            // Se estiver no modo pagamento, voltar à visão normal
+            setPaymentMode(false);
+            return;
+        }
+
         setActiveStep(prev => prev - 1);
         // Scroll para o topo da modal
         const modalContent = document.querySelector('.MuiDialogContent-root');
@@ -204,17 +210,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             submitFormData.append(key, value || '');
         });
 
-        // Adicionar informações de pagamento
-        // submitFormData.append('payment_method', paymentMethod || '');
-        // if (paymentMethod && paymentMethod !== 'gratuito') {
-        //     submitFormData.append('payment_amount', paymentInfo.amount || '');
-        //     submitFormData.append('payment_reference', paymentInfo.reference || '');
-        //     submitFormData.append('payment_date', paymentInfo.date || '');
-        //     if (paymentInfo.proof) {
-        //         submitFormData.append('payment_proof', paymentInfo.proof);
-        //     }
-        // }
-
         // Adicionar arquivos e suas descrições
         formData.files.forEach((fileObj, index) => {
             submitFormData.append("files", fileObj.file);
@@ -237,6 +232,33 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         return submitFormData;
     }
 
+    // Função para verificar se o pedido precisa de pagamento e obter os detalhes
+    const checkInvoiceDetails = async (documentId) => {
+        try {
+            // Usar o serviço de pagamento para verificar a fatura
+            const invoiceResult = await paymentService.getInvoiceAmount(documentId);
+            console.log("Resultado da verificação de fatura:", invoiceResult);
+
+            // Verificar se tem valor e formato esperado
+            if (invoiceResult.success &&
+                invoiceResult.invoice_data &&
+                invoiceResult.invoice_data.invoice &&
+                invoiceResult.invoice_data.invoice > 0) {
+
+                return {
+                    hasPayment: true,
+                    amount: invoiceResult.invoice_data.invoice,
+                    data: invoiceResult.invoice_data
+                };
+            }
+
+            return { hasPayment: false };
+        } catch (error) {
+            console.error("Erro ao verificar detalhes da fatura:", error);
+            return { hasPayment: false, error };
+        }
+    };
+
     // Submeter formulário
     const handleSubmit = async () => {
         if (!validateStep()) {
@@ -249,14 +271,116 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         try {
             const submitFormData = prepareFormData();
             const response = await createDocument(submitFormData);
+            console.log("Resposta da criação do documento:", response);
 
             if (response && response.regnumber) {
-                // Modificar para redirecionar para a página de pagamento após criar o documento
                 notifySuccess(`Pedido com o número: ${response.regnumber}, criado com sucesso!`);
-                resetForm();
 
-                // Redirecionar para a página de pagamento
-                onClose(true, response.regnumber, true); // Adicionar terceiro parâmetro indicando redirecionamento para pagamento
+                // Extrair informações importantes
+                let documentId = response.pk || response.id || response.tb_document || response.order_id;
+                const regnumber = response.regnumber;
+
+                console.log("Documento criado - ID:", documentId, "Regnumber:", regnumber);
+
+                // Se não temos ID, mas temos o número do documento, podemos usar a API que usa regnumber
+                if (!documentId && regnumber) {
+                    try {
+                        // No Payments API, muitas vezes é possível usar o regnumber diretamente
+                        const invoiceResult = await paymentService.getInvoiceByRegnumber(regnumber);
+                        console.log("Resultado da verificação de fatura por regnumber:", invoiceResult);
+
+                        if (invoiceResult.success &&
+                            invoiceResult.invoice_data &&
+                            invoiceResult.invoice_data.invoice &&
+                            invoiceResult.invoice_data.invoice > 0) {
+
+                            // Guardar informações do documento criado, usando order_id como ID se disponível
+                            documentId = invoiceResult.invoice_data.order_id || response.order_id || regnumber;
+
+                            setCreatedDocumentInfo({
+                                pk: documentId,
+                                regnumber: regnumber,
+                                amount: invoiceResult.invoice_data.invoice,
+                                entity: entityData?.name || "Cliente",
+                                invoice: invoiceResult.invoice_data
+                            });
+
+                            // Ativar modo de pagamento
+                            setPaymentMode(true);
+                            setActiveStep(6); // Ir para o último passo (pagamento)
+                            return;
+                        }
+                    } catch (invoiceError) {
+                        console.error("Erro ao verificar fatura por regnumber:", invoiceError);
+                    }
+                }
+
+                // Se temos ID, verificamos normalmente
+                if (documentId) {
+                    try {
+                        // Usar o paymentService como é feito no DocumentModal
+                        const invoiceResult = await paymentService.getInvoiceAmount(documentId);
+                        console.log("Resultado da verificação de fatura por ID:", invoiceResult);
+
+                        if (invoiceResult.success &&
+                            invoiceResult.invoice_data &&
+                            invoiceResult.invoice_data.invoice &&
+                            invoiceResult.invoice_data.invoice > 0) {
+
+                            // Guardar informações do documento criado
+                            setCreatedDocumentInfo({
+                                pk: documentId,
+                                regnumber: regnumber,
+                                amount: invoiceResult.invoice_data.invoice,
+                                entity: entityData?.name || "Cliente",
+                                invoice: invoiceResult.invoice_data
+                            });
+
+                            // Ativar modo de pagamento
+                            setPaymentMode(true);
+                            setActiveStep(6); // Ir para o último passo (pagamento)
+                            return;
+                        }
+                    } catch (invoiceError) {
+                        console.error("Erro ao verificar fatura por ID:", invoiceError);
+                    }
+                }
+
+                // Se não tiver ID ou não conseguir verificar pagamento, tente uma última abordagem
+                try {
+                    // Verificar diretamente pela API de pagamentos usando o order_id da resposta
+                    if (response.order_id) {
+                        const invoiceResult = await paymentService.getInvoiceAmount(response.order_id);
+                        console.log("Resultado da verificação de fatura por order_id:", invoiceResult);
+
+                        if (invoiceResult.success &&
+                            invoiceResult.invoice_data &&
+                            invoiceResult.invoice_data.invoice &&
+                            invoiceResult.invoice_data.invoice > 0) {
+
+                            // Guardar informações do documento criado
+                            setCreatedDocumentInfo({
+                                pk: response.order_id,
+                                regnumber: regnumber,
+                                amount: invoiceResult.invoice_data.invoice,
+                                entity: entityData?.name || "Cliente",
+                                invoice: invoiceResult.invoice_data
+                            });
+
+                            // Ativar modo de pagamento
+                            setPaymentMode(true);
+                            setActiveStep(6); // Ir para o último passo (pagamento)
+                            return;
+                        }
+                    }
+                } catch (finalError) {
+                    console.error("Erro na tentativa final de verificação:", finalError);
+                }
+
+                // Se chegou aqui, não precisa de pagamento ou não conseguimos verificar
+                // Fecha o modal normalmente
+                resetForm();
+                onClose(true, regnumber, false);
             } else {
                 throw new Error(response.error || "Erro desconhecido");
             }
@@ -273,8 +397,24 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         onClose(success, regnumber, redirectToPayment);
     }
 
+    // Handler para quando o pagamento é concluído
+    const handlePaymentComplete = (paymentResult) => {
+        console.log("Pagamento concluído:", paymentResult);
+        notifySuccess(`Pagamento processado com sucesso!`);
+
+        // Fechar o modal e indicar sucesso total
+        resetForm();
+        onClose(true, createdDocumentInfo.regnumber, false);
+    };
+
     // Handler para fechar o modal
     const handleCloseRequest = () => {
+        // Se estiver no modo pagamento, confirmar se realmente quer sair
+        if (paymentMode) {
+            setConfirmClose(true);
+            return;
+        }
+
         // Verificar se há dados para confirmar fechamento
         const hasData = formData.nipc ||
             formData.tt_type ||
@@ -299,8 +439,41 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         onClose(false);
     };
 
+    // Opção para pagar mais tarde
+    const handlePayLater = () => {
+        notifySuccess("Pode efetuar o pagamento mais tarde no detalhe do documento.");
+        onClose(true, createdDocumentInfo.regnumber, false);
+    };
+
     // Renderizar o conteúdo atual do passo
     const renderStepContent = () => {
+        // Se estiver em modo de pagamento, mostrar o módulo de pagamento
+        if (paymentMode && createdDocumentInfo) {
+            return (
+                <Box sx={{ py: 2 }}>
+                    <Alert
+                        severity="info"
+                        sx={{ mb: 3 }}
+                        icon={<PaymentIcon />}
+                    >
+                        Pedido <strong>#{createdDocumentInfo.regnumber}</strong> criado com sucesso.
+                        Finalize o processo realizando o pagamento ou clique em "Pagar mais tarde" para concluir depois.
+                    </Alert>
+
+                    <PaymentProvider>
+                        <PaymentModule
+                            orderId={createdDocumentInfo.regnumber}
+                            amount={createdDocumentInfo.amount}
+                            onComplete={handlePaymentComplete}
+                            onCancel={() => {/* Opcionalmente tratar cancelamento */ }}
+                            userInfo={user ? { ...user } : null}
+                        />
+                    </PaymentProvider>
+                </Box>
+            );
+        }
+
+        // Renderização normal dos passos
         switch (activeStep) {
             case 0: // Identificação
                 return (
@@ -377,20 +550,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                     />
                 );
 
-            // case 5: // Pagamentos
-            //     return (
-            //         <PaymentStep
-            //             paymentMethod={paymentMethod}
-            //             handlePaymentMethodChange={handlePaymentMethodChange}
-            //             paymentInfo={paymentInfo}
-            //             handlePaymentChange={handlePaymentChange}
-            //             handlePaymentProofUpload={handlePaymentProofUpload}
-            //             errors={errors}
-            //             loading={loading}
-            //             lastDocument={lastDocument}
-            //         />
-            //     );
-
             case 5: // Confirmação
                 return (
                     <ConfirmationStep
@@ -414,6 +573,17 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     };
 
+    // Determinar o título do modal baseado no estado atual
+    const getModalTitle = () => {
+        if (paymentMode) {
+            return `Pagamento do Pedido #${createdDocumentInfo?.regnumber || ''}`;
+        } else if (activeStep === 5) {
+            return 'Confirmar Pedido';
+        } else {
+            return 'Novo Pedido';
+        }
+    };
+
     return (
         <>
             <Dialog
@@ -433,7 +603,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 <DialogTitle>
                     <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Typography variant="h6">
-                            {activeStep === 6 ? 'Confirmar Pedido' : 'Novo Pedido'}
+                            {getModalTitle()}
                         </Typography>
                         <IconButton
                             onClick={handleCloseRequest}
@@ -445,41 +615,43 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                     </Box>
                 </DialogTitle>
 
-                <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: 'divider' }}>
-                    <Stepper
-                        activeStep={activeStep}
-                        alternativeLabel
-                        sx={{
-                            display: { xs: 'none', sm: 'flex' }
-                        }}
-                    >
-                        {steps.map((step) => (
-                            <Step key={step.label}>
-                                <StepLabel>{step.label}</StepLabel>
-                            </Step>
-                        ))}
-                    </Stepper>
+                {!paymentMode && (
+                    <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+                        <Stepper
+                            activeStep={activeStep}
+                            alternativeLabel
+                            sx={{
+                                display: { xs: 'none', sm: 'flex' }
+                            }}
+                        >
+                            {steps.slice(0, 6).map((step) => (
+                                <Step key={step.label}>
+                                    <StepLabel>{step.label}</StepLabel>
+                                </Step>
+                            ))}
+                        </Stepper>
 
-                    {/* Stepper móvel simplificado */}
-                    <Box
-                        sx={{
-                            display: { xs: 'flex', sm: 'none' },
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            mb: 1
-                        }}
-                    >
-                        <Typography variant="body2" color="text.secondary">
-                            Passo {activeStep + 1} de {steps.length}
-                        </Typography>
-                        <Typography variant="body2" fontWeight="medium">
-                            {steps[activeStep].label}
-                        </Typography>
+                        {/* Stepper móvel simplificado */}
+                        <Box
+                            sx={{
+                                display: { xs: 'flex', sm: 'none' },
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 1
+                            }}
+                        >
+                            <Typography variant="body2" color="text.secondary">
+                                Passo {activeStep + 1} de {steps.length - 1}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                                {steps[activeStep].label}
+                            </Typography>
+                        </Box>
                     </Box>
-                </Box>
+                )}
 
                 <DialogContent dividers sx={{ py: 3, flexGrow: 1 }}>
-                    {loading && activeStep === 6 ? (
+                    {loading && activeStep === 5 && !paymentMode ? (
                         <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100%">
                             <CircularProgress />
                             <Typography variant="body1" sx={{ mt: 2 }}>
@@ -488,9 +660,11 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         </Box>
                     ) : (
                         <>
-                            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                                {steps[activeStep].description}
-                            </Typography>
+                            {!paymentMode && (
+                                <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                                    {steps[activeStep].description}
+                                </Typography>
+                            )}
 
                             <Box mt={2}>
                                 {renderStepContent()}
@@ -500,24 +674,34 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 </DialogContent>
 
                 <DialogActions sx={{ px: 3, py: 2 }}>
-                    <Button
-                        disabled={activeStep === 0 || loading}
-                        onClick={handleBack}
-                        startIcon={<BackIcon />}
-                    >
-                        Voltar
-                    </Button>
+                    {!loading && (
+                        <Button
+                            disabled={activeStep === 0 && !paymentMode}
+                            onClick={handleBack}
+                            startIcon={<BackIcon />}
+                        >
+                            Voltar
+                        </Button>
+                    )}
 
                     <Box sx={{ flexGrow: 1 }} />
 
-                    <Button
-                        onClick={handleCloseRequest}
-                        disabled={loading}
-                    >
-                        Cancelar
-                    </Button>
+                    {paymentMode ? (
+                        <Button
+                            onClick={handlePayLater}
+                        >
+                            Pagar mais tarde
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handleCloseRequest}
+                            disabled={loading}
+                        >
+                            Cancelar
+                        </Button>
+                    )}
 
-                    {activeStep === steps.length - 1 ? (
+                    {!paymentMode && activeStep === steps.length - 2 ? (
                         <Button
                             variant="contained"
                             color="primary"
@@ -527,7 +711,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         >
                             Submeter Pedido
                         </Button>
-                    ) : (
+                    ) : !paymentMode && (
                         <Button
                             variant="contained"
                             onClick={handleNext}
@@ -542,10 +726,14 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
             {/* Modal de confirmação para fechar */}
             <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
-                <DialogTitle>Descartar alterações?</DialogTitle>
+                <DialogTitle>
+                    {paymentMode ? 'Cancelar pagamento?' : 'Descartar alterações?'}
+                </DialogTitle>
                 <DialogContent>
                     <Typography>
-                        Existem dados que não foram guardados. Tem certeza que deseja sair sem guardar o pedido?
+                        {paymentMode
+                            ? 'O pagamento ainda não foi concluído. Tem certeza que deseja sair?'
+                            : 'Existem dados que não foram guardados. Tem certeza que deseja sair sem guardar o pedido?'}
                     </Typography>
                 </DialogContent>
                 <DialogActions>
@@ -579,7 +767,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 </DialogActions>
             </Dialog>
 
-            {/* Outros modais relacionados a entidades - Como EntityDetail e CreateEntity */}
+            {/* Outros modais relacionados a entidades */}
             {entityDetailOpen && entityToUpdate && (
                 <EntityDetail
                     entity={entityToUpdate}

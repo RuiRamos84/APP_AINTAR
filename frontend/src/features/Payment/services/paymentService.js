@@ -6,7 +6,7 @@ class PaymentService {
     }
 
     /**
-     * CHECKOUT PREVENTIVO - Criar logo ao entrar no módulo
+     * CHECKOUT PREVENTIVO SIBS - Apenas para MBWay e Multibanco
      */
     async createPreventiveCheckout(documentId, amount) {
         const response = await this.api.post('/payments/checkout', {
@@ -19,7 +19,7 @@ class PaymentService {
             return response.data;
         }
 
-        throw new Error(response.data.error || 'Erro no checkout');
+        throw new Error(response.data.error || 'Erro no checkout SIBS');
     }
 
     async getInvoiceAmount(documentId) {
@@ -32,7 +32,7 @@ class PaymentService {
     }
 
     /**
-     * MBWAY - Usa checkout existente
+     * MBWAY - Usa checkout SIBS existente
      */
     async processMBWay(transactionId, phoneNumber) {
         const response = await this.api.post('/payments/mbway', {
@@ -48,7 +48,7 @@ class PaymentService {
     }
 
     /**
-     * MULTIBANCO - Usa checkout existente
+     * MULTIBANCO - Usa checkout SIBS existente
      */
     async processMultibanco(transactionId) {
         const response = await this.api.post('/payments/multibanco', {
@@ -63,14 +63,50 @@ class PaymentService {
     }
 
     /**
-     * MANUAL - Direto (sem checkout SIBS)
+     * DADOS SIBS - Buscar por order_id
+     */
+    async getSibsData(orderId) {
+        try {
+            const response = await this.api.get(`/payments/sibs/${orderId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Erro dados SIBS:', error);
+            return null;
+        }
+    }
+
+    /**
+     * PAGAMENTOS MANUAIS - Direto, sem checkout SIBS
+     * Para: CASH, BANK_TRANSFER, MUNICIPALITY
      */
     async processManual(documentId, amount, paymentType, details) {
-        const response = await this.api.post('/payments/manual', {
+        console.log('🔧 Processando pagamento manual:', {
+            documentId,
+            amount,
+            paymentType,
+            details
+        });
+
+        // Converter details para reference_info
+        let reference_info;
+        if (typeof details === 'string') {
+            reference_info = details;
+        } else if (details && typeof details === 'object') {
+            if (details.reference_info) {
+                reference_info = details.reference_info;
+            } else {
+                // Serializar objeto complexo
+                reference_info = JSON.stringify(details);
+            }
+        } else {
+            reference_info = 'Pagamento manual registado';
+        }
+
+        const response = await this.api.post('/payments/manual-direct', {
             document_id: documentId,
             amount,
             payment_type: paymentType,
-            payment_details: details
+            reference_info
         });
 
         if (response.data.success) {
@@ -81,38 +117,17 @@ class PaymentService {
     }
 
     /**
-     * FLUXO COMPLETO - Para métodos SIBS
+     * VERIFICAR STATUS - Funciona para todos os tipos
      */
-    async processFullPayment(documentId, amount, method, extraData = {}) {
-        try {
-            // 1. Criar checkout
-            const checkout = await this.createCheckout(documentId, amount, method);
-
-            // 2. Processar pagamento
-            switch (method) {
-                case 'MBWAY':
-                    if (!extraData.phoneNumber) {
-                        throw new Error('Número de telefone obrigatório');
-                    }
-                    return await this.processMBWay(checkout.transaction_id, extraData.phoneNumber);
-
-                case 'MULTIBANCO':
-                    return await this.processMultibanco(checkout.transaction_id);
-
-                default:
-                    throw new Error('Método inválido para checkout SIBS');
-            }
-        } catch (error) {
-            throw new Error(error.message || 'Erro no pagamento');
-        }
-    }
-
     async checkStatus(transactionId) {
         const response = await this.api.get(`/payments/status/${transactionId}`);
-        console.log('Frontend recebeu:', response.data); // ✅ 
+        console.log('Frontend recebeu status:', response.data);
         return response.data;
     }
 
+    /**
+     * ADMINISTRAÇÃO
+     */
     async getPendingPayments() {
         const response = await this.api.get('/payments/pending');
         return response.data;
@@ -138,6 +153,39 @@ class PaymentService {
         } catch (error) {
             throw new Error(error.message || 'Erro histórico');
         }
+    }
+
+    /**
+     * UTILITÁRIOS
+     */
+
+    // Determinar se método precisa checkout SIBS
+    requiresSibsCheckout(paymentMethod) {
+        return ['MBWAY', 'MULTIBANCO'].includes(paymentMethod);
+    }
+
+    // Determinar se método é manual
+    isManualMethod(paymentMethod) {
+        return ['CASH', 'BANK_TRANSFER', 'MUNICIPALITY'].includes(paymentMethod);
+    }
+
+    // Validar dados do método
+    validateMethodData(paymentMethod, data) {
+        switch (paymentMethod) {
+            case 'MBWAY':
+                if (!data.phoneNumber) throw new Error('Número de telefone obrigatório');
+                break;
+            case 'CASH':
+                if (!data.reference_info) throw new Error('Informação de referência obrigatória');
+                break;
+            case 'BANK_TRANSFER':
+                if (!data.accountHolder || !data.iban) throw new Error('Dados bancários obrigatórios');
+                break;
+            case 'MUNICIPALITY':
+                if (!data.municipality || !data.reference) throw new Error('Município e referência obrigatórios');
+                break;
+        }
+        return true;
     }
 }
 

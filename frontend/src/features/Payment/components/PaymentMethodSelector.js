@@ -1,8 +1,11 @@
-import React from 'react';
-import { Box, Card, CardContent, Grid, Typography, Radio, Chip, Avatar, Tooltip } from '@mui/material';
 import {
-    Euro, Payments, LocationCity, Schedule, Lock
+    Euro,
+    LocationCity,
+    Lock,
+    Payments,
+    Schedule
 } from '@mui/icons-material';
+import { Avatar, Box, Card, CardContent, Chip, Grid, Radio, Typography } from '@mui/material';
 
 // Ícones SIBS reais
 const MBWayIcon = ({ sx, ...props }) => (
@@ -14,7 +17,6 @@ const MBWayIcon = ({ sx, ...props }) => (
     />
 );
 
-// Para Multibanco:
 const MultibancoIcon = ({ sx, ...props }) => (
     <img
         src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Multibanco.svg/512px-Multibanco.svg.png?20201121201922"
@@ -82,27 +84,32 @@ const PaymentMethodSelector = ({
     selectedMethod,
     onSelect,
     amount,
-    transactionId,
-    checkoutLoading = false
+    sibsReady = false,
+    internalReady = false,
+    loading = false,
+    user
 }) => {
+
     const isMethodAvailable = (methodId) => {
         const method = methods[methodId];
-        if (!method) return false;
-        if (method.requiresCheckout) {
-            return !!transactionId && !checkoutLoading;
-        }
-        return true;
+        if (!method || loading) return false;
+
+        // SIBS: precisa de sibsReady
+        if (method.requiresCheckout) return sibsReady;
+
+        // Manual: precisa de internalReady
+        return internalReady;
     };
 
-    const handleSelect = (methodId) => {
-        if (isMethodAvailable(methodId)) {
-            onSelect(methodId);
+    const filteredMethods = availableMethods.filter(method => {
+        if (method === 'CASH' && user?.user_id !== 17) {
+            return false;
         }
-    };
+        return true;
+    });
 
     return (
         <Box sx={{ p: 2 }}>
-            {/* Header compacto */}
             <Box sx={{ textAlign: 'center', mb: 3 }}>
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
                     Escolha como pagar
@@ -112,9 +119,8 @@ const PaymentMethodSelector = ({
                 </Typography>
             </Box>
 
-            {/* Grid compacto */}
             <Grid container spacing={2}>
-                {availableMethods.map((methodId) => {
+                {filteredMethods.map((methodId) => {
                     const method = methods[methodId];
                     if (!method) return null;
 
@@ -141,11 +147,10 @@ const PaymentMethodSelector = ({
                                         borderColor: method.color
                                     } : {}
                                 }}
-                                onClick={() => handleSelect(methodId)}
+                                onClick={() => isAvailable && onSelect(methodId)}
                             >
                                 <CardContent sx={{ p: 2 }}>
-                                    {/* Lock para indisponíveis */}
-                                    {!isAvailable && method.requiresCheckout && (
+                                    {!isAvailable && (
                                         <Lock sx={{
                                             position: 'absolute',
                                             top: 8,
@@ -155,7 +160,6 @@ const PaymentMethodSelector = ({
                                         }} />
                                     )}
 
-                                    {/* Header do card */}
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                                         <Avatar
                                             sx={{
@@ -177,17 +181,14 @@ const PaymentMethodSelector = ({
                                         />
                                     </Box>
 
-                                    {/* Nome */}
                                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                                         {method.label}
                                     </Typography>
 
-                                    {/* Descrição */}
                                     <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mb: 1.5 }}>
                                         {method.description}
                                     </Typography>
 
-                                    {/* Features + Time */}
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <Chip
                                             label={method.features[0]}
@@ -207,20 +208,24 @@ const PaymentMethodSelector = ({
                                         </Box>
                                     </Box>
 
-                                    {/* Status SIBS */}
-                                    {method.requiresCheckout && (
-                                        <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                            {checkoutLoading && (
-                                                <Chip label="A preparar..." size="small" color="warning" sx={{ fontSize: '0.65rem', height: 20 }} />
-                                            )}
-                                            {!checkoutLoading && !transactionId && (
-                                                <Chip label="Aguarda" size="small" color="default" sx={{ fontSize: '0.65rem', height: 20 }} />
-                                            )}
-                                            {!checkoutLoading && transactionId && (
-                                                <Chip label="Pronto" size="small" color="success" sx={{ fontSize: '0.65rem', height: 20 }} />
-                                            )}
-                                        </Box>
-                                    )}
+                                    {/* Status indicator */}
+                                    <Box sx={{ mt: 1, textAlign: 'center' }}>
+                                        {method.requiresCheckout ? (
+                                            <Chip
+                                                label={sibsReady ? "Pronto" : "A preparar..."}
+                                                size="small"
+                                                color={sibsReady ? "success" : "warning"}
+                                                sx={{ fontSize: '0.65rem', height: 20 }}
+                                            />
+                                        ) : (
+                                            <Chip
+                                                label={internalReady ? "Disponível" : "A preparar..."}
+                                                size="small"
+                                                color={internalReady ? "success" : "warning"}
+                                                sx={{ fontSize: '0.65rem', height: 20 }}
+                                            />
+                                        )}
+                                    </Box>
                                 </CardContent>
                             </Card>
                         </Grid>
@@ -228,12 +233,10 @@ const PaymentMethodSelector = ({
                 })}
             </Grid>
 
-            {/* Info checkout */}
-            {checkoutLoading && (
-                <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">
-                        A preparar checkout SIBS...
-                    </Typography>
+            {/* Debug info (apenas dev) */}
+            {process.env.NODE_ENV === 'development' && (
+                <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.100', fontSize: '0.7rem' }}>
+                    SIBS: {sibsReady ? '✅' : '❌'} | Internal: {internalReady ? '✅' : '❌'} | Loading: {loading ? '⏳' : '✅'}
                 </Box>
             )}
         </Box>

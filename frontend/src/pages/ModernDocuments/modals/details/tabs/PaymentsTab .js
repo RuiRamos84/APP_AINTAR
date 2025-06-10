@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
     Box,
     Typography,
@@ -34,10 +34,16 @@ import {
     Phone as PhoneIcon,
     Info as InfoIcon
 } from '@mui/icons-material';
+import paymentService from '../../../../../features/Payment/services/paymentService';
+import { PaymentContext } from '../../../../../features/Payment/context/PaymentContext';
+import { useAuth } from '../../../../../contexts/AuthContext';
 
 const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) => {
     const theme = useTheme();
     const [paymentDetails, setPaymentDetails] = useState(null);
+    const { reset, state } = useContext(PaymentContext);
+    const { user } = useAuth();
+    const [error, setError] = useState(null);
 
     // Verificar se existem dados de fatura e pagamento
     const hasInvoiceData = invoiceAmount && invoiceAmount.invoice_data;
@@ -100,6 +106,36 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
             return dateString;
         }
     };
+
+    useEffect(() => {
+        if (hasInvoiceData && invoiceAmount.invoice_data.payment_method === 'MULTIBANCO') {
+            const fetchSibsData = async () => {
+                try {
+                    const orderId = invoiceAmount.invoice_data.order_id;
+                    const sibsData = await paymentService.getSibsData(orderId);
+                    console.log('Dados SIBS obtidos:', sibsData);
+
+                    if (sibsData && sibsData.data) {
+                        setPaymentDetails(sibsData.data);
+                    } else {
+                        // Fallback
+                        setPaymentDetails({
+                            entity: '52791',
+                            reference: invoiceAmount.invoice_data.payment_reference
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erro SIBS:', error);
+                    setPaymentDetails({
+                        entity: '52791',
+                        reference: invoiceAmount.invoice_data.payment_reference
+                    });
+                }
+            };
+
+            fetchSibsData();
+        }
+    }, [hasInvoiceData, invoiceAmount]);
 
     // Extrair dados de pagamento da referência (que pode ser um JSON string)
     useEffect(() => {
@@ -189,22 +225,12 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
 
     // Renderizar o conteúdo de pagamento Multibanco
     const renderMultibancoContent = () => {
-        // Tentar extrair entidade e referência dos dados disponíveis
-        let entity = 'N/D';
-        let reference = 'N/D';
-        console.log('Payment Details:', hasInvoiceData, paymentDetails);
-
-        if (paymentDetails) {
-            // Tentar diferentes propriedades onde os dados podem estar
-            entity = paymentDetails.entity ||
-                paymentDetails.entityId ||
-                (paymentDetails.reference_data && paymentDetails.reference_data.entity) ||
-                'N/D';
-
-            reference = paymentDetails.reference ||
-                (paymentDetails.reference_data && paymentDetails.reference_data.reference) ||
-                'N/D';
-        }
+        const entity = paymentDetails?.entity || '52791';
+        const reference = paymentDetails?.payment_reference ||
+            invoiceAmount.invoice_data.payment_reference ||
+            'N/D';
+        const expiryDate = paymentDetails?.expiry_date ?
+            formatDateTime(paymentDetails.expiry_date) : 'N/D';
 
         return (
             <Box sx={{ mt: 2 }}>
@@ -254,10 +280,10 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                                 <CalendarIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
                                     <Typography variant="caption" color="textSecondary">
-                                        Data Limite
+                                        Válida até
                                     </Typography>
                                     <Typography variant="body1">
-                                        {formatDateTime(invoiceAmount.invoice_data.expiry_date || paymentDetails?.expiry_date) || 'N/D'}
+                                        {expiryDate}
                                     </Typography>
                                 </Box>
                             </Box>
@@ -266,7 +292,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                 </Paper>
             </Box>
         );
-    };
+     };
 
     // Render loading state
     if (loading) {
@@ -311,9 +337,31 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
             {/* Resumo do Pagamento */}
             <Card sx={{ mb: 3 }}>
                 <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                        <MoneyIcon sx={{ mr: 1 }} color="primary" />
-                        Resumo do Pagamento
+                    <Typography variant="h6" gutterBottom sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between' // NOVO
+                    }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <MoneyIcon sx={{ mr: 1 }} color="primary" />
+                            Resumo do Pagamento
+                        </Box>
+
+                        {hasPaymentInfo &&
+                            user?.user_id === 17 &&
+                            paymentStatus.status !== 'success' && ( // NOVA CONDIÇÃO
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<PaymentIcon />}
+                                    onClick={() => {
+                                        reset();
+                                        onPayment?.(document);
+                                    }}
+                                >
+                                    Novo Pagamento
+                                </Button>
+                            )}
                     </Typography>
                     <Divider sx={{ my: 2 }} />
 
@@ -387,6 +435,31 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                     </Grid>
                 </CardContent>
             </Card>
+
+
+            
+            {/* {hasPaymentInfo && (
+                <Box sx={{ mb: 2, textAlign: 'center' }}>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<PaymentIcon />}
+                        onClick={() => {
+                            reset();
+                            onPayment?.(document);
+                        }}
+                        sx={{ mr: 1 }}
+                        >
+                        Novo Pagamento
+                    </Button>
+                    <Button
+                        variant="text"
+                        onClick={() => reset()}
+                        >
+                        Alterar Método
+                    </Button>
+                </Box>
+            )} */}
 
             {/* Detalhes específicos de acordo com o método de pagamento */}
             {hasPaymentInfo && (

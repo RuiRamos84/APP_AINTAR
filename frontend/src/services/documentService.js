@@ -303,3 +303,57 @@ export const getDocumentByRegnumber = async (regnumber) => {
     throw error;
   }
 };
+
+/**
+ * Obter dados da fatura/pagamento para um documento específico
+ * @param {number|string} documentId - ID do documento
+ * @returns {Promise<Object>} Detalhes da fatura
+ */
+export const getInvoiceData = async (documentId) => {
+  try {
+    // Tentar primeiro o endpoint específico para fatura
+    const response = await api.get(`/document/${documentId}/invoice`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao obter dados da fatura via endpoint específico:', error);
+
+    // Tentar alternativa 1: endpoint document_invoice
+    try {
+      const invoiceResponse = await api.get(`/document_invoice/${documentId}`);
+      return invoiceResponse.data;
+    } catch (invoiceError) {
+      console.error('Erro ao obter dados via document_invoice:', invoiceError);
+
+      // Tentar alternativa 2: dados do documento completo
+      try {
+        const docResponse = await api.get(`/document/${documentId}`);
+
+        // Verificar se tem invoice como propriedade
+        if (docResponse.data && docResponse.data.invoice) {
+          return docResponse.data.invoice;
+        }
+
+        // Verificar estrutura alternativa com tb_document_invoice
+        if (docResponse.data && docResponse.data.tb_document_invoice) {
+          return docResponse.data.tb_document_invoice;
+        }
+
+        // Se não tiver invoice, mas tiver amount diretamente no documento
+        if (docResponse.data && (docResponse.data.amount || docResponse.data.value)) {
+          return {
+            amount: docResponse.data.amount || docResponse.data.value,
+            status: 'PENDING'
+          };
+        }
+
+        // Se nenhuma das opções funcionou, retornar null
+        return null;
+      } catch (docError) {
+        console.error('Erro ao tentar obter documento completo:', docError);
+
+        // Se todas as tentativas falharem, lançar o erro original
+        throw error;
+      }
+    }
+  }
+};

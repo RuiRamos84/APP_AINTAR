@@ -156,44 +156,13 @@ def check_payment_status(transaction_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@bp.route("/payments/manual", methods=["POST"])
-@jwt_required()
-@token_required
-@set_session
-@api_error_handler
-def process_manual_payment():
-    data = request.json or {}
-    required = ["document_id", "amount", "payment_type", "payment_details"]
-
-    if not all(k in data for k in required):
-        return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
-
-    has_permission, user_id = check_payment_permissions("submit")
-    if not has_permission:
-        return jsonify({"error": "Sem permissão"}), 403
-
-    user = get_jwt_identity()
-
-    try:
-        result = payment_service.process_manual_direct(
-            data["document_id"],
-            data["amount"],
-            data["payment_type"],
-            data["payment_details"],
-            user
-        )
-        return jsonify(result), (200 if result.get("success") else 400)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
 @bp.route("/payments/manual-direct", methods=["POST"])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
 def register_manual_payment():
-    """Registar pagamento manual direto (sem checkout prévio)"""
+    """Registar pagamento manual direto (sem checkout SIBS prévio)"""
     data = request.json or {}
     required = ["document_id", "amount", "payment_type", "reference_info"]
 
@@ -209,7 +178,7 @@ def register_manual_payment():
     user = get_jwt_identity()
 
     try:
-        result = payment_service.register_manual_payment(
+        result = payment_service.register_manual_payment_direct(
             data["document_id"],
             data["amount"],
             data["payment_type"],
@@ -218,7 +187,42 @@ def register_manual_payment():
         )
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro no pagamento manual: {e}")
+        logger.error(f"Erro no pagamento manual direto: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# MANTER o endpoint original para compatibilidade
+@bp.route("/payments/manual", methods=["POST"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def process_manual_payment():
+    """DEPRECATED: Usar /payments/manual-direct"""
+    data = request.json or {}
+    required = ["document_id", "amount", "payment_type", "payment_details"]
+
+    if not all(k in data for k in required):
+        return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
+
+    has_permission, user_id = check_payment_permissions("submit")
+    if not has_permission:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+
+    try:
+        # Converter para novo formato
+        result = payment_service.register_manual_payment_direct(
+            data["document_id"],
+            data["amount"],
+            data["payment_type"],
+            # Usar payment_details como reference_info
+            data["payment_details"],
+            user
+        )
+        return jsonify(result), (200 if result.get("success") else 400)
+    except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -266,6 +270,26 @@ def approve_payment(payment_pk):
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
         logger.error(f"Erro ao aprovar pagamento {payment_pk}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route("/payments/sibs/<order_id>", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_sibs_data(order_id):
+    """Dados SIBS por order_id"""
+    user = get_jwt_identity()
+
+    try:
+        result = payment_service.get_sibs_data(order_id, user)
+        if not result:
+            return jsonify({"success": False, "error": "Dados não encontrados"}), 404
+
+        return jsonify({"success": True, "data": result}), 200
+    except Exception as e:
+        logger.error(f"Erro SIBS data {order_id}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
