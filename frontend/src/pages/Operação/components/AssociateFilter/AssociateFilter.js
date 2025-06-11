@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     FormControl, Box, Typography, TextField, InputAdornment, Chip,
     SwipeableDrawer, List, ListItemButton, ListItemText, Divider,
@@ -12,10 +12,27 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Filtrar e limpar dados dos associados
+    const cleanedAssociates = useMemo(() => {
+        return associates
+            .filter(associate => {
+                // Filtrar apenas strings válidas
+                if (typeof associate !== 'string') return false;
+                if (associate === 'all') return false;
+                // Filtrar números como strings
+                if (/^\d+$/.test(associate.trim())) return false;
+                // Filtrar strings vazias
+                if (!associate.trim()) return false;
+                return true;
+            })
+            .map(associate => associate.trim()) // Limpar espaços
+            .filter((associate, index, array) => array.indexOf(associate) === index); // Remover duplicados
+    }, [associates]);
+
     const filteredAssociates = searchTerm
-        ? associates.filter(associate =>
+        ? cleanedAssociates.filter(associate =>
             associate.toLowerCase().includes(searchTerm.toLowerCase()))
-        : associates;
+        : cleanedAssociates;
 
     if (isTablet) {
         return (
@@ -65,6 +82,10 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                     onClose={() => setDrawerOpen(false)}
                     onOpen={() => setDrawerOpen(true)}
                     disableSwipeToOpen
+                    disableAutoFocus
+                    disableEnforceFocus
+                    disableRestoreFocus
+                    keepMounted={false}
                     PaperProps={{
                         sx: {
                             borderTopLeftRadius: 20,
@@ -72,6 +93,12 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                             maxHeight: '85%',
                             pt: 1
                         }
+                    }}
+                    ModalProps={{
+                        keepMounted: false,
+                        disableAutoFocus: true,
+                        disableEnforceFocus: true,
+                        disableRestoreFocus: true
                     }}
                 >
                     <Box sx={{ p: 2, pb: 3 }}>
@@ -132,35 +159,33 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                             </ListItemButton>
 
                             {filteredAssociates.map((associate) => (
-                                associate !== "all" && (
-                                    <ListItemButton
-                                        key={associate}
-                                        onClick={() => {
-                                            onAssociateChange(associate);
-                                            setDrawerOpen(false);
-                                            setSearchTerm('');
+                                <ListItemButton
+                                    key={associate}
+                                    onClick={() => {
+                                        onAssociateChange(associate);
+                                        setDrawerOpen(false);
+                                        setSearchTerm('');
+                                    }}
+                                    sx={{
+                                        borderRadius: 2,
+                                        mb: 1,
+                                        bgcolor: selectedAssociate === associate ? 'primary.light' : 'transparent',
+                                        minHeight: 60
+                                    }}
+                                >
+                                    <ListItemText
+                                        primary={associate}
+                                        primaryTypographyProps={{
+                                            fontWeight: selectedAssociate === associate ? 600 : 400,
+                                            fontSize: '1.1rem'
                                         }}
-                                        sx={{
-                                            borderRadius: 2,
-                                            mb: 1,
-                                            bgcolor: selectedAssociate === associate ? 'primary.light' : 'transparent',
-                                            minHeight: 60
-                                        }}
-                                    >
-                                        <ListItemText
-                                            primary={associate}
-                                            primaryTypographyProps={{
-                                                fontWeight: selectedAssociate === associate ? 600 : 400,
-                                                fontSize: '1.1rem'
-                                            }}
-                                        />
-                                        {selectedAssociate === associate && <Check color="primary" />}
-                                    </ListItemButton>
-                                )
+                                    />
+                                    {selectedAssociate === associate && <Check color="primary" />}
+                                </ListItemButton>
                             ))}
                         </List>
 
-                        {filteredAssociates.length === 1 && searchTerm && (
+                        {filteredAssociates.length === 0 && searchTerm && (
                             <Box sx={{ textAlign: 'center', mt: 3, color: 'text.secondary' }}>
                                 <Typography variant="body2">
                                     Nenhum associado encontrado
@@ -201,16 +226,14 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                     Todos os Associados
                 </MenuItem>
                 <Divider />
-                {associates.map((associate) => (
-                    associate !== "all" && (
-                        <MenuItem
-                            key={associate}
-                            value={associate}
-                            sx={{ fontWeight: selectedAssociate === associate ? 600 : 400 }}
-                        >
-                            {associate}
-                        </MenuItem>
-                    )
+                {cleanedAssociates.map((associate) => (
+                    <MenuItem
+                        key={associate}
+                        value={associate}
+                        sx={{ fontWeight: selectedAssociate === associate ? 600 : 400 }}
+                    >
+                        {associate}
+                    </MenuItem>
                 ))}
             </Select>
         </FormControl>

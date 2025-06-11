@@ -17,11 +17,13 @@ import DetailsDrawer from './DetailsDrawer/DetailsDrawer';
 import ActionDrawer from './ActionDrawer/ActionDrawer';
 import CompletionModal from '../modals/CompletionModal/CompletionModal';
 import ParametersModal from '../modals/ParametersModal/ParametersModal';
+import { completeOperatorTask, validateTaskCompletion } from '../services/completionService';
 import { getColumnsForView, getRemainingDaysColor, getUserNameByPk } from '../utils/operationsHelpers';
 import { SpeedDial, SpeedDialIcon, SpeedDialAction } from '@mui/material';
 import { FilterList, CheckCircle, MyLocation, Phone } from '@mui/icons-material';
 import { exportToExcel } from '../services/exportService';
 import { GetApp } from '@mui/icons-material';
+import { notification } from '../../../components/common/Toaster/ThemedToaster';
 
 const TabletOperationsContainer = ({
     operationsData,
@@ -40,7 +42,8 @@ const TabletOperationsContainer = ({
     handleAssociateChange,
     handleRequestSort,
     toggleRowExpand,
-    getAddressString
+    getAddressString,
+    onTaskCompleted // NOVO: callback para actualizar lista
 }) => {
     const { user: currentUser } = useAuth();
     const { metaData: globalMetaData } = useMetaData();
@@ -63,6 +66,48 @@ const TabletOperationsContainer = ({
 
     const firstViewKey = sortedViews[0]?.[0] || null;
     const currentView = selectedView || firstViewKey;
+
+    const [completionLoading, setCompletionLoading] = useState(false);
+    const [savedParams, setSavedParams] = useState(null);
+
+    const handleCompleteProcess = () => {
+        const validation = validateTaskCompletion(selectedItem, currentUser);
+        if (!validation.valid) {
+            notification.error(validation.reason);
+            return;
+        }
+
+        if (isFossaView) {
+            setParamsDialogOpen(true);
+        } else {
+            setCompleteDialogOpen(true);
+        }
+    };
+
+    const handleFinalCompletion = async (attachment = null) => {
+        if (!selectedItem || !completionNote.trim()) return;
+
+        setCompletionLoading(true);
+        try {
+            await completeOperatorTask(selectedItem.pk, completionNote);
+
+            // Sucesso: actualizar lista e fechar modais
+            if (onTaskCompleted) {
+                onTaskCompleted(selectedItem.pk);
+            }
+
+            setCompleteDialogOpen(false);
+            setDetailsDrawer(false);
+            setSelectedItem(null);
+            setCompletionNote('');
+            setSavedParams(null);
+
+        } catch (error) {
+            console.error('Erro:', error);
+        } finally {
+            setCompletionLoading(false);
+        }
+    };
 
     const canExecuteActions = (item) => {
         if (!item) return false;
@@ -133,17 +178,8 @@ const TabletOperationsContainer = ({
         window.location.href = `tel:${target.phone}`;
     };
 
-    const handleCompleteProcess = () => {
-        if (canExecuteActions(selectedItem)) {
-            if (isFossaView) {
-                setParamsDialogOpen(true);
-            } else {
-                setActionDrawer(true);
-            }
-        }
-    };
-
-    const handleParamsSaved = () => {
+    const handleParamsSaved = (params) => {
+        setSavedParams(params);
         setParamsDialogOpen(false);
         setCompleteDialogOpen(true);
     };
@@ -162,7 +198,10 @@ const TabletOperationsContainer = ({
                     <Grid item xs={12} sm={6} lg={4} key={index}>
                         <SwipeableCard
                             onSwipeRight={() => handleNavigate(item)}
-                            onSwipeLeft={() => canAct ? handleCompleteProcess() : null}
+                            onSwipeLeft={() => {
+                                setSelectedItem(item);
+                                return canAct ? handleCompleteProcess() : null;
+                            }}
                             onSwipeUp={() => handleItemClick(item)}
                         >
                             <OperationCard
@@ -313,7 +352,7 @@ const TabletOperationsContainer = ({
                 {selectedItem && Number(selectedItem.who) === Number(currentUser?.user_id) && (
                     <SpeedDialAction
                         icon={<CheckCircle />}
-                        tooltipTitle="Concluir"
+                        tooltipTitle="Finalizar"
                         onClick={handleCompleteProcess}
                     />
                 )}
@@ -371,11 +410,9 @@ const TabletOperationsContainer = ({
                 onClose={() => setCompleteDialogOpen(false)}
                 note={completionNote}
                 onNoteChange={setCompletionNote}
-                onConfirm={() => {
-                    // Implementar lógica de conclusão
-                    setCompleteDialogOpen(false);
-                    setDetailsDrawer(false);
-                }}
+                onConfirm={handleFinalCompletion}
+                loading={completionLoading}
+                document={selectedItem}
             />
         </Box>
     );

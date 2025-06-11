@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, CircularProgress, Typography, useMediaQuery, useTheme, Button } from '@mui/material';
 import { useOperationsData } from '../hooks/useOperationsData';
 import { useOperationsFiltering } from '../hooks/useOperationsFiltering';
@@ -17,8 +17,22 @@ const OperationsContainer = () => {
     const isTablet = useMediaQuery(theme.breakpoints.down('xl'));
     const { metaData } = useMetaData();
 
-    // Hooks de dados
-    const { operationsData, loading, error, associates } = useOperationsData();
+    // Hooks de dados - REMOVIDO 'associates' do destructuring
+    const { operationsData, loading, error, refreshData } = useOperationsData();
+
+    // Usar metadados globais para associates em vez do hook
+    const associates = useMemo(() => {
+        if (!metaData?.associates) {
+            console.log('No metaData associates found');
+            return ['all'];
+        }
+
+        console.log('MetaData associates:', metaData.associates);
+        const associateNames = ['all', ...metaData.associates.map(assoc => assoc.name)];
+        console.log('Final associates array:', associateNames);
+        return associateNames;
+    }, [metaData]);
+
     const {
         selectedAssociate,
         selectedView,
@@ -43,6 +57,13 @@ const OperationsContainer = () => {
     const handleExport = () => {
         if (selectedView && filteredData[selectedView]) {
             exportToExcel(filteredData, selectedView);
+        }
+    };
+
+    const handleTaskCompleted = (taskId) => {
+        // Refrescar dados após conclusão de tarefa
+        if (refreshData) {
+            refreshData();
         }
     };
 
@@ -87,6 +108,7 @@ const OperationsContainer = () => {
             handleRequestSort={handleRequestSort}
             toggleRowExpand={toggleRowExpand}
             getAddressString={getAddressString}
+            onTaskCompleted={handleTaskCompleted}
         />
     ) : (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -107,19 +129,19 @@ const OperationsContainer = () => {
 
             {selectedView && filteredData[selectedView] && filteredData[selectedView].data.length > 0 && (
                 <Box mt={4} sx={{ flexGrow: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                            <Typography variant="h5" gutterBottom>
-                                Detalhes de {filteredData[selectedView].name}
-                            </Typography>
-                            <Button
-                                variant="outlined"
-                                startIcon={<GetApp />}
-                                onClick={handleExport}
-                                disabled={!sortedData.length}
-                            >
-                                Exportar Excel
-                            </Button>
-                        </Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="h5" gutterBottom>
+                            Detalhes de {filteredData[selectedView].name}
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            startIcon={<GetApp />}
+                            onClick={handleExport}
+                            disabled={!sortedData.length}
+                        >
+                            Exportar Excel
+                        </Button>
+                    </Box>
 
                     <OperationsTable
                         data={sortedData}
