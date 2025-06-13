@@ -43,7 +43,7 @@ const TabletOperationsContainer = ({
     handleRequestSort,
     toggleRowExpand,
     getAddressString,
-    onTaskCompleted // NOVO: callback para actualizar lista
+    onTaskCompleted 
 }) => {
     const { user: currentUser } = useAuth();
     const { metaData: globalMetaData } = useMetaData();
@@ -93,6 +93,8 @@ const TabletOperationsContainer = ({
 
             // Sucesso: actualizar lista e fechar modais
             if (onTaskCompleted) {
+                // notification.info('A actualizar lista de pedidos...');
+                // notification.success('Tarefa concluída com sucesso!');
                 onTaskCompleted(selectedItem.pk);
             }
 
@@ -134,7 +136,12 @@ const TabletOperationsContainer = ({
             );
         }
 
-        return filtered;
+        // Ordenar urgentes primeiro
+        return filtered.sort((a, b) => {
+            if (a.urgency === "1" && b.urgency !== "1") return -1;
+            if (b.urgency === "1" && a.urgency !== "1") return 1;
+            return 0;
+        });
     };
 
     const displayData = getFilteredByUser();
@@ -206,6 +213,7 @@ const TabletOperationsContainer = ({
                         >
                             <OperationCard
                                 item={item}
+                                isUrgent={item.urgency === "1"}
                                 canAct={canAct}
                                 isRamaisView={isRamaisView}
                                 onClick={() => handleItemClick(item)}

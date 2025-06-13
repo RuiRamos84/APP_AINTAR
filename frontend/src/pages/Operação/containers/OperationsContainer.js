@@ -27,9 +27,9 @@ const OperationsContainer = () => {
             return ['all'];
         }
 
-        console.log('MetaData associates:', metaData.associates);
+        // console.log('MetaData associates:', metaData.associates);
         const associateNames = ['all', ...metaData.associates.map(assoc => assoc.name)];
-        console.log('Final associates array:', associateNames);
+        // console.log('Final associates array:', associateNames);
         return associateNames;
     }, [metaData]);
 

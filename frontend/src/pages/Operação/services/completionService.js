@@ -16,7 +16,7 @@ export const completeOperatorTask = async (documentId, note = "Tarefa concluída
             tb_document: documentId,  // Campo obrigatório no backend
             memo: note,
             who: '81',
-            what: '4'
+            what: '0'
         };
 
         // 3. Executar com notificação de loading

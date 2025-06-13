@@ -41,7 +41,8 @@ const ParametersModal = ({ open, onClose, document, onSave }) => {
         >
             <DialogTitle>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Typography variant="h6">Parâmetros do Serviço</Typography>
+                    
+                    <Typography variant="h6">Parâmetros do Serviço - {document?.regnumber}</Typography>
                     <IconButton onClick={onClose}>
                         <Close />
                     </IconButton>

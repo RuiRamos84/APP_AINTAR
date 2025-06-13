@@ -31,7 +31,7 @@ def get_operations_data(current_user):
             with db_session_manager(current_user) as session:
                 query = text(f"SELECT * FROM {view_name}")
                 result = session.execute(query)
-
+ 
                 view_data = {
                     'name': friendly_name,
                     'total': 0,

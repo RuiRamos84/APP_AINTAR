@@ -5,12 +5,13 @@ import {
 } from '@mui/material';
 import {
     Assignment, MyLocation, Phone, LocationOn, CalendarToday,
-    TouchApp, LockOpen, Lock, Person
+    TouchApp, LockOpen, Lock, Person, PriorityHigh
 } from '@mui/icons-material';
 import { useOperationCardStyles } from './OperationCard.styles';
 
 const OperationCard = ({
     item,
+    isUrgent,
     canAct,
     isRamaisView,
     onClick,
@@ -30,19 +31,28 @@ const OperationCard = ({
                 ...styles.card,
                 borderLeft: isRamaisView ?
                     `6px solid ${getRemainingDaysColor(item.restdays)}` :
-                    undefined,
+                    isUrgent ? '6px solid #f44336' : 'none',
+                bgcolor: isUrgent ? 'rgba(244, 67, 54, 0.05)' : 'background.paper',
                 transform: isSwiping ? 'scale(0.98)' : 'scale(1)',
             }}
             onClick={onClick}
         >
             <CardContent sx={styles.cardContent}>
                 {/* Cabeçalho */}
-                <Box display="flex" justifyContent="space-between" mb={2}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                     <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.2rem' }}>
                         {item.regnumber}
                     </Typography>
 
                     <Box display="flex" alignItems="center" gap={1}>
+                        {isUrgent && (
+                            <Chip
+                                icon={<PriorityHigh fontSize="small" />}
+                                label="URGENTE"
+                                color="error"
+                                size="small"
+                            />
+                        )}
                         {item.who && (
                             <Chip
                                 size="small"

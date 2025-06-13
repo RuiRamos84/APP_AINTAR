@@ -74,6 +74,35 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
         ].includes(name);
     };
 
+    const isReadOnlyParam = (name) => {
+        // Só readonly para parâmetros de origem (não de destino/descarga)
+        return ["ETAR", "EE"].includes(name);
+    };
+
+    const isSelectableParam = (name) => {
+        // Lista para escolher destino
+        return [
+            "Local de descarga/ETAR",
+            "ETAR de destino",
+            "Local de destino",
+            "ETAR destino"
+        ].includes(name);
+    };
+
+    const isEtarParam = (name) => {
+        return [
+            "Local de descarga/ETAR",
+            "ETAR de destino",
+            "Local de destino",
+            "ETAR destino",
+            "ETAR"
+        ].includes(name);
+    };
+
+    const isEeParam = (name) => {
+        return ["EE"].includes(name);
+    };
+
     const getAssociateName = (associate) => {
         if (!associate) return "";
         return associate
@@ -95,6 +124,124 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
         return globalMetaData.etar;
     };
 
+    // Detectar e converter valor PK <-> Nome
+    const getDisplayValue = (param) => {
+        if (!param.value) return "";
+        if (!globalMetaData) return param.value;
+
+        const value = param.value.toString().trim();
+
+        // Se é número, é PK - buscar nome
+        if (/^\d+$/.test(value)) {
+            const pk = parseInt(value);
+
+            // Tentar em ETAR
+            const etar = globalMetaData.etar?.find(e => e.pk === pk);
+            if (etar) return etar.nome;
+
+            // Tentar em EE
+            const ee = globalMetaData.ee?.find(e => e.pk === pk);
+            if (ee) return ee.name || ee.nome;
+
+            return value;
+        }
+
+        return value;
+    };
+
+    // Converter nome para PK ao guardar
+    const convertToId = (paramName, inputValue) => {
+        if (!inputValue || !globalMetaData) return "";
+
+        const value = inputValue.toString().trim();
+
+        // Se já é número, manter
+        if (/^\d+$/.test(value)) return value;
+
+        // Se é parâmetro ETAR, procurar em ETAR
+        if (isEtarParam(paramName)) {
+            const etar = globalMetaData.etar?.find(e =>
+                e.nome?.toLowerCase() === value.toLowerCase()
+            );
+            if (etar) return etar.pk.toString();
+        }
+
+        // Se é parâmetro EE, procurar em EE
+        if (isEeParam(paramName)) {
+            const ee = globalMetaData.ee?.find(e =>
+                (e.name?.toLowerCase() === value.toLowerCase()) ||
+                (e.nome?.toLowerCase() === value.toLowerCase())
+            );
+            if (ee) return ee.pk.toString();
+        }
+
+        return value;
+    };
+
+    // Obter nome ETAR por PK
+    const getEtarNameByPk = (etarPk) => {
+        if (!etarPk || !globalMetaData?.etar?.length) return etarPk;
+
+        const pkToFind = parseInt(etarPk);
+        const etar = globalMetaData.etar.find(e => parseInt(e.pk) === pkToFind);
+
+        return etar ? `${etar.nome} (${etar.ts_entity})` : `ETAR ID: ${etarPk}`;
+    };
+
+    // Obter nome EE por PK
+    const getEeNameByPk = (eePk) => {
+        if (!eePk || !globalMetaData?.ee?.length) return eePk;
+
+        const pkToFind = parseInt(eePk);
+        const ee = globalMetaData.ee.find(e => parseInt(e.pk) === pkToFind);
+
+        return ee ? `${ee.name || ee.nome}` : `EE ID: ${eePk}`;
+    };
+
+    // Obter nome método pagamento por PK
+    const getPaymentMethodNameByPk = (methodPk) => {
+        if (!methodPk || !globalMetaData?.payment_method?.length) return methodPk;
+
+        const pkToFind = parseInt(methodPk);
+        const method = globalMetaData.payment_method.find(m => parseInt(m.pk) === pkToFind);
+
+        return method ? method.value : `Método ID: ${methodPk}`;
+    };
+
+    // Formatar valor boolean
+    const formatBooleanValue = (value) => {
+        if (value === "1" || value === 1) return "Sim";
+        if (value === "0" || value === 0) return "Não";
+        return value;
+    };
+
+    // Detectar tipo de parâmetro e buscar valor formatado
+    const getFormattedValue = (param) => {
+        if (!param.value) return "";
+
+        // Se é parâmetro ETAR
+        if (isEtarParam(param.name)) {
+            return getEtarNameByPk(param.value);
+        }
+
+        // Se é parâmetro EE
+        if (isEeParam(param.name)) {
+            return getEeNameByPk(param.value);
+        }
+
+        // Se é método de pagamento
+        if (param.name === "Método de pagamento") {
+            return getPaymentMethodNameByPk(param.value);
+        }
+
+        // Se é boolean
+        if (isBooleanParam(param.name)) {
+            return formatBooleanValue(param.value);
+        }
+
+        return param.value;
+    };
+
     if (loading || !params.length) {
         return <CircularProgress />;
     }
@@ -112,14 +259,18 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
 
                         <Grid container spacing={2}>
                             <Grid item xs={12} md={6}>
-                                {param.name === "Local de descarga/ETAR" && globalMetaData?.etar?.length > 0 ? (
+                                {isSelectableParam(param.name) && globalMetaData?.etar?.length > 0 ? (
                                     <FormControl fullWidth>
-                                        <InputLabel>Local de Descarga</InputLabel>
+                                        <InputLabel id={`etar-select-${param.pk}`}>{param.name}</InputLabel>
                                         <Select
+                                            labelId={`etar-select-${param.pk}`}
                                             value={param.value || ""}
                                             onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                            label="Local de Descarga"
+                                            label={param.name}
                                         >
+                                            <MenuItem value="">
+                                                <em>Selecionar ETAR</em>
+                                            </MenuItem>
                                             {(filteredEtars.length > 0 ? filteredEtars : globalMetaData.etar).map(etar => (
                                                 <MenuItem key={etar.pk} value={etar.pk.toString()}>
                                                     {etar.nome} ({etar.ts_entity})
@@ -127,6 +278,34 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
                                             ))}
                                         </Select>
                                     </FormControl>
+                                ) : isEtarParam(param.name) && isReadOnlyParam(param.name) ? (
+                                    <TextField
+                                        fullWidth
+                                        variant="outlined"
+                                        label={param.name}
+                                        value={getEtarNameByPk(param.value)}
+                                        disabled
+                                        sx={{
+                                            backgroundColor: 'grey.100',
+                                            '& .MuiOutlinedInput-notchedOutline': {
+                                                borderColor: 'grey.300'
+                                            }
+                                        }}
+                                    />
+                                ) : isEeParam(param.name) && isReadOnlyParam(param.name) ? (
+                                    <TextField
+                                        fullWidth
+                                        variant="outlined"
+                                        label={param.name}
+                                        value={getEeNameByPk(param.value)}
+                                        disabled
+                                        sx={{
+                                            backgroundColor: 'grey.100',
+                                            '& .MuiOutlinedInput-notchedOutline': {
+                                                borderColor: 'grey.300'
+                                            }
+                                        }}
+                                    />
                                 ) : param.name === "Método de pagamento" && globalMetaData?.payment_method?.length > 0 ? (
                                     <FormControl fullWidth>
                                         <InputLabel>Método de Pagamento</InputLabel>
@@ -134,7 +313,16 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
                                             value={param.value || ""}
                                             onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
                                             label="Método de Pagamento"
+                                            displayEmpty
+                                            renderValue={(selected) => {
+                                                if (!selected) return "";
+                                                const method = globalMetaData.payment_method.find(m => m.pk.toString() === selected.toString());
+                                                return method ? method.value : selected;
+                                            }}
                                         >
+                                            <MenuItem value="">
+                                                <em>Selecionar método</em>
+                                            </MenuItem>
                                             {globalMetaData.payment_method.map(method => (
                                                 <MenuItem key={method.pk} value={method.pk.toString()}>
                                                     {method.value}
@@ -169,8 +357,11 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
                                         fullWidth
                                         variant="outlined"
                                         label="Valor"
-                                        value={param.value || ""}
-                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                                        value={getDisplayValue(param)}
+                                        onChange={(e) => {
+                                            const pkValue = convertToId(param.name, e.target.value);
+                                            handleParamChange(param.pk, "value", pkValue);
+                                        }}
                                     />
                                 )}
                             </Grid>
@@ -184,17 +375,18 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
                                 />
                             </Grid>
                         </Grid>
+
+                        {isReadOnlyParam(param.name) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                🔒 Este valor não pode ser alterado
+                            </Typography>
+                        )}
                     </Grid>
                 ))}
             </Grid>
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleSave}
-                    disabled={loading}
-                >
+                <Button variant="contained" color="primary" onClick={handleSave} disabled={loading}>
                     {loading ? <CircularProgress size={24} /> : "Guardar"}
                 </Button>
             </Box>

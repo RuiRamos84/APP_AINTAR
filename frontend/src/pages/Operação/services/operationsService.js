@@ -10,6 +10,7 @@ export const fetchOperationsData = async (page = 1, pageSize = 50) => {
                 page_size: pageSize
             }
         });
+        console.log('Dados de operações recebidos:', response.data);
         return response.data;
     } catch (error) {
         console.error('Erro ao buscar dados de operações:', error);
