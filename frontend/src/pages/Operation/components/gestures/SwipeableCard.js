@@ -1,65 +1,73 @@
 import React, { useRef, useState } from 'react';
 import { Box } from '@mui/material';
+import useGestureNavigation from '../hooks/useGestureNavigation';
 
 const SwipeableCard = ({
     children,
     onSwipeLeft,
     onSwipeRight,
     onSwipeUp,
-    threshold = 50
+    onSwipeDown,
+    onTap,
+    onLongPress,
+    threshold = 50,
+    disabled = false
 }) => {
-    const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
+    const cardRef = useRef(null);
 
-    const handleStart = (clientX, clientY) => {
-        setStartPos({ x: clientX, y: clientY });
-        setIsDragging(true);
-    };
-
-    const handleEnd = (clientX, clientY) => {
-        if (!isDragging) return;
-
-        const deltaX = clientX - startPos.x;
-        const deltaY = clientY - startPos.y;
-        const absDeltaX = Math.abs(deltaX);
-        const absDeltaY = Math.abs(deltaY);
-
-        setIsDragging(false);
-
-        // Tap simples
-        if (absDeltaX < 10 && absDeltaY < 10) {
-            onSwipeUp?.();
-            return;
-        }
-
-        // Swipe horizontal
-        if (absDeltaX > threshold && absDeltaX > absDeltaY) {
-            if (deltaX > 0) onSwipeRight?.();
-            else onSwipeLeft?.();
-        }
-    };
+    const gestureHandlers = useGestureNavigation({
+        onSwipeLeft,
+        onSwipeRight,
+        onSwipeUp,
+        onSwipeDown,
+        onTap,
+        onLongPress,
+        minDistance: threshold
+    });
 
     const handleTouchStart = (e) => {
-        e.stopPropagation();
-        const touch = e.touches[0];
-        handleStart(touch.clientX, touch.clientY);
+        if (disabled) return;
+        setIsDragging(true);
+        gestureHandlers.onTouchStart(e);
+    };
+
+    const handleTouchMove = (e) => {
+        if (disabled) return;
+        gestureHandlers.onTouchMove(e);
     };
 
     const handleTouchEnd = (e) => {
-        const touch = e.changedTouches[0];
-        handleEnd(touch.clientX, touch.clientY);
+        if (disabled) return;
+        setIsDragging(false);
+        gestureHandlers.onTouchEnd(e);
+    };
+
+    const handleMouseDown = (e) => {
+        if (disabled) return;
+        setIsDragging(true);
+        // Converter mouse para touch event
+        const touch = { clientX: e.clientX, clientY: e.clientY };
+        gestureHandlers.onTouchStart({ touches: [touch] });
     };
 
     return (
         <Box
+            ref={cardRef}
             onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
             sx={{
                 cursor: isDragging ? 'grabbing' : 'grab',
                 userSelect: 'none',
                 touchAction: 'pan-y',
                 transition: isDragging ? 'none' : 'transform 0.2s ease',
-                '&:active': { transform: 'scale(0.98)' }
+                '&:active': { transform: 'scale(0.98)' },
+                ...(disabled && {
+                    cursor: 'default',
+                    pointerEvents: 'none'
+                })
             }}
         >
             {children}
