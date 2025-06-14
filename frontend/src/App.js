@@ -41,10 +41,7 @@ import InternalArea from "./pages/Internal/index";
 import LetterManagement from "./pages/Letters/LetterManagement";
 import Login from "./pages/Login/Login";
 import ModernDocuments from "./pages/ModernDocuments";
-
-// Importar o container de operações refatorado
-import OperationsContainer from "./pages/Operação/containers/OperationsContainer";
-
+import Operation from "./pages/Operation";
 import PasswordRecovery from "./pages/PasswordRecovery/PasswordRecovery";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import Settings from "./pages/Settings/Settings";
@@ -217,7 +214,7 @@ const AppContent = () => {
                 path="/operation"
                 element={
                   <PrivateRoute>
-                    <OperationsContainer />
+                    <Operation />
                   </PrivateRoute>
                 }
               />
