@@ -1,22 +1,33 @@
 import React, { useState } from 'react';
 import { Box, Paper, Grid, Tabs, Tab, SpeedDial, SpeedDialAction } from '@mui/material';
 import { FilterList, CheckCircle, MyLocation, Phone } from '@mui/icons-material';
+
+// Hooks
 import { useAuth } from '../../../contexts/AuthContext';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import { useOperationsData } from '../hooks/useOperationsData';
 import { useOperationsFilters } from '../hooks/useOperationsFilters';
+import useOfflineSync from '../hooks/useOfflineSync';
+
+// Componentes
 import AssociateFilter from '../components/filters/AssociateFilter';
 import OperationCard from '../components/cards/OperationCard';
-import DetailsDrawer from '../../Operação/containers/DetailsDrawer/DetailsDrawer';
+import SwipeableCard from '../components/gestures/SwipeableCard';
+import ConnectionStatus from '../components/offline/ConnectionStatus';
+import DetailsDrawer from '../components/modals/DetailsDrawer';
 import CompletionModal from '../components/modals/CompletionModal';
 import ParametersModal from '../components/modals/ParametersModal';
-import { completeOperatorTask } from '../../Operação/services/completionService';
+
+// Serviços
+import { completeOperatorTask } from '../services/completionService';
+import { exportToExcel } from '../services/exportService';
 import { getUserNameByPk, getRemainingDaysColor } from '../utils/helpers';
 
 const TabletView = () => {
     const { user: currentUser } = useAuth();
     const { metaData } = useMetaData();
     const { operationsData, associates } = useOperationsData();
+    const { isOnline, pendingActions, addAction, syncActions } = useOfflineSync('operations');
 
     const {
         selectedAssociate,
@@ -29,17 +40,20 @@ const TabletView = () => {
         handleAssociateChange
     } = useOperationsFilters(operationsData);
 
+    // Estado UI
     const [selectedItem, setSelectedItem] = useState(null);
     const [detailsDrawer, setDetailsDrawer] = useState(false);
     const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
     const [paramsDialogOpen, setParamsDialogOpen] = useState(false);
     const [completionNote, setCompletionNote] = useState('');
 
+    // Permissões
     const canExecuteActions = (item) => {
         if (!item || !currentUser) return false;
         return Number(item.who) === Number(currentUser?.user_id);
     };
 
+    // Handlers
     const handleItemClick = (item) => {
         setSelectedItem(item);
         setDetailsDrawer(true);
@@ -54,16 +68,40 @@ const TabletView = () => {
     };
 
     const handleFinalCompletion = async () => {
-        await completeOperatorTask(selectedItem.pk, completionNote);
+        if (!isOnline) {
+            addAction('complete', { documentId: selectedItem.pk, note: completionNote });
+        } else {
+            await completeOperatorTask(selectedItem.pk, completionNote);
+        }
+
         setCompleteDialogOpen(false);
         setDetailsDrawer(false);
         setSelectedItem(null);
+    };
+
+    const handleNavigate = (item) => {
+        const address = encodeURIComponent(`${item.address}, ${item.nut2}`);
+        window.open(`https://www.google.com/maps/search/?api=1&query=${address}`);
+    };
+
+    const handleCall = (item) => {
+        if (item.phone) window.location.href = `tel:${item.phone}`;
     };
 
     const sortedData = filteredData[selectedView]?.data || [];
 
     return (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+            <ConnectionStatus
+                isOnline={isOnline}
+                pendingActions={pendingActions}
+                onSync={() => syncActions({
+                    complete: (data) => completeOperatorTask(data.documentId, data.note)
+                })}
+                onDiscard={() => { }}
+            />
+
+            {/* Filtros */}
             <Paper sx={{ p: 2, m: 2 }}>
                 <AssociateFilter
                     associates={associates}
@@ -72,6 +110,7 @@ const TabletView = () => {
                 />
             </Paper>
 
+            {/* Tabs */}
             <Tabs
                 value={selectedView || false}
                 onChange={(e, newValue) => handleViewChange(newValue)}
@@ -82,25 +121,39 @@ const TabletView = () => {
                 ))}
             </Tabs>
 
+            {/* Cartões */}
             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
                 <Grid container spacing={3}>
                     {sortedData.map((item, index) => (
                         <Grid item xs={12} sm={6} lg={4} key={index}>
-                            <OperationCard
-                                item={item}
-                                isUrgent={item.urgency === "1"}
-                                canAct={item ? canExecuteActions(item) : false}
-                                isRamaisView={isRamaisView}
-                                onClick={() => handleItemClick(item)}
-                                onNavigate={() => window.open(`https://www.google.com/maps/search/?api=1&query=${item.address}`)}
-                                onCall={() => window.location.href = `tel:${item.phone}`}
-                                metaData={metaData}
-                            />
+                            <SwipeableCard
+                                onSwipeRight={() => handleNavigate(item)}
+                                onSwipeLeft={() => {
+                                    setSelectedItem(item);
+                                    if (canExecuteActions(item)) handleCompleteProcess();
+                                }}
+                                onSwipeUp={() => handleItemClick(item)}
+                            >
+                                <OperationCard
+                                    item={item}
+                                    isUrgent={item.urgency === "1"}
+                                    canAct={canExecuteActions(item)}
+                                    isRamaisView={isRamaisView}
+                                    onClick={() => handleItemClick(item)}
+                                    onNavigate={handleNavigate}
+                                    onCall={handleCall}
+                                    getUserNameByPk={getUserNameByPk}
+                                    getRemainingDaysColor={getRemainingDaysColor}
+                                    getAddressString={(item) => `${item.address}, ${item.nut2}`}
+                                    metaData={metaData}
+                                />
+                            </SwipeableCard>
                         </Grid>
                     ))}
                 </Grid>
             </Box>
 
+            {/* FAB */}
             <SpeedDial
                 ariaLabel="Acções"
                 sx={{ position: 'fixed', bottom: 24, right: 24 }}
@@ -115,6 +168,7 @@ const TabletView = () => {
                 )}
             </SpeedDial>
 
+            {/* Modais */}
             <DetailsDrawer
                 open={detailsDrawer}
                 onClose={() => setDetailsDrawer(false)}

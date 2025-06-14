@@ -1,3 +1,4 @@
+// Formatação de datas
 export const formatDate = (value) => {
     if (!value || value.includes(' às ')) return value || '';
 
@@ -10,6 +11,7 @@ export const formatDate = (value) => {
     });
 };
 
+// Nome do utilizador por PK
 export const getUserNameByPk = (userPk, metaData) => {
     if (!userPk || !metaData?.who) return "Não atribuído";
 
@@ -17,6 +19,7 @@ export const getUserNameByPk = (userPk, metaData) => {
     return user ? user.name : `Utilizador #${userPk}`;
 };
 
+// Colunas por vista
 export const getColumnsForView = (viewName, metaData = null) => {
     const baseColumns = [
         { id: "regnumber", label: "Nº Processo" },
@@ -39,6 +42,7 @@ export const getColumnsForView = (viewName, metaData = null) => {
     return baseColumns;
 };
 
+// Cor por dias restantes
 export const getRemainingDaysColor = (days) => {
     if (days <= 0) return 'error.main';
     if (days <= 15) return 'warning.main';
@@ -46,6 +50,7 @@ export const getRemainingDaysColor = (days) => {
     return 'success.main';
 };
 
+// Ordenação de vistas
 export const sortViews = (views) => {
     const order = [
         "vbr_document_fossa",
@@ -61,4 +66,34 @@ export const sortViews = (views) => {
         const bIndex = order.findIndex(item => b[0].startsWith(item));
         return aIndex !== bIndex ? aIndex - bIndex : a[1].name.localeCompare(b[1].name);
     });
+};
+
+// Formatação de moradas
+export const formatAddress = (row) => {
+    return [
+        row.address,
+        row.door && `Porta: ${row.door}`,
+        row.nut4,
+        row.nut3,
+        row.nut2
+    ].filter(Boolean).join(', ');
+};
+
+// Formatação de telefone
+export const formatPhone = (phone) => {
+    if (!phone) return '';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 9) {
+        return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`;
+    }
+    return phone;
+};
+
+// Validação de parâmetros booleanos
+export const isBooleanParam = (name) => {
+    return [
+        "Gratuito", "Gratuita", "Existência de sanemanto até 20 m",
+        "Existência de rede de água", "Urgência",
+        "Existência de saneamento até 20 m"
+    ].includes(name);
 };
