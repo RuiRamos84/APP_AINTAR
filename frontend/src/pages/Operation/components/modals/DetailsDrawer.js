@@ -21,8 +21,9 @@ const DetailsDrawer = ({
     if (!item) return null;
 
     const getUserNameByPk = (pk) => {
-        // Implementar lógica de obter nome por PK
-        return `User ${pk}`;
+        if (!metaData?.who || !pk) return 'Desconhecido';
+        const user = metaData.who.find(user => Number(user.pk) === Number(pk));
+        return user ? user.name : `User ${pk}`;
     };
 
     const getTypeColor = (tipo) => {
@@ -130,7 +131,7 @@ const DetailsDrawer = ({
                                     {item.ts_entity}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                    {item.ts_associate}
+                                    {/* {item.ts_associate} */}
                                 </Typography>
                             </Box>
                         </Box>
