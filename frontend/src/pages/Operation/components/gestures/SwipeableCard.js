@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Box } from '@mui/material';
-import useGestureNavigation from '../hooks/useGestureNavigation';
+import useGestureNavigation from '../../hooks/useGestureNavigation';
 
 const SwipeableCard = ({
     children,

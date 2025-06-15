@@ -11,13 +11,17 @@ export const useOperationsFilters = (operationsData) => {
         const filtered = {};
 
         if (selectedAssociate === 'all') {
+            // Só views globais (terminam em '01')
             Object.keys(operationsData).forEach(viewKey => {
                 if (viewKey.endsWith('01') && operationsData[viewKey]?.data?.length > 0) {
                     filtered[viewKey] = operationsData[viewKey];
                 }
             });
         } else {
+            // Só views específicas (NÃO terminam em '01')
             Object.keys(operationsData).forEach(viewKey => {
+                if (viewKey.endsWith('01')) return; // Skip globais
+
                 const viewData = operationsData[viewKey];
                 if (!viewData?.data) return;
 

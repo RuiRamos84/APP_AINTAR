@@ -11,11 +11,29 @@ export const useOperationsTable = (filteredData, selectedView) => {
             const data = [...filteredData[selectedView].data];
 
             const sorted = data.sort((a, b) => {
-                if (order === 'asc') {
-                    return a[orderBy] < b[orderBy] ? -1 : 1;
-                } else {
-                    return a[orderBy] > b[orderBy] ? -1 : 1;
+                let aVal = a[orderBy];
+                let bVal = b[orderBy];
+
+                // Tratar null/undefined
+                if (aVal == null && bVal == null) return 0;
+                if (aVal == null) return 1;
+                if (bVal == null) return -1;
+
+                // Números
+                if (!isNaN(aVal) && !isNaN(bVal)) {
+                    aVal = Number(aVal);
+                    bVal = Number(bVal);
+                    return order === 'asc' ? aVal - bVal : bVal - aVal;
                 }
+
+                // Strings
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+
+                if (order === 'asc') {
+                    return aVal.localeCompare(bVal);
+                }
+                return bVal.localeCompare(aVal);
             });
 
             setSortedData(sorted);

@@ -19,6 +19,7 @@ export const useOperationsData = () => {
         });
 
         setAssociates(Array.from(associateSet));
+        // console.log("Associates extracted:", Array.from(associateSet));
     }, []);
 
     const loadData = useCallback(async () => {
@@ -27,12 +28,18 @@ export const useOperationsData = () => {
             const response = await fetchOperationsData();
             setOperationsData(response);
             extractAssociates(response);
+            // console.log("Operations data loaded:", response);
+
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
     }, [extractAssociates]);
+
+    const refetchOperations = useCallback(async () => {
+        await loadData(); // ← usar função existente
+    }, [loadData]);
 
     useEffect(() => {
         loadData();
@@ -43,7 +50,7 @@ export const useOperationsData = () => {
         loading,
         error,
         associates,
-        refreshData: loadData
+        refetchOperations,
     };
 };
 
