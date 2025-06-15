@@ -1,4 +1,4 @@
-// frontend/src/pages/Operation/store/operationsStore.js - CORRIGIDO
+// frontend/src/pages/Operation/store/operationsStore.js
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
@@ -31,21 +31,6 @@ const useOperationsStore = create(
                 filters: {
                     selectedAssociate: null,
                     selectedView: null
-                },
-
-                // === GETTERS COM DEFAULTS ===
-                getFilters: () => get().filters || { selectedAssociate: null, selectedView: null },
-                getUI: () => get().ui || {
-                    selectedItem: null,
-                    detailsDrawer: false,
-                    actionDrawer: false,
-                    completeDialogOpen: false,
-                    paramsDialogOpen: false,
-                    viewMode: 'grid',
-                    showOnlyMyTasks: false,
-                    searchTerm: '',
-                    completionNote: '',
-                    completionLoading: false
                 },
 
                 // === ACÇÕES ===
@@ -109,14 +94,14 @@ const useOperationsStore = create(
                 // === FILTROS ACTIONS ===
                 setSelectedAssociate: (associate) => set((state) => {
                     state.filters.selectedAssociate = associate;
-                    state.filters.selectedView = null;
+                    state.filters.selectedView = null; // Reset view quando muda associado
                 }),
 
                 setSelectedView: (view) => set((state) => {
                     state.filters.selectedView = view;
                 }),
 
-                // === OPERAÇÕES ===
+                // === OPERAÇÕES COMPLEXAS ===
                 updateOperation: (viewKey, operationId, updates) => set((state) => {
                     if (state.operations[viewKey]?.data) {
                         const operationIndex = state.operations[viewKey].data.findIndex(
@@ -128,6 +113,31 @@ const useOperationsStore = create(
                     }
                 }),
 
+                removeOperation: (viewKey, operationId) => set((state) => {
+                    if (state.operations[viewKey]?.data) {
+                        state.operations[viewKey].data = state.operations[viewKey].data.filter(
+                            op => op.pk !== operationId
+                        );
+                        state.operations[viewKey].total = Math.max(0, (state.operations[viewKey].total || 1) - 1);
+                    }
+                }),
+
+                // === RESET ACTIONS ===
+                resetUI: () => set((state) => {
+                    state.ui = {
+                        selectedItem: null,
+                        detailsDrawer: false,
+                        actionDrawer: false,
+                        completeDialogOpen: false,
+                        paramsDialogOpen: false,
+                        viewMode: 'grid',
+                        showOnlyMyTasks: false,
+                        searchTerm: '',
+                        completionNote: '',
+                        completionLoading: false
+                    };
+                }),
+
                 closeAllModals: () => set((state) => {
                     state.ui.detailsDrawer = false;
                     state.ui.actionDrawer = false;
@@ -137,13 +147,15 @@ const useOperationsStore = create(
                 }),
 
                 // === SELECTORES ===
+                getOperationById: (viewKey, operationId) => {
+                    const state = get();
+                    return state.operations[viewKey]?.data?.find(op => op.pk === operationId) || null;
+                },
+
                 getFilteredOperations: (currentUserId) => {
                     const state = get();
-                    const filters = state.filters || {};
-                    const ui = state.ui || {};
-
-                    const { selectedView } = filters;
-                    const { showOnlyMyTasks, searchTerm } = ui;
+                    const { selectedView } = state.filters;
+                    const { showOnlyMyTasks, searchTerm } = state.ui;
 
                     if (!selectedView || !state.operations[selectedView]?.data) {
                         return [];
@@ -151,10 +163,12 @@ const useOperationsStore = create(
 
                     let data = state.operations[selectedView].data;
 
+                    // Filtrar por utilizador
                     if (showOnlyMyTasks && currentUserId) {
                         data = data.filter(item => Number(item.who) === Number(currentUserId));
                     }
 
+                    // Filtrar por pesquisa
                     if (searchTerm) {
                         const term = searchTerm.toLowerCase();
                         data = data.filter(item =>
@@ -165,7 +179,8 @@ const useOperationsStore = create(
                         );
                     }
 
-                    return [...data].sort((a, b) => {
+                    // Ordenar urgentes primeiro
+                    return data.sort((a, b) => {
                         if (a.urgency === "1" && b.urgency !== "1") return -1;
                         if (b.urgency === "1" && a.urgency !== "1") return 1;
                         return 0;
@@ -176,10 +191,11 @@ const useOperationsStore = create(
                 name: 'operations-storage',
                 partialize: (state) => ({
                     operations: state.operations,
+                    lastSync: state.lastSync,
                     filters: state.filters,
                     ui: {
-                        viewMode: state.ui?.viewMode || 'grid',
-                        showOnlyMyTasks: state.ui?.showOnlyMyTasks || false
+                        viewMode: state.ui.viewMode,
+                        showOnlyMyTasks: state.ui.showOnlyMyTasks
                     }
                 })
             }

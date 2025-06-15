@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+// frontend/src/pages/Operation/components/gestures/SwipeableCard.js
+import React, { useRef, useState, useCallback } from 'react';
 import { Box } from '@mui/material';
-import useGestureNavigation from '../../hooks/useGestureNavigation';
 
 const SwipeableCard = ({
     children,
@@ -13,61 +13,77 @@ const SwipeableCard = ({
     threshold = 50,
     disabled = false
 }) => {
-    const [isDragging, setIsDragging] = useState(false);
     const cardRef = useRef(null);
-
-    const gestureHandlers = useGestureNavigation({
-        onSwipeLeft,
-        onSwipeRight,
-        onSwipeUp,
-        onSwipeDown,
-        onTap,
-        onLongPress,
-        minDistance: threshold
+    const [gesture, setGesture] = useState({
+        startX: 0,
+        startY: 0,
+        startTime: 0,
+        isDragging: false
     });
 
-    const handleTouchStart = (e) => {
+    const handleStart = useCallback((e) => {
         if (disabled) return;
-        setIsDragging(true);
-        gestureHandlers.onTouchStart(e);
-    };
 
-    const handleTouchMove = (e) => {
-        if (disabled) return;
-        gestureHandlers.onTouchMove(e);
-    };
+        const touch = e.touches?.[0] || e;
+        setGesture({
+            startX: touch.clientX,
+            startY: touch.clientY,
+            startTime: Date.now(),
+            isDragging: true
+        });
+    }, [disabled]);
 
-    const handleTouchEnd = (e) => {
-        if (disabled) return;
-        setIsDragging(false);
-        gestureHandlers.onTouchEnd(e);
-    };
+    const handleEnd = useCallback((e) => {
+        if (disabled || !gesture.isDragging) return;
 
-    const handleMouseDown = (e) => {
-        if (disabled) return;
-        setIsDragging(true);
-        // Converter mouse para touch event
-        const touch = { clientX: e.clientX, clientY: e.clientY };
-        gestureHandlers.onTouchStart({ touches: [touch] });
-    };
+        const touch = e.changedTouches?.[0] || e;
+        const deltaX = gesture.startX - touch.clientX;
+        const deltaY = gesture.startY - touch.clientY;
+        const duration = Date.now() - gesture.startTime;
+
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+
+        setGesture(prev => ({ ...prev, isDragging: false }));
+
+        // Tap ou long press
+        if (absX < 10 && absY < 10) {
+            if (duration > 500 && onLongPress) {
+                onLongPress(e);
+            } else if (duration < 300 && onTap) {
+                onTap(e);
+            }
+            return;
+        }
+
+        // Swipe
+        if (absX > threshold || absY > threshold) {
+            if (absX > absY) {
+                // Horizontal
+                if (deltaX > 0 && onSwipeLeft) onSwipeLeft(e);
+                else if (deltaX < 0 && onSwipeRight) onSwipeRight(e);
+            } else {
+                // Vertical
+                if (deltaY > 0 && onSwipeUp) onSwipeUp(e);
+                else if (deltaY < 0 && onSwipeDown) onSwipeDown(e);
+            }
+        }
+    }, [disabled, gesture, threshold, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, onTap, onLongPress]);
 
     return (
         <Box
             ref={cardRef}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onMouseDown={handleMouseDown}
+            onTouchStart={handleStart}
+            onTouchEnd={handleEnd}
+            onMouseDown={handleStart}
+            onMouseUp={handleEnd}
             sx={{
-                cursor: isDragging ? 'grabbing' : 'grab',
+                cursor: gesture.isDragging ? 'grabbing' : 'grab',
                 userSelect: 'none',
                 touchAction: 'pan-y',
-                transition: isDragging ? 'none' : 'transform 0.2s ease',
+                transition: gesture.isDragging ? 'none' : 'transform 0.2s ease',
                 '&:active': { transform: 'scale(0.98)' },
-                ...(disabled && {
-                    cursor: 'default',
-                    pointerEvents: 'none'
-                })
+                ...(disabled && { cursor: 'default', pointerEvents: 'none' })
             }}
         >
             {children}

@@ -1,11 +1,48 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { fetchOperationsData } from '../services/operationsService';
+import useOperationsStore from '../store/operationsStore';
+import { notification } from '../services/notificationService';
+import { Logger } from '../utils/logger';
 
 export const useOperationsData = () => {
-    const [operationsData, setOperationsData] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [associates, setAssociates] = useState(['all']);
+    const {
+        operations, loading, error,
+        setOperations, setLoading, setError, clearError
+    } = useOperationsStore();
+
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        clearError();
+
+        Logger.info('Carregando operações', { timestamp: Date.now() });
+
+        try {
+            const response = await fetchOperationsData();
+            setOperations(response);
+
+            Logger.info('Operações carregadas', {
+                count: Object.keys(response).length,
+                views: Object.keys(response)
+            });
+
+        } catch (err) {
+            Logger.error('Erro carregar operações', {
+                error: err.message,
+                status: err.response?.status,
+                stack: err.stack
+            });
+
+            const message = err.response?.status === 401
+                ? 'Sessão expirada'
+                : 'Erro carregar operações';
+
+            setError(message);
+            notification.error(message);
+
+        } finally {
+            setLoading(false);
+        }
+    }, [setOperations, setLoading, setError, clearError]);
 
     const extractAssociates = useCallback((data) => {
         const associateSet = new Set(['all']);
@@ -18,39 +55,22 @@ export const useOperationsData = () => {
             });
         });
 
-        setAssociates(Array.from(associateSet));
-        // console.log("Associates extracted:", Array.from(associateSet));
+        const associates = Array.from(associateSet);
+        Logger.debug('Associados extraídos', { count: associates.length, associates });
+
+        return associates;
     }, []);
-
-    const loadData = useCallback(async () => {
-        try {
-            setLoading(true);
-            const response = await fetchOperationsData();
-            setOperationsData(response);
-            extractAssociates(response);
-            // console.log("Operations data loaded:", response);
-
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [extractAssociates]);
-
-    const refetchOperations = useCallback(async () => {
-        await loadData(); // ← usar função existente
-    }, [loadData]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
 
     return {
-        operationsData,
+        operationsData: operations, // <- Era isto que estava errado?
         loading,
         error,
-        associates,
-        refetchOperations,
+        associates: extractAssociates(operations), // <- usar operations, não operationsData
+        refetchOperations: loadData
     };
 };
 

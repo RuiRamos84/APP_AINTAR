@@ -1,57 +1,50 @@
-// Configuração
-export const CONFIG = {
-    API_TIMEOUT: 30000,
-    RETRY_ATTEMPTS: 3,
-    RETRY_DELAY: 1000,
-    CACHE_DURATION: 3600000, // 1 hora
-    PAGE_SIZE: 50,
-    TOUCH_TARGET_SIZE: 48,
-    SWIPE_THRESHOLD: 50,
-    LONG_PRESS_DURATION: 500
-};
+// frontend/src/pages/Operation/utils/constants.js
+export const OPERATION_CONSTANTS = {
+    USERS: {
+        SYSTEM_OPERATOR: 81,
+        AUTO_COMPLETION: 0
+    },
 
-// Estados de operações
-export const OPERATION_STATUS = {
-    PENDING: 'pending',
-    IN_PROGRESS: 'in_progress',
-    COMPLETED: 'completed',
-    CANCELLED: 'cancelled'
-};
+    UI: {
+        CARD_HEIGHT: {
+            DESKTOP: 200,
+            TABLET: 140,
+            MOBILE: 120
+        },
+        TOUCH_TARGET: 48,
+        SWIPE_THRESHOLD: 50
+    },
 
-// Tipos de vistas
-export const VIEW_TYPES = {
-    FOSSA: 'vbr_document_fossa',
-    RAMAIS: 'vbr_document_ramais',
-    CAIXAS: 'vbr_document_caixas',
-    DESOBSTRUCAO: 'vbr_document_desobstrucao',
-    PAVIMENTACAO: 'vbr_document_pavimentacao',
-    REDE: 'vbr_document_rede'
-};
+    TIMEOUTS: {
+        GESTURE_MAX: 300,
+        LONG_PRESS: 500,
+        DEBOUNCE_SEARCH: 300,
+        API_TIMEOUT: 30000
+    },
 
-// Permissões
-export const PERMISSIONS = {
-    VIEW_ALL: 'view_all',
-    EDIT_OWN: 'edit_own',
-    EDIT_ALL: 'edit_all',
-    COMPLETE: 'complete',
-    ADMIN: 'admin'
-};
+    CACHE: {
+        OPERATIONS_TTL: 300000,
+        METADATA_TTL: 3600000
+    },
 
-// Parâmetros booleanos
-export const BOOLEAN_PARAMS = [
-    "Gratuito",
-    "Gratuita",
-    "Existência de sanemanto até 20 m",
-    "Existência de rede de água",
-    "Urgência",
-    "Existência de saneamento até 20 m"
-];
+    PAGINATION: {
+        DEFAULT_SIZE: 50,
+        MAX_SIZE: 100,
+        VIRTUALIZE_THRESHOLD: 100
+    },
 
-// Mensagens de erro
-export const ERROR_MESSAGES = {
-    NETWORK_ERROR: 'Erro de rede. Verifique ligação.',
-    UNAUTHORIZED: 'Sem autorização.',
-    NOT_FOUND: 'Não encontrado.',
-    VALIDATION_ERROR: 'Dados inválidos.',
-    GENERIC_ERROR: 'Erro. Tente novamente.'
+    BOOLEAN_PARAMS: [
+        "Gratuito",
+        "Gratuita",
+        "Existência de sanemento até 20 m",
+        "Existência de rede de água",
+        "Urgência"
+    ],
+
+    STATUS: {
+        PENDING: 'pending',
+        IN_PROGRESS: 'in_progress',
+        COMPLETED: 'completed',
+        CANCELLED: 'cancelled'
+    }
 };

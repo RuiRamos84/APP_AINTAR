@@ -1,75 +1,60 @@
-import { useState, useEffect, useMemo } from 'react';
-import { sortViews } from '../utils/helpers';
+// frontend/src/pages/Operation/hooks/useOperationsFilters.js
+import { useMemo } from 'react';
 
-export const useOperationsFilters = (operationsData) => {
-    const [selectedAssociate, setSelectedAssociate] = useState(null);
-    const [selectedView, setSelectedView] = useState(null);
+export const useOperationsFilters = (operationsData, selectedAssociate) => {
+    // 1. Se não há associado seleccionado → sem dados
+    // 2. Se "all" → todos os dados
+    // 3. Se associado específico → só dados desse associado
 
     const filteredData = useMemo(() => {
-        if (!selectedAssociate || !operationsData) return {};
+        if (!operationsData || typeof operationsData !== 'object') return {};
 
+        // Sem associado seleccionado → vazio
+        if (!selectedAssociate) return {};
+
+        // Todos → dados completos
+        if (selectedAssociate === 'all') return operationsData;
+
+        // Associado específico → filtra
         const filtered = {};
-
-        if (selectedAssociate === 'all') {
-            // Só views globais (terminam em '01')
-            Object.keys(operationsData).forEach(viewKey => {
-                if (viewKey.endsWith('01') && operationsData[viewKey]?.data?.length > 0) {
-                    filtered[viewKey] = operationsData[viewKey];
-                }
-            });
-        } else {
-            // Só views específicas (NÃO terminam em '01')
-            Object.keys(operationsData).forEach(viewKey => {
-                if (viewKey.endsWith('01')) return; // Skip globais
-
-                const viewData = operationsData[viewKey];
-                if (!viewData?.data) return;
-
-                const filteredItems = viewData.data.filter(
-                    item => item.ts_associate === selectedAssociate
+        Object.entries(operationsData).forEach(([key, view]) => {
+            if (view?.data) {
+                const associateData = view.data.filter(item =>
+                    item.ts_associate === selectedAssociate
                 );
 
-                if (filteredItems.length > 0) {
-                    filtered[viewKey] = {
-                        ...viewData,
-                        data: filteredItems,
-                        total: filteredItems.length
+                // Só adiciona se tiver dados
+                if (associateData.length > 0) {
+                    filtered[key] = {
+                        ...view,
+                        data: associateData,
+                        total: associateData.length
                     };
                 }
-            });
-        }
+            }
+        });
 
         return filtered;
-    }, [selectedAssociate, operationsData]);
+    }, [operationsData, selectedAssociate]);
 
-    const sortedViews = useMemo(() => sortViews(filteredData), [filteredData]);
+    const sortedViews = useMemo(() => {
+        return Object.entries(filteredData);
+    }, [filteredData]);
 
-    const isFossaView = selectedView?.startsWith('vbr_document_fossa');
-    const isRamaisView = selectedView?.startsWith('vbr_document_ramais');
+    const isFossaView = useMemo(() => {
+        const firstViewKey = Object.keys(filteredData)[0];
+        return firstViewKey?.includes('fossa') || false;
+    }, [filteredData]);
 
-    useEffect(() => {
-        if (!selectedView && Object.keys(filteredData).length > 0) {
-            const fossaView = Object.keys(filteredData).find(key => key.includes('fossa'));
-            setSelectedView(fossaView || Object.keys(filteredData)[0]);
-        }
-    }, [filteredData, selectedView]);
-
-    const handleViewChange = (viewKey) => setSelectedView(viewKey);
-    const handleAssociateChange = (associate) => {
-        setSelectedAssociate(associate);
-        setSelectedView(null);
-    };
+    const isRamaisView = useMemo(() => {
+        const firstViewKey = Object.keys(filteredData)[0];
+        return firstViewKey?.includes('ramais') || false;
+    }, [filteredData]);
 
     return {
-        selectedAssociate,
-        selectedView,
-        isFossaView,
-        isRamaisView,
         filteredData,
         sortedViews,
-        handleViewChange,
-        handleAssociateChange
+        isFossaView,
+        isRamaisView
     };
 };
-
-export default useOperationsFilters;

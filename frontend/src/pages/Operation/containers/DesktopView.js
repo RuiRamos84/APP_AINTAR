@@ -1,46 +1,42 @@
+// frontend/src/pages/Operation/containers/DesktopView.js
 import React from 'react';
-import { Box, Typography, Button, CircularProgress } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
 import { GetApp } from '@mui/icons-material';
 
-// Hooks
+import useOperationsStore from '../store/operationsStore';
 import { useOperationsData } from '../hooks/useOperationsData';
 import { useOperationsFilters } from '../hooks/useOperationsFilters';
 import { useOperationsTable } from '../hooks/useOperationsTable';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 
-// Componentes
 import AssociateFilter from '../components/filters/AssociateFilter';
 import ViewCards from '../components/cards/ViewCards';
 import OperationsTable from '../components/table/OperationsTable';
+import VirtualizedOperationsTable from '../components/table/VirtualizedOperationsTable';
 
-// Utils
 import { getColumnsForView, getRemainingDaysColor } from '../utils/helpers';
 import { exportToExcel } from '../services/exportService';
 
 const DesktopView = () => {
     const { metaData } = useMetaData();
+
+    // Store centralizado
+    const { filters, setSelectedAssociate, setSelectedView } = useOperationsStore();
+
+    // Dados
     const { operationsData, loading, error, associates } = useOperationsData();
 
-    const {
-        selectedAssociate,
-        selectedView,
-        isFossaView,
-        isRamaisView,
-        filteredData,
-        sortedViews,
-        handleViewChange,
-        handleAssociateChange
-    } = useOperationsFilters(operationsData);
+    // Filtros
+    const { isFossaView, isRamaisView, filteredData, sortedViews } = useOperationsFilters(
+        operationsData,
+        filters.selectedAssociate
+    );
 
+    // Tabela
     const {
-        orderBy,
-        order,
-        expandedRows,
-        sortedData,
-        handleRequestSort,
-        toggleRowExpand,
-        getAddressString
-    } = useOperationsTable(filteredData, selectedView);
+        orderBy, order, expandedRows, sortedData,
+        handleRequestSort, toggleRowExpand, getAddressString
+    } = useOperationsTable(filteredData, filters.selectedView);
 
     // Render cell
     const renderCell = (column, row) => {
@@ -57,61 +53,69 @@ const DesktopView = () => {
         return row[column.id || column];
     };
 
-    // Estados de loading/erro
-    if (loading) return <CircularProgress />;
+    if (loading) return <Box>A carregar...</Box>;
     if (error) return <Typography color="error">{error}</Typography>;
-    if (!Object.keys(operationsData).length) {
-        return <Typography>Sem dados disponíveis.</Typography>;
-    }
+    if (!Object.keys(operationsData).length) return <Typography>Sem dados.</Typography>;
+
+    const useVirtualization = sortedData.length > 100;
 
     return (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             {/* Filtros */}
-            <Box sx={{ flexShrink: 0 }}>
+            <Box sx={{ flexShrink: 0, p: 2 }}>
                 <AssociateFilter
                     associates={associates}
-                    selectedAssociate={selectedAssociate}
-                    onAssociateChange={handleAssociateChange}
+                    selectedAssociate={filters.selectedAssociate}
+                    onAssociateChange={setSelectedAssociate}
                 />
-                {selectedAssociate && (
+
+                {filters.selectedAssociate && (
                     <ViewCards
                         views={sortedViews}
-                        selectedView={selectedView}
-                        onViewClick={handleViewChange}
+                        selectedView={filters.selectedView}
+                        onViewClick={setSelectedView}
                     />
                 )}
             </Box>
 
             {/* Tabela */}
-            {selectedView && filteredData[selectedView]?.data?.length > 0 && (
-                <Box mt={4} sx={{ flexGrow: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            {filters.selectedView && filteredData[filters.selectedView]?.data?.length > 0 && (
+                <Box sx={{ flexGrow: 1, overflow: "hidden", display: "flex", flexDirection: "column", p: 2 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                         <Typography variant="h5">
-                            {filteredData[selectedView].name}
+                            {filteredData[filters.selectedView].name} ({sortedData.length})
                         </Typography>
                         <Button
                             variant="outlined"
                             startIcon={<GetApp />}
-                            onClick={() => exportToExcel(filteredData, selectedView)}
+                            onClick={() => exportToExcel(filteredData, filters.selectedView)}
                             disabled={!sortedData.length}
                         >
                             Exportar
                         </Button>
                     </Box>
 
-                    <OperationsTable
-                        data={sortedData}
-                        columns={getColumnsForView(selectedView, metaData)}
-                        orderBy={orderBy}
-                        order={order}
-                        onRequestSort={handleRequestSort}
-                        expandedRows={expandedRows}
-                        toggleRowExpand={toggleRowExpand}
-                        isRamaisView={isRamaisView}
-                        getRemainingDaysColor={getRemainingDaysColor}
-                        getAddressString={getAddressString}
-                        renderCell={renderCell}
-                    />
+                    {useVirtualization ? (
+                        <VirtualizedOperationsTable
+                            data={sortedData}
+                            columns={getColumnsForView(filters.selectedView, metaData)}
+                            renderCell={renderCell}
+                        />
+                    ) : (
+                        <OperationsTable
+                            data={sortedData}
+                            columns={getColumnsForView(filters.selectedView, metaData)}
+                            orderBy={orderBy}
+                            order={order}
+                            onRequestSort={handleRequestSort}
+                            expandedRows={expandedRows}
+                            toggleRowExpand={toggleRowExpand}
+                            isRamaisView={isRamaisView}
+                            getRemainingDaysColor={getRemainingDaysColor}
+                            getAddressString={getAddressString}
+                            renderCell={renderCell}
+                        />
+                    )}
                 </Box>
             )}
         </Box>

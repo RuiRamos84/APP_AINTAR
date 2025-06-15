@@ -1,15 +1,16 @@
+// frontend/src/pages/Operation/components/modals/CompletionModal.js
 import React, { useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
-    Box, Typography, TextField, Button, IconButton,
-    Alert, Input
+    Box, Typography, Button, IconButton, Alert, Input
 } from '@mui/material';
 import { Close, AttachFile } from '@mui/icons-material';
+import ValidatedTextField from '../forms/ValidatedTextField';
 
 const CompletionModal = ({
     open,
     onClose,
-    note,
+    note = '', // <- DEFAULT
     onNoteChange,
     onConfirm,
     loading = false,
@@ -25,13 +26,16 @@ const CompletionModal = ({
         onConfirm(selectedFile);
     };
 
+    // Safe check
+    const noteValue = note || '';
+    const isNoteValid = noteValue.trim().length >= 10;
+
     return (
         <Dialog
             open={open}
             onClose={onClose}
             fullWidth
             maxWidth="sm"
-            PaperProps={{ sx: { borderRadius: 2 } }}
         >
             <DialogTitle>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -41,12 +45,10 @@ const CompletionModal = ({
                     </IconButton>
                 </Box>
             </DialogTitle>
+
             <DialogContent dividers>
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    Esta acção irá:
-                    • Actualizar os parâmetros do serviço
-                    • Adicionar um passo para a próxima fase
-                    • Enviar o pedido para o próximo responsável
+                    Esta ação irá criar um passo no workflow.
                 </Alert>
 
                 {document && (
@@ -55,19 +57,18 @@ const CompletionModal = ({
                     </Typography>
                 )}
 
-                <TextField
+                <ValidatedTextField
                     autoFocus
                     margin="dense"
-                    label="Nota da conclusão da tarefa (obrigatório)"
+                    label="Nota da conclusão (obrigatório)"
                     fullWidth
                     multiline
                     rows={4}
                     variant="outlined"
-                    value={note}
-                    onChange={(e) => onNoteChange(e.target.value)}
+                    value={noteValue}
+                    onChange={(e, sanitizedValue) => onNoteChange?.(sanitizedValue || e.target.value)}
+                    validation="note"
                     required
-                    error={!note.trim()}
-                    helperText={!note.trim() ? "A nota é obrigatória" : ""}
                 />
 
                 <Box sx={{ mt: 2 }}>
@@ -87,6 +88,7 @@ const CompletionModal = ({
                     )}
                 </Box>
             </DialogContent>
+
             <DialogActions>
                 <Button onClick={onClose} disabled={loading}>
                     Cancelar
@@ -95,10 +97,10 @@ const CompletionModal = ({
                     onClick={handleConfirm}
                     variant="contained"
                     color="success"
-                    disabled={!note.trim() || loading}
+                    disabled={!isNoteValid || loading}
                     sx={{ px: 4, py: 1 }}
                 >
-                    {loading ? 'A processar...' : 'Finalizar Tarefa'}
+                    {loading ? 'A processar...' : 'Finalizar'}
                 </Button>
             </DialogActions>
         </Dialog>

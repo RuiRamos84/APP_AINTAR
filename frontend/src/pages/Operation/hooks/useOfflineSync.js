@@ -1,20 +1,24 @@
+// frontend/src/pages/Operation/hooks/useOfflineSync.js - MELHORADO
 import { useState, useEffect, useCallback } from 'react';
+import { Logger } from '../utils/logger';
 
-const useOfflineSync = (namespace = 'default') => {
+const STORAGE_KEY = 'operations_offline';
+
+export const useOfflineSync = () => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [pendingActions, setPendingActions] = useState([]);
+    const [isSyncing, setIsSyncing] = useState(false);
 
+    // Carregar acções pendentes
     useEffect(() => {
-        const loadPending = () => {
+        const cached = localStorage.getItem(STORAGE_KEY);
+        if (cached) {
             try {
-                const cached = localStorage.getItem(`${namespace}_pending`);
-                if (cached) setPendingActions(JSON.parse(cached));
-            } catch (error) {
-                console.error('Erro cache:', error);
+                setPendingActions(JSON.parse(cached));
+            } catch (e) {
+                Logger.error('Erro cache offline', { error: e.message });
             }
-        };
-
-        loadPending();
+        }
 
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
@@ -26,64 +30,88 @@ const useOfflineSync = (namespace = 'default') => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [namespace]);
+    }, []);
 
-    // Salvar em cache quando mudam
+    // Guardar quando muda
     useEffect(() => {
-        try {
-            localStorage.setItem(`${namespace}_pending`, JSON.stringify(pendingActions));
-        } catch (error) {
-            console.error('Erro salvar cache:', error);
-        }
-    }, [pendingActions, namespace]);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(pendingActions));
+    }, [pendingActions]);
 
-    const addAction = useCallback((type, params, onSuccess = null) => {
+    const addAction = useCallback((type, data) => {
         const action = {
+            id: Date.now() + Math.random().toString(36).slice(2),
             type,
-            params,
+            data,
             timestamp: Date.now(),
-            id: Date.now() + Math.random().toString(36).substring(2, 9)
+            retries: 0
         };
 
         setPendingActions(prev => [...prev, action]);
-        onSuccess?.();
+        Logger.info('Acção offline adicionada', { type, id: action.id });
     }, []);
 
-    const removeAction = useCallback((actionId) => {
-        setPendingActions(prev => prev.filter(action => action.id !== actionId));
-    }, []);
+    const syncActions = useCallback(async (handlers) => {
+        if (!isOnline || !pendingActions.length) return;
 
-    const syncActions = useCallback(async (apiCallbacks) => {
-        if (!isOnline || !pendingActions.length || !apiCallbacks) return { success: 0, failed: 0 };
+        setIsSyncing(true);
+        Logger.info('Sincronização iniciada', { count: pendingActions.length });
 
-        let success = 0;
-        let failed = 0;
+        const results = { success: 0, failed: 0 };
 
         for (const action of pendingActions) {
             try {
-                if (apiCallbacks[action.type]) {
-                    await apiCallbacks[action.type](action.params);
-                    removeAction(action.id);
-                    success++;
-                } else {
-                    failed++;
+                const handler = handlers[action.type];
+                if (!handler) {
+                    Logger.warn('Handler não encontrado', { type: action.type });
+                    continue;
                 }
+
+                await handler(action.data);
+
+                // Remover se sucesso
+                setPendingActions(prev => prev.filter(a => a.id !== action.id));
+                results.success++;
+
+                Logger.info('Acção sincronizada', {
+                    type: action.type,
+                    id: action.id
+                });
+
             } catch (error) {
-                console.error(`Erro sync ${action.type}:`, error);
-                failed++;
+                Logger.error('Erro sincronização', {
+                    type: action.type,
+                    error: error.message,
+                    retries: action.retries
+                });
+
+                // Incrementar retries
+                setPendingActions(prev => prev.map(a =>
+                    a.id === action.id
+                        ? { ...a, retries: a.retries + 1 }
+                        : a
+                ));
+
+                results.failed++;
             }
         }
 
-        return { success, failed };
-    }, [isOnline, pendingActions, removeAction]);
+        setIsSyncing(false);
+        Logger.info('Sincronização completa', results);
+
+        return results;
+    }, [isOnline, pendingActions]);
+
+    const clearPending = useCallback(() => {
+        setPendingActions([]);
+        localStorage.removeItem(STORAGE_KEY);
+    }, []);
 
     return {
         isOnline,
         pendingActions,
+        isSyncing,
         addAction,
         syncActions,
-        hasPending: pendingActions.length > 0
+        clearPending
     };
 };
-
-export default useOfflineSync;

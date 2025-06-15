@@ -1,4 +1,5 @@
-import React from 'react';
+// frontend/src/pages/Operation/components/cards/OperationCard.js - ATUALIZADO
+import React, { memo } from 'react';
 import {
     Card, CardContent, CardActions, Box, Typography, Chip,
     IconButton, Tooltip, LinearProgress, Stack
@@ -9,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useOperationCardStyles } from './OperationCard.styles';
 
-const OperationCard = ({
+const OperationCard = memo(({
     item,
     isUrgent,
     canAct,
@@ -38,7 +39,6 @@ const OperationCard = ({
             onClick={onClick}
         >
             <CardContent sx={styles.cardContent}>
-                {/* Cabeçalho */}
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                     <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.2rem' }}>
                         {item.regnumber}
@@ -69,7 +69,6 @@ const OperationCard = ({
                     </Box>
                 </Box>
 
-                {/* Status para ramais */}
                 {isRamaisView && (
                     <Box mb={2}>
                         <LinearProgress
@@ -95,7 +94,6 @@ const OperationCard = ({
                     </Box>
                 )}
 
-                {/* Informações */}
                 <Stack spacing={1.5}>
                     <Box display="flex" alignItems="center" gap={1}>
                         <Person fontSize="small" color="action" />
@@ -174,6 +172,16 @@ const OperationCard = ({
             </CardActions>
         </Card>
     );
-};
+}, (prevProps, nextProps) => {
+    // Comparação personalizada para evitar re-renders
+    return (
+        prevProps.item.pk === nextProps.item.pk &&
+        prevProps.isUrgent === nextProps.isUrgent &&
+        prevProps.canAct === nextProps.canAct &&
+        prevProps.isSwiping === nextProps.isSwiping
+    );
+});
+
+OperationCard.displayName = 'OperationCard';
 
 export default OperationCard;

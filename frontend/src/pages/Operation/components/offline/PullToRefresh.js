@@ -1,22 +1,23 @@
+// frontend/src/pages/Operation/components/offline/PullToRefresh.js
 import React, { useState, useRef } from 'react';
-import { Box, CircularProgress } from '@mui/material';
-import { Refresh } from '@mui/icons-material';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { Refresh, ArrowDownward } from '@mui/icons-material';
 
-const PullToRefresh = ({ onRefresh, children }) => {
+const PullToRefresh = ({ onRefresh, children, threshold = 60 }) => {
     const [pullDistance, setPullDistance] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
-    const [touchStartY, setTouchStartY] = useState(0);
+    const [startY, setStartY] = useState(0);
     const containerRef = useRef(null);
 
     const handleTouchStart = (e) => {
         if (containerRef.current?.scrollTop === 0) {
-            setTouchStartY(e.touches[0].clientY);
+            setStartY(e.touches[0].clientY);
         }
     };
 
     const handleTouchMove = (e) => {
-        if (containerRef.current?.scrollTop === 0 && touchStartY) {
-            const deltaY = e.touches[0].clientY - touchStartY;
+        if (containerRef.current?.scrollTop === 0 && startY) {
+            const deltaY = e.touches[0].clientY - startY;
             if (deltaY > 0) {
                 e.preventDefault();
                 setPullDistance(Math.min(deltaY, 100));
@@ -25,7 +26,7 @@ const PullToRefresh = ({ onRefresh, children }) => {
     };
 
     const handleTouchEnd = async () => {
-        if (pullDistance > 50) {
+        if (pullDistance > threshold && !refreshing) {
             setRefreshing(true);
             try {
                 await onRefresh();
@@ -34,7 +35,20 @@ const PullToRefresh = ({ onRefresh, children }) => {
             }
         }
         setPullDistance(0);
-        setTouchStartY(0);
+        setStartY(0);
+    };
+
+    const getIcon = () => {
+        if (refreshing) return <CircularProgress size={24} />;
+        if (pullDistance > threshold) return <Refresh />;
+        return <ArrowDownward />;
+    };
+
+    const getMessage = () => {
+        if (refreshing) return 'A actualizar...';
+        if (pullDistance > threshold) return 'Soltar para actualizar';
+        if (pullDistance > 20) return 'Puxar para actualizar';
+        return '';
     };
 
     return (
@@ -49,32 +63,35 @@ const PullToRefresh = ({ onRefresh, children }) => {
                 height: '100%'
             }}
         >
+            {/* Indicador */}
             {pullDistance > 0 && (
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: '50%',
-                        transform: `translateX(-50%) translateY(${pullDistance - 40}px)`,
-                        zIndex: 1
-                    }}
-                >
-                    {refreshing ? (
-                        <CircularProgress size={24} />
-                    ) : (
-                        <Refresh sx={{
-                            transform: `rotate(${pullDistance * 3.6}deg)`,
-                            transition: 'transform 0.1s'
-                        }} />
-                    )}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '50%',
+                    transform: `translateX(-50%) translateY(${Math.max(0, pullDistance - 40)}px)`,
+                    zIndex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 1,
+                    p: 1,
+                    bgcolor: 'background.paper',
+                    borderRadius: 2,
+                    boxShadow: 2
+                }}>
+                    {getIcon()}
+                    <Typography variant="caption" color="text.secondary">
+                        {getMessage()}
+                    </Typography>
                 </Box>
             )}
-            <Box
-                sx={{
-                    transform: `translateY(${pullDistance > 0 ? pullDistance : 0}px)`,
-                    transition: refreshing || pullDistance === 0 ? 'transform 0.3s ease' : 'none'
-                }}
-            >
+
+            {/* Conteúdo */}
+            <Box sx={{
+                transform: `translateY(${pullDistance > 0 ? pullDistance : 0}px)`,
+                transition: refreshing || pullDistance === 0 ? 'transform 0.3s ease' : 'none'
+            }}>
                 {children}
             </Box>
         </Box>
