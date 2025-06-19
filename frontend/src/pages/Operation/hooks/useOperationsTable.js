@@ -79,4 +79,3 @@ export const useOperationsTable = (filteredData, selectedView) => {
     };
 };
 
-export default useOperationsTable;

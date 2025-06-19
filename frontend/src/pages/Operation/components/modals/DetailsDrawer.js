@@ -86,10 +86,10 @@ const DetailsDrawer = ({
                     <Box display="flex" alignItems="center" gap={1}>
                         <Box>
                             <Box display="flex" alignItems="center" gap={1}>
-                                <Chip label={item.tipo} color={getTypeColor(item.tipo)} size="small" />
                                 <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.3rem' }}>
-                                    {item.regnumber}
+                                    {item.regnumber} - 
                                 </Typography>
+                                <Chip label={item.tipo} color={getTypeColor(item.tipo)} size="small" />
                             </Box>
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', ml: 1, fontStyle: 'italic' }}>
                                 via {item.ts_associate}
@@ -129,9 +129,6 @@ const DetailsDrawer = ({
                             <Box sx={{ ml: 3 }}>
                                 <Typography variant="body1" fontWeight="medium" sx={{ lineHeight: 1.2 }}>
                                     {item.ts_entity}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    {/* {item.ts_associate} */}
                                 </Typography>
                             </Box>
                         </Box>
@@ -214,8 +211,37 @@ const DetailsDrawer = ({
                                     {item.floor && ` • ${item.floor}`}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" display="block">
-                                    {item.postal} {item.nut2}
+                                    {item.postal} {item.nut4}
                                 </Typography>
+
+                                {/* Chips geográficos */}
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                                    {item.nut3 && (
+                                        <Chip
+                                            icon={<LocationOn fontSize="small" />}
+                                            label={item.nut3}
+                                            size="small"
+                                            variant="outlined"
+                                            color="primary"
+                                        />
+                                    )}
+                                    {item.nut2 && (
+                                        <Chip
+                                            label={item.nut2}
+                                            size="small"
+                                            variant="outlined"
+                                            color="secondary"
+                                        />
+                                    )}
+                                    {item.nut1 && (
+                                        <Chip
+                                            label={item.nut1}
+                                            size="small"
+                                            variant="outlined"
+                                            color="default"
+                                        />
+                                    )}
+                                </Stack>
                             </Box>
                         </Box>
 

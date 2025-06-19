@@ -1,40 +1,64 @@
 // frontend/src/pages/Operation/hooks/useOperationsFilters.js
 import { useMemo } from 'react';
 
+const getTypeInfo = (viewKey) => {
+    if (viewKey.includes('fossa')) {
+        return { key: 'fossa', name: 'Limpezas de fossa' };
+    }
+    if (viewKey.includes('ramais')) {
+        return { key: 'ramais', name: 'Ramais' };
+    }
+    if (viewKey.includes('pavimentacao')) {
+        return { key: 'pavimentacao', name: 'Pavimentação' };
+    }
+    return { key: viewKey, name: viewKey };
+};
+
 export const useOperationsFilters = (operationsData, selectedAssociate) => {
-    // 1. Se não há associado seleccionado → sem dados
-    // 2. Se "all" → todos os dados
-    // 3. Se associado específico → só dados desse associado
-
     const filteredData = useMemo(() => {
-        if (!operationsData || typeof operationsData !== 'object') return {};
+        if (!operationsData || !selectedAssociate) return {};
 
-        // Sem associado seleccionado → vazio
-        if (!selectedAssociate) return {};
+        const grouped = {};
 
-        // Todos → dados completos
-        if (selectedAssociate === 'all') return operationsData;
+        Object.entries(operationsData).forEach(([viewKey, view]) => {
+            if (!view?.data?.length) return;
 
-        // Associado específico → filtra
-        const filtered = {};
-        Object.entries(operationsData).forEach(([key, view]) => {
-            if (view?.data) {
-                const associateData = view.data.filter(item =>
-                    item.ts_associate === selectedAssociate
-                );
+            const { key: typeKey, name: typeName } = getTypeInfo(viewKey);
 
-                // Só adiciona se tiver dados
-                if (associateData.length > 0) {
-                    filtered[key] = {
-                        ...view,
-                        data: associateData,
-                        total: associateData.length
-                    };
-                }
+            // Filtrar dados por associado (se não for 'all')
+            const data = selectedAssociate === 'all'
+                ? view.data
+                : view.data.filter(item => item.ts_associate === selectedAssociate);
+
+            if (data.length === 0) return;
+
+            // Agrupar por tipo
+            if (!grouped[typeKey]) {
+                grouped[typeKey] = {
+                    name: typeName,
+                    data: [],
+                    dataSet: new Set(), // Track PKs to avoid duplicates
+                    total: 0
+                };
             }
+
+            // Adicionar apenas dados únicos (por pk)
+            data.forEach(item => {
+                if (!grouped[typeKey].dataSet.has(item.pk)) {
+                    grouped[typeKey].dataSet.add(item.pk);
+                    grouped[typeKey].data.push(item);
+                }
+            });
+
+            grouped[typeKey].total = grouped[typeKey].data.length;
         });
 
-        return filtered;
+        // Remover dataSet antes de retornar
+        Object.values(grouped).forEach(group => {
+            delete group.dataSet;
+        });
+
+        return grouped;
     }, [operationsData, selectedAssociate]);
 
     const sortedViews = useMemo(() => {
@@ -43,12 +67,12 @@ export const useOperationsFilters = (operationsData, selectedAssociate) => {
 
     const isFossaView = useMemo(() => {
         const firstViewKey = Object.keys(filteredData)[0];
-        return firstViewKey?.includes('fossa') || false;
+        return firstViewKey === 'fossa';
     }, [filteredData]);
 
     const isRamaisView = useMemo(() => {
         const firstViewKey = Object.keys(filteredData)[0];
-        return firstViewKey?.includes('ramais') || false;
+        return firstViewKey === 'ramais';
     }, [filteredData]);
 
     return {

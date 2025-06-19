@@ -15,8 +15,7 @@ class Logger {
         };
 
         console[level.toLowerCase()](JSON.stringify(logData, null, 2));
-
-        // Enviar para serviço externo em produção
+        
         if (process.env.NODE_ENV === 'production' && level === 'ERROR') {
             Logger.sendToService(logData);
         }

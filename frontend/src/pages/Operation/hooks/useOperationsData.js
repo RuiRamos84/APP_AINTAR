@@ -14,16 +14,16 @@ export const useOperationsData = () => {
         setLoading(true);
         clearError();
 
-        Logger.info('Carregando operações', { timestamp: Date.now() });
+        // Logger.info('Carregando operações', { timestamp: Date.now() });
 
         try {
             const response = await fetchOperationsData();
             setOperations(response);
 
-            Logger.info('Operações carregadas', {
-                count: Object.keys(response).length,
-                views: Object.keys(response)
-            });
+            // Logger.info('Operações carregadas', {
+            //     count: Object.keys(response).length,
+            //     views: Object.keys(response)
+            // });
 
         } catch (err) {
             Logger.error('Erro carregar operações', {
@@ -56,7 +56,7 @@ export const useOperationsData = () => {
         });
 
         const associates = Array.from(associateSet);
-        Logger.debug('Associados extraídos', { count: associates.length, associates });
+        // Logger.debug('Associados extraídos', { count: associates.length, associates });
 
         return associates;
     }, []);
@@ -66,12 +66,10 @@ export const useOperationsData = () => {
     }, [loadData]);
 
     return {
-        operationsData: operations, // <- Era isto que estava errado?
+        operationsData: operations,
         loading,
         error,
-        associates: extractAssociates(operations), // <- usar operations, não operationsData
+        associates: extractAssociates(operations),
         refetchOperations: loadData
     };
 };
-
-export default useOperationsData;
