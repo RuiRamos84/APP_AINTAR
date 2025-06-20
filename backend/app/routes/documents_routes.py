@@ -28,6 +28,7 @@ from ..services.documents import (
     replicate_document_service,
     reopen_document,
     documentById,
+    get_documents_late
 )
 import jwt
 from .. import limiter
@@ -441,6 +442,18 @@ def reopen_document_route():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/documents/late', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_documents_late_route():
+    """Listar documentos em atraso (mais de 30 dias)"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return get_documents_late(current_user)
+
+
 @bp.after_request
 @api_error_handler
 def cleanup_session(response):
@@ -450,6 +463,7 @@ def cleanup_session(response):
         delattr(g, 'current_session_id')
     # current_app.logger.debug("Sessão limpa após requisição documents")
     return response
+
 
 
 # Registrar a função de limpeza de sessão

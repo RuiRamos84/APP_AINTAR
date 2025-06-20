@@ -64,6 +64,10 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [finalPaymentData, setFinalPaymentData] = useState(null);
 
+    // Estados para sugestão de criação de entidade
+    const [suggestEntityCreation, setSuggestEntityCreation] = useState(false);
+    const [pendingNipc, setPendingNipc] = useState('');
+
     // Inicialização dos hooks personalizados
     const documentForm = useDocumentForm(initialNipc, handleCloseAfterSuccess);
     const {
@@ -101,6 +105,29 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     useEffect(() => {
         if (open) {
             resetForm();
+            // Limpar dados da entidade
+            entityDataHook.setEntityData(null);
+            entityDataHook.setRepresentativeData(null);
+            setBillingAddress({
+                postal: "",
+                address: "",
+                door: "",
+                floor: "",
+                nut1: "",
+                nut2: "",
+                nut3: "",
+                nut4: "",
+            });
+            setShippingAddress({
+                postal: "",
+                address: "",
+                door: "",
+                floor: "",
+                nut1: "",
+                nut2: "",
+                nut3: "",
+                nut4: "",
+            });
 
             if (initialNipc) {
                 setFormData(prev => ({ ...prev, nipc: initialNipc }));
@@ -109,7 +136,36 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     }, [open, initialNipc]);
 
-    // Função para validar o passo atual
+    // Handler personalizado para mudança do NIPC
+    const handleNipcChange = async (event) => {
+        const nipc = event.target.value;
+        handleChange(event);
+
+        if (nipc && nipc.length >= 9) {
+            const entityResult = await checkEntityData(nipc);
+
+            // Se não encontrou dados da entidade, sugerir criação
+            if (!entityResult || !entityData) {
+                setPendingNipc(nipc);
+                setSuggestEntityCreation(true);
+            }
+        }
+    };
+
+    // Handler para confirmar criação de nova entidade
+    const handleConfirmCreateEntity = () => {
+        setSuggestEntityCreation(false);
+        entityDataHook.setNewEntityNipc(pendingNipc);
+        setCreateEntityModalOpen(true);
+        setPendingNipc('');
+    };
+
+    // Handler para rejeitar criação de entidade
+    const handleRejectCreateEntity = () => {
+        setSuggestEntityCreation(false);
+        setPendingNipc('');
+        // Mantém o NIPC no formulário mas sem dados da entidade
+    };
     const validateStep = () => {
         const newErrors = validateCurrentStep(
             activeStep, formData, billingAddress, shippingAddress,
@@ -215,13 +271,41 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
         if (success) {
             notifySuccess('Pagamento processado com sucesso!');
+        } else {
+            notifyInfo('Documento criado. Pagamento pode ser efectuado posteriormente.');
         }
 
-        // Independentemente do resultado do pagamento, fechar modal
-        // pois o documento já foi criado
+        // Limpar todos os dados e fechar modal
         resetForm();
+        clearEntityData();
         onClose(true, finalPaymentData?.regnumber, false);
         setFinalPaymentData(null);
+    };
+
+    // Função para limpar dados da entidade
+    const clearEntityData = () => {
+        entityDataHook.setEntityData(null);
+        entityDataHook.setRepresentativeData(null);
+        setBillingAddress({
+            postal: "",
+            address: "",
+            door: "",
+            floor: "",
+            nut1: "",
+            nut2: "",
+            nut3: "",
+            nut4: "",
+        });
+        setShippingAddress({
+            postal: "",
+            address: "",
+            door: "",
+            floor: "",
+            nut1: "",
+            nut2: "",
+            nut3: "",
+            nut4: "",
+        });
     };
 
     // Submeter formulário
@@ -271,6 +355,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
                 // Sem pagamento - fechar normal
                 resetForm();
+                clearEntityData();
                 onClose(true, regnumber, false);
             } else {
                 throw new Error(response.error || "Erro desconhecido");
@@ -308,6 +393,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     // Confirmar fechamento do modal
     const handleConfirmClose = () => {
         resetForm();
+        clearEntityData();
         setConfirmClose(false);
         onClose(false);
     };
@@ -320,6 +406,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                     <IdentificationStep
                         formData={formData}
                         handleChange={handleChange}
+                        handleNipcChange={handleNipcChange}
                         errors={errors}
                         entityData={entityData}
                         representativeData={representativeData}
@@ -537,6 +624,30 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                             Próximo
                         </Button>
                     )}
+                </DialogActions>
+            </Dialog>
+
+            {/* Modal de sugestão para criar entidade */}
+            <Dialog open={suggestEntityCreation} onClose={handleRejectCreateEntity}>
+                <DialogTitle>Entidade não encontrada</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Não foram encontrados dados para o NIF {pendingNipc}.
+                        Deseja criar uma nova entidade com este NIF?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleRejectCreateEntity}>
+                        Continuar sem criar
+                    </Button>
+                    <Button
+                        onClick={handleConfirmCreateEntity}
+                        variant="contained"
+                        color="primary"
+                        autoFocus
+                    >
+                        Criar nova entidade
+                    </Button>
                 </DialogActions>
             </Dialog>
 

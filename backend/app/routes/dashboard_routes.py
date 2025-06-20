@@ -21,7 +21,7 @@ def get_dashboard_data(view_name):
         valid_views = [
             'vbr_document_001', 'vbr_document_002', 'vbr_document_003',
             'vbr_document_004', 'vbr_document_005', 'vbr_document_006',
-            'vbr_document_007', 'vbr_document_008', 'vbr_document_009'
+            'vbr_document_007', 'vbr_document_008', 'vbr_document_009',
         ]
 
         if view_name not in valid_views:

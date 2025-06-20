@@ -528,3 +528,40 @@ def check_vacation_status(user_pk, current_user):
         current_app.logger.error(
             f"Erro inesperado ao verificar férias: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
+
+
+@cache_result(timeout=120)
+def get_documents_late(current_user):
+    """Listar documentos em atraso (mais de 30 dias)"""
+    try:
+        with db_session_manager(current_user) as session:
+            # Query para buscar documentos em atraso
+            late_documents_query = text('SELECT * FROM "vbr_document$late"')
+            late_documents_result = session.execute(late_documents_query).fetchall()
+
+            if late_documents_result:
+                late_documents_list = []
+                for document in late_documents_result:
+                    document_dict = document._asdict()
+                    # Não precisa converter datas pois já vêm formatadas da view
+                    late_documents_list.append(document_dict)
+                
+                return {
+                    'late_documents': late_documents_list,
+                    'total_count': len(late_documents_list)
+                }, 200
+            else:
+                return {
+                    'late_documents': [],
+                    'total_count': 0,
+                    'message': 'Nenhum documento em atraso encontrado'
+                }, 200
+
+    except SQLAlchemyError as e:
+        current_app.logger.error(
+            f"Erro de banco de dados ao listar documentos em atraso: {str(e)}")
+        raise APIError("Erro ao consultar documentos em atraso", 500, "ERR_DATABASE")
+    except Exception as e:
+        current_app.logger.error(
+            f"Erro inesperado ao listar documentos em atraso: {str(e)}")
+        raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
