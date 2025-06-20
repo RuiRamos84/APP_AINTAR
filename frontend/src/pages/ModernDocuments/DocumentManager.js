@@ -48,6 +48,7 @@ const DocumentManagerContent = () => {
         allDocuments,
         assignedDocuments,
         createdDocuments,
+        lateDocuments,
         getActiveLoading,
         refreshDocuments,
         metaData,
@@ -243,6 +244,7 @@ const DocumentManagerContent = () => {
             case 0: docs = allDocuments; break;
             case 1: docs = assignedDocuments; break;
             case 2: docs = createdDocuments; break;
+            case 3: docs = lateDocuments; break;
             default: docs = allDocuments;
         }
 
@@ -282,6 +284,7 @@ const DocumentManagerContent = () => {
         allDocuments,
         assignedDocuments,
         createdDocuments,
+        lateDocuments,
         filters,
         dateRange,
         searchTerm,
@@ -352,7 +355,8 @@ const DocumentManagerContent = () => {
         const documents = getActiveDocuments();
         const isLoading = getActiveLoading();
         const isAssignedTab = activeTab === 1;
-        const isCreatedTab = activeTab === 2; // Tab "Criados por mim"
+        const isCreatedTab = activeTab === 2;
+        const isLateTab = activeTab === 3;
 
         // Adicionar um key que inclui ordenação para forçar a atualização
         const renderKey = `${viewMode}-${sortBy}-${sortDirection}`;
@@ -363,8 +367,9 @@ const DocumentManagerContent = () => {
             loading: isLoading,
             density,
             isAssignedToMe: isAssignedTab,
-            showComprovativo: isCreatedTab, // Mostrar apenas na tab "Criados por mim"
-            // Pass action handlers from context
+            showComprovativo: isCreatedTab, 
+            showLateDocuments: isLateTab,
+            isLateDocuments: isLateTab,
             onViewDetails: handleViewDetails,
             onAddStep: handleAddStep,
             onAddAnnex: handleAddAnnex,
@@ -381,7 +386,7 @@ const DocumentManagerContent = () => {
     }, [
         getActiveDocuments,
         getActiveLoading,
-        activeTab, // Certifique-se de que activeTab está incluído nas dependências
+        activeTab,
         viewMode,
         sortBy,
         sortDirection,
@@ -443,9 +448,10 @@ const DocumentManagerContent = () => {
         return {
             all: filterBySearch(allDocuments).length,
             assigned: filterBySearch(assignedDocuments).length,
-            created: filterBySearch(createdDocuments).length
+            created: filterBySearch(createdDocuments).length,
+            late: filterBySearch(lateDocuments).length
         };
-    }, [allDocuments, assignedDocuments, createdDocuments, searchTerm]);
+    }, [allDocuments, assignedDocuments, createdDocuments, lateDocuments, searchTerm]);
 
     return (
         <Box sx={{ p: 2 }}>
@@ -501,6 +507,13 @@ const DocumentManagerContent = () => {
                 <Tab label={`Todos (${documentCounts.all})`} />
                 <Tab label={`Para tratamento (${documentCounts.assigned})`} />
                 <Tab label={`Criados por mim (${documentCounts.created})`} />
+                <Tab
+                    label={`Em atraso (${documentCounts.late})`}
+                    sx={{
+                        color: documentCounts.late > 0 ? 'error.main' : 'inherit',
+                        fontWeight: documentCounts.late > 0 ? 'bold' : 'normal'
+                    }}
+                />
             </Tabs>
 
             {/* Content area */}

@@ -357,3 +357,14 @@ export const getInvoiceData = async (documentId) => {
     }
   }
 };
+
+export const getDocumentsLate = async () => {
+  try {
+    const response = await api.get("/documents/late");
+    console.log("Documentos em atraso:", response);
+    return handleResponse(response);
+  } catch (error) {
+    console.error("Erro ao buscar documentos em atraso:", error);
+    throw error;
+  }
+};

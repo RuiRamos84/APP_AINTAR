@@ -4,7 +4,8 @@ import {
     getDocumentsAssignedToMe,
     getDocumentsCreatedByMe,
     downloadComprovativo,
-    getDocumentById
+    getDocumentById,
+    getDocumentsLate,
 } from '../../../services/documentService';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 
@@ -30,6 +31,8 @@ export const DocumentsProvider = ({ children }) => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [activeTab, setActiveTab] = useState(0);
     const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list', ou 'kanban'
+    const [lateDocuments, setLateDocuments] = useState([]);
+    const [loadingLate, setLoadingLate] = useState(true);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
     // Funções para buscar documentos
@@ -81,18 +84,34 @@ export const DocumentsProvider = ({ children }) => {
         }
     }, []);
 
-    // Efeito para buscar documentos
+    const fetchLateDocuments = useCallback(async () => {
+        setLoadingLate(true);
+        setError(null);
+        try {
+            const docs = await getDocumentsLate();
+            console.log('Documentos em atraso:', docs);
+            setLateDocuments(docs || []);
+        } catch (err) {
+            console.error('Erro ao buscar documentos em atraso:', err);
+            setError('Erro ao carregar documentos em atraso.');
+            showNotification('Erro ao carregar documentos em atraso', 'error');
+        } finally {
+            setLoadingLate(false);
+        }
+    }, []);
+
     useEffect(() => {
         const loadData = async () => {
             await Promise.all([
                 fetchAllDocuments(),
                 fetchAssignedDocuments(),
-                fetchCreatedDocuments()
+                fetchCreatedDocuments(),
+                fetchLateDocuments()  // ADICIONAR AQUI
             ]);
         };
 
         loadData();
-    }, [fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, refreshTrigger]);
+    }, [fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, fetchLateDocuments, refreshTrigger]);
 
     // Função para forçar atualização
     const refreshDocuments = () => {
@@ -147,6 +166,7 @@ export const DocumentsProvider = ({ children }) => {
             case 0: return allDocuments;
             case 1: return assignedDocuments;
             case 2: return createdDocuments;
+            case 3: return lateDocuments;
             default: return allDocuments;
         }
     };
@@ -156,6 +176,7 @@ export const DocumentsProvider = ({ children }) => {
             case 0: return loadingAll;
             case 1: return loadingAssigned;
             case 2: return loadingCreated;
+            case 3: return loadingLate;
             default: return false;
         }
     };
@@ -217,10 +238,12 @@ export const DocumentsProvider = ({ children }) => {
         allDocuments,
         assignedDocuments,
         createdDocuments,
-        metaData, // Disponibilizar metadados no contexto
+        lateDocuments,
+        metaData,
         loadingAll,
         loadingAssigned,
         loadingCreated,
+        loadingLate,
         error,
         activeTab,
         viewMode,

@@ -29,6 +29,7 @@ const DocumentCard = ({
     metaData,
     isAssignedToMe = false,
     showComprovativo = false,
+    isLateDocuments = false,
     density = 'standard',
     // Adicionar as props aqui com nomes corretos
     onViewDetails,
@@ -321,6 +322,25 @@ const DocumentCard = ({
                                 {document.memo}
                             </Typography>
                         </Box>
+                    )}
+
+                    {document.days && props.isLateDocuments && (
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <AccessTimeIcon
+                                    fontSize="small"
+                                    color={document.days > 60 ? "error" : "warning"}
+                                />
+                                <Typography
+                                    variant={style.fontSize.details}
+                                    color={document.days > 60 ? "error.main" : "warning.main"}
+                                    sx={{ fontWeight: 'bold' }}
+                                >
+                                    {document.days} dias de atraso
+                                    {document.months && ` (${document.months} ${document.months === 1 ? 'mês' : 'meses'})`}
+                                </Typography>
+                            </Box>
+                        </Grid>
                     )}
                 </CardContent>
             </CardActionArea>
