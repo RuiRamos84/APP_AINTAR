@@ -165,6 +165,7 @@ const ListView = (props) => {
         onRefresh,
         showComprovativo = false,
         isAssignedToMe = false,
+        isLateDocuments = false,
         onViewDetails,
         onAddStep,
         onAddAnnex,
@@ -471,6 +472,7 @@ const ListView = (props) => {
                                 onDownloadComprovativo={onDownloadComprovativo}
                                 isAssignedToMe={isAssignedToMe}
                                 showComprovativo={showComprovativo}
+                                isLateDocuments={isLateDocuments}
                             />
                         ))}
                     </TableBody>

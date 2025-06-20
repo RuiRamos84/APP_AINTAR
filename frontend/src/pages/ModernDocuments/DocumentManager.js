@@ -8,6 +8,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
+import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
 
 // Components
 import Header from './components/layout/Header';
@@ -350,7 +351,6 @@ const DocumentManagerContent = () => {
         }
     }, [activeTab, getActiveDocuments, metaData, showNotification]);
 
-    // Render content based on view mode
     const renderContent = useCallback(() => {
         const documents = getActiveDocuments();
         const isLoading = getActiveLoading();
@@ -358,7 +358,13 @@ const DocumentManagerContent = () => {
         const isCreatedTab = activeTab === 2;
         const isLateTab = activeTab === 3;
 
-        // Adicionar um key que inclui ordenação para forçar a atualização
+        console.log('🔍 RenderContent Debug:', {
+            activeTab,
+            isLateTab,
+            documentsLength: documents.length,
+            sampleDocument: documents[0]
+        });
+
         const renderKey = `${viewMode}-${sortBy}-${sortDirection}`;
 
         const viewProps = {
@@ -367,14 +373,15 @@ const DocumentManagerContent = () => {
             loading: isLoading,
             density,
             isAssignedToMe: isAssignedTab,
-            showComprovativo: isCreatedTab, 
-            showLateDocuments: isLateTab,
-            isLateDocuments: isLateTab,
+            showComprovativo: isCreatedTab,
+            isLateDocuments: isLateTab,  // ✅ MANTER APENAS ESTA LINHA, REMOVER showLateDocuments
             onViewDetails: handleViewDetails,
             onAddStep: handleAddStep,
             onAddAnnex: handleAddAnnex,
             onReplicate: handleReplicate,
-            onDownloadComprovativo: handleDownloadCompr
+            onDownloadComprovativo: handleDownloadCompr,
+            onRefresh: refreshDocuments,  // ✅ ADICIONAR ESTA PROP
+            onCreateDocument: handleOpenCreateModal  // ✅ ADICIONAR ESTA PROP
         };
 
         switch (viewMode) {
@@ -396,7 +403,9 @@ const DocumentManagerContent = () => {
         handleAddStep,
         handleAddAnnex,
         handleReplicate,
-        handleDownloadCompr
+        handleDownloadCompr,
+        refreshDocuments,
+        handleOpenCreateModal
     ]);
 
     // Renderizar os modais de documentos em cascata
@@ -508,10 +517,15 @@ const DocumentManagerContent = () => {
                 <Tab label={`Para tratamento (${documentCounts.assigned})`} />
                 <Tab label={`Criados por mim (${documentCounts.created})`} />
                 <Tab
+                    icon={documentCounts.late > 0 ? <AccessTimeIcon color="error" fontSize="small" /> : null}
                     label={`Em atraso (${documentCounts.late})`}
                     sx={{
                         color: documentCounts.late > 0 ? 'error.main' : 'inherit',
-                        fontWeight: documentCounts.late > 0 ? 'bold' : 'normal'
+                        fontWeight: documentCounts.late > 0 ? 'bold' : 'normal',
+                        '& .MuiTab-iconWrapper': {
+                            marginBottom: 0,
+                            marginRight: 0.5
+                        }
                     }}
                 />
             </Tabs>

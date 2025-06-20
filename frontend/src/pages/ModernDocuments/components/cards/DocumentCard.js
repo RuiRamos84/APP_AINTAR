@@ -41,6 +41,13 @@ const DocumentCard = ({
 }) => {
     const theme = useTheme();
 
+    console.log('🔍 DocumentCard Debug:', {
+        documentId: document.pk,
+        days: document.days,
+        isLateDocuments: isLateDocuments,
+        shouldShow: document.days && isLateDocuments
+    });
+
     // Obtém informações do status
     const getStatusInfo = () => {
         const status = metaData?.what?.find(s => s.pk === document.what);
@@ -324,23 +331,154 @@ const DocumentCard = ({
                         </Box>
                     )}
 
-                    {document.days && props.isLateDocuments && (
-                        <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <AccessTimeIcon
-                                    fontSize="small"
-                                    color={document.days > 60 ? "error" : "warning"}
-                                />
-                                <Typography
-                                    variant={style.fontSize.details}
-                                    color={document.days > 60 ? "error.main" : "warning.main"}
-                                    sx={{ fontWeight: 'bold' }}
+                    {/* Informações de atraso para documentos em atraso */}
+                    {document.days && isLateDocuments && (
+                        <Box sx={{ mt: 1.5 }}>
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    background: document.days > 60
+                                        ? `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.15)}, ${alpha(theme.palette.error.main, 0.05)})`
+                                        : `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.15)}, ${alpha(theme.palette.warning.main, 0.05)})`,
+                                    border: `2px solid ${document.days > 60 ? theme.palette.error.main : theme.palette.warning.main}`,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    // ✅ ANIMAÇÃO DE BORDA PULSANTE
+                                    animation: document.days > 365 ? 'borderPulse 2s ease-in-out infinite' : 'none',
+                                    '@keyframes borderPulse': {
+                                        '0%': {
+                                            borderColor: theme.palette.error.main,
+                                            boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.7)}`
+                                        },
+                                        '50%': {
+                                            borderColor: theme.palette.error.dark,
+                                            boxShadow: `0 0 0 4px ${alpha(theme.palette.error.main, 0.3)}`
+                                        },
+                                        '100%': {
+                                            borderColor: theme.palette.error.main,
+                                            boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.7)}`
+                                        }
+                                    },
+                                    // ✅ BARRA SUPERIOR ANIMADA
+                                    '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: '4px',
+                                        background: document.days > 60
+                                            ? `linear-gradient(90deg, ${theme.palette.error.main}, ${theme.palette.error.light}, ${theme.palette.error.main})`
+                                            : `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.warning.light}, ${theme.palette.warning.main})`,
+                                        backgroundSize: '200% 100%',
+                                        animation: 'shimmer 3s ease-in-out infinite',
+                                    },
+                                    '@keyframes shimmer': {
+                                        '0%': { backgroundPosition: '200% 0' },
+                                        '100%': { backgroundPosition: '-200% 0' }
+                                    }
+                                }}
+                            >
+                                {/* ✅ ÍCONE COM ANIMAÇÃO CORRIGIDA */}
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: '50%',
+                                        bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.warning.main, 0.2),
+                                        animation: 'iconPulse 2s ease-in-out infinite',
+                                        '@keyframes iconPulse': {
+                                            '0%': {
+                                                transform: 'scale(1)',
+                                                bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.warning.main, 0.2)
+                                            },
+                                            '50%': {
+                                                transform: 'scale(1.2)',
+                                                bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.4) : alpha(theme.palette.warning.main, 0.4)
+                                            },
+                                            '100%': {
+                                                transform: 'scale(1)',
+                                                bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.warning.main, 0.2)
+                                            }
+                                        }
+                                    }}
                                 >
-                                    {document.days} dias de atraso
-                                    {document.months && ` (${document.months} ${document.months === 1 ? 'mês' : 'meses'})`}
-                                </Typography>
+                                    <AccessTimeIcon
+                                        fontSize="small"
+                                        color={document.days > 60 ? "error" : "warning"}
+                                    />
+                                </Box>
+
+                                {/* ✅ CONTEÚDO PRINCIPAL */}
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography
+                                        variant="caption"
+                                        color={document.days > 60 ? "error.main" : "warning.main"}
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            display: 'block',
+                                            textTransform: 'uppercase',
+                                            fontSize: '0.65rem',
+                                            letterSpacing: '0.5px'
+                                        }}
+                                    >
+                                        {document.days > 365 ? '🚨 CRÍTICO' :
+                                            document.days > 180 ? '🔥 URGENTE' :
+                                                document.days > 60 ? '⚠️ ALTO' : '📋 EM ATRASO'}
+                                    </Typography>
+                                    <Typography
+                                        variant={style.fontSize.details}
+                                        color={document.days > 60 ? "error.main" : "warning.main"}
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            lineHeight: 1.2,
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        {document.days} dias
+                                        {document.months && ` (${document.months} ${parseInt(document.months) === 1 ? 'mês' : 'meses'})`}
+                                    </Typography>
+                                </Box>
+
+                                {/* ✅ BADGE COM ANIMAÇÃO */}
+                                <Chip
+                                    label={
+                                        parseInt(document.days) > 365 ? 'CRÍTICO' :
+                                            parseInt(document.days) > 180 ? 'URGENTE' :
+                                                parseInt(document.days) > 90 ? 'ALTO' : 'MÉDIO'
+                                    }
+                                    size="small"
+                                    sx={{
+                                        bgcolor: parseInt(document.days) > 365 ? theme.palette.error.dark :
+                                            parseInt(document.days) > 180 ? theme.palette.error.main :
+                                                parseInt(document.days) > 90 ? theme.palette.warning.main : theme.palette.warning.light,
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.6rem',
+                                        minWidth: '60px',
+                                        // ✅ ANIMAÇÃO DE BRILHO PARA CRÍTICOS
+                                        animation: parseInt(document.days) > 365 ? 'badgeGlow 2s ease-in-out infinite alternate' : 'none',
+                                        '@keyframes badgeGlow': {
+                                            '0%': {
+                                                boxShadow: `0 0 5px ${alpha(theme.palette.error.main, 0.5)}`,
+                                                transform: 'scale(1)'
+                                            },
+                                            '100%': {
+                                                boxShadow: `0 0 15px ${alpha(theme.palette.error.main, 0.8)}`,
+                                                transform: 'scale(1.05)'
+                                            }
+                                        }
+                                    }}
+                                />
                             </Box>
-                        </Grid>
+                        </Box>
                     )}
                 </CardContent>
             </CardActionArea>

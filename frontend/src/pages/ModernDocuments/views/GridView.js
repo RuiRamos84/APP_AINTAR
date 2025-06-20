@@ -21,6 +21,7 @@ import {
 import { useUI } from '../context/UIStateContext';
 import DocumentCard from '../components/cards/DocumentCard';
 import { notificationStyles } from '../styles/documentStyles';
+import LateDocumentsAlert from '../components/LateDocumentsAlert';
 
 const GridView = (props) => {
     const {
@@ -32,6 +33,7 @@ const GridView = (props) => {
         onRefresh,
         showComprovativo = false,
         isAssignedToMe = false,
+        isLateDocuments = false,
         onViewDetails,
         onAddStep,
         onAddAnnex,
@@ -44,9 +46,56 @@ const GridView = (props) => {
     const { searchTerm, setSearchTerm } = useUI();
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-
-    // Estado para controlar qual grupo está selecionado
     const [selectedGroupId, setSelectedGroupId] = useState(null);
+
+    console.log('🔍 GridView Debug:', {
+        isLateDocuments: isLateDocuments,
+        documentsCount: documents.length,
+        documentsWithDays: documents.filter(doc => doc.days).length
+    });
+
+    // ✅ ADICIONAR ESTA FUNÇÃO AQUI:
+    const getStyleConfig = () => {
+        switch (density) {
+            case 'compact':
+                return {
+                    minHeight: 130,
+                    fontSize: {
+                        title: 'subtitle2',
+                        entity: 'caption',
+                        details: 'caption',
+                        chip: { size: 'small', fontSize: '0.65rem' },
+                    },
+                    spacing: { content: 1, actions: 0.5 },
+                };
+            case 'comfortable':
+                return {
+                    minHeight: 220,
+                    fontSize: {
+                        title: 'h6',
+                        entity: 'subtitle2',
+                        details: 'body2',
+                        chip: { size: 'medium', fontSize: '0.75rem' },
+                    },
+                    spacing: { content: 2, actions: 1 },
+                };
+            case 'standard':
+            default:
+                return {
+                    minHeight: 180,
+                    fontSize: {
+                        title: 'subtitle1',
+                        entity: 'body2',
+                        details: 'caption',
+                        chip: { size: 'small', fontSize: '0.7rem' },
+                    },
+                    spacing: { content: 1.5, actions: 0.75 },
+                };
+        }
+    };
+
+    // ✅ ADICIONAR ESTA LINHA PARA USAR A FUNÇÃO:
+    const style = getStyleConfig();
 
     // Função para obter cores dos estados
     const getStatusColor = (statusId) => {
@@ -223,6 +272,88 @@ const GridView = (props) => {
                                 density={density}
                                 isAssignedToMe={isAssignedToMe}
                                 showComprovativo={showComprovativo}
+                            />
+                        </Grid>
+                    ))}
+                </Grid>
+
+                <Box sx={{ mt: 2 }}>
+                    <TablePagination
+                        component="div"
+                        count={documents.length}
+                        page={currentPage}
+                        onPageChange={handlePageChange}
+                        rowsPerPage={itemsPerPage}
+                        onRowsPerPageChange={handleItemsPerPageChange}
+                        rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                        labelRowsPerPage="Itens por página:"
+                        labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                    />
+                </Box>
+            </Box>
+        );
+    }
+
+    if (isLateDocuments && !loading && !error && documents.length > 0) {
+        // Ordenar documentos por severidade (mais dias primeiro)
+        const sortedDocuments = [...paginatedDocuments].sort((a, b) => {
+            const daysA = parseInt(a.days) || 0;
+            const daysB = parseInt(b.days) || 0;
+            return daysB - daysA; // Decrescente (mais dias primeiro)
+        });
+
+        return (
+            <Box>
+                <LateDocumentsAlert documents={documents} />
+
+                <Grid container spacing={getGridSpacing()}>
+                    {sortedDocuments.map((doc) => (
+                        <Grid item key={doc.pk} {...getGridItemSize()}>
+                            <DocumentCard
+                                document={doc}
+                                metaData={metaData}
+                                onViewDetails={onViewDetails}
+                                onAddStep={onAddStep}
+                                onAddAnnex={onAddAnnex}
+                                onReplicate={onReplicate}
+                                onDownloadComprovativo={onDownloadComprovativo}
+                                density={density}
+                                isAssignedToMe={isAssignedToMe}
+                                showComprovativo={showComprovativo}
+                                isLateDocuments={isLateDocuments}
+                                sx={{
+                                    // Indicadores visuais baseados na severidade
+                                    borderLeft: `6px solid ${parseInt(doc.days) > 365 ? theme.palette.error.dark :
+                                            parseInt(doc.days) > 180 ? theme.palette.error.main :
+                                                parseInt(doc.days) > 90 ? theme.palette.warning.main : theme.palette.info.main
+                                        }`,
+                                    // Escala e sombra para críticos
+                                    transform: parseInt(doc.days) > 365 ? 'scale(1.02)' : 'scale(1)',
+                                    boxShadow: parseInt(doc.days) > 365 ? 4 : 2,
+                                    transition: 'all 0.3s ease',
+                                    // Animação de pulsação para muito críticos
+                                    animation: parseInt(doc.days) > 700 ? 'cardPulse 3s ease-in-out infinite' : 'none',
+                                    '@keyframes cardPulse': {
+                                        '0%': {
+                                            transform: 'scale(1.02)',
+                                            boxShadow: '0 4px 8px rgba(0,0,0,0.12)'
+                                        },
+                                        '50%': {
+                                            transform: 'scale(1.03)',
+                                            boxShadow: `0 8px 16px ${alpha(theme.palette.error.main, 0.3)}`
+                                        },
+                                        '100%': {
+                                            transform: 'scale(1.02)',
+                                            boxShadow: '0 4px 8px rgba(0,0,0,0.12)'
+                                        }
+                                    },
+                                    // Hover especial para documentos em atraso
+                                    '&:hover': {
+                                        transform: parseInt(doc.days) > 365 ? 'scale(1.05) translateY(-8px)' : 'scale(1.02) translateY(-4px)',
+                                        boxShadow: parseInt(doc.days) > 365 ? 8 : 6,
+                                        borderLeftWidth: '8px'
+                                    }
+                                }}
                             />
                         </Grid>
                     ))}
