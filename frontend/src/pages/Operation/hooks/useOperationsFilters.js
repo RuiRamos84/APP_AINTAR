@@ -11,6 +11,9 @@ const getTypeInfo = (viewKey) => {
     if (viewKey.includes('pavimentacao')) {
         return { key: 'pavimentacao', name: 'Pavimentação' };
     }
+    if (viewKey.includes('desobstrucao')) {
+        return { key: 'desobstrucao', name: 'Desobstrução' };
+    }
     return { key: viewKey, name: viewKey };
 };
 

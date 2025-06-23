@@ -89,7 +89,7 @@ export const DocumentsProvider = ({ children }) => {
         setError(null);
         try {
             const docs = await getDocumentsLate();
-            console.log('Documentos em atraso:', docs);
+            // console.log('Documentos em atraso:', docs);
             setLateDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos em atraso:', err);

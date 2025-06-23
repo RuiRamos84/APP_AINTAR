@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { formatDate } from '../../utils/documentUtils';
 import { notificationStyles } from '../../styles/documentStyles';
+import { getDaysSinceSubmission } from '../../../../utils/dataUtils';
 
 const DocumentCard = ({
     document,
@@ -31,7 +32,6 @@ const DocumentCard = ({
     showComprovativo = false,
     isLateDocuments = false,
     density = 'standard',
-    // Adicionar as props aqui com nomes corretos
     onViewDetails,
     onAddStep,
     onAddAnnex,
@@ -166,6 +166,9 @@ const DocumentCard = ({
         if (handler) handler(document);
     };
 
+    const timeInfo = getDaysSinceSubmission(document.submission);
+    const shouldHighlightCard = !document.days && document.what !== 0 && timeInfo.days > 15;
+    const isUrgent = timeInfo.days >= 30;
     return (
         <Card
             {...props}
@@ -176,9 +179,20 @@ const DocumentCard = ({
                 position: 'relative',
                 overflow: 'visible',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                // ✅ AMARELO: 15-29 dias | VERMELHO: 30+ dias
+                ...(shouldHighlightCard && {
+                    bgcolor: alpha(isUrgent ? theme.palette.error.main : theme.palette.warning.main, 0.05),
+                    border: `1px solid ${alpha(isUrgent ? theme.palette.error.main : theme.palette.warning.main, 0.3)}`,
+                    boxShadow: `0 0 8px ${alpha(isUrgent ? theme.palette.error.main : theme.palette.warning.main, 0.2)}`,
+                    animation: isUrgent ? 'cardGlow 2s infinite' : 'none',
+                    '@keyframes cardGlow': {
+                        '0%, 100%': { boxShadow: `0 0 8px ${alpha(theme.palette.error.main, 0.2)}` },
+                        '50%': { boxShadow: `0 0 16px ${alpha(theme.palette.error.main, 0.4)}` }
+                    }
+                }),
                 '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: 4,
+                    boxShadow: shouldHighlightCard ? 6 : 4,
                 },
                 ...props.sx,
             }}
@@ -247,8 +261,8 @@ const DocumentCard = ({
                             <Typography variant={style.fontSize.title} component="h2" fontWeight="medium" gutterBottom noWrap>
                                 {document.regnumber || 'Sem número'}
                             </Typography>
-                            <Typography variant={style.fontSize.entity} color="text.secondary" noWrap>
-                                {document.ts_entity || 'Sem entidade'}
+                            <Typography variant={style.fontSize.details} sx={{ fontWeight: 'medium' }} noWrap>
+                                {document.tt_type || 'Sem tipo'}
                             </Typography>
                         </Box>
                     </Box>
@@ -259,11 +273,21 @@ const DocumentCard = ({
                         <Grid item xs={12}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <DescriptionIcon fontSize="small" color="action" />
-                                <Typography variant={style.fontSize.details} sx={{ fontWeight: 'medium' }} noWrap>
-                                    {document.tt_type || 'Sem tipo'}
-                                </Typography>
+                            <Typography variant={style.fontSize.entity} color="text.secondary" noWrap>
+                                {document.ts_entity || 'Sem entidade'}
+                            </Typography>
                             </Box>
                         </Grid>
+                            {document.address && (
+                                <Grid item xs={12}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <LocationIcon fontSize="small" color="action" />
+                                        <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
+                                            {document.address}
+                                        </Typography>
+                                    </Box>
+                                </Grid>
+                            )}
 
                         <Grid item xs={12}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -301,17 +325,19 @@ const DocumentCard = ({
                             </Grid>
                         )}
 
-                        {document.address && (
-                            <Grid item xs={12}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <LocationIcon fontSize="small" color="action" />
-                                    <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
-                                        {document.address}
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                        )}
                     </Grid>
+
+                    {shouldHighlightCard && (
+                        <Grid item xs={12}>
+                            <Typography
+                                variant={style.fontSize.details}
+                                color={isUrgent ? "error.dark" : "warning.dark"}
+                                sx={{ fontWeight: 'medium', fontSize: '0.75rem' }}
+                            >
+                                {isUrgent ? '🔴' : '🟡'} {timeInfo.formatted} pendente
+                            </Typography>
+                        </Grid>
+                    )}
 
                     {document.memo && (
                         <Box sx={{ mt: 1.5, mb: 0.5 }}>
@@ -331,8 +357,8 @@ const DocumentCard = ({
                         </Box>
                     )}
 
-                    {/* Informações de atraso para documentos em atraso */}
-                    {document.days && isLateDocuments && (
+                    {/* Informações de atraso - SEMPRE mostrar se tiver days */}
+                    {document.days && parseInt(document.days) > 0 && (
                         <Box sx={{ mt: 1.5 }}>
                             <Box
                                 sx={{
@@ -341,14 +367,14 @@ const DocumentCard = ({
                                     gap: 1,
                                     p: 1.5,
                                     borderRadius: 2,
-                                    background: document.days > 60
+                                    background: parseInt(document.days) > 60
                                         ? `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.15)}, ${alpha(theme.palette.error.main, 0.05)})`
                                         : `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.15)}, ${alpha(theme.palette.warning.main, 0.05)})`,
-                                    border: `2px solid ${document.days > 60 ? theme.palette.error.main : theme.palette.warning.main}`,
+                                    border: `2px solid ${parseInt(document.days) > 60 ? theme.palette.error.main : theme.palette.warning.main}`,
                                     position: 'relative',
                                     overflow: 'hidden',
-                                    // ✅ ANIMAÇÃO DE BORDA PULSANTE
-                                    animation: document.days > 365 ? 'borderPulse 2s ease-in-out infinite' : 'none',
+                                    // ✅ ANIMAÇÃO DE BORDA PULSANTE para casos críticos
+                                    animation: parseInt(document.days) > 365 ? 'borderPulse 2s ease-in-out infinite' : 'none',
                                     '@keyframes borderPulse': {
                                         '0%': {
                                             borderColor: theme.palette.error.main,
@@ -371,7 +397,7 @@ const DocumentCard = ({
                                         left: 0,
                                         right: 0,
                                         height: '4px',
-                                        background: document.days > 60
+                                        background: parseInt(document.days) > 60
                                             ? `linear-gradient(90deg, ${theme.palette.error.main}, ${theme.palette.error.light}, ${theme.palette.error.main})`
                                             : `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.warning.light}, ${theme.palette.warning.main})`,
                                         backgroundSize: '200% 100%',
@@ -383,7 +409,7 @@ const DocumentCard = ({
                                     }
                                 }}
                             >
-                                {/* ✅ ÍCONE COM ANIMAÇÃO CORRIGIDA */}
+                                {/* ✅ ÍCONE COM ANIMAÇÃO */}
                                 <Box
                                     sx={{
                                         display: 'flex',
@@ -392,27 +418,26 @@ const DocumentCard = ({
                                         width: 32,
                                         height: 32,
                                         borderRadius: '50%',
-                                        bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.warning.main, 0.2),
-                                        animation: 'iconPulse 2s ease-in-out infinite',
+                                        bgcolor: parseInt(document.days) > 60
+                                            ? alpha(theme.palette.error.main, 0.2)
+                                            : alpha(theme.palette.warning.main, 0.2),
+                                        animation: parseInt(document.days) > 180 ? 'iconPulse 2s ease-in-out infinite' : 'none',
                                         '@keyframes iconPulse': {
                                             '0%': {
                                                 transform: 'scale(1)',
-                                                bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.warning.main, 0.2)
                                             },
                                             '50%': {
                                                 transform: 'scale(1.2)',
-                                                bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.4) : alpha(theme.palette.warning.main, 0.4)
                                             },
                                             '100%': {
                                                 transform: 'scale(1)',
-                                                bgcolor: document.days > 60 ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.warning.main, 0.2)
                                             }
                                         }
                                     }}
                                 >
                                     <AccessTimeIcon
                                         fontSize="small"
-                                        color={document.days > 60 ? "error" : "warning"}
+                                        color={parseInt(document.days) > 60 ? "error" : "warning"}
                                     />
                                 </Box>
 
@@ -420,7 +445,7 @@ const DocumentCard = ({
                                 <Box sx={{ flex: 1 }}>
                                     <Typography
                                         variant="caption"
-                                        color={document.days > 60 ? "error.main" : "warning.main"}
+                                        color={parseInt(document.days) > 60 ? "error.main" : "warning.main"}
                                         sx={{
                                             fontWeight: 'bold',
                                             display: 'block',
@@ -429,13 +454,13 @@ const DocumentCard = ({
                                             letterSpacing: '0.5px'
                                         }}
                                     >
-                                        {document.days > 365 ? '🚨 CRÍTICO' :
-                                            document.days > 180 ? '🔥 URGENTE' :
-                                                document.days > 60 ? '⚠️ ALTO' : '📋 EM ATRASO'}
+                                        {parseInt(document.days) > 365 ? '🚨 CRÍTICO' :
+                                            parseInt(document.days) > 180 ? '🔥 URGENTE' :
+                                                parseInt(document.days) > 60 ? '⚠️ ALTO' : '📋 EM ATRASO'}
                                     </Typography>
                                     <Typography
                                         variant={style.fontSize.details}
-                                        color={document.days > 60 ? "error.main" : "warning.main"}
+                                        color={parseInt(document.days) > 60 ? "error.main" : "warning.main"}
                                         sx={{
                                             fontWeight: 'bold',
                                             lineHeight: 1.2,

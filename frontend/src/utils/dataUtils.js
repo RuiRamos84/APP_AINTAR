@@ -63,3 +63,32 @@ export const getCurrentDateTime = () => {
         .toISOString()
         .slice(0, 16);
 };
+
+export const getDaysSinceSubmission = (submissionDate) => {
+  if (!submissionDate) return { days: 0, formatted: '0 dias' };
+
+  try {
+    const datePart = submissionDate.split(' às ')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+
+    const submission = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const totalDays = Math.floor((today - submission) / (1000 * 60 * 60 * 24));
+    if (totalDays <= 0) return { days: 0, formatted: '0 dias' };
+
+    const years = Math.floor(totalDays / 365);
+    const months = Math.floor((totalDays % 365) / 30);
+    const days = (totalDays % 365) % 30;
+
+    let formatted = '';
+    if (years > 0) formatted += `${years} ano${years > 1 ? 's' : ''}`;
+    if (months > 0) formatted += `${formatted ? ' ' : ''}${months} mes${months > 1 ? 'es' : ''}`;
+    if (days > 0 || !formatted) formatted += `${formatted ? ' ' : ''}${days} dia${days !== 1 ? 's' : ''}`;
+
+    return { days: totalDays, formatted };
+  } catch {
+    return { days: 0, formatted: '0 dias' };
+  }
+};

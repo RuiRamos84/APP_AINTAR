@@ -527,50 +527,52 @@ const AttachmentsTab = ({
 
     // Manipulador para download
     const handleDownloadFile = (annex) => {
-        if (onDownloadFile) {
-            // Usar o manipulador passado por props se disponível
-            onDownloadFile(annex);
-        } else {
-            // Implementação local
-            const url = getFilePath(document?.regnumber, annex.filename);
+        console.log('🔍 Documento:', document);
+        console.log('🔍 Regnumber:', document?.regnumber);
+        console.log('🔍 Filename:', annex.filename);
 
-            fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("user")
-                            ? JSON.parse(localStorage.getItem("user")).access_token
-                            : ""
-                        }`,
-                },
+        const url = getFilePath(document?.regnumber, annex.filename);
+        console.log('🔍 URL gerada:', url);
+
+        fetch(url, {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("user")
+                    ? JSON.parse(localStorage.getItem("user")).access_token
+                    : ""
+                    }`,
+            },
+        })
+            .then((response) => {
+                console.log('🔍 Response status:', response.status);
+                console.log('🔍 Content-Type:', response.headers.get('content-type'));
+
+                if (response.ok) {
+                    return response.blob();
+                }
+                throw new Error(`Erro ${response.status}: ${response.statusText}`);
             })
-                .then((response) => {
-                    if (response.ok) {
-                        return response.blob();
-                    }
-                    throw new Error("Erro ao baixar o arquivo");
-                })
-                .then((blob) => {
-                    const fileUrl = window.URL.createObjectURL(blob);
+            .then((blob) => {
+                const fileUrl = window.URL.createObjectURL(blob);
 
-                    // Verificar se o ambiente suporta download de arquivos
-                    if (typeof window.document !== "undefined" && "createElement" in window.document) {
-                        const link = window.document.createElement("a");
-                        link.href = fileUrl;
-                        link.download = annex.filename;
-                        link.click();
-                    } else {
-                        window.open(fileUrl, "_blank");
-                    }
+                if (typeof window.document !== "undefined" && "createElement" in window.document) {
+                    const link = window.document.createElement("a");
+                    link.href = fileUrl;
+                    link.download = annex.filename;
+                    link.click();
+                } else {
+                    window.open(fileUrl, "_blank");
+                }
 
-                    setTimeout(() => {
-                        window.URL.revokeObjectURL(fileUrl);
-                    }, 100);
-                })
-                .catch((error) => {
-                    console.error("Erro ao baixar o arquivo:", error);
-                    alert("Erro ao baixar o arquivo. Por favor, tente novamente.");
-                });
-        }
-    };
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(fileUrl);
+                }, 100);
+            })
+            .catch((error) => {
+                console.error("🔍 Erro completo:", error);
+                console.error("🔍 Detalhes do anexo:", annex);
+                alert("Erro ao baixar o ficheiro. Por favor, tente novamente.");
+            });
+     };
 
     // Função para truncar texto longo
     const truncateText = (text, maxLength = 50) => {

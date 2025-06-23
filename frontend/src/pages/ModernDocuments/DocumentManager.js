@@ -6,7 +6,8 @@ import {
     Snackbar,
     Alert,
     useMediaQuery,
-    useTheme
+    useTheme,
+    alpha,
 } from '@mui/material';
 import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
 
@@ -36,6 +37,7 @@ import * as XLSX from 'xlsx';
 // Importar funções existentes para utilizar
 import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtils';
 import { getStatusName, getStatusColor } from './utils/statusUtils';
+import { getDaysSinceSubmission } from '../../utils/dataUtils';
 
 const DocumentManagerContent = () => {
     const theme = useTheme();
@@ -514,17 +516,121 @@ const DocumentManagerContent = () => {
                 variant="fullWidth"
             >
                 <Tab label={`Todos (${documentCounts.all})`} />
-                <Tab label={`Para tratamento (${documentCounts.assigned})`} />
-                <Tab label={`Criados por mim (${documentCounts.created})`} />
+                <Tab label={`A meu cargo (${documentCounts.assigned})`} />
+                <Tab label={`Por mim criados (${documentCounts.created})`} />
                 <Tab
                     icon={documentCounts.late > 0 ? <AccessTimeIcon color="error" fontSize="small" /> : null}
-                    label={`Em atraso (${documentCounts.late})`}
+                    label={`Prazo excedido (${documentCounts.late})`}
                     sx={{
                         color: documentCounts.late > 0 ? 'error.main' : 'inherit',
                         fontWeight: documentCounts.late > 0 ? 'bold' : 'normal',
+                        // ✅ ANIMAÇÃO QUANDO HÁ DOCUMENTOS EM ATRASO - Mais intensa para críticos
+                        animation: documentCounts.late > 50 ? 'tabPulseCritical 1.5s ease-in-out infinite' :
+                            documentCounts.late > 10 ? 'tabPulseHigh 2s ease-in-out infinite' :
+                                documentCounts.late > 0 ? 'tabPulse 3s ease-in-out infinite' : 'none',
+                        position: 'relative',
+                        overflow: 'visible',
                         '& .MuiTab-iconWrapper': {
                             marginBottom: 0,
-                            marginRight: 0.5
+                            marginRight: 0.5,
+                            // Animação do ícone
+                            animation: documentCounts.late > 0 ? 'iconSpin 3s ease-in-out infinite' : 'none',
+                        },
+                        // ✅ KEYFRAMES DAS ANIMAÇÕES - Variações baseadas no número de documentos
+                        '@keyframes tabPulse': {
+                            '0%': {
+                                backgroundColor: 'transparent',
+                                transform: 'scale(1)',
+                                boxShadow: 'none'
+                            },
+                            '50%': {
+                                backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                                transform: 'scale(1.01)',
+                                boxShadow: `0 0 8px ${alpha(theme.palette.warning.main, 0.3)}`
+                            },
+                            '100%': {
+                                backgroundColor: 'transparent',
+                                transform: 'scale(1)',
+                                boxShadow: 'none'
+                            }
+                        },
+                        '@keyframes tabPulseHigh': {
+                            '0%': {
+                                backgroundColor: 'transparent',
+                                transform: 'scale(1)',
+                                boxShadow: 'none'
+                            },
+                            '50%': {
+                                backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                transform: 'scale(1.02)',
+                                boxShadow: `0 0 12px ${alpha(theme.palette.error.main, 0.4)}`
+                            },
+                            '100%': {
+                                backgroundColor: 'transparent',
+                                transform: 'scale(1)',
+                                boxShadow: 'none'
+                            }
+                        },
+                        '@keyframes tabPulseCritical': {
+                            '0%': {
+                                backgroundColor: 'transparent',
+                                transform: 'scale(1)',
+                                boxShadow: 'none'
+                            },
+                            '50%': {
+                                backgroundColor: alpha(theme.palette.error.main, 0.15),
+                                transform: 'scale(1.03)',
+                                boxShadow: `0 0 16px ${alpha(theme.palette.error.main, 0.6)}`
+                            },
+                            '100%': {
+                                backgroundColor: 'transparent',
+                                transform: 'scale(1)',
+                                boxShadow: 'none'
+                            }
+                        },
+                        '@keyframes iconSpin': {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '25%': { transform: 'rotate(-10deg)' },
+                            '75%': { transform: 'rotate(10deg)' },
+                            '100%': { transform: 'rotate(0deg)' }
+                        },
+                        // ✅ INDICADOR VISUAL DE URGÊNCIA
+                        '&::before': documentCounts.late > 0 ? {
+                            content: '""',
+                            position: 'absolute',
+                            top: -2,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            width: documentCounts.late > 50 ? '80%' :
+                                documentCounts.late > 10 ? '60%' : '40%',
+                            height: '3px',
+                            background: documentCounts.late > 50 ? theme.palette.error.dark :
+                                documentCounts.late > 10 ? theme.palette.error.main :
+                                    theme.palette.warning.main,
+                            borderRadius: '2px',
+                            animation: 'indicatorPulse 2s ease-in-out infinite'
+                        } : {},
+                        '@keyframes indicatorPulse': {
+                            '0%': { opacity: 0.7 },
+                            '50%': { opacity: 1 },
+                            '100%': { opacity: 0.7 }
+                        },
+                        '&::after': documentCounts.late > 0 ? {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.error.main, 0.1)}, transparent)`,
+                            backgroundSize: '200% 100%',
+                            animation: 'shimmerTab 4s ease-in-out infinite',
+                            zIndex: -1,
+                            borderRadius: 'inherit'
+                        } : {},
+                        '@keyframes shimmerTab': {
+                            '0%': { backgroundPosition: '200% 0' },
+                            '100%': { backgroundPosition: '-200% 0' }
                         }
                     }}
                 />

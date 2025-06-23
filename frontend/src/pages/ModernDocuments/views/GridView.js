@@ -294,17 +294,29 @@ const GridView = (props) => {
         );
     }
 
+    // ✅ SECÇÃO PARA DOCUMENTOS EM ATRASO
     if (isLateDocuments && !loading && !error && documents.length > 0) {
+        // Filtrar apenas documentos que realmente têm days > 0
+        const lateDocumentsWithDays = paginatedDocuments.filter(doc =>
+            doc.days && parseInt(doc.days) > 0
+        );
+
         // Ordenar documentos por severidade (mais dias primeiro)
-        const sortedDocuments = [...paginatedDocuments].sort((a, b) => {
+        const sortedDocuments = [...lateDocumentsWithDays].sort((a, b) => {
             const daysA = parseInt(a.days) || 0;
             const daysB = parseInt(b.days) || 0;
             return daysB - daysA; // Decrescente (mais dias primeiro)
         });
 
+        console.log('🔍 Documentos em atraso a renderizar:', {
+            total: documents.length,
+            withDays: lateDocumentsWithDays.length,
+            sorted: sortedDocuments.length
+        });
+
         return (
             <Box>
-                <LateDocumentsAlert documents={documents} />
+                <LateDocumentsAlert documents={lateDocumentsWithDays} />
 
                 <Grid container spacing={getGridSpacing()}>
                     {sortedDocuments.map((doc) => (
@@ -318,14 +330,14 @@ const GridView = (props) => {
                                 onReplicate={onReplicate}
                                 onDownloadComprovativo={onDownloadComprovativo}
                                 density={density}
-                                isAssignedToMe={isAssignedToMe}
+                                isAssignedToMe={false} // Não activar botões específicos
                                 showComprovativo={showComprovativo}
-                                isLateDocuments={isLateDocuments}
+                                isLateDocuments={true} // Activar visualização de atraso
                                 sx={{
                                     // Indicadores visuais baseados na severidade
                                     borderLeft: `6px solid ${parseInt(doc.days) > 365 ? theme.palette.error.dark :
-                                            parseInt(doc.days) > 180 ? theme.palette.error.main :
-                                                parseInt(doc.days) > 90 ? theme.palette.warning.main : theme.palette.info.main
+                                        parseInt(doc.days) > 180 ? theme.palette.error.main :
+                                            parseInt(doc.days) > 90 ? theme.palette.warning.main : theme.palette.info.main
                                         }`,
                                     // Escala e sombra para críticos
                                     transform: parseInt(doc.days) > 365 ? 'scale(1.02)' : 'scale(1)',
@@ -349,7 +361,9 @@ const GridView = (props) => {
                                     },
                                     // Hover especial para documentos em atraso
                                     '&:hover': {
-                                        transform: parseInt(doc.days) > 365 ? 'scale(1.05) translateY(-8px)' : 'scale(1.02) translateY(-4px)',
+                                        transform: parseInt(doc.days) > 365
+                                            ? 'scale(1.05) translateY(-8px)'
+                                            : 'scale(1.02) translateY(-4px)',
                                         boxShadow: parseInt(doc.days) > 365 ? 8 : 6,
                                         borderLeftWidth: '8px'
                                     }
@@ -359,10 +373,22 @@ const GridView = (props) => {
                     ))}
                 </Grid>
 
+                {/* Mostrar mensagem se não houver documentos com atraso real */}
+                {lateDocumentsWithDays.length === 0 && (
+                    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="300px">
+                        <Typography variant="h6" color="text.secondary" gutterBottom>
+                            Não há documentos em atraso
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Todos os pedidos estão dentro do prazo.
+                        </Typography>
+                    </Box>
+                )}
+
                 <Box sx={{ mt: 2 }}>
                     <TablePagination
                         component="div"
-                        count={documents.length}
+                        count={lateDocumentsWithDays.length} // Usar apenas os que têm days
                         page={currentPage}
                         onPageChange={handlePageChange}
                         rowsPerPage={itemsPerPage}

@@ -28,7 +28,8 @@ const CompletionModal = ({
 
     // Safe check
     const noteValue = note || '';
-    const isNoteValid = noteValue.trim().length >= 10;
+    const isNoteValid = noteValue.length >= 1;
+    ;
 
     return (
         <Dialog
@@ -67,7 +68,7 @@ const CompletionModal = ({
                     variant="outlined"
                     value={noteValue}
                     onChange={(e, sanitizedValue) => onNoteChange?.(sanitizedValue || e.target.value)}
-                    validation="note"
+                    // validation="note"
                     required
                 />
 

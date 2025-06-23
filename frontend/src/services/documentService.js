@@ -361,7 +361,7 @@ export const getInvoiceData = async (documentId) => {
 export const getDocumentsLate = async () => {
   try {
     const response = await api.get("/documents/late");
-    console.log("Documentos em atraso:", response);
+    // console.log("Documentos em atraso:", response);
     return response.data.late_documents;
   } catch (error) {
     console.error("Erro ao buscar documentos em atraso:", error);
