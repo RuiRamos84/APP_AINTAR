@@ -1,30 +1,29 @@
 // frontend/src/pages/Operation/containers/DesktopView.js
 import React from 'react';
-import { Box, Typography, Button } from '@mui/material';
-import { GetApp } from '@mui/icons-material';
+import { Box } from '@mui/material';
 
 import useOperationsStore from '../store/operationsStore';
 import { useOperationsData } from '../hooks/useOperationsData';
 import { useOperationsFilters } from '../hooks/useOperationsFilters';
-import { useOperationsTable } from '../hooks/useOperationsTable';
-import { useMetaData } from '../../../contexts/MetaDataContext';
+import { useOperationsActions } from '../hooks/useOperationsActions';
 
 import AssociateFilter from '../components/filters/AssociateFilter';
 import ViewCards from '../components/cards/ViewCards';
-import OperationsTable from '../components/table/OperationsTable';
-import VirtualizedOperationsTable from '../components/table/VirtualizedOperationsTable';
-
-import { getColumnsForView, getRemainingDaysColor } from '../utils/helpers';
-import { exportToExcel } from '../services/exportService';
+import GroupedContent from '../components/layout/GroupedContent';
 
 const DesktopView = () => {
-    const { metaData } = useMetaData();
-
-    // Store centralizado
-    const { filters, setSelectedAssociate, setSelectedView } = useOperationsStore();
+    // Store
+    const {
+        filters,
+        viewMode,
+        setSelectedAssociate,
+        setSelectedView,
+        setViewMode
+    } = useOperationsStore();
 
     // Dados
     const { operationsData, loading, error, associates } = useOperationsData();
+    const { canExecuteActions, onItemClick, onNavigate, onCall } = useOperationsActions();
 
     // Filtros
     const { isFossaView, isRamaisView, filteredData, sortedViews } = useOperationsFilters(
@@ -32,37 +31,14 @@ const DesktopView = () => {
         filters.selectedAssociate
     );
 
-    // Tabela
-    const {
-        orderBy, order, expandedRows, sortedData,
-        handleRequestSort, toggleRowExpand, getAddressString
-    } = useOperationsTable(filteredData, filters.selectedView);
-
-    // Render cell
-    const renderCell = (column, row) => {
-        if (column.format) return column.format(row[column.id], metaData);
-
-        if (isRamaisView && column.id === 'restdays') {
-            return (
-                <Box sx={{ color: getRemainingDaysColor(row[column.id]), fontWeight: 'bold' }}>
-                    {Math.floor(row[column.id])} dias
-                </Box>
-            );
-        }
-
-        return row[column.id || column];
-    };
-
     if (loading) return <Box>A carregar...</Box>;
-    if (error) return <Typography color="error">{error}</Typography>;
-    if (!Object.keys(operationsData).length) return <Typography>Sem dados.</Typography>;
-
-    const useVirtualization = sortedData.length > 100;
+    if (error) return <Box color="error.main">{error}</Box>;
+    if (!Object.keys(operationsData).length) return <Box>Sem dados.</Box>;
 
     return (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             {/* Filtros */}
-            <Box sx={{ flexShrink: 0, p: 2 }}>
+            <Box sx={{ flexShrink: 0, p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <AssociateFilter
                     associates={associates}
                     selectedAssociate={filters.selectedAssociate}
@@ -78,44 +54,21 @@ const DesktopView = () => {
                 )}
             </Box>
 
-            {/* Tabela */}
+            {/* Conteúdo */}
             {filters.selectedView && filteredData[filters.selectedView]?.data?.length > 0 && (
-                <Box sx={{ flexGrow: 1, overflow: "hidden", display: "flex", flexDirection: "column", p: 2 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                        <Typography variant="h5">
-                            {filteredData[filters.selectedView].name} ({sortedData.length})
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            startIcon={<GetApp />}
-                            onClick={() => exportToExcel(filteredData, filters.selectedView)}
-                            disabled={!sortedData.length}
-                        >
-                            Exportar
-                        </Button>
-                    </Box>
-
-                    {useVirtualization ? (
-                        <VirtualizedOperationsTable
-                            data={sortedData}
-                            columns={getColumnsForView(filters.selectedView, metaData)}
-                            renderCell={renderCell}
-                        />
-                    ) : (
-                        <OperationsTable
-                            data={sortedData}
-                            columns={getColumnsForView(filters.selectedView, metaData)}
-                            orderBy={orderBy}
-                            order={order}
-                            onRequestSort={handleRequestSort}
-                            expandedRows={expandedRows}
-                            toggleRowExpand={toggleRowExpand}
-                            isRamaisView={isRamaisView}
-                            getRemainingDaysColor={getRemainingDaysColor}
-                            getAddressString={getAddressString}
-                            renderCell={renderCell}
-                        />
-                    )}
+                <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
+                    <GroupedContent
+                        data={filteredData[filters.selectedView].data}
+                        viewName={filteredData[filters.selectedView].name}
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                        isRamaisView={isRamaisView}
+                        selectedView={filters.selectedView}
+                        canExecuteActions={canExecuteActions}
+                        onItemClick={onItemClick}
+                        onNavigate={onNavigate}
+                        onCall={onCall}
+                    />
                 </Box>
             )}
         </Box>

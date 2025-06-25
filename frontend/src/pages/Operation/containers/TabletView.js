@@ -1,9 +1,12 @@
 // frontend/src/pages/Operation/containers/TabletView.js
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Paper, Typography, Grid, FormControlLabel, Checkbox, Chip, Tabs, Tab } from '@mui/material';
+import {
+    Box, Paper, Typography, Grid, Tabs, Tab, Fab,
+    ToggleButtonGroup, ToggleButton, Chip
+} from '@mui/material';
+import { FilterList, Refresh, GridView, ViewList } from '@mui/icons-material';
 
-import { useOperationsData, useOperationsFilters } from '../hooks';
-import { useOfflineSync } from '../hooks/useOfflineSync';
+import { useOperationsData, useOperationsFilters, useScrollCompact } from '../hooks';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import useOperationsStore from '../store/operationsStore';
@@ -11,199 +14,91 @@ import useOperationsStore from '../store/operationsStore';
 import SearchBar from '../../../components/common/SearchBar/SearchBar';
 import AssociateFilter from '../components/filters/AssociateFilter';
 import OperationCard from '../components/cards/OperationCard';
-import SwipeableCard from '../components/gestures/SwipeableCard';
-import ConnectionStatus from '../components/offline/ConnectionStatus';
-import PullToRefresh from '../components/offline/PullToRefresh';
-import QuickActionsFab from '../components/navigation/QuickActionsFab';
+import OperationListItem from '../components/list/OperationListItem';
+import EmptyState from '../components/common/EmptyState';
+import StatsBar from '../components/common/StatsBar';
+import AdvancedFilterPanel from '../components/filters/AdvancedFilterPanel';
+import FilterChips from '../components/filters/FilterChips';
+import SortGroupSelectors from '../components/filters/SortGroupSelectors';
+import GroupedContent from '../components/layout/GroupedContent';
 import DetailsDrawer from '../components/modals/DetailsDrawer';
 import CompletionModal from '../components/modals/CompletionModal';
 import ParametersModal from '../components/modals/ParametersModal';
 
 import { completeOperation, validateTaskCompletion } from '../services/api';
 import { getUserNameByPk, getRemainingDaysColor } from '../utils/formatters';
-import { OPERATION_CONSTANTS } from '../utils/constants';
+import useFiltersStore from '../store/filtersStore';
 
 const TabletView = () => {
     const { user: currentUser } = useAuth();
     const { metaData } = useMetaData();
 
     const store = useOperationsStore();
-    const ui = store.ui || {};
-    const filters = store.filters || {};
+    const ui = store.getUI();
+    const filters = store.getFilters();
 
-    // Filtros QuickActions
-    const [quickFilters, setQuickFilters] = useState({
+    // Store de filtros avançados
+    const filtersStore = useFiltersStore();
+    const {
+        filters: advancedFilters,
+        panelOpen,
+        setPanelOpen,
+        getFilteredData,
+        getActiveFiltersCount: getAdvancedFiltersCount
+    } = filtersStore;
+
+    // Estados locais
+    const [activeFilters, setActiveFilters] = useState({
         urgency: false,
         today: false,
-        nearby: false,
-        sortBy: 'urgency'
+        myTasks: false
     });
 
-    // Geolocalização e raio
-    const [userLocation, setUserLocation] = useState(null);
-    const [radiusKm, setRadiusKm] = useState(10);
-    const [geocodeCache] = useState(new Map());
+    // Hook para scroll compacto
+    const { isScrolled, handleScroll, resetScroll } = useScrollCompact(30);
 
-    // Geocoding OpenStreetMap
-    const geocodeAddress = async (address) => {
-        try {
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pt&limit=1`
-            );
-            const data = await response.json();
-            return data[0] ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
-        } catch (error) {
-            console.warn('Geocoding falhou:', error);
-            return null;
-        }
-    };
-
-    // Cache coordenadas
-    const getItemCoordinates = async (item) => {
-        const key = `${item.address}, ${item.nut3}, ${item.nut2}`;
-
-        if (geocodeCache.has(key)) {
-            return geocodeCache.get(key);
-        }
-
-        const coords = await geocodeAddress(key);
-        geocodeCache.set(key, coords);
-        return coords;
-    };
-
-    // Estado para dados geocodificados
-    const [geocodedData, setGeocodedData] = useState([]);
-    const [isGeocoding, setIsGeocoding] = useState(false);
-
-
-
-    useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setUserLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    });
-                },
-                (error) => console.warn('Geolocalização indisponível:', error)
-            );
-        }
-    }, []);
-
+    // Actions do store
     const {
-        setSelectedItem = () => { },
-        setDetailsDrawer = () => { },
-        setCompleteDialogOpen = () => { },
-        setParamsDialogOpen = () => { },
-        setShowOnlyMyTasks = () => { },
-        setSearchTerm = () => { },
-        setCompletionNote = () => { },
-        setCompletionLoading = () => { },
-        setSelectedAssociate = () => { },
-        setSelectedView = () => { },
-        closeAllModals = () => { }
+        setSelectedItem,
+        setDetailsDrawer,
+        setCompleteDialogOpen,
+        setParamsDialogOpen,
+        setSearchTerm,
+        setCompletionNote,
+        setCompletionLoading,
+        setSelectedAssociate,
+        setSelectedView,
+        setViewMode,
+        closeAllModals
     } = store;
 
-    // Data
+    // Hooks de dados
     const { operationsData, associates, refetchOperations } = useOperationsData();
     const { isFossaView, isRamaisView, filteredData, sortedViews } = useOperationsFilters(
         operationsData,
         filters.selectedAssociate
     );
 
-    // Offline
-    const { isOnline, pendingActions, isSyncing, addAction, syncActions, clearPending } = useOfflineSync();
-
     // Função para verificar se é hoje
     const isToday = (dateString) => {
+        if (!dateString) return false;
         const today = new Date();
         const itemDate = new Date(dateString);
         return today.toDateString() === itemDate.toDateString();
     };
 
-    // Função para calcular distância (Haversine)
-    const calculateDistance = (pos1, pos2) => {
-        if (!pos1 || !pos2) return Infinity;
-
-        const R = 6371; // Raio da Terra em km
-        const dLat = (pos2.lat - pos1.lat) * Math.PI / 180;
-        const dLng = (pos2.lng - pos1.lng) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(pos1.lat * Math.PI / 180) * Math.cos(pos2.lat * Math.PI / 180) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    };
-
-    // Função para verificar proximidade geográfica por níveis
-    const isNearbyGeographic = (item, userProfile) => {
-        if (!userProfile) return false;
-
-        // Níveis de proximidade (ordem de prioridade)
-        if (userProfile.nut4 && item.nut4 === userProfile.nut4) return true; // Localidade
-        if (userProfile.nut3 && item.nut3 === userProfile.nut3) return true; // Freguesia  
-        if (userProfile.nut2 && item.nut2 === userProfile.nut2) return true; // Concelho
-        if (userProfile.nut1 && item.nut1 === userProfile.nut1) return true; // Distrito
-
-        return false;
-    };
-
-    // Hook para geocodificar quando filtro nearby activado
-    useEffect(() => {
-        if (!quickFilters.nearby || !filteredData[filters.selectedView]?.data) {
-            setGeocodedData([]);
-            return;
-        }
-
-        const geocodeNearbyData = async () => {
-            setIsGeocoding(true);
-            const data = filteredData[filters.selectedView].data;
-
-            const processed = await Promise.all(
-                data.map(async (item) => {
-                    // Geografia administrativa primeiro
-                    if (isNearbyGeographic(item, currentUser)) {
-                        return { ...item, _nearby: true, _source: 'admin' };
-                    }
-
-                    // Geolocalização
-                    if (userLocation) {
-                        const coords = await getItemCoordinates(item);
-                        if (coords) {
-                            const distance = calculateDistance(userLocation, coords);
-                            if (distance <= radiusKm) {
-                                return { ...item, _nearby: true, _distance: distance, _source: 'gps' };
-                            }
-                        }
-                    }
-
-                    return { ...item, _nearby: false };
-                })
-            );
-
-            setGeocodedData(processed.filter(item => item._nearby));
-            setIsGeocoding(false);
-        };
-
-        geocodeNearbyData();
-    }, [quickFilters.nearby, filteredData, filters.selectedView, userLocation, radiusKm, currentUser]);
-
-    // DADOS COM FILTROS APLICADOS
+    // Dados filtrados - agora usando o store de filtros avançados
     const displayData = useMemo(() => {
         if (!filters.selectedView || !filteredData[filters.selectedView]?.data) {
             return [];
         }
 
-        // Usar dados geocodificados se filtro nearby activo
-        let data = quickFilters.nearby ? geocodedData : filteredData[filters.selectedView].data;
+        let data = [...filteredData[filters.selectedView].data];
 
-        // Filtro: só os meus
-        if (ui.showOnlyMyTasks && currentUser?.user_id) {
-            data = data.filter(item => Number(item.who) === Number(currentUser.user_id));
-        }
+        // Aplicar filtros do store de filtros avançados
+        data = getFilteredData(data, currentUser?.user_id);
 
-        // Filtro: pesquisa
+        // Filtro: pesquisa local (mantido do TabletView)
         if (ui.searchTerm) {
             const term = ui.searchTerm.toLowerCase();
             data = data.filter(item =>
@@ -214,65 +109,46 @@ const TabletView = () => {
             );
         }
 
-        // QUICK FILTERS
-
-        // Filtro: só urgentes
-        if (quickFilters.urgency) {
+        // Filtros rápidos locais (mantidos para compatibilidade)
+        if (activeFilters.urgency) {
             data = data.filter(item => item.urgency === "1");
         }
 
-        // Filtro: só hoje
-        if (quickFilters.today) {
+        if (activeFilters.today) {
+            data = data.filter(item => isToday(item.ts_created));
+        }
+
+        if (activeFilters.myTasks && currentUser?.user_id) {
             data = data.filter(item =>
-                item.ts_created && isToday(item.ts_created)
+                Number(item.who) === Number(currentUser.user_id)
             );
         }
 
-        // Filtro: próximos - removido (agora tratado no useEffect)
-
-        // ORDENAÇÃO
-        return [...data].sort((a, b) => {
-            // Urgentes sempre primeiro
-            if (a.urgency === "1" && b.urgency !== "1") return -1;
-            if (b.urgency === "1" && a.urgency !== "1") return 1;
-
-            // Ordenação secundária
-            if (quickFilters.sortBy === 'date') {
-                return new Date(b.ts_created || 0) - new Date(a.ts_created || 0);
-            }
-
-            return 0; // manter ordem urgência
-        });
+        return data;
     }, [
         filteredData,
         filters.selectedView,
-        ui.showOnlyMyTasks,
         ui.searchTerm,
+        filtersStore.sortBy,    // ← Adicionar
+        filtersStore.groupBy,   // ← Adicionar
+        activeFilters,
         currentUser?.user_id,
-        quickFilters
+        getFilteredData,
+        advancedFilters
     ]);
 
-    const canExecuteActions = (item) => item && Number(item.who) === Number(currentUser?.user_id);
+    const groupedData = useMemo(() => {
+        return filtersStore.getGroupedData(displayData, metaData);
+    }, [displayData, metaData, filtersStore.groupBy]);
 
-    // Handler dos filtros rápidos
-    const handleQuickFilterChange = (filterType, value) => {
-        if (filterType === 'clear') {
-            setQuickFilters({
-                urgency: false,
-                today: false,
-                nearby: false,
-                sortBy: 'urgency'
-            });
-            return;
-        }
+    // Helper functions
+    const canExecuteActions = (item) =>
+        item && Number(item.who) === Number(currentUser?.user_id);
 
-        setQuickFilters(prev => ({
-            ...prev,
-            [filterType]: value
-        }));
-    };
+    const getActiveFilterCount = () =>
+        Object.values(activeFilters).filter(Boolean).length + getAdvancedFiltersCount();
 
-    // Handlers existentes
+    // Event handlers
     const handleItemClick = (item) => {
         setSelectedItem(item);
         setDetailsDrawer(true);
@@ -290,24 +166,14 @@ const TabletView = () => {
     };
 
     const handleFinalCompletion = async () => {
-        if (!ui.selectedItem || !ui.completionNote.trim()) return;
+        if (!ui.selectedItem || !ui.completionNote?.trim()) return;
 
         setCompletionLoading(true);
-
         try {
-            if (isOnline) {
-                await completeOperation(ui.selectedItem.pk, ui.completionNote);
-                await refetchOperations();
-            } else {
-                addAction('complete', {
-                    documentId: ui.selectedItem.pk,
-                    note: ui.completionNote
-                });
-            }
-
+            await completeOperation(ui.selectedItem.pk, ui.completionNote);
+            await refetchOperations();
             closeAllModals();
             setCompletionNote('');
-
         } catch (error) {
             console.error('Erro:', error);
         } finally {
@@ -329,34 +195,48 @@ const TabletView = () => {
         window.location.href = `tel:${target.phone}`;
     };
 
-    const handleSync = async () => {
-        await syncActions({
-            complete: (data) => completeOperation(data.documentId, data.note)
-        });
-        await refetchOperations();
+    const handleFilterChange = (filterType, value) => {
+        setActiveFilters(prev => ({
+            ...prev,
+            [filterType]: value
+        }));
     };
 
+    const handleClearFilters = () => {
+        setActiveFilters({ urgency: false, today: false, myTasks: false });
+        setSearchTerm('');
+    };
+
+    const handleViewModeChange = (event, newMode) => {
+        if (newMode) {
+            setViewMode(newMode);
+        }
+    };
+
+    // Auto-select primeira vista e reset scroll
     useEffect(() => {
         if (sortedViews.length > 0 && !filters.selectedView) {
             setSelectedView(sortedViews[0][0]);
-        } else if (sortedViews.length === 0) {
-            setSelectedView(null);
         }
-    }, [sortedViews, setSelectedView]);
+        resetScroll();
+    }, [sortedViews, filters.selectedView, setSelectedView, resetScroll]);
 
     return (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            <ConnectionStatus
-                isOnline={isOnline}
-                pendingActions={pendingActions}
-                isSyncing={isSyncing}
-                onSync={handleSync}
-                onDiscard={clearPending}
-            />
-
-            <Paper sx={{ p: 2, m: 2, mb: 0, borderRadius: 3 }}>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}>
+            {/* Cabeçalho com filtros - COMPACTO EM SCROLL */}
+            <Paper
+                sx={{
+                    p: isScrolled ? 1 : 2,
+                    m: isScrolled ? 1 : 2,
+                    mb: 0,
+                    borderRadius: 3,
+                    transition: 'all 0.3s ease',
+                    zIndex: 10,
+                    boxShadow: isScrolled ? 4 : 1
+                }}
+            >
+                <Grid container spacing={isScrolled ? 1 : 2} alignItems="center">
+                    <Grid item xs={12} sm={3}>
                         <AssociateFilter
                             associates={associates || []}
                             selectedAssociate={filters.selectedAssociate}
@@ -365,45 +245,60 @@ const TabletView = () => {
                     </Grid>
                     {filters.selectedAssociate && (
                         <>
-                            <Grid item xs={12} sm={4}>
+                            <Grid item xs={12} sm={5}>
                                 <SearchBar
                                     searchTerm={ui.searchTerm}
                                     onSearch={setSearchTerm}
                                 />
                             </Grid>
                             <Grid item xs={12} sm={4}>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            checked={ui.showOnlyMyTasks}
-                                            onChange={(e) => setShowOnlyMyTasks(e.target.checked)}
-                                        />
-                                    }
-                                    label={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Typography variant="body2">Só os meus</Typography>
-                                            <Chip
-                                                size="small"
-                                                label={displayData.filter(item =>
-                                                    Number(item.who) === currentUser?.user_id
-                                                ).length}
-                                                color={ui.showOnlyMyTasks ? "primary" : "default"}
-                                            />
-                                        </Box>
-                                    }
-                                />
+                                <Box display="flex" alignItems="center" gap={1} justifyContent="flex-end">
+                                    {/* Ordenação/Agrupamento compacto */}
+                                    <SortGroupSelectors compact={true} />
+
+                                    {/* Toggle vista */}
+                                    <ToggleButtonGroup
+                                        value={ui.viewMode}
+                                        exclusive
+                                        onChange={handleViewModeChange}
+                                        size={isScrolled ? "small" : "medium"}
+                                    >
+                                        <ToggleButton value="cards">
+                                            <GridView fontSize={isScrolled ? "small" : "medium"} />
+                                        </ToggleButton>
+                                        <ToggleButton value="list">
+                                            <ViewList fontSize={isScrolled ? "small" : "medium"} />
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
                             </Grid>
                         </>
                     )}
                 </Grid>
             </Paper>
 
+            {/* Tabs das vistas - COMPACTAS EM SCROLL */}
             {filters.selectedAssociate && sortedViews.length > 0 && (
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', mx: 2, mt: 2 }}>
+                <Box sx={{
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    mx: isScrolled ? 1 : 2,
+                    mt: isScrolled ? 0.5 : 2,
+                    transition: 'all 0.3s ease'
+                }}>
                     <Tabs
                         value={filters.selectedView || false}
                         onChange={(e, newValue) => setSelectedView(newValue)}
                         variant="scrollable"
+                        scrollButtons="auto"
+                        sx={{
+                            '& .MuiTab-root': {
+                                minHeight: isScrolled ? 40 : 48,
+                                fontSize: isScrolled ? '0.8rem' : '0.875rem',
+                                py: isScrolled ? 0.5 : 1,
+                                transition: 'all 0.3s ease'
+                            }
+                        }}
                     >
                         {sortedViews.map(([key, value]) => (
                             <Tab
@@ -416,40 +311,46 @@ const TabletView = () => {
                 </Box>
             )}
 
+            {/* Stats Bar - MAIS COMPACTA EM SCROLL */}
+            {filters.selectedAssociate && filters.selectedView && displayData.length > 0 && (
+                <StatsBar
+                    data={displayData}
+                    activeFilters={activeFilters}
+                    currentUserId={currentUser?.user_id}
+                    viewMode={ui.viewMode}
+                    isCompact={isScrolled}
+                />
+            )}
+
+            {/* Conteúdo principal - COM SCROLL HANDLER */}
             {filters.selectedAssociate && filters.selectedView ? (
-                <PullToRefresh onRefresh={refetchOperations}>
-                    <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
-                        <Grid container spacing={3}>
-                            {displayData.map((item, index) => (
-                                <Grid item xs={12} sm={6} lg={4} key={item.pk || index}>
-                                    <SwipeableCard
-                                        onSwipeRight={() => handleNavigate(item)}
-                                        onSwipeLeft={() => {
-                                            setSelectedItem(item);
-                                            return canExecuteActions(item) ? handleCompleteProcess() : null;
-                                        }}
-                                        onTap={() => handleItemClick(item)}
-                                        threshold={OPERATION_CONSTANTS.UI.SWIPE_THRESHOLD}
-                                    >
-                                        <OperationCard
-                                            item={item}
-                                            isUrgent={item.urgency === "1"}
-                                            canAct={canExecuteActions(item)}
-                                            isRamaisView={isRamaisView}
-                                            onClick={() => handleItemClick(item)}
-                                            onNavigate={handleNavigate}
-                                            onCall={handleCall}
-                                            getUserNameByPk={getUserNameByPk}
-                                            getRemainingDaysColor={getRemainingDaysColor}
-                                            getAddressString={(row) => `${row.address}, ${row.nut2}`}
-                                            metaData={metaData}
-                                        />
-                                    </SwipeableCard>
-                                </Grid>
-                            ))}
-                        </Grid>
-                    </Box>
-                </PullToRefresh>
+                <Box
+                    sx={{ flexGrow: 1, overflow: 'auto', p: isScrolled ? 1 : 2 }}
+                    onScroll={handleScroll}
+                >
+                    {displayData.length > 0 ? (
+                        <GroupedContent
+                            data={groupedData}
+                            viewMode={ui.viewMode}
+                            metaData={metaData}
+                            onItemClick={handleItemClick}
+                            onNavigate={handleNavigate}
+                            onCall={handleCall}
+                            getUserNameByPk={getUserNameByPk}
+                            getRemainingDaysColor={getRemainingDaysColor}
+                            getAddressString={(row) => `${row.address}, ${row.nut2}`}
+                            canExecuteActions={canExecuteActions}
+                            isRamaisView={isRamaisView}
+                        />
+                    ) : (
+                        <EmptyState
+                            type="no-results"
+                            hasFilters={getActiveFilterCount() > 0 || ui.searchTerm}
+                            onClearFilters={handleClearFilters}
+                            onRefresh={refetchOperations}
+                        />
+                    )}
+                </Box>
             ) : (
                 <Box sx={{
                     flexGrow: 1,
@@ -458,24 +359,89 @@ const TabletView = () => {
                     justifyContent: 'center',
                     p: 4
                 }}>
-                    <Typography variant="h6" color="text.secondary">
-                        {!filters.selectedAssociate
-                            ? 'Seleccione um associado para ver os dados'
-                            : 'Sem dados para mostrar'
-                        }
-                    </Typography>
+                    <EmptyState
+                        type="no-filters"
+                        onRefresh={refetchOperations}
+                    />
                 </Box>
             )}
 
-            {filters.selectedAssociate && filters.selectedView && (
-                <QuickActionsFab
-                    filters={quickFilters}
-                    onFilterChange={handleQuickFilterChange}
-                    radiusKm={radiusKm}
-                    onRadiusChange={setRadiusKm}
-                    onRefresh={refetchOperations}
-                />
-            )}
+            {/* FABs fixos */}
+            <Box sx={{
+                position: 'fixed',
+                bottom: 24,
+                right: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                zIndex: 1000
+            }}>
+                {/* Refrescar */}
+                <Fab
+                    color="primary"
+                    onClick={refetchOperations}
+                    sx={{ boxShadow: 4 }}
+                >
+                    <Refresh />
+                </Fab>
+
+                {/* Filtros */}
+                <Fab
+                    color={getActiveFilterCount() > 0 ? "secondary" : "default"}
+                    onClick={() => setPanelOpen(true)}
+                    sx={{ boxShadow: 4, position: 'relative' }}
+                >
+                    <FilterList />
+                    {getActiveFilterCount() > 0 && (
+                        <Chip
+                            size="small"
+                            label={getActiveFilterCount()}
+                            color="error"
+                            sx={{
+                                position: 'absolute',
+                                top: -8,
+                                right: -8,
+                                minWidth: 20,
+                                height: 20
+                            }}
+                        />
+                    )}
+                </Fab>
+            </Box>
+
+            {/* Modais */}
+            <AdvancedFilterPanel
+                open={panelOpen}
+                onClose={() => setPanelOpen(false)}
+                associates={associates}
+                users={metaData?.who || []}
+                serviceTypes={[...new Set(
+                    Object.values(operationsData)
+                        .flatMap(view => view?.data || [])
+                        .map(item => item.tipo)
+                        .filter(Boolean)
+                )]}
+                locations={{
+                    districts: [...new Set(
+                        Object.values(operationsData)
+                            .flatMap(view => view?.data || [])
+                            .map(item => item.nut1)
+                            .filter(Boolean)
+                    )],
+                    municipalities: [...new Set(
+                        Object.values(operationsData)
+                            .flatMap(view => view?.data || [])
+                            .map(item => item.nut2)
+                            .filter(Boolean)
+                    )],
+                    parishes: [...new Set(
+                        Object.values(operationsData)
+                            .flatMap(view => view?.data || [])
+                            .map(item => item.nut3)
+                            .filter(Boolean)
+                    )]
+                }}
+            />
 
             <DetailsDrawer
                 open={ui.detailsDrawer}

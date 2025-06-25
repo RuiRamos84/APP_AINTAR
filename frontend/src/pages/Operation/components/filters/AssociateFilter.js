@@ -199,7 +199,7 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
     }
 
     return (
-        <FormControl fullWidth margin="normal">
+        <FormControl fullWidth margin="small">
             <InputLabel id="associate-select-label">
                 Filtrar por Associado
             </InputLabel>
@@ -208,6 +208,7 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                 value={selectedAssociate || ''}
                 onChange={(e) => onAssociateChange(e.target.value)}
                 label="Filtrar por Associado"
+                sx={{ minWidth: 140 }}
                 renderValue={(selected) => {
                     if (!selected) return "Selecionar Associado";
                     if (selected === "all") return "Todos os Associados";

@@ -2,4 +2,4 @@
 export { useOperationsData } from './useOperationsData';
 export { useOperationsFilters } from './useOperationsFilters';
 export { useOperationsTable } from './useOperationsTable';
-export { useOfflineSync } from './useOfflineSync';
+export { useScrollCompact } from './useScrollCompact';

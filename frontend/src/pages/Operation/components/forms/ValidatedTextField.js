@@ -4,7 +4,7 @@ import { TextField } from '@mui/material';
 
 const sanitizeInput = (input) => {
     if (typeof input !== 'string') return input;
-    return input.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 };
 
 const validators = {
