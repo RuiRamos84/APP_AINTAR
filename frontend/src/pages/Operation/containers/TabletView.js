@@ -1,16 +1,24 @@
-// frontend/src/pages/Operation/containers/TabletView.js
+// containers/TabletView.js - ADICIONADO offline + export
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Box, Paper, Typography, Grid, Tabs, Tab, Fab,
     ToggleButtonGroup, ToggleButton, Chip
 } from '@mui/material';
-import { FilterList, Refresh, GridView, ViewList } from '@mui/icons-material';
+import { FilterList, Refresh, GridView, ViewList, GetApp } from '@mui/icons-material';
 
 import { useOperationsData, useOperationsFilters, useScrollCompact } from '../hooks';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import useOperationsStore from '../store/operationsStore';
 
+// Offline
+import { useOffline } from '../hooks/useOffline';
+import ConnectionStatus from '../components/offline/ConnectionStatus';
+
+// Export
+import { exportToExcel } from '../services/exportService';
+
+// Componentes existentes...
 import SearchBar from '../../../components/common/SearchBar/SearchBar';
 import AssociateFilter from '../components/filters/AssociateFilter';
 import OperationCard from '../components/cards/OperationCard';
@@ -36,6 +44,13 @@ const TabletView = () => {
     const store = useOperationsStore();
     const ui = store.getUI();
     const filters = store.getFilters();
+
+    // Offline
+    const { isOnline, pendingActions, addAction, clearPending } = useOffline();
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    // Export
+    const [isExporting, setIsExporting] = useState(false);
 
     // Store de filtros avançados
     const filtersStore = useFiltersStore();
@@ -76,7 +91,8 @@ const TabletView = () => {
     const { operationsData, associates, refetchOperations } = useOperationsData();
     const { isFossaView, isRamaisView, filteredData, sortedViews } = useOperationsFilters(
         operationsData,
-        filters.selectedAssociate
+        filters.selectedAssociate,
+        filters.selectedView
     );
 
     // Função para verificar se é hoje
@@ -87,18 +103,15 @@ const TabletView = () => {
         return today.toDateString() === itemDate.toDateString();
     };
 
-    // Dados filtrados - agora usando o store de filtros avançados
+    // Dados filtrados
     const displayData = useMemo(() => {
         if (!filters.selectedView || !filteredData[filters.selectedView]?.data) {
             return [];
         }
 
         let data = [...filteredData[filters.selectedView].data];
-
-        // Aplicar filtros do store de filtros avançados
         data = getFilteredData(data, currentUser?.user_id);
 
-        // Filtro: pesquisa local (mantido do TabletView)
         if (ui.searchTerm) {
             const term = ui.searchTerm.toLowerCase();
             data = data.filter(item =>
@@ -109,7 +122,6 @@ const TabletView = () => {
             );
         }
 
-        // Filtros rápidos locais (mantidos para compatibilidade)
         if (activeFilters.urgency) {
             data = data.filter(item => item.urgency === "1");
         }
@@ -129,8 +141,8 @@ const TabletView = () => {
         filteredData,
         filters.selectedView,
         ui.searchTerm,
-        filtersStore.sortBy,    // ← Adicionar
-        filtersStore.groupBy,   // ← Adicionar
+        filtersStore.sortBy,
+        filtersStore.groupBy,
         activeFilters,
         currentUser?.user_id,
         getFilteredData,
@@ -147,6 +159,44 @@ const TabletView = () => {
 
     const getActiveFilterCount = () =>
         Object.values(activeFilters).filter(Boolean).length + getAdvancedFiltersCount();
+
+    // OFFLINE - sincronização
+    const handleSync = async () => {
+        if (!isOnline || !pendingActions.length) return;
+
+        setIsSyncing(true);
+        try {
+            // Processar acções pendentes
+            for (const action of pendingActions) {
+                if (action.type === 'complete') {
+                    await completeOperation(action.data.documentId, action.data.note);
+                }
+            }
+            clearPending();
+            await refetchOperations();
+        } catch (error) {
+            console.error('Erro sincronização:', error);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    // EXPORT - exportar dados
+    const handleExport = async () => {
+        if (!filters.selectedView || !displayData.length) return;
+
+        setIsExporting(true);
+        try {
+            await exportToExcel(
+                { [filters.selectedView]: { data: displayData, name: filteredData[filters.selectedView].name } },
+                filters.selectedView
+            );
+        } catch (error) {
+            console.error('Erro exportação:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Event handlers
     const handleItemClick = (item) => {
@@ -170,8 +220,16 @@ const TabletView = () => {
 
         setCompletionLoading(true);
         try {
-            await completeOperation(ui.selectedItem.pk, ui.completionNote);
-            await refetchOperations();
+            if (isOnline) {
+                await completeOperation(ui.selectedItem.pk, ui.completionNote);
+                await refetchOperations();
+            } else {
+                // Guardar offline
+                addAction('complete', {
+                    documentId: ui.selectedItem.pk,
+                    note: ui.completionNote
+                });
+            }
             closeAllModals();
             setCompletionNote('');
         } catch (error) {
@@ -223,7 +281,15 @@ const TabletView = () => {
 
     return (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            {/* Cabeçalho com filtros - COMPACTO EM SCROLL */}
+            {/* STATUS OFFLINE */}
+            <ConnectionStatus
+                isOnline={isOnline}
+                pendingActions={pendingActions}
+                onSync={handleSync}
+                isSyncing={isSyncing}
+            />
+
+            {/* Cabeçalho com filtros */}
             <Paper
                 sx={{
                     p: isScrolled ? 1 : 2,
@@ -253,10 +319,8 @@ const TabletView = () => {
                             </Grid>
                             <Grid item xs={12} sm={4}>
                                 <Box display="flex" alignItems="center" gap={1} justifyContent="flex-end">
-                                    {/* Ordenação/Agrupamento compacto */}
                                     <SortGroupSelectors compact={true} />
 
-                                    {/* Toggle vista */}
                                     <ToggleButtonGroup
                                         value={ui.viewMode}
                                         exclusive
@@ -277,7 +341,7 @@ const TabletView = () => {
                 </Grid>
             </Paper>
 
-            {/* Tabs das vistas - COMPACTAS EM SCROLL */}
+            {/* Tabs das vistas */}
             {filters.selectedAssociate && sortedViews.length > 0 && (
                 <Box sx={{
                     borderBottom: 1,
@@ -311,7 +375,7 @@ const TabletView = () => {
                 </Box>
             )}
 
-            {/* Stats Bar - MAIS COMPACTA EM SCROLL */}
+            {/* Stats Bar */}
             {filters.selectedAssociate && filters.selectedView && displayData.length > 0 && (
                 <StatsBar
                     data={displayData}
@@ -322,7 +386,7 @@ const TabletView = () => {
                 />
             )}
 
-            {/* Conteúdo principal - COM SCROLL HANDLER */}
+            {/* Conteúdo principal */}
             {filters.selectedAssociate && filters.selectedView ? (
                 <Box
                     sx={{ flexGrow: 1, overflow: 'auto', p: isScrolled ? 1 : 2 }}
@@ -376,6 +440,18 @@ const TabletView = () => {
                 gap: 2,
                 zIndex: 1000
             }}>
+                {/* Export */}
+                {displayData.length > 0 && (
+                    <Fab
+                        color="success"
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        sx={{ boxShadow: 4 }}
+                    >
+                        <GetApp />
+                    </Fab>
+                )}
+
                 {/* Refrescar */}
                 <Fab
                     color="primary"
@@ -409,7 +485,7 @@ const TabletView = () => {
                 </Fab>
             </Box>
 
-            {/* Modais */}
+            {/* Modais existentes... */}
             <AdvancedFilterPanel
                 open={panelOpen}
                 onClose={() => setPanelOpen(false)}

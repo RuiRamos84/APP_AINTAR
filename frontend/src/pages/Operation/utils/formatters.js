@@ -1,19 +1,10 @@
-// frontend/src/pages/Operation/utils/formatters.js - CONSOLIDADO
-
-// === FORMATAÇÃO DE DADOS ===
+// utils/formatters.js - CONSOLIDADO
 export const formatDate = (value) => {
     if (!value || value.includes(' às ')) return value || '';
     return new Date(value).toLocaleString('pt-PT', {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit'
     });
-};
-
-export const formatCurrency = (value, currency = 'EUR') => {
-    if (!value || isNaN(value)) return '0.00€';
-    return new Intl.NumberFormat('pt-PT', {
-        style: 'currency', currency
-    }).format(value);
 };
 
 export const formatPhone = (phone) => {
@@ -33,18 +24,13 @@ export const formatAddress = (row) => {
     ].filter(Boolean).join(', ');
 };
 
-export const formatBooleanParam = (value) => {
-    if (value === '1' || value === true) return 'Sim';
-    if (value === '0' || value === false) return 'Não';
-    return '-';
+export const formatCurrency = (value, currency = 'EUR') => {
+    if (!value || isNaN(value)) return '0.00€';
+    return new Intl.NumberFormat('pt-PT', {
+        style: 'currency', currency
+    }).format(value);
 };
 
-export const formatDistance = (meters) => {
-    if (meters < 1000) return `${meters}m`;
-    return `${(meters / 1000).toFixed(1)}km`;
-};
-
-// === HELPERS DE OPERAÇÕES ===
 export const getUserNameByPk = (userPk, metaData) => {
     if (!userPk || !metaData?.who) return "Não atribuído";
     const user = metaData.who.find(u => u.pk === Number(userPk));
@@ -67,7 +53,7 @@ export const getColumnsForView = (viewName, metaData = null) => {
         { id: "who", label: "Atribuído a", format: (value) => getUserNameByPk(value, metaData) }
     ];
 
-    if (viewName?.startsWith('vbr_document_ramais')) {
+    if (viewName?.includes('ramais')) {
         return [
             ...baseColumns,
             { id: "tipo", label: "Tipo" },
@@ -79,25 +65,29 @@ export const getColumnsForView = (viewName, metaData = null) => {
     return baseColumns;
 };
 
-// === VALIDAÇÃO ===
-export const isBooleanParam = (name) => {
-    return [
-        "Gratuito", "Gratuita", "Existência de sanemento até 20 m",
-        "Existência de rede de água", "Urgência",
-        "Existência de saneamento até 20 m"
-    ].includes(name);
-};
-
-// === ORDENAÇÃO ===
 export const sortViews = (views) => {
     const order = [
-        "vbr_document_fossa", "vbr_document_ramais", "vbr_document_caixas",
-        "vbr_document_desobstrucao", "vbr_document_pavimentacao", "vbr_document_rede"
+        "fossa", "ramais_execucao", "ramais_pavimentacao",
+        "caixas", "desobstrucao", "pavimentacao", "rede"
     ];
 
     return Object.entries(views).sort((a, b) => {
-        const aIndex = order.findIndex(item => a[0].startsWith(item));
-        const bIndex = order.findIndex(item => b[0].startsWith(item));
+        const aIndex = order.indexOf(a[0]);
+        const bIndex = order.indexOf(b[0]);
         return aIndex !== bIndex ? aIndex - bIndex : a[1].name.localeCompare(b[1].name);
     });
+};
+
+// Validação
+export const isBooleanParam = (name) => {
+    return [
+        "Gratuito", "Gratuita", "Existência de sanemanto até 20 m",
+        "Existência de rede de água", "Urgência"
+    ].includes(name);
+};
+
+// Sanitização
+export const sanitizeInput = (input) => {
+    if (typeof input !== 'string') return input;
+    return input.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 };

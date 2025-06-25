@@ -134,27 +134,18 @@ export const formatDate = (dateString) => {
  * @returns {Array} - Documentos filtrados
  */
 export const filterDocuments = (documents, searchTerm = '') => {
-    if (!Array.isArray(documents)) return [];
-    if (!searchTerm) return documents;
+    if (!searchTerm?.trim() || !Array.isArray(documents)) return documents;
 
-    const search = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
 
     return documents.filter(doc => {
-        // Campos a serem pesquisados
-        const searchFields = [
-            doc.regnumber,
-            doc.ts_entity,
-            doc.tt_type,
-            doc.nipc?.toString(),
-            doc.memo
-        ];
-
-        // Retorna true se algum campo contém o termo de busca
-        return searchFields.some(field =>
-            field && String(field).toLowerCase().includes(search)
-        );
+        // Pesquisar em TODOS os campos do objecto
+        return Object.values(doc).some(value => {
+            if (value == null) return false;
+            return String(value).toLowerCase().includes(term);
+        });
     });
-};
+  };
 
 /**
  * Ordena documentos com base em campo e direção

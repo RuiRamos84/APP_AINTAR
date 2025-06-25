@@ -2,25 +2,34 @@ import React from 'react';
 import { Grid, Card, CardContent, Typography, Box, Badge, useMediaQuery, useTheme } from '@mui/material';
 import {
     CleaningServices, CallMade, LocalDrink, Construction,
-    RouteOutlined, NetworkCheck, SwipeRight
+    RouteOutlined, NetworkCheck, SwipeRight, Build
 } from '@mui/icons-material';
 
 const viewIcons = {
-    vbr_document_fossa: <CleaningServices />,
-    vbr_document_ramais: <CallMade />,
-    vbr_document_caixas: <Construction />,
-    vbr_document_desobstrucao: <LocalDrink />,
-    vbr_document_pavimentacao: <RouteOutlined />,
-    vbr_document_rede: <NetworkCheck />
+    fossa: <CleaningServices />,
+    ramais_execucao: <CallMade />,
+    ramais_pavimentacao: <Build />,
+    ramais: <CallMade />, // fallback
+    caixas: <Construction />,
+    desobstrucao: <LocalDrink />,
+    pavimentacao: <RouteOutlined />,
+    rede: <NetworkCheck />
 };
 
 const getViewIcon = (viewKey) => {
+    // Verificação exacta primeiro
+    if (viewIcons[viewKey]) {
+        return viewIcons[viewKey];
+    }
+
+    // Fallbacks para compatibilidade
     for (const key in viewIcons) {
-        if (viewKey.startsWith(key)) {
+        if (viewKey.includes(key)) {
             return viewIcons[key];
         }
     }
-    return null;
+
+    return <Construction />; // ícone padrão
 };
 
 const ViewCards = ({ views = [], selectedView, onViewClick }) => {

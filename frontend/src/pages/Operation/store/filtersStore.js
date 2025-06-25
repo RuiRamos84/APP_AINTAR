@@ -73,7 +73,7 @@ const useFiltersStore = create(
 
             setGroupBy: (groupBy) => set({
                 groupBy,
-                groupCollapsed: {} // Reset collapsed state
+                groupCollapsed: {}
             }),
 
             toggleGroupCollapsed: (groupKey) => set(state => ({
@@ -130,43 +130,37 @@ const useFiltersStore = create(
             getFilteredData: (data, currentUserId) => {
                 const { filters, sortBy, sortOrder } = get();
                 let filtered = [...data];
+                console.log('DEBUG:', { sortBy, sortOrder, dataLength: data.length });
 
                 // Aplicar filtros
                 if (filters.urgency) {
                     filtered = filtered.filter(item => item.urgency === "1");
                 }
-
                 if (filters.createdToday) {
                     const today = new Date().toDateString();
                     filtered = filtered.filter(item =>
-                        item.ts_created && new Date(item.ts_created).toDateString() === today
+                        item.submission && new Date(item.submission).toDateString() === today
                     );
                 }
-
                 if (filters.assignedTo.length > 0) {
                     filtered = filtered.filter(item =>
                         filters.assignedTo.includes(Number(item.who))
                     );
                 }
-
                 if (filters.hasPhone !== null) {
                     filtered = filtered.filter(item =>
                         filters.hasPhone ? Boolean(item.phone) : !item.phone
                     );
                 }
-
                 if (filters.district) {
                     filtered = filtered.filter(item => item.nut1 === filters.district);
                 }
-
                 if (filters.municipality) {
                     filtered = filtered.filter(item => item.nut2 === filters.municipality);
                 }
-
                 if (filters.parish) {
                     filtered = filtered.filter(item => item.nut3 === filters.parish);
                 }
-
                 if (filters.serviceType.length > 0) {
                     filtered = filtered.filter(item =>
                         filters.serviceType.includes(item.tipo)
@@ -179,17 +173,17 @@ const useFiltersStore = create(
 
                     switch (sortBy) {
                         case 'urgency_date':
+                            // Urgentes primeiro, depois data
                             if (a.urgency !== b.urgency) {
                                 return b.urgency === "1" ? 1 : -1;
                             }
-                            aVal = new Date(a.ts_created || 0);
-                            bVal = new Date(b.ts_created || 0);
+                            aVal = new Date(a.submission || 0);
+                            bVal = new Date(b.submission || 0);
                             break;
 
-                        case 'date_newest':
-                        case 'date_oldest':
-                            aVal = new Date(a.ts_created || 0);
-                            bVal = new Date(b.ts_created || 0);
+                        case 'date':
+                            aVal = new Date(a.submission || 0);
+                            bVal = new Date(b.submission || 0);
                             break;
 
                         case 'location':
@@ -198,8 +192,8 @@ const useFiltersStore = create(
                             break;
 
                         case 'assignee':
-                            aVal = a.who || '';
-                            bVal = b.who || '';
+                            aVal = Number(a.who) || 0;
+                            bVal = Number(b.who) || 0;
                             break;
 
                         case 'type':
@@ -211,10 +205,7 @@ const useFiltersStore = create(
                             return 0;
                     }
 
-                    if (sortBy === 'date_oldest') {
-                        return aVal - bVal;
-                    }
-
+                    // Aplicar sortOrder
                     if (typeof aVal === 'string') {
                         return sortOrder === 'desc'
                             ? bVal.localeCompare(aVal)
@@ -231,7 +222,7 @@ const useFiltersStore = create(
                 const { groupBy } = get();
 
                 if (!data || !Array.isArray(data)) {
-                    return { 'Todos': [] }; // ← Fallback
+                    return { 'Todos': [] };
                 }
 
                 const grouped = {};
@@ -258,7 +249,7 @@ const useFiltersStore = create(
                             break;
 
                         case 'date':
-                            const date = new Date(item.ts_created || 0);
+                            const date = new Date(item.submission || 0);
                             groupKey = date.toLocaleDateString('pt-PT');
                             break;
 

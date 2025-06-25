@@ -1,11 +1,11 @@
-// frontend/src/pages/Operation/components/list/OperationListItem.js
+// components/list/OperationListItem.js - ATUALIZADO com estado ramais
 import React, { memo } from 'react';
 import {
     Paper, Box, Typography, Chip, IconButton, Tooltip, LinearProgress
 } from '@mui/material';
 import {
     MyLocation, Phone, LocationOn, CalendarToday,
-    LockOpen, Lock, PriorityHigh, Assignment
+    LockOpen, Lock, PriorityHigh, Assignment, Warning, CheckCircle, Schedule
 } from '@mui/icons-material';
 
 const OperationListItem = memo(({
@@ -35,6 +35,49 @@ const OperationListItem = memo(({
         onClick(item);
     };
 
+    // Estado temporal dos ramais
+    const getRamaisStatus = () => {
+        if (!isRamaisView || item.restdays === undefined) return null;
+
+        const days = Math.floor(item.restdays);
+
+        if (days < 0) {
+            return {
+                label: `${Math.abs(days)} dias em atraso`,
+                color: 'error',
+                icon: <Warning fontSize="small" />,
+                borderColor: '#f44336'
+            };
+        }
+
+        if (days === 0) {
+            return {
+                label: 'Vence hoje',
+                color: 'warning',
+                icon: <Schedule fontSize="small" />,
+                borderColor: '#ff9800'
+            };
+        }
+
+        if (days <= 7) {
+            return {
+                label: `${days} dias restantes`,
+                color: 'warning',
+                icon: <Schedule fontSize="small" />,
+                borderColor: '#ff9800'
+            };
+        }
+
+        return {
+            label: `${days} dias restantes`,
+            color: 'success',
+            icon: <CheckCircle fontSize="small" />,
+            borderColor: '#4caf50'
+        };
+    };
+
+    const ramaisStatus = getRamaisStatus();
+
     return (
         <Paper
             onClick={handleClick}
@@ -43,8 +86,8 @@ const OperationListItem = memo(({
                 mb: 2,
                 cursor: 'pointer',
                 borderRadius: 2,
-                borderLeft: isRamaisView ?
-                    `6px solid ${getRemainingDaysColor(item.restdays)}` :
+                borderLeft: isRamaisView && ramaisStatus ?
+                    `6px solid ${ramaisStatus.borderColor}` :
                     isUrgent ? '6px solid #f44336' : 'none',
                 bgcolor: isUrgent ? 'rgba(244, 67, 54, 0.05)' : 'background.paper',
                 transition: 'all 0.2s ease',
@@ -56,7 +99,7 @@ const OperationListItem = memo(({
         >
             {/* Linha 1: RegNumber + Tipo + Status | Actions */}
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                <Box display="flex" alignItems="center" gap={1}>
+                <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                     <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1rem' }}>
                         {item.regnumber}
                     </Typography>
@@ -78,6 +121,17 @@ const OperationListItem = memo(({
                         />
                     )}
 
+                    {/* Estado ramais */}
+                    {ramaisStatus && (
+                        <Chip
+                            icon={ramaisStatus.icon}
+                            label={ramaisStatus.label}
+                            color={ramaisStatus.color}
+                            size="small"
+                            sx={{ fontSize: '0.7rem', height: 20, fontWeight: 'medium' }}
+                        />
+                    )}
+
                     {item.who && (
                         <Chip
                             size="small"
@@ -92,61 +146,57 @@ const OperationListItem = memo(({
                 {/* Actions à direita */}
                 <Box display="flex" alignItems="center" gap={1}>
                     <Tooltip title="Ver no mapa">
-                        <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={handleNavigate}
-                        >
+                        <IconButton size="small" color="primary" onClick={handleNavigate}>
                             <MyLocation fontSize="small" />
                         </IconButton>
                     </Tooltip>
 
                     {item.phone && (
                         <Tooltip title="Ligar">
-                            <IconButton
-                                size="small"
-                                color="success"
-                                onClick={handleCall}
-                            >
+                            <IconButton size="small" color="success" onClick={handleCall}>
                                 <Phone fontSize="small" />
                             </IconButton>
                         </Tooltip>
                     )}
 
                     <Tooltip title="Ver detalhes">
-                        <IconButton
-                            size="small"
-                            onClick={handleClick}
-                        >
+                        <IconButton size="small" onClick={handleClick}>
                             <Assignment fontSize="small" />
                         </IconButton>
                     </Tooltip>
                 </Box>
             </Box>
 
-            {/* Progress para Ramais */}
-            {isRamaisView && (
+            {/* Progress para Ramais - melhorado */}
+            {isRamaisView && ramaisStatus && (
                 <Box mb={1}>
                     <LinearProgress
                         variant="determinate"
-                        value={Math.max(0, Math.min(100, (item.restdays / 30) * 100))}
+                        value={item.restdays < 0 ? 100 : Math.max(0, Math.min(100, ((30 - item.restdays) / 30) * 100))}
                         sx={{
                             height: 4,
                             borderRadius: 2,
                             bgcolor: 'grey.200',
                             '& .MuiLinearProgress-bar': {
-                                bgcolor: getRemainingDaysColor(item.restdays),
+                                bgcolor: ramaisStatus.borderColor,
                                 borderRadius: 2
                             }
                         }}
                     />
-                    <Typography
-                        variant="caption"
-                        color={getRemainingDaysColor(item.restdays)}
-                        sx={{ fontWeight: 'medium' }}
-                    >
-                        {Math.floor(item.restdays)} dias restantes
-                    </Typography>
+
+                    {/* Datas importantes */}
+                    <Box display="flex" gap={2} mt={0.5}>
+                        {item.execution && (
+                            <Typography variant="caption" color="text.secondary">
+                                Execução: {item.execution}
+                            </Typography>
+                        )}
+                        {item.limitdate && (
+                            <Typography variant="caption" color="text.secondary">
+                                Limite: {item.limitdate}
+                            </Typography>
+                        )}
+                    </Box>
                 </Box>
             )}
 
@@ -182,7 +232,7 @@ const OperationListItem = memo(({
                     </Typography>
                 </Box>
 
-                <Box display="flex" alignItems="center" gap={0.5} >
+                <Box display="flex" alignItems="center" gap={0.5}>
                     <Phone fontSize="small" color={item.phone ? "action" : "disabled"} />
                     <Typography
                         variant="body2"

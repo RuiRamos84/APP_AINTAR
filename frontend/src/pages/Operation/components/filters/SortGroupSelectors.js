@@ -15,8 +15,8 @@ const SortGroupSelectors = ({ compact = false }) => {
 
     const sortOptions = [
         { value: 'urgency_date', label: 'Urgência + Data', icon: <Schedule /> },
-        { value: 'date_newest', label: 'Mais Recentes', icon: <TrendingDown /> },
-        { value: 'date_oldest', label: 'Mais Antigos', icon: <TrendingUp /> },
+        // { value: 'date_newest', label: 'Mais Recentes', icon: <TrendingDown /> },
+        // { value: 'date_oldest', label: 'Mais Antigos', icon: <TrendingUp /> },
         { value: 'location', label: 'Localização', icon: <LocationOn /> },
         { value: 'assignee', label: 'Responsável', icon: <Person /> },
         { value: 'type', label: 'Tipo', icon: <Assignment /> }

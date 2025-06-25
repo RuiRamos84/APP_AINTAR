@@ -4,6 +4,7 @@ export const fetchOperationsData = async (page = 1, pageSize = 50) => {
     const response = await api.get('/operations', {
         params: { page, page_size: pageSize }
     });
+    console.log('Operations data fetched:', response.data);
     return response.data;
 };
 
