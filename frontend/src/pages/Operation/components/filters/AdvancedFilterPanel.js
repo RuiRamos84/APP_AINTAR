@@ -10,6 +10,7 @@ import {
     Today, Schedule, Warning, Person, Phone, LocationOn
 } from '@mui/icons-material';
 import useFiltersStore from '../../store/filtersStore';
+import { parsePortugueseDate } from '../../store/filtersStore';
 
 const AdvancedFilterPanel = ({
     open,

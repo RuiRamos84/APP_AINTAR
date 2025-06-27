@@ -48,11 +48,11 @@ const GridView = (props) => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedGroupId, setSelectedGroupId] = useState(null);
 
-    console.log('🔍 GridView Debug:', {
-        isLateDocuments: isLateDocuments,
-        documentsCount: documents.length,
-        documentsWithDays: documents.filter(doc => doc.days).length
-    });
+    // console.log('🔍 GridView Debug:', {
+    //     isLateDocuments: isLateDocuments,
+    //     documentsCount: documents.length,
+    //     documentsWithDays: documents.filter(doc => doc.days).length
+    // });
 
     // ✅ ADICIONAR ESTA FUNÇÃO AQUI:
     const getStyleConfig = () => {

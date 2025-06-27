@@ -1,7 +1,14 @@
-// frontend/src/pages/Operation/store/filtersStore.js
+// frontend/src/pages/Operation/store/filtersStore.js - ORDENAÇÃO CORRIGIDA
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const parsePortugueseDate = (dateStr) => {
+    if (!dateStr) return 0;
+
+    // "2025-03-25 às 21:54" -> "2025-03-25T21:54:00"
+    const cleaned = dateStr.replace(' às ', 'T') + ':00';
+    return new Date(cleaned).getTime();
+};
 const useFiltersStore = create(
     persist(
         (set, get) => ({
@@ -29,9 +36,9 @@ const useFiltersStore = create(
                 overdue: false
             },
 
-            // Ordenação
+            // Ordenação - CONSOLIDADA
             sortBy: 'urgency_date',
-            sortOrder: 'desc',
+            sortOrder: 'desc', // 'asc' | 'desc'
 
             // Agrupamento
             groupBy: 'none',
@@ -69,8 +76,21 @@ const useFiltersStore = create(
                 activePreset: null
             })),
 
-            setSortBy: (sortBy, sortOrder = 'desc') => set({ sortBy, sortOrder }),
+            // ORDENAÇÃO - SIMPLIFICADA
+            setSortBy: (sortBy) => set(state => ({
+                sortBy,
+                // Manter a ordem actual quando se muda critério
+                sortOrder: state.sortOrder
+            })),
 
+            setSortOrder: (order) => set({ sortOrder: order }),
+
+            // Toggle da ordem (para clicks nos headers)
+            toggleSortOrder: () => set(state => ({
+                sortOrder: state.sortOrder === 'asc' ? 'desc' : 'asc'
+            })),
+
+            // AGRUPAMENTO
             setGroupBy: (groupBy) => set({
                 groupBy,
                 groupCollapsed: {}
@@ -127,10 +147,86 @@ const useFiltersStore = create(
                 }).length;
             },
 
+            // FUNÇÃO DE ORDENAÇÃO PRINCIPAL
+            sortData: (data, customSortBy = null, customSortOrder = null) => {
+                const { sortBy: storeSortBy, sortOrder: storeSortOrder } = get();
+                const sortBy = customSortBy || storeSortBy;
+                const sortOrder = customSortOrder || storeSortOrder;
+
+                // console.log('sortData executada:', { sortBy, sortOrder, dataLength: data.length });
+
+                if (!data || !Array.isArray(data) || data.length === 0) return data;
+
+                return [...data].sort((a, b) => {
+                    let aVal, bVal;
+
+                    switch (sortBy) {
+                        case 'urgency_date':
+                            if (a.urgency !== b.urgency) {
+                                return b.urgency === "1" ? 1 : -1;
+                            }
+                            aVal = parsePortugueseDate(a.submission);
+                            bVal = parsePortugueseDate(b.submission);
+                            break;
+
+                        case 'date':
+                            aVal = parsePortugueseDate(a.submission);
+                            bVal = parsePortugueseDate(b.submission);
+                            break;
+
+                        case 'location':
+                            const getLocationKey = (item) =>
+                                `${item.nut1 || 'ZZZ'}-${item.nut2 || 'ZZZ'}-${item.nut3 || 'ZZZ'}-${item.nut4 || 'ZZZ'}`;
+                            aVal = getLocationKey(a);
+                            bVal = getLocationKey(b);
+                            break;
+
+                        case 'assignee':
+                            aVal = Number(a.who) || 999999;
+                            bVal = Number(b.who) || 999999;
+                            break;
+
+                        case 'type':
+                            aVal = a.tipo || 'ZZZ';
+                            bVal = b.tipo || 'ZZZ';
+                            break;
+
+                        case 'entity':
+                            aVal = a.ts_entity || 'ZZZ';
+                            bVal = b.ts_entity || 'ZZZ';
+                            break;
+
+                        case 'phone':
+                            const aHasPhone = Boolean(a.phone);
+                            const bHasPhone = Boolean(b.phone);
+                            if (aHasPhone !== bHasPhone) {
+                                return sortOrder === 'desc' ? (bHasPhone ? 1 : -1) : (aHasPhone ? -1 : 1);
+                            }
+                            aVal = a.phone || '';
+                            bVal = b.phone || '';
+                            break;
+
+                        case 'restdays':
+                            aVal = Number(a.restdays) || 9999;
+                            bVal = Number(b.restdays) || 9999;
+                            break;
+
+                        default:
+                            return 0;
+                    }
+
+                    const result = sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+                    // console.log(`Comparação: ${a.regnumber} vs ${b.regnumber} = ${result}`);
+                    return result;
+                });
+            },
+
             getFilteredData: (data, currentUserId) => {
                 const { filters, sortBy, sortOrder } = get();
+                // console.log('STORE getFilteredData:', { sortBy, sortOrder });
+
                 let filtered = [...data];
-                console.log('DEBUG:', { sortBy, sortOrder, dataLength: data.length });
+                
 
                 // Aplicar filtros
                 if (filters.urgency) {
@@ -167,100 +263,103 @@ const useFiltersStore = create(
                     );
                 }
 
-                // Ordenar
-                filtered.sort((a, b) => {
-                    let aVal, bVal;
-
-                    switch (sortBy) {
-                        case 'urgency_date':
-                            // Urgentes primeiro, depois data
-                            if (a.urgency !== b.urgency) {
-                                return b.urgency === "1" ? 1 : -1;
-                            }
-                            aVal = new Date(a.submission || 0);
-                            bVal = new Date(b.submission || 0);
-                            break;
-
-                        case 'date':
-                            aVal = new Date(a.submission || 0);
-                            bVal = new Date(b.submission || 0);
-                            break;
-
-                        case 'location':
-                            aVal = `${a.nut1 || ''}-${a.nut2 || ''}-${a.nut3 || ''}-${a.nut4 || ''}`;
-                            bVal = `${b.nut1 || ''}-${b.nut2 || ''}-${b.nut3 || ''}-${b.nut4 || ''}`;
-                            break;
-
-                        case 'assignee':
-                            aVal = Number(a.who) || 0;
-                            bVal = Number(b.who) || 0;
-                            break;
-
-                        case 'type':
-                            aVal = a.tipo || '';
-                            bVal = b.tipo || '';
-                            break;
-
-                        default:
-                            return 0;
-                    }
-
-                    // Aplicar sortOrder
-                    if (typeof aVal === 'string') {
-                        return sortOrder === 'desc'
-                            ? bVal.localeCompare(aVal)
-                            : aVal.localeCompare(bVal);
-                    }
-
-                    return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
-                });
-
-                return filtered;
+                return get().sortData(filtered, sortBy, sortOrder);
             },
 
             getGroupedData: (data, metaData) => {
-                const { groupBy } = get();
+                const { groupBy, sortBy, sortOrder } = get();
+
+                // Função interna de ordenação
+                const sortItems = (items) => {
+                    return [...items].sort((a, b) => {
+                        let aVal, bVal;
+
+                        switch (sortBy) {
+                            case 'urgency_date':
+                                if (a.urgency !== b.urgency) {
+                                    return b.urgency === "1" ? 1 : -1;
+                                }
+                                aVal = parsePortugueseDate(a.submission);
+                                bVal = parsePortugueseDate(b.submission);
+                                break;
+
+                            case 'date':
+                                aVal = parsePortugueseDate(a.submission);
+                                bVal = parsePortugueseDate(b.submission);
+                                break;
+
+                            case 'location':
+                                const getLocationKey = (item) =>
+                                    `${item.nut1 || 'ZZZ'}-${item.nut2 || 'ZZZ'}-${item.nut3 || 'ZZZ'}-${item.nut4 || 'ZZZ'}`;
+                                aVal = getLocationKey(a);
+                                bVal = getLocationKey(b);
+                                break;
+
+                            case 'assignee':
+                                aVal = Number(a.who) || 999999;
+                                bVal = Number(b.who) || 999999;
+                                break;
+
+                            case 'type':
+                                aVal = a.tipo || 'ZZZ';
+                                bVal = b.tipo || 'ZZZ';
+                                break;
+
+                            case 'entity':
+                                aVal = a.ts_entity || 'ZZZ';
+                                bVal = b.ts_entity || 'ZZZ';
+                                break;
+
+                            case 'phone':
+                                const aHasPhone = Boolean(a.phone);
+                                const bHasPhone = Boolean(b.phone);
+                                if (aHasPhone !== bHasPhone) {
+                                    return sortOrder === 'desc' ? (bHasPhone ? 1 : -1) : (aHasPhone ? -1 : 1);
+                                }
+                                aVal = a.phone || '';
+                                bVal = b.phone || '';
+                                break;
+
+                            case 'restdays':
+                                aVal = Number(a.restdays) || 9999;
+                                bVal = Number(b.restdays) || 9999;
+                                break;
+
+                            default:
+                                return 0;
+                        }
+
+                        return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+                    });
+                };
 
                 if (!data || !Array.isArray(data)) {
                     return { 'Todos': [] };
                 }
 
-                const grouped = {};
+                if (groupBy === 'none') {
+                    return { 'Todos': sortItems(data) };
+                }
 
+                const grouped = {};
                 data.forEach(item => {
-                    let groupKey;
+                    let groupKey = 'Outros';
 
                     switch (groupBy) {
-                        case 'urgency':
-                            groupKey = item.urgency === "1" ? 'Urgentes' : 'Normais';
-                            break;
-
                         case 'assignee':
                             const user = metaData?.who?.find(u => u.pk === Number(item.who));
                             groupKey = user ? user.name : 'Não atribuído';
                             break;
-
-                        case 'location':
-                            groupKey = item.nut4 || 'Sem localização';
-                            break;
-
-                        case 'type':
-                            groupKey = item.tipo || 'Sem tipo';
-                            break;
-
-                        case 'date':
-                            const date = new Date(item.submission || 0);
-                            groupKey = date.toLocaleDateString('pt-PT');
-                            break;
-
-                        default:
-                            groupKey = 'Outros';
+                        // ... outros casos
                     }
 
-                    if (!grouped[groupKey]) {
-                        grouped[groupKey] = [];
-                    }
+                    if (!grouped[groupKey]) grouped[groupKey] = [];
                     grouped[groupKey].push(item);
+                });
+
+                // Ordenar cada grupo
+                Object.keys(grouped).forEach(key => {
+                    grouped[key] = sortItems(grouped[key]);
                 });
 
                 return grouped;

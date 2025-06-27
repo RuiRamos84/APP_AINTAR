@@ -95,6 +95,14 @@ const TabletView = () => {
         filters.selectedView
     );
 
+    useEffect(() => {
+        console.log('SORT STATE:', {
+            sortBy: filtersStore.sortBy,
+            sortOrder: filtersStore.sortOrder,
+            groupBy: filtersStore.groupBy
+        });
+    }, [filtersStore.sortBy, filtersStore.sortOrder, filtersStore.groupBy]);
+
     // Função para verificar se é hoje
     const isToday = (dateString) => {
         if (!dateString) return false;
@@ -108,10 +116,12 @@ const TabletView = () => {
         if (!filters.selectedView || !filteredData[filters.selectedView]?.data) {
             return [];
         }
+        
+        // USA A STORE EM VEZ DA LÓGICA LOCAL
+        let data = filtersStore.getFilteredData(filteredData[filters.selectedView].data, currentUser?.user_id);
+        console.log('displayData recalculado:', data.length, 'sortBy:', filtersStore.sortBy);
 
-        let data = [...filteredData[filters.selectedView].data];
-        data = getFilteredData(data, currentUser?.user_id);
-
+        // Aplicar apenas filtros locais (search + activeFilters)
         if (ui.searchTerm) {
             const term = ui.searchTerm.toLowerCase();
             data = data.filter(item =>
@@ -141,12 +151,11 @@ const TabletView = () => {
         filteredData,
         filters.selectedView,
         ui.searchTerm,
-        filtersStore.sortBy,
-        filtersStore.groupBy,
         activeFilters,
         currentUser?.user_id,
         getFilteredData,
-        advancedFilters
+        filtersStore.sortBy,     // ← ESSENCIAL
+        filtersStore.sortOrder   // ← ESSENCIAL
     ]);
 
     const groupedData = useMemo(() => {

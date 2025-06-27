@@ -360,12 +360,12 @@ const DocumentManagerContent = () => {
         const isCreatedTab = activeTab === 2;
         const isLateTab = activeTab === 3;
 
-        console.log('🔍 RenderContent Debug:', {
-            activeTab,
-            isLateTab,
-            documentsLength: documents.length,
-            sampleDocument: documents[0]
-        });
+        // console.log('🔍 RenderContent Debug:', {
+        //     activeTab,
+        //     isLateTab,
+        //     documentsLength: documents.length,
+        //     sampleDocument: documents[0]
+        // });
 
         const renderKey = `${viewMode}-${sortBy}-${sortDirection}`;
 

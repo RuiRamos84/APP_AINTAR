@@ -41,12 +41,12 @@ const DocumentCard = ({
 }) => {
     const theme = useTheme();
 
-    console.log('🔍 DocumentCard Debug:', {
-        documentId: document.pk,
-        days: document.days,
-        isLateDocuments: isLateDocuments,
-        shouldShow: document.days && isLateDocuments
-    });
+    // console.log('🔍 DocumentCard Debug:', {
+    //     documentId: document.pk,
+    //     days: document.days,
+    //     isLateDocuments: isLateDocuments,
+    //     shouldShow: document.days && isLateDocuments
+    // });
 
     // Obtém informações do status
     const getStatusInfo = () => {
