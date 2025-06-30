@@ -292,7 +292,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                 </Paper>
             </Box>
         );
-     };
+    };
 
     // Render loading state
     if (loading) {
@@ -437,7 +437,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
             </Card>
 
 
-            
+
             {/* {hasPaymentInfo && (
                 <Box sx={{ mb: 2, textAlign: 'center' }}>
                     <Button

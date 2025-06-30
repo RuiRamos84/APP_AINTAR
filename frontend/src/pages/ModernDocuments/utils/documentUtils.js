@@ -145,7 +145,7 @@ export const filterDocuments = (documents, searchTerm = '') => {
             return String(value).toLowerCase().includes(term);
         });
     });
-  };
+};
 
 /**
  * Ordena documentos com base em campo e direção

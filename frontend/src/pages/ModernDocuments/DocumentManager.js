@@ -33,6 +33,7 @@ import { DocumentActionsProvider, useDocumentActions } from './context/DocumentA
 import DocumentFilters from './components/filters/DocumentFilters';
 import DocumentSorting from './components/filters/DocumentSorting';
 import * as XLSX from 'xlsx';
+import { DocumentEventManager, DOCUMENT_EVENTS } from './utils/documentEventSystem';
 
 // Importar funções existentes para utilizar
 import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtils';
@@ -94,8 +95,8 @@ const DocumentManagerContent = () => {
         handleDownloadCompr,
         handleOpenCreateModal,
         handleCloseDocumentModal,
-        handleCloseStepModal,
-        handleCloseAnnexModal,
+        handleCloseStepModal: closeStepModal,
+        handleCloseAnnexModal: closeAnnexModal,
         handleCloseReplicateModal,
         handleCloseCreateModal,
         openDocuments,
@@ -122,6 +123,26 @@ const DocumentManagerContent = () => {
         resetFilters();
         setDateRange({ startDate: null, endDate: null });
     }, [resetFilters, setDateRange]);
+
+    // ===== HANDLERS CORRIGIDOS COM SISTEMA DE EVENTOS =====
+
+    // Handler corrigido para fechar modal de passo
+    const handleCloseStepModal = useCallback((success) => {
+        closeStepModal();
+        // Se success = true, o DocumentModal recebe o evento automaticamente
+        if (success) {
+            console.log('✅ Passo adicionado - modal principal será actualizado');
+        }
+    }, [closeStepModal]);
+
+    // Handler corrigido para fechar modal de anexo
+    const handleCloseAnnexModal = useCallback((success) => {
+        closeAnnexModal();
+        // Se success = true, o DocumentModal recebe o evento automaticamente
+        if (success) {
+            console.log('✅ Anexo adicionado - modal principal será actualizado');
+        }
+    }, [closeAnnexModal]);
 
     // ===== FUNÇÕES DE FILTRO =====
 
@@ -239,7 +260,6 @@ const DocumentManagerContent = () => {
     }, []);
 
     // ===== FUNÇÃO PRINCIPAL PARA OBTER DOCUMENTOS ATIVOS =====
-    // IMPORTANTE: Esta função deve estar definida ANTES de qualquer função que a utilize
     const getActiveDocuments = useCallback(() => {
         // 1. Selecionar documentos base conforme a tab ativa
         let docs;
@@ -301,7 +321,7 @@ const DocumentManagerContent = () => {
         filterDocumentsByDateRange
     ]);
 
-    // Function to export filtered data to Excel - AGORA definida APÓS getActiveDocuments
+    // Function to export filtered data to Excel
     const handleExportToExcel = useCallback(() => {
         try {
             // Obter documentos filtrados atuais
@@ -360,13 +380,6 @@ const DocumentManagerContent = () => {
         const isCreatedTab = activeTab === 2;
         const isLateTab = activeTab === 3;
 
-        // console.log('🔍 RenderContent Debug:', {
-        //     activeTab,
-        //     isLateTab,
-        //     documentsLength: documents.length,
-        //     sampleDocument: documents[0]
-        // });
-
         const renderKey = `${viewMode}-${sortBy}-${sortDirection}`;
 
         const viewProps = {
@@ -376,14 +389,14 @@ const DocumentManagerContent = () => {
             density,
             isAssignedToMe: isAssignedTab,
             showComprovativo: isCreatedTab,
-            isLateDocuments: isLateTab,  // ✅ MANTER APENAS ESTA LINHA, REMOVER showLateDocuments
+            isLateDocuments: isLateTab,
             onViewDetails: handleViewDetails,
             onAddStep: handleAddStep,
             onAddAnnex: handleAddAnnex,
             onReplicate: handleReplicate,
             onDownloadComprovativo: handleDownloadCompr,
-            onRefresh: refreshDocuments,  // ✅ ADICIONAR ESTA PROP
-            onCreateDocument: handleOpenCreateModal  // ✅ ADICIONAR ESTA PROP
+            onRefresh: refreshDocuments,
+            onCreateDocument: handleOpenCreateModal
         };
 
         switch (viewMode) {
@@ -486,6 +499,7 @@ const DocumentManagerContent = () => {
                 setViewMode={setViewMode}
                 handleOpenCreateModal={handleOpenCreateModal}
             />
+
             <Box sx={{ mt: 2 }}>
                 <DocumentFilters
                     open={showFilters}
@@ -499,6 +513,7 @@ const DocumentManagerContent = () => {
                     density={density}
                 />
             </Box>
+
             <Box sx={{ mt: 2 }}>
                 <DocumentSorting
                     open={showSorting}
@@ -524,7 +539,6 @@ const DocumentManagerContent = () => {
                     sx={{
                         color: documentCounts.late > 0 ? 'error.main' : 'inherit',
                         fontWeight: documentCounts.late > 0 ? 'bold' : 'normal',
-                        // ✅ ANIMAÇÃO QUANDO HÁ DOCUMENTOS EM ATRASO - Mais intensa para críticos
                         animation: documentCounts.late > 50 ? 'tabPulseCritical 1.5s ease-in-out infinite' :
                             documentCounts.late > 10 ? 'tabPulseHigh 2s ease-in-out infinite' :
                                 documentCounts.late > 0 ? 'tabPulse 3s ease-in-out infinite' : 'none',
@@ -533,10 +547,8 @@ const DocumentManagerContent = () => {
                         '& .MuiTab-iconWrapper': {
                             marginBottom: 0,
                             marginRight: 0.5,
-                            // Animação do ícone
                             animation: documentCounts.late > 0 ? 'iconSpin 3s ease-in-out infinite' : 'none',
                         },
-                        // ✅ KEYFRAMES DAS ANIMAÇÕES - Variações baseadas no número de documentos
                         '@keyframes tabPulse': {
                             '0%': {
                                 backgroundColor: 'transparent',
@@ -594,7 +606,6 @@ const DocumentManagerContent = () => {
                             '75%': { transform: 'rotate(10deg)' },
                             '100%': { transform: 'rotate(0deg)' }
                         },
-                        // ✅ INDICADOR VISUAL DE URGÊNCIA
                         '&::before': documentCounts.late > 0 ? {
                             content: '""',
                             position: 'absolute',
@@ -644,7 +655,7 @@ const DocumentManagerContent = () => {
             {/* Modais em cascata para os documentos */}
             {renderDocumentModals()}
 
-            {/* Outros modais */}
+            {/* Outros modais com callbacks corrigidos */}
             <AddStepModal
                 open={modalState.step}
                 onClose={handleCloseStepModal}

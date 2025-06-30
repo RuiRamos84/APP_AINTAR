@@ -16,6 +16,7 @@ def fetch_meta_data(current_user):
     if metadata_cache and metadata_cache['timestamp'] > current_time - CACHE_DURATION:
         current_app.logger.info("Returning cached metadata")
         return metadata_cache['data'], 200
+
     queries = {
         'ident_types': "SELECT * FROM vst_0001",
         'types': "SELECT * FROM vsl_profile_doctype",
@@ -37,8 +38,9 @@ def fetch_meta_data(current_user):
         'task_priority': "SELECT * FROM vbl_priority ORDER BY pk",
         'task_status': "SELECT * FROM vbl_notestatus ORDER BY pk",
         'payment_method': "SELECT * FROM vbl_metodopagamento ORDER BY pk",
-        
+        'step_transitions': "SELECT * FROM vbl_step_transition ORDER BY doctype, from_step, to_step",
     }
+
     response_data = {}
     try:
         with db_session_manager(current_user) as session:
@@ -49,11 +51,13 @@ def fetch_meta_data(current_user):
                     {column: value for column, value in zip(columns, row)}
                     for row in result
                 ]
+
         metadata_cache = {
             'data': response_data,
             'timestamp': current_time
         }
         return response_data, 200
+
     except SQLAlchemyError as e:
         current_app.logger.error(
             f"Database error while fetching metadata: {str(e)}")

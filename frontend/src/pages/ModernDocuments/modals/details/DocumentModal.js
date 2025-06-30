@@ -30,7 +30,7 @@ import {
     useTheme
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 
 // Componentes das tabs
 import paymentService from '../../../../features/Payment/services/paymentService';
@@ -56,6 +56,7 @@ import {
     getDocumentStep
 } from '../../../../services/documentService';
 import { generatePDF } from "../../../../components/Documents/DocumentPDF";
+import { useDocumentEvents, DocumentEventManager, DOCUMENT_EVENTS } from '../../utils/documentEventSystem';
 
 // Componente TabPanel
 function TabPanel(props) {
@@ -81,7 +82,7 @@ function TabPanel(props) {
 const DocumentModal = ({
     open,
     onClose,
-    document,
+    document: initialDocument,
     metaData,
     onAddStep,
     onAddAnnex,
@@ -96,7 +97,8 @@ const DocumentModal = ({
     const { handleViewOriginDetails, showNotification } = useDocumentActions();
     const { showNotification: showGlobalNotification } = useDocumentsContext();
 
-    // Estados principais
+    // Estado do documento - pode ser actualizado
+    const [document, setDocument] = useState(initialDocument);
     const [tabValue, setTabValue] = useState(0);
     const [steps, setSteps] = useState([]);
     const [annexes, setAnnexes] = useState([]);
@@ -104,6 +106,7 @@ const DocumentModal = ({
     const [loadingAnnexes, setLoadingAnnexes] = useState(false);
     const [loading, setLoading] = useState(false);
     const [invoiceAmount, setInvoiceAmount] = useState(null);
+    const { updateDocumentAfterStep } = useDocumentsContext();
 
     // Estados do preview e pagamento
     const [previewOpen, setPreviewOpen] = useState(false);
@@ -111,6 +114,45 @@ const DocumentModal = ({
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [paymentData, setPaymentData] = useState(null);
     const isPaid = ['SUCCESS', 'PAID'].includes(invoiceAmount?.invoice_data?.payment_status);
+
+    // Verificar permissões dinâmicas
+    const canManageDocument = useMemo(() => {
+        if (!document || !user) return false;
+
+        // Admin sempre pode
+        if (user.profil === "1") return true;
+
+        // Criador sempre pode
+        if (document.creator === user.username) return true;
+
+        // Pessoa atribuída pode (se documento não estiver concluído)
+        const isAssigned = document.who_pk === user.pk;
+        const isNotCompleted = !['CONCLUIDO', 'CONCLUÍDO'].includes(
+            metaData?.what?.find(s => s.pk === document.what)?.step?.toUpperCase()
+        );
+
+        return isAssigned && isNotCompleted;
+    }, [document, user, metaData]);
+
+
+    // Função para refrescar dados do documento
+    const refreshDocument = useCallback(async () => {
+        if (!document?.pk) return;
+
+        try {
+            const response = await getDocumentById(document.pk);
+            if (response?.document) {
+                setDocument(response.document);
+            }
+        } catch (error) {
+            console.error('Erro ao actualizar documento:', error);
+        }
+    }, [document?.pk]);
+
+    // Actualizar documento inicial quando props mudam
+    useEffect(() => {
+        setDocument(initialDocument);
+    }, [initialDocument]);
 
     // Carregamento inicial dos dados
     useEffect(() => {
@@ -124,9 +166,9 @@ const DocumentModal = ({
             }
         };
         fetchDocumentDetails();
-    }, [open, document]);
+    }, [open, document?.pk]);
 
-    // Sistema de eventos para actualização de documentos
+    // Sistema de eventos para actualização de documentos (compatibilidade)
     useEffect(() => {
         const handleDocumentUpdate = (event) => {
             if (event.detail && event.detail.documentId === document?.pk) {
@@ -181,7 +223,7 @@ const DocumentModal = ({
     }, [paymentDialogOpen]);
 
     // Funções de busca de dados
-    const fetchSteps = async () => {
+    const fetchSteps = useCallback(async () => {
         setLoadingSteps(true);
         try {
             if (document && document.pk) {
@@ -196,9 +238,9 @@ const DocumentModal = ({
         } finally {
             setLoadingSteps(false);
         }
-    };
+    }, [document?.pk]);
 
-    const fetchAnnexes = async () => {
+    const fetchAnnexes = useCallback(async () => {
         setLoadingAnnexes(true);
         try {
             if (document && document.pk) {
@@ -213,7 +255,61 @@ const DocumentModal = ({
         } finally {
             setLoadingAnnexes(false);
         }
-    };
+    }, [document?.pk]);
+
+    // DocumentModal.js - substituir o hook por isto:
+
+    useEffect(() => {
+        if (!document?.pk) return;
+
+        const handleEvent = async (event) => {
+            if (event.detail.documentId !== document.pk) return;
+
+            console.log('📄 Evento recebido:', event.detail);
+
+            switch (event.detail.type) {
+                case 'step-added':
+                    await fetchSteps();
+                    setTabValue(1);
+                    break;
+
+                case 'annex-added':
+                    await fetchAnnexes();
+                    setTabValue(2);
+                    break;
+            }
+        };
+
+        // Escutar todos os eventos
+        Object.values(DOCUMENT_EVENTS).forEach(eventType => {
+            window.addEventListener(eventType, handleEvent);
+        });
+
+        return () => {
+            Object.values(DOCUMENT_EVENTS).forEach(eventType => {
+                window.removeEventListener(eventType, handleEvent);
+            });
+        };
+    }, [document?.pk]); // Só depende do ID do documento
+
+    // Sistema de actualização reactiva
+    useDocumentEvents(document?.pk, useCallback(async (eventDetail) => {
+        console.log('📄 Evento recebido:', eventDetail);
+
+        switch (eventDetail.type) {
+            case 'step-added':
+                // ACTUALIZAR O DOCUMENTO IMEDIATAMENTE
+                await refreshDocument();
+                await fetchSteps();
+                setTabValue(1);
+                break;
+
+            case 'annex-added':
+                await fetchAnnexes();
+                setTabValue(2);
+                break;
+        }
+    }, [refreshDocument, fetchSteps, fetchAnnexes]));
 
     const fetchInvoiceAmount = async () => {
         if (!document?.pk) return;
@@ -302,6 +398,19 @@ const DocumentModal = ({
         return status ? status.step : 'Desconhecido';
     };
 
+    // Handlers actualizados que emitem eventos
+    const handleAddStepSuccess = useCallback(() => {
+        DocumentEventManager.emit(DOCUMENT_EVENTS.STEP_ADDED, document.pk, {
+            type: 'step-added'
+        });
+    }, [document?.pk]);
+
+    const handleAddAnnexSuccess = useCallback(() => {
+        DocumentEventManager.emit(DOCUMENT_EVENTS.ANNEX_ADDED, document.pk, {
+            type: 'annex-added'
+        });
+    }, [document?.pk]);
+
     // Handlers
     const handleTabChange = (event, newValue) => {
         if (newValue === 4) { // Tab pagamentos
@@ -312,13 +421,13 @@ const DocumentModal = ({
 
     const handleAddStepClick = () => {
         if (onAddStep) {
-            onAddStep(document);
+            onAddStep(document, handleAddStepSuccess);
         }
     };
 
     const handleAddAnnexClick = () => {
         if (onAddAnnex) {
-            onAddAnnex(document);
+            onAddAnnex(document, handleAddAnnexSuccess);
         }
     };
 
@@ -494,55 +603,49 @@ const DocumentModal = ({
         );
     };
 
-    // Renderização das acções
+    // Renderização das acções condicionais
     const renderActions = () => {
         const actions = [];
         const isCompleteDocument = document?.pk && document?.regnumber;
-        const isOriginData = document.origin_data === true;
+        const isOriginData = document?.origin_data === true;
 
         if (!isOriginData && isCompleteDocument) {
             const tabType = props.tabType || 'all';
 
-            // Botões específicos da tab "Para tratamento"
-            if (tabType === 'assigned') {
-                if (onAddStep) {
-                    actions.push(
-                        <Button
-                            key="add-step"
-                            variant="outlined"
-                            startIcon={<SendIcon />}
-                            onClick={handleAddStepClick}
-                        >
-                            Adicionar Passo
-                        </Button>
-                    );
-                }
+            // Só mostrar botões se o utilizador pode gerir o documento
+            if (canManageDocument && tabType === 'assigned') {
+                actions.push(
+                    <Button
+                        key="add-step"
+                        variant="outlined"
+                        startIcon={<SendIcon />}
+                        onClick={handleAddStepClick}
+                    >
+                        Adicionar Passo
+                    </Button>
+                );
 
-                if (onAddAnnex) {
-                    actions.push(
-                        <Button
-                            key="add-annex"
-                            variant="outlined"
-                            startIcon={<AttachmentIcon />}
-                            onClick={handleAddAnnexClick}
-                        >
-                            Adicionar Anexo
-                        </Button>
-                    );
-                }
+                actions.push(
+                    <Button
+                        key="add-annex"
+                        variant="outlined"
+                        startIcon={<AttachmentIcon />}
+                        onClick={handleAddAnnexClick}
+                    >
+                        Adicionar Anexo
+                    </Button>
+                );
 
-                if (onReplicate) {
-                    actions.push(
-                        <Button
-                            key="replicate"
-                            variant="outlined"
-                            startIcon={<FileCopyIcon />}
-                            onClick={handleReplicateClick}
-                        >
-                            Replicar
-                        </Button>
-                    );
-                }
+                actions.push(
+                    <Button
+                        key="replicate"
+                        variant="outlined"
+                        startIcon={<FileCopyIcon />}
+                        onClick={handleReplicateClick}
+                    >
+                        Replicar
+                    </Button>
+                );
             }
 
             // Gestão de pagamentos
@@ -759,7 +862,12 @@ const DocumentModal = ({
                                 </Typography>
                             </Box>
                         ) : (
-                            <HistoryTab steps={steps} loadingSteps={loadingSteps} metaData={metaData} />
+                            <HistoryTab
+                                steps={steps}
+                                loadingSteps={loadingSteps}
+                                metaData={metaData}
+                                document={document}
+                            />
                         )}
                     </TabPanel>
 

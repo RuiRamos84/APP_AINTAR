@@ -572,7 +572,7 @@ const AttachmentsTab = ({
                 console.error("🔍 Detalhes do anexo:", annex);
                 alert("Erro ao baixar o ficheiro. Por favor, tente novamente.");
             });
-     };
+    };
 
     // Função para truncar texto longo
     const truncateText = (text, maxLength = 50) => {

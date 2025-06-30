@@ -7,6 +7,7 @@ import {
     Stepper,
     Step,
     StepLabel,
+    StepContent,
     List,
     ListItem,
     ListItemAvatar,
@@ -14,15 +15,66 @@ import {
     ListItemText,
     Divider,
     Chip,
-    useTheme
+    useTheme,
+    LinearProgress,
+    Alert
 } from '@mui/material';
 import {
     CheckCircle as CheckCircleIcon,
-    AccessTime as AccessTimeIcon
+    AccessTime as AccessTimeIcon,
+    RadioButtonChecked as CurrentIcon,
+    CircleOutlined as PendingIcon,
+    Timeline as TimelineIcon
 } from '@mui/icons-material';
-import { findMetaValue, getStatusColor, formatDate, renderMemo } from '../../../utils/documentUtils';
+import { getWorkflowTimeline, getWorkflowProgress } from '../../../utils/workflowUtils';
 
-const HistoryTab = ({ steps = [], loadingSteps = false, metaData }) => {
+const WorkflowTimeline = ({ document, metaData, steps }) => {
+    const timeline = getWorkflowTimeline(document, metaData, steps);
+
+    if (!timeline.steps?.length) return null;
+
+    const activeStep = timeline.steps.findIndex(s => s.status === 'current');
+
+    return (
+        <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 1 }}>
+            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <TimelineIcon sx={{ mr: 1 }} color="primary" />
+                Percurso Realizado e Próximos Passos
+            </Typography>
+
+            <Stepper
+                activeStep={activeStep}
+                alternativeLabel
+                sx={{
+                    '& .MuiStepLabel-label': {
+                        fontSize: '0.875rem',
+                        fontWeight: 500
+                    }
+                }}
+            >
+                {timeline.steps.map((step, index) => (
+                    <Step
+                        key={index}
+                        completed={step.status === 'completed'}
+                        active={step.status === 'current'}
+                    >
+                        <StepLabel
+                            icon={
+                                step.status === 'completed' ? <CheckCircleIcon color="success" /> :
+                                    step.status === 'current' ? <CurrentIcon color="primary" /> :
+                                        <PendingIcon />
+                            }
+                        >
+                            {step.stepName}
+                        </StepLabel>
+                    </Step>
+                ))}
+            </Stepper>
+        </Paper>
+    );
+};
+
+const HistoryTab = ({ steps = [], loadingSteps = false, metaData, document }) => {
     const theme = useTheme();
 
     // Formatar data com hora
@@ -42,76 +94,24 @@ const HistoryTab = ({ steps = [], loadingSteps = false, metaData }) => {
         }
     };
 
-    // Formatar apenas data
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        try {
-            const date = new Date(dateString.replace(' às ', ' '));
-            return date.toLocaleDateString('pt-PT', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-        } catch (error) {
-            return dateString;
-        }
+    // Encontrar valor nos metadados
+    const findMetaValue = (metaArray, field, value) => {
+        if (!metaArray || !value) return value;
+        const item = metaArray.find(item => item.pk === value || item[field] === value);
+        return item ? item[field] : value;
     };
 
-    // Ordenar etapas por data (da mais antiga para a mais recente)
+    // Ordenar etapas por data
     const sortedSteps = [...steps].sort((a, b) => {
         const dateA = new Date(a.when_start || 0);
         const dateB = new Date(b.when_start || 0);
         return dateA - dateB;
     });
 
-    // Calcular etapas do stepper em ordem lógica do processo
-    const getSteps = () => {
-        if (!steps || steps.length === 0) return [];
-
-        // Mapear os passos por valor 'what'
-        const stepsMap = steps.reduce((acc, step) => {
-            acc[step.what] = step;
-            return acc;
-        }, {});
-
-        // Definir ordem lógica dos passos
-        // Primeiro "ENTRADA", depois outros passos, por último "CONCLUIDO"
-        const stepsInOrder = [];
-
-        // Adicionar "ENTRADA" primeiro, se existir
-        const entradaStep = steps.find(step => step.what === "ENTRADA");
-        if (entradaStep) stepsInOrder.push(entradaStep);
-
-        // Adicionar passos que não são nem "ENTRADA" nem "CONCLUIDO"
-        steps.forEach(step => {
-            if (step.what !== "ENTRADA" && step.what !== "CONCLUIDO") {
-                // Verificar se este step já foi adicionado
-                if (!stepsInOrder.some(s => s.what === step.what)) {
-                    stepsInOrder.push(step);
-                }
-            }
-        });
-
-        // Adicionar "CONCLUIDO" por último, se existir
-        const concluidoStep = steps.find(step => step.what === "CONCLUIDO");
-        if (concluidoStep) stepsInOrder.push(concluidoStep);
-
-        return stepsInOrder.map(step => {
-            return {
-                label: findMetaValue(metaData?.what, 'step', step.what) || step.what,
-                description: formatDateTime(step.when_start),
-                completed: step.what === "CONCLUIDO"
-            };
-        });
-    };
-
-    const stepperItems = getSteps();
-
     if (loadingSteps) {
         return (
             <Box display="flex" flexDirection="column" gap={2} py={2}>
-                <Skeleton variant="rectangular" width="100%" height={60} />
-                <Skeleton variant="rectangular" width="100%" height={100} />
+                <Skeleton variant="rectangular" width="100%" height={200} />
                 <Skeleton variant="rectangular" width="100%" height={100} />
                 <Skeleton variant="rectangular" width="100%" height={100} />
             </Box>
@@ -130,29 +130,19 @@ const HistoryTab = ({ steps = [], loadingSteps = false, metaData }) => {
 
     return (
         <>
-            {stepperItems.length > 0 && (
-                <Paper
-                    elevation={0}
-                    variant="outlined"
-                    sx={{
-                        p: 2,
-                        mb: 3,
-                        borderRadius: 1,
-                        display: { xs: 'none', md: 'block' }
-                    }}
-                >
-                    <Stepper
-                        activeStep={stepperItems.findIndex(step => step.completed)}
-                        alternativeLabel
-                    >
-                        {stepperItems.map((step, index) => (
-                            <Step key={index} completed={step.completed}>
-                                <StepLabel>{step.label}</StepLabel>
-                            </Step>
-                        ))}
-                    </Stepper>
-                </Paper>
+            {/* Timeline do Workflow */}
+            {document && metaData?.step_transitions && (
+                <WorkflowTimeline
+                    document={document}
+                    metaData={metaData}
+                    steps={steps}
+                />
             )}
+
+            {/* Histórico detalhado */}
+            <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                Histórico Detalhado
+            </Typography>
 
             <Paper elevation={0} variant="outlined" sx={{ borderRadius: 1 }}>
                 <List sx={{ width: '100%' }}>
@@ -233,7 +223,7 @@ const HistoryTab = ({ steps = [], loadingSteps = false, metaData }) => {
                                             )}
                                         </Box>
                                     }
-                                    secondaryTypographyProps={{ component: 'div' }} // Add this line
+                                    secondaryTypographyProps={{ component: 'div' }}
                                 />
                             </ListItem>
                             {index < sortedSteps.length - 1 && <Divider component="li" />}

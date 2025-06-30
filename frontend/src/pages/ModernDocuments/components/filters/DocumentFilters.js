@@ -130,7 +130,7 @@ const DocumentFilters = ({
 
                 <Grid container spacing={getSpacing()}>
                     {/* Status Filter */}
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid item xs={12} sm={6} md={2}>
                         <FormControl size={getElementSize()} fullWidth variant="outlined">
                             <InputLabel id="status-filter-label">Status</InputLabel>
                             <Select
@@ -159,7 +159,7 @@ const DocumentFilters = ({
                     </Grid>
 
                     {/* Associate Filter */}
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid item xs={12} sm={6} md={2}>
                         <FormControl size={getElementSize()} fullWidth variant="outlined">
                             <InputLabel id="associate-filter-label">Associado</InputLabel>
                             <Select
@@ -186,7 +186,7 @@ const DocumentFilters = ({
                     </Grid>
 
                     {/* Type Filter */}
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid item xs={12} sm={6} md={2}>
                         <FormControl size={getElementSize()} fullWidth variant="outlined">
                             <InputLabel id="type-filter-label">Tipo de Pedido</InputLabel>
                             <Select
@@ -215,7 +215,7 @@ const DocumentFilters = ({
                     </Grid>
 
                     {/* Notification Filter */}
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid item xs={12} sm={6} md={2}>
                         <FormControl size={getElementSize()} fullWidth variant="outlined">
                             <InputLabel id="notification-filter-label">Notificações</InputLabel>
                             <Select

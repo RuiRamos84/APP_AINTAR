@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -25,23 +25,21 @@ import { useDropzone } from 'react-dropzone';
 import {
     Close as CloseIcon,
     CloudUpload as UploadIcon,
-    Delete as DeleteIcon,
     Send as SendIcon,
     Description as DescriptionIcon,
     PictureAsPdf as PdfIcon,
     Image as ImageIcon,
-    InsertDriveFile as FileIcon,
     TableChart as TableIcon,
-    Email as EmailIcon
+    Email as EmailIcon,
+    Warning as WarningIcon
 } from '@mui/icons-material';
 
 import { addDocumentStep, addDocumentAnnex, checkVacationStatus } from '../../../services/documentService';
 import { useSocket } from '../../../contexts/SocketContext';
 import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
-import * as pdfjsLib from "pdfjs-dist/webpack";
-
-// Componentes e funções auxiliares
-import { getFileIcon, FileTypeChip, FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
+import { FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
+import { getValidTransitions, getAvailableSteps, getAvailableUsersForStep, canStayInSameStep, getUsersForTransfer } from '../utils/workflowUtils';
+import { DocumentEventManager, DOCUMENT_EVENTS } from '../utils/documentEventSystem';
 
 const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => {
     const { emit, isConnected, refreshNotifications } = useSocket();
@@ -70,6 +68,48 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         { type: 'Email', icon: <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
     ];
 
+    // Calcular passos disponíveis com base no workflow
+    const availableSteps = useMemo(() => {
+        if (!document || !metaData?.step_transitions) {
+            // Fallback para todos os passos se não há workflow definido
+            return metaData?.what || [];
+        }
+        return getAvailableSteps(document, metaData);
+    }, [document, metaData]);
+
+    // Calcular utilizadores disponíveis para o passo seleccionado
+    const availableUsers = useMemo(() => {
+        if (!stepData.what || !document || !metaData?.step_transitions) {
+            // Fallback para todos os utilizadores
+            return metaData?.who || [];
+        }
+        return getAvailableUsersForStep(stepData.what, document, metaData);
+    }, [stepData.what, document, metaData]);
+
+    // Auto-seleccionar se só há uma opção
+    useEffect(() => {
+        if (availableSteps.length === 1 && !stepData.what) {
+            setStepData(prev => ({ ...prev, what: availableSteps[0].pk }));
+        }
+    }, [availableSteps, stepData.what]);
+
+    useEffect(() => {
+        if (availableUsers.length === 1 && stepData.what && !stepData.who) {
+            setStepData(prev => ({
+                ...prev,
+                who: availableUsers[0].pk,
+                whoName: `${availableUsers[0].name} (${availableUsers[0].username})`
+            }));
+        }
+    }, [availableUsers, stepData.what, stepData.who]);
+
+    // Verificar se há transições válidas configuradas
+    const hasValidWorkflow = useMemo(() => {
+        if (!document || !metaData?.step_transitions) return false;
+        const validTransitions = getValidTransitions(document, metaData);
+        return validTransitions.length > 0;
+    }, [document, metaData]);
+
     // Reset do formulário quando abrir o modal
     useEffect(() => {
         if (open) {
@@ -90,7 +130,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         if (acceptedFiles.length + files.length > 5) {
             setErrors(prev => ({
                 ...prev,
-                files: 'Você pode adicionar no máximo 5 arquivos por vez.'
+                files: 'Pode adicionar no máximo 5 ficheiros por vez.'
             }));
             return;
         }
@@ -148,7 +188,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         const { name, value } = e.target;
 
         if (name === 'who') {
-            // Encontrar o destinatário selecionado nos metadados
+            // Encontrar o destinatário seleccionado nos metadados
             const selectedUser = metaData?.who?.find(user => user.pk.toString() === value);
 
             setStepData(prev => ({
@@ -166,6 +206,14 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
             } catch (error) {
                 console.error("Erro ao verificar status de férias:", error);
             }
+        } else if (name === 'what') {
+            // Reset do utilizador quando mudar de passo
+            setStepData(prev => ({
+                ...prev,
+                [name]: value,
+                who: '', // Reset do utilizador
+                whoName: ''
+            }));
         } else {
             setStepData(prev => ({ ...prev, [name]: value }));
         }
@@ -197,7 +245,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         if (files.length > 0) {
             for (let i = 0; i < files.length; i++) {
                 if (!files[i].description.trim()) {
-                    newErrors.files = 'Todos os arquivos devem ter uma descrição';
+                    newErrors.files = 'Todos os ficheiros devem ter uma descrição';
                     break;
                 }
             }
@@ -207,13 +255,12 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return Object.keys(newErrors).length === 0;
     };
 
-    // Manipulação de fechamentolClose
+    // Manipulação de fechamento
     const handleModalClose = () => {
-        // Remover o foco antes de fechar
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }
-        
+
         if (stepData.who || stepData.what || stepData.memo || files.length > 0) {
             setConfirmClose(true);
         } else {
@@ -221,26 +268,24 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         }
     };
 
-    // Enviar dados diretamente como um FormData
+    // Enviar dados
     const handleSubmit = async () => {
         if (!validateForm()) return;
-
         setLoading(true);
 
         try {
-            // Adicionar anexos se houver
+            // Anexos primeiro
             if (files.length > 0) {
                 const formData = new FormData();
                 formData.append('tb_document', document.pk);
-
                 files.forEach((fileItem) => {
                     formData.append('files', fileItem.file);
                     formData.append('descr', fileItem.description);
                 });
-
                 await addDocumentAnnex(formData);
             }
 
+            // Adicionar passo
             const stepDataObj = {
                 tb_document: document.pk,
                 what: stepData.what === 0 ? "0" : stepData.what,
@@ -264,6 +309,13 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 await fetchDocuments();
             }
 
+            // ✅ EMITIR EVENTO ESPECÍFICO
+            DocumentEventManager.emit(DOCUMENT_EVENTS.STEP_ADDED, document.pk, {
+                type: 'step-added',
+                newStep: stepDataObj
+            });
+
+            // Disparar evento para compatibilidade
             window.dispatchEvent(new CustomEvent('document-updated', {
                 detail: {
                     documentId: document.pk,
@@ -272,7 +324,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
             }));
 
             notifySuccess("Passo e anexos adicionados com sucesso");
-            onClose(true);
+            onClose(true); // ✅ Callback de sucesso
         } catch (error) {
             console.error('Erro ao adicionar passo e anexos:', error);
 
@@ -281,7 +333,6 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
             let isValidationError = false;
 
             if (error.response) {
-                // Verificar se é erro de validação (código 422)
                 isValidationError = error.response.status === 422;
 
                 if (error.response.data) {
@@ -293,16 +344,12 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 }
             }
 
-            // Mostrar uma notificação diferente se for um erro de validação
             if (isValidationError) {
-                // Usar notifyWarning em vez de notifyError
                 notifyWarning(errorMessage);
             } else {
-                // Continuar usando notifyError para erros técnicos
                 notifyError(errorMessage);
             }
 
-            // Definir o erro no formulário e o tipo
             setErrors(prev => ({
                 ...prev,
                 submit: errorMessage,
@@ -346,9 +393,24 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                         <Grid item xs={12}>
                             <Alert severity="info" sx={{ mb: 2 }}>
                                 Adicione um novo passo para encaminhar ou avançar este pedido no fluxo de trabalho.
-                                Você também pode adicionar anexos ao pedido.
+                                Também pode adicionar anexos ao pedido.
                             </Alert>
                         </Grid>
+
+                        {/* Alerta se não há workflow configurado */}
+                        {!hasValidWorkflow && (
+                            <Grid item xs={12}>
+                                <Alert severity="warning" sx={{ mb: 2 }}>
+                                    <Box display="flex" alignItems="center">
+                                        <WarningIcon sx={{ mr: 1 }} />
+                                        <Typography variant="body2">
+                                            Workflow não configurado para este tipo de documento.
+                                            Todos os passos e utilizadores estão disponíveis.
+                                        </Typography>
+                                    </Box>
+                                </Alert>
+                            </Grid>
+                        )}
 
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth required error={!!errors.what}>
@@ -361,7 +423,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                     label="Estado"
                                     disabled={loading}
                                 >
-                                    {metaData?.what?.map(status => (
+                                    {availableSteps.map(status => (
                                         <MenuItem key={status.pk} value={status.pk}>
                                             {status.step}
                                         </MenuItem>
@@ -370,6 +432,11 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                 {errors.what && (
                                     <Typography variant="caption" color="error">
                                         {errors.what}
+                                    </Typography>
+                                )}
+                                {hasValidWorkflow && availableSteps.length === 0 && (
+                                    <Typography variant="caption" color="warning.main">
+                                        Nenhum passo disponível para o estado actual
                                     </Typography>
                                 )}
                             </FormControl>
@@ -384,9 +451,9 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                     value={stepData.who}
                                     onChange={handleChange}
                                     label="Para quem"
-                                    disabled={loading}
+                                    disabled={loading || !stepData.what}
                                 >
-                                    {metaData?.who?.map(user => (
+                                    {availableUsers.map(user => (
                                         <MenuItem key={user.pk} value={user.pk}>
                                             {user.name}
                                         </MenuItem>
@@ -397,16 +464,13 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                         {errors.who}
                                     </Typography>
                                 )}
+                                {stepData.what && availableUsers.length === 0 && (
+                                    <Typography variant="caption" color="warning.main">
+                                        Nenhum utilizador disponível para este passo
+                                    </Typography>
+                                )}
                             </FormControl>
                         </Grid>
-
-                        {stepData.whoName && (
-                            <Grid item xs={12}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Destinatário selecionado: <strong>{stepData.whoName}</strong>
-                                </Typography>
-                            </Grid>
-                        )}
 
                         <Grid item xs={12}>
                             <TextField
@@ -431,7 +495,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
                             <Box sx={{ mb: 2 }}>
                                 <Typography variant="subtitle2" fontSize="0.875rem" color="text.secondary" gutterBottom>
-                                    Formatos aceitos:
+                                    Formatos aceites:
                                 </Typography>
                                 <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                                     {fileTypes.map((type, index) => (
@@ -480,8 +544,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
                                     <Typography variant="body1" gutterBottom>
                                         {isDragActive
-                                            ? 'Solte os arquivos aqui...'
-                                            : 'Arraste e solte arquivos aqui, cole ou clique para selecionar'
+                                            ? 'Largue os ficheiros aqui...'
+                                            : 'Arraste e largue ficheiros aqui, cole ou clique para seleccionar'
                                         }
                                     </Typography>
 
@@ -505,7 +569,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                         {files.length > 0 && (
                             <Grid item xs={12}>
                                 <Typography variant="subtitle1" gutterBottom>
-                                    Arquivos selecionados ({files.length})
+                                    Ficheiros seleccionados ({files.length})
                                 </Typography>
                                 <List>
                                     {files.map((fileItem, index) => (
@@ -539,7 +603,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 <DialogActions sx={{ px: 3, py: 2 }}>
                     <Button
                         onClick={handleModalClose}
-                        disabled={loading} 
+                        disabled={loading}
                     >
                         Cancelar
                     </Button>
@@ -547,10 +611,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                         variant="contained"
                         color="primary"
                         onClick={handleSubmit}
-                        disabled={loading}
+                        disabled={loading || !stepData.what || !stepData.who}
                         startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
                     >
-                        {loading ? 'Enviando...' : 'Salvar e Enviar'}
+                        {loading ? 'A enviar...' : 'Guardar e Enviar'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -586,7 +650,6 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                     <Button
                         onClick={() => {
                             setConfirmClose(false);
-                            // Remover o foco antes de fechar
                             if (document.activeElement instanceof HTMLElement) {
                                 document.activeElement.blur();
                             }

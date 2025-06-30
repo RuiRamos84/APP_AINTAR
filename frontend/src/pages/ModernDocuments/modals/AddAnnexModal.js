@@ -32,6 +32,7 @@ import {
 
 import { addDocumentAnnex } from '../../../services/documentService';
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster.js";
+import { DocumentEventManager, DOCUMENT_EVENTS } from '../utils/documentEventSystem';
 
 // Componentes e funções auxiliares
 import { FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
@@ -145,43 +146,36 @@ const AddAnnexModal = ({ open, onClose, document }) => {
 
     // Envio do formulário
     const handleSubmit = async () => {
-        if (!validateForm()) {
-            return;
-        }
-
-        if (!document || !document.pk) {
-            setError('Erro: ID do documento não disponível');
-            return;
-        }
-
+        if (!validateForm()) return;
         setLoading(true);
 
         try {
-            // Criar um FormData para enviar
             const formData = new FormData();
             formData.append('tb_document', document.pk);
 
-            // Adicionar arquivos
             files.forEach((fileItem) => {
                 formData.append('files', fileItem.file);
                 formData.append('descr', fileItem.description);
             });
 
-            const response = await addDocumentAnnex(formData);
+            await addDocumentAnnex(formData);
 
-            if (response) {
-                // Disparar evento para atualizar o modal principal
-                window.dispatchEvent(new CustomEvent('document-updated', {
-                    detail: {
-                        documentId: document.pk,
-                        type: 'annex-added'
-                    }
-                }));
-                notifySuccess("Anexos adicionados com sucesso");
-                onClose(true);
-            } else {
-                throw new Error('Erro ao adicionar anexos');
-            }
+            // ✅ EMITIR EVENTO ESPECÍFICO
+            DocumentEventManager.emit(DOCUMENT_EVENTS.ANNEX_ADDED, document.pk, {
+                type: 'annex-added',
+                fileCount: files.length
+            });
+
+            // Disparar evento para compatibilidade
+            window.dispatchEvent(new CustomEvent('document-updated', {
+                detail: {
+                    documentId: document.pk,
+                    type: 'annex-added'
+                }
+            }));
+
+            notifySuccess("Anexos adicionados com sucesso");
+            onClose(true); // ✅ Callback de sucesso
         } catch (error) {
             console.error('Erro ao adicionar anexos:', error);
             notifyError("Erro ao adicionar anexos ao documento");
