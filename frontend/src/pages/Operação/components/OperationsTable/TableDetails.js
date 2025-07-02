@@ -25,11 +25,11 @@ const TableDetails = ({ row, isRamaisView, getAddressString, isTablet = false })
                 </Typography>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 2, mb: 2 }}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Typography variant="body2" color="text.secondary">Morada Completa</Typography>
                             <Typography variant="body1">{getAddressString(row)}</Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Typography variant="body2" color="text.secondary">Localização</Typography>
                             <Box>
                                 <Typography variant="body1">Freguesia: {row.nut3}</Typography>
@@ -37,21 +37,21 @@ const TableDetails = ({ row, isRamaisView, getAddressString, isTablet = false })
                                 <Typography variant="body1">Distrito: {row.nut1}</Typography>
                             </Box>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Typography variant="body2" color="text.secondary">Associado</Typography>
                             <Typography variant="body1">{row.ts_associate}</Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Typography variant="body2" color="text.secondary">Observações</Typography>
                             <Typography variant="body1">{row.memo || "Sem observações"}</Typography>
                         </Grid>
                         {isRamaisView && (
                             <>
-                                <Grid item xs={12} sm={6}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <Typography variant="body2" color="text.secondary">Data Execução</Typography>
                                     <Typography variant="body1">{row.execution || "Não definida"}</Typography>
                                 </Grid>
-                                <Grid item xs={12} sm={6}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <Typography variant="body2" color="text.secondary">Data Limite</Typography>
                                     <Typography variant="body1">{row.limitdate || "Não definida"}</Typography>
                                 </Grid>

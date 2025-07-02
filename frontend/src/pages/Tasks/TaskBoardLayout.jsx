@@ -139,7 +139,7 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
                 <AccordionDetails>
                   <Grid container spacing={2} sx={{ minHeight: '400px' }}>
                     {statuses.map((status) => (
-                      <Grid item xs={12} md={4} key={status.pk}>
+                      <Grid size={{ xs: 12 }} md={4} key={status.pk}>
                         <Paper 
                           sx={{ 
                             p: 2, 

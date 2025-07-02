@@ -123,13 +123,13 @@
 //         <Box>
 //             <Grid container spacing={3}>
 //                 {params.map(param => (
-//                     <Grid item xs={12} key={param.pk}>
+//                     <Grid size={{ xs: 12 }} key={param.pk}>
 //                         {isBooleanParam(param.name) && (
 //                             <Typography variant="subtitle1" gutterBottom>{param.name}</Typography>
 //                         )}
 
 //                         <Grid container spacing={2}>
-//                             <Grid item xs={12} md={6}>
+//                             <Grid size={{ xs: 12 }} md={6}>
 //                                 {param.name === "Local de descarga/ETAR" && metaData?.etar?.length > 0 ? (
 //                                     <FormControl fullWidth>
 //                                         <InputLabel>Local de Descarga</InputLabel>
@@ -202,7 +202,7 @@
 //                                     />
 //                                 )}
 //                             </Grid>
-//                             <Grid item xs={12} md={6}>
+//                             <Grid size={{ xs: 12 }} md={6}>
 //                                 <TextField
 //                                     fullWidth
 //                                     variant="outlined"

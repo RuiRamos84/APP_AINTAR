@@ -25,7 +25,7 @@ const SummaryStats = ({ data, animationComplete = true }) => {
 
   return (
     <Grid container spacing={3} mb={4}>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<AssignmentIcon />}
           title="Total de Pedidos"
@@ -35,7 +35,7 @@ const SummaryStats = ({ data, animationComplete = true }) => {
           animationComplete={animationComplete}
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<TimelineIcon />}
           title="Tempo Médio de Resposta"
@@ -45,7 +45,7 @@ const SummaryStats = ({ data, animationComplete = true }) => {
           animationComplete={animationComplete}
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<EqualizerIcon />}
           title="Tipo Mais Comum"
@@ -55,7 +55,7 @@ const SummaryStats = ({ data, animationComplete = true }) => {
           animationComplete={animationComplete}
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <StatCard
           icon={<BusinessIcon />}
           title="Concelho Mais Ativo"

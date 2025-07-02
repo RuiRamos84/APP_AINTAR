@@ -85,7 +85,7 @@ const InternalArea = () => {
                 {!selectedArea ? (
                     <Grid container spacing={3}>
                         {areas.map((area) => (
-                            <Grid item xs={12} sm={6} md={4} key={area.id}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={area.id}>
                                 <Card
                                     onClick={() => handleAreaClick(area.id)}
                                     sx={{

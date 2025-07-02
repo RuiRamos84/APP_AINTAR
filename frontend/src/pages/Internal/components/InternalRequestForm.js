@@ -85,7 +85,7 @@ const InternalRequestForm = ({ type, title }) => {
             <Typography variant="h6" gutterBottom>{title}</Typography>
 
             <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12 }} md={6}>
                     <FormControl fullWidth>
                         <InputLabel>Associado</InputLabel>
                         <Select
@@ -103,7 +103,7 @@ const InternalRequestForm = ({ type, title }) => {
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <TextField
                         label="Descrição do Pedido"
                         value={formData.pnmemo}
@@ -115,7 +115,7 @@ const InternalRequestForm = ({ type, title }) => {
                     />
                 </Grid>
 
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Button
                         variant="contained"
                         color="primary"

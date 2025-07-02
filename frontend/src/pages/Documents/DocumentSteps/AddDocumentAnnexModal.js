@@ -176,10 +176,10 @@ const AddDocumentAnnexModal = ({ open, onClose, documentId, regnumber }) => {
       <DialogContent>
         <Box onPaste={onPaste} className="create-document-box">
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Grid container spacing={2}>
                 {annexData.files.length < 5 ? (
-                  <Grid item xs={12} sm={12}>
+                  <Grid size={{ xs: 12, sm: 12 }}>
                     <Box
                       {...getRootProps()}
                       className={`dropzone ${
@@ -198,7 +198,7 @@ const AddDocumentAnnexModal = ({ open, onClose, documentId, regnumber }) => {
                     </Box>
                   </Grid>
                 ) : (
-                  <Grid item xs={12} sm={12}>
+                  <Grid size={{ xs: 12, sm: 12 }}>
                     <Typography
                       variant="subtitle1"
                       //   color="error"
@@ -211,7 +211,7 @@ const AddDocumentAnnexModal = ({ open, onClose, documentId, regnumber }) => {
                 )}
                 {annexData.files.map((fileObj, index) => (
                   <React.Fragment key={index}>
-                    <Grid item xs={12} sm={6} mt={2}>
+                    <Grid size={{ xs: 12, sm: 6 }} mt={2}>
                       <Box display="flex" alignItems="center">
                         <img
                           src={fileObj.preview}
@@ -236,7 +236,7 @@ const AddDocumentAnnexModal = ({ open, onClose, documentId, regnumber }) => {
                         </IconButton>
                       </Box>
                     </Grid>
-                    {(index + 1) % 2 === 0 && <Grid item xs={12}></Grid>}
+                    {(index + 1) % 2 === 0 && <Grid size={{ xs: 12 }}></Grid>}
                   </React.Fragment>
                 ))}
               </Grid>

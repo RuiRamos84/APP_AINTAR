@@ -44,7 +44,7 @@ const ConfirmationStep = ({
 
     return (
         <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                 <Alert severity="info" sx={{ mb: 3 }}>
                     Por favor, revise os dados abaixo antes de submeter o pedido.
                     Após a submissão, você será redirecionado para a página de pagamento.
@@ -67,7 +67,7 @@ const ConfirmationStep = ({
                     <Divider sx={{ mb: 2 }} />
 
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Entidade
                             </Typography>
@@ -80,7 +80,7 @@ const ConfirmationStep = ({
                         </Grid>
 
                         {formData.tb_representative && (
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     Representante
                                 </Typography>
@@ -93,11 +93,11 @@ const ConfirmationStep = ({
                             </Grid>
                         )}
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Divider sx={{ my: 1 }} />
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Morada de Faturação
                             </Typography>
@@ -112,7 +112,7 @@ const ConfirmationStep = ({
                         </Grid>
 
                         {isDifferentAddress && (
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     Morada de Correspondência
                                 </Typography>
@@ -127,11 +127,11 @@ const ConfirmationStep = ({
                             </Grid>
                         )}
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Divider sx={{ my: 1 }} />
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Tipo de Documento
                             </Typography>
@@ -140,7 +140,7 @@ const ConfirmationStep = ({
                             </Typography>
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Associado
                             </Typography>
@@ -152,7 +152,7 @@ const ConfirmationStep = ({
                         {/* Parâmetros específicos */}
                         {docTypeParams.length > 0 && (
                             <>
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Divider sx={{ my: 1 }} />
                                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                         Parâmetros Específicos
@@ -181,7 +181,7 @@ const ConfirmationStep = ({
                         )}
 
                         {/* Informação sobre pagamento pendente */}
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Divider sx={{ my: 1 }} />
                             <Box
                                 sx={{
@@ -201,7 +201,7 @@ const ConfirmationStep = ({
                         </Grid>
 
                         {formData.memo && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Divider sx={{ my: 1 }} />
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     Observações
@@ -222,11 +222,11 @@ const ConfirmationStep = ({
 
                         {formData.files && formData.files.length > 0 && (
                             <>
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Divider sx={{ my: 1 }} />
                                 </Grid>
 
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                         Anexos ({formData.files.length})
                                     </Typography>

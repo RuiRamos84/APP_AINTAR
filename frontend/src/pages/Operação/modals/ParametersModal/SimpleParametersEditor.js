@@ -252,13 +252,13 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
         <Box>
             <Grid container spacing={3}>
                 {params.map(param => (
-                    <Grid item xs={12} key={param.pk}>
+                    <Grid size={{ xs: 12 }} key={param.pk}>
                         {isBooleanParam(param.name) && (
                             <Typography variant="subtitle1" gutterBottom>{param.name}</Typography>
                         )}
 
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12 }} md={6}>
                                 {isSelectableParam(param.name) && globalMetaData?.etar?.length > 0 ? (
                                     <FormControl fullWidth>
                                         <InputLabel id={`etar-select-${param.pk}`}>{param.name}</InputLabel>
@@ -365,7 +365,7 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
                                     />
                                 )}
                             </Grid>
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12 }} md={6}>
                                 <TextField
                                     fullWidth
                                     variant="outlined"

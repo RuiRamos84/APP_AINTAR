@@ -44,7 +44,7 @@ import { DocumentEventManager, DOCUMENT_EVENTS } from '../utils/documentEventSys
 const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => {
     const { emit, isConnected, refreshNotifications } = useSocket();
 
-    // Estados
+    // ===== ESTADOS =====
     const [stepData, setStepData] = useState({
         pk: null,
         what: '',
@@ -59,7 +59,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
     const [vacationAlert, setVacationAlert] = useState(false);
     const [confirmClose, setConfirmClose] = useState(false);
 
-    // Lista de tipos de arquivos permitidos
+    // ===== CONFIGURAÇÕES =====
     const fileTypes = [
         { type: 'PDF', icon: <PdfIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'error' },
         { type: 'Imagens', icon: <ImageIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'success' },
@@ -68,6 +68,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         { type: 'Email', icon: <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
     ];
 
+    // ===== COMPUTED VALUES =====
     // Calcular passos disponíveis com base no workflow
     const availableSteps = useMemo(() => {
         if (!document || !metaData?.step_transitions) {
@@ -77,31 +78,15 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return getAvailableSteps(document, metaData);
     }, [document, metaData]);
 
-    // Calcular utilizadores disponíveis para o passo seleccionado
+    // Calcular utilizadores disponíveis para o passo selecionado
     const availableUsers = useMemo(() => {
-        if (!stepData.what || !document || !metaData?.step_transitions) {
-            // Fallback para todos os utilizadores
+        // ✅ CORREÇÃO: Verificar explicitamente se stepData.what é null/undefined/empty, mas PERMITIR 0
+        if (stepData.what === null || stepData.what === undefined || stepData.what === '' || !document || !metaData?.step_transitions) {
             return metaData?.who || [];
         }
+        // ✅ IMPORTANTE: getAvailableUsersForStep deve receber o valor original (incluindo 0)
         return getAvailableUsersForStep(stepData.what, document, metaData);
     }, [stepData.what, document, metaData]);
-
-    // Auto-seleccionar se só há uma opção
-    useEffect(() => {
-        if (availableSteps.length === 1 && !stepData.what) {
-            setStepData(prev => ({ ...prev, what: availableSteps[0].pk }));
-        }
-    }, [availableSteps, stepData.what]);
-
-    useEffect(() => {
-        if (availableUsers.length === 1 && stepData.what && !stepData.who) {
-            setStepData(prev => ({
-                ...prev,
-                who: availableUsers[0].pk,
-                whoName: `${availableUsers[0].name} (${availableUsers[0].username})`
-            }));
-        }
-    }, [availableUsers, stepData.what, stepData.who]);
 
     // Verificar se há transições válidas configuradas
     const hasValidWorkflow = useMemo(() => {
@@ -110,6 +95,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return validTransitions.length > 0;
     }, [document, metaData]);
 
+    // ===== EFFECTS =====
     // Reset do formulário quando abrir o modal
     useEffect(() => {
         if (open) {
@@ -125,7 +111,26 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         }
     }, [open, document]);
 
-    // Configuração do dropzone
+    // Auto-selecionar estado se só há uma opção
+    useEffect(() => {
+        if (availableSteps.length === 1 && (stepData.what !== 0 && !stepData.what)) {
+            setStepData(prev => ({ ...prev, what: availableSteps[0].pk }));
+        }
+    }, [availableSteps, stepData.what]);
+
+    // Auto-selecionar utilizador se só há uma opção
+    useEffect(() => {
+        // ✅ CORREÇÃO: Permite auto-seleção quando what=0
+        if (availableUsers.length === 1 && (stepData.what === 0 || stepData.what) && (stepData.who !== 0 && !stepData.who)) {
+            setStepData(prev => ({
+                ...prev,
+                who: availableUsers[0].pk,
+                whoName: `${availableUsers[0].name} (${availableUsers[0].username})`
+            }));
+        }
+    }, [availableUsers, stepData.what, stepData.who]);
+
+    // ===== DROPZONE CONFIGURATION =====
     const onDrop = useCallback(async (acceptedFiles) => {
         if (acceptedFiles.length + files.length > 5) {
             setErrors(prev => ({
@@ -183,13 +188,14 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         }
     }, [onDrop]);
 
-    // Handlers do formulário
+    // ===== EVENT HANDLERS =====
+    // Handler principal para mudanças no formulário
     const handleChange = async (e) => {
         const { name, value } = e.target;
 
         if (name === 'who') {
-            // Encontrar o destinatário seleccionado nos metadados
-            const selectedUser = metaData?.who?.find(user => user.pk.toString() === value);
+            // ✅ CORREÇÃO: Converter value para string para comparação
+            const selectedUser = metaData?.who?.find(user => user.pk.toString() === value.toString());
 
             setStepData(prev => ({
                 ...prev,
@@ -221,6 +227,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         setErrors(prev => ({ ...prev, [name]: '' }));
     };
 
+    // Handlers para ficheiros
     const handleFileRemove = (index) => {
         const updatedFiles = [...files];
         updatedFiles.splice(index, 1);
@@ -233,10 +240,11 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         setFiles(updatedFiles);
     };
 
-    // Validação do formulário
+    // ===== VALIDATION =====
     const validateForm = () => {
         const newErrors = {};
 
+        // ✅ CORREÇÃO: Permitir 0 como valor válido
         if (stepData.what !== 0 && !stepData.what) newErrors.what = 'Estado é obrigatório';
         if (stepData.who !== 0 && !stepData.who) newErrors.who = 'Destinatário é obrigatório';
         if (!stepData.memo) newErrors.memo = 'Observações são obrigatórias';
@@ -255,6 +263,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return Object.keys(newErrors).length === 0;
     };
 
+    // ===== MODAL HANDLERS =====
     // Manipulação de fechamento
     const handleModalClose = () => {
         if (document.activeElement instanceof HTMLElement) {
@@ -268,7 +277,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         }
     };
 
-    // Enviar dados
+    // ===== SUBMIT HANDLER =====
     const handleSubmit = async () => {
         if (!validateForm()) return;
         setLoading(true);
@@ -293,9 +302,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 memo: stepData.memo
             };
 
-            await addDocumentStep(document.pk, stepDataObj);
+            // Capturar resposta do passo para obter novo ID
+            const stepResponse = await addDocumentStep(document.pk, stepDataObj);
 
-            // Emitir evento via socket se conectado
+            // Socket
             if (isConnected) {
                 emit("new_step_added", {
                     orderId: document.regnumber,
@@ -309,57 +319,48 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 await fetchDocuments();
             }
 
-            // ✅ EMITIR EVENTO ESPECÍFICO
-            DocumentEventManager.emit(DOCUMENT_EVENTS.STEP_ADDED, document.pk, {
+            // Emitir evento com informação do novo documento
+            const eventData = {
                 type: 'step-added',
-                newStep: stepDataObj
-            });
+                newStep: stepDataObj,
+                originalDocumentId: document.pk
+            };
 
-            // Disparar evento para compatibilidade
+            // Se a resposta contém novo ID, incluir
+            if (stepResponse?.document?.pk && stepResponse.document.pk !== document.pk) {
+                eventData.newDocumentData = stepResponse.document;
+                eventData.newDocumentId = stepResponse.document.pk;
+            }
+
+            DocumentEventManager.emit(DOCUMENT_EVENTS.STEP_ADDED, document.pk, eventData);
+
+            // Compatibilidade
             window.dispatchEvent(new CustomEvent('document-updated', {
                 detail: {
                     documentId: document.pk,
-                    type: 'step-added'
+                    type: 'step-added',
+                    ...eventData
                 }
             }));
 
-            notifySuccess("Passo e anexos adicionados com sucesso");
-            onClose(true); // ✅ Callback de sucesso
+            notifySuccess("Passo adicionado com sucesso");
+            onClose(true);
         } catch (error) {
-            console.error('Erro ao adicionar passo e anexos:', error);
+            console.error('Erro ao adicionar passo:', error);
 
-            // Extrair mensagem de erro da resposta
-            let errorMessage = "Erro ao adicionar passo e anexos";
-            let isValidationError = false;
-
-            if (error.response) {
-                isValidationError = error.response.status === 422;
-
-                if (error.response.data) {
-                    if (error.response.data.error) {
-                        errorMessage = error.response.data.error;
-                    } else if (typeof error.response.data === 'string') {
-                        errorMessage = error.response.data;
-                    }
-                }
+            let errorMessage = "Erro ao adicionar passo";
+            if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
             }
 
-            if (isValidationError) {
-                notifyWarning(errorMessage);
-            } else {
-                notifyError(errorMessage);
-            }
-
-            setErrors(prev => ({
-                ...prev,
-                submit: errorMessage,
-                submitType: isValidationError ? "validation" : "error"
-            }));
+            notifyError(errorMessage);
+            setErrors(prev => ({ ...prev, submit: errorMessage }));
         } finally {
             setLoading(false);
         }
     };
 
+    // ===== RENDER =====
     return (
         <>
             <Dialog
@@ -390,7 +391,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
                 <DialogContent dividers onPaste={onPaste}>
                     <Grid container spacing={3}>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Alert severity="info" sx={{ mb: 2 }}>
                                 Adicione um novo passo para encaminhar ou avançar este pedido no fluxo de trabalho.
                                 Também pode adicionar anexos ao pedido.
@@ -399,7 +400,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
                         {/* Alerta se não há workflow configurado */}
                         {!hasValidWorkflow && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Alert severity="warning" sx={{ mb: 2 }}>
                                     <Box display="flex" alignItems="center">
                                         <WarningIcon sx={{ mr: 1 }} />
@@ -412,7 +413,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             </Grid>
                         )}
 
-                        <Grid item xs={12} sm={6}>
+                        {/* ===== SELECT ESTADO ===== */}
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <FormControl fullWidth required error={!!errors.what}>
                                 <InputLabel id="step-state-label">Estado</InputLabel>
                                 <Select
@@ -422,6 +424,11 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                     onChange={handleChange}
                                     label="Estado"
                                     disabled={loading}
+                                    renderValue={(selected) => {
+                                        // ✅ CORREÇÃO: Encontrar o step pelo pk, tratando 0 corretamente
+                                        const selectedStep = availableSteps.find(step => step.pk === selected);
+                                        return selectedStep ? selectedStep.step : '';
+                                    }}
                                 >
                                     {availableSteps.map(status => (
                                         <MenuItem key={status.pk} value={status.pk}>
@@ -442,7 +449,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             </FormControl>
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        {/* ===== SELECT UTILIZADOR ===== */}
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <FormControl fullWidth required error={!!errors.who}>
                                 <InputLabel id="step-who-label">Para quem</InputLabel>
                                 <Select
@@ -451,7 +459,12 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                     value={stepData.who}
                                     onChange={handleChange}
                                     label="Para quem"
-                                    disabled={loading || !stepData.what}
+                                    disabled={loading || (stepData.what !== 0 && !stepData.what)}
+                                    renderValue={(selected) => {
+                                        // ✅ CORREÇÃO: Encontrar o user pelo pk, tratando 0 corretamente
+                                        const selectedUser = availableUsers.find(user => user.pk === selected);
+                                        return selectedUser ? selectedUser.name : '';
+                                    }}
                                 >
                                     {availableUsers.map(user => (
                                         <MenuItem key={user.pk} value={user.pk}>
@@ -464,7 +477,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                         {errors.who}
                                     </Typography>
                                 )}
-                                {stepData.what && availableUsers.length === 0 && (
+                                {/* ✅ CORREÇÃO: Mostrar warning quando há estado selecionado mas nenhum utilizador */}
+                                {(stepData.what === 0 || stepData.what) && availableUsers.length === 0 && (
                                     <Typography variant="caption" color="warning.main">
                                         Nenhum utilizador disponível para este passo
                                     </Typography>
@@ -472,7 +486,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             </FormControl>
                         </Grid>
 
-                        <Grid item xs={12}>
+                        {/* ===== OBSERVAÇÕES ===== */}
+                        <Grid size={{ xs: 12 }}>
                             <TextField
                                 fullWidth
                                 label="Observações"
@@ -488,7 +503,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        {/* ===== ANEXOS ===== */}
+                        <Grid size={{ xs: 12 }}>
                             <Typography variant="subtitle1" gutterBottom>
                                 Anexos (opcional)
                             </Typography>
@@ -566,8 +582,9 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             )}
                         </Grid>
 
+                        {/* ===== LISTA DE FICHEIROS ===== */}
                         {files.length > 0 && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle1" gutterBottom>
                                     Ficheiros seleccionados ({files.length})
                                 </Typography>
@@ -587,8 +604,9 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             </Grid>
                         )}
 
+                        {/* ===== ERROS DE SUBMISSÃO ===== */}
                         {errors.submit && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Alert
                                     severity={errors.submitType === "validation" ? "warning" : "error"}
                                     sx={{ mb: 2 }}
@@ -600,6 +618,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                     </Grid>
                 </DialogContent>
 
+                {/* ===== AÇÕES DO DIÁLOGO ===== */}
                 <DialogActions sx={{ px: 3, py: 2 }}>
                     <Button
                         onClick={handleModalClose}
@@ -611,7 +630,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                         variant="contained"
                         color="primary"
                         onClick={handleSubmit}
-                        disabled={loading || !stepData.what || !stepData.who}
+                        disabled={loading || (stepData.what !== 0 && !stepData.what) || (stepData.who !== 0 && !stepData.who)}
                         startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
                     >
                         {loading ? 'A enviar...' : 'Guardar e Enviar'}
@@ -619,7 +638,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 </DialogActions>
             </Dialog>
 
-            {/* Alerta de férias */}
+            {/* ===== ALERTA DE FÉRIAS ===== */}
             <Dialog open={vacationAlert} onClose={() => setVacationAlert(false)}>
                 <DialogTitle>Alerta de Férias</DialogTitle>
                 <DialogContent>
@@ -635,7 +654,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 </DialogActions>
             </Dialog>
 
-            {/* Diálogo de confirmação de fechamento */}
+            {/* ===== DIÁLOGO DE CONFIRMAÇÃO DE FECHAMENTO ===== */}
             <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
                 <DialogTitle>Descartar Alterações?</DialogTitle>
                 <DialogContent>

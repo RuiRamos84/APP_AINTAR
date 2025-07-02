@@ -224,14 +224,14 @@ const AddAnnexModal = ({ open, onClose, document }) => {
 
                 <DialogContent dividers onPaste={onPaste}>
                     <Grid container spacing={3}>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Alert severity="info" sx={{ mb: 2 }}>
                                 Adicione anexos ao documento. Cada anexo deve ter uma descrição.
                                 Máximo de 5 arquivos por upload.
                             </Alert>
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Box sx={{ mb: 2 }}>
                                 <Typography variant="subtitle2" gutterBottom>
                                     Formatos aceitos:
@@ -311,7 +311,7 @@ const AddAnnexModal = ({ open, onClose, document }) => {
                         </Grid>
 
                         {files.length > 0 && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Divider sx={{ my: 2 }} />
 
                                 <Box sx={{ mt: 2 }}>

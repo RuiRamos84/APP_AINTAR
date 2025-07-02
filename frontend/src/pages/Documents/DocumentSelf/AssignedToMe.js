@@ -350,13 +350,13 @@ const AssignedToMe = () => {
       }}
     >
       <Grid container className="header-container-self" alignItems="center" spacing={2}>
-        <Grid item xs={6}>
+        <Grid size={{ xs: 6 }}>
           <Typography variant="h4">Para tratamento</Typography>
         </Grid>
-        <Grid item xs={4} container justifyContent="flex-end">
+        <Grid size={{ xs: 4 }} container justifyContent="flex-end">
           <SearchBar onSearch={handleSearch} />
         </Grid>
-        <Grid item xs={2} container justifyContent="center">
+        <Grid size={{ xs: 2 }} container justifyContent="center">
           <Button
             variant="contained"
             color="primary"

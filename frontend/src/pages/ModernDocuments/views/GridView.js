@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Box,
     Grid,
@@ -20,7 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useUI } from '../context/UIStateContext';
 import DocumentCard from '../components/cards/DocumentCard';
-import { notificationStyles } from '../styles/documentStyles';
+import { notificationStyles } from '../../../styles/documentStyles';
 import LateDocumentsAlert from '../components/LateDocumentsAlert';
 
 const GridView = (props) => {
@@ -43,18 +43,11 @@ const GridView = (props) => {
     } = props;
 
     const theme = useTheme();
-    const { searchTerm, setSearchTerm } = useUI();
+    const { searchTerm } = useUI();
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedGroupId, setSelectedGroupId] = useState(null);
 
-    // console.log('🔍 GridView Debug:', {
-    //     isLateDocuments: isLateDocuments,
-    //     documentsCount: documents.length,
-    //     documentsWithDays: documents.filter(doc => doc.days).length
-    // });
-
-    // ✅ ADICIONAR ESTA FUNÇÃO AQUI:
     const getStyleConfig = () => {
         switch (density) {
             case 'compact':
@@ -79,7 +72,6 @@ const GridView = (props) => {
                     },
                     spacing: { content: 2, actions: 1 },
                 };
-            case 'standard':
             default:
                 return {
                     minHeight: 180,
@@ -94,38 +86,32 @@ const GridView = (props) => {
         }
     };
 
-    // ✅ ADICIONAR ESTA LINHA PARA USAR A FUNÇÃO:
-    const style = getStyleConfig();
-
-    // Função para obter cores dos estados
     const getStatusColor = (statusId) => {
         switch (parseInt(statusId)) {
-            case -1: return theme.palette.grey[500];     // ANULADO
-            case 0: return theme.palette.success.main;   // CONCLUIDO
-            case 1: return theme.palette.primary.main;   // ENTRADA
-            case 2: return theme.palette.info.main;      // PARA VALIDAÇÃO
-            case 4: return theme.palette.warning.main;   // PARA TRATAMENTO
-            case 5: return theme.palette.secondary.main; // ANÁLISE EXTERNA
-            case 6: return theme.palette.error.light;    // PEDIDO DE ELEMENTOS
-            case 7: return theme.palette.primary.dark;   // EMISSÃO DE OFÍCIO
-            case 8: return theme.palette.warning.dark;   // PARA PAVIMENTAÇÃO
-            case 9: return theme.palette.info.dark;      // PARA AVALIAÇÃO NO TERRENO
-            case 10: return theme.palette.success.dark;  // PARA EXECUÇÃO
-            case 11: return theme.palette.secondary.dark; // PARA ORÇAMENTAÇÃO
-            case 12: return theme.palette.error.main;    // PARA COBRANÇA
-            case 13: return theme.palette.primary.light; // PARA ACEITAÇÃO DE ORÇAMENTO
-            case 100: return theme.palette.warning.light; // PARA PAGAMENTO DE PAVIMENTAÇÃO
-            default: return theme.palette.grey[400];     // Outros casos
+            case -1: return theme.palette.grey[500];
+            case 0: return theme.palette.success.main;
+            case 1: return theme.palette.primary.main;
+            case 2: return theme.palette.info.main;
+            case 4: return theme.palette.warning.main;
+            case 5: return theme.palette.secondary.main;
+            case 6: return theme.palette.error.light;
+            case 7: return theme.palette.primary.dark;
+            case 8: return theme.palette.warning.dark;
+            case 9: return theme.palette.info.dark;
+            case 10: return theme.palette.success.dark;
+            case 11: return theme.palette.secondary.dark;
+            case 12: return theme.palette.error.main;
+            case 13: return theme.palette.primary.light;
+            case 100: return theme.palette.warning.light;
+            default: return theme.palette.grey[400];
         }
     };
 
-    // Hook para paginatedDocuments - para a vista normal
     const paginatedDocuments = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
         return documents.slice(start, start + itemsPerPage);
     }, [documents, currentPage, itemsPerPage]);
 
-    // Hook para groupedDocuments - para vista "Para tratamento"
     const groupedDocuments = useMemo(() => {
         if (!isAssignedToMe || !metaData?.what || !Array.isArray(metaData.what)) {
             return null;
@@ -139,7 +125,7 @@ const GridView = (props) => {
                 items: [],
                 color: getStatusColor(status.pk),
                 hasNotifications: false,
-                notificationCount: 0  // Adicionando contador de notificações
+                notificationCount: 0
             };
         });
 
@@ -147,10 +133,9 @@ const GridView = (props) => {
             const statusId = doc.what !== undefined ? doc.what : 1;
             if (groups[statusId]) {
                 groups[statusId].items.push(doc);
-                // Verificar se este documento tem notificação
                 if (doc.notification === 1) {
                     groups[statusId].hasNotifications = true;
-                    groups[statusId].notificationCount += 1;  // Incrementar o contador
+                    groups[statusId].notificationCount += 1;
                 }
             }
         });
@@ -164,15 +149,13 @@ const GridView = (props) => {
             })
             .filter(group => group.items.length > 0);
 
-        // Se nenhum grupo estiver selecionado, selecionar o primeiro grupo
         if (sortedGroups.length > 0 && selectedGroupId === null) {
             setSelectedGroupId(sortedGroups[0].id);
         }
 
         return sortedGroups;
-    }, [documents, metaData, isAssignedToMe, getStatusColor, selectedGroupId]);
+    }, [documents, metaData, isAssignedToMe, selectedGroupId]);
 
-    // Funções auxiliares
     const handlePageChange = (event, newPage) => {
         setCurrentPage(newPage);
     };
@@ -190,7 +173,7 @@ const GridView = (props) => {
         switch (density) {
             case 'compact': return { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
             case 'comfortable': return { xs: 12, sm: 6, md: 4, lg: 3 };
-            case 'standard': default: return { xs: 12, sm: 6, md: 4, lg: 3 };
+            default: return { xs: 12, sm: 6, md: 4, lg: 3 };
         }
     };
 
@@ -198,11 +181,28 @@ const GridView = (props) => {
         switch (density) {
             case 'compact': return 1;
             case 'comfortable': return 3;
-            case 'standard': default: return 2;
+            default: return 2;
         }
     };
 
-    // Estados condicionais
+    // CSS-in-JS para animações globais
+    const globalKeyframes = {
+        '@keyframes cardPulse': {
+            '0%': {
+                transform: 'scale(1.02)',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.12)'
+            },
+            '50%': {
+                transform: 'scale(1.03)',
+                boxShadow: `0 8px 16px ${alpha(theme.palette.error.main, 0.3)}`
+            },
+            '100%': {
+                transform: 'scale(1.02)',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.12)'
+            }
+        }
+    };
+
     if (loading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
@@ -257,10 +257,10 @@ const GridView = (props) => {
     // Visualização padrão (para todas as abas EXCETO "Para tratamento")
     if (!isAssignedToMe || !groupedDocuments) {
         return (
-            <Box>
+            <Box sx={globalKeyframes}>
                 <Grid container spacing={getGridSpacing()}>
                     {paginatedDocuments.map((doc) => (
-                        <Grid item key={doc.pk} {...getGridItemSize()}>
+                        <Grid key={doc.pk} size={getGridItemSize()}>
                             <DocumentCard
                                 document={doc}
                                 metaData={metaData}
@@ -294,33 +294,25 @@ const GridView = (props) => {
         );
     }
 
-    // ✅ SECÇÃO PARA DOCUMENTOS EM ATRASO
+    // Secção para documentos em atraso
     if (isLateDocuments && !loading && !error && documents.length > 0) {
-        // Filtrar apenas documentos que realmente têm days > 0
         const lateDocumentsWithDays = paginatedDocuments.filter(doc =>
             doc.days && parseInt(doc.days) > 0
         );
 
-        // Ordenar documentos por severidade (mais dias primeiro)
         const sortedDocuments = [...lateDocumentsWithDays].sort((a, b) => {
             const daysA = parseInt(a.days) || 0;
             const daysB = parseInt(b.days) || 0;
-            return daysB - daysA; // Decrescente (mais dias primeiro)
-        });
-
-        console.log('🔍 Documentos em atraso a renderizar:', {
-            total: documents.length,
-            withDays: lateDocumentsWithDays.length,
-            sorted: sortedDocuments.length
+            return daysB - daysA;
         });
 
         return (
-            <Box>
+            <Box sx={globalKeyframes}>
                 <LateDocumentsAlert documents={lateDocumentsWithDays} />
 
                 <Grid container spacing={getGridSpacing()}>
                     {sortedDocuments.map((doc) => (
-                        <Grid item key={doc.pk} {...getGridItemSize()}>
+                        <Grid key={doc.pk} size={getGridItemSize()}>
                             <DocumentCard
                                 document={doc}
                                 metaData={metaData}
@@ -330,36 +322,18 @@ const GridView = (props) => {
                                 onReplicate={onReplicate}
                                 onDownloadComprovativo={onDownloadComprovativo}
                                 density={density}
-                                isAssignedToMe={false} // Não activar botões específicos
+                                isAssignedToMe={false}
                                 showComprovativo={showComprovativo}
-                                isLateDocuments={true} // Activar visualização de atraso
+                                isLateDocuments={true}
                                 sx={{
-                                    // Indicadores visuais baseados na severidade
                                     borderLeft: `6px solid ${parseInt(doc.days) > 365 ? theme.palette.error.dark :
                                         parseInt(doc.days) > 180 ? theme.palette.error.main :
                                             parseInt(doc.days) > 90 ? theme.palette.warning.main : theme.palette.info.main
                                         }`,
-                                    // Escala e sombra para críticos
                                     transform: parseInt(doc.days) > 365 ? 'scale(1.02)' : 'scale(1)',
                                     boxShadow: parseInt(doc.days) > 365 ? 4 : 2,
                                     transition: 'all 0.3s ease',
-                                    // Animação de pulsação para muito críticos
                                     animation: parseInt(doc.days) > 700 ? 'cardPulse 3s ease-in-out infinite' : 'none',
-                                    '@keyframes cardPulse': {
-                                        '0%': {
-                                            transform: 'scale(1.02)',
-                                            boxShadow: '0 4px 8px rgba(0,0,0,0.12)'
-                                        },
-                                        '50%': {
-                                            transform: 'scale(1.03)',
-                                            boxShadow: `0 8px 16px ${alpha(theme.palette.error.main, 0.3)}`
-                                        },
-                                        '100%': {
-                                            transform: 'scale(1.02)',
-                                            boxShadow: '0 4px 8px rgba(0,0,0,0.12)'
-                                        }
-                                    },
-                                    // Hover especial para documentos em atraso
                                     '&:hover': {
                                         transform: parseInt(doc.days) > 365
                                             ? 'scale(1.05) translateY(-8px)'
@@ -373,7 +347,6 @@ const GridView = (props) => {
                     ))}
                 </Grid>
 
-                {/* Mostrar mensagem se não houver documentos com atraso real */}
                 {lateDocumentsWithDays.length === 0 && (
                     <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="300px">
                         <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -388,7 +361,7 @@ const GridView = (props) => {
                 <Box sx={{ mt: 2 }}>
                     <TablePagination
                         component="div"
-                        count={lateDocumentsWithDays.length} // Usar apenas os que têm days
+                        count={lateDocumentsWithDays.length}
                         page={currentPage}
                         onPageChange={handlePageChange}
                         rowsPerPage={itemsPerPage}
@@ -407,18 +380,7 @@ const GridView = (props) => {
 
     // Visualização agrupada com chips (APENAS para "Para tratamento")
     return (
-        <Box>
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 2
-            }}>
-                {/* <Typography variant="subtitle1" color="text.secondary">
-                    {documents.length} pedido{documents.length !== 1 ? 's' : ''} em {groupedDocuments.length} estado{groupedDocuments.length !== 1 ? 's' : ''}
-                </Typography> */}
-            </Box>
-
+        <Box sx={globalKeyframes}>
             {/* Chips com scroll horizontal */}
             <Box
                 sx={{
@@ -427,14 +389,11 @@ const GridView = (props) => {
                     backgroundColor: alpha(theme.palette.background.paper, 0.6),
                     borderRadius: 1,
                     boxShadow: 1,
-                    // Estilos para o scroll horizontal
                     display: 'flex',
                     overflowX: 'auto',
                     overflowY: 'hidden',
                     flexWrap: 'nowrap',
-                    // Altura fixa para evitar saltos no layout
                     minHeight: density === 'compact' ? 54 : 64,
-                    // Estilização do scrollbar para ficar mais elegante
                     '&::-webkit-scrollbar': {
                         height: '6px',
                     },
@@ -480,7 +439,6 @@ const GridView = (props) => {
                             onClick={() => handleChipClick(group.id)}
                         />
 
-                        {/* Sino animado COM TOOLTIP */}
                         {group.hasNotifications && (
                             <Tooltip
                                 title={`${group.notificationCount} ${group.notificationCount === 1 ? 'notificação' : 'notificações'} em "${group.title}"`}
@@ -528,7 +486,7 @@ const GridView = (props) => {
                     <Box sx={{ p: 2 }}>
                         <Grid container spacing={getGridSpacing()}>
                             {selectedGroup.items.map((doc) => (
-                                <Grid item key={`doc-${doc.pk}`} {...getGridItemSize()}>
+                                <Grid key={`doc-${doc.pk}`} size={getGridItemSize()}>
                                     <DocumentCard
                                         document={doc}
                                         metaData={metaData}

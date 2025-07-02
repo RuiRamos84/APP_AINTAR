@@ -209,12 +209,12 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           {error && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Alert severity="error">{error}</Alert>
             </Grid>
           )}
 
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <FormControl fullWidth>
               <InputLabel>Modelo de Ofício</InputLabel>
               <Select
@@ -233,12 +233,12 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
           </Grid>
 
           {loading ? (
-            <Grid item xs={12} style={{ textAlign: "center" }}>
+            <Grid size={{ xs: 12 }} style={{ textAlign: "center" }}>
               <CircularProgress size={24} />
             </Grid>
           ) : (
             <>
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   label="Assunto"
@@ -250,13 +250,13 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
               {/* Dados do Destinatário */}
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Dados do Destinatário
                 </Typography>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="NIF"
@@ -265,7 +265,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Nome"
@@ -274,7 +274,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Morada"
@@ -283,7 +283,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <TextField
                   fullWidth
                   label="Nº"
@@ -292,7 +292,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <TextField
                   fullWidth
                   label="Código Postal"
@@ -301,7 +301,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <TextField
                   fullWidth
                   label="Localidade"
@@ -311,13 +311,13 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
               </Grid>
 
               {/* Dados do Local do Pedido */}
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Dados do Local do Pedido
                 </Typography>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Morada do Pedido"
@@ -326,7 +326,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <TextField
                   fullWidth
                   label="Nº"
@@ -335,7 +335,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   fullWidth
                   label="Freguesia"
@@ -344,7 +344,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Código Postal"
@@ -353,7 +353,7 @@ const LetterEmissionModal = ({ open, onClose, documentData, onSuccess }) => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   label="Localidade"

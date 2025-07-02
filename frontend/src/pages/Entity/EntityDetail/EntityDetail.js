@@ -263,7 +263,7 @@ const EntityDetail = ({
               </Box>
               <Collapse in={openIdentification}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={5}>
+                  <Grid size={{ xs: 12, sm: 5 }}>
                     <TextField
                       required
                       label="Nome"
@@ -276,7 +276,7 @@ const EntityDetail = ({
                       helperText={errors.name}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={2}>
+                  <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       required
                       type="number"
@@ -291,7 +291,7 @@ const EntityDetail = ({
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12} sm={3}>
+                  <Grid size={{ xs: 12, sm: 3 }}>
                     <TextField
                       variant="outlined"
                       margin="normal"
@@ -311,7 +311,7 @@ const EntityDetail = ({
                       ))}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} sm={2}>
+                  <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       label="Nº de Identificação"
                       name="ident_value"
@@ -341,7 +341,7 @@ const EntityDetail = ({
               </Box>
               <Collapse in={openContact}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       required
                       label="Telefone"
@@ -354,7 +354,7 @@ const EntityDetail = ({
                       helperText={errors.phone}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Email"
                       name="email"
@@ -396,7 +396,7 @@ const EntityDetail = ({
               </Box>
               <Collapse in={openDescription}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       label="Observações"
                       name="descr"

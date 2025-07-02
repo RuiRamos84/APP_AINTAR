@@ -41,7 +41,7 @@ const RecordForm = ({
         <Paper sx={{ p: 2 }}>
             <Grid container spacing={2}>
                 {fieldsConfig.map((field) => (
-                    <Grid item xs={12} sm={6} md={field.size || 3} key={field.name}>
+                    <Grid size={{ xs: 12, sm: 6, md: field.size || 3 }} key={field.name}>
                         {field.type === "select" ? (
                             <FormControl fullWidth>
                                 <InputLabel>{field.label}</InputLabel>
@@ -80,7 +80,7 @@ const RecordForm = ({
                         )}
                     </Grid>
                 ))}
-                <Grid item xs={12} md={3} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Grid size={{ xs: 12 }} md={3} sx={{ display: 'flex', alignItems: 'center' }}>
                     <Button
                         variant="contained"
                         color="primary"

@@ -169,7 +169,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                                 "Registo de Despesas na ETAR"}
             </Typography>
             <Grid container spacing={2} mb={3}>
-                <Grid item xs={12} sm={6} md={2.2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.2 }}>
                     <TextField
                         type="datetime-local"
                         label="Data"
@@ -190,7 +190,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2.0}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.0 }}>
                     <FormControl fullWidth>
                         <InputLabel sx={{ color: theme.palette.text.primary }}>
                             Tipo da Despesa
@@ -215,7 +215,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <TextField
                         type="number"
                         label="Valor"
@@ -232,7 +232,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         }}
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
                     <TextField
                         type="text"
                         label="Descrição"
@@ -249,7 +249,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         }}
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <FormControl fullWidth>
                         <InputLabel sx={{ color: theme.palette.text.primary }}>
                             Associado
@@ -274,7 +274,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={2} display="flex" justifyContent="center" alignItems="center" md={1}>
+                <Grid size={{ xs: 12, sm: 2 }} display="flex" justifyContent="center" alignItems="center" md={1}>
                     <Button
                         variant="contained"
                         color="primary"

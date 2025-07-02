@@ -61,7 +61,7 @@ const Home = () => {
         {/* Stats Section */}
         <Grid container spacing={3} sx={{ mb: 8 }}>
           {stats.map((stat, index) => (
-            <Grid item xs={6} md={2} key={index}>
+            <Grid size={{ xs: 6 }} md={2} key={index}>
               <Card elevation={0} sx={{
                 textAlign: 'center',
                 bgcolor: 'background.paper'
@@ -79,7 +79,7 @@ const Home = () => {
         <Box sx={{ mb: 8 }}>
           <Typography variant="h4" gutterBottom>Nossos Valores</Typography>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12 }} md={3}>
               <Card sx={{
                 height: '100%',
                 bgcolor: 'background.paper',
@@ -92,7 +92,7 @@ const Home = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12 }} md={3}>
               <Card sx={{
                 height: '100%',
                 bgcolor: 'background.paper',
@@ -105,7 +105,7 @@ const Home = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12 }} md={3}>
               <Card sx={{
                 height: '100%',
                 bgcolor: 'background.paper',
@@ -118,7 +118,7 @@ const Home = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12 }} md={3}>
               <Card sx={{
                 height: '100%',
                 bgcolor: 'background.paper',

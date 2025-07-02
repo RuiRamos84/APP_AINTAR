@@ -33,7 +33,7 @@ const InternalTabs = ({ selectedTab, setSelectedTab, selectedArea, selectedEntit
             <Box mt={2}>
                 <Grid container spacing={2}>
                     {selectedTab === 0 && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <VolumeRecordsTable
                                 selectedEntity={selectedEntity}
                                 selectedArea={selectedArea}
@@ -42,7 +42,7 @@ const InternalTabs = ({ selectedTab, setSelectedTab, selectedArea, selectedEntit
                         </Grid>
                     )}
                     {selectedTab === 1 && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <EnergyRecordsTable
                                 selectedEntity={selectedEntity}
                                 selectedArea={selectedArea}
@@ -51,7 +51,7 @@ const InternalTabs = ({ selectedTab, setSelectedTab, selectedArea, selectedEntit
                         </Grid>
                     )}
                     {selectedTab === 2 && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <ExpenseRecordsTable
                                 selectedEntity={selectedEntity}
                                 selectedArea={selectedArea}

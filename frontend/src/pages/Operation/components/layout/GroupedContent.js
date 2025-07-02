@@ -188,7 +188,7 @@ const GroupedContent = ({
             return (
                 <Grid container spacing={2}>
                     {items.map(item => (
-                        <Grid item xs={12} sm={6} md={4} key={item.pk}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.pk}>
                             {renderItem(item)}
                         </Grid>
                     ))}
@@ -237,7 +237,7 @@ const GroupedContent = ({
                             {viewMode === 'cards' ? (
                                 <Grid container spacing={2}>
                                     {groupItems.filter(item => item && item.pk).map(item => (
-                                        <Grid item xs={12} sm={6} md={4} key={item.pk}>
+                                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.pk}>
                                             {renderItem(item)}
                                         </Grid>
                                     ))}

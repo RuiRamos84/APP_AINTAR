@@ -145,7 +145,7 @@ const EpiSection = ({ metaData }) => {
     return (
         <Box>
             <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12 }} md={4}>
                     <FormControl fullWidth variant="outlined">
                         <InputLabel id="employee-select-label">Funcionário</InputLabel>
                         <Select
@@ -164,14 +164,14 @@ const EpiSection = ({ metaData }) => {
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} md={8} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Grid size={{ xs: 12 }} md={8} sx={{ display: "flex", justifyContent: "flex-end" }}>
                     <Button variant="contained" onClick={() => setBulkDeliveryOpen(true)}>
                         Registar Entrega em Massa
                     </Button>
                 </Grid>
 
                 {selectedEmployee && (
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <DeliveriesTable
                             deliveries={employeeDeliveries}
                             loading={loading}

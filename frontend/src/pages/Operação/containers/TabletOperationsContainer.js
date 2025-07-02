@@ -202,7 +202,7 @@ const TabletOperationsContainer = ({
                 const canAct = canExecuteActions(item);
 
                 return (
-                    <Grid item xs={12} sm={6} lg={4} key={index}>
+                    <Grid size={{ xs: 12, sm: 6 }} lg={4} key={index}>
                         <SwipeableCard
                             onSwipeRight={() => handleNavigate(item)}
                             onSwipeLeft={() => {
@@ -242,20 +242,20 @@ const TabletOperationsContainer = ({
 
             <Paper sx={{ p: 2, m: 2, mb: 0, borderRadius: 3, boxShadow: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <AssociateFilter
                             associates={associates || []}
                             selectedAssociate={selectedAssociate}
                             onAssociateChange={handleAssociateChange}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <SearchBar
                             searchTerm={searchTerm}
                             onSearch={setSearchTerm}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <Box display="flex" justifyContent="flex-end">
                             <FormControlLabel
                                 control={

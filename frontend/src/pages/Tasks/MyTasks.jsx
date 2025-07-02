@@ -118,7 +118,7 @@ const MyTasks = () => {
               const columnId = status.pk;
               const isMenuOpen = Boolean(anchorEl) && anchorEl.columnId === columnId;
               return (
-                <Grid item xs={12} md={4} key={columnId} sx={{ height: '100%' }}>
+                <Grid size={{ xs: 12 }} md={4} key={columnId} sx={{ height: '100%' }}>
                   <Paper sx={{ 
                     p: 2, 
                     height: '100%', 

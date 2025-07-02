@@ -47,7 +47,7 @@
 //                 const hasItems = value.total > 0;
 
 //                 return (
-//                     <Grid item xs={6} sm={getGridSize()} md={3} lg={3} key={key}>
+//                     <Grid size={{ xs: 6, sm: getGridSize(), md: 3, lg: 3 }} key={key}>
 //                         <Card
 //                             onClick={() => onViewClick(key)}
 //                             sx={{

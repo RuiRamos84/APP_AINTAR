@@ -169,7 +169,7 @@ const DatabaseManagement = () => {
       case 0: // Visão Geral
         return (
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12 }} md={6}>
               <Card>
                 <CardHeader 
                   title="Informações do Banco de Dados" 
@@ -219,7 +219,7 @@ const DatabaseManagement = () => {
               </Card>
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12 }} md={6}>
               <Card>
                 <CardHeader 
                   title="Performance" 
@@ -269,7 +269,7 @@ const DatabaseManagement = () => {
                   <Divider sx={{ my: 2 }} />
                   
                   <Grid container spacing={2}>
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                       <Typography variant="body2" color="text.secondary">
                         Tempo Médio de Consulta
                       </Typography>
@@ -277,7 +277,7 @@ const DatabaseManagement = () => {
                         {performanceStats.averageQueryTime}
                       </Typography>
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                       <Typography variant="body2" color="text.secondary">
                         Taxa de Acerto de Cache
                       </Typography>
@@ -297,7 +297,7 @@ const DatabaseManagement = () => {
                 <Divider />
                 <CardContent>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Button 
                         fullWidth 
                         variant="outlined" 
@@ -306,7 +306,7 @@ const DatabaseManagement = () => {
                         VACUUM
                       </Button>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Button 
                         fullWidth 
                         variant="outlined" 
@@ -315,7 +315,7 @@ const DatabaseManagement = () => {
                         ANALYZE
                       </Button>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Button 
                         fullWidth 
                         variant="outlined" 
@@ -324,7 +324,7 @@ const DatabaseManagement = () => {
                         REINDEX
                       </Button>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Button 
                         fullWidth 
                         variant="outlined" 
@@ -334,7 +334,7 @@ const DatabaseManagement = () => {
                         Limpar Sessões
                       </Button>
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                       <Button 
                         fullWidth 
                         variant="outlined" 
@@ -452,12 +452,12 @@ const DatabaseManagement = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="body2" color="text.secondary">
                         Última atualização: {table.lastUpdated}
                       </Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6} container justifyContent="flex-end">
+                    <Grid size={{ xs: 12, sm: 6 }} container justifyContent="flex-end">
                       <Button 
                         size="small" 
                         variant="outlined" 

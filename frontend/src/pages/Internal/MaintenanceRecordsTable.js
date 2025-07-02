@@ -156,7 +156,7 @@ const MaintenanceRecordsTable = ({
                         'Desobstrução'}
             </Typography>
             <Grid container spacing={2} alignItems="center" mb={3}>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <TextField
                         type="datetime-local"
                         label="Data"
@@ -166,7 +166,7 @@ const MaintenanceRecordsTable = ({
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <TextField
                         type="text"
                         label="Responsável"
@@ -175,7 +175,7 @@ const MaintenanceRecordsTable = ({
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <FormControl fullWidth>
                         <InputLabel>Tipo</InputLabel>
                         <Select
@@ -191,7 +191,7 @@ const MaintenanceRecordsTable = ({
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <FormControl fullWidth>
                         <InputLabel>Estado</InputLabel>
                         <Select
@@ -207,7 +207,7 @@ const MaintenanceRecordsTable = ({
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <TextField
                         type="number"
                         label="Custo"
@@ -216,7 +216,7 @@ const MaintenanceRecordsTable = ({
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <TextField
                         label="Descrição"
                         value={newRecord.description}
@@ -226,7 +226,7 @@ const MaintenanceRecordsTable = ({
                         rows={3}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Button
                         variant="contained"
                         color="primary"

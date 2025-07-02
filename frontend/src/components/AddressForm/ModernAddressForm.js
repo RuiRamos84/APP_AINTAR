@@ -211,7 +211,7 @@ const ModernAddressForm = ({
       )}
 
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={3}>
+        <Grid size={{ xs: 12, sm: 3 }}>
           <TextField
             required={required}
             label="Código Postal"
@@ -246,7 +246,7 @@ const ModernAddressForm = ({
           />
         </Grid>
 
-        <Grid item xs={12} sm={5}>
+        <Grid size={{ xs: 12, sm: 5 }}>
           {manualAddress ? (
             <TextField
               required={required}
@@ -310,7 +310,7 @@ const ModernAddressForm = ({
           )}
         </Grid>
 
-        <Grid item xs={12} sm={2}>
+        <Grid size={{ xs: 12, sm: 2 }}>
           <TextField
             label="Nº de porta"
             name="door"
@@ -328,7 +328,7 @@ const ModernAddressForm = ({
           />
         </Grid>
 
-        <Grid item xs={12} sm={2}>
+        <Grid size={{ xs: 12, sm: 2 }}>
           <TextField
             label="Andar"
             name="floor"
@@ -346,7 +346,7 @@ const ModernAddressForm = ({
           />
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Box
             sx={{
               display: 'grid',

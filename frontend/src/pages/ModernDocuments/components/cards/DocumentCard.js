@@ -3,8 +3,7 @@ import PropTypes from 'prop-types';
 import {
     Card, CardActionArea, CardContent, CardActions,
     Typography, Box, Chip, IconButton, Tooltip,
-    useTheme, alpha, Badge, Avatar, Divider, Grid,
-    LinearProgress, Stack
+    useTheme, alpha, Avatar, Divider, Grid
 } from '@mui/material';
 import {
     Visibility as VisibilityIcon,
@@ -14,8 +13,6 @@ import {
     CloudDownload as DownloadIcon,
     NotificationsActiveSharp as NotificationsActiveIcon,
     Person as PersonIcon,
-    CalendarToday as CalendarIcon,
-    Business as BusinessIcon,
     Description as DescriptionIcon,
     Event as EventIcon,
     AccessTime as AccessTimeIcon,
@@ -41,14 +38,6 @@ const DocumentCard = ({
 }) => {
     const theme = useTheme();
 
-    // console.log('🔍 DocumentCard Debug:', {
-    //     documentId: document.pk,
-    //     days: document.days,
-    //     isLateDocuments: isLateDocuments,
-    //     shouldShow: document.days && isLateDocuments
-    // });
-
-    // Obtém informações do status
     const getStatusInfo = () => {
         const status = metaData?.what?.find(s => s.pk === document.what);
         const colorMap = {
@@ -65,9 +54,6 @@ const DocumentCard = ({
         };
     };
 
-    const statusInfo = getStatusInfo();
-
-    // Configurações baseadas na densidade
     const getStyleConfig = () => {
         switch (density) {
             case 'compact':
@@ -92,7 +78,6 @@ const DocumentCard = ({
                     },
                     spacing: { content: 2, actions: 1 },
                 };
-            case 'standard':
             default:
                 return {
                     minHeight: 180,
@@ -107,9 +92,9 @@ const DocumentCard = ({
         }
     };
 
+    const statusInfo = getStatusInfo();
     const style = getStyleConfig();
 
-    // Função auxiliar para obter iniciais da entidade para o avatar
     const getInitials = (text) => {
         if (!text) return '?';
         return text
@@ -120,7 +105,6 @@ const DocumentCard = ({
             .slice(0, 2);
     };
 
-    // Função para obter a cor do avatar baseada no tipo de documento
     const getAvatarColor = () => {
         const typeCode = document.tt_type_code || 0;
         const colors = [
@@ -134,33 +118,6 @@ const DocumentCard = ({
         return colors[typeCode % colors.length];
     };
 
-    // Obtém o associado a partir dos metadados
-    const getAssociateName = () => {
-        if (!document.ts_associate || !metaData?.associates) return 'Sem associado';
-        const associate = metaData.associates.find(a => a.pk === document.ts_associate);
-        return associate?.name || 'Associado desconhecido';
-    };
-
-    // Calculate progress percentage for visualization
-    const getProgressPercentage = () => {
-        const statuses = [0, 1, 2, 3, 4]; // Assuming these are ordered progression
-        const currentStatus = document.what || 0;
-        const currentIndex = statuses.findIndex(s => s === currentStatus);
-        return ((currentIndex + 1) / statuses.length) * 100;
-    };
-
-    // Function to determine if a notification is recent
-    const isRecentNotification = () => {
-        if (!document.notification_date) return false;
-        const notificationDate = new Date(document.notification_date);
-        const now = new Date();
-        // Consider notifications from the last 24 hours as recent
-        return (now - notificationDate) < (24 * 60 * 60 * 1000);
-    };
-
-    const recentNotification = isRecentNotification();
-
-    // Handlers para eventos com stopPropagation
     const handleActionClick = (handler, e) => {
         if (e) e.stopPropagation();
         if (handler) handler(document);
@@ -169,26 +126,63 @@ const DocumentCard = ({
     const timeInfo = getDaysSinceSubmission(document.submission);
     const shouldHighlightCard = !document.days && document.what !== 0 && timeInfo.days > 15;
     const isUrgent = timeInfo.days >= 30;
+
+    // CSS-in-JS para animações
+    const keyframes = {
+        '@keyframes cardGlow': {
+            '0%, 100%': { boxShadow: `0 0 8px ${alpha(theme.palette.error.main, 0.2)}` },
+            '50%': { boxShadow: `0 0 16px ${alpha(theme.palette.error.main, 0.4)}` }
+        },
+        '@keyframes borderPulse': {
+            '0%': {
+                borderColor: theme.palette.error.main,
+                boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.7)}`
+            },
+            '50%': {
+                borderColor: theme.palette.error.dark,
+                boxShadow: `0 0 0 4px ${alpha(theme.palette.error.main, 0.3)}`
+            },
+            '100%': {
+                borderColor: theme.palette.error.main,
+                boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.7)}`
+            }
+        },
+        '@keyframes shimmer': {
+            '0%': { backgroundPosition: '200% 0' },
+            '100%': { backgroundPosition: '-200% 0' }
+        },
+        '@keyframes iconPulse': {
+            '0%': { transform: 'scale(1)' },
+            '50%': { transform: 'scale(1.2)' },
+            '100%': { transform: 'scale(1)' }
+        },
+        '@keyframes badgeGlow': {
+            '0%': {
+                boxShadow: `0 0 5px ${alpha(theme.palette.error.main, 0.5)}`,
+                transform: 'scale(1)'
+            },
+            '100%': {
+                boxShadow: `0 0 15px ${alpha(theme.palette.error.main, 0.8)}`,
+                transform: 'scale(1.05)'
+            }
+        }
+    };
+
     return (
         <Card
-            {...props}
             sx={{
+                ...keyframes,
                 minHeight: style.minHeight,
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
                 overflow: 'visible',
                 transition: 'transform 0.2s, box-shadow 0.2s',
-                // ✅ AMARELO: 15-29 dias | VERMELHO: 30+ dias
                 ...(shouldHighlightCard && {
                     bgcolor: alpha(isUrgent ? theme.palette.error.main : theme.palette.warning.main, 0.05),
                     border: `1px solid ${alpha(isUrgent ? theme.palette.error.main : theme.palette.warning.main, 0.3)}`,
                     boxShadow: `0 0 8px ${alpha(isUrgent ? theme.palette.error.main : theme.palette.warning.main, 0.2)}`,
                     animation: isUrgent ? 'cardGlow 2s infinite' : 'none',
-                    '@keyframes cardGlow': {
-                        '0%, 100%': { boxShadow: `0 0 8px ${alpha(theme.palette.error.main, 0.2)}` },
-                        '50%': { boxShadow: `0 0 16px ${alpha(theme.palette.error.main, 0.4)}` }
-                    }
                 }),
                 '&:hover': {
                     transform: 'translateY(-4px)',
@@ -197,22 +191,8 @@ const DocumentCard = ({
                 ...props.sx,
             }}
         >
-            {/* Status indicator and progress bar */}
+            {/* Status e notificações */}
             <Box sx={{ position: 'relative' }}>
-                {/* <Box sx={{ height: 6, bgcolor: statusInfo.color, width: '100%' }} />
-                <LinearProgress
-                    variant="determinate"
-                    value={getProgressPercentage()}
-                    sx={{
-                        height: 6,
-                        bgcolor: alpha(statusInfo.color, 0.2),
-                        '& .MuiLinearProgress-bar': {
-                            bgcolor: statusInfo.color,
-                        }
-                    }}
-                /> */}
-
-                {/* Status chip and notification */}
                 <Box
                     sx={{
                         position: 'absolute',
@@ -244,9 +224,10 @@ const DocumentCard = ({
                 </Box>
             </Box>
 
-            {/* Área clicável para ver detalhes */}
+            {/* Conteúdo principal */}
             <CardActionArea onClick={() => onViewDetails && onViewDetails(document)}>
-                <CardContent sx={{ flexGrow: 1, p: style.spacing.content }}>
+                <CardContent sx={{ p: style.spacing.content }}>
+                    {/* Header com avatar */}
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, gap: 1.5 }}>
                         <Avatar
                             sx={{
@@ -269,27 +250,29 @@ const DocumentCard = ({
 
                     <Divider sx={{ my: 1.5 }} />
 
-                    <Grid container spacing={1} sx={{ mt: 0.5 }}>
-                        <Grid item xs={12}>
+                    {/* Informações do documento */}
+                    <Grid container spacing={1}>
+                        <Grid size={12}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <DescriptionIcon fontSize="small" color="action" />
-                            <Typography variant={style.fontSize.entity} color="text.secondary" noWrap>
-                                {document.ts_entity || 'Sem entidade'}
-                            </Typography>
+                                <Typography variant={style.fontSize.entity} color="text.secondary" noWrap>
+                                    {document.ts_entity || 'Sem entidade'}
+                                </Typography>
                             </Box>
                         </Grid>
-                            {document.address && (
-                                <Grid item xs={12}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <LocationIcon fontSize="small" color="action" />
-                                        <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
-                                            {document.address}
-                                        </Typography>
-                                    </Box>
-                                </Grid>
-                            )}
 
-                        <Grid item xs={12}>
+                        {document.address && (
+                            <Grid size={12}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <LocationIcon fontSize="small" color="action" />
+                                    <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
+                                        {document.address}
+                                    </Typography>
+                                </Box>
+                            </Grid>
+                        )}
+
+                        <Grid size={12}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <EventIcon fontSize="small" color="action" />
                                 <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
@@ -299,7 +282,7 @@ const DocumentCard = ({
                         </Grid>
 
                         {document.deadline && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <AccessTimeIcon fontSize="small" color={document.is_overdue ? "error" : "action"} />
                                     <Typography
@@ -315,7 +298,7 @@ const DocumentCard = ({
                         )}
 
                         {document.ts_associate && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <PersonIcon fontSize="small" color="action" />
                                     <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
@@ -324,11 +307,11 @@ const DocumentCard = ({
                                 </Box>
                             </Grid>
                         )}
-
                     </Grid>
 
+                    {/* Alerta de urgência */}
                     {shouldHighlightCard && (
-                        <Grid item xs={12}>
+                        <Box sx={{ mt: 1.5 }}>
                             <Typography
                                 variant={style.fontSize.details}
                                 color={isUrgent ? "error.dark" : "warning.dark"}
@@ -336,9 +319,10 @@ const DocumentCard = ({
                             >
                                 {isUrgent ? '🔴' : '🟡'} {timeInfo.formatted} pendente
                             </Typography>
-                        </Grid>
+                        </Box>
                     )}
 
+                    {/* Memo */}
                     {document.memo && (
                         <Box sx={{ mt: 1.5, mb: 0.5 }}>
                             <Typography
@@ -357,7 +341,7 @@ const DocumentCard = ({
                         </Box>
                     )}
 
-                    {/* Informações de atraso - SEMPRE mostrar se tiver days */}
+                    {/* Informações de atraso */}
                     {document.days && parseInt(document.days) > 0 && (
                         <Box sx={{ mt: 1.5 }}>
                             <Box
@@ -373,23 +357,7 @@ const DocumentCard = ({
                                     border: `2px solid ${parseInt(document.days) > 60 ? theme.palette.error.main : theme.palette.warning.main}`,
                                     position: 'relative',
                                     overflow: 'hidden',
-                                    // ✅ ANIMAÇÃO DE BORDA PULSANTE para casos críticos
                                     animation: parseInt(document.days) > 365 ? 'borderPulse 2s ease-in-out infinite' : 'none',
-                                    '@keyframes borderPulse': {
-                                        '0%': {
-                                            borderColor: theme.palette.error.main,
-                                            boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.7)}`
-                                        },
-                                        '50%': {
-                                            borderColor: theme.palette.error.dark,
-                                            boxShadow: `0 0 0 4px ${alpha(theme.palette.error.main, 0.3)}`
-                                        },
-                                        '100%': {
-                                            borderColor: theme.palette.error.main,
-                                            boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.7)}`
-                                        }
-                                    },
-                                    // ✅ BARRA SUPERIOR ANIMADA
                                     '&::before': {
                                         content: '""',
                                         position: 'absolute',
@@ -403,13 +371,9 @@ const DocumentCard = ({
                                         backgroundSize: '200% 100%',
                                         animation: 'shimmer 3s ease-in-out infinite',
                                     },
-                                    '@keyframes shimmer': {
-                                        '0%': { backgroundPosition: '200% 0' },
-                                        '100%': { backgroundPosition: '-200% 0' }
-                                    }
                                 }}
                             >
-                                {/* ✅ ÍCONE COM ANIMAÇÃO */}
+                                {/* Ícone */}
                                 <Box
                                     sx={{
                                         display: 'flex',
@@ -422,17 +386,6 @@ const DocumentCard = ({
                                             ? alpha(theme.palette.error.main, 0.2)
                                             : alpha(theme.palette.warning.main, 0.2),
                                         animation: parseInt(document.days) > 180 ? 'iconPulse 2s ease-in-out infinite' : 'none',
-                                        '@keyframes iconPulse': {
-                                            '0%': {
-                                                transform: 'scale(1)',
-                                            },
-                                            '50%': {
-                                                transform: 'scale(1.2)',
-                                            },
-                                            '100%': {
-                                                transform: 'scale(1)',
-                                            }
-                                        }
                                     }}
                                 >
                                     <AccessTimeIcon
@@ -441,7 +394,7 @@ const DocumentCard = ({
                                     />
                                 </Box>
 
-                                {/* ✅ CONTEÚDO PRINCIPAL */}
+                                {/* Conteúdo */}
                                 <Box sx={{ flex: 1 }}>
                                     <Typography
                                         variant="caption"
@@ -472,7 +425,7 @@ const DocumentCard = ({
                                     </Typography>
                                 </Box>
 
-                                {/* ✅ BADGE COM ANIMAÇÃO */}
+                                {/* Badge */}
                                 <Chip
                                     label={
                                         parseInt(document.days) > 365 ? 'CRÍTICO' :
@@ -488,18 +441,7 @@ const DocumentCard = ({
                                         fontWeight: 'bold',
                                         fontSize: '0.6rem',
                                         minWidth: '60px',
-                                        // ✅ ANIMAÇÃO DE BRILHO PARA CRÍTICOS
                                         animation: parseInt(document.days) > 365 ? 'badgeGlow 2s ease-in-out infinite alternate' : 'none',
-                                        '@keyframes badgeGlow': {
-                                            '0%': {
-                                                boxShadow: `0 0 5px ${alpha(theme.palette.error.main, 0.5)}`,
-                                                transform: 'scale(1)'
-                                            },
-                                            '100%': {
-                                                boxShadow: `0 0 15px ${alpha(theme.palette.error.main, 0.8)}`,
-                                                transform: 'scale(1.05)'
-                                            }
-                                        }
                                     }}
                                 />
                             </Box>
@@ -508,7 +450,7 @@ const DocumentCard = ({
                 </CardContent>
             </CardActionArea>
 
-            {/* Área de ações */}
+            {/* Acções */}
             <CardActions
                 sx={{
                     p: style.spacing.actions,

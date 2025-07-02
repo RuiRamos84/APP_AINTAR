@@ -44,7 +44,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
             icon: <InfoIcon />,
             content: (
                 <Grid container spacing={3}>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Card elevation={0} sx={{ bgcolor: 'primary.50', p: 3 }}>
                             <Box display="flex" justifyContent="space-between" alignItems="center">
                                 <Box>
@@ -62,7 +62,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <StatCard
                             title="Localização"
                             value={entity.tt_freguesia ? `Freguesia ${entity.tt_freguesia}` : 'N/D'}
@@ -71,7 +71,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <StatCard
                             title="Capacidade de Tratamento"
                             value={displayValue(entity.caudal_max, ' m³/dia')}
@@ -82,14 +82,14 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
 
                     {entityType === 1 && (
                         <>
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12 }} md={6}>
                                 <StatCard
                                     title="Nível de Tratamento"
                                     value={entity.tt_niveltratamento || 'N/D'}
                                     icon={<EngineeringIcon />}
                                 />
                             </Grid>
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12 }} md={6}>
                                 <StatCard
                                     title="Tipo ETAR"
                                     value={entity.tt_tipoetar === 1 ? 'Tipo 1' : `Tipo ${entity.tt_tipoetar}`}
@@ -100,7 +100,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                     )}
 
                     {entity.data_inicio && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <InfoBar
                                 label="Em funcionamento desde"
                                 value={formatDate(entity.data_inicio)}
@@ -115,7 +115,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
             icon: <BoltIcon />,
             content: (
                 <Grid container spacing={3}>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <InfoBar
                             label="Fornecedor"
                             value={ENTIDADES[entity.ener_entidade] || `Entidade ${entity.ener_entidade}`}
@@ -123,21 +123,21 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12 }} md={4}>
                         <MetricCard
                             title="CPE"
                             value={entity.ener_cpe || '-'}
                             type="code"
                         />
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12 }} md={4}>
                         <MetricCard
                             title="Potência Contratada"
                             value={displayValue(entity.ener_potencia, ' kW')}
                             type="number"
                         />
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12 }} md={4}>
                         <MetricCard
                             title="Consumo Anual"
                             value={displayValue(entity.ener_consumo, ' kWh')}
@@ -147,7 +147,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                     </Grid>
 
                     {entity.ener_observ && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Alert severity="info">{entity.ener_observ}</Alert>
                         </Grid>
                     )}
@@ -159,7 +159,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
             icon: <WaterDropIcon />,
             content: (
                 <Grid container spacing={3}>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <InfoBar
                             label="Fornecedor"
                             value={ENTIDADES[entity.agua_entidade] || `Entidade ${entity.agua_entidade}`}
@@ -167,14 +167,14 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <MetricCard
                             title="Nº Contrato"
                             value={entity.agua_contrato || '-'}
                             type="code"
                         />
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <MetricCard
                             title="Água Tratada"
                             value={entity.agua_tratada === '0' ? 'Não' : 'Sim'}
@@ -183,7 +183,7 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                     </Grid>
 
                     {entity.agua_observ && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Alert severity="info" icon={<InfoIcon />}>
                                 <Typography variant="subtitle2">Observações</Typography>
                                 <Typography variant="body2">{entity.agua_observ}</Typography>
@@ -205,19 +205,19 @@ const EntityDetailsView = ({ entity, entityType, onEdit }) => {
                         </Typography>
 
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={4}>
+                            <Grid size={{ xs: 12 }} md={4}>
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">Início</Typography>
                                     <Typography>{formatDate(entity.apa_data_ini) || 'N/D'}</Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid size={{ xs: 12 }} md={4}>
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">Validade</Typography>
                                     <Typography>{formatDate(entity.apa_data_fim) || 'N/D'}</Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid size={{ xs: 12 }} md={4}>
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">Estado</Typography>
                                     <Chip

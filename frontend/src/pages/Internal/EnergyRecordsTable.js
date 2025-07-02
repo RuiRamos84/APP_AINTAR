@@ -93,7 +93,7 @@ const EnergyRecordsTable = ({ selectedEntity, selectedArea }) => {
                 Novo Registo de Energia
             </Typography>
             <Grid container spacing={2} alignItems="center" mb={3}>
-                <Grid item xs={12} sm={6} md={2.5}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
                     <TextField
                         type="datetime-local"
                         label="Data"
@@ -103,7 +103,7 @@ const EnergyRecordsTable = ({ selectedEntity, selectedArea }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2.5}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
                     <TextField
                         type="number"
                         label="Consumo Vazio"
@@ -112,7 +112,7 @@ const EnergyRecordsTable = ({ selectedEntity, selectedArea }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2.5}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
                     <TextField
                         type="number"
                         label="Consumo Ponta"
@@ -121,7 +121,7 @@ const EnergyRecordsTable = ({ selectedEntity, selectedArea }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2.5}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
                     <TextField
                         type="number"
                         label="Consumo Cheia"
@@ -130,7 +130,7 @@ const EnergyRecordsTable = ({ selectedEntity, selectedArea }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <Button
                         variant="contained"
                         color="primary"

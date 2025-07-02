@@ -129,7 +129,7 @@ const PaymentMethodSelector = ({
                     const isAvailable = isMethodAvailable(methodId);
 
                     return (
-                        <Grid item xs={12} sm={6} lg={4} key={methodId}>
+                        <Grid size={{ xs: 12, sm: 6 }} lg={4} key={methodId}>
                             <Card
                                 sx={{
                                     cursor: isAvailable ? 'pointer' : 'not-allowed',

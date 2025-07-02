@@ -116,7 +116,7 @@ const DetailsDrawer = ({
                 {/* Grid principal 2 colunas */}
                 <Grid container spacing={2} sx={{ mb: 2 }}>
                     {/* Coluna esquerda */}
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                         {/* Entidade */}
                         <Box sx={{ mb: 1.5 }}>
                             <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
@@ -181,7 +181,7 @@ const DetailsDrawer = ({
                     </Grid>
 
                     {/* Coluna direita */}
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                         {/* Morada - clicável */}
                         <Box sx={{ mb: 1.5 }}>
                             <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>

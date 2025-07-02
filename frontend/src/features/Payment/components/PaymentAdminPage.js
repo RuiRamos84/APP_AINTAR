@@ -176,7 +176,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                 {tab === 1 && (
                     <Paper sx={{ p: 3, mb: 3 }}>
                         <Grid container spacing={2} alignItems="center">
-                            <Grid item xs={12} sm={2}>
+                            <Grid size={{ xs: 12, sm: 2 }}>
                                 <TextField
                                     type="date"
                                     label="Data início"
@@ -187,7 +187,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={2}>
+                            <Grid size={{ xs: 12, sm: 2 }}>
                                 <TextField
                                     type="date"
                                     label="Data fim"
@@ -198,7 +198,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                     InputLabelProps={{ shrink: true }}
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={2}>
+                            <Grid size={{ xs: 12, sm: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Método</InputLabel>
                                     <Select
@@ -214,7 +214,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} sm={2}>
+                            <Grid size={{ xs: 12, sm: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Estado</InputLabel>
                                     <Select
@@ -228,7 +228,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} sm={2}>
+                            <Grid size={{ xs: 12, sm: 2 }}>
                                 <Button
                                     variant="contained"
                                     onClick={applyFilters}
@@ -238,7 +238,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                     Filtrar
                                 </Button>
                             </Grid>
-                            <Grid item xs={12} sm={2}>
+                            <Grid size={{ xs: 12, sm: 2 }}>
                                 <Button
                                     variant="outlined"
                                     onClick={clearFilters}
@@ -254,7 +254,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                 {/* Stats (só pendentes) */}
                 {tab === 0 && (
                     <Grid container spacing={3} sx={{ mb: 3 }}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
                                     <Schedule sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
@@ -265,7 +265,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                 </CardContent>
                             </Card>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
                                     <Euro sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
@@ -278,7 +278,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                 </CardContent>
                             </Card>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
                                     <Button

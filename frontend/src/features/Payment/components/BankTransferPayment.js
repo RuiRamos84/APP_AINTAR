@@ -92,7 +92,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                     🏛️ Dados para transferência:
                 </Typography>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
                             <strong>IBAN:</strong> PT50 0033 0000 4570 8378 2190 5
                         </Typography>
@@ -100,7 +100,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                             <strong>Titular:</strong> AINTAR
                         </Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
                             <strong>Valor:</strong> €{Number(state.amount || 0).toFixed(2)}
                         </Typography>

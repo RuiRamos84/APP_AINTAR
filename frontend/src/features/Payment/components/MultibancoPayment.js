@@ -162,7 +162,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                     }}
                 >
                     <Grid container spacing={3}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <Typography variant="subtitle2" sx={{ opacity: 0.8, mb: 1 }}>
                                 Entidade
                             </Typography>
@@ -194,7 +194,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                             )}
                         </Grid>
 
-                        <Grid item xs={12} sm={8}>
+                        <Grid size={{ xs: 12, sm: 8 }}>
                             <Typography variant="subtitle2" sx={{ opacity: 0.8, mb: 1 }}>
                                 Referência
                             </Typography>

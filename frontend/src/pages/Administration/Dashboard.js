@@ -144,7 +144,7 @@ const Dashboard = () => {
 
       {/* Cards de estatísticas principais */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <UserIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
@@ -157,7 +157,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <DocumentIcon color="info" sx={{ fontSize: 48, mb: 1 }} />
@@ -170,7 +170,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <CompletedIcon color="success" sx={{ fontSize: 48, mb: 1 }} />
@@ -183,7 +183,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <PendingIcon color="warning" sx={{ fontSize: 48, mb: 1 }} />
@@ -201,7 +201,7 @@ const Dashboard = () => {
       {/* Gráficos e estatísticas */}
       <Grid container spacing={3}>
         {/* Gráfico de documentos por mês */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12 }} md={8}>
           <Paper sx={{ p: 2, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Documentos Mensais
@@ -240,7 +240,7 @@ const Dashboard = () => {
         </Grid>
 
         {/* Pie chart de status */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12 }} md={4}>
           <Paper sx={{ p: 2, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Status dos Pedidos
@@ -272,7 +272,7 @@ const Dashboard = () => {
         </Grid>
 
         {/* Atividade do usuário */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12 }} md={8}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
               Atividade por Utilizador
@@ -297,7 +297,7 @@ const Dashboard = () => {
         </Grid>
 
         {/* Status do sistema */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12 }} md={4}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
               Status do Sistema
@@ -380,7 +380,7 @@ const Dashboard = () => {
         </Grid>
 
         {/* Atividade recente */}
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
               Atividade Recente

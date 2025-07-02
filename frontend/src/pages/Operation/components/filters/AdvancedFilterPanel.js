@@ -219,7 +219,7 @@ const AdvancedFilterPanel = ({
                                 />
 
                                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                                    <Grid item xs={6}>
+                                    <Grid size={{ xs: 6 }}>
                                         <TextField
                                             type="date"
                                             label="Data início"
@@ -232,7 +232,7 @@ const AdvancedFilterPanel = ({
                                             InputLabelProps={{ shrink: true }}
                                         />
                                     </Grid>
-                                    <Grid item xs={6}>
+                                    <Grid size={{ xs: 6 }}>
                                         <TextField
                                             type="date"
                                             label="Data fim"

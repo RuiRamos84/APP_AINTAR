@@ -182,7 +182,7 @@ const EtarEeView = ({ areaId }) => {
                     <Typography variant="h6" gutterBottom>Selecionar {areaId === 1 ? "ETAR" : "EE"}</Typography>
 
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12 }} md={6}>
                             <FormControl fullWidth>
                                 <InputLabel>Localização</InputLabel>
                                 <Select
@@ -199,7 +199,7 @@ const EtarEeView = ({ areaId }) => {
                             </FormControl>
                         </Grid>
 
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12 }} md={6}>
                             <FormControl fullWidth disabled={!selectedLocation}>
                                 <InputLabel>{areaId === 1 ? "ETAR" : "EE"}</InputLabel>
                                 <Select
@@ -279,7 +279,7 @@ const EtarEeView = ({ areaId }) => {
             ) : (
                 <Grid container spacing={2}>
                     {SUB_AREAS.map((subArea) => (
-                        <Grid item xs={12} sm={6} md={4} key={subArea.id}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={subArea.id}>
                             <Card
                                 onClick={() => handleSubAreaClick(subArea.id)}
                                 sx={{
@@ -575,7 +575,7 @@ const SingleRequestTab = ({ areaId, entity, requestType, title }) => {
                 <Typography variant="h6" gutterBottom>{title} - {entity.nome}</Typography>
 
                 <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <FormControl fullWidth>
                             <InputLabel>Associado</InputLabel>
                             <Select
@@ -593,7 +593,7 @@ const SingleRequestTab = ({ areaId, entity, requestType, title }) => {
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             label="Descrição da Solicitação"
                             value={formData.pnmemo}
@@ -607,7 +607,7 @@ const SingleRequestTab = ({ areaId, entity, requestType, title }) => {
                         />
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Button
                             variant="contained"
                             color="primary"
@@ -779,7 +779,7 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
         <Box>
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12 }} md={3}>
                         <FormControl fullWidth>
                             <InputLabel>Município</InputLabel>
                             <Select
@@ -797,7 +797,7 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} md={9}>
+                    <Grid size={{ xs: 12 }} md={9}>
                         <TextField
                             label="Descrição Comum"
                             value={commonMemo}
@@ -876,7 +876,7 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
                         <Box sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
                             <Grid container spacing={0.5}>
                                 {getFilteredEntities().map(entity => (
-                                    <Grid item xs={6} sm={4} md={3} lg={2} key={entity.pk}>
+                                    <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={entity.pk}>
                                         <Tooltip
                                             title={areaId === 1 ? `Tipo: ${entity.tt_tipoetar || 'N/A'}` : entity.nome}
                                             arrow
@@ -981,13 +981,13 @@ const MassRequestTab = ({ areaId, requestType, title }) => {
                     {selectedItems.map((item, index) => (
                         <Paper key={item.id} elevation={1} sx={{ p: 2, mb: 2, border: '1px solid #e0e0e0' }}>
                             <Grid container spacing={2} alignItems="center">
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <Typography variant="subtitle1" fontWeight="bold">
                                         {index + 1}. {item.name}
                                     </Typography>
                                 </Grid>
 
-                                <Grid item xs={12} md={10}>
+                                <Grid size={{ xs: 12 }} md={10}>
                                     <TextField
                                         label="Descrição da Solicitação"
                                         value={item.memo || ""}

@@ -95,7 +95,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
             </Typography>
             {/* Formulário Responsivo */}
             <Grid container spacing={2} alignItems="center" mb={3}>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <TextField
                         type="datetime-local"
                         label="Data"
@@ -105,7 +105,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <FormControl fullWidth>
                         <InputLabel>Tipo</InputLabel>
                         <Select
@@ -121,7 +121,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <TextField
                         type="number"
                         label="Volume (m³)"
@@ -130,7 +130,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <Button
                         variant="contained"
                         color="primary"

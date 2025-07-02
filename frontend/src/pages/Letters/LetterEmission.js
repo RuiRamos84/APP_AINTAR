@@ -239,7 +239,7 @@ const LetterEmission = () => {
   return (
     <Grid container spacing={3}>
       {/* Switch Ofício Livre */}
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <FormControlLabel
           control={
             <Switch
@@ -252,7 +252,7 @@ const LetterEmission = () => {
       </Grid>
       {/* Campo de Assunto para Ofício Livre */}
       {isFreeLetter && (
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <TextField
             fullWidth
             label="Assunto"
@@ -266,7 +266,7 @@ const LetterEmission = () => {
 
       {/* Seleção de Modelo (quando não é livre) */}
       {!isFreeLetter && (
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <FormControl fullWidth error={selectError}>
             <InputLabel>Selecione um modelo</InputLabel>
             <Select
@@ -289,7 +289,7 @@ const LetterEmission = () => {
       )}
 
       {/* Campos do Destinatário */}
-      <Grid item xs={12} sm={9}>
+      <Grid size={{ xs: 12, sm: 9 }}>
         <TextField
           fullWidth
           label="NIF da Entidade"
@@ -298,7 +298,7 @@ const LetterEmission = () => {
           onChange={handleChange}
         />
       </Grid>
-      <Grid item xs={12} sm={3}>
+      <Grid size={{ xs: 12, sm: 3 }}>
         <Button
           onClick={handleNifSearch}
           variant="contained"
@@ -309,7 +309,7 @@ const LetterEmission = () => {
         </Button>
       </Grid>
 
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <TextField
           fullWidth
           label="Nome do Destinatário"
@@ -320,7 +320,7 @@ const LetterEmission = () => {
         />
       </Grid>
 
-      <Grid item xs={12} sm={6}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <TextField
           fullWidth
           label="Morada"
@@ -331,7 +331,7 @@ const LetterEmission = () => {
         />
       </Grid>
 
-      <Grid item xs={12} sm={2}>
+      <Grid size={{ xs: 12, sm: 2 }}>
         <TextField
           fullWidth
           label="Porta"
@@ -342,7 +342,7 @@ const LetterEmission = () => {
         />
       </Grid>
 
-      <Grid item xs={12} sm={2}>
+      <Grid size={{ xs: 12, sm: 2 }}>
         <TextField
           fullWidth
           label="Código Postal"
@@ -353,7 +353,7 @@ const LetterEmission = () => {
         />
       </Grid>
 
-      <Grid item xs={12} sm={2}>
+      <Grid size={{ xs: 12, sm: 2 }}>
         <TextField
           fullWidth
           label="Localidade"
@@ -366,7 +366,7 @@ const LetterEmission = () => {
 
       {/* Campo de Texto para Ofício Livre */}
       {isFreeLetter && (
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <TextField
             fullWidth
             label="Corpo do Ofício"
@@ -382,13 +382,13 @@ const LetterEmission = () => {
 
       {/* Mensagens de Erro */}
       {error && (
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Typography color="error">{error}</Typography>
         </Grid>
       )}
 
       {/* Botão de Submissão */}
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <Button
           onClick={handleEmitLetter}
           variant="contained"

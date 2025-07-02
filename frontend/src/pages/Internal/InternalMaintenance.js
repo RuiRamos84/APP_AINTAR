@@ -88,7 +88,7 @@ const InternalMaintenance = ({
                     </Typography>
                     <Grid container spacing={2}>
                         {filteredEntities?.map((entity) => (
-                            <Grid item xs={12} sm={6} md={4} key={entity.pk}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={entity.pk}>
                                 <FormControlLabel
                                     control={
                                         <Checkbox

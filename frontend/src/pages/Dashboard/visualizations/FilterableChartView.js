@@ -73,7 +73,7 @@ const FilterableChartView = ({ data, viewName }) => {
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                     <FormControl fullWidth size="small">
                         <InputLabel id={`${viewName}-filter-label`}>Filtrar por {filterColumn === 'par2' ? 'Tipo' : 'Categoria'}</InputLabel>
                         <Select
@@ -90,7 +90,7 @@ const FilterableChartView = ({ data, viewName }) => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                     <FormControl fullWidth size="small">
                         <InputLabel id={`${viewName}-chart-type-label`}>Tipo de Gráfico</InputLabel>
                         <Select

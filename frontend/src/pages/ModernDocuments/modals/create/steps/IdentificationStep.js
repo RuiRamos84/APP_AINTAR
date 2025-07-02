@@ -71,7 +71,7 @@ const IdentificationStep = ({
             </Box>
 
             <Grid container spacing={3}>
-                <Grid item xs={12} md={isRepresentative ? 6 : 12}>
+                <Grid size={{ xs: 12 }} md={isRepresentative ? 6 : 12}>
                     <Box
                         sx={{
                             border: `1px solid ${theme.palette.divider}`,
@@ -100,7 +100,7 @@ const IdentificationStep = ({
                     </Box>
                 </Grid>
 
-                <Grid item xs={12} md={isRepresentative ? 6 : 12}>
+                <Grid size={{ xs: 12 }} md={isRepresentative ? 6 : 12}>
 
                     {isRepresentative && (
                         <Box

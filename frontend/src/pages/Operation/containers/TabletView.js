@@ -311,7 +311,7 @@ const TabletView = () => {
                 }}
             >
                 <Grid container spacing={isScrolled ? 1 : 2} alignItems="center">
-                    <Grid item xs={12} sm={3}>
+                    <Grid size={{ xs: 12, sm: 3 }}>
                         <AssociateFilter
                             associates={associates || []}
                             selectedAssociate={filters.selectedAssociate}
@@ -320,13 +320,13 @@ const TabletView = () => {
                     </Grid>
                     {filters.selectedAssociate && (
                         <>
-                            <Grid item xs={12} sm={5}>
+                            <Grid size={{ xs: 12, sm: 5 }}>
                                 <SearchBar
                                     searchTerm={ui.searchTerm}
                                     onSearch={setSearchTerm}
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <Box display="flex" alignItems="center" gap={1} justifyContent="flex-end">
                                     <SortGroupSelectors compact={true} />
 

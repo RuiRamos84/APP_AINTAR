@@ -269,11 +269,11 @@ const RamalGenericList = ({
     return (
         <Paper className="paper-list">
             <Grid container className="header-container-list" alignItems="center" spacing={2} style={{ padding: 16 }}>
-                <Grid item style={{ flexGrow: 1 }}>
+                <Grid style={{ flexGrow: 1 }}>
                     <Typography variant="h5">{title}</Typography>
                 </Grid>
 
-                <Grid item style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <Grid style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                     <SearchBar onSearch={handleSearch} />
 
                     <FormControl variant="outlined" size="small" style={{ minWidth: 180 }}>

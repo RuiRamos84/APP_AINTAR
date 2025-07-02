@@ -125,7 +125,7 @@ const EpiSummarySection = ({ metaData }) => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} md={9}>
+                <Grid size={{ xs: 12 }} md={9}>
                     <Paper
                         sx={{
                             p: 2,
@@ -197,7 +197,7 @@ const EpiSummarySection = ({ metaData }) => {
                         </Box>
                     </Paper>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Paper sx={{ p: 3 }}>
                         <Typography variant="h6" gutterBottom>
                             Resumo de Entregas por Colaborador - {selectedYear}

@@ -42,7 +42,7 @@ const RequisicaoInternaView = () => {
                 <Typography variant="h6" gutterBottom>Nova Requisição Interna</Typography>
 
                 <Grid container spacing={3}>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             label="Descrição da Requisição"
                             value={memo}
@@ -56,7 +56,7 @@ const RequisicaoInternaView = () => {
                         />
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Button
                             variant="contained"
                             color="primary"

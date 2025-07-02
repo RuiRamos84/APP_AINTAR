@@ -98,7 +98,7 @@ const SystemSettings = () => {
       <Typography variant="h5" sx={{ mb: 3 }}>Configurações do Sistema</Typography>
       
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12 }} md={6}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
               Configurações Gerais
@@ -190,7 +190,7 @@ const SystemSettings = () => {
               Ações do Sistema
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -201,7 +201,7 @@ const SystemSettings = () => {
                   Reiniciar Servidor
                 </Button>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -217,7 +217,7 @@ const SystemSettings = () => {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12 }} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Backup e Restauro

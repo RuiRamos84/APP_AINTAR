@@ -145,10 +145,10 @@
 //       }}
 //     >
 //       <Grid container className="header-container-task" alignItems="center" spacing={2}>
-//         <Grid item xs={6}>
+//         <Grid size={{ xs: 6 }}>
 //           <Typography variant="h4">Tarefas</Typography>
 //         </Grid>
-//         <Grid item xs={6} container justifyContent="flex-end">
+//         <Grid size={{ xs: 6 }} container justifyContent="flex-end">
 //           <Button variant="contained" color="primary" onClick={() => setIsCreateTaskOpen(true)}>
 //             Nova Tarefa
 //           </Button>
@@ -182,7 +182,7 @@
 //                       {Object.keys(tasks[clientName].tasks).map((status) => {
 //                         const columnTasks = tasks[clientName].tasks[status];
 //                         return (
-//                           <Grid item xs={12} sm={6} md={4} key={status}>
+//                           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={status}>
 //                             <TaskColumn
 //                               columnName={status}
 //                               tasks={columnTasks}

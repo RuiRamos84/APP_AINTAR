@@ -171,7 +171,7 @@ const AddressForm = ({ entity = {}, setEntity, errors = {} }) => {
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} sm={2}>
+      <Grid size={{ xs: 12, sm: 2 }}>
         <TextField
           required
           label="Código Postal"
@@ -188,7 +188,7 @@ const AddressForm = ({ entity = {}, setEntity, errors = {} }) => {
           }}
         />
       </Grid>
-      <Grid item xs={12} sm={6}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         {manualAddress ? (
           <TextField
             required
@@ -252,7 +252,7 @@ const AddressForm = ({ entity = {}, setEntity, errors = {} }) => {
           />
         )}
       </Grid>
-      <Grid item xs={12} sm={2}>
+      <Grid size={{ xs: 12, sm: 2 }}>
         <TextField
           label="Nº de porta"
           name="door"
@@ -268,7 +268,7 @@ const AddressForm = ({ entity = {}, setEntity, errors = {} }) => {
           margin="normal"
         />
       </Grid>
-      <Grid item xs={12} sm={2}>
+      <Grid size={{ xs: 12, sm: 2 }}>
         <TextField
           label="Andar"
           name="floor"
@@ -284,7 +284,7 @@ const AddressForm = ({ entity = {}, setEntity, errors = {} }) => {
           margin="normal"
         />
       </Grid>
-      <Grid item xs={12} sm={12}>
+      <Grid size={{ xs: 12, sm: 12 }}>
         <Tooltip title="Preenchido automaticamente com base no código postal">
           <Box display="flex" gap={2} id="grouped-info">
             <TextField

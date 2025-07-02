@@ -642,7 +642,7 @@
 //                 const canAct = canExecuteActions(item);
 
 //                 return (
-//                     <Grid item xs={12} sm={6} key={index}>
+//                     <Grid size={{ xs: 12, sm: 6 }} key={index}>
 //                         <SwipeableCard
 //                             onSwipeRight={() => handleSwipeRight(index)}
 //                             onSwipeLeft={() => canAct ? handleSwipeLeft(index) : null} // Só permite swipe se tem permissão
@@ -787,7 +787,7 @@
 
 //             {/* Indicador de carregamento */}
 //             {isRefreshing && (
-//                 <Grid item xs={12} sm={6}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
 //                     <Card>
 //                         <CardContent>
 //                             <Skeleton variant="text" width="60%" height={30} />
@@ -825,14 +825,14 @@
 //                 boxShadow: 3
 //             }}>
 //                 <Grid container spacing={2} alignItems="center">
-//                     <Grid item xs={12} sm={5} md={4}>
+//                     <Grid size={{ xs: 12, sm: 5, md: 4 }}>
 //                         <AssociateFilter
 //                             associates={associates || []}
 //                             selectedAssociate={selectedAssociate}
 //                             onAssociateChange={handleAssociateChange}
 //                         />
 //                     </Grid>
-//                     <Grid item xs={8} sm={4} md={3}>
+//                     <Grid size={{ xs: 8, sm: 4, md: 3 }}>
 //                         <FormControlLabel
 //                             control={
 //                                 <Checkbox
@@ -856,7 +856,7 @@
 //                             sx={{ ml: 0, mr: 'auto' }}
 //                         />
 //                     </Grid>
-//                     <Grid item xs={4} sm={3} md={5}>
+//                     <Grid size={{ xs: 4, sm: 3, md: 5 }}>
 //                         <Box display="flex" justifyContent="flex-end" alignItems="center" gap={1}>
 //                             <ToggleButtonGroup
 //                                 value={viewMode}
@@ -998,7 +998,7 @@
 //                                 const refProps = isLastItem ? { ref: lastItemRef } : {};
 
 //                                 return (
-//                                     <Grid item xs={12} sm={6} lg={4} key={index} {...refProps}>
+//                                     <Grid size={{ xs: 12, sm: 6 }} lg={4} key={index} {...refProps}>
 //                                         <SwipeableCard
 //                                             onSwipeRight={() => handleSwipeRight(index)}
 //                                             onSwipeLeft={() => canAct ? handleSwipeLeft(index) : null}
@@ -1281,7 +1281,7 @@
 //                     </Typography>
 
 //                     <Grid container spacing={3}>
-//                         <Grid item xs={12}>
+//                         <Grid size={{ xs: 12 }}>
 //                             <AssociateFilter
 //                                 associates={associates || []}
 //                                 selectedAssociate={selectedAssociate || ''}
@@ -1289,7 +1289,7 @@
 //                             />
 //                         </Grid>
 //                         {/* Adicionar mais filtros conforme necessário */}
-//                         <Grid item xs={12}>
+//                         <Grid size={{ xs: 12 }}>
 //                             <TextField
 //                                 label="Pesquisar"
 //                                 value={searchValue} 
@@ -1463,29 +1463,29 @@
 
 //                         <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 2, mb: 2 }}>
 //                             <Grid container spacing={2}>
-//                                 <Grid item xs={12}>
+//                                 <Grid size={{ xs: 12 }}>
 //                                     <Typography variant="body2" color="text.secondary">Requerente</Typography>
 //                                     <Typography variant="body1">{selectedItem.ts_entity}</Typography>
 //                                 </Grid>
-//                                 <Grid item xs={12} sm={6}>
+//                                 <Grid size={{ xs: 12, sm: 6 }}>
 //                                     <Typography variant="body2" color="text.secondary">Contacto</Typography>
 //                                     <Typography variant="body1">{selectedItem.phone || "Não definido"}</Typography>
 //                                 </Grid>
-//                                 <Grid item xs={12} sm={6}>
+//                                 <Grid size={{ xs: 12, sm: 6 }}>
 //                                     <Typography variant="body2" color="text.secondary">Data Submissão</Typography>
 //                                     <Typography variant="body1">{selectedItem.submission}</Typography>
 //                                 </Grid>
-//                                 <Grid item xs={12}>
+//                                 <Grid size={{ xs: 12 }}>
 //                                     <Typography variant="body2" color="text.secondary">Morada</Typography>
 //                                     <Typography variant="body1">{getAddressString(selectedItem)}</Typography>
 //                                 </Grid>
 //                                 {isRamaisView && (
 //                                     <>
-//                                         <Grid item xs={12} sm={6}>
+//                                         <Grid size={{ xs: 12, sm: 6 }}>
 //                                             <Typography variant="body2" color="text.secondary">Data Execução</Typography>
 //                                             <Typography variant="body1">{selectedItem.execution || "Não definida"}</Typography>
 //                                         </Grid>
-//                                         <Grid item xs={12} sm={6}>
+//                                         <Grid size={{ xs: 12, sm: 6 }}>
 //                                             <Typography variant="body2" color="text.secondary">Data Limite</Typography>
 //                                             <Typography variant="body1" sx={{ color: getRemainingDaysColor(selectedItem.restdays) }}>
 //                                                 {selectedItem.limitdate} ({Math.floor(selectedItem.restdays)} dias)
@@ -1495,17 +1495,17 @@
 //                                 )}
 //                                 {isFossaView && (
 //                                     <>
-//                                         <Grid item xs={12} sm={6}>
+//                                         <Grid size={{ xs: 12, sm: 6 }}>
 //                                             <Typography variant="body2" color="text.secondary">Nº Cisternas</Typography>
 //                                             <Typography variant="body1">{selectedItem.n_cisternas || "Não definido"}</Typography>
 //                                         </Grid>
-//                                         <Grid item xs={12} sm={6}>
+//                                         <Grid size={{ xs: 12, sm: 6 }}>
 //                                             <Typography variant="body2" color="text.secondary">Local Descarga</Typography>
 //                                             <Typography variant="body1">{selectedItem.local_descarga || "Não definido"}</Typography>
 //                                         </Grid>
 //                                     </>
 //                                 )}
-//                                 <Grid item xs={12}>
+//                                 <Grid size={{ xs: 12 }}>
 //                                     <Typography variant="body2" color="text.secondary">Observações</Typography>
 //                                     <Typography variant="body1">{selectedItem.memo || "Sem observações"}</Typography>
 //                                 </Grid>

@@ -268,7 +268,7 @@ const DocumentDetailsModal = ({
         </Box>
         <Box mt={2}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={isMemoLong(document.memo) ? 6 : 4}>
+            <Grid size={{ xs: 12 }} md={isMemoLong(document.memo) ? 6 : 4}>
               <Typography variant="h5" gutterBottom>
                 Informações Gerais
               </Typography>
@@ -299,7 +299,7 @@ const DocumentDetailsModal = ({
                 </Typography>
               )}
             </Grid>
-            <Grid item xs={12} md={isMemoLong(document.memo) ? 6 : 4}>
+            <Grid size={{ xs: 12 }} md={isMemoLong(document.memo) ? 6 : 4}>
               <Typography variant="h5" gutterBottom>
                 Detalhes de Submissão
               </Typography>
@@ -330,7 +330,7 @@ const DocumentDetailsModal = ({
                 {findMetaValue(metaData.what, "step", document.what)}
               </Typography>
             </Grid>
-            <Grid item xs={12} md={isMemoLong(document.memo) ? 12 : 4}>
+            <Grid size={{ xs: 12 }} md={isMemoLong(document.memo) ? 12 : 4}>
               <Typography variant="h5" gutterBottom>
                 Observações
               </Typography>

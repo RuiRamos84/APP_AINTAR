@@ -192,7 +192,7 @@ const DetailsStep = ({
 
     return (
         <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                 <Paper
                     elevation={0}
                     variant="outlined"
@@ -235,7 +235,7 @@ const DetailsStep = ({
                     )}
 
                     <Grid container spacing={2} mt={1}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <TextField
                                 required
                                 select
@@ -262,11 +262,11 @@ const DetailsStep = ({
                             </TextField>
                         </Grid>
 
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             {renderAssociateField()}
                         </Grid>
 
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <TextField
                                 required
                                 select
@@ -288,7 +288,7 @@ const DetailsStep = ({
 
                         {/* Informação sobre histórico de pedidos do mesmo tipo */}
                         {formData.tt_type && selectedTypeText && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Paper
                                     variant="outlined"
                                     sx={{
@@ -320,7 +320,7 @@ const DetailsStep = ({
                             </Grid>
                         )}
 
-                        {/* <Grid item xs={12}>
+                        {/* <Grid size={{ xs: 12 }}>
                             <TextField
                                 fullWidth
                                 label="Observações"

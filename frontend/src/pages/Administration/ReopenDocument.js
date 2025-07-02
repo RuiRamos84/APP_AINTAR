@@ -51,7 +51,7 @@ const ReopenDocument = () => {
                 Reabertura de Pedidos
             </Typography>
             <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                     <TextField
                         fullWidth
                         label="Número do Pedido"
@@ -60,7 +60,7 @@ const ReopenDocument = () => {
                         placeholder="Ex: 2025.E.LFS.000065"
                     />
                 </Grid>
-                <Grid item xs={12} sm={5}>
+                <Grid size={{ xs: 12, sm: 5 }}>
                     <FormControl fullWidth>
                         <InputLabel>Para quem?</InputLabel>
                         <Select
@@ -79,7 +79,7 @@ const ReopenDocument = () => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={3}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                     <Button
                         fullWidth
                         variant="contained"

@@ -253,7 +253,7 @@ const EntityList = () => {
                       Detalhes Adicionais
                     </Typography>
                     <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
                           <strong>Morada Completa :</strong> {entity.address},
                           <Box component="span">
@@ -265,7 +265,7 @@ const EntityList = () => {
                           </Box>
                         </Typography>
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
                           <strong>Observações:</strong> {entity.descr}
                         </Typography>
@@ -283,13 +283,13 @@ const EntityList = () => {
   return (
     <Paper className="paper_entity">
       <Grid container className="header-container_entity">
-        <Grid item xs={6}>
+        <Grid size={{ xs: 6 }}>
           <Typography variant="h4">Lista de Entidades</Typography>
         </Grid>
-        <Grid item xs={4} container justifyContent="flex-end">
+        <Grid size={{ xs: 4 }} container justifyContent="flex-end">
           <SearchBar onSearch={setSearchTerm} />
         </Grid>
-        <Grid item xs={2} container justifyContent="center">
+        <Grid size={{ xs: 2 }} container justifyContent="center">
           <Button
             variant="contained"
             color="primary"

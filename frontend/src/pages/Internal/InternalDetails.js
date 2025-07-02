@@ -192,7 +192,7 @@ const InternalDetails = ({
             {/* Linha 1: Localização, ETAR/EE e Mostrar Detalhes */}
             <Grid container spacing={2} alignItems="center">
                 {/* Localização */}
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                     <FormControl fullWidth variant="outlined">
                         <InputLabel>Localização</InputLabel>
                         <Select
@@ -210,7 +210,7 @@ const InternalDetails = ({
                 </Grid>
 
                 {/* ETAR/EE */}
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                     <FormControl fullWidth variant="outlined">
                         <InputLabel>{selectedArea === 1 ? "ETAR" : "Estação Elevatória"}</InputLabel>
                         <Select
@@ -228,7 +228,7 @@ const InternalDetails = ({
                 </Grid>
 
                 {/* Botão para abrir Modal */}
-                <Grid item xs={12} sm={4} display="flex" justifyContent="center" alignItems="center">
+                <Grid size={{ xs: 12, sm: 4 }} display="flex" justifyContent="center" alignItems="center">
                     {selectedEntity && (
                         <Button variant="contained" color="primary" onClick={handleOpenModal}>
                             Abrir Detalhes

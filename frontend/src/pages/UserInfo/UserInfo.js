@@ -148,7 +148,7 @@ const UserInfo = () => {
               </Box>
               <Collapse in={openIdentification}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={2}>
+                  <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       required
                       fullWidth
@@ -161,7 +161,7 @@ const UserInfo = () => {
                       helperText={errors.email}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={5}>
+                  <Grid size={{ xs: 12, sm: 5 }}>
                     <TextField
                       required
                       fullWidth
@@ -174,7 +174,7 @@ const UserInfo = () => {
                       helperText={errors.name}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={3}>
+                  <Grid size={{ xs: 12, sm: 3 }}>
                     <TextField
                       // required
                       fullWidth
@@ -193,7 +193,7 @@ const UserInfo = () => {
                       ))}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} sm={2}>
+                  <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       // required
                       fullWidth
@@ -224,7 +224,7 @@ const UserInfo = () => {
               </Box>
               <Collapse in={openContact}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       required
                       fullWidth
@@ -237,7 +237,7 @@ const UserInfo = () => {
                       helperText={errors.phone}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       required
                       fullWidth
@@ -294,7 +294,7 @@ const UserInfo = () => {
               </Box>
               <Collapse in={openDescription}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       id="descr"

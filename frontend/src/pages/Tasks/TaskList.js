@@ -489,7 +489,7 @@ const TaskBoard = () => {
                                                     const totalColumnTasks =
                                                         tasks[clientName].tasks[columnName].length;
                                                     return (
-                                                        <Grid item xs={12} sm={6} md={4} key={columnName}>
+                                                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={columnName}>
                                                             <TaskColumn
                                                                 columnName={`${columnName} (${totalColumnTasks})`}
                                                                 tasks={tasks[clientName].tasks[columnName]}

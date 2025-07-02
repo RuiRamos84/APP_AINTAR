@@ -120,10 +120,10 @@ const UserManagement = () => {
     <Box>
       <Paper sx={{ p: 3 }}>
         <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <Grid item xs>
+          <Grid xs>
             <Typography variant="h6">Gestão de Utilizadores</Typography>
           </Grid>
-          <Grid item>
+          <Grid>
             <TextField
               placeholder="Pesquisar utilizadores"
               variant="outlined"
@@ -135,7 +135,7 @@ const UserManagement = () => {
               }}
             />
           </Grid>
-          <Grid item>
+          <Grid>
             <Button
               variant="contained"
               startIcon={<AddIcon />}

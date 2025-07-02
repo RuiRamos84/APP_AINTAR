@@ -257,7 +257,7 @@
 //             </Box>
 //             <Collapse in={openIdentification}>
 //               <Grid container spacing={2}>
-//                 <Grid item xs={12} sm={5}>
+//                 <Grid size={{ xs: 12, sm: 5 }}>
 //                   <TextField
 //                     required
 //                     label="Nome"
@@ -270,7 +270,7 @@
 //                     helperText={errors.name}
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     required
 //                     label="NIF"
@@ -283,7 +283,7 @@
 //                     helperText={errors.nipc}
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={3}>
+//                 <Grid size={{ xs: 12, sm: 3 }}>
 //                   <TextField
 //                     variant="outlined"
 //                     margin="normal"
@@ -303,7 +303,7 @@
 //                     ))}
 //                   </TextField>
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Nº de Identificação"
 //                     name="ident_value"
@@ -334,7 +334,7 @@
 //             </Box>
 //             <Collapse in={openContact}>
 //               <Grid container spacing={2}>
-//                 <Grid item xs={12} sm={6}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
 //                   <TextField
 //                     required
 //                     label="Telefone"
@@ -347,7 +347,7 @@
 //                     helperText={errors.phone}
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={6}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
 //                   <TextField
 //                     label="Email"
 //                     name="email"
@@ -359,7 +359,7 @@
 //                 </Grid>
 //               </Grid>
 //               <Grid container spacing={2}>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     required
 //                     label="Código Postal"
@@ -372,7 +372,7 @@
 //                     helperText={errors.postal}
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={6}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
 //                   {manualAddress ? (
 //                     <TextField
 //                       required
@@ -428,7 +428,7 @@
 //                     </TextField>
 //                   )}
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Nº de porta"
 //                     name="door"
@@ -438,7 +438,7 @@
 //                     margin="normal"
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Andar"
 //                     name="floor"
@@ -448,7 +448,7 @@
 //                     margin="normal"
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={3}>
+//                 <Grid size={{ xs: 12, sm: 3 }}>
 //                   <TextField
 //                     label="Localidade"
 //                     name="nut4"
@@ -459,7 +459,7 @@
 //                     disabled
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={4}>
+//                 <Grid size={{ xs: 12, sm: 4 }}>
 //                   <TextField
 //                     label="Freguesia"
 //                     name="nut3"
@@ -470,7 +470,7 @@
 //                     disabled
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={3}>
+//                 <Grid size={{ xs: 12, sm: 3 }}>
 //                   <TextField
 //                     label="Concelho"
 //                     name="nut2"
@@ -481,7 +481,7 @@
 //                     disabled
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Distrito"
 //                     name="nut1"
@@ -511,7 +511,7 @@
 //             </Box>
 //             <Collapse in={openAltAddress}>
 //               <Grid container spacing={2}>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     required
 //                     label="Código Postal"
@@ -524,7 +524,7 @@
 //                     helperText={errors.alt_postal}
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={6}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
 //                   {manualAltAddress ? (
 //                     <TextField
 //                       required
@@ -580,7 +580,7 @@
 //                     </TextField>
 //                   )}
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Nº de porta"
 //                     name="alt_door"
@@ -590,7 +590,7 @@
 //                     margin="normal"
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Andar"
 //                     name="alt_floor"
@@ -600,7 +600,7 @@
 //                     margin="normal"
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={3}>
+//                 <Grid size={{ xs: 12, sm: 3 }}>
 //                   <TextField
 //                     label="Localidade"
 //                     name="alt_nut4"
@@ -611,7 +611,7 @@
 //                     disabled
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={4}>
+//                 <Grid size={{ xs: 12, sm: 4 }}>
 //                   <TextField
 //                     label="Freguesia"
 //                     name="alt_nut3"
@@ -622,7 +622,7 @@
 //                     disabled
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={3}>
+//                 <Grid size={{ xs: 12, sm: 3 }}>
 //                   <TextField
 //                     label="Concelho"
 //                     name="alt_nut2"
@@ -633,7 +633,7 @@
 //                     disabled
 //                   />
 //                 </Grid>
-//                 <Grid item xs={12} sm={2}>
+//                 <Grid size={{ xs: 12, sm: 2 }}>
 //                   <TextField
 //                     label="Distrito"
 //                     name="alt_nut1"
@@ -667,7 +667,7 @@
 //             </Box>
 //             <Collapse in={openAlldescr}>
 //               <Grid container spacing={2}>
-//                 <Grid item xs={12}>
+//                 <Grid size={{ xs: 12 }}>
 //                   <TextField
 //                     label="Observações"
 //                     name="descr"

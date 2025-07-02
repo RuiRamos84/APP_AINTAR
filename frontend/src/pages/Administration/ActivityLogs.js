@@ -188,11 +188,11 @@ const ActivityLogs = () => {
   return (
     <Box>
       <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
-        <Grid item>
+        <Grid>
           <Typography variant="h5">Logs de Atividade</Typography>
         </Grid>
-        <Grid item xs />
-        <Grid item>
+        <Grid xs />
+        <Grid>
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -213,7 +213,7 @@ const ActivityLogs = () => {
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4} md={3}>
+          <Grid size={{ xs: 12, sm: 4, md: 3 }}>
             <TextField
               fullWidth
               placeholder="Pesquisar logs"
@@ -226,7 +226,7 @@ const ActivityLogs = () => {
               }}
             />
           </Grid>
-          <Grid item xs={12} sm={4} md={2}>
+          <Grid size={{ xs: 12, sm: 4, md: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Ação</InputLabel>
               <Select
@@ -241,7 +241,7 @@ const ActivityLogs = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={4} md={2}>
+          <Grid size={{ xs: 12, sm: 4, md: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
@@ -257,7 +257,7 @@ const ActivityLogs = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
             <TextField
               fullWidth
               type="date"
@@ -268,7 +268,7 @@ const ActivityLogs = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
             <TextField
               fullWidth
               type="date"
@@ -279,7 +279,7 @@ const ActivityLogs = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid item xs={12} sm={12} md={1}>
+          <Grid size={{ xs: 12, sm: 12, md: 1 }}>
             <Button
               fullWidth
               variant="outlined"

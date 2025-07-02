@@ -39,7 +39,7 @@ const AddressStep = ({
 
     return (
         <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
                     <Box display="flex" alignItems="center">
                         <LocationIcon color="primary" sx={{ mr: 1 }} />
@@ -67,7 +67,7 @@ const AddressStep = ({
                 />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                 <FormControlLabel
                     control={
                         <Checkbox
@@ -81,7 +81,7 @@ const AddressStep = ({
             </Grid>
 
             {isDifferentAddress && (
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Box display="flex" alignItems="center" mb={2}>
                         <ShippingIcon color="secondary" sx={{ mr: 1 }} />
                         <Typography variant="h6">

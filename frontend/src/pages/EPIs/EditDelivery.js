@@ -34,7 +34,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
             <DialogTitle>Editar Entrega</DialogTitle>
             <DialogContent>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <TextField
                             fullWidth
                             type="date"
@@ -49,7 +49,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             InputLabelProps={{ shrink: true }}
                         />
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <TextField
                             fullWidth
                             type="number"
@@ -63,7 +63,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             }
                         />
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12 }} md={6}>
                         <TextField
                             fullWidth
                             label="Tamanho"
@@ -76,7 +76,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             }
                         />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             fullWidth
                             multiline

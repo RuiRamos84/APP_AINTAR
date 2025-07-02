@@ -190,7 +190,7 @@ const CreateDocument = () => {
         <Box className="create-document-box" onPaste={onPaste}>
           <form onSubmit={handleSubmit}>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <TextField
                   required
                   type="number"
@@ -204,7 +204,7 @@ const CreateDocument = () => {
                   helperText={errors.nipc}
                 />
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   select
                   required
@@ -224,7 +224,7 @@ const CreateDocument = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   select
                   required
@@ -244,7 +244,7 @@ const CreateDocument = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={12}>
+              <Grid size={{ xs: 12, sm: 12 }}>
                 <TextField
                   label="Notas Adicionais"
                   name="memo"
@@ -258,11 +258,11 @@ const CreateDocument = () => {
                   helperText={errors.memo}
                 />
               </Grid>
-              <Grid item xs={12} sm={12}>
+              <Grid size={{ xs: 12, sm: 12 }}>
                 <Grid container spacing={2}>
                   {document.files.map((fileObj, index) => (
                     <React.Fragment key={index}>
-                      <Grid item xs={6} sm={6}>
+                      <Grid size={{ xs: 6, sm: 6 }}>
                         <Box display="flex" alignItems="center">
                           <img
                             src={fileObj.preview}
@@ -286,11 +286,11 @@ const CreateDocument = () => {
                           </IconButton>
                         </Box>
                       </Grid>
-                      {(index + 1) % 2 === 0 && <Grid item xs={12}></Grid>}
+                      {(index + 1) % 2 === 0 && <Grid size={{ xs: 12 }}></Grid>}
                     </React.Fragment>
                   ))}
                   {document.files.length < 5 ? (
-                    <Grid item xs={6} sm={6}>
+                    <Grid size={{ xs: 6, sm: 6 }}>
                       <Box
                         {...getRootProps()}
                         border="2px dashed gray"
@@ -312,7 +312,7 @@ const CreateDocument = () => {
                       </Box>
                     </Grid>
                   ) : (
-                    <Grid item xs={6} sm={6}>
+                    <Grid size={{ xs: 6, sm: 6 }}>
                       <Typography variant="subtitle1" color="error" mt={2}>
                         Atingiu o número máximo de anexos por movimento.
                       </Typography>
@@ -320,7 +320,7 @@ const CreateDocument = () => {
                   )}
                 </Grid>
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Button variant="contained" color="primary" type="submit">
                   Submeter Pedido
                 </Button>

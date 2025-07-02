@@ -75,7 +75,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
 
             {/* Formulário Responsivo */}
             <Grid container spacing={2} mb={3}>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <FormControl fullWidth>
                         <InputLabel>Destino da Despesa</InputLabel>
                         <Select
@@ -93,7 +93,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <TextField
                         type="datetime-local"
                         label="Data"
@@ -102,7 +102,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <TextField
                         type="number"
                         label="Valor (€)"
@@ -111,7 +111,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12 }} md={6}>
                     <TextField
                         label="Descrição"
                         value={newRecord.pnmemo}
@@ -119,7 +119,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
                         fullWidth
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Button
                         variant="contained"
                         color="primary"
@@ -144,7 +144,7 @@ const RamalRedeExpense = ({ selectedArea, metaData }) => {
             ) : (
                 <Grid container>
                     {expenseData.map((record, index) => (
-                        <Grid item xs={12} key={index}>
+                        <Grid size={{ xs: 12 }} key={index}>
                             <Typography>
                                 {new Date(record.pndate).toLocaleDateString("pt-PT")} -{" "}
                                 {record.pntt_expensedest} - {record.pnval}€

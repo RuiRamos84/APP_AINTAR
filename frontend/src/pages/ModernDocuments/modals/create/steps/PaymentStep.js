@@ -86,7 +86,7 @@ const PaymentStep = ({
 
     return (
         <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                 <Paper
                     elevation={0}
                     variant="outlined"
@@ -123,7 +123,7 @@ const PaymentStep = ({
                             </Typography>
 
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <Typography variant="body2" color="text.secondary">
                                         Método:
                                     </Typography>
@@ -136,7 +136,7 @@ const PaymentStep = ({
                                     </Typography>
                                 </Grid>
 
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <Typography variant="body2" color="text.secondary">
                                         Valor:
                                     </Typography>
@@ -145,7 +145,7 @@ const PaymentStep = ({
                                     </Typography>
                                 </Grid>
 
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <Typography variant="body2" color="text.secondary">
                                         Referência:
                                     </Typography>
@@ -155,7 +155,7 @@ const PaymentStep = ({
                                 </Grid>
 
                                 {paymentInfo.date && (
-                                    <Grid item xs={12} sm={4}>
+                                    <Grid size={{ xs: 12, sm: 4 }}>
                                         <Typography variant="body2" color="text.secondary">
                                             Data:
                                         </Typography>

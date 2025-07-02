@@ -87,7 +87,7 @@ const CompletedTasks = () => {
       ) : (
         <Grid container spacing={2}>
           {filteredCompletedTasks.map((task) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={task.pk}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={task.pk}>
               <Paper 
                 sx={{ 
                   p: 0, 

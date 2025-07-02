@@ -283,7 +283,7 @@ const ParametersStep = ({
 
     return (
         <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                 <Paper
                     elevation={0}
                     variant="outlined"
@@ -334,10 +334,10 @@ const ParametersStep = ({
                         <Grid container spacing={2}>
                             {docTypeParams.map((param) => (
                                 <React.Fragment key={param.tb_param}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         {renderParameterField(param)}
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <TextField
                                             fullWidth
                                             label={`Observações para ${param.name}`}

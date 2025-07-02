@@ -227,11 +227,11 @@ const RamaisConcludedList = () => {
         <Paper className="paper-list">
             {/* Cabeçalho em grid de linha única */}
             <Grid container className="header-container-list" alignItems="center" spacing={2} style={{ padding: 16 }}>
-                <Grid item style={{ flexGrow: 1 }}>
+                <Grid style={{ flexGrow: 1 }}>
                     <Typography variant="h5">Ramais Concluídos</Typography>
                 </Grid>
 
-                <Grid item style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <Grid style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                     {/* SearchBar (à esquerda) */}
                     <SearchBar onSearch={handleSearch} />
 

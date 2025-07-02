@@ -74,7 +74,7 @@ const InternalArea = () => {
     const renderAreaCards = () => (
         <Grid container spacing={2}>
             {AREAS.map((area) => (
-                <Grid item xs={12} sm={6} md={3} key={area.id}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }} key={area.id}>
                     {renderCard(area, (id) => updateState({ selectedArea: id }))}
                 </Grid>
             ))}
@@ -84,7 +84,7 @@ const InternalArea = () => {
     const renderSubAreaCards = () => (
         <Grid container spacing={2}>
             {SUB_AREAS.map((subArea) => (
-                <Grid item xs={12} sm={6} md={4} key={subArea.id}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={subArea.id}>
                     {renderCard(subArea, (id) => updateState({ selectedSubArea: id }))}
                 </Grid>
             ))}
@@ -94,7 +94,7 @@ const InternalArea = () => {
     const renderOptionCards = () => (
         <Grid container spacing={2}>
             {(OPTIONS[state.selectedArea] || []).map((opt) => (
-                <Grid item xs={12} sm={6} md={4} key={opt.id}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={opt.id}>
                     {renderCard(opt, (id) => updateState({ selectedOption: id }))}
                 </Grid>
             ))}

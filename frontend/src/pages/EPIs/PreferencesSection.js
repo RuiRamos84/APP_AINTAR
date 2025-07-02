@@ -142,7 +142,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
     return (
         <Box>
             <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12 }} md={4}>
                     <FormControl fullWidth>
                         <InputLabel id="employee-select-label">Funcionário</InputLabel>
                         <Select
@@ -164,18 +164,18 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                 </Grid>
 
                 {selectedEmployee && (
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h6" gutterBottom>
                                 Registo de Tamanhos EPI's e Fardamento
                             </Typography>
                             <Grid container spacing={2}>
                                 {/* Calçado */}
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Typography variant="subtitle1" gutterBottom>Calçado</Typography>
                                 </Grid>
                                 
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <FormControl fullWidth>
                                         <InputLabel>Tipo de Calçado Standard</InputLabel>
                                         <Select
@@ -191,7 +191,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         </Select>
                                     </FormControl>
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="Tamanho do Calçado"
@@ -199,7 +199,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("shoenumber", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="Galochas"
@@ -207,7 +207,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("galoshes", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="Botas de Soldador"
@@ -217,10 +217,10 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                 </Grid>
 
                                 {/* Fardamento */}
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Typography variant="subtitle1" gutterBottom>Fardamento</Typography>
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="T-Shirt"
@@ -228,7 +228,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("tshirt", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="Sweatshirt"
@@ -236,7 +236,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("sweatshirt", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="Casaco"
@@ -244,7 +244,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("jacket", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12 }} md={3}>
                                     <TextField
                                         fullWidth
                                         label="Calças"
@@ -254,10 +254,10 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                 </Grid>
 
                                 {/* Outros EPIs */}
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Typography variant="subtitle1" gutterBottom>EPI's</Typography>
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <TextField
                                         fullWidth
                                         label="Avental"
@@ -265,7 +265,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("apron", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <TextField
                                         fullWidth
                                         label="Bata"
@@ -273,7 +273,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("gown", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <TextField
                                         fullWidth
                                         label="Capa Impermeável"
@@ -281,7 +281,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("waterproof", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <TextField
                                         fullWidth
                                         label="Colete Refletor"
@@ -289,7 +289,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("reflectivevest", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <TextField
                                         fullWidth
                                         label="Luvas"
@@ -297,7 +297,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                         onChange={(e) => handleInputChange("gloves", e.target.value)}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid size={{ xs: 12 }} md={2}>
                                     <TextField
                                         fullWidth
                                         label="Máscara"
@@ -307,7 +307,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                 </Grid>
 
                                 {/* Observações */}
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <TextField
                                         fullWidth
                                         multiline
@@ -318,7 +318,7 @@ const PreferencesSection = () => {  // Remova o { metaData } dos props
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center' }}>
+                                <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'center' }}>
                                     <Button
                                         variant="contained"
                                         onClick={handleSave}

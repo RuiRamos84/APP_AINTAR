@@ -140,13 +140,13 @@ const ReplicateDocumentModal = ({ open, onClose, document, metaData }) => {
 
             <DialogContent dividers>
                 <Grid container spacing={3}>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Alert severity="info" sx={{ mb: 3 }}>
                             A replicação criará um novo pedido com os mesmos dados da entidade, mas com um novo tipo de documento.
                         </Alert>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <Paper elevation={0} variant="outlined" sx={{ p: 2 }}>
                             <Typography variant="subtitle1" gutterBottom>
                                 Documento Original
@@ -172,7 +172,7 @@ const ReplicateDocumentModal = ({ open, onClose, document, metaData }) => {
                         </Paper>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <Paper elevation={0} variant="outlined" sx={{ p: 2 }}>
                             <Typography variant="subtitle1" gutterBottom>
                                 Selecione o novo Tipo de Pedido

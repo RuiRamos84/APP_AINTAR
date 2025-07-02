@@ -722,7 +722,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
   const renderFileUpload = () => (
     <>
       {document.files.map((file, index) => (
-        <Grid item xs={12} sm={6} key={index}>
+        <Grid size={{ xs: 12, sm: 6 }} key={index}>
           <Box display="flex" alignItems="center">
             <img
               src={file.preview}
@@ -744,7 +744,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
           </Box>
         </Grid>
       ))}
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <Box {...getRootProps()} style={dropzoneStyle}>
           <input {...getInputProps()} />
           <p>Arraste e solte arquivos aqui, ou clique para selecionar</p>
@@ -759,7 +759,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         return (
           <Grid container spacing={2}>
             {/* {isInterProfile && (
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -771,7 +771,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 />
               </Grid>
             )} */}
-            <Grid item xs={12} sm={3}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -784,11 +784,11 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
               />
             </Grid>
             {entityData && (
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 {renderEntityInfo(entityData, "Dados da Entidade Requerente:")}
               </Grid>
             )}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -800,7 +800,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
               />
             </Grid>
             {isRepresentative && (
-              <Grid item xs={12} sm={3}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <TextField
                   fullWidth
                   label="NIF do Representante"
@@ -813,14 +813,14 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
               </Grid>
             )}
             {representativeData && isRepresentative && (
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 {renderEntityInfo(
                   representativeData,
                   "Dados do Representante:"
                 )}
               </Grid>
             )}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -831,7 +831,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 label="Morada do Pedido diferente da morada de faturação?"
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               {renderAddressForm()}
             </Grid>
           </Grid>
@@ -839,7 +839,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
       case 1:
         return (
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 select
                 fullWidth
@@ -859,7 +859,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                   ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 select
                 fullWidth
@@ -877,7 +877,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 select
                 fullWidth
@@ -895,10 +895,10 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               {renderAdditionalFields()}
               {document.tt_type && (
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   {selectedCountType ? (
                     <Typography variant="body1" color="textSecondary">
                       {" "}
@@ -916,7 +916,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 </Grid>
               )}
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -948,7 +948,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
           .join(", ");
         return (
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography
                 variant="h5"
                 align="center"
@@ -958,7 +958,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
               </Typography>
             </Grid>
             <Grid container item xs={12} spacing={2}>
-              <Grid item xs={6}>
+              <Grid size={{ xs: 6 }}>
                 <Typography variant="h6" style={{ fontWeight: "bold" }}>
                   Entidade e Morada
                 </Typography>
@@ -993,7 +993,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                   </>
                 )}
               </Grid>
-              <Grid item xs={6}>
+              <Grid size={{ xs: 6 }}>
                 <Typography variant="h6" style={{ fontWeight: "bold" }}>
                   Detalhes do Pedido
                 </Typography>
@@ -1023,7 +1023,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
   const renderAdditionalFields = () => {
     return documentTypeParams.map((param) => (
       <React.Fragment key={param.tb_param}>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           {param.type === "select" ? (
             <FormControl fullWidth>
               <InputLabel>{param.name}</InputLabel>
@@ -1058,7 +1058,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             />
           )}
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             fullWidth
             label={`Memo ${param.name}`}

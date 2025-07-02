@@ -189,88 +189,258 @@ export const getWorkflowForDocumentType = (documentType, metaData) => {
     });
 };
 
+
 /**
- * Timeline optimizada - evita duplicações e gere reabertura
+ * Timeline corrigida - funciona com what como string ou number
+ * @param {Object} document - Documento atual
+ * @param {Object} metaData - Metadados
+ * @param {Array} steps - Array de passos executados
+ * @returns {Object} Timeline organizada sem duplicações
  */
 export const getWorkflowTimeline = (document, metaData, steps) => {
-    // console.log('🔍 Timeline - Input:', { document_what: document.what, steps_count: steps.length });
+    console.log('🔍 Timeline - Input:', {
+        document_what: document.what,
+        steps_count: steps.length,
+        current_step: document.what,
+        steps_detail: steps.map(s => ({ what: s.what, when: s.when_start }))
+    });
 
-    // 1. Encontrar passo ENTRADA automaticamente
+    // 1. Função auxiliar para encontrar step data (suporta string e number)
+    const findStepData = (whatValue) => {
+        if (!whatValue) return null;
+
+        // Tentar encontrar por pk (number)
+        const byPk = metaData.what?.find(s => s.pk === whatValue);
+        if (byPk) return byPk;
+
+        // Tentar encontrar por nome (string)
+        const byName = metaData.what?.find(s => s.step === whatValue);
+        if (byName) return byName;
+
+        // Tentar comparação case-insensitive
+        const byNameInsensitive = metaData.what?.find(s =>
+            s.step?.toUpperCase() === String(whatValue).toUpperCase()
+        );
+
+        return byNameInsensitive || null;
+    };
+
+    // 2. Processar todos os passos executados
+    const executedSteps = steps
+        .filter(step => step.what !== null && step.what !== undefined && step.what !== '')
+        .sort((a, b) => {
+            // Converter as datas portuguesas para Date objects
+            const parsePortugueseDate = (dateStr) => {
+                if (!dateStr) return new Date(0);
+                try {
+                    // Formato: "2025-07-01 às 15:05"
+                    const cleanDate = dateStr.replace(' às ', ' ');
+                    return new Date(cleanDate);
+                } catch (e) {
+                    return new Date(dateStr);
+                }
+            };
+
+            return parsePortugueseDate(a.when_start) - parsePortugueseDate(b.when_start);
+        });
+
+    console.log('📋 Passos executados ordenados:', executedSteps.map(s => {
+        const stepData = findStepData(s.what);
+        return {
+            what: s.what,
+            when: s.when_start,
+            stepName: stepData?.step,
+            stepPk: stepData?.pk
+        };
+    }));
+
+    // 3. Criar mapa de passos únicos executados
+    const uniqueExecutedSteps = new Map();
+
+    executedSteps.forEach(step => {
+        const stepData = findStepData(step.what);
+
+        if (stepData) {
+            const stepKey = stepData.pk; // Usar pk como chave única
+
+            // Se o passo já existe, manter o mais recente
+            const parseDate = (dateStr) => {
+                try {
+                    const cleanDate = dateStr.replace(' às ', ' ');
+                    return new Date(cleanDate);
+                } catch (e) {
+                    return new Date(dateStr);
+                }
+            };
+
+            if (!uniqueExecutedSteps.has(stepKey) ||
+                parseDate(step.when_start) > parseDate(uniqueExecutedSteps.get(stepKey)?.when || '1900-01-01')) {
+
+                uniqueExecutedSteps.set(stepKey, {
+                    stepId: stepData.pk,
+                    stepName: stepData.step,
+                    when: step.when_start,
+                    who: step.who,
+                    memo: step.memo,
+                    originalStep: step,
+                    originalWhat: step.what
+                });
+            }
+        } else {
+            console.warn(`⚠️ Step não encontrado nos metadados:`, step.what);
+        }
+    });
+
+    console.log('🎯 Passos únicos identificados:', Array.from(uniqueExecutedSteps.values()).map(s => ({
+        id: s.stepId,
+        name: s.stepName,
+        when: s.when
+    })));
+
+    // 4. Verificar se ENTRADA foi executada explicitamente
     const entradaStep = metaData.what?.find(s =>
         s.step?.toUpperCase().includes('ENTRADA')
     );
 
-    const uniqueSteps = new Map();
+    const hasEntradaInSteps = Array.from(uniqueExecutedSteps.keys()).includes(entradaStep?.pk);
 
-    // 2. Adicionar ENTRADA sempre como primeiro passo
-    if (entradaStep) {
-        uniqueSteps.set(entradaStep.pk, {
+    // 5. Construir timeline ordenada
+    const timelineSteps = [];
+
+    // Adicionar ENTRADA se não foi executada explicitamente
+    if (entradaStep && !hasEntradaInSteps) {
+        timelineSteps.push({
             stepId: entradaStep.pk,
             stepName: entradaStep.step,
             status: 'completed',
             when: document.created_at || document.when_start,
-            isEntrada: true
+            isEntrada: true,
+            order: 0
         });
     }
 
-    // 3. Obter todos os passos únicos executados (cronológico)
-    steps
-        .sort((a, b) => new Date(a.when_start || 0) - new Date(b.when_start || 0))
-        .forEach(step => {
-            const stepData = metaData.what?.find(s => s.pk === step.what);
-            if (stepData && !stepData.step?.toUpperCase().includes('ENTRADA')) {
-                uniqueSteps.set(step.what, {
-                    stepId: step.what,
-                    stepName: stepData.step,
-                    status: 'completed',
-                    when: step.when_start,
-                    who: step.who
-                });
+    // Adicionar todos os passos únicos executados
+    Array.from(uniqueExecutedSteps.values()).forEach(stepDetails => {
+        const isCurrentStep = stepDetails.stepId === document.what;
+
+        const parseDate = (dateStr) => {
+            try {
+                const cleanDate = dateStr.replace(' às ', ' ');
+                return new Date(cleanDate).getTime();
+            } catch (e) {
+                return new Date(dateStr).getTime();
             }
+        };
+
+        timelineSteps.push({
+            ...stepDetails,
+            status: isCurrentStep ? 'current' : 'completed',
+            order: parseDate(stepDetails.when)
         });
+    });
 
-    // 4. Passo actual (remover se já existir no histórico)
-    const currentStepData = metaData.what?.find(s => s.pk === document.what);
-    const isCurrentEntrada = currentStepData?.step?.toUpperCase().includes('ENTRADA');
+    // Se o passo atual não está nos executados, adicionar
+    const currentStepData = findStepData(document.what);
+    const currentStepExists = timelineSteps.some(step => step.stepId === document.what);
 
-    if (currentStepData && !isCurrentEntrada) {
-        uniqueSteps.set(document.what, {
-            stepId: document.what,
+    if (currentStepData && !currentStepExists) {
+        timelineSteps.push({
+            stepId: currentStepData.pk,
             stepName: currentStepData.step,
-            status: 'current'
-        });
-    } else if (isCurrentEntrada && entradaStep) {
-        // Se estamos em ENTRADA, actualizar o status
-        uniqueSteps.set(entradaStep.pk, {
-            ...uniqueSteps.get(entradaStep.pk),
-            status: 'current'
+            status: 'current',
+            order: Date.now()
         });
     }
 
-    // 3. Próximos passos possíveis (só se não existirem)
+    // 6. Ordenar timeline por data/ordem
+    timelineSteps.sort((a, b) => {
+        // ENTRADA sempre primeiro
+        if (a.isEntrada && !b.isEntrada) return -1;
+        if (!a.isEntrada && b.isEntrada) return 1;
+
+        // Depois por ordem temporal
+        return (a.order || 0) - (b.order || 0);
+    });
+
+    // 7. Obter próximos passos possíveis com agrupamento
     const validTransitions = getValidTransitions(document, metaData);
-    const nextSteps = validTransitions
-        .filter(t => !uniqueSteps.has(t.to_step_pk))
-        .map(t => {
-            const stepData = metaData.what?.find(s => s.pk === t.to_step_pk);
-            return stepData ? {
-                stepId: t.to_step_pk,
+    const existingStepIds = new Set(timelineSteps.map(s => s.stepId));
+
+    const possibleNextStepIds = validTransitions
+        .map(t => t.to_step_pk)
+        .filter(stepId => !existingStepIds.has(stepId));
+
+    // Agrupar próximos passos se há múltiplas opções
+    const possibleNextSteps = [];
+
+    if (possibleNextStepIds.length > 1) {
+        // Múltiplas opções - criar um passo "ramificado"
+        const nextStepsData = possibleNextStepIds
+            .map(stepId => metaData.what?.find(s => s.pk === stepId))
+            .filter(Boolean);
+
+        possibleNextSteps.push({
+            stepId: 'multiple-options',
+            stepName: 'Próximos Passos',
+            status: 'pending',
+            order: 999999,
+            isMultipleOptions: true,
+            options: nextStepsData.map(step => ({
+                stepId: step.pk,
+                stepName: step.step
+            }))
+        });
+    } else if (possibleNextStepIds.length === 1) {
+        // Uma única opção
+        const stepData = metaData.what?.find(s => s.pk === possibleNextStepIds[0]);
+        if (stepData) {
+            possibleNextSteps.push({
+                stepId: stepData.pk,
                 stepName: stepData.step,
-                status: 'pending'
-            } : null;
-        })
-        .filter(Boolean);
+                status: 'pending',
+                order: 999999
+            });
+        }
+    }
 
-    // 4. Timeline final - array ordenado
-    const timelineSteps = [...uniqueSteps.values(), ...nextSteps];
+    // 8. Timeline final
+    const finalTimeline = [...timelineSteps, ...possibleNextSteps];
 
-    // console.log('✅ Timeline final:', timelineSteps);
+    const completedCount = finalTimeline.filter(s => s.status === 'completed').length;
+    const currentStep = finalTimeline.find(s => s.status === 'current');
 
-    return {
-        steps: timelineSteps,
-        completed: timelineSteps.filter(s => s.status === 'completed').length,
-        total: timelineSteps.length
+    const result = {
+        steps: finalTimeline,
+        completed: completedCount,
+        total: finalTimeline.length,
+        current: currentStep,
+        pending: possibleNextSteps
     };
+
+    console.log('✅ Timeline final corrigida:', {
+        total_steps: result.steps.length,
+        completed: result.completed,
+        current_step: result.current?.stepName,
+        pending_count: result.pending.length,
+        all_steps: result.steps.map(s => ({
+            id: s.stepId,
+            name: s.stepName,
+            status: s.status,
+            when: s.when
+        }))
+    });
+
+    return result;
+};
+
+/**
+ * Função para debug que mostra todos os passos encontrados nos metadados
+ */
+export const debugMetaDataSteps = (metaData) => {
+    console.log('🔍 Debug - Metadados what:', metaData.what?.map(s => ({
+        pk: s.pk,
+        step: s.step
+    })));
 };
 
 /**

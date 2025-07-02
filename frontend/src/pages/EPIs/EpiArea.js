@@ -68,7 +68,7 @@ const EpiArea = () => {
                 return (
                     <Grid container spacing={2}>
                         {sections.map((section) => (
-                            <Grid item xs={12} sm={6} md={3} key={section.id}>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={section.id}>
                                 <Card
                                     onClick={() => setSelectedSection(section.id)}
                                     sx={{

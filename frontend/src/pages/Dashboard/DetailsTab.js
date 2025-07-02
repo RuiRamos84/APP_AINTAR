@@ -17,7 +17,7 @@ import { getChartData } from './utils/viewHelpers';
 const DetailsTab = ({ data, viewTypes, onViewTypeChange, getViewTitle }) => {
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <ChartCard
           title={getViewTitle("vbr_document_003")}
           subtitle="Escolha diferentes visualizações para melhor visualizar os dados"
@@ -34,7 +34,7 @@ const DetailsTab = ({ data, viewTypes, onViewTypeChange, getViewTitle }) => {
         </ChartCard>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12 }} md={6}>
         <ChartCard
           title={getViewTitle("vbr_document_005")}
           subtitle="Escolha diferentes visualizações para melhor visualizar os dados"
@@ -51,7 +51,7 @@ const DetailsTab = ({ data, viewTypes, onViewTypeChange, getViewTitle }) => {
         </ChartCard>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12 }} md={6}>
         <ChartCard
           title={getViewTitle("vbr_document_008")}
           subtitle="Escolha diferentes visualizações para melhor visualizar os dados"

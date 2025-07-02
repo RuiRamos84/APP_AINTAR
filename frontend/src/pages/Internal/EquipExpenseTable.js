@@ -107,7 +107,7 @@ const EquipExpenseTable = ({ metaData }) => {
 
             {/* Formulário de Nova Despesa */}
             <Grid container spacing={2} mb={3}>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <TextField
                         type="datetime-local"
                         label="Data"
@@ -118,7 +118,7 @@ const EquipExpenseTable = ({ metaData }) => {
                     />
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={2.4}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
                     <FormControl fullWidth>
                         <InputLabel>Tipo da Despesa</InputLabel>
                         <Select
@@ -135,7 +135,7 @@ const EquipExpenseTable = ({ metaData }) => {
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <TextField
                         type="number"
                         label="Valor (€)"
@@ -145,7 +145,7 @@ const EquipExpenseTable = ({ metaData }) => {
                     />
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={2.4}>
+                <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
                     <TextField
                         label="Descrição"
                         value={newRecord.pnmemo}
@@ -154,7 +154,7 @@ const EquipExpenseTable = ({ metaData }) => {
                     />
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                     <FormControl fullWidth>
                         <InputLabel>Associado</InputLabel>
                         <Select
@@ -172,7 +172,7 @@ const EquipExpenseTable = ({ metaData }) => {
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={1}>
+                <Grid size={{ xs: 12, sm: 6, md: 1 }}>
                     <Button
                         variant="contained"
                         color="primary"

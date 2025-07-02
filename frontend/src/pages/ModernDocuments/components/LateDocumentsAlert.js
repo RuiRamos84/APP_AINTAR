@@ -57,7 +57,7 @@ const LateDocumentsAlert = ({ documents, onShowDetails }) => {
 
                 {/* Estatísticas principais */}
                 <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Box sx={{ textAlign: 'center' }}>
                             <Typography variant="h4" color="error.main" fontWeight="bold">
                                 {stats.maxDays}
@@ -67,7 +67,7 @@ const LateDocumentsAlert = ({ documents, onShowDetails }) => {
                             </Typography>
                         </Box>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Box sx={{ textAlign: 'center' }}>
                             <Typography variant="h4" color="warning.main" fontWeight="bold">
                                 {stats.averageDays}
@@ -77,7 +77,7 @@ const LateDocumentsAlert = ({ documents, onShowDetails }) => {
                             </Typography>
                         </Box>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Box sx={{ textAlign: 'center' }}>
                             <Typography variant="h4" color="info.main" fontWeight="bold">
                                 {stats.minDays}
@@ -87,7 +87,7 @@ const LateDocumentsAlert = ({ documents, onShowDetails }) => {
                             </Typography>
                         </Box>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Box sx={{ textAlign: 'center' }}>
                             <Typography variant="h4" color="secondary.main" fontWeight="bold">
                                 {Math.round((stats.overYear / stats.total) * 100)}%

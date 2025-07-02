@@ -511,7 +511,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
               </Box>
               <Collapse in={openIdentification}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={2}>
+                  <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       type="number"  
                       required
@@ -536,7 +536,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={5}>
+                  <Grid size={{ xs: 12, sm: 5 }}>
                     <TextField
                       required
                       label="Nome"
@@ -550,7 +550,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       helperText={errors.name}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={3}>
+                  <Grid size={{ xs: 12, sm: 3 }}>
                     <TextField
                       variant="outlined"
                       margin="normal"
@@ -570,7 +570,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       ))}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} sm={2}>
+                  <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       label="Nº de Identificação"
                       name="ident_value"
@@ -601,7 +601,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
               </Box>
               <Collapse in={openContact}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       required
                       label="Telefone"
@@ -615,7 +615,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       helperText={errors.phone}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Email"
                       name="email"
@@ -658,7 +658,7 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
               </Box>
               <Collapse in={openDescription}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       label="Observações"
                       name="descr"

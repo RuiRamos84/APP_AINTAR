@@ -757,7 +757,7 @@ const DocumentModal = ({
                         }}
                     >
                         <Grid container alignItems="center" spacing={2}>
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <AssignmentIcon color="primary" />
                                     <Typography variant="h5" component="h2">
@@ -778,7 +778,7 @@ const DocumentModal = ({
                                         (document.creator ? `Criado por: ${document.creator}` : '')}
                                 </Typography>
                             </Grid>
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Stack
                                     direction="row"
                                     spacing={1}

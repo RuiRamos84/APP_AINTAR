@@ -248,7 +248,7 @@ const AddStepAndAnnexModal = ({
       <DialogTitle>Novo movimento e anexos no Pedido - {regnumber}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               label="Para quem"
@@ -268,7 +268,7 @@ const AddStepAndAnnexModal = ({
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               label="Estado"
@@ -288,7 +288,7 @@ const AddStepAndAnnexModal = ({
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <TextField
               label="Observações"
               name="memo"
@@ -303,7 +303,7 @@ const AddStepAndAnnexModal = ({
               helperText={errors.memo}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Typography variant="h6">Anexos</Typography>
             <Box
               {...getRootProps()}
@@ -321,7 +321,7 @@ const AddStepAndAnnexModal = ({
             </Box>
           </Grid>
           {annexData.files.map((fileObj, index) => (
-            <Grid item xs={12} key={index}>
+            <Grid size={{ xs: 12 }} key={index}>
               <Box display="flex" alignItems="center">
                 <img
                   src={fileObj.preview}

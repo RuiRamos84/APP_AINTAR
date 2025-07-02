@@ -190,7 +190,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
 
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
                     <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Box display="flex" alignItems="center">
                                 <PhoneIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -204,7 +204,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                             </Box>
                         </Grid>
 
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Box display="flex" alignItems="center">
                                 <TimeIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -247,7 +247,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                     }}
                 >
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6} md={4}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                             <Box display="flex" alignItems="center">
                                 <BankIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -261,7 +261,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                             </Box>
                         </Grid>
 
-                        <Grid item xs={12} sm={6} md={4}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                             <Box display="flex" alignItems="center">
                                 <ReceiptIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -275,7 +275,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                             </Box>
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <Box display="flex" alignItems="center">
                                 <CalendarIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -366,7 +366,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                     <Divider sx={{ my: 2 }} />
 
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <List disablePadding>
                                 <ListItem sx={{ px: 0, py: 0.75 }}>
                                     <ListItemIcon sx={{ minWidth: 40 }}>
@@ -394,7 +394,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                             </List>
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <List disablePadding>
                                 <ListItem sx={{ px: 0, py: 0.75 }}>
                                     <ListItemIcon sx={{ minWidth: 40 }}>

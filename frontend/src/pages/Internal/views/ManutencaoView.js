@@ -126,7 +126,7 @@ const ManutencaoView = () => {
 
 //     return (
 //         <Grid container spacing={2}>
-//             <Grid item xs={12}>
+//             <Grid size={{ xs: 12 }}>
 //                 <TextField
 //                     label="Descrição da Requisição"
 //                     value={memo}
@@ -137,7 +137,7 @@ const ManutencaoView = () => {
 //                     required
 //                 />
 //             </Grid>
-//             <Grid item xs={12}>
+//             <Grid size={{ xs: 12 }}>
 //                 <Button
 //                     variant="contained"
 //                     color="primary"
