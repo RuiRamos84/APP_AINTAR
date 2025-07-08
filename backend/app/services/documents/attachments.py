@@ -11,17 +11,13 @@ from .utils import ensure_directories, sanitize_input
 
 
 def cache_result(timeout=120):
-    """Decorador para cache de resultados de consultas frequentes"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             cache_key = f"{f.__name__}_{args}_{kwargs}"
             result = cache.get(cache_key)
             if result:
-                current_app.logger.debug(
-                    f"Resultado encontrado em cache para {f.__name__}")
                 return result
-
             result = f(*args, **kwargs)
             cache.set(cache_key, result, timeout=timeout)
             return result
@@ -29,29 +25,46 @@ def cache_result(timeout=120):
     return decorator
 
 
+def normalize_filename_extensions(filename):
+    """Gerar variações com extensões equivalentes"""
+    if not filename:
+        return [filename]
+    
+    name, ext = os.path.splitext(filename)
+    ext_lower = ext.lower()
+    
+    variations = [filename]  # Original primeiro
+    
+    if ext_lower == '.jpeg':
+        variations.append(name + '.jpg')
+    elif ext_lower == '.jpg':
+        variations.append(name + '.jpeg')
+    elif ext_lower == '.tiff':
+        variations.append(name + '.tif')
+    elif ext_lower == '.tif':
+        variations.append(name + '.tiff')
+    
+    return variations
+
+
 @cache_result(timeout=30)
 def get_document_anex_steps(pk, current_user):
-    """Obter anexos do documento"""
     try:
         with db_session_manager(current_user) as session:
             pk = sanitize_input(pk, 'int')
 
-            # Verificar se o documento existe
             doc_query = text("SELECT pk FROM vbl_document WHERE pk = :pk")
             doc = session.execute(doc_query, {'pk': pk}).fetchone()
             if not doc:
                 raise ResourceNotFoundError("Documento", pk)
 
-            # Buscar anexos
             document_anex_query = text(
                 "SELECT * FROM vbl_document_annex WHERE tb_document = :pk ORDER BY data DESC")
-            document_anex_result = session.execute(
-                document_anex_query, {'pk': pk})
+            document_anex_result = session.execute(document_anex_query, {'pk': pk})
 
             document_anex_list = []
             for row in document_anex_result.mappings():
                 annex_dict = dict(row)
-                # Formatação de datas
                 if "data" in annex_dict and isinstance(annex_dict["data"], datetime):
                     annex_dict["data"] = annex_dict["data"].isoformat()
                 document_anex_list.append(annex_dict)
@@ -61,18 +74,14 @@ def get_document_anex_steps(pk, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
-            f"Erro de BD ao buscar anexos do documento {pk}: {str(e)}")
-        raise APIError("Erro ao consultar anexos do documento",
-                       500, "ERR_DATABASE")
+        current_app.logger.error(f"Erro BD anexos {pk}: {str(e)}")
+        raise APIError("Erro ao consultar anexos", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
-            f"Erro inesperado ao buscar anexos do documento {pk}: {str(e)}")
-        raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
+        current_app.logger.error(f"Erro anexos {pk}: {str(e)}")
+        raise APIError("Erro interno", 500, "ERR_INTERNAL")
 
 
 def add_document_annex(data, current_user):
-    """Adicionar anexos a um documento"""
     try:
         with db_session_manager(current_user) as session:
             tb_document = sanitize_input(data.get('tb_document'), 'int')
@@ -80,161 +89,170 @@ def add_document_annex(data, current_user):
             file_descriptions = request.form.getlist('descr')
 
             if not tb_document:
-                raise APIError('O campo tb_document é obrigatório',
-                               400, "ERR_MISSING_DOCUMENT")
-
+                raise APIError('Campo tb_document obrigatório', 400, "ERR_MISSING_DOCUMENT")
             if not files:
-                raise APIError('Nenhum arquivo enviado', 400, "ERR_NO_FILES")
+                raise APIError('Nenhum ficheiro enviado', 400, "ERR_NO_FILES")
 
-            # Verificar se o documento existe
-            doc_query = text(
-                "SELECT regnumber FROM vbl_document WHERE pk = :pk")
-            doc_result = session.execute(
-                doc_query, {'pk': tb_document}).fetchone()
+            doc_query = text("SELECT regnumber FROM vbl_document WHERE pk = :pk")
+            doc_result = session.execute(doc_query, {'pk': tb_document}).fetchone()
             if not doc_result:
                 raise ResourceNotFoundError("Documento", tb_document)
 
             reg_result = doc_result.regnumber
 
-            # Garantir que as pastas existem
             try:
-                request_path, anexos_path, oficios_path = ensure_directories(
-                    reg_result)
+                request_path, anexos_path, oficios_path = ensure_directories(reg_result)
             except Exception as de:
-                raise APIError(
-                    f"Erro ao criar diretórios: {str(de)}", 500, "ERR_DIRECTORY")
+                raise APIError(f"Erro criar directorias: {str(de)}", 500, "ERR_DIRECTORY")
 
             success_count = 0
             error_files = []
 
-            # Limitar a 5 arquivos por vez
             for i, file in enumerate(files[:5]):
                 try:
-                    description = file_descriptions[i] if i < len(
-                        file_descriptions) else f'Anexo {i+1}'
+                    description = file_descriptions[i] if i < len(file_descriptions) else f'Anexo {i+1}'
 
-                    # Gerar nome único para o arquivo
                     pk_query = text("SELECT fs_nextcode()")
                     pk_result = session.execute(pk_query).scalar()
-                    extension = os.path.splitext(file.filename)[1]
-                    filename = f"{pk_result}{extension}"
-
-                    # Salvar o arquivo
+                    
+                    # Normalizar extensão
+                    original_ext = os.path.splitext(file.filename)[1].lower()
+                    if original_ext == '.jpeg':
+                        normalized_ext = '.jpg'
+                    else:
+                        normalized_ext = original_ext
+                    
+                    filename = f"{pk_result}{normalized_ext}"
                     file_path = os.path.join(anexos_path, filename)
                     file.save(file_path)
+                    
+                    if not os.path.exists(file_path):
+                        raise Exception(f"Falha guardar: {file_path}")
+                    
+                    os.chmod(file_path, 0o644)
+                    current_app.logger.info(f"Ficheiro guardado: {file_path}")
 
-                    # Registrar no banco de dados usando função armazenada
                     annex_query = text(
-                        "SELECT fbf_document_annex(0, :pk, :tb_document, :data, :descr, :filename)"
-                    )
-                    annex_result = session.execute(
-                        annex_query,
-                        {
-                            'pk': pk_result,
-                            'tb_document': tb_document,
-                            'data': datetime.now(),
-                            'descr': description,
-                            'filename': filename
-                        }
-                    )
+                        "SELECT fbf_document_annex(0, :pk, :tb_document, :data, :descr, :filename)")
+                    annex_result = session.execute(annex_query, {
+                        'pk': pk_result,
+                        'tb_document': tb_document,
+                        'data': datetime.now(),
+                        'descr': description,
+                        'filename': filename
+                    })
 
-                    # Verificar resposta da função
                     if annex_result and format_message(annex_result.scalar()):
                         success_count += 1
                     else:
                         error_files.append(file.filename)
-                        # Tentar remover o arquivo se falhar no BD
                         try:
                             os.remove(file_path)
                         except:
                             pass
 
                 except Exception as fe:
-                    current_app.logger.error(
-                        f"Erro ao processar anexo {file.filename}: {str(fe)}")
+                    current_app.logger.error(f"Erro processar {file.filename}: {str(fe)}")
                     error_files.append(file.filename)
 
             session.commit()
-
-            # Limpar cache de anexos
             cache.delete_memoized(get_document_anex_steps)
 
             if success_count == 0:
-                raise APIError("Falha ao salvar todos os anexos",
-                               500, "ERR_ALL_FILES_FAILED")
+                raise APIError("Falha guardar anexos", 500, "ERR_ALL_FILES_FAILED")
 
             if error_files:
                 return {
-                    'aviso': 'Alguns anexos não puderam ser salvos',
+                    'aviso': 'Alguns anexos falharam',
                     'sucesso_parcial': True,
                     'anexos_salvos': success_count,
-                    'anexos_com_erro': error_files
-                }, 207  # Multi-Status
+                    'anexos_erro': error_files
+                }, 207
 
-            return {'sucesso': 'Anexos adicionados com sucesso', 'total': success_count}, 201
+            return {'sucesso': 'Anexos adicionados', 'total': success_count}, 201
 
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except Exception as e:
-        current_app.logger.error(
-            f"Erro inesperado ao adicionar anexos: {str(e)}")
-        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+        current_app.logger.error(f"Erro anexos: {str(e)}")
+        return {'error': "Erro interno", 'code': "ERR_INTERNAL"}, 500
 
 
 def download_file(regnumber, filename, current_user):
-    """Download de arquivo anexo ou ofício"""
+    """Download com normalização de extensões - baseado no código original"""
     try:
-        # Sanitizar entradas
-        regnumber = sanitize_input(regnumber)
-        filename = sanitize_input(filename)
-
-        # Validação contra path traversal
+        print(f"Download iniciado: {regnumber}/{filename}")
+        print(f"Download: {regnumber}/{filename}")
+        
+        # Validação básica
         if '..' in filename or '/' in filename or '\\' in filename:
-            raise APIError("Nome de arquivo inválido",
-                           400, "ERR_INVALID_FILENAME")
+            current_app.logger.warning(f"Path traversal: {filename}")
+            return jsonify({'error': 'Nome ficheiro inválido'}), 400
 
         if '..' in regnumber or '/' in regnumber or '\\' in regnumber:
-            raise APIError("Número de registro inválido",
-                           400, "ERR_INVALID_REGNUMBER")
+            current_app.logger.warning(f"Path traversal: {regnumber}")
+            return jsonify({'error': 'Número registo inválido'}), 400
 
-        # Verificar se o documento existe
-        with db_session_manager(current_user) as session:
-            doc_query = text(
-                "SELECT pk FROM vbl_document WHERE regnumber = :regnumber")
-            doc = session.execute(
-                doc_query, {'regnumber': regnumber}).fetchone()
-            if not doc:
-                raise ResourceNotFoundError("Documento", regnumber)
-
-        # Construir caminhos
-        base_path = current_app.config['FILES_DIR']
+        # Caminhos (igual ao código original)
+        base_path = current_app.config.get('FILES_DIR', '/var/www/html/files')
         request_path = os.path.join(base_path, regnumber)
-
-        # Tentar buscar o arquivo em diferentes locais
-        file_path = os.path.join(request_path, 'anexos', filename)
-        if not os.path.exists(file_path):
-            file_path = os.path.join(request_path, 'Oficios', filename)
-
-        if not os.path.exists(file_path):
-            file_path = os.path.join(request_path, filename)
-
-        if os.path.exists(file_path):
-            # Configurar headers para melhor cache e segurança
-            response = send_file(file_path, as_attachment=True)
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
-            return response
-        else:
-            current_app.logger.error(f"Arquivo não encontrado: {file_path}")
-            raise ResourceNotFoundError("Arquivo", filename)
-
-    except ResourceNotFoundError as e:
-        return jsonify({'error': str(e)}), e.status_code
-    except APIError as e:
-        return jsonify({'error': str(e), 'code': e.error_code}), e.status_code
+        
+        # Variações do nome
+        filename_variations = normalize_filename_extensions(filename)
+        print(f"Variações geradas: {filename_variations}")
+        current_app.logger.info(f"Variações: {filename_variations}")
+        
+        # Procurar ficheiro
+        file_path = None
+        actual_filename = None
+        
+        # Primeiro anexos, depois raiz (igual ao original)
+        search_paths = [
+            os.path.join(request_path, 'anexos'),
+            os.path.join(request_path, 'Oficios'),
+            request_path
+        ]
+        
+        for search_dir in search_paths:
+            for filename_var in filename_variations:
+                potential_path = os.path.join(search_dir, filename_var)
+                if os.path.exists(potential_path):
+                    file_path = potential_path
+                    actual_filename = filename_var
+                    current_app.logger.info(f"Encontrado: {file_path}")
+                    break
+            if file_path:
+                break
+        
+        if not file_path:
+            current_app.logger.error(f"Não encontrado: {regnumber}/{filename}")
+            return jsonify({'error': 'Ficheiro não encontrado'}), 404
+        
+        # Verificar permissões
+        if not os.access(file_path, os.R_OK):
+            current_app.logger.error(f"Sem permissões: {file_path}")
+            return jsonify({'error': 'Ficheiro não acessível'}), 403
+        
+        current_app.logger.info(f"Servindo: {file_path}")
+        if actual_filename != filename:
+            current_app.logger.info(f"Normalizado: {filename} → {actual_filename}")
+        
+        # Send file (igual ao original)
+        response = send_file(file_path, as_attachment=True)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+        # Headers informativos
+        if actual_filename != filename:
+            response.headers["X-Original-Filename"] = filename
+            response.headers["X-Actual-Filename"] = actual_filename
+        
+        return response
+        
     except Exception as e:
-        current_app.logger.error(f"Erro ao baixar arquivo: {str(e)}")
-        return jsonify({'error': 'Erro interno ao baixar arquivo', 'code': 'ERR_INTERNAL'}), 500
+        current_app.logger.error(f"Erro download: {str(e)}")
+        return jsonify({'error': 'Erro interno'}), 500
+

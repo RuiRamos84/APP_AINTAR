@@ -53,7 +53,8 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import {
     getDocumentAnnex,
     getDocumentById,
-    getDocumentStep
+    getDocumentStep,
+    previewFile
 } from '../../../../services/documentService';
 import { generatePDF } from "../../../../components/Documents/DocumentPDF";
 import { useDocumentEvents, DocumentEventManager, DOCUMENT_EVENTS } from '../../utils/documentEventSystem';
@@ -110,7 +111,7 @@ const DocumentModal = ({
 
     // Estados do preview e pagamento
     const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewFile, setPreviewFile] = useState({ url: '', type: '', name: '' });
+    const [previewFileData, setPreviewFileData] = useState({ url: '', type: '', name: '' });
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [paymentData, setPaymentData] = useState(null);
     const isPaid = ['SUCCESS', 'PAID'].includes(invoiceAmount?.invoice_data?.payment_status);
@@ -119,7 +120,10 @@ const DocumentModal = ({
     const canManageDocument = useMemo(() => {
         if (!document || !user) return false;
 
-        // Admin sempre pode
+        //Admin
+        if (user.profil === "0" || user.profil === 0) return true;
+
+        // AINTAR sempre pode
         if (user.profil === "1") return true;
 
         // Criador sempre pode
@@ -208,19 +212,19 @@ const DocumentModal = ({
     }, [document?.pk]);
 
     // Polling durante pagamento
-    useEffect(() => {
-        let pollInterval;
+    // useEffect(() => {
+    //     let pollInterval;
 
-        if (paymentDialogOpen) {
-            pollInterval = setInterval(() => {
-                fetchInvoiceAmount();
-            }, 3000);
-        }
+    //     if (paymentDialogOpen) {
+    //         pollInterval = setInterval(() => {
+    //             fetchInvoiceAmount();
+    //         }, 3000);
+    //     }
 
-        return () => {
-            if (pollInterval) clearInterval(pollInterval);
-        };
-    }, [paymentDialogOpen]);
+    //     return () => {
+    //         if (pollInterval) clearInterval(pollInterval);
+    //     };
+    // }, [paymentDialogOpen]);
 
     // Funções de busca de dados
     const fetchSteps = useCallback(async () => {
@@ -321,7 +325,7 @@ const DocumentModal = ({
             // Comparar com estado anterior para forçar re-render
             setInvoiceAmount(prev => {
                 if (JSON.stringify(prev) !== JSON.stringify(newInvoiceAmount)) {
-                    console.log('💰 Invoice actualizada:', newInvoiceAmount);
+                    // console.log('💰 Invoice actualizada:', newInvoiceAmount);
                     return newInvoiceAmount;
                 }
                 return prev;
@@ -344,8 +348,16 @@ const DocumentModal = ({
     const canManagePayments = () => {
         if (!user) return false;
 
+        // Admin sempre pode
+        if (user.profil === "0" || user.profil === 0) return true;
+
         // Perfil 1 tem sempre permissão
         if (user.profil === "1" || user.profil === 1) return true;
+
+        if (user.profil === "2" || user.profil === 2) return true;
+
+        // Se o documento não tiver dados de fatura, não pode gerir pagamentos
+        if (!invoiceAmount?.invoice_data) return false;
 
         // Criador do documento tem permissão
         if (document?.creator === user.username) return true;
@@ -437,14 +449,26 @@ const DocumentModal = ({
         }
     };
 
-    const handleOpenPreview = (annex) => {
-        const fileUrl = getFilePath(document.regnumber, annex.filename);
-        setPreviewFile({
-            url: fileUrl,
-            type: annex.ftype || 'application/octet-stream',
-            name: annex.filename || annex.descr || 'Documento'
-        });
-        setPreviewOpen(true);
+    const handleOpenPreview = async (annex) => {
+        try {
+            if (!document?.regnumber) {
+                showGlobalNotification('Número do documento não disponível', 'error');
+                return;
+            }
+
+            const fileData = await previewFile(document.regnumber, annex.filename);
+
+            setPreviewFileData({
+                url: fileData.url,
+                type: fileData.type,
+                name: annex.filename || annex.descr || 'Documento'
+            });
+            setPreviewOpen(true);
+
+        } catch (error) {
+            console.error('Erro preview:', error);
+            showGlobalNotification('Erro ao visualizar ficheiro', 'error');
+        }
     };
 
     const handlePaymentClick = async (doc) => {
@@ -524,37 +548,12 @@ const DocumentModal = ({
     };
 
     const handleDownloadPreview = () => {
-        if (!previewFile) return;
+        if (!previewFileData?.url) return;
 
-        fetch(previewFile.url, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("user")
-                    ? JSON.parse(localStorage.getItem("user")).access_token
-                    : ""
-                    }`,
-            },
-        })
-            .then((response) => {
-                if (response.ok) {
-                    return response.blob();
-                }
-                throw new Error("Erro ao baixar o ficheiro");
-            })
-            .then((blob) => {
-                const fileUrl = window.URL.createObjectURL(blob);
-                const link = window.document.createElement("a");
-                link.href = fileUrl;
-                link.download = previewFile.name;
-                link.click();
-
-                setTimeout(() => {
-                    window.URL.revokeObjectURL(fileUrl);
-                }, 100);
-            })
-            .catch((error) => {
-                console.error("Erro ao baixar o ficheiro:", error);
-                alert("Erro ao baixar o ficheiro. Por favor, tente novamente.");
-            });
+        const link = window.document.createElement("a");
+        link.href = previewFileData.url;
+        link.download = previewFileData.name;
+        link.click();
     };
 
     const handleDownloadComprovativoLocal = async (document) => {
@@ -957,9 +956,9 @@ const DocumentModal = ({
                 <DocumentPreview
                     open={previewOpen}
                     onClose={() => setPreviewOpen(false)}
-                    fileUrl={previewFile.url}
-                    fileType={previewFile.type}
-                    fileName={previewFile.name}
+                    fileUrl={previewFileData.url}
+                    fileType={previewFileData.type}
+                    fileName={previewFileData.name}
                     onDownload={handleDownloadPreview}
                 />
             )}

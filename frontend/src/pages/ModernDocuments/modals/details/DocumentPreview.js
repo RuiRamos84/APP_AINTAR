@@ -35,6 +35,7 @@ import {
     Info as InfoIcon,
     OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
+import { downloadFile, previewFile } from '../../../../services/documentService'; // Ajuste o caminho conforme necessário
 
 const DocumentPreview = ({
     open,
@@ -103,30 +104,11 @@ const DocumentPreview = ({
         setError(null);
 
         try {
-            const token = localStorage.getItem('user')
-                ? JSON.parse(localStorage.getItem('user')).access_token
-                : null;
-
-            if (!token) {
-                throw new Error('Token de autenticação não encontrado');
-            }
-
-            const response = await fetch(fileUrl, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Erro ao buscar arquivo: ${response.status} ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            setFileContent(blobUrl);
+            // Usar fileUrl directamente (já vem do AttachmentsTab corrigido)
+            setFileContent(fileUrl);
         } catch (error) {
-            console.error('Erro ao buscar o arquivo:', error);
-            setError(error.message || 'Erro ao buscar o arquivo. Por favor, tente novamente.');
+            console.error('Erro:', error);
+            setError(error.message);
         } finally {
             setLoading(false);
         }
@@ -159,58 +141,12 @@ const DocumentPreview = ({
             return;
         }
 
-        try {
-            if (fileContent && typeof fileContent === 'string' && fileContent.startsWith('blob:')) {
-                const a = window.document.createElement('a');
-                a.href = fileContent;
-                a.download = fileName || 'download';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                return;
-            }
-
-            if (docData && docData.regnumber && fileName) {
-                const fileUrl = getFilePath(docData.regnumber, fileName);
-                const token = localStorage.getItem('user')
-                    ? JSON.parse(localStorage.getItem('user')).access_token
-                    : null;
-
-                if (!token) {
-                    showNotification("Token de autenticação não encontrado", "error");
-                    return;
-                }
-
-                fetch(fileUrl, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                })
-                    .then(response => {
-                        if (!response.ok) throw new Error("Erro ao baixar o arquivo");
-                        return response.blob();
-                    })
-                    .then(blob => {
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = window.document.createElement('a');
-                        a.href = blobUrl;
-                        a.download = fileName || 'download';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-                    })
-                    .catch(error => {
-                        console.error("Erro ao baixar o arquivo:", error);
-                        showNotification("Não foi possível baixar o arquivo", "error");
-                    });
-                return;
-            }
-
-            showNotification("Não foi possível baixar o arquivo. Informações insuficientes.", "error");
-        } catch (err) {
-            console.error("Erro ao tentar download:", err);
-            showNotification("Erro ao baixar o arquivo: " + err.message, "error");
+        // Fallback simples
+        if (fileContent) {
+            const a = document.createElement('a');
+            a.href = fileContent;
+            a.download = fileName || 'download';
+            a.click();
         }
     };
 

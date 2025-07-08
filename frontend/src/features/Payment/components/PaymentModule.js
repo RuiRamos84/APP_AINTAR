@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
-import { getAvailableMethodsForProfile } from '../services/paymentTypes';
+import { getAvailableMethodsForUser, debugUserPermissions } from '../services/paymentTypes';
 import { useAuth } from '../../../contexts/AuthContext';
 
 // Componentes
@@ -24,7 +24,7 @@ const PaymentModule = ({
     step,
     onStepChange,
     onLoadingChange,
-    onComplete, 
+    onComplete,
     paymentStatus
 }) => {
     const theme = useTheme();
@@ -34,7 +34,15 @@ const PaymentModule = ({
     const [direction, setDirection] = useState('forward');
     const [initialized, setInitialized] = useState(false);
 
-    const availableMethods = getAvailableMethodsForProfile(user?.profil);
+    // Usar gestão centralizada de permissões
+    const availableMethods = getAvailableMethodsForUser(user?.profil, user?.user_id);
+
+    // Debug permissões em desenvolvimento
+    useEffect(() => {
+        if (process.env.NODE_ENV === 'development' && user) {
+            debugUserPermissions(user.profil, user.user_id);
+        }
+    }, [user]);
 
     // Determinar se precisa checkout SIBS
     const hasSibsMethods = availableMethods.some(method =>
@@ -48,18 +56,20 @@ const PaymentModule = ({
 
     // Inicialização inteligente
     useEffect(() => {
-        if (!initialized) {
+        if (!initialized && user) {
             console.log('🚀 Inicializando pagamento:', {
                 documentId,
                 amount,
                 availableMethods,
-                hasSibsMethods
+                hasSibsMethods,
+                userProfile: user.profil,
+                userId: user.user_id
             });
 
             payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
             setInitialized(true);
         }
-    }, [documentId, amount, documentNumber, initialized, availableMethods, hasSibsMethods]);
+    }, [documentId, amount, documentNumber, initialized, availableMethods, hasSibsMethods, user]);
 
     // Auto-avançar quando método selecionado
     useEffect(() => {
@@ -127,6 +137,19 @@ const PaymentModule = ({
     };
 
     const renderStepContent = () => {
+        // Verificar se utilizador tem métodos disponíveis
+        if (availableMethods.length === 0) {
+            return (
+                <Box sx={{ p: 3 }}>
+                    <Alert severity="warning">
+                        <AlertTitle>Sem métodos de pagamento disponíveis</AlertTitle>
+                        O seu perfil não tem permissão para utilizar nenhum método de pagamento.
+                        Contacte a administração para mais informações.
+                    </Alert>
+                </Box>
+            );
+        }
+
         if (payment.state.error) {
             return (
                 <Box sx={{ p: 3 }}>
@@ -158,7 +181,7 @@ const PaymentModule = ({
                 : <PaymentStatus
                     transactionId={payment.state.transactionId}
                     onComplete={onComplete}
-            />
+                />
         ];
 
         return (
@@ -180,6 +203,9 @@ const PaymentModule = ({
         console.log('🔍 PaymentModule State:', {
             step,
             selectedMethod: payment.state.selectedMethod,
+            availableMethods,
+            userProfile: user?.profil,
+            userId: user?.user_id,
             sibsReady: payment.getSibsReady?.(),
             internalReady: payment.getInternalReady?.(),
             sibsTransactionId: payment.state.sibsTransactionId,
@@ -203,10 +229,8 @@ const PaymentModule = ({
     }
 
     return (
-
         <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: 'transparent' }}>
             {/* Content */}
-            
             <Box sx={{ position: 'relative', overflow: 'hidden' }}>
                 {renderStepContent()}
             </Box>

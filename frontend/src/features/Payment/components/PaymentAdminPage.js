@@ -11,15 +11,7 @@ import {
     Euro, FilterList, History
 } from '@mui/icons-material';
 import paymentService from '../services/paymentService';
-
-const statusColors = {
-    'PENDING_VALIDATION': 'warning',
-    'SUCCESS': 'success',
-    'DECLINED': 'error',
-    'CASH': 'success',
-    'BANK_TRANSFER': 'info',
-    'MUNICIPALITY': 'primary'
-};
+import { canManagePayments, PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
 
 const PaymentAdminPage = ({ userInfo }) => {
     const [tab, setTab] = useState(0);
@@ -45,13 +37,13 @@ const PaymentAdminPage = ({ userInfo }) => {
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 10;
 
-    const hasPermission = userInfo && [12, 16].includes(Number(userInfo.user_id));
+    // Usar gestão centralizada
+    const hasPermission = canManagePayments(userInfo?.user_id);
 
     const fetchPendingPayments = async () => {
         setLoading(true);
         try {
             const result = await paymentService.getPendingPayments();
-            // Filtrar apenas PENDING_VALIDATION
             const pending = result.success ?
                 result.payments.filter(p => p.payment_status === 'PENDING_VALIDATION') : [];
             setPayments(pending);
@@ -72,7 +64,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                 ...filters,
                 start_date: filters.startDate || null,
                 end_date: filters.endDate || null,
-                exclude_pending: true  // Excluir PENDING_VALIDATION
+                exclude_pending: true
             };
 
             const result = await paymentService.getPaymentHistory(params);
@@ -129,7 +121,7 @@ const PaymentAdminPage = ({ userInfo }) => {
         return (
             <Container>
                 <Alert severity="warning" sx={{ mt: 3 }}>
-                    Acesso negado.
+                    Acesso negado. Apenas utilizadores autorizados podem gerir pagamentos.
                 </Alert>
             </Container>
         );
@@ -341,16 +333,22 @@ const PaymentAdminPage = ({ userInfo }) => {
                                             <TableCell>
                                                 <Chip
                                                     label={payment.payment_method}
-                                                    color={statusColors[payment.payment_method] || 'default'}
                                                     size="small"
+                                                    sx={{
+                                                        bgcolor: `${PAYMENT_STATUS_COLORS[payment.payment_method] || 'grey.300'}`,
+                                                        color: 'white'
+                                                    }}
                                                 />
                                             </TableCell>
                                             {tab === 1 && (
                                                 <TableCell>
                                                     <Chip
                                                         label={payment.payment_status}
-                                                        color={statusColors[payment.payment_status] || 'default'}
                                                         size="small"
+                                                        sx={{
+                                                            bgcolor: `${PAYMENT_STATUS_COLORS[payment.payment_status] || 'grey.300'}`,
+                                                            color: 'white'
+                                                        }}
                                                     />
                                                 </TableCell>
                                             )}

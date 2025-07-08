@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
     Box, Button, TextField, Alert, CircularProgress, Typography,
     InputAdornment, Card, CardContent, Avatar, Fade, Stepper,
@@ -12,26 +12,69 @@ import { PaymentContext } from '../context/PaymentContext';
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
 const MBWayPayment = ({ onSuccess, transactionId }) => {
-    const { state, payWithMBWay, checkStatus } = useContext(PaymentContext);
+    const { state, payWithMBWay, checkStatus, startPolling, stopPolling } = useContext(PaymentContext);
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
-
     const [localStep, setLocalStep] = useState(0);
 
-    // Polling automático
-    useEffect(() => {
-        if (localStep === 2 && state.transactionId) {
-            const interval = setInterval(() => checkStatus(), 30000);
-            return () => clearInterval(interval);
-        }
-    }, [localStep, state.transactionId, checkStatus]);
+    // Controlar polling com useRef para evitar múltiplos intervalos
+    const pollingIntervalRef = useRef(null);
+    const isPollingRef = useRef(false);
 
+    // Limpar polling ao desmontar componente
+    useEffect(() => {
+        return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+            stopPolling();
+            isPollingRef.current = false;
+        };
+    }, [stopPolling]);
+
+    // Iniciar polling APENAS quando necessário
+    const startControlledPolling = () => {
+        if (isPollingRef.current || !state.transactionId) {
+            return; // Já está a fazer polling ou não tem transactionId
+        }
+
+        console.log('🔄 Iniciando polling controlado para:', state.transactionId);
+        isPollingRef.current = true;
+        startPolling();
+
+        pollingIntervalRef.current = setInterval(() => {
+            console.log('🔍 Verificando status MB WAY...');
+            checkStatus();
+        }, 15000); // 15 segundos em vez de 30
+    };
+
+    // Parar polling
+    const stopControlledPolling = () => {
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+        }
+        stopPolling();
+        isPollingRef.current = false;
+        console.log('⏹️ Polling MB WAY parado');
+    };
+
+    // Gerir transições de step
     useEffect(() => {
         if (state.transactionId && localStep === 1) {
             setLocalStep(2);
+            startControlledPolling(); // Iniciar polling só no step 2
             onSuccess?.();
         }
     }, [state.transactionId, localStep, onSuccess]);
+
+    // Parar polling quando status final
+    useEffect(() => {
+        if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(state.status)) {
+            stopControlledPolling();
+        }
+    }, [state.status]);
 
     const formatPhone = (value) => {
         const numbers = value.replace(/\D/g, '');
@@ -72,6 +115,15 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
         } catch (err) {
             setError(err.message);
             setLocalStep(0); // Voltar ao início
+        }
+    };
+
+    // Verificação manual (para debug)
+    const handleManualCheck = async () => {
+        try {
+            await checkStatus();
+        } catch (err) {
+            console.error('Erro verificação manual:', err);
         }
     };
 
@@ -202,6 +254,7 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                 </Fade>
             )}
 
+            {/* Step 2: Waiting */}
             {localStep === 2 && (
                 <Fade in timeout={300}>
                     <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -218,7 +271,7 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                         {/* Botão verificação manual */}
                         <Button
                             variant="outlined"
-                            onClick={() => checkStatus()}
+                            onClick={handleManualCheck}
                             disabled={state.loading}
                             startIcon={state.loading ? <CircularProgress size={16} /> : null}
                             sx={{ mt: 2 }}
@@ -227,8 +280,23 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                         </Button>
 
                         <Alert severity="success" sx={{ mt: 2 }}>
-                            Verificação automática a cada 30s
+                            <Typography variant="body2">
+                                <strong>Status:</strong> {state.status}<br />
+                                Verificação automática a cada 15s
+                                {isPollingRef.current && ' (Activo)'}
+                            </Typography>
                         </Alert>
+
+                        {/* Debug em desenvolvimento */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <Alert severity="info" sx={{ mt: 1 }}>
+                                <Typography variant="caption">
+                                    Transaction: {state.transactionId}<br />
+                                    Polling: {isPollingRef.current ? 'Ativo' : 'Inativo'}<br />
+                                    Status: {state.status}
+                                </Typography>
+                            </Alert>
+                        )}
                     </Box>
                 </Fade>
             )}

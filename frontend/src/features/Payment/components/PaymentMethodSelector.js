@@ -6,6 +6,7 @@ import {
     Schedule
 } from '@mui/icons-material';
 import { Avatar, Box, Card, CardContent, Chip, Grid, Radio, Typography } from '@mui/material';
+import { canUsePaymentMethod, PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
 
 // Ícones SIBS reais
 const MBWayIcon = ({ sx, ...props }) => (
@@ -28,7 +29,7 @@ const MultibancoIcon = ({ sx, ...props }) => (
 
 const methods = {
     MBWAY: {
-        label: 'MB WAY',
+        label: PAYMENT_METHOD_LABELS.MBWAY,
         icon: MBWayIcon,
         color: '#3b5998',
         description: 'Pagamento via telemóvel',
@@ -38,7 +39,7 @@ const methods = {
         requiresCheckout: true
     },
     MULTIBANCO: {
-        label: 'Multibanco',
+        label: PAYMENT_METHOD_LABELS.MULTIBANCO,
         icon: MultibancoIcon,
         color: '#0066cc',
         description: 'Referência ATM/homebanking',
@@ -48,7 +49,7 @@ const methods = {
         requiresCheckout: true
     },
     BANK_TRANSFER: {
-        label: 'Transferência',
+        label: PAYMENT_METHOD_LABELS.BANK_TRANSFER,
         icon: Payments,
         color: '#00897b',
         description: 'Transferência bancária',
@@ -58,7 +59,7 @@ const methods = {
         requiresCheckout: false
     },
     CASH: {
-        label: 'Numerário',
+        label: PAYMENT_METHOD_LABELS.CASH,
         icon: Euro,
         color: '#4caf50',
         description: 'Pagamento presencial',
@@ -68,7 +69,7 @@ const methods = {
         requiresCheckout: false
     },
     MUNICIPALITY: {
-        label: 'Municípios',
+        label: PAYMENT_METHOD_LABELS.MUNICIPALITY,
         icon: LocationCity,
         color: '#795548',
         description: 'Balcões municipais',
@@ -101,12 +102,10 @@ const PaymentMethodSelector = ({
         return internalReady;
     };
 
-    const filteredMethods = availableMethods.filter(method => {
-        if (method === 'CASH' && user?.user_id !== 17) {
-            return false;
-        }
-        return true;
-    });
+    // Usar gestão centralizada de permissões
+    const filteredMethods = availableMethods.filter(method =>
+        canUsePaymentMethod(user?.profil, method, user?.user_id)
+    );
 
     return (
         <Box sx={{ p: 2 }}>
@@ -237,6 +236,8 @@ const PaymentMethodSelector = ({
             {process.env.NODE_ENV === 'development' && (
                 <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.100', fontSize: '0.7rem' }}>
                     SIBS: {sibsReady ? '✅' : '❌'} | Internal: {internalReady ? '✅' : '❌'} | Loading: {loading ? '⏳' : '✅'}
+                    <br />
+                    Métodos permitidos: {filteredMethods.join(', ')}
                 </Box>
             )}
         </Box>

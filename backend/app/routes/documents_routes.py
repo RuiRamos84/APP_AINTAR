@@ -188,13 +188,48 @@ def add_document_steps(pk):
         return add_document_step(data, pk, current_user)
 
 
+@bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def download_file_route(regnumber, filename):
+    """Servir ficheiros com normalização de extensões"""
+    current_user = get_jwt_identity()
+    print(f"Download file request: regnumber={regnumber}, filename={filename}")    
+    try:
+        # # Verificar token
+        # token = request.headers.get('Authorization', '').split(' ')[-1]
+        # if not token:
+        #     current_app.logger.warning("Token não fornecido na requisição")
+        #     return jsonify({"error": "Token não fornecido"}), 401
+
+        # try:
+        #     decode_token(token)
+        # except jwt.ExpiredSignatureError:
+        #     current_app.logger.warning("Token expirado")
+        #     return jsonify({"error": "Token expirado"}), 401
+        # except jwt.InvalidTokenError:
+        #     current_app.logger.warning("Token inválido")
+        #     return jsonify({"error": "Token inválido"}), 401
+
+        # Usar função corrigida
+        with db_session_manager(current_user):
+            print(f"Download: {regnumber}/{filename}")            
+            return download_file(regnumber, filename, current_user)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erro servir ficheiro: {str(e)}")
+        return jsonify({'error': 'Erro interno'}), 500
+
+
 @bp.route('/add_document_annex', methods=['POST'])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
 def add_document_annex_endpoint():
-    """Endpoint para adicionar anexos a um documento existente"""
+    """Adicionar anexos com normalização"""
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         data = request.form
@@ -202,32 +237,57 @@ def add_document_annex_endpoint():
         return jsonify(response[0]), response[1]
 
 
-@bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
+# Rota debug (opcional - apenas para teste)
+@bp.route('/debug/file-test/<string:regnumber>/<string:filename>', methods=['GET'])
 @jwt_required()
+@token_required
 @set_session
 @api_error_handler
-def download_file_route(regnumber, filename):
-    """Apresentar arquivo"""
+def debug_file_test(regnumber, filename):
+    """Debug: testar ficheiro específico"""
     current_user = get_jwt_identity()
-    with db_session_manager(current_user):
-        try:
-            # Obter o token do cabeçalho de autorização
-            token = request.headers.get('Authorization', '').split(' ')[-1]
-            if not token:
-                return jsonify({"error": "Token não fornecido"}), 401
-
-            # Verificar o token
-            try:
-                decode_token(token)
-            except jwt.ExpiredSignatureError:
-                return jsonify({"error": "Token expirado"}), 401
-            except jwt.InvalidTokenError:
-                return jsonify({"error": "Token inválido"}), 401
-
-            return download_file(regnumber, filename, current_user)
-        except Exception as e:
-            current_app.logger.error(f"Erro ao baixar arquivo: {str(e)}")
-            return jsonify({'error': 'Erro interno ao baixar arquivo'}), 500
+    
+    if not current_user.get('profil') == "1":
+        return jsonify({'error': 'Sem permissão'}), 403
+    
+    try:
+        from .services.attachments import normalize_filename_extensions
+        
+        base_path = current_app.config.get('FILES_DIR', '/var/www/html/files')
+        request_path = os.path.join(base_path, regnumber)
+        
+        variations = normalize_filename_extensions(filename)
+        results = []
+        
+        for var in variations:
+            for subdir in ['anexos', 'Oficios', '']:
+                if subdir:
+                    test_path = os.path.join(request_path, subdir, var)
+                else:
+                    test_path = os.path.join(request_path, var)
+                
+                result = {
+                    'filename': var,
+                    'path': test_path,
+                    'exists': os.path.exists(test_path),
+                    'readable': os.access(test_path, os.R_OK) if os.path.exists(test_path) else False
+                }
+                
+                if os.path.exists(test_path):
+                    result['size'] = os.path.getsize(test_path)
+                    result['permissions'] = oct(os.stat(test_path).st_mode)[-3:]
+                
+                results.append(result)
+        
+        return jsonify({
+            'regnumber': regnumber,
+            'filename': filename,
+            'variations': variations,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @bp.route('/entity_count_types/<int:pk>', methods=['GET'])

@@ -344,3 +344,50 @@ export const FilePreviewItem = ({ file, description, onDescriptionChange, onRemo
         </ListItem>
     );
 };
+
+export const downloadFile = async (regnumber, filename, displayName = null) => {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || window.REACT_APP_API_BASE_URL;
+    const token = JSON.parse(localStorage.getItem("user"))?.access_token;
+
+    if (!baseUrl || !token) {
+        throw new Error("Configuração inválida");
+    }
+
+    const response = await fetch(`${baseUrl}/files/${regnumber}/${filename}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Erro ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = displayName || filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+};
+
+export const previewFile = async (regnumber, filename) => {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || window.REACT_APP_API_BASE_URL;
+    const token = JSON.parse(localStorage.getItem("user"))?.access_token;
+
+    const response = await fetch(`${baseUrl}/files/${regnumber}/${filename}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Erro ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    return {
+        url: window.URL.createObjectURL(blob),
+        type: blob.type,
+        size: blob.size
+    };
+};

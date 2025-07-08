@@ -7,12 +7,14 @@ const initialState = {
     regnumber: null,
     selectedMethod: null,
     transactionId: null,
-    sibsTransactionId: null,  // NOVO: ID da SIBS
-    internalTransactionId: null,  // NOVO: ID interno
+    sibsTransactionId: null,
+    internalTransactionId: null,
     checkoutData: null,
     loading: false,
     error: null,
-    status: 'PENDING'
+    status: 'PENDING',
+    pollingActive: false, // NOVO: controlar polling
+    checkoutInitialized: false // NOVO: evitar re-inicializações
 };
 
 const paymentReducer = (state, action) => {
@@ -23,22 +25,23 @@ const paymentReducer = (state, action) => {
                 documentId: action.documentId,
                 amount: action.amount,
                 regnumber: action.regnumber,
-                initialized: true  // Marcar como inicializado
+                initialized: true,
+                checkoutInitialized: false // Reset para permitir novo checkout se necessário
             };
         case 'SET_SIBS_CHECKOUT':
             return {
                 ...state,
                 checkoutData: action.checkoutData,
                 sibsTransactionId: action.checkoutData?.transaction_id,
-                transactionId: action.checkoutData?.transaction_id, // compatibilidade
+                transactionId: action.checkoutData?.transaction_id,
                 loading: false,
-                error: null
+                error: null,
+                checkoutInitialized: true
             };
         case 'SET_INTERNAL_CHECKOUT':
             return {
                 ...state,
                 internalTransactionId: action.transactionId,
-                // Só definir transactionId se não houver SIBS
                 transactionId: state.sibsTransactionId || action.transactionId,
                 loading: false,
                 error: null
@@ -54,7 +57,8 @@ const paymentReducer = (state, action) => {
                 ...state,
                 transactionId: action.transactionId || state.transactionId,
                 status: action.status || 'SUCCESS',
-                loading: false
+                loading: false,
+                pollingActive: false // Parar polling ao ter sucesso
             };
         case 'SET_STATUS':
             return {
@@ -63,6 +67,10 @@ const paymentReducer = (state, action) => {
                 loading: false,
                 error: null
             };
+        case 'START_POLLING':
+            return { ...state, pollingActive: true };
+        case 'STOP_POLLING':
+            return { ...state, pollingActive: false };
         case 'RESET':
             return initialState;
         default:
@@ -82,16 +90,24 @@ export const PaymentProvider = ({ children }) => {
 
     // Checkout SIBS (apenas para MBWay e Multibanco)
     const createSibsCheckout = useCallback(async (documentId, amount) => {
+        // Evitar múltiplos checkouts
+        if (state.checkoutInitialized && state.sibsTransactionId) {
+            console.log('🔄 Checkout SIBS já inicializado:', state.sibsTransactionId);
+            return state.checkoutData;
+        }
+
         dispatch({ type: 'SET_LOADING', loading: true });
         try {
+            console.log('🚀 Criando checkout SIBS para documento:', documentId);
             const checkoutData = await paymentService.createPreventiveCheckout(documentId, amount);
             dispatch({ type: 'SET_SIBS_CHECKOUT', checkoutData });
             return checkoutData;
         } catch (error) {
+            console.error('❌ Erro checkout SIBS:', error);
             dispatch({ type: 'SET_ERROR', error: error.message });
             throw error;
         }
-    }, []);
+    }, [state.checkoutInitialized, state.sibsTransactionId, state.checkoutData]);
 
     // Checkout interno (para métodos manuais)
     const createInternalCheckout = useCallback((documentId, amount) => {
@@ -104,10 +120,13 @@ export const PaymentProvider = ({ children }) => {
     }, []);
 
     const setOrderDetails = useCallback((documentId, amount, availableMethods, regnumber) => {
-        // Evitar re-inicialização
-        if (state.initialized && state.documentId === documentId) {
+        // Evitar re-inicialização desnecessária
+        if (state.initialized && state.documentId === documentId && state.amount === amount) {
+            console.log('🔄 Ordem já inicializada, ignorando:', { documentId, amount });
             return;
         }
+
+        console.log('🚀 Inicializando nova ordem:', { documentId, amount, availableMethods });
 
         dispatch({
             type: 'SET_ORDER',
@@ -125,7 +144,7 @@ export const PaymentProvider = ({ children }) => {
         if (hasSibs) {
             createSibsCheckout(documentId, amount).catch(console.error);
         }
-    }, [state.initialized, state.documentId, createSibsCheckout, createInternalCheckout]);
+    }, [state.initialized, state.documentId, state.amount, createSibsCheckout, createInternalCheckout]);
 
     // MBWay - requer checkout SIBS
     const payWithMBWay = useCallback(async (phoneNumber) => {
@@ -178,7 +197,6 @@ export const PaymentProvider = ({ children }) => {
                 details
             );
 
-            // Atualizar com transaction_id retornado pelo backend
             dispatch({
                 type: 'SET_SUCCESS',
                 transactionId: result.transaction_id,
@@ -191,8 +209,11 @@ export const PaymentProvider = ({ children }) => {
         }
     }, [state.documentId, state.amount]);
 
+    // Verificação de status COM CONTROLO DE POLLING
     const checkStatus = useCallback(async () => {
-        if (!state.transactionId) return;
+        if (!state.transactionId || state.loading) {
+            return;
+        }
 
         try {
             dispatch({ type: 'SET_LOADING', loading: true });
@@ -201,10 +222,32 @@ export const PaymentProvider = ({ children }) => {
                 type: 'SET_STATUS',
                 status: result.payment_status
             });
+
+            // Parar polling se status final
+            if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(result.payment_status)) {
+                dispatch({ type: 'STOP_POLLING' });
+            }
+
+            return result;
         } catch (error) {
+            console.error('❌ Erro verificação status:', error);
             dispatch({ type: 'SET_ERROR', error: error.message });
         }
-    }, [state.transactionId]);
+    }, [state.transactionId, state.loading]);
+
+    // Iniciar polling controlado
+    const startPolling = useCallback(() => {
+        if (!state.pollingActive && state.transactionId) {
+            dispatch({ type: 'START_POLLING' });
+            console.log('🔄 Iniciando polling para:', state.transactionId);
+        }
+    }, [state.pollingActive, state.transactionId]);
+
+    // Parar polling
+    const stopPolling = useCallback(() => {
+        dispatch({ type: 'STOP_POLLING' });
+        console.log('⏹️ Polling parado');
+    }, []);
 
     const resetPayment = () => {
         dispatch({ type: 'RESET' });
@@ -218,6 +261,8 @@ export const PaymentProvider = ({ children }) => {
         payWithMultibanco,
         payManual,
         checkStatus,
+        startPolling,
+        stopPolling,
         resetPayment,
         reset: resetPayment,
         // Expor utilitários

@@ -120,7 +120,8 @@ def login_user(username, password):
                 'session_id': session_id,
                 # 'notification_count': user_info_result.notification,
                 'dark_mode': user_info_result.darkmode,
-                'vacation': user_info_result.vacation
+                'vacation': user_info_result.vacation,
+                'entity': user_info_result.ts_entity,
             }
 
         # current_app.logger.debug(f"Informações do usuário obtidas com sucesso para: {username}")
@@ -142,9 +143,13 @@ def login_user(username, password):
 def create_tokens(user_data, refresh_count=0):
     current_time = datetime.now(timezone.utc)
 
+    # ✅ ADICIONAR PROFIL AOS CLAIMS DO JWT
     common_claims = {
         "session_id": user_data['session_id'],
         "user_id": user_data['user_id'],
+        "profil": user_data['profil'],  # ← NOVO: Incluir profil
+        "entity": user_data.get('entity'),  # ← NOVO: Incluir entity também
+        "user_name": user_data.get('user_name'),  # ← ÚTIL para debug
         "created_at": current_time.timestamp(),
         "last_activity": current_time.timestamp()
     }
@@ -211,12 +216,13 @@ def refresh_access_token(refresh_token, client_time, server_time):
         if not decoded_token or decoded_token.get('token_type') != 'refresh':
             return None, "Token inválido para atualização", 401
 
-        # Extrair informações do token
+        # ✅ EXTRAIR PROFIL E ENTITY DO TOKEN
         user_data = {
             'user_id': decoded_token.get('user_id'),
             'user_name': decoded_token.get('user_name'),
             'session_id': decoded_token.get('session_id'),
-            'profil': decoded_token.get('profil'),
+            'profil': decoded_token.get('profil'),  # ← NOVO: Extrair profil
+            'entity': decoded_token.get('entity'),   # ← NOVO: Extrair entity
             'notification_count': decoded_token.get('notification_count'),
             'dark_mode': decoded_token.get('dark_mode'),
             'vacation': decoded_token.get('vacation'),
@@ -228,7 +234,8 @@ def refresh_access_token(refresh_token, client_time, server_time):
         last_activity_timestamp = decoded_token.get('last_activity')
 
         if token_created_at_timestamp is None or last_activity_timestamp is None:
-            current_app.logger.error(f"Campos do token em falta: created_at={token_created_at_timestamp}, last_activity={last_activity_timestamp}")
+            current_app.logger.error(
+                f"Campos do token em falta: created_at={token_created_at_timestamp}, last_activity={last_activity_timestamp}")
             return None, "Os dados do token estão incompletos", 400
 
         # Calcular a idade do token com base no tempo de criação
@@ -255,11 +262,12 @@ def refresh_access_token(refresh_token, client_time, server_time):
         # Atualizar a última atividade do utilizador
         update_last_activity(user_data['user_id'])
 
-        # Retornar os dados na mesma estrutura do login inicial
+        # ✅ RETORNAR PROFIL E ENTITY NO REFRESH
         return {
             "user_id": user_data['user_id'],
             "user_name": user_data['user_name'],
-            "profil": user_data['profil'],
+            "profil": user_data['profil'],  # ← NOVO: Incluir no retorno
+            "entity": user_data['entity'],   # ← NOVO: Incluir no retorno
             "session_id": user_data['session_id'],
             "notification_count": user_data['notification_count'],
             "dark_mode": user_data['dark_mode'],

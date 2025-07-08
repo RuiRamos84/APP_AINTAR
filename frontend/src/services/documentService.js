@@ -368,3 +368,43 @@ export const getDocumentsLate = async () => {
     throw error;
   }
 };
+
+export const downloadFile = async (regnumber, filename, displayName = null) => {
+  const response = await api.get(`/files/${regnumber}/${filename}`, {
+    responseType: 'blob',
+    headers: { 'Accept': '*/*' }
+  });
+
+  const blob = response.data;
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = displayName || filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+export const previewFile = async (regnumber, filename) => {
+  const url = `/files/${regnumber}/${filename}?v=${Date.now()}`;
+  console.log('📡 API call URL:', url);
+
+  try {
+    const response = await api.get(url, {
+      responseType: 'blob',
+      headers: { 'Accept': '*/*' }
+    });
+
+    console.log('✅ Response status:', response.status);
+    const blob = response.data;
+    return {
+      url: window.URL.createObjectURL(blob),
+      type: blob.type,
+      size: blob.size
+    };
+  } catch (error) {
+    console.error('❌ API Error:', error.response?.status, error.response?.data);
+    throw error;
+  }
+};

@@ -4,14 +4,15 @@ import {
 } from '@mui/material';
 import { Euro as CashIcon } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
+import { canUsePaymentMethod, PAYMENT_METHODS, canProcessCashPayments } from '../services/paymentTypes';
 
 const CashPayment = ({ onSuccess, userInfo }) => {
     const { state, payManual } = useContext(PaymentContext);
     const [reference, setReference] = useState('');
     const [error, setError] = useState('');
 
-    // Verificar permissão - CASH disponível para perfis 0 e 1
-    const hasPermission = userInfo && ['0', '1'].includes(userInfo.profil);
+    // Usar gestão centralizada
+    const hasPermission = canProcessCashPayments(userInfo?.user_id);
 
     const handlePay = async () => {
         if (!reference.trim()) {

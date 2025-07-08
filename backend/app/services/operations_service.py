@@ -21,7 +21,8 @@ def get_operations_data(current_user):
         'vbr_document_desobstrucao01': 'Desobstrução',
         'vbr_document_pavimentacao01': 'Pavimentações',
         'vbr_document_ramais02': 'Repavimentações',
-        'vbr_document_rede01': 'Rede'
+        'vbr_document_rede01': 'Rede',
+        'vbr_document_reparacao': 'Reparações',
     }
 
     operations_data = {}

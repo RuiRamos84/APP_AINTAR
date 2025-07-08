@@ -22,7 +22,7 @@ const PaymentApproval = ({ userInfo }) => {
     const [confirmOpen, setConfirmOpen] = useState(false);
 
     // Verificar permissões
-    const hasPermission = userInfo && [12, 16].includes(Number(userInfo.user_id));
+    const hasPermission = userInfo && [12, 15].includes(Number(userInfo.user_id));
 
     const fetchPayments = async () => {
         setLoading(true);

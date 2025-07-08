@@ -14,8 +14,4 @@ from .tasks_routes import bp as tasks_bp
 from .operations_routes import bp as operations_bp
 
 
-
-
-
-
 __all__ = ['auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp', 'dashboard_bp', 'letters_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp', 'tasks_bp', 'operations_bp', 'dashboard_bp']
