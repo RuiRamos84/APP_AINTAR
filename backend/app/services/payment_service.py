@@ -313,7 +313,7 @@ class PaymentService:
             logger.error(f"Erro process_multibanco_from_checkout: {e}")
             return {"success": False, "error": str(e)}
 
-    def register_manual_payment_direct(document_id, amount, payment_type, reference_info, user_session, user_id):
+    def register_manual_payment_direct(document_id, amount, payment_type, reference_info, user_session, user_id=None):
         """Registar pagamento manual direto"""
         try:
             # ✅ CRIAR PAYMENT_REFERENCE SIMPLES
