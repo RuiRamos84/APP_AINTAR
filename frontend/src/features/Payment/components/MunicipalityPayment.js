@@ -172,6 +172,9 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
 
         setError('');
         try {
+            // ✅ USAR A REFERÊNCIA INSERIDA PELO UTILIZADOR
+            const referenceInfo = `Pagamento municipal em ${formData.municipality} - Ref: ${formData.reference} - Data: ${new Date(formData.paymentDate).toLocaleDateString('pt-PT')} - Processado por: ${userInfo?.user_name || `User ${userInfo?.user_id}`}`;
+
             const details = {
                 municipality: formData.municipality,
                 paymentReference: formData.reference,
@@ -180,10 +183,13 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                 processedBy: userInfo?.user_name || `User ${userInfo?.user_id}`,
                 entityPk: userInfo?.entity,
                 hasAttachments: attachments.length > 0,
-                attachmentCount: attachments.length
+                attachmentCount: attachments.length,
+                // ✅ CAMPO ESPECÍFICO PARA A REFERÊNCIA DO UTILIZADOR
+                userReference: formData.reference
             };
 
-            const result = await payManual('MUNICIPALITY', details);
+            // ✅ PASSAR A REFERÊNCIA PERSONALIZADA EM VEZ DO OBJETO DETAILS
+            const result = await payManual('MUNICIPALITY', referenceInfo);
 
             // Tentar adicionar anexos se existirem
             if (attachments.length > 0) {
@@ -433,4 +439,5 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         </Box>
     );
 };
-export default MunicipalityPayment; 
+
+export default MunicipalityPayment;

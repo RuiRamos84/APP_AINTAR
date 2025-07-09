@@ -87,20 +87,41 @@ class PaymentService {
             details
         });
 
-        // Converter details para reference_info
+        // ✅ PRESERVAR A REFERÊNCIA EXATA DO UTILIZADOR
         let reference_info;
+
         if (typeof details === 'string') {
+            // Se details é string, usar diretamente (caso comum)
             reference_info = details;
         } else if (details && typeof details === 'object') {
-            if (details.reference_info) {
+            // Se é objeto, tentar extrair a referência do utilizador primeiro
+            if (details.userReference) {
+                // ✅ PRIORIZAR A REFERÊNCIA INSERIDA PELO UTILIZADOR
+                reference_info = `${paymentType} - Ref: ${details.userReference}`;
+
+                // Adicionar informações contextuais
+                if (details.municipality) {
+                    reference_info += ` - ${details.municipality}`;
+                }
+                if (details.paymentDate) {
+                    reference_info += ` - ${new Date(details.paymentDate).toLocaleDateString('pt-PT')}`;
+                }
+                if (details.processedBy) {
+                    reference_info += ` - Por: ${details.processedBy}`;
+                }
+            } else if (details.reference_info) {
+                // Fallback para reference_info existente
                 reference_info = details.reference_info;
             } else {
-                // Serializar objeto complexo
+                // Último recurso: serializar objeto
                 reference_info = JSON.stringify(details);
             }
         } else {
-            reference_info = 'Pagamento manual registado';
+            // Fallback genérico
+            reference_info = `Pagamento ${paymentType} registado`;
         }
+
+        console.log('📝 Reference info final:', reference_info);
 
         const response = await this.api.post('/payments/manual-direct', {
             document_id: documentId,
