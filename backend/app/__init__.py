@@ -185,10 +185,10 @@ def create_app(config_class):
         return {"error": "Internal server error"}, 500
 
     logger.info("Aplicação iniciada com sucesso.")
-    with app.app_context():
-        print(app.url_map)
+    # with app.app_context():
+        # print(app.url_map)
         # Log de todas as rotas registradas
-        for rule in app.url_map.iter_rules():
-            logger.info(f"Registered route: {rule}")
+        # for rule in app.url_map.iter_rules():
+        #     logger.info(f"Registered route: {rule}")
     
     return app
