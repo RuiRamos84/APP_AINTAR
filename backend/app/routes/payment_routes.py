@@ -103,6 +103,17 @@ def debug_user_permissions(user_profile, user_id, payment_method=None):
             f"Método solicitado ({payment_method}): {'✅' if can_use_payment_method(user_profile, payment_method, user_id) else '❌'}")
 
 
+# Mapeamento temporário user_id → perfil (fallback enquanto tokens antigos não expiram)
+USER_PROFILE_MAPPING = {
+    5: '2',    # User 5 = Perfil 2 (Município)
+    12: '0',   # User 12 = Perfil 0 (Admin)
+    15: '1',   # User 15 = Perfil 1 (AINTAR)
+    16: '0',   # User 16 = Perfil 0 (Admin)
+    17: '1',   # User 17 = Perfil 1 (AINTAR)
+    # Adicionar mais conforme necessário
+}
+
+
 def get_user_info_from_jwt():
     """Extrair informações do utilizador do JWT (agora com profil incluído)"""
     try:
@@ -335,12 +346,14 @@ def register_manual_payment():
     user = get_jwt_identity()
 
     try:
+        # ✅ PASSAR USER_ID DIRETAMENTE DO JWT
         result = payment_service.register_manual_payment_direct(
             data["document_id"],
             data["amount"],
             data["payment_type"],
             data["reference_info"],
-            user
+            user,  # session_id para compatibilidade
+            user_id  # ✅ NOVO: user_id do JWT
         )
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:

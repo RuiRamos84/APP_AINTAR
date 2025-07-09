@@ -172,24 +172,8 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
 
         setError('');
         try {
-            // ✅ USAR A REFERÊNCIA INSERIDA PELO UTILIZADOR
-            const referenceInfo = `Pagamento municipal em ${formData.municipality} - Ref: ${formData.reference} - Data: ${new Date(formData.paymentDate).toLocaleDateString('pt-PT')} - Processado por: ${userInfo?.user_name || `User ${userInfo?.user_id}`}`;
-
-            const details = {
-                municipality: formData.municipality,
-                paymentReference: formData.reference,
-                paymentDate: formData.paymentDate,
-                paymentLocation: formData.municipality,
-                processedBy: userInfo?.user_name || `User ${userInfo?.user_id}`,
-                entityPk: userInfo?.entity,
-                hasAttachments: attachments.length > 0,
-                attachmentCount: attachments.length,
-                // ✅ CAMPO ESPECÍFICO PARA A REFERÊNCIA DO UTILIZADOR
-                userReference: formData.reference
-            };
-
-            // ✅ PASSAR A REFERÊNCIA PERSONALIZADA EM VEZ DO OBJETO DETAILS
-            const result = await payManual('MUNICIPALITY', referenceInfo);
+            // ✅ USAR APENAS A REFERÊNCIA INSERIDA PELO UTILIZADOR
+            const result = await payManual('MUNICIPALITY', formData.reference.trim());
 
             // Tentar adicionar anexos se existirem
             if (attachments.length > 0) {

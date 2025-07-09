@@ -313,72 +313,55 @@ class PaymentService:
             logger.error(f"Erro process_multibanco_from_checkout: {e}")
             return {"success": False, "error": str(e)}
 
-    def register_manual_payment_direct(self, document_id, amount, payment_type, reference_info, current_user):
-        """Pagamento manual direto - SEM checkout SIBS"""
+    def register_manual_payment_direct(document_id, amount, payment_type, reference_info, user_session, user_id):
+        """Registar pagamento manual direto"""
         try:
-            with db_session_manager(current_user) as db:
-                regnumber = db.execute(text("""
-                    SELECT regnumber FROM tb_document WHERE pk = :doc_id
-                """), {"doc_id": document_id}).scalar()
-
-                if not regnumber:
-                    return {"success": False, "error": "Documento não encontrado"}
-
-            # Gerar transaction_id interno único
-            transaction_id = f"MANUAL-{document_id}-{datetime.utcnow():%Y%m%d%H%M%S}"
-
-            # Metadados do pagamento manual
-            meta = {
+            # ✅ CRIAR PAYMENT_REFERENCE SIMPLES
+            payment_reference = {
                 "manual_payment": True,
-                "payment_details": reference_info,
-                "submitted_by": current_user,
-                "submitted_at": datetime.utcnow().isoformat(),
+                "payment_details": reference_info,  # ✅ SÓ A REFERÊNCIA DO UTILIZADOR
+                "submitted_by": user_id,            # ✅ USER_ID DO JWT
+                "submitted_at": datetime.now().isoformat(),
                 "payment_type": payment_type
             }
 
-            with db_session_manager(current_user) as db:
-                new_pk = db.execute(
-                    text("SELECT nextval('sq_codes')")).scalar()
+            # Gerar transaction_id único
+            transaction_id = f"MANUAL-{payment_type}-{document_id}-{int(time.time())}"
 
-                # Inserir diretamente como pagamento manual
-                sibs_result = db.execute(text("""
-                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                'MANUAL', :amount, 'EUR', :payment_method, 
-                                :status, :payment_reference, 'MANUAL', 
-                                NULL, :created_at, NULL, NULL, NULL)
-                """), {
-                    "pk": new_pk,
-                    "order_id": regnumber,
-                    "transaction_id": transaction_id,
-                    "amount": float(amount),
-                    "payment_method": payment_type,
-                    "status": PaymentStatus.PENDING_VALIDATION,
-                    "payment_reference": json.dumps(meta),
-                    "created_at": datetime.utcnow()
-                })
+            # Inserir na base de dados
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
 
-                sibs_pk = sibs_result.scalar()
+                # Inserir pagamento
+                cursor.execute("""
+                    INSERT INTO tb_payment_invoice 
+                    (tb_document, invoice, payment_reference, payment_method, payment_status, order_id, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    document_id,
+                    amount,
+                    json.dumps(payment_reference),
+                    payment_type,
+                    'PENDING_VALIDATION',
+                    transaction_id,
+                    datetime.now()
+                ))
 
-                # Atualizar invoice
-                db.execute(text("""
-                    UPDATE tb_document_invoice 
-                    SET tb_sibs = :sibs_pk 
-                    WHERE tb_document = :document_id
-                """), {"sibs_pk": sibs_pk, "document_id": document_id})
-
-            logger.info(
-                f"Pagamento manual criado: {transaction_id} para documento {document_id}")
+                conn.commit()
 
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "status": PaymentStatus.PENDING_VALIDATION,
-                "message": "Pagamento registado para validação"
+                "payment_status": "PENDING_VALIDATION",
+                "message": "Pagamento registado com sucesso"
             }
 
         except Exception as e:
-            logger.error(f"Erro register_manual_payment_direct: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Erro ao registar pagamento manual: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     # MANTER compatibilidade com método antigo
     def process_manual_direct(self, document_id, amount, payment_type, payment_details, current_user):
