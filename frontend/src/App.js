@@ -45,6 +45,7 @@ import Operation from "./pages/Operation";
 import PasswordRecovery from "./pages/PasswordRecovery/PasswordRecovery";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import Settings from "./pages/Settings/Settings";
+import GlobalModule from "./pages/Global";
 import {
   AllTasks,
   CompletedTasks,
@@ -325,6 +326,14 @@ const AppContent = () => {
                 element={
                   <PrivateRoute>
                     <InternalArea />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/global"
+                element={
+                  <PrivateRoute>
+                    <GlobalModule />
                   </PrivateRoute>
                 }
               />
