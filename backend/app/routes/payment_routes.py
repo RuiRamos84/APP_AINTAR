@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from app.services.payment_service import payment_service
-from ..utils.utils import token_required, set_session
 import logging
+
+from app.services.payment_service import payment_service
 from app.utils.error_handler import api_error_handler
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
+
+from ..utils.utils import set_session, token_required
 
 bp = Blueprint("payments", __name__)
 logger = logging.getLogger(__name__)
@@ -384,6 +386,34 @@ def get_pending_payments():
         return jsonify({"success": True, "payments": payments}), 200
     except Exception as e:
         logger.error(f"Erro ao obter pagamentos pendentes: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route("/payments/details/<int:payment_pk>", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_payment_details(payment_pk):
+    """Obter detalhes completos do pagamento"""
+    has_permission, user_id, user_profile = check_payment_permissions("admin")
+    if not has_permission:
+        return jsonify({
+            "success": False,
+            "error": "Sem permissão",
+            "user_id": user_id
+        }), 403
+
+    user = get_jwt_identity()
+
+    try:
+        details = payment_service.get_payment_details(payment_pk, user)
+        if not details:
+            return jsonify({"success": False, "error": "Pagamento não encontrado"}), 404
+
+        return jsonify({"success": True, "payment": details}), 200
+    except Exception as e:
+        logger.error(f"Erro ao obter detalhes {payment_pk}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

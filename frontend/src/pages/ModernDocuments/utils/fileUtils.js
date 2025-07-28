@@ -26,7 +26,7 @@ import {
     Delete as DeleteIcon,
     Slideshow as SlideshowIcon
 } from '@mui/icons-material';
-import * as pdfjsLib from "pdfjs-dist/webpack";
+import * as pdfjsLib from "pdfjs-dist";
 
 /**
  * Obtém o componente de ícone adequado para o tipo de arquivo

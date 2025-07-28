@@ -146,6 +146,11 @@ class PaymentService {
         return response.data;
     }
 
+    async getPaymentDetails(paymentPk) {
+        const response = await this.api.get(`/payments/details/${paymentPk}`);
+        return response.data;
+    }
+
     /**
      * ADMINISTRAÇÃO
      */

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/webpack';
+import * as pdfjsLib from "pdfjs-dist";
 import { notifyError } from '../../../../../components/common/Toaster/ThemedToaster';
 
 /**

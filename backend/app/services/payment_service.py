@@ -313,14 +313,14 @@ class PaymentService:
             logger.error(f"Erro process_multibanco_from_checkout: {e}")
             return {"success": False, "error": str(e)}
 
-    def register_manual_payment_direct(document_id, amount, payment_type, reference_info, user_session, user_id=None):
-        """Registar pagamento manual direto"""
+    def register_manual_payment_direct(self, document_id, amount, payment_type, reference_info, user_session, user_id=None):
+        """Registar pagamento manual direto - CORRIGIDO"""
         try:
-            # ✅ CRIAR PAYMENT_REFERENCE SIMPLES
+            # Criar payment_reference estruturado
             payment_reference = {
                 "manual_payment": True,
-                "payment_details": reference_info,  # ✅ SÓ A REFERÊNCIA DO UTILIZADOR
-                "submitted_by": user_id,            # ✅ USER_ID DO JWT
+                "payment_details": reference_info,
+                "submitted_by": user_id,
                 "submitted_at": datetime.now().isoformat(),
                 "payment_type": payment_type
             }
@@ -328,31 +328,44 @@ class PaymentService:
             # Gerar transaction_id único
             transaction_id = f"MANUAL-{payment_type}-{document_id}-{int(time.time())}"
 
-            # Inserir na base de dados
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
+            # Inserir na base de dados usando session manager
+            with db_session_manager(user_session) as db:
+                # Gerar nova PK
+                new_pk = db.execute(text("SELECT nextval('sq_codes')")).scalar()
 
-                # Inserir pagamento
-                cursor.execute("""
-                    INSERT INTO tb_payment_invoice 
-                    (tb_document, invoice, payment_reference, payment_method, payment_status, order_id, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    document_id,
-                    amount,
-                    json.dumps(payment_reference),
-                    payment_type,
-                    'PENDING_VALIDATION',
-                    transaction_id,
-                    datetime.now()
-                ))
+                # Inserir utilizando a função fbf_sibs existente
+                sibs_result = db.execute(text("""
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
+                                NULL, :amount, 'EUR', 
+                                :method, :status, :pref, NULL, 
+                                NULL, :created_at, NULL, NULL, NULL)
+                """), {
+                    "pk": new_pk,
+                    "order_id": f"MANUAL-{document_id}",
+                    "transaction_id": transaction_id,
+                    "amount": float(amount),
+                    "method": payment_type,
+                    "status": PaymentStatus.PENDING_VALIDATION,
+                    "pref": json.dumps(payment_reference),
+                    "created_at": datetime.now()
+                })
 
-                conn.commit()
+                sibs_pk = sibs_result.scalar()
+
+                # Actualizar tb_document_invoice
+                db.execute(text("""
+                    UPDATE tb_document_invoice 
+                    SET tb_sibs = :sibs_pk 
+                    WHERE tb_document = :document_id
+                """), {"sibs_pk": sibs_pk, "document_id": document_id})
+
+                # Commit explícito
+                db.commit()
 
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "payment_status": "PENDING_VALIDATION",
+                "payment_status": PaymentStatus.PENDING_VALIDATION,
                 "message": "Pagamento registado com sucesso"
             }
 
@@ -498,6 +511,34 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro ao obter pagamentos pendentes: {e}")
+            raise
+
+    def get_payment_details(self, payment_pk, current_user):
+        """Obter detalhes completos do pagamento"""
+        try:
+            with db_session_manager(current_user) as session:
+                query = text("""
+                        SELECT 
+                            s.pk, s.order_id, s.transaction_id, s.amount,
+                            s.payment_method, s.payment_status, s.payment_reference,
+                            s.created_at, s.updated_at, s.validated_by, s.validated_at,
+                            b.tb_document, b.invoice, b.presented, b.accepted, 
+                            b.payed, b.closed, b.urgency,
+                            d.regnumber, d.memo as document_descr,
+                            c.name as validator_name
+                        FROM tb_sibs s
+                        LEFT JOIN tb_document_invoice b ON b.tb_sibs = s.pk
+                        LEFT JOIN tb_document d ON d.pk = b.tb_document
+                        LEFT JOIN ts_client c ON c.pk = s.validated_by
+                        WHERE s.pk = :payment_pk
+                    """)
+
+                result = session.execute(
+                    query, {"payment_pk": payment_pk}).fetchone()
+                return dict(result._mapping) if result else None
+
+        except Exception as e:
+            logger.error(f"Erro ao obter detalhes do pagamento {payment_pk}: {e}")
             raise
 
     def get_document_payment_status(self, document_id, current_user):

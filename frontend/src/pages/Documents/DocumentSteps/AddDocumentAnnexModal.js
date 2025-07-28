@@ -22,7 +22,7 @@ import { useDropzone } from "react-dropzone";
 import { addDocumentAnnex } from "../../../services/documentService";
 import { useSnackbar } from "notistack";
 import DeleteIcon from "@mui/icons-material/Delete";
-import * as pdfjsLib from "pdfjs-dist/webpack";
+import * as pdfjsLib from "pdfjs-dist";
 import "./AddDocumentAnnexModal.css";
 
 const AddDocumentAnnexModal = ({ open, onClose, documentId, regnumber }) => {

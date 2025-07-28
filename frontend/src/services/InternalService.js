@@ -32,6 +32,38 @@ export const addVolumeRecord = async (areaId, data) => {
     }
 };
 
+// Water Volume Records
+export const getWaterVolumeRecords = async (areaId, pk) => {
+    try {
+        if (!areaId || !pk) {
+            throw new Error("Área ou PK inválida.");
+        }
+        const url = areaId === 1 ? `/etar_water_volumes/${pk}` : `/ee_water_volumes/${pk}`;
+        // console.log(`Fetching water volume records from: ${url}`);
+        const response = await api.get(url);
+        // console.log(response.data)
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar registros de volume de água:", error);    
+        throw error;
+    }
+};
+
+export const addWaterVolumeRecord = async (areaId, data) => {
+    try {
+        if (!areaId || !data) {
+            throw new Error("Dados ou área inválidos.");
+        }
+        const url = areaId === 1 ? `/etar_water_volume` : `/ee_water_volume`;
+        // console.log(`Adding water volume record to: ${url} with data:`, data);
+        const response = await api.post(url, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao adicionar registro de volume de água:", error);
+        throw error;
+    }
+};
+
 // Energy Records
 export const getEnergyRecords = async (areaId, pk) => {
     try {

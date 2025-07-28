@@ -161,6 +161,62 @@ def list_ee_volumes(tb_ee, current_user):
         return {'error': f"Erro ao listar volumes de EE: {str(e)}"}, 500
 
 
+def create_water_etar_volume(pnpk, pndate, pnval, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_etar_waterread_createdirect(:pnpk, :pndate, :pnval)")
+            result = session.execute(query, {
+                'pnpk': pnpk,
+                'pndate': pndate,
+                'pnval': pnval
+            }).scalar()
+            success_message = format_message(result)
+            return {'message': 'Volume de água registado com sucesso', 'result': success_message}, 201
+    except Exception as e:
+        return {'error': f"Erro ao registar volume de água: {str(e)}"}, 500
+
+
+def create_water_ee_volume(pnpk, pndate, pnval, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT fbo_ee_waterread_createdirect(:pnpk, :pndate, :pnval)")
+            result = session.execute(query, {
+                'pnpk': pnpk,
+                'pndate': pndate,
+                'pnval': pnval
+            }).scalar()
+            success_message = format_message(result)
+            return {'message': 'Volume de água registado com sucesso', 'result': success_message}, 201
+    except Exception as e:
+        return {'error': f"Erro ao registar volume de água: {str(e)}"}, 500
+
+
+def list_etar_water_volumes(tb_etar, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT * FROM vbl_etar_waterread WHERE tb_etar = :tb_etar order by data desc")
+            results = session.execute(query, {'tb_etar': tb_etar}).fetchall()
+            water_volumes = [dict(row._mapping) for row in results]
+            return {'water_volumes': water_volumes}, 200
+    except Exception as e:
+        return {'error': f"Erro ao listar volumes de água de ETAR: {str(e)}"}, 500
+
+
+def list_ee_water_volumes(tb_ee, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT * FROM vbl_ee_waterread WHERE tb_ee = :tb_ee order by data desc")
+            results = session.execute(query, {'tb_ee': tb_ee}).fetchall()
+            water_volumes = [dict(row._mapping) for row in results]
+            return {'water_volumes': water_volumes}, 200
+    except Exception as e:
+        return {'error': f"Erro ao listar volumes de água de EE: {str(e)}"}, 500
+
+
 def create_etar_energy(pnpk, pndate, pnval_vazio, pnval_ponta, pnval_cheia, current_user):
     try:
         with db_session_manager(current_user) as session:

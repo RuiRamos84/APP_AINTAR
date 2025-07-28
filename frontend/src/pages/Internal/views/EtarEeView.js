@@ -22,7 +22,8 @@ import {
     Tooltip
 } from "@mui/material";
 import InfoIcon from '@mui/icons-material/Info';
-import EqualizerIcon from '@mui/icons-material/Equalizer';
+import EqualizerIcon from '@mui/icons-material/Water';
+import WaterIcon from '@mui/icons-material/WaterDrop';
 import BoltIcon from '@mui/icons-material/Bolt';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import NatureIcon from '@mui/icons-material/Nature';
@@ -53,6 +54,13 @@ const volumeColumns = [
     { id: "cliente", label: "Cliente", field: "ts_client" }
 ];
 
+const waterVolumeColumns = [
+    { id: "data", label: "Data", field: "data" },
+    // { id: "tipo", label: "Tipo", field: "tt_readspot" },
+    { id: "valor", label: "Volume (m³)", field: "valor" },
+    // { id: "cliente", label: "Cliente", field: "ts_client" }
+];
+
 const energyColumns = [
     { id: "data", label: "Data", field: "data" },
     { id: "vazio", label: "Consumo Vazio", field: "valor_vazio" },
@@ -73,6 +81,7 @@ const expenseColumns = [
 const SUB_AREAS = [
     { id: 'caracteristicas', name: 'Características', icon: <InfoIcon />, isMassRequest: false },
     { id: 'volumes', name: 'Registo de Volumes', icon: <EqualizerIcon />, isMassRequest: false },
+    { id: 'water_volumes', name: 'Registo de Volumes de Água', icon: <WaterIcon />, isMassRequest: false },
     { id: 'energia', name: 'Registo de Energia', icon: <BoltIcon />, isMassRequest: false },
     { id: 'despesas', name: 'Registo de Despesas', icon: <AccountBalanceWalletIcon />, isMassRequest: false },
     { id: 'desmatacao', name: 'Desmatação', icon: <NatureIcon />, isMassRequest: true },
@@ -236,6 +245,9 @@ const EtarEeView = ({ areaId }) => {
                 );
             case 'volumes':
                 return <VolumeTab areaId={areaId} entity={selectedEntity} />;
+            case 'water_volumes':
+                return <WaterVolumeTab areaId={areaId} entity=
+                    {selectedEntity} />;
             case 'energia':
                 return <EnergyTab areaId={areaId} entity={selectedEntity} />;
             case 'despesas':
@@ -374,6 +386,170 @@ const VolumeTab = ({ areaId, entity }) => {
                     metaData={metaData}
                     fieldsConfig={volumeFieldsConfig}
                 />
+            )}
+        />
+    );
+};
+
+const WaterVolumeTab = ({ areaId, entity }) => {
+    const { state, dispatch } = useInternalContext();
+    const { records, loading, newRecord, setNewRecord, addRecord } = useRecords("water_volume");
+    const { metaData } = useMetaData();
+
+    useEffect(() => {
+        dispatch({ type: "SET_ENTITY", payload: entity });
+    }, [entity, dispatch]);
+
+    const handleAddRecord = async () => {
+        if (!newRecord.date || !newRecord.value) {
+            notifyError("Preencha todos os campos obrigatórios");
+            return;
+        }
+
+        const currentValue = parseFloat(newRecord.value);
+        if (currentValue <= 0) {
+            notifyError("O valor da leitura deve ser maior que zero");
+            return;
+        }
+
+        // Validar se leitura não é inferior à anterior
+        if (records && records.length > 0) {
+            const lastValue = parseFloat(records[0].valor);
+            if (currentValue < lastValue) {
+                notifyError(`A leitura actual (${currentValue}m³) não pode ser inferior à última (${lastValue}m³)`);
+                return;
+            }
+        }
+
+        const payload = {
+            pnpk: entity.pk,
+            pndate: newRecord.date,
+            pnval: currentValue
+        };
+
+        if (await addRecord(payload)) {
+            setNewRecord({
+                date: getCurrentDateTime(),
+                value: ""
+            });
+        }
+    };
+
+    // Verificar se formulário é válido para desactivar botão
+    const isFormValid = () => {
+        return newRecord.date && newRecord.value && newRecord.value.trim() !== "" && parseFloat(newRecord.value) > 0;
+    };
+
+    // Processar registos com cálculos
+    const processedRecords = records.map((record, index) => {
+        const nextRecord = records[index + 1]; // Registo anterior (mais antigo)
+
+        let diasDecorridos = '-';
+        let volumeConsumido = '-';
+
+        if (nextRecord) {
+            // Calcular dias
+            const dataActual = new Date(record.data);
+            const dataAnterior = new Date(nextRecord.data);
+            diasDecorridos = Math.floor((dataActual - dataAnterior) / (1000 * 60 * 60 * 24));
+
+            // Calcular volume consumido
+            const valorActual = parseFloat(record.valor) || 0;
+            const valorAnterior = parseFloat(nextRecord.valor) || 0;
+            volumeConsumido = Math.max(0, valorActual - valorAnterior);
+        }
+
+        return {
+            ...record,
+            diasDecorridos,
+            volumeConsumido
+        };
+    });
+
+    const waterVolumeColumns = [
+        { id: "data", label: "Data", field: "data" },
+        { id: "valor", label: "Leitura (m³)", field: "valor" },
+        { id: "diasDecorridos", label: "Dias", field: "diasDecorridos" },
+        { id: "volumeConsumido", label: "Consumo (m³)", field: "volumeConsumido" },
+        { id: "cliente", label: "Registado por", field: "ts_client" }
+    ];
+
+    const waterVolumeFieldsConfig = [
+        {
+            name: "date",
+            label: "Data da Leitura",
+            type: "datetime-local",
+            required: true,
+            size: 6
+        },
+        {
+            name: "value",
+            label: "Leitura do Contador (m³)",
+            type: "number",
+            required: true,
+            size: 4,
+            inputProps: {
+                min: "0",
+                step: "0.001"
+            }
+        },
+        {
+            name: "submit",
+            type: "submit",
+            size: 2
+        }
+    ];
+
+    return (
+        <GenericTable
+            title={`Registos de Volume de Água - ${entity.nome}`}
+            columns={waterVolumeColumns}
+            records={processedRecords}
+            loading={loading}
+            formatters={{
+                data: formatDate,
+                valor: (value) => `${parseFloat(value || 0).toFixed(3)}`,
+                diasDecorridos: (value) => value === '-' ? '-' : `${value}`,
+                volumeConsumido: (value) => value === '-' ? '-' : `${value.toFixed(3)}`
+            }}
+            renderForm={() => (
+                <Paper sx={{ p: 2, mb: 2 }}>
+                    <Grid container spacing={2} alignItems="end">
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                                label="Data da Leitura"
+                                type="datetime-local"
+                                value={newRecord.date}
+                                onChange={(e) => setNewRecord(prev => ({ ...prev, date: e.target.value }))}
+                                fullWidth
+                                required
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <TextField
+                                label="Leitura do Contador (m³)"
+                                type="number"
+                                value={newRecord.value}
+                                onChange={(e) => setNewRecord(prev => ({ ...prev, value: e.target.value }))}
+                                fullWidth
+                                required
+                                inputProps={{ min: "0", step: "0.001" }}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 2 }}>
+                            <Button
+                                variant="contained"
+                                onClick={handleAddRecord}
+                                fullWidth
+                                disabled={!isFormValid()}
+                                sx={{ height: '56px' }}
+                            >
+                                Adicionar
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Paper>
             )}
         />
     );

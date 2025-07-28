@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Container, Typography, Paper, Box, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Button, Chip, IconButton,
@@ -12,8 +12,15 @@ import {
 } from '@mui/icons-material';
 import paymentService from '../services/paymentService';
 import { canManagePayments, PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
+import { useMetaData } from '../../../contexts/MetaDataContext'; // Ajusta o path conforme necessário
 
 const PaymentAdminPage = ({ userInfo }) => {
+    const { metaData } = useMetaData(); // Usar o contexto de metadados
+
+    console.log('🏗️ PaymentAdminPage renderizado');
+    console.log('👤 userInfo:', userInfo);
+    console.log('🗃️ metaData do contexto:', metaData);
+
     const [tab, setTab] = useState(0);
     const [payments, setPayments] = useState([]);
     const [history, setHistory] = useState([]);
@@ -40,7 +47,27 @@ const PaymentAdminPage = ({ userInfo }) => {
     // Usar gestão centralizada
     const hasPermission = canManagePayments(userInfo?.user_id);
 
-    const fetchPendingPayments = async () => {
+    // Função para buscar nome do utilizador a partir da pk nos metadados
+    const getUserNameByPk = useCallback((userPk) => {
+        console.log('🔍 getUserNameByPk chamada com userPk:', userPk);
+        console.log('📊 metaData disponível:', metaData);
+        console.log('👥 metaData.who:', metaData?.who);
+
+        if (!userPk || !metaData?.who) {
+            console.log('❌ Condições não cumpridas - userPk ou metaData.who em falta');
+            return `Utilizador ${userPk}`;
+        }
+
+        // Procurar nos metadados pelo pk
+        const user = metaData.who.find(user => user.pk === userPk);
+        console.log(`🔎 Procurando utilizador com pk ${userPk}:`, user);
+
+        const result = user?.name || `Utilizador ${userPk}`;
+        console.log('✅ Resultado final:', result);
+        return result;
+    }, [metaData]);
+
+    const fetchPendingPayments = useCallback(async () => {
         setLoading(true);
         try {
             const result = await paymentService.getPendingPayments();
@@ -53,9 +80,9 @@ const PaymentAdminPage = ({ userInfo }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchPaymentHistory = async () => {
+    const fetchPaymentHistory = useCallback(async () => {
         setLoading(true);
         try {
             const params = {
@@ -76,7 +103,7 @@ const PaymentAdminPage = ({ userInfo }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [page, filters]);
 
     const approvePayment = async () => {
         try {
@@ -111,11 +138,11 @@ const PaymentAdminPage = ({ userInfo }) => {
 
     useEffect(() => {
         if (hasPermission && tab === 0) fetchPendingPayments();
-    }, [hasPermission, tab]);
+    }, [hasPermission, tab, fetchPendingPayments]);
 
     useEffect(() => {
         if (tab === 1) fetchPaymentHistory();
-    }, [page]);
+    }, [page, tab, fetchPaymentHistory]);
 
     if (!hasPermission) {
         return (
@@ -128,6 +155,49 @@ const PaymentAdminPage = ({ userInfo }) => {
     }
 
     const currentData = tab === 0 ? payments : history;
+
+    const handleDetailsClick = async (payment) => {
+        console.log('🎯 handleDetailsClick chamada com payment:', payment);
+
+        if (!payment?.pk) return;
+
+        setSelectedPayment(null); // Reset primeiro
+        setDetailsOpen(true);
+
+        try {
+            const result = await paymentService.getPaymentDetails(payment.pk);
+            const paymentData = result.success ? result.payment : payment;
+            console.log('💰 Dados do pagamento recebidos:', paymentData);
+            console.log('🔗 payment_reference:', paymentData.payment_reference);
+
+            // Buscar nome do utilizador se existir submitted_by
+            if (paymentData.payment_reference) {
+                try {
+                    const ref = typeof paymentData.payment_reference === 'string'
+                        ? JSON.parse(paymentData.payment_reference)
+                        : paymentData.payment_reference;
+
+                    console.log('📋 payment_reference parseado:', ref);
+                    console.log('👤 submitted_by encontrado:', ref.submitted_by);
+
+                    if (ref.submitted_by) {
+                        const userName = getUserNameByPk(ref.submitted_by);
+                        console.log('✨ Nome do utilizador obtido:', userName);
+                        paymentData.submitter_name = userName;
+                    }
+                } catch (e) {
+                    console.error('❌ Erro ao processar payment_reference:', e);
+                    console.log('🔧 payment_reference original:', paymentData.payment_reference);
+                }
+            }
+
+            console.log('💾 paymentData final antes de setSelectedPayment:', paymentData);
+            setSelectedPayment(paymentData);
+        } catch (err) {
+            console.error('❌ Erro geral:', err);
+            setSelectedPayment(payment);
+        }
+    };
 
     return (
         <Container maxWidth="lg">
@@ -233,7 +303,10 @@ const PaymentAdminPage = ({ userInfo }) => {
                             <Grid size={{ xs: 12, sm: 2 }}>
                                 <Button
                                     variant="outlined"
-                                    onClick={clearFilters}
+                                    onClick={() => {
+                                        clearFilters();
+                                        if (tab === 1) fetchPaymentHistory();
+                                    }}
                                     fullWidth
                                 >
                                     Limpar
@@ -364,10 +437,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                                             </TableCell>
                                             <TableCell align="center">
                                                 <IconButton
-                                                    onClick={() => {
-                                                        setSelectedPayment(payment);
-                                                        setDetailsOpen(true);
-                                                    }}
+                                                    onClick={() => handleDetailsClick(payment)}
                                                     color="primary"
                                                 >
                                                     <Visibility />
@@ -406,80 +476,144 @@ const PaymentAdminPage = ({ userInfo }) => {
             </Box>
 
             {/* Modal Detalhes */}
-            <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Detalhes do Pagamento</DialogTitle>
+            <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Assignment />
+                        Detalhes do Pagamento {selectedPayment?.regnumber && `- ${selectedPayment.regnumber}`}
+                    </Box>
+                </DialogTitle>
                 <DialogContent>
                     {selectedPayment && (
                         <Box>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Documento:</strong> {selectedPayment.regnumber}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Descrição:</strong> {selectedPayment.document_descr || 'Sem descrição'}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Valor:</strong> €{Number(selectedPayment.amount || 0).toFixed(2)}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Método:</strong> {selectedPayment.payment_method}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Estado:</strong> {selectedPayment.payment_status}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Data:</strong> {new Date(selectedPayment.created_at).toLocaleString('pt-PT')}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                <strong>ID Transação:</strong> {selectedPayment.transaction_id}
-                            </Typography>
+                            {/* DADOS DO PAGAMENTO */}
+                            <Paper sx={{ p: 2, mb: 3, bgcolor: 'success.light', color: 'white' }}>
+                                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Euro />
+                                    Pagamento
+                                </Typography>
+                                <Grid container spacing={2}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Typography variant="body2">
+                                            <strong>Valor Pago:</strong> €{Number(selectedPayment.amount || 0).toFixed(2)}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                            <Typography variant="body2" component="span">
+                                                <strong>Método:</strong>
+                                            </Typography>
+                                            <Chip label={selectedPayment.payment_method} size="small" />
+                                        </Box>
+                                        <Typography variant="body2" component="span">
+                                            <strong>Estado:</strong>
+                                            <Chip
+                                                label={selectedPayment.payment_status}
+                                                size="small"
+                                            />
+                                        </Typography>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Typography variant="body2">
+                                            <strong>ID Transação:</strong> {selectedPayment.transaction_id}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                            <strong>Order ID:</strong> {selectedPayment.order_id}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                            <strong>Data Criação:</strong> {new Date(selectedPayment.created_at).toLocaleString('pt-PT')}
+                                        </Typography>
+                                        {selectedPayment.updated_at && (
+                                            <Typography variant="body2">
+                                                <strong>Última Actualização:</strong> {new Date(selectedPayment.updated_at).toLocaleString('pt-PT')}
+                                            </Typography>
+                                        )}
+                                    </Grid>
+                                </Grid>
+                            </Paper>
 
-                            {selectedPayment.payment_reference && (
-                                <Box sx={{ mt: 2 }}>
-                                    <Typography variant="body2" gutterBottom>
-                                        <strong>Detalhes:</strong>
+                            {/* VALIDAÇÃO */}
+                            {(selectedPayment.validated_by || selectedPayment.validated_at) && (
+                                <Paper sx={{ p: 2, mb: 3, bgcolor: 'info.light', color: 'white' }}>
+                                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <CheckCircle />
+                                        Validação
                                     </Typography>
-                                    <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                        {(() => {
-                                            try {
-                                                const ref = typeof selectedPayment.payment_reference === 'string'
-                                                    ? JSON.parse(selectedPayment.payment_reference)
-                                                    : selectedPayment.payment_reference;
+                                    <Typography variant="body2">
+                                        <strong>Validado por:</strong> {selectedPayment.validator_name || `Utilizador ${selectedPayment.validated_by}`}
+                                    </Typography>
+                                    {selectedPayment.validated_at && (
+                                        <Typography variant="body2">
+                                            <strong>Data Validação:</strong> {new Date(selectedPayment.validated_at).toLocaleString('pt-PT')}
+                                        </Typography>
+                                    )}
+                                </Paper>
+                            )}
 
-                                                return (
-                                                    <Box>
-                                                        {ref.payment_details?.reference_info && (
-                                                            <Typography variant="body2">
-                                                                <strong>Info:</strong> {ref.payment_details.reference_info}
-                                                            </Typography>
-                                                        )}
-                                                        {ref.submitted_by && (
-                                                            <Typography variant="body2">
-                                                                <strong>Por:</strong> {ref.submitted_by}
-                                                            </Typography>
-                                                        )}
-                                                        {ref.submitted_at && (
-                                                            <Typography variant="body2">
-                                                                <strong>Em:</strong> {new Date(ref.submitted_at).toLocaleString('pt-PT')}
-                                                            </Typography>
-                                                        )}
-                                                    </Box>
-                                                );
-                                            } catch (e) {
-                                                return (
-                                                    <pre style={{ margin: 0, fontSize: '0.8rem' }}>
+                            {/* DETALHES ESPECÍFICOS */}
+                            {selectedPayment.payment_reference && (
+                                <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                                    <Typography variant="h6" gutterBottom>
+                                        Detalhes Específicos
+                                    </Typography>
+                                    {(() => {
+                                        try {
+                                            const ref = typeof selectedPayment.payment_reference === 'string'
+                                                ? JSON.parse(selectedPayment.payment_reference)
+                                                : selectedPayment.payment_reference;
+
+                                            return (
+                                                <Box>
+                                                    {ref.payment_details && (
+                                                        <Typography variant="body2" gutterBottom>
+                                                            <strong>Referencia:</strong> {ref.payment_details}
+                                                        </Typography>
+                                                    )}
+                                                    {ref.submitted_by && (
+                                                        <Typography variant="body2" gutterBottom>
+                                                            <strong>Submetido por:</strong> {selectedPayment.submitter_name || `Utilizador ${ref.submitted_by}`}
+                                                        </Typography>
+                                                    )}
+                                                    {ref.submitted_at && (
+                                                        <Typography variant="body2" gutterBottom>
+                                                            <strong>Data Submissão:</strong> {new Date(ref.submitted_at).toLocaleString('pt-PT')}
+                                                        </Typography>
+                                                    )}
+                                                    {ref.payment_type && (
+                                                        <Typography variant="body2" gutterBottom>
+                                                            <strong>Tipo:</strong> {ref.payment_type}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            );
+                                        } catch (e) {
+                                            return (
+                                                <Paper sx={{ p: 1, bgcolor: 'grey.100' }}>
+                                                    <Typography variant="caption" component="pre" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>
                                                         {selectedPayment.payment_reference}
-                                                    </pre>
-                                                );
-                                            }
-                                        })()}
-                                    </Paper>
-                                </Box>
+                                                    </Typography>
+                                                </Paper>
+                                            );
+                                        }
+                                    })()}
+                                </Paper>
                             )}
                         </Box>
                     )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDetailsOpen(false)}>Fechar</Button>
+                    {tab === 0 && selectedPayment && (
+                        <Button
+                            variant="contained"
+                            color="success"
+                            onClick={() => {
+                                setDetailsOpen(false);
+                                setConfirmOpen(true);
+                            }}
+                            startIcon={<CheckCircle />}
+                        >
+                            Aprovar
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
 

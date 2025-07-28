@@ -22,7 +22,7 @@ import {
 import { toast } from "../../../components/common/Toaster/ThemedToaster";
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import { useSocket } from '../../../contexts/SocketContext';
-import * as pdfjsLib from "pdfjs-dist/webpack";
+import * as pdfjsLib from "pdfjs-dist";
 
 const AddStepAndAnnexModal = ({
   open,

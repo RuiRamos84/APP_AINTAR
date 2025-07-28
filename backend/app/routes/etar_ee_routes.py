@@ -7,6 +7,10 @@ from ..services.etar_ee_service import (
     create_ee_volume,
     list_etar_volumes,
     list_ee_volumes,
+    create_water_etar_volume,
+    create_water_ee_volume,
+    list_etar_water_volumes,
+    list_ee_water_volumes,
     create_etar_energy,
     create_ee_energy,
     list_etar_energy,
@@ -162,6 +166,64 @@ def get_ee_volumes(tb_ee):
     """Listar volumes de EE para uma EE específica"""
     current_user = get_jwt_identity()
     result, status_code = list_ee_volumes(tb_ee, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar_water_volume', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_water_etar_volume():
+    """Registar volume de ETAR com água"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnpk = data.get('pnpk')
+    pndate = data.get('pndate')
+    pnval = data.get('pnval')
+    result, status_code = create_water_etar_volume(
+        pnpk, pndate, pnval, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/ee_water_volume', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_water_ee_volume():
+    """Registar volume de EE com água"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pnpk = data.get('pnpk')
+    pndate = data.get('pndate')
+    pnval = data.get('pnval')
+    result, status_code = create_water_ee_volume(
+        pnpk, pndate, pnval, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar_water_volumes/<int:tb_etar>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_water_etar_volumes(tb_etar):
+    """Listar volumes de ETAR com água para uma ETAR específica"""
+    current_user = get_jwt_identity()
+    result, status_code = list_etar_water_volumes(tb_etar, current_user)
+    return jsonify(result), status_code
+    
+
+@bp.route('/ee_water_volumes/<int:tb_ee>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_water_ee_volumes(tb_ee):
+    """Listar volumes de EE com água para uma EE específica"""
+    current_user = get_jwt_identity()
+    result, status_code = list_ee_water_volumes(tb_ee, current_user)
     return jsonify(result), status_code
 
 

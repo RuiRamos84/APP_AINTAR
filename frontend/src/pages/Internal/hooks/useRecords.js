@@ -13,7 +13,7 @@ export function useRecords(recordType) {
         date: getCurrentDateTime()
     });
     const [submitting, setSubmitting] = useState(false);
-    // /hooks/useRecords.js (continuação)
+
     const fetchRecords = async () => {
         if (!selectedEntity && !["rede", "ramal", "manutencao", "equip"].includes(getTypeByArea(selectedArea))) return;
 
@@ -26,6 +26,10 @@ export function useRecords(recordType) {
                 case "volume":
                     response = await InternalService.getVolumeRecords(selectedArea, selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.volumes || [] });
+                    break;
+                case "water_volume":
+                    response = await InternalService.getWaterVolumeRecords(selectedArea, selectedEntity?.pk);
+                    dispatch({ type: "FETCH_SUCCESS", payload: response.water_volumes || [] });
                     break;
                 case "energy":
                     response = await InternalService.getEnergyRecords(selectedArea, selectedEntity?.pk);
@@ -50,7 +54,7 @@ export function useRecords(recordType) {
 
             // Validar se há entidade selecionada para tipos que exigem
             if (
-                (["volume", "energy"].includes(recordType) ||
+                (["volume", "water_volume", "energy"].includes(recordType) ||
                     (recordType === "expense" && ["etar", "ee"].includes(getTypeByArea(selectedArea))))
                 && !selectedEntity
             ) {
@@ -66,9 +70,13 @@ export function useRecords(recordType) {
             // Preparar payload com base no tipo de registo
             let finalPayload = { ...data };
 
-            // Para volume e energia, usar selectedArea diretamente
+            // Para volume, water_volume e energia, usar selectedArea diretamente
             if (recordType === "volume" || recordType === "energy") {
                 await InternalService[`add${capitalizeFirst(recordType)}Record`](selectedArea, finalPayload);
+            }
+            // Para water_volume, usar função específica
+            else if (recordType === "water_volume") {
+                await InternalService.addWaterVolumeRecord(selectedArea, finalPayload);
             }
             // Para despesas, usar areaType
             else if (recordType === "expense") {
@@ -106,6 +114,7 @@ export function useRecords(recordType) {
     const getRecordTypeName = (type) => {
         switch (type) {
             case "volume": return "volume";
+            case "water_volume": return "volume de água";
             case "energy": return "energia";
             case "expense": return "despesa";
             default: return type;
