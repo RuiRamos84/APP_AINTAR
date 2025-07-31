@@ -51,6 +51,21 @@ export const prepareRamaisDataForExport = (documents, type) => {
             };
         }
 
+        if (type === 'executed') {
+            return {
+                ...baseData,
+                "Comprimento Betuminoso (m)": doc.comprimento_bet || "0.00",
+                "Área Betuminoso (m²)": doc.area_bet || "0.00",
+                "Comprimento Paralelos (m)": doc.comprimento_gra || "0.00",
+                "Área Paralelos (m²)": doc.area_gra || "0.00",
+                "Comprimento Pavê (m)": doc.comprimento_pav || "0.00",
+                "Área Pavê (m²)": doc.area_pav || "0.00",
+                "Data de Submissão": doc.submission || "",
+                "Data de Execução": doc.when_stop || doc.execution_date || "",
+                "Status": "Executado - Aguarda Pagamento"
+            };
+        }
+
         if (type === 'concluded') {
             return {
                 ...baseData,
@@ -60,7 +75,10 @@ export const prepareRamaisDataForExport = (documents, type) => {
                 "Área Paralelos (m²)": doc.area_gra || "0.00",
                 "Comprimento Pavê (m)": doc.comprimento_pav || "0.00",
                 "Área Pavê (m²)": doc.area_pav || "0.00",
-                "Data de Conclusão": doc.submission || ""
+                "Data de Submissão": doc.submission || "",
+                "Data de Execução": doc.when_stop || doc.execution_date || "",
+                "Data de Conclusão": doc.conclusion_date || doc.payment_date || "",
+                "Status": "Concluído e Pago"
             };
         }
 

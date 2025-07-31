@@ -209,31 +209,74 @@ export const downloadComprovativo = async (documentId) => {
   }
 };
 
+// ===== SERVIÇOS DOS RAMAIS =====
+
+/**
+ * Obter ramais para pavimentar (vbr_document_pav01)
+ */
 export const getDocumentRamais = async () => {
   const response = await api.get("/document_ramais");
-  // console.log(response.data);
+  console.log("Ramais para pavimentar:", response.data);
   return response.data.ramais;
 };
 
-export const updateDocumentPavenext = async (pk) => {
+/**
+ * Obter ramais executados mas não pagos (vbr_document_pav02)
+ */
+export const getDocumentRamaisExecuted = async () => {
   try {
-    const response = await api.put(`/document_pavenext/${pk}`);
-    return response.data;
+    const response = await api.get("/document_ramais_executed");
+    console.log("Ramais executados:", response.data);
+    return response.data.ramais;
   } catch (error) {
-    console.error("Erro ao atualizar estado do documento:", error);
+    console.error("Erro ao buscar ramais executados:", error);
     throw error;
   }
 };
 
+/**
+ * Obter ramais concluídos e pagos (vbr_document_pav03)
+ */
 export const getDocumentRamaisConcluded = async () => {
   try {
     const response = await api.get("/document_ramais_concluded");
+    console.log("Ramais concluídos:", response.data);
     return response.data.ramais;
   } catch (error) {
     console.error("Erro ao buscar ramais concluídos:", error);
     throw error;
   }
 };
+
+/**
+ * Marcar ramal como executado (para pavimentar -> executado)
+ */
+export const updateDocumentPavenext = async (pk) => {
+  try {
+    const response = await api.put(`/document_pavenext/${pk}`);
+    console.log("Ramal marcado como executado:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao marcar ramal como executado:", error);
+    throw error;
+  }
+};
+
+/**
+ * Marcar ramal como pago (executado -> concluído)
+ */
+export const updateDocumentPavpaid = async (pk) => {
+  try {
+    const response = await api.put(`/document_pavpaid/${pk}`);
+    console.log("Ramal marcado como pago:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao marcar ramal como pago:", error);
+    throw error;
+  }
+};
+
+// ===== OUTROS SERVIÇOS =====
 
 export const replicateDocument = async (documentId, newType) => {
   try {

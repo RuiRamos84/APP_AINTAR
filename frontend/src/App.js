@@ -32,6 +32,7 @@ import CreatedByMe from "./pages/Documents/DocumentOner/CreatedByMe";
 import AssignedToMe from "./pages/Documents/DocumentSelf/AssignedToMe";
 import RamaisConcludedPage from "./pages/Documents/RamaisList/RamaisConcludedPage";
 import RamaisActivePage from "./pages/Documents/RamaisList/RamaisActivePage";
+import RamaisExecutedPage from "./pages/Documents/RamaisList/RamaisExecutedPage"; // NOVA IMPORTAÇÃO
 import CreateEntity from "./pages/Entity/CreateEntity/CreateEntity";
 import EntityDetail from "./pages/Entity/EntityDetail/EntityDetail";
 import EntityList from "./pages/Entity/EntityList/EntityList";
@@ -58,6 +59,7 @@ import { initializeSessionManagement } from "./services/authService";
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
 import { darkTheme, lightTheme } from "./styles/theme";
+import { PendingPavimentations, ExecutedPavimentations, CompletedPavimentations } from "./features/Pavimentations";
 
 // Importar componentes de pagamento
 import { PaymentProvider } from './features/Payment/context/PaymentContext';
@@ -268,11 +270,20 @@ const AppContent = () => {
                   </PrivateRoute>
                 }
               />
+              {/* ===== ROTAS DOS RAMAIS ===== */}
               <Route
                 path="/ramais"
                 element={
                   <PrivateRoute>
                     <RamaisActivePage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/ramais/executed"
+                element={
+                  <PrivateRoute>
+                    <RamaisExecutedPage />
                   </PrivateRoute>
                 }
               />
@@ -284,6 +295,10 @@ const AppContent = () => {
                   </PrivateRoute>
                 }
               />
+              {/* ===== FIM ROTAS DOS RAMAIS ===== */}
+              <Route path="/ramais" element={<PendingPavimentations />} />
+              <Route path="/ramais/executed" element={<ExecutedPavimentations />} />
+              <Route path="/ramais/concluded" element={<CompletedPavimentations />} />
               <Route
                 path="/dashboard"
                 element={

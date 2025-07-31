@@ -12,6 +12,7 @@ def get_dashboard_data(current_user):
         'vbr_document_fossa03': 'Limpeza de fossa Santa Comba Dão',
         'vbr_document_fossa04': 'Limpeza de fossa Tábua',
         'vbr_document_fossa05': 'Limpeza de fossa Tondela',
+        'vbr_document_fossa06': 'Limpeza de fossa cobradas pelo município',
         'vbr_document_ramais01': 'Ramais',
         'vbr_document_caixas01': 'Caixas',
         'vbr_document_desobstrucao01': 'Desobstrução',

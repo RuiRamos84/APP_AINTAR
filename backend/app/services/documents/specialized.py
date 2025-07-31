@@ -119,7 +119,7 @@ def create_ee_document_direct(ee_pk, current_user):
 
 @cache_result(timeout=120)
 def get_document_ramais(current_user):
-    """Obtém dados dos ramais da view vbr_document_pav01"""
+    """Obtém ramais para pavimentar (vbr_document_pav01)"""
     try:
         with db_session_manager(current_user) as session:
             ramais_query = text("SELECT * FROM vbr_document_pav01")
@@ -127,22 +127,46 @@ def get_document_ramais(current_user):
 
             if result:
                 return {'ramais': [dict(row) for row in result]}, 200
-            return {'ramais': [], 'message': 'Nenhum ramal encontrado'}, 200
+            return {'ramais': [], 'message': 'Nenhum ramal para pavimentar encontrado'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao obter ramais: {str(e)}")
-        return {'error': "Erro ao consultar ramais", 'code': "ERR_DATABASE"}, 500
+        current_app.logger.error(
+            f"Erro de BD ao obter ramais para pavimentar: {str(e)}")
+        return {'error': "Erro ao consultar ramais para pavimentar", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao obter ramais: {str(e)}")
+        current_app.logger.error(
+            f"Erro inesperado ao obter ramais para pavimentar: {str(e)}")
+        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+
+
+@cache_result(timeout=120)
+def get_document_ramais_executed(current_user):
+    """Obtém ramais executados mas não pagos (vbr_document_pav02)"""
+    try:
+        with db_session_manager(current_user) as session:
+            ramais_query = text("SELECT * FROM vbr_document_pav02")
+            result = session.execute(ramais_query).mappings().all()
+
+            if result:
+                return {'ramais': [dict(row) for row in result]}, 200
+            return {'ramais': [], 'message': 'Nenhum ramal executado encontrado'}, 200
+
+    except SQLAlchemyError as e:
+        current_app.logger.error(
+            f"Erro de BD ao obter ramais executados: {str(e)}")
+        return {'error': "Erro ao consultar ramais executados", 'code': "ERR_DATABASE"}, 500
+    except Exception as e:
+        current_app.logger.error(
+            f"Erro inesperado ao obter ramais executados: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
 
 @cache_result(timeout=120)
 def get_document_ramais_concluded(current_user):
-    """Obtém dados dos ramais concluídos da view vbr_document_pav02"""
+    """Obtém ramais concluídos e pagos (vbr_document_pav03)"""
     try:
         with db_session_manager(current_user) as session:
-            ramais_query = text("SELECT * FROM vbr_document_pav02")
+            ramais_query = text("SELECT * FROM vbr_document_pav03")
             result = session.execute(ramais_query).mappings().all()
 
             if result:
@@ -157,6 +181,77 @@ def get_document_ramais_concluded(current_user):
         current_app.logger.error(
             f"Erro inesperado ao obter ramais concluídos: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+
+
+def update_document_pavenext(pk, current_user):
+    """Atualiza o status do documento para próximo passo (para pavimentar -> executado)"""
+    try:
+        with db_session_manager(current_user) as session:
+            pk = sanitize_input(pk, 'int')
+
+            # Executar função para mover de "para pavimentar" para "executado"
+            sql = text("SELECT fbo_document_pavenext(:pnpk) AS result")
+            result = session.execute(sql, {"pnpk": pk}).fetchone()
+
+            if not result or not result.result:
+                raise APIError("Erro ao atualizar status do ramal",
+                               500, "ERR_FUNCTION_FAILED")
+
+            # Processar resposta XML
+            formatted_result = format_message(result.result)
+            session.commit()
+
+            # Limpar cache relevante
+            cache.delete_memoized(get_document_ramais, current_user)
+            cache.delete_memoized(get_document_ramais_executed, current_user)
+
+            return {"message": "Ramal marcado como executado", "result": formatted_result}, 200
+
+    except APIError as e:
+        return {"error": str(e), "code": e.error_code}, e.status_code
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Erro de BD ao atualizar ramal: {str(e)}")
+        return {"error": "Erro ao atualizar ramal", "code": "ERR_DATABASE"}, 500
+    except Exception as e:
+        current_app.logger.error(
+            f"Erro inesperado ao atualizar ramal: {str(e)}")
+        return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
+
+
+def update_document_pavpaid(pk, current_user):
+    """Atualiza o status do documento para pago (executado -> concluído)"""
+    try:
+        with db_session_manager(current_user) as session:
+            pk = sanitize_input(pk, 'int')
+
+            # Executar função para mover de "executado" para "concluído/pago"
+            sql = text("SELECT fbo_document_pavpaid(:pnpk) AS result")
+            result = session.execute(sql, {"pnpk": pk}).fetchone()
+
+            if not result or not result.result:
+                raise APIError("Erro ao marcar ramal como pago",
+                               500, "ERR_FUNCTION_FAILED")
+
+            # Processar resposta XML
+            formatted_result = format_message(result.result)
+            session.commit()
+
+            # Limpar cache relevante
+            cache.delete_memoized(get_document_ramais_executed, current_user)
+            cache.delete_memoized(get_document_ramais_concluded, current_user)
+
+            return {"message": "Ramal marcado como pago e concluído", "result": formatted_result}, 200
+
+    except APIError as e:
+        return {"error": str(e), "code": e.error_code}, e.status_code
+    except SQLAlchemyError as e:
+        current_app.logger.error(
+            f"Erro de BD ao marcar ramal como pago: {str(e)}")
+        return {"error": "Erro ao marcar ramal como pago", "code": "ERR_DATABASE"}, 500
+    except Exception as e:
+        current_app.logger.error(
+            f"Erro inesperado ao marcar ramal como pago: {str(e)}")
+        return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
 
 
 @cache_result(timeout=300)

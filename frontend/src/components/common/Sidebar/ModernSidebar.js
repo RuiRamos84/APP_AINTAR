@@ -50,6 +50,7 @@ import {
     WaterDrop as WaterIcon,
     AccountTree as AccountTreeIcon,
     Check as CheckIcon,
+    Payment as PaymentIcon,
     People as PeopleIcon,
     Description as DocumentIcon,
     History as HistoryIcon,
@@ -57,7 +58,7 @@ import {
     ViewModule as ViewModuleIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
-import { AccountBalance as PaymentIcon } from '@mui/icons-material';
+import { AccountBalance as PaymentBalanceIcon } from '@mui/icons-material';
 
 const iconStyle = {
     fontSize: '24px',
@@ -134,7 +135,7 @@ const MENU_ITEMS = [
     {
         id: "payments",
         text: "Validar Pagamentos",
-        icon: <PaymentIcon sx={iconStyle} />,
+        icon: <PaymentBalanceIcon sx={iconStyle} />,
         to: "/payment-admin",
         rolesAllowed: ["1"],
         allowedUserIds: [12, 11, 82],
@@ -221,20 +222,27 @@ const MENU_ITEMS = [
         isBadged: true,
     },
     {
-        id: "ramais",
-        text: "Ramais",
+        id: "pavimentacoes",
+        text: "Pavimentações",
         icon: <AccountTreeIcon sx={iconStyle} />,
         submenu: [
             {
-                id: "ramais_pendentes",
-                text: "Ramais Pendentes",
+                id: "pavimentacoes_pendentes",
+                text: "Pendentes",
                 icon: <ListAltIcon sx={iconStyle} />,
                 to: "/ramais",
                 rolesAllowed: ["0", "1", "2"]
             },
             {
-                id: "ramais_concluidos",
-                text: "Ramais Concluídos",
+                id: "pavimentacoes_executadas",
+                text: "Executadas (Aguardam Pagamento)",
+                icon: <PaymentIcon sx={iconStyle} />,
+                to: "/ramais/executed",
+                rolesAllowed: ["0", "1", "2"]
+            },
+            {
+                id: "pavimentacoes_concluidas",
+                text: "Concluídas e Pagas",
                 icon: <CheckIcon sx={iconStyle} />,
                 to: "/ramais/concluded",
                 rolesAllowed: ["0", "1", "2"]
@@ -263,7 +271,7 @@ const MENU_ITEMS = [
         to: "/epi",
         rolesAllowed: ["0", "1"],
         allowedUserIds: [12, 11, 82],
-        
+
     },
     {
         id: "tasks",

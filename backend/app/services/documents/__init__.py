@@ -17,7 +17,6 @@ from .core import (
 from .workflow import (
     get_document_steps,
     add_document_step,
-    update_document_pavenext,
     get_document_type_param,
     update_document_params,
 )
@@ -36,12 +35,15 @@ from .reports import (
     preencher_pdf,
 )
 
-# Operações especializadas
+# Operações especializadas (incluindo as novas funções de ramais)
 from .specialized import (
     create_etar_document_direct,
     create_ee_document_direct,
     get_document_ramais,
+    get_document_ramais_executed,     # NOVA: Ramais executados mas não pagos
     get_document_ramais_concluded,
+    update_document_pavenext,         # Função de ramais movida para specialized
+    update_document_pavpaid,          # NOVA: Marcar ramal como pago
     get_entity_count_types,
 )
 
@@ -59,7 +61,7 @@ __all__ = [
     'check_vacation_status', 'get_documents_late',
 
     # Workflow
-    'get_document_steps', 'add_document_step', 'update_document_pavenext',
+    'get_document_steps', 'add_document_step',
     'get_document_type_param', 'update_document_params',
 
     # Anexos
@@ -68,9 +70,10 @@ __all__ = [
     # Relatórios
     'buscar_dados_pedido', 'gerar_comprovativo_pdf', 'preencher_pdf',
 
-    # Especializadas
+    # Especializadas (incluindo as novas funções)
     'create_etar_document_direct', 'create_ee_document_direct',
-    'get_document_ramais', 'get_document_ramais_concluded', 'get_entity_count_types',
+    'get_document_ramais', 'get_document_ramais_executed', 'get_document_ramais_concluded',
+    'update_document_pavenext', 'update_document_pavpaid', 'get_entity_count_types',
 
     # Replicação
     'replicate_document_service', 'reopen_document',

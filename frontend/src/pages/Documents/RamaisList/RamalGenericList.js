@@ -22,7 +22,11 @@ const RamalGenericList = ({
     onComplete,
     isConcluded,
     showExport = false,
-    exportType = 'active'
+    exportType = 'active',
+    actionLabel = "Concluir",
+    actionTooltip = "Concluir",
+    confirmTitle = "Concluir Ramal",
+    confirmMessage = null
 }) => {
     const theme = useTheme();
     const [documents, setDocuments] = useState([]);
@@ -140,13 +144,23 @@ const RamalGenericList = ({
     const handleComplete = async (pk) => {
         try {
             await onComplete(pk);
-            notifySuccess("Pedido atualizado com sucesso");
+
+            // Mensagem de sucesso personalizada baseada no tipo de ação
+            if (actionLabel.toLowerCase().includes('pago')) {
+                notifySuccess("Ramal marcado como pago com sucesso");
+            } else {
+                notifySuccess("Pedido atualizado com sucesso");
+            }
 
             // Remover da lista local
             setDocuments(prevDocs => prevDocs.filter(doc => doc.pk !== pk));
 
         } catch (error) {
-            notifyError("Erro ao atualizar pedido");
+            if (actionLabel.toLowerCase().includes('pago')) {
+                notifyError("Erro ao marcar ramal como pago");
+            } else {
+                notifyError("Erro ao atualizar pedido");
+            }
         }
     };
 
@@ -264,7 +278,11 @@ const RamalGenericList = ({
 
     // Colunas da tabela
     const getDateColumn = () => 'submission';
-    const getDateLabel = () => isConcluded ? 'Concluído em' : 'Submissão';
+    const getDateLabel = () => {
+        if (isConcluded) return 'Concluído em';
+        if (exportType === 'executed') return 'Executado em';
+        return 'Submissão';
+    };
 
     return (
         <Paper className="paper-list">
@@ -373,6 +391,10 @@ const RamalGenericList = ({
                                     row={doc}
                                     onComplete={handleComplete}
                                     isConcluded={isConcluded}
+                                    actionLabel={actionLabel}
+                                    actionTooltip={actionTooltip}
+                                    confirmTitle={confirmTitle}
+                                    confirmMessage={confirmMessage}
                                 />
                             ))
                         ) : (
@@ -410,6 +432,10 @@ const RamalGenericList = ({
                                                 row={doc}
                                                 onComplete={handleComplete}
                                                 isConcluded={isConcluded}
+                                                actionLabel={actionLabel}
+                                                actionTooltip={actionTooltip}
+                                                confirmTitle={confirmTitle}
+                                                confirmMessage={confirmMessage}
                                             />
                                         ))
                                     }

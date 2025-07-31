@@ -4,12 +4,16 @@ import { getDocumentRamais, updateDocumentPavenext } from '../../../services/doc
 
 const RamaisActivePage = () => (
     <RamalGenericList
-        title="Ramais a Pavimentar"
+        title="Pavimentações Pendentes"
         getData={getDocumentRamais}
         onComplete={updateDocumentPavenext}
         isConcluded={false}
         showExport={true}
         exportType="active"
+        actionLabel="Marcar como Executada"
+        actionTooltip="Marcar como executada"
+        confirmTitle="Marcar como Executada"
+        confirmMessage="Tem certeza que deseja marcar esta pavimentação como executada? Ela será movida para a lista de executadas."
     />
 );
 

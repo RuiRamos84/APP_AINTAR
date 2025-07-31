@@ -5,12 +5,21 @@ import {
 } from "@mui/material";
 import {
     Check as CheckIcon,
+    Payment as PaymentIcon,
     KeyboardArrowDown as KeyboardArrowDownIcon,
     KeyboardArrowUp as KeyboardArrowUpIcon
 } from "@mui/icons-material";
 import ConfirmationDialog from "./ConfirmationDialog";
 
-const RamalGenericRow = ({ row, onComplete, isConcluded }) => {
+const RamalGenericRow = ({
+    row,
+    onComplete,
+    isConcluded,
+    actionLabel = "Concluir",
+    actionTooltip = "Concluir",
+    confirmTitle = "Concluir Ramal",
+    confirmMessage = null
+}) => {
     const [open, setOpen] = useState(false);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const theme = useTheme();
@@ -90,6 +99,24 @@ const RamalGenericRow = ({ row, onComplete, isConcluded }) => {
         );
     };
 
+    // Escolher ícone baseado no tipo de ação
+    const getActionIcon = () => {
+        if (actionLabel.toLowerCase().includes('pago') || actionLabel.toLowerCase().includes('payment')) {
+            return <PaymentIcon />;
+        }
+        return <CheckIcon />;
+    };
+
+    // Gerar mensagem de confirmação padrão se não fornecida
+    const getConfirmMessage = () => {
+        if (confirmMessage) return confirmMessage;
+
+        if (actionLabel.toLowerCase().includes('pago')) {
+            return `Tem certeza que deseja marcar o ramal número ${row.regnumber} como pago?`;
+        }
+        return `Tem certeza que deseja ${actionLabel.toLowerCase()} o ramal número ${row.regnumber}?`;
+    };
+
     const mainColumns = (
         <>
             <TableCell>{row.regnumber}</TableCell>
@@ -100,9 +127,9 @@ const RamalGenericRow = ({ row, onComplete, isConcluded }) => {
             <TableCell>{isConcluded ? (row.when_stop || row.submission) : row.submission}</TableCell>
             {!isConcluded && (
                 <TableCell>
-                    <Tooltip title="Concluir">
+                    <Tooltip title={actionTooltip}>
                         <IconButton onClick={handleCompleteClick} color="primary">
-                            <CheckIcon />
+                            {getActionIcon()}
                         </IconButton>
                     </Tooltip>
                 </TableCell>
@@ -150,8 +177,8 @@ const RamalGenericRow = ({ row, onComplete, isConcluded }) => {
             {!isConcluded && (
                 <ConfirmationDialog
                     open={confirmDialogOpen}
-                    title="Concluir Ramal"
-                    message={`Tem certeza que deseja concluir o ramal número ${row.regnumber}?`}
+                    title={confirmTitle}
+                    message={getConfirmMessage()}
                     onConfirm={handleConfirmComplete}
                     onCancel={handleCancelComplete}
                 />

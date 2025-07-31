@@ -15,7 +15,7 @@ from ..services.documents import (
     get_entity_count_types,
     create_document_direct,
     update_document_notification,
-    buscar_dados_pedido, 
+    buscar_dados_pedido,
     gerar_comprovativo_pdf,
     preencher_pdf,
     get_document_type_param,
@@ -23,7 +23,9 @@ from ..services.documents import (
     create_etar_document_direct,
     create_ee_document_direct,
     get_document_ramais,
+    get_document_ramais_executed,  # Nova função para executados
     update_document_pavenext,
+    update_document_pavpaid,       # Nova função para marcar como pago
     get_document_ramais_concluded,
     replicate_document_service,
     reopen_document,
@@ -56,11 +58,10 @@ def get_documents():
 @token_required
 @set_session
 @api_error_handler
-def documentById_route(documentId):  # Adicione o parâmetro documentId aqui
+def documentById_route(documentId):
     """Obter dados do documento"""
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
-        # Parâmetros na ordem correta
         return documentById(documentId, current_user)
 
 
@@ -196,28 +197,12 @@ def add_document_steps(pk):
 def download_file_route(regnumber, filename):
     """Servir ficheiros com normalização de extensões"""
     current_user = get_jwt_identity()
-    print(f"Download file request: regnumber={regnumber}, filename={filename}")    
+    print(f"Download file request: regnumber={regnumber}, filename={filename}")
     try:
-        # # Verificar token
-        # token = request.headers.get('Authorization', '').split(' ')[-1]
-        # if not token:
-        #     current_app.logger.warning("Token não fornecido na requisição")
-        #     return jsonify({"error": "Token não fornecido"}), 401
-
-        # try:
-        #     decode_token(token)
-        # except jwt.ExpiredSignatureError:
-        #     current_app.logger.warning("Token expirado")
-        #     return jsonify({"error": "Token expirado"}), 401
-        # except jwt.InvalidTokenError:
-        #     current_app.logger.warning("Token inválido")
-        #     return jsonify({"error": "Token inválido"}), 401
-
-        # Usar função corrigida
         with db_session_manager(current_user):
-            print(f"Download: {regnumber}/{filename}")            
+            print(f"Download: {regnumber}/{filename}")
             return download_file(regnumber, filename, current_user)
-            
+
     except Exception as e:
         current_app.logger.error(f"Erro servir ficheiro: {str(e)}")
         return jsonify({'error': 'Erro interno'}), 500
@@ -235,59 +220,6 @@ def add_document_annex_endpoint():
         data = request.form
         response = add_document_annex(data, current_user)
         return jsonify(response[0]), response[1]
-
-
-# Rota debug (opcional - apenas para teste)
-@bp.route('/debug/file-test/<string:regnumber>/<string:filename>', methods=['GET'])
-@jwt_required()
-@token_required
-@set_session
-@api_error_handler
-def debug_file_test(regnumber, filename):
-    """Debug: testar ficheiro específico"""
-    current_user = get_jwt_identity()
-    
-    if not current_user.get('profil') == "1":
-        return jsonify({'error': 'Sem permissão'}), 403
-    
-    try:
-        from .services.attachments import normalize_filename_extensions
-        
-        base_path = current_app.config.get('FILES_DIR', '/var/www/html/files')
-        request_path = os.path.join(base_path, regnumber)
-        
-        variations = normalize_filename_extensions(filename)
-        results = []
-        
-        for var in variations:
-            for subdir in ['anexos', 'Oficios', '']:
-                if subdir:
-                    test_path = os.path.join(request_path, subdir, var)
-                else:
-                    test_path = os.path.join(request_path, var)
-                
-                result = {
-                    'filename': var,
-                    'path': test_path,
-                    'exists': os.path.exists(test_path),
-                    'readable': os.access(test_path, os.R_OK) if os.path.exists(test_path) else False
-                }
-                
-                if os.path.exists(test_path):
-                    result['size'] = os.path.getsize(test_path)
-                    result['permissions'] = oct(os.stat(test_path).st_mode)[-3:]
-                
-                results.append(result)
-        
-        return jsonify({
-            'regnumber': regnumber,
-            'filename': filename,
-            'variations': variations,
-            'results': results
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 @bp.route('/entity_count_types/<int:pk>', methods=['GET'])
@@ -329,7 +261,8 @@ def create_document_extern():
 def extrair_comprovativo(pk):
     try:
         current_user = get_jwt_identity()
-        current_app.logger.info(f"Iniciando extração de comprovativo para o pedido {pk}")
+        current_app.logger.info(
+            f"Iniciando extração de comprovativo para o pedido {pk}")
 
         dados_pedido = buscar_dados_pedido(pk, current_user)
 
@@ -337,11 +270,14 @@ def extrair_comprovativo(pk):
             current_app.logger.warning(f"Pedido {pk} não encontrado")
             return jsonify({"erro": "Pedido não encontrado"}), 404
 
-        current_app.logger.info(f"Dados do pedido {pk} recuperados com sucesso")
-        current_app.logger.debug(f"Dados para preenchimento do PDF: {dados_pedido}")
+        current_app.logger.info(
+            f"Dados do pedido {pk} recuperados com sucesso")
+        current_app.logger.debug(
+            f"Dados para preenchimento do PDF: {dados_pedido}")
 
         # Preencher o PDF com os dados do pedido
-        current_app.logger.info(f"Iniciando preenchimento do PDF para o pedido {pk}")
+        current_app.logger.info(
+            f"Iniciando preenchimento do PDF para o pedido {pk}")
         pdf_buffer = preencher_pdf(dados_pedido)
 
         current_app.logger.info(f"PDF para o pedido {pk} gerado com sucesso")
@@ -355,7 +291,8 @@ def extrair_comprovativo(pk):
         )
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao gerar comprovativo para o pedido {pk}: {str(e)}", exc_info=True)
+        current_app.logger.error(
+            f"Erro ao gerar comprovativo para o pedido {pk}: {str(e)}", exc_info=True)
         return jsonify({"erro": str(e)}), 500
 
 
@@ -368,7 +305,6 @@ def create_etar_document(etar_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         try:
-            # Chama a função que cria o pedido ETAR
             result = create_etar_document_direct(etar_pk, current_user)
             return jsonify(result)
         except Exception as e:
@@ -385,7 +321,6 @@ def create_ee_document(ee_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         try:
-            # Chama a função que cria o pedido EE
             result = create_ee_document_direct(ee_pk, current_user)
             return jsonify(result)
         except Exception as e:
@@ -393,28 +328,30 @@ def create_ee_document(ee_pk):
             return jsonify({"erro": str(e)}), 500
 
 
+# ===== ROTAS DOS RAMAIS =====
+
 @bp.route('/document_ramais', methods=['GET'])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
 def get_document_ramais_route():
-    """Obter dados dos ramais"""
+    """Obter ramais para pavimentar (vbr_document_pav01)"""
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return get_document_ramais(current_user)
 
 
-@bp.route('/document_pavenext/<int:pk>', methods=['PUT'])
+@bp.route('/document_ramais_executed', methods=['GET'])
 @jwt_required()
 @token_required
 @set_session
 @api_error_handler
-def update_document_pavenext_route(pk):
-    """Atualizar status do documento para próximo passo"""
+def get_document_ramais_executed_route():
+    """Obter ramais executados mas não pagos (vbr_document_pav02)"""
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
-        return update_document_pavenext(pk, current_user)
+        return get_document_ramais_executed(current_user)
 
 
 @bp.route('/document_ramais_concluded', methods=['GET'])
@@ -423,10 +360,37 @@ def update_document_pavenext_route(pk):
 @set_session
 @api_error_handler
 def get_document_ramais_concluded_route():
+    """Obter ramais concluídos e pagos (vbr_document_pav03)"""
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return get_document_ramais_concluded(current_user)
 
+
+@bp.route('/document_pavenext/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def update_document_pavenext_route(pk):
+    """Marcar ramal como executado (para pavimentar -> executado)"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return update_document_pavenext(pk, current_user)
+
+
+@bp.route('/document_pavpaid/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def update_document_pavpaid_route(pk):
+    """Marcar ramal como pago (executado -> concluído)"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return update_document_pavpaid(pk, current_user)
+
+
+# ===== OUTRAS ROTAS =====
 
 @bp.route('/document/replicate/<int:pk>', methods=['POST'])
 @jwt_required()
@@ -523,7 +487,6 @@ def cleanup_session(response):
         delattr(g, 'current_session_id')
     # current_app.logger.debug("Sessão limpa após requisição documents")
     return response
-
 
 
 # Registrar a função de limpeza de sessão
