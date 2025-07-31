@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Table,
     TableBody,
@@ -26,7 +26,9 @@ import {
     Radio,
     RadioGroup,
     Checkbox,
-    Tooltip
+    Tooltip,
+    Chip,
+    Stack
 } from '@mui/material';
 import {
     Download,
@@ -75,24 +77,29 @@ const DeliveriesTable = ({
     const handleDateFilter = (period) => {
         const now = new Date();
         let start = new Date();
+        let end = new Date();
 
         switch (period) {
             case 'today':
                 start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
                 break;
             case 'week':
                 start.setDate(now.getDate() - 7);
+                end = now;
                 break;
             case 'month':
                 start.setMonth(now.getMonth() - 1);
+                end = now;
                 break;
             default:
                 start = null;
+                end = null;
         }
 
         setFilters(prev => ({
             ...prev,
-            dateRange: start ? { start, end: now } : null
+            dateRange: start ? { start, end } : null
         }));
         handleFilterClose();
     };
@@ -124,20 +131,34 @@ const DeliveriesTable = ({
         exportToExcel(data, columns, 'registos_entregas');
     };
 
+    const clearFilters = () => {
+        setFilters({
+            search: '',
+            dateRange: null,
+            quantity: null
+        });
+    };
+
+    const getActiveFiltersCount = () => {
+        let count = 0;
+        if (filters.search) count++;
+        if (filters.dateRange) count++;
+        if (filters.quantity) count++;
+        return count;
+    };
+
     const filterData = (data) => {
         return data.filter(item => {
-            // Filtro de texto
+            // Filtro de texto melhorado
             if (filters.search) {
                 const searchTerm = filters.search.toLowerCase();
-                const matches = Object.entries(item).some(([key, value]) => {
-                    if (typeof value === 'string') {
-                        return value.toLowerCase().includes(searchTerm);
-                    }
-                    if (typeof value === 'number') {
-                        return value.toString().includes(searchTerm);
-                    }
-                    return false;
-                });
+                const matches =
+                    item.tt_epiwhat?.toLowerCase().includes(searchTerm) ||
+                    item.dim?.toLowerCase().includes(searchTerm) ||
+                    item.memo?.toLowerCase().includes(searchTerm) ||
+                    item.quantity?.toString().includes(searchTerm) ||
+                    new Date(item.data).toLocaleDateString('pt-PT').includes(searchTerm);
+
                 if (!matches) return false;
             }
 
@@ -195,7 +216,10 @@ const DeliveriesTable = ({
         return sorted;
     };
 
-    const processedData = sortData(filterData(deliveries));
+    const processedData = useMemo(() => {
+        return sortData(filterData(deliveries));
+    }, [deliveries, filters, sortConfig]);
+
     const paginatedData = processedData.slice(
         page * rowsPerPage,
         page * rowsPerPage + rowsPerPage
@@ -203,8 +227,8 @@ const DeliveriesTable = ({
 
     return (
         <Paper sx={{ width: '100%', mb: 2 }}>
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                     <TextField
                         size="small"
                         placeholder="Filtrar..."
@@ -215,14 +239,81 @@ const DeliveriesTable = ({
                         <Tooltip title="Filtrar">
                             <IconButton onClick={handleFilterClick}>
                                 <FilterList />
+                                {getActiveFiltersCount() > 0 && (
+                                    <Chip
+                                        label={getActiveFiltersCount()}
+                                        size="small"
+                                        color="primary"
+                                        sx={{ ml: 1, height: 16, minWidth: 16 }}
+                                    />
+                                )}
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Ordenar">
                             <IconButton onClick={() => setSortDialogOpen(true)}>
                                 <Sort />
+                                {(sortConfig.type !== 'date' || sortConfig.group) && (
+                                    <Chip
+                                        label="1"
+                                        size="small"
+                                        color="secondary"
+                                        sx={{ ml: 1, height: 16, minWidth: 16 }}
+                                    />
+                                )}
                             </IconButton>
                         </Tooltip>
                     </ButtonGroup>
+
+                    {/* Chips de filtros activos */}
+                    <Stack direction="row" spacing={1}>
+                        {filters.search && (
+                            <Chip
+                                label={`Pesquisa: ${filters.search}`}
+                                size="small"
+                                onDelete={() => setFilters(prev => ({ ...prev, search: '' }))}
+                            />
+                        )}
+                        {filters.dateRange && (
+                            <Chip
+                                label="Filtro de data activo"
+                                size="small"
+                                onDelete={() => setFilters(prev => ({ ...prev, dateRange: null }))}
+                            />
+                        )}
+                        {filters.quantity && (
+                            <Chip
+                                label="Filtro de quantidade activo"
+                                size="small"
+                                onDelete={() => setFilters(prev => ({ ...prev, quantity: null }))}
+                            />
+                        )}
+
+                        {/* Chip de ordenação activa */}
+                        {(sortConfig.type !== 'date' || sortConfig.group) && (
+                            <Chip
+                                label={`Ordenação: ${sortConfig.type === 'type' ? 'Por Tipo' :
+                                        sortConfig.type === 'quantity' ? 'Por Quantidade' :
+                                            'Por Data'
+                                    }${sortConfig.group ? ' + Agrupado' : ''}`}
+                                size="small"
+                                color="secondary"
+                                onDelete={() => setSortConfig({ type: 'date', direction: 'desc', group: false })}
+                            />
+                        )}
+                    </Stack>
+
+                    {(getActiveFiltersCount() > 0 || (sortConfig.type !== 'date' || sortConfig.group)) && (
+                        <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => {
+                                clearFilters();
+                                setSortConfig({ type: 'date', direction: 'desc', group: false });
+                            }}
+                        >
+                            Limpar Tudo
+                        </Button>
+                    )}
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button

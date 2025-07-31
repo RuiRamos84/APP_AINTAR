@@ -18,7 +18,9 @@ import {
     TableBody,
     TableCell,
     TableHead,
-    TableRow
+    TableRow,
+    Alert,
+    AlertTitle
 } from '@mui/material';
 import {
     notifySuccess,
@@ -36,8 +38,8 @@ const BulkDeliveryForm = ({
     employees,
     equipmentTypes,
     isEpi,
-    selectedEmployee: preSelectedEmployee = "",  // <--- novo
-    afterSubmitSuccess                             // <--- novo
+    selectedEmployee: preSelectedEmployee = "",
+    afterSubmitSuccess
 }) => {
     const [selectedEmployee, setSelectedEmployee] = useState(preSelectedEmployee);
     const [items, setItems] = useState([]);
@@ -49,8 +51,6 @@ const BulkDeliveryForm = ({
     });
     const [loading, setLoading] = useState(false);
 
-    // Sempre que a prop "preSelectedEmployee" mudar (por ex. quando trocamos de funcionário),
-    // atualizamos o estado local, se o form estiver aberto.
     useEffect(() => {
         if (open) {
             setSelectedEmployee(preSelectedEmployee);
@@ -101,7 +101,7 @@ const BulkDeliveryForm = ({
                         pnquantity: parseInt(item.pnquantity) || 1,
                         pndim: item.pndim || '',
                         pnmemo: item.pnmemo || '',
-                        typeName: item.typeName   // Só para exibir nas notificações
+                        typeName: item.typeName
                     };
 
                     await onSubmit(delivery);
@@ -115,12 +115,11 @@ const BulkDeliveryForm = ({
             if (successCount === items.length) {
                 notifySuccess("Todas as entregas foram registradas com sucesso");
 
-                // Chamamos a função de refresh para atualizar o histórico, se existir
                 if (afterSubmitSuccess) {
                     afterSubmitSuccess();
                 }
 
-                onClose(); // Fecha o formulário
+                onClose();
             } else if (successCount > 0) {
                 notifyWarning(`${successCount} de ${items.length} itens foram registrados`);
             } else {
@@ -138,7 +137,6 @@ const BulkDeliveryForm = ({
         const employee = employees.find(emp => emp.pk === employeeId);
         if (!employee) return '';
 
-        // Mapeamento de tipos para campos de tamanho
         const sizeMap = {
             'Botas': 'shoenumber',
             'Bota': 'shoenumber',
@@ -156,7 +154,6 @@ const BulkDeliveryForm = ({
         return sizeField ? employee[sizeField] : '';
     };
 
-    // Ao alterar o tipo de item, tentamos obter o tamanho preferencial
     const handleTypeChange = (value) => {
         const preferredSize = getPreferredSize(selectedEmployee, value);
         setCurrentItem(prev => ({
@@ -166,17 +163,21 @@ const BulkDeliveryForm = ({
         }));
     };
 
-    // Quando alteramos o selectedEmployee manualmente na combo
     const handleEmployeeChange = (value) => {
         setSelectedEmployee(value);
-        // Se já existia um tipo selecionado, voltamos a verificar tamanho
         if (currentItem.pntt_epiwhat) {
             const newPref = getPreferredSize(value, currentItem.pntt_epiwhat);
             setCurrentItem(prev => ({ ...prev, pndim: newPref || '' }));
         }
     };
 
-    // Sempre que a modal fecha, limpamos o form
+    const handleSizeChange = (value) => {
+        setCurrentItem(prev => ({
+            ...prev,
+            pndim: value.toUpperCase()
+        }));
+    };
+
     useEffect(() => {
         if (!open) {
             setSelectedEmployee("");
@@ -209,10 +210,18 @@ const BulkDeliveryForm = ({
             disableRestoreFocus
         >
             <DialogTitle id="delivery-form-title">
-                {isEpi ? 'Entrega Múltipla de EPIs' : 'Entrega Múltipla de Fardamento'}
+                {isEpi ? 'Entrega de EPIs' : 'Entrega de Fardamento'}
             </DialogTitle>
             <DialogContent>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
+                    <Grid size={{ xs: 12 }}>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            <AlertTitle>Como usar</AlertTitle>
+                            Seleccione o funcionário e adicione itens um a um. Os tamanhos preferidos são sugeridos automaticamente.
+                            Pode registar múltiplos itens de uma só vez.
+                        </Alert>
+                    </Grid>
+
                     <Grid size={{ xs: 12 }}>
                         <FormControl fullWidth>
                             <InputLabel>Funcionário</InputLabel>
@@ -261,12 +270,7 @@ const BulkDeliveryForm = ({
                                             <TextField
                                                 label="Tamanho"
                                                 value={currentItem.pndim}
-                                                onChange={(e) =>
-                                                    setCurrentItem((prev) => ({
-                                                        ...prev,
-                                                        pndim: e.target.value
-                                                    }))
-                                                }
+                                                onChange={(e) => handleSizeChange(e.target.value)}
                                                 fullWidth
                                             />
                                         </Grid>

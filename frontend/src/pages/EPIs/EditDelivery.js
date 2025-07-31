@@ -29,12 +29,19 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
         }
     };
 
+    const handleSizeChange = (value) => {
+        setEditData(prev => ({
+            ...prev,
+            pndim: value.toUpperCase()
+        }));
+    };
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Editar Entrega</DialogTitle>
             <DialogContent>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid size={{ xs: 12 }} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                             fullWidth
                             type="date"
@@ -49,7 +56,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             InputLabelProps={{ shrink: true }}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12 }} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                             fullWidth
                             type="number"
@@ -63,17 +70,12 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             }
                         />
                     </Grid>
-                    <Grid size={{ xs: 12 }} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                             fullWidth
                             label="Tamanho"
                             value={editData.pndim}
-                            onChange={(e) =>
-                                setEditData((prev) => ({
-                                    ...prev,
-                                    pndim: e.target.value,
-                                }))
-                            }
+                            onChange={(e) => handleSizeChange(e.target.value)}
                         />
                     </Grid>
                     <Grid size={{ xs: 12 }}>

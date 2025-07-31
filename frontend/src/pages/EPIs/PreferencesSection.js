@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-    Box, Typography, Grid, Paper, TextField, Button
+    Box, Typography, Grid, Paper, TextField, Button, FormControl, InputLabel, Select, MenuItem
 } from "@mui/material";
 import { updateEpiPreferences } from "../../services/episervice";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
@@ -153,15 +153,31 @@ const PreferencesSection = ({ selectedEmployee }) => {
             <Grid container spacing={3}>
                 <Grid size={{ xs: 12 }}>
                     <Paper sx={{ p: 3 }}>
-                        {/* <Typography variant="h6" gutterBottom>
+                        <Typography variant="h6" gutterBottom>
                             Registo de Tamanhos EPI's e Fardamento
-                        </Typography> */}
+                        </Typography>
                         <Grid container spacing={2}>
                             {/* Calçado */}
                             <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle1" gutterBottom>Calçado</Typography>
                             </Grid>
 
+                            <Grid size={{ xs: 12, md: 3 }}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Tipo de Calçado Standard</InputLabel>
+                                    <Select
+                                        label="Tipo de Calçado Standard"
+                                        value={preferences.tt_epishoetype}
+                                        onChange={(e) => handleInputChange("tt_epishoetype", e.target.value)}
+                                    >
+                                        {epiData?.epi_shoe_types?.map((type) => (
+                                            <MenuItem key={type.pk} value={type.pk}>
+                                                {type.value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
                             <Grid size={{ xs: 12, md: 3 }}>
                                 <TextField
                                     fullWidth
@@ -278,11 +294,14 @@ const PreferencesSection = ({ selectedEmployee }) => {
                             </Grid>
 
                             {/* Observações */}
+                            {/* <Grid size={{ xs: 12 }}>
+                                <Typography variant="subtitle1" gutterBottom>Informação Adicional</Typography>
+                            </Grid> */}
                             <Grid size={{ xs: 12 }}>
                                 <TextField
                                     fullWidth
                                     multiline
-                                    rows={1.5}
+                                    rows={2}
                                     label="Observações"
                                     value={preferences.memo}
                                     onChange={(e) => handleInputChange("memo", e.target.value)}
@@ -292,7 +311,6 @@ const PreferencesSection = ({ selectedEmployee }) => {
                             {hasChanges && (
                                 <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                                     <Button
-                                        
                                         variant="outlined"
                                         onClick={handleCancel}
                                         sx={{ mt: 2 }}
