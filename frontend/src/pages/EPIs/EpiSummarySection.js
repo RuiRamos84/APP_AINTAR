@@ -14,13 +14,23 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    Collapse,
+    IconButton
 } from "@mui/material";
+import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import * as epiService from "../../services/episervice";
 
-const EpiSummarySection = ({ metaData }) => {
+const EpiSummarySection = ({ metaData, selectedYear, onYearChange }) => {
     const [deliveriesSummary, setDeliveriesSummary] = useState([]);
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [typeTotals, setTypeTotals] = useState({});
+    const [expandedEmployees, setExpandedEmployees] = useState({});
+
+    const toggleEmployee = (employeeName) => {
+        setExpandedEmployees(prev => ({
+            ...prev,
+            [employeeName]: !prev[employeeName]
+        }));
+    };
 
     const getYearOptions = () => {
         const currentYear = new Date().getFullYear();
@@ -31,7 +41,6 @@ const EpiSummarySection = ({ metaData }) => {
     const processDeliveries = async () => {
         try {
             const response = await epiService.getEpiDeliveries();
-            // console.log("Resposta de entregas:", response);
             const summary = {};
 
             response.deliveries.forEach(delivery => {
@@ -70,7 +79,6 @@ const EpiSummarySection = ({ metaData }) => {
         }
     };
 
-
     useEffect(() => {
         processDeliveries();
     }, [selectedYear]);
@@ -96,40 +104,12 @@ const EpiSummarySection = ({ metaData }) => {
 
     return (
         <Box>
-            <Grid
-                container
-                spacing={3}
-                alignItems="center" // Alinha itens verticalmente no centro
-            >
-                <Grid
-                    item
-                    xs={12}
-                    md={3}
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center'  // Garante alinhamento interno também
-                    }}
-                >
-                    <FormControl fullWidth>
-                        <InputLabel>Ano</InputLabel>
-                        <Select
-                            label="Ano"
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(e.target.value)}
-                        >
-                            {getYearOptions().map(year => (
-                                <MenuItem key={year} value={year}>
-                                    {year}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid size={{ xs: 12 }} md={9}>
+            <Grid container spacing={3}>
+                <Grid size={{ xs: 12 }}>
                     <Paper
                         sx={{
                             p: 2,
-                            overflow: 'hidden' // Esconde overflow do Paper
+                            overflow: 'hidden'
                         }}
                     >
                         <Typography variant="subtitle1" gutterBottom>
@@ -140,7 +120,7 @@ const EpiSummarySection = ({ metaData }) => {
                                 display: 'flex',
                                 overflowX: 'auto',
                                 gap: 2,
-                                pb: 1, // Padding bottom para o scrollbar
+                                pb: 1,
                                 '&::-webkit-scrollbar': {
                                     height: 8,
                                 },
@@ -158,7 +138,7 @@ const EpiSummarySection = ({ metaData }) => {
                             }}
                         >
                             {Object.entries(typeTotals)
-                                .sort(([, a], [, b]) => b - a) // Ordena do maior para o menor
+                                .sort(([, a], [, b]) => b - a)
                                 .map(([type, total]) => (
                                     <Box
                                         key={type}
@@ -170,7 +150,7 @@ const EpiSummarySection = ({ metaData }) => {
                                             flexDirection: 'column',
                                             alignItems: 'center',
                                             minWidth: 150,
-                                            flex: '0 0 auto', // Impede os itens de encolherem
+                                            flex: '0 0 auto',
                                             border: '1px solid',
                                             borderColor: 'divider',
                                             boxShadow: 1
@@ -216,24 +196,50 @@ const EpiSummarySection = ({ metaData }) => {
                                 </TableHead>
                                 <TableBody>
                                     {deliveriesSummary.map((employeeData, index) => (
-                                        employeeData.items.map((item, itemIndex) => (
-                                            <TableRow key={`${index}-${itemIndex}`}>
-                                                {itemIndex === 0 && (
-                                                    <TableCell rowSpan={employeeData.items.length}>
-                                                        {employeeData.employee}
-                                                    </TableCell>
-                                                )}
-                                                <TableCell>{item.type}</TableCell>
-                                                {item.monthlyQuantities.map((qty, month) => (
-                                                    <TableCell key={month}>
-                                                        {qty > 0 ? qty : '-'}
-                                                    </TableCell>
-                                                ))}
-                                                <TableCell>
-                                                    <strong>{item.total}</strong>
+                                        <React.Fragment key={index}>
+                                            {/* Linha do funcionário (cabeçalho) */}
+                                            <TableRow
+                                                sx={{
+                                                    backgroundColor: 'action.hover',
+                                                    cursor: 'pointer',
+                                                    '&:hover': { backgroundColor: 'action.selected' }
+                                                }}
+                                                onClick={() => toggleEmployee(employeeData.employee)}
+                                            >
+                                                <TableCell sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                                                    <IconButton size="small">
+                                                        {expandedEmployees[employeeData.employee] ? <ExpandLess /> : <ExpandMore />}
+                                                    </IconButton>
+                                                    {employeeData.employee}
+                                                </TableCell>
+                                                <TableCell></TableCell>
+                                                {/* Células vazias para manter alinhamento */}
+                                                {months.map(month => <TableCell key={month}></TableCell>)}
+                                                <TableCell sx={{ fontWeight: 'bold' }} align="center">
+                                                    Total: {employeeData.items.reduce((sum, item) => sum + item.total, 0)} itens
                                                 </TableCell>
                                             </TableRow>
-                                        ))
+
+                                            {/* Linhas dos itens (colapsáveis) */}
+                                            {expandedEmployees[employeeData.employee] && employeeData.items.map((item, itemIndex) => (
+                                                <TableRow key={itemIndex}>
+                                                    <TableCell sx={{ pl: 6 }}>
+                                                        {/* Espaço vazio para nome do funcionário */}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {item.type}
+                                                    </TableCell>
+                                                    {item.monthlyQuantities.map((qty, month) => (
+                                                        <TableCell key={month} align="center">
+                                                            {qty > 0 ? qty : '-'}
+                                                        </TableCell>
+                                                    ))}
+                                                    <TableCell sx={{ fontWeight: 'bold' }} align="center">
+                                                        {item.total}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </React.Fragment>
                                     ))}
                                 </TableBody>
                             </Table>

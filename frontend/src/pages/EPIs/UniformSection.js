@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, FormControl, InputLabel, Select, MenuItem, Grid, Button, Paper, Typography, IconButton } from "@mui/material";
+import { Box, Grid, Button, Paper, Typography, IconButton } from "@mui/material";
 import { Edit, Cancel } from "@mui/icons-material";
 import EditDeliveryDialog from "./EditDelivery";
 import ReturnDeliveryDialog from "./CancelDelivery";
@@ -10,15 +10,14 @@ import { formatDate } from "./dataUtils";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
 import { Tooltip } from "@mui/material";
 
-const UniformSection = ({ metaData }) => {
-    const [selectedEmployee, setSelectedEmployee] = useState("");
+const UniformSection = ({ metaData, selectedEmployee }) => {
     const [employeeDeliveries, setEmployeeDeliveries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [bulkDeliveryOpen, setBulkDeliveryOpen] = useState(false);
     const [editDelivery, setEditDelivery] = useState(null);
     const [returnDelivery, setReturnDelivery] = useState(null);
 
-    // Carrega as entregas do funcionário selecionado
+    // Carrega as entregas do funcionário seleccionado
     const fetchDeliveries = async () => {
         if (!selectedEmployee) {
             setEmployeeDeliveries([]);
@@ -49,7 +48,7 @@ const UniformSection = ({ metaData }) => {
         fetchDeliveries();
     }, [selectedEmployee, metaData]);
 
-    // Ações de editar/anular
+    // Acções de editar/anular
     const handleEditDelivery = (delivery) => {
         setEditDelivery(delivery);
     };
@@ -61,10 +60,10 @@ const UniformSection = ({ metaData }) => {
     const handleUpdateDelivery = async (deliveryData) => {
         try {
             await epiService.updateEpiDelivery(editDelivery.pk, deliveryData);
-            notifySuccess("Entrega atualizada com sucesso");
+            notifySuccess("Entrega actualizada com sucesso");
             await fetchDeliveries();
         } catch (error) {
-            notifyError("Erro ao atualizar entrega");
+            notifyError("Erro ao actualizar entrega");
         }
     };
 
@@ -87,7 +86,7 @@ const UniformSection = ({ metaData }) => {
         { id: "memo", label: "Observações" },
         {
             id: "actions",
-            label: "Ações",
+            label: "Acções",
             render: (row) => (
                 <Box sx={{ display: "flex", gap: 1 }}>
                     <Tooltip
@@ -136,12 +135,10 @@ const UniformSection = ({ metaData }) => {
         try {
             const response = await epiService.createEpiDelivery(delivery);
             if (response && response.message) {
-                notifySuccess(`Entrega de ${delivery.typeName} registrada com sucesso`);
                 return response;
             }
             throw new Error("Falha ao criar entrega");
         } catch (error) {
-            notifyError("Falha ao criar entrega");
             console.error("Erro ao registar entregas:", error);
             throw error;
         }
@@ -160,31 +157,6 @@ const UniformSection = ({ metaData }) => {
     return (
         <Box>
             <Grid container spacing={3}>
-                <Grid size={{ xs: 12 }} md={4}>
-                    <FormControl fullWidth variant="outlined">
-                        <InputLabel id="employee-select-label">Funcionário</InputLabel>
-                        <Select
-                            labelId="employee-select-label"
-                            id="employee-select"
-                            value={selectedEmployee}
-                            onChange={(e) => setSelectedEmployee(e.target.value)}
-                            label="Funcionário"
-                        >
-                            {metaData?.epi_list?.map((emp) => (
-                                <MenuItem key={emp.pk} value={emp.pk}>
-                                    {emp.pk} - {emp.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-
-                <Grid size={{ xs: 12 }} md={8} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                    <Button variant="contained" onClick={() => setBulkDeliveryOpen(true)}>
-                        Registar Entrega em Massa
-                    </Button>
-                </Grid>
-
                 {selectedEmployee && (
                     <>
                         <Grid size={{ xs: 12 }}>
@@ -212,6 +184,7 @@ const UniformSection = ({ metaData }) => {
                                 onFilterChange={() => { }}
                                 sortConfig={{ field: "data", direction: "desc" }}
                                 onSortChange={() => { }}
+                                onBulkDelivery={() => setBulkDeliveryOpen(true)}
                             />
                         </Grid>
                     </>
@@ -227,8 +200,6 @@ const UniformSection = ({ metaData }) => {
                     metaData?.epi_what_types?.filter((type) => type.what === 2) || []
                 }
                 isEpi={false}
-
-                // Passamos o funcionário selecionado e a função de refresh
                 selectedEmployee={selectedEmployee}
                 afterSubmitSuccess={fetchDeliveries}
             />

@@ -36,7 +36,8 @@ import {
     DateRange,
     CalendarMonth,
     CalendarToday,
-    Numbers
+    Numbers,
+    Add
 } from '@mui/icons-material';
 import { exportToExcel } from './exportUtils';
 
@@ -45,7 +46,8 @@ const DeliveriesTable = ({
     deliveries = [],
     loading = false,
     columns = [],
-    onExport
+    onExport,
+    onBulkDelivery
 }) => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -222,13 +224,24 @@ const DeliveriesTable = ({
                         </Tooltip>
                     </ButtonGroup>
                 </Box>
-                <Button
-                    variant="outlined"
-                    startIcon={<Download />}
-                    onClick={handleExport}
-                >
-                    Exportar
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Download />}
+                        onClick={handleExport}
+                    >
+                        Exportar
+                    </Button>
+                    {onBulkDelivery && (
+                        <Button
+                            variant="contained"
+                            startIcon={<Add />}
+                            onClick={onBulkDelivery}
+                        >
+                            Registar Entrega
+                        </Button>
+                    )}
+                </Box>
             </Box>
 
             <TableContainer>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, FormControl, InputLabel, Select, MenuItem, Grid, Button, IconButton, Tooltip } from "@mui/material";
+import { Box, Grid, Button, IconButton, Tooltip } from "@mui/material";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
 import { Edit, Cancel } from "@mui/icons-material";
 import EditDeliveryDialog from "./EditDelivery";
@@ -9,8 +9,7 @@ import BulkDeliveryForm from "./BulkDeliveryForm";
 import * as epiService from "../../services/episervice";
 import { formatDate } from "./dataUtils";
 
-const EpiSection = ({ metaData }) => {
-    const [selectedEmployee, setSelectedEmployee] = useState("");
+const EpiSection = ({ metaData, selectedEmployee }) => {
     const [employeeDeliveries, setEmployeeDeliveries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [bulkDeliveryOpen, setBulkDeliveryOpen] = useState(false);
@@ -145,31 +144,6 @@ const EpiSection = ({ metaData }) => {
     return (
         <Box>
             <Grid container spacing={3}>
-                <Grid size={{ xs: 12 }} md={4}>
-                    <FormControl fullWidth variant="outlined">
-                        <InputLabel id="employee-select-label">Funcionário</InputLabel>
-                        <Select
-                            labelId="employee-select-label"
-                            id="employee-select"
-                            value={selectedEmployee}
-                            onChange={(e) => setSelectedEmployee(e.target.value)}
-                            label="Funcionário"
-                        >
-                            {metaData?.epi_list?.map((emp) => (
-                                <MenuItem key={emp.pk} value={emp.pk}>
-                                    {emp.pk} - {emp.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-
-                <Grid size={{ xs: 12 }} md={8} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                    <Button variant="contained" onClick={() => setBulkDeliveryOpen(true)}>
-                        Registar Entrega em Massa
-                    </Button>
-                </Grid>
-
                 {selectedEmployee && (
                     <Grid size={{ xs: 12 }}>
                         <DeliveriesTable
@@ -186,6 +160,7 @@ const EpiSection = ({ metaData }) => {
                             onFilterChange={setFilters}
                             sortConfig={sortConfig}
                             onSortChange={setSortConfig}
+                            onBulkDelivery={() => setBulkDeliveryOpen(true)}
                         />
                     </Grid>
                 )}
@@ -198,8 +173,8 @@ const EpiSection = ({ metaData }) => {
                 employees={metaData?.epi_list || []}
                 equipmentTypes={metaData?.epi_what_types?.filter((type) => type.what === 1) || []}
                 isEpi={true}
-                selectedEmployee={selectedEmployee}         // <-- pré-seleciona o funcionário
-                afterSubmitSuccess={fetchDeliveries}          // <-- atualiza a listagem após submissão
+                selectedEmployee={selectedEmployee}
+                afterSubmitSuccess={fetchDeliveries}
             />
 
             <EditDeliveryDialog

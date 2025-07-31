@@ -1,10 +1,11 @@
 // frontend/src/pages/Global/views/NetworkManagement.js
 
 import React, { useState } from 'react';
-import { Box, Tabs, Tab, Paper, Button } from '@mui/material';
+import { Box, Tabs, Tab, Paper, Button, Typography, Chip } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RecordManager from '../components/common/RecordManager';
 import RequestManager from '../components/forms/RequestManager';
+import { AREAS } from '../utils/constants';
 
 const NETWORK_TABS = {
     3: [ // Rede
@@ -25,6 +26,7 @@ const NETWORK_TABS = {
 const NetworkManagement = ({ areaId, onBack }) => {
     const [selectedTab, setSelectedTab] = useState(0);
     const tabs = NETWORK_TABS[areaId] || [];
+    const currentArea = Object.values(AREAS).find(area => area.id === areaId);
 
     const renderTabContent = () => {
         const currentTab = tabs[selectedTab];
@@ -39,7 +41,34 @@ const NetworkManagement = ({ areaId, onBack }) => {
 
     return (
         <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            {/* Header padronizado */}
+            <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={3}
+                sx={{
+                    minHeight: '56px',
+                    p: 2,
+                    bgcolor: 'background.paper',
+                    borderRadius: 1,
+                    boxShadow: 1
+                }}
+            >
+                <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                    {currentArea?.name}
+                </Typography>
+
+                {/* Centro - Info contextual */}
+                <Box sx={{ flex: 1, textAlign: 'center' }}>
+                    <Chip
+                        label="Gestão de Infraestrutura"
+                        variant="outlined"
+                        size="small"
+                        color="primary"
+                    />
+                </Box>
+
                 <Button
                     variant="outlined"
                     startIcon={<ArrowBackIcon />}

@@ -235,7 +235,7 @@ const BulkDeliveryForm = ({
                             <Grid size={{ xs: 12 }}>
                                 <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
                                     <Grid container spacing={2} alignItems="center">
-                                        <Grid size={{ xs: 12 }} md={4}>
+                                        <Grid size={{ xs: 12, md: 4 }}>
                                             <FormControl fullWidth>
                                                 <InputLabel>
                                                     {isEpi ? 'Tipo de EPI' : 'Tipo de Fardamento'}
@@ -257,7 +257,7 @@ const BulkDeliveryForm = ({
                                                 </Select>
                                             </FormControl>
                                         </Grid>
-                                        <Grid size={{ xs: 12 }} md={2}>
+                                        <Grid size={{ xs: 12, md: 2 }}>
                                             <TextField
                                                 label="Tamanho"
                                                 value={currentItem.pndim}
@@ -270,7 +270,7 @@ const BulkDeliveryForm = ({
                                                 fullWidth
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12 }} md={2}>
+                                        <Grid size={{ xs: 12, md: 2 }}>
                                             <TextField
                                                 type="number"
                                                 label="Quantidade"
@@ -285,7 +285,7 @@ const BulkDeliveryForm = ({
                                                 InputProps={{ inputProps: { min: 1 } }}
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12 }} md={3}>
+                                        <Grid size={{ xs: 12, md: 3 }}>
                                             <TextField
                                                 label="Observações"
                                                 value={currentItem.pnmemo}
@@ -298,7 +298,7 @@ const BulkDeliveryForm = ({
                                                 fullWidth
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12 }} md={1}>
+                                        <Grid size={{ xs: 12, md: 1 }}>
                                             <IconButton
                                                 color="primary"
                                                 onClick={handleAddItem}
