@@ -27,6 +27,7 @@ from ..services.documents import (
     update_document_pavenext,
     update_document_pavpaid,       # Nova função para marcar como pago
     get_document_ramais_concluded,
+    step_hierarchy,
     replicate_document_service,
     reopen_document,
     documentById,
@@ -87,6 +88,18 @@ def check_vacation_status_route(user_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return check_vacation_status(user_pk, current_user)
+
+
+@bp.route('/step_hierarchy/<int:dockty_id>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def check_step_hierarchy(dockty_id):
+    """consulta ps passo de um tipo de pedido e suas hierarquias"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return step_hierarchy(dockty_id, current_user)
 
 
 @bp.route('/create_document', methods=['POST'])

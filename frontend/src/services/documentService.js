@@ -451,3 +451,13 @@ export const previewFile = async (regnumber, filename) => {
     throw error;
   }
 };
+
+export const getDocumentWorkflow = async (doctypeId) => {
+  try {
+    const response = await api.get(`/step_hierarchy/${doctypeId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar workflow:', error);
+    throw error;
+  }
+};

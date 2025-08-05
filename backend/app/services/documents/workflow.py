@@ -1,3 +1,4 @@
+import json  # Adicionar este import no topo do ficheiro
 from flask import current_app, jsonify, request
 from app.utils.error_handler import APIError, ResourceNotFoundError
 from app.utils.utils import format_message, db_session_manager
@@ -386,4 +387,40 @@ def update_document_pavenext(pk, current_user):
     except Exception as e:
         current_app.logger.error(
             f"Erro inesperado ao atualizar documento {pk}: {str(e)}")
+        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+
+
+def step_hierarchy(dockty_id, current_user):
+    """Obter os passos do tipo de documento com hierarquia"""
+    try:
+        with db_session_manager(current_user) as session:
+            dockty_id = sanitize_input(dockty_id, 'int')
+
+            # Chamar a função armazenada que retorna o diagrama de transição dos passos
+            query = text("""
+                SELECT fbo_step_transition_diagram(:dockty_id) AS result
+            """)
+            result = session.execute(query, {'dockty_id': dockty_id}).scalar()
+
+            if not result:
+                return {'error': "Nenhuma hierarquia encontrada para o tipo de documento"}, 404
+
+            # O resultado já é um JSON, mas pode vir como string dependendo do driver
+            if isinstance(result, str):
+                try:
+                    result = json.loads(result)
+                except json.JSONDecodeError as e:
+                    current_app.logger.error(
+                        f"Erro ao parsear JSON da hierarquia: {str(e)}")
+                    return {'error': "Erro no formato dos dados da hierarquia"}, 500
+
+            return result, 200
+
+    except SQLAlchemyError as e:
+        current_app.logger.error(
+            f"Erro de BD ao buscar hierarquia de passos: {str(e)}")
+        return {'error': "Erro ao consultar passos", 'code': "ERR_DATABASE"}, 500
+    except Exception as e:
+        current_app.logger.error(
+            f"Erro inesperado ao buscar hierarquia de passos: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500

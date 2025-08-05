@@ -1,0 +1,156 @@
+{
+    "doctype": 2,
+    "hierarchy": [
+        {
+            "step_id": 1,
+            "step_name": "ENTRADA",
+            "parent_id": null,
+            "level": 1,
+            "path": "1",
+            "client": [
+                17
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 2,
+            "step_name": "PARA VALIDAÇÃO",
+            "parent_id": 1,
+            "level": 2,
+            "path": "1 -> 2",
+            "client": [
+                17
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 11,
+            "step_name": "PARA ORÇAMENTAÇÃO",
+            "parent_id": 2,
+            "level": 3,
+            "path": "1 -> 2 -> 11",
+            "client": [
+                17
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 10,
+            "step_name": "PARA EXECUÇÃO",
+            "parent_id": 11,
+            "level": 4,
+            "path": "1 -> 2 -> 11 -> 10",
+            "client": [
+                89,
+                90,
+                91
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 0,
+            "step_name": "CONCLUIDO COM SUCESSO",
+            "parent_id": 10,
+            "level": 5,
+            "path": "1 -> 2 -> 11 -> 10 -> 0",
+            "client": [
+                17
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 12,
+            "step_name": "PARA COBRANÇA AO CLIENTE",
+            "parent_id": 11,
+            "level": 4,
+            "path": "1 -> 2 -> 11 -> 12",
+            "client": [
+                12,
+                25
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 14,
+            "step_name": "A AGUARDAR PAGAMENTO",
+            "parent_id": 12,
+            "level": 5,
+            "path": "1 -> 2 -> 11 -> 12 -> 14",
+            "client": [
+                12,
+                25
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 10,
+            "step_name": "PARA EXECUÇÃO",
+            "parent_id": 14,
+            "level": 6,
+            "path": "1 -> 2 -> 11 -> 12 -> 14 -> 10",
+            "client": [
+                89,
+                90,
+                91
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 0,
+            "step_name": "CONCLUIDO COM SUCESSO",
+            "parent_id": 10,
+            "level": 7,
+            "path": "1 -> 2 -> 11 -> 12 -> 14 -> 10 -> 0",
+            "client": [
+                17
+            ],
+            "memo": null
+        },
+        {
+            "step_id": -2,
+            "step_name": "CONCLUIDO SEM SUCESSO",
+            "parent_id": 14,
+            "level": 6,
+            "path": "1 -> 2 -> 11 -> 12 -> 14 -> -2",
+            "client": [
+                17
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 17,
+            "step_name": "PARA EXECUÇÃO (PAGO NO MUNICÍPIO)",
+            "parent_id": 11,
+            "level": 4,
+            "path": "1 -> 2 -> 11 -> 17",
+            "client": [
+                89,
+                90,
+                91
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 16,
+            "step_name": "PARA COBRANÇA AO MUNICIPIO",
+            "parent_id": 17,
+            "level": 5,
+            "path": "1 -> 2 -> 11 -> 17 -> 16",
+            "client": [
+                25
+            ],
+            "memo": null
+        },
+        {
+            "step_id": 0,
+            "step_name": "CONCLUIDO COM SUCESSO",
+            "parent_id": 16,
+            "level": 6,
+            "path": "1 -> 2 -> 11 -> 17 -> 16 -> 0",
+            "client": [
+                17
+            ],
+            "memo": null
+        }
+    ]
+}

@@ -70,7 +70,7 @@ def replicate_document_service(pk, new_type, current_user):
                     return {
                         'message': f'Documento replicado com sucesso',
                         'original_pk': pk,
-                        'new_pk': new_pk,
+                        'new_pk': new_doc.pk if new_doc else None,
                         'new_regnumber': new_doc.regnumber,
                         'new_type': new_type
                     }, 201

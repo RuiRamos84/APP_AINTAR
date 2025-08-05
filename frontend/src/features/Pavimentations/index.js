@@ -9,6 +9,7 @@ export { default as PavimentationList } from './components/PavimentationList';
 export { default as PavimentationStats } from './components/PavimentationList/PavimentationStats';
 export { default as PavimentationFilters } from './components/PavimentationList/PavimentationFilters';
 
+
 // Hooks
 export { usePavimentations } from './hooks/usePavimentations';
 export { usePavimentationActions } from './hooks/usePavimentationActions';

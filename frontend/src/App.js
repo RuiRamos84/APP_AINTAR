@@ -296,9 +296,9 @@ const AppContent = () => {
                 }
               />
               {/* ===== FIM ROTAS DOS RAMAIS ===== */}
-              <Route path="/ramais" element={<PendingPavimentations />} />
-              <Route path="/ramais/executed" element={<ExecutedPavimentations />} />
-              <Route path="/ramais/concluded" element={<CompletedPavimentations />} />
+              <Route path="/ramais1" element={<PendingPavimentations />} />
+              <Route path="/ramais/executed1" element={<ExecutedPavimentations />} />
+              <Route path="/ramais/concluded1" element={<CompletedPavimentations />} />
               <Route
                 path="/dashboard"
                 element={

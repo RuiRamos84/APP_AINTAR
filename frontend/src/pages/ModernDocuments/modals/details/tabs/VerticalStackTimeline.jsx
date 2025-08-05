@@ -3,9 +3,8 @@ import {
     Box,
     Paper,
     Typography,
-    Stepper,
-    Step,
-    StepLabel,
+    Skeleton,
+    Chip,
     useTheme,
     Alert,
     Tooltip,
@@ -15,7 +14,14 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-    Chip
+    Stepper,
+    Step,
+    StepLabel,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button
 } from '@mui/material';
 import {
     CheckCircle as CheckCircleIcon,
@@ -23,21 +29,109 @@ import {
     CircleOutlined as PendingIcon,
     Timeline as TimelineIcon,
     InfoOutlined as InfoIcon,
-    ArrowForward as ArrowForwardIcon
+    ArrowForward as ArrowForwardIcon,
+    AccountTree as WorkflowIcon,
+    Close as CloseIcon,
+    ExpandLess,
+    ExpandMore
 } from '@mui/icons-material';
 import { getValidTransitions } from '../../../utils/workflowUtils';
 
 /**
- * Processa os dados do timeline e retorna estrutura organizada (versão simples)
+ * Timeline baseado no workflow (método preferido)
  */
-const getSimpleTimeline = (document, metaData, steps) => {
-    console.log('🔍 Simple Timeline - Input:', {
-        document_what: document.what,
-        steps_count: steps.length,
-        current_step: document.what
+const getWorkflowTimeline = (document, metaData, steps, workflowData) => {
+    console.log('🎯 Gerando timeline baseado no workflow');
+    
+    if (!workflowData?.hierarchy) return null;
+
+    // Ordenar workflow por level
+    const sortedWorkflow = [...workflowData.hierarchy].sort((a, b) => a.level - b.level);
+    
+    // Steps executados ordenados por ord
+    const executedSteps = steps
+        .filter(step => step.what)
+        .sort((a, b) => (a.ord || 0) - (b.ord || 0));
+
+    // Encontrar caminho executado até agora
+    const executedPath = [];
+    
+    executedSteps.forEach(execStep => {
+        const workflowStep = sortedWorkflow.find(ws => 
+            execStep.what === ws.step_name || 
+            (metaData?.what?.find(meta => meta.step === execStep.what)?.pk === ws.step_id)
+        );
+        
+        if (workflowStep) {
+            executedPath.push({
+                stepId: workflowStep.step_id,
+                stepName: workflowStep.step_name,
+                level: workflowStep.level,
+                status: 'completed',
+                when: execStep.when_start,
+                who: execStep.who,
+                memo: execStep.memo || workflowStep.memo,
+                order: workflowStep.level
+            });
+        }
     });
 
-    // Função auxiliar para encontrar step data
+    // Ordenar executados por level
+    executedPath.sort((a, b) => a.level - b.level);
+
+    // Adicionar step actual se não executado
+    const currentStep = sortedWorkflow.find(ws => ws.step_id === document.what);
+    if (currentStep && !executedPath.find(ep => ep.stepId === currentStep.step_id)) {
+        executedPath.push({
+            stepId: currentStep.step_id,
+            stepName: currentStep.step_name,
+            level: currentStep.level,
+            status: 'current',
+            memo: currentStep.memo,
+            order: currentStep.level
+        });
+    } else if (currentStep) {
+        // Marcar como actual se já existe
+        const existing = executedPath.find(ep => ep.stepId === currentStep.step_id);
+        if (existing) existing.status = 'current';
+    }
+
+    // Próximo level baseado no actual
+    const currentLevel = currentStep?.level || Math.max(...executedPath.map(ep => ep.level), 0);
+    const nextSteps = sortedWorkflow.filter(ws => ws.level === currentLevel + 1);
+    
+    if (nextSteps.length > 0) {
+        // Adicionar primeiro próximo
+        const firstNext = nextSteps[0];
+        executedPath.push({
+            stepId: firstNext.step_id,
+            stepName: firstNext.step_name,
+            level: firstNext.level,
+            status: 'pending',
+            memo: firstNext.memo,
+            order: firstNext.level,
+            isNext: true
+        });
+    }
+
+    // Ordenar por level final
+    executedPath.sort((a, b) => a.level - b.level);
+
+    return {
+        steps: executedPath,
+        completed: executedPath.filter(s => s.status === 'completed').length,
+        total: executedPath.length,
+        current: executedPath.find(s => s.status === 'current'),
+        nextOptionsCount: nextSteps.length,
+        allNextOptions: nextSteps,
+        isWorkflowBased: true
+    };
+};
+
+/**
+ * Timeline original (fallback)
+ */
+const getOriginalTimeline = (document, metaData, steps) => {
     const findStepData = (whatValue) => {
         if (!whatValue) return null;
         const byPk = metaData.what?.find(s => s.pk === whatValue);
@@ -50,26 +144,10 @@ const getSimpleTimeline = (document, metaData, steps) => {
         return byNameInsensitive || null;
     };
 
-    // Processar passos executados - ORDENAR POR 'ord' em vez de data
     const executedSteps = steps
         .filter(step => step.what !== null && step.what !== undefined && step.what !== '')
-        .sort((a, b) => {
-            // Primeiro critério: ordenar por 'ord'
-            if (a.ord !== undefined && b.ord !== undefined) {
-                return a.ord - b.ord;
-            }
-            // Se não houver 'ord', usar data como fallback
-            const parseDate = (dateStr) => {
-                try {
-                    return new Date(dateStr.replace(' às ', ' '));
-                } catch (e) {
-                    return new Date(dateStr);
-                }
-            };
-            return parseDate(a.when_start) - parseDate(b.when_start);
-        });
+        .sort((a, b) => (a.ord || 0) - (b.ord || 0));
 
-    // Criar mapa de passos únicos executados
     const uniqueExecutedSteps = new Map();
 
     executedSteps.forEach(step => {
@@ -94,76 +172,59 @@ const getSimpleTimeline = (document, metaData, steps) => {
                     who: step.who,
                     memo: step.memo,
                     status: 'completed',
-                    originalStep: step
+                    originalStep: step,
+                    order: step.ord || 0
                 });
             }
         }
     });
 
-    // Construir timeline base
     const timelineSteps = [];
 
-    // PRIMEIRO: Sempre adicionar ENTRADA no início (independente do ord)
+    // Adicionar ENTRADA primeiro
     const entradaStep = metaData.what?.find(s =>
         s.step?.toUpperCase().includes('ENTRADA')
     );
     
-    let entradaStepData = null;
     if (entradaStep) {
-        // Procurar dados da ENTRADA nos steps executados
         const entradaExecuted = uniqueExecutedSteps.get(entradaStep.pk);
         if (entradaExecuted) {
-            entradaStepData = {
-                ...entradaExecuted,
-                order: -1 // Sempre primeiro
-            };
-            timelineSteps.push(entradaStepData);
+            timelineSteps.push({ ...entradaExecuted, order: -1 });
         } else {
-            // Se ENTRADA não foi executada, criar com dados do documento
-            const entradaDate = document.created_at || document.when_start;
-            entradaStepData = {
+            timelineSteps.push({
                 stepId: entradaStep.pk,
                 stepName: entradaStep.step,
                 status: 'completed',
-                when: entradaDate,
+                when: document.created_at || document.when_start,
                 isEntrada: true,
                 order: -1
-            };
-            timelineSteps.push(entradaStepData);
+            });
         }
     }
 
-    // SEGUNDO: Adicionar outros steps executados (exceto ENTRADA) pela ordem lógica do workflow
-    // Usar a ordem dos metadados (metaData.what) como referência para ordem lógica
+    // Adicionar outros steps executados
     const metaStepsOrder = metaData.what || [];
-    
     metaStepsOrder.forEach((metaStep, index) => {
-        // Pular ENTRADA pois já foi adicionada
-        if (metaStep.step?.toUpperCase().includes('ENTRADA')) {
-            return;
-        }
+        if (metaStep.step?.toUpperCase().includes('ENTRADA')) return;
         
-        // Verificar se este step foi executado
         const executedStepData = uniqueExecutedSteps.get(metaStep.pk);
         if (executedStepData) {
             timelineSteps.push({
                 ...executedStepData,
                 status: 'completed',
-                order: index // Usar índice dos metadados como ordem lógica
+                order: index
             });
         }
     });
 
-    // TERCEIRO: Identificar e marcar o step atual
+    // Identificar step atual
     const currentStepData = findStepData(document.what);
     if (currentStepData) {
         const currentStepIndex = timelineSteps.findIndex(step => step.stepId === currentStepData.pk);
         
         if (currentStepIndex !== -1) {
-            // Se já existe, marcar como atual
             timelineSteps[currentStepIndex].status = 'current';
         } else {
-            // Se não existe, adicionar
             const currentStepMetaIndex = metaStepsOrder.findIndex(meta => meta.pk === currentStepData.pk);
             timelineSteps.push({
                 stepId: currentStepData.pk,
@@ -174,26 +235,20 @@ const getSimpleTimeline = (document, metaData, steps) => {
         }
     }
 
-    // Ordenar por ordem lógica (order)
-    timelineSteps.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    // Obter próximos passos possíveis - APENAS O PRIMEIRO
-    const validTransitions = getValidTransitions(document, metaData);
+    // Próximos passos possíveis (só para compatibilidade)
+    const validTransitions = getValidTransitions ? getValidTransitions(document, metaData) : [];
     const existingStepIds = new Set(timelineSteps.map(s => s.stepId));
-
     const nextStepIds = validTransitions
         .map(t => t.to_step_pk)
         .filter(stepId => !existingStepIds.has(stepId));
-
     const nextStepsData = nextStepIds
         .map(stepId => metaData.what?.find(s => s.pk === stepId))
         .filter(Boolean);
 
-    // Adicionar APENAS a primeira opção como próximo step (se não há steps futuros já marcados como pending)
     const hasPendingSteps = timelineSteps.some(step => step.status === 'pending');
     
     if (nextStepsData.length > 0 && !hasPendingSteps) {
-        const nextStep = nextStepsData[0]; // Só pega a primeira opção
+        const nextStep = nextStepsData[0];
         timelineSteps.push({
             stepId: nextStep.pk,
             stepName: nextStep.step,
@@ -202,35 +257,275 @@ const getSimpleTimeline = (document, metaData, steps) => {
         });
     }
 
+    timelineSteps.sort((a, b) => (a.order || 0) - (b.order || 0));
+
     return {
-        steps: timelineSteps,
+        steps: timelineSteps.slice(0, 6),
         completed: timelineSteps.filter(s => s.status === 'completed').length,
         total: timelineSteps.length,
         current: timelineSteps.find(s => s.status === 'current'),
-        totalOptionsAvailable: nextStepsData.length, // Para mostrar na mensagem
-        allNextOptions: nextStepsData // Todas as opções para o tooltip
+        totalOptionsAvailable: nextStepsData.length,
+        allNextOptions: nextStepsData,
+        isWorkflowBased: false
     };
 };
 
+// Componente árvore hierárquica para o modal
+const WorkflowTreeModal = ({ workflowData, steps, document, metaData }) => {
+    const [expandedNodes, setExpandedNodes] = useState(new Set());
+    
+    // Mapear steps executados
+    const mapExecutedSteps = (hierarchy) => {
+        return hierarchy.map(step => {
+            const executed = steps.find(exec => 
+                exec.what === step.step_name ||
+                metaData?.what?.find(meta => meta.step === exec.what)?.pk === step.step_id
+            );
+            
+            return {
+                ...step,
+                executed: !!executed,
+                executedAt: executed?.when_start,
+                executedBy: executed?.who,
+                memo: step.memo, // MEMO DO WORKFLOW sempre
+                executedMemo: executed?.memo // Memo do step executado separado
+            };
+        });
+    };
+
+    // Construir árvore
+    const buildTree = (hierarchy) => {
+        const stepMap = {};
+        
+        hierarchy.forEach((step) => {
+            const uniqueKey = `${step.step_id}-${step.path}`;
+            stepMap[uniqueKey] = { 
+                ...step, 
+                uniqueKey,
+                children: []
+            };
+        });
+
+        const tree = [];
+        hierarchy.forEach((step) => {
+            const uniqueKey = `${step.step_id}-${step.path}`;
+            const currentNode = stepMap[uniqueKey];
+            
+            if (step.parent_id === null) {
+                tree.push(currentNode);
+            } else {
+                const parentPath = step.path.split(' -> ').slice(0, -1).join(' -> ');
+                const parentKey = Object.keys(stepMap).find(key => {
+                    const node = stepMap[key];
+                    return node.step_id === step.parent_id && node.path === parentPath;
+                });
+                
+                if (parentKey) {
+                    stepMap[parentKey].children.push(currentNode);
+                }
+            }
+        });
+
+        return tree;
+    };
+
+    const toggleNode = (nodeKey) => {
+        const newExpanded = new Set(expandedNodes);
+        if (newExpanded.has(nodeKey)) {
+            newExpanded.delete(nodeKey);
+        } else {
+            newExpanded.add(nodeKey);
+        }
+        setExpandedNodes(newExpanded);
+    };
+
+    const getStepColors = (step) => {
+        const isExecuted = step.executed;
+        const isCurrent = document?.what === step.step_id;
+        
+        if (step.step_name?.includes('CONCLUIDO COM SUCESSO')) {
+            return { bg: 'success.50', text: 'success.dark', border: 'success.main' };
+        }
+        if (step.step_name?.includes('CONCLUIDO SEM SUCESSO')) {
+            return { bg: 'error.50', text: 'error.dark', border: 'error.main' };
+        }
+        if (step.step_name?.includes('AGUARDAR')) {
+            return { bg: 'warning.50', text: 'warning.dark', border: 'warning.main' };
+        }
+        if (step.step_name?.includes('COBRANÇA')) {
+            return { bg: 'info.50', text: 'info.dark', border: 'info.main' };
+        }
+        
+        if (isExecuted) {
+            return { bg: 'success.50', text: 'success.dark', border: 'success.main' };
+        }
+        if (isCurrent) {
+            return { bg: 'primary.50', text: 'primary.dark', border: 'primary.main' };
+        }
+        
+        return { bg: 'grey.50', text: 'text.secondary', border: 'divider' };
+    };
+
+    const TreeNode = ({ node, level = 0 }) => {
+        const hasChildren = node.children && node.children.length > 0;
+        const isExpanded = expandedNodes.has(node.uniqueKey);
+        const colors = getStepColors(node);
+
+        return (
+            <Box sx={{ userSelect: 'none' }}>
+                <Paper
+                    elevation={0}
+                    onClick={() => hasChildren && toggleNode(node.uniqueKey)}
+                    sx={{
+                        p: 1.5,
+                        mb: 0.5,
+                        ml: level * 4,
+                        mr: 3,
+                        cursor: hasChildren ? 'pointer' : 'default',
+                        border: 1,
+                        borderColor: colors.border,
+                        borderStyle: node.executed || document?.what === node.step_id ? 'solid' : 'dashed',
+                        bgcolor: colors.bg,
+                        borderRadius: 1,
+                        '&:hover': hasChildren ? { bgcolor: 'action.hover' } : {}
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {/* Ícone expand/collapse */}
+                        <Box sx={{ width: 20, display: 'flex', justifyContent: 'center' }}>
+                            {hasChildren ? (
+                                isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />
+                            ) : null}
+                        </Box>
+
+                        {/* Ícone de estado */}
+                        <Box>
+                            {node.executed ? (
+                                <CheckCircleIcon sx={{ color: 'success.main', fontSize: '1rem' }} />
+                            ) : document?.what === node.step_id ? (
+                                <CurrentIcon sx={{ color: 'primary.main', fontSize: '1rem' }} />
+                            ) : (
+                                <PendingIcon sx={{ color: 'grey.400', fontSize: '1rem' }} />
+                            )}
+                        </Box>
+
+                        {/* Nome do step */}
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                fontWeight: document?.what === node.step_id ? 600 : 400,
+                                color: colors.text,
+                                flex: 1
+                            }}
+                        >
+                            {node.level}. {node.step_name}
+                        </Typography>
+
+                        {/* Chips de estado */}
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            {node.executed && (
+                                <Chip label="✓" size="small" color="success" sx={{ height: 16, fontSize: '0.6rem' }} />
+                            )}
+                            {document?.what === node.step_id && (
+                                <Chip label="►" size="small" color="primary" sx={{ height: 16, fontSize: '0.6rem' }} />
+                            )}
+                        </Box>
+
+                        {/* Responsáveis */}
+                        {node.client && node.client.length > 0 && (
+                            <Chip
+                                label={`👤 ${node.client.map(clientPk => {
+                                    const userData = metaData?.who?.find(user => user.pk === clientPk);
+                                    return userData ? userData.name : clientPk;
+                                }).join(', ')}`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: '0.6rem' }}
+                            />
+                        )}
+                    </Box>
+
+                    {/* Memo */}
+                    {node.memo && (
+                        <Box sx={{ mt: 1, ml: 3 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                                💬 {node.memo}
+                            </Typography>
+                        </Box>
+                    )}
+                </Paper>
+
+                {/* Filhos */}
+                {hasChildren && isExpanded && (
+                    <Box>
+                        {node.children.map((child) => (
+                            <TreeNode key={child.uniqueKey} node={child} level={level + 1} />
+                        ))}
+                    </Box>
+                )}
+            </Box>
+        );
+    };
+
+    const mappedHierarchy = mapExecutedSteps(workflowData.hierarchy);
+    const treeData = buildTree(mappedHierarchy);
+
+    // Expandir primeiros 3 níveis por defeito
+    React.useEffect(() => {
+        const defaultExpanded = new Set();
+        mappedHierarchy.forEach(step => {
+            if (step.level <= 3) {
+                defaultExpanded.add(`${step.step_id}-${step.path}`);
+            }
+        });
+        setExpandedNodes(defaultExpanded);
+    }, [workflowData]);
+
+    return (
+        <Box sx={{ p: 2, maxHeight: 500, overflow: 'auto' }}>
+            {treeData.map((node) => (
+                <TreeNode key={node.uniqueKey} node={node} />
+            ))}
+        </Box>
+    );
+};
+const getSimpleTimeline = (document, metaData, steps, workflowData) => {
+    console.log('🔍 Timeline Input:', {
+        document_what: document.what,
+        steps_count: steps.length,
+        has_workflow: !!workflowData,
+        workflow_steps: workflowData?.hierarchy?.length
+    });
+
+    // PRIORIDADE: Usar workflow se disponível
+    if (workflowData?.hierarchy) {
+        const workflowTimeline = getWorkflowTimeline(document, metaData, steps, workflowData);
+        if (workflowTimeline) {
+            console.log('✅ Timeline gerado pelo workflow:', workflowTimeline);
+            return workflowTimeline;
+        }
+    }
+
+    // FALLBACK: Método original
+    console.log('⚠️ Fallback para método original');
+    return getOriginalTimeline(document, metaData, steps);
+};
+
 /**
- * Componente de Timeline Simples (sem ramificações)
- * 
- * @param {Object} props
- * @param {Object} props.document - Documento atual
- * @param {Object} props.metaData - Metadados do workflow
- * @param {Array} props.steps - Array de passos executados
- * @param {string} props.title - Título customizado (opcional)
- * @param {Object} props.sx - Estilos customizados (opcional)
+ * Componente de Timeline
  */
 const VerticalStackTimeline = ({ 
     document, 
     metaData, 
     steps = [],
+    workflowData,
     title = "Percurso do Documento",
+    showWorkflowIcon = false,
     sx = {}
 }) => {
     const theme = useTheme();
     const [anchorEl, setAnchorEl] = useState(null);
+    const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
 
     const handlePopoverOpen = (event) => {
         setAnchorEl(event.currentTarget);
@@ -242,7 +537,7 @@ const VerticalStackTimeline = ({
 
     const open = Boolean(anchorEl);
 
-    // Validação de props obrigatórias
+    // Validação
     if (!document || !metaData?.what) {
         return (
             <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 1, ...sx }}>
@@ -257,7 +552,7 @@ const VerticalStackTimeline = ({
         );
     }
 
-    const timeline = getSimpleTimeline(document, metaData, steps);
+    const timeline = getSimpleTimeline(document, metaData, steps, workflowData);
 
     if (!timeline.steps?.length) {
         return (
@@ -282,15 +577,43 @@ const VerticalStackTimeline = ({
                 <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <TimelineIcon sx={{ mr: 1 }} color="primary" />
                     {title}
+                    
+                    {/* Ícone workflow com modal */}
+                    {showWorkflowIcon && workflowData && (
+                        <Tooltip 
+                            title="Clique para ver o processo completo"
+                            arrow
+                        >
+                            <IconButton 
+                                size="small" 
+                                onClick={() => setWorkflowModalOpen(true)}
+                                sx={{ 
+                                    ml: 1,
+                                    color: 'success.main',
+                                    '&:hover': {
+                                        bgcolor: 'success.50'
+                                    }
+                                }}
+                            >
+                                <WorkflowIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+
+                    {/* {timeline.isWorkflowBased && (
+                        <Chip 
+                            label="Baseado no Workflow" 
+                            size="small" 
+                            color="success" 
+                            variant="outlined"
+                            sx={{ ml: 2, height: 20, fontSize: '0.7rem' }}
+                        />
+                    )} */}
                 </Typography>
             </Box>
 
-            {/* Timeline Simples */}
-            <Box sx={{
-                width: '100%',
-                pb: 1,
-                overflow: 'hidden'
-            }}>
+            {/* Timeline */}
+            <Box sx={{ width: '100%', pb: 1, overflow: 'hidden' }}>
                 <Stepper
                     activeStep={activeStep}
                     orientation="horizontal"
@@ -434,15 +757,15 @@ const VerticalStackTimeline = ({
                 </Stepper>
             </Box>
 
-            {/* Informação sobre múltiplas opções com tooltip/popover */}
-            {timeline.totalOptionsAvailable > 1 && (
+            {/* Nota sobre múltiplas opções do próximo passo */}
+            {timeline.isWorkflowBased && timeline.nextOptionsCount > 1 && (
                 <Box sx={{ 
                     mt: 2, 
                     p: 1.5, 
-                    bgcolor: 'info.50', 
+                    bgcolor: 'warning.50', 
                     borderRadius: 1, 
                     borderLeft: '4px solid', 
-                    borderColor: 'info.main',
+                    borderColor: 'warning.main',
                     textAlign: 'center',
                     display: 'flex',
                     alignItems: 'center',
@@ -450,7 +773,7 @@ const VerticalStackTimeline = ({
                     gap: 1
                 }}>
                     <Typography variant="body2" color="text.secondary">
-                        <strong>{timeline.totalOptionsAvailable} opções disponíveis</strong> para o próximo movimento
+                        ⚠️ <strong>{timeline.nextOptionsCount} opções disponíveis</strong> para o próximo movimento
                     </Typography>
                     
                     <Tooltip title="Ver todas as opções disponíveis" arrow>
@@ -458,9 +781,9 @@ const VerticalStackTimeline = ({
                             size="small"
                             onClick={handlePopoverOpen}
                             sx={{
-                                color: 'info.main',
+                                color: 'warning.main',
                                 '&:hover': {
-                                    bgcolor: 'info.100'
+                                    bgcolor: 'warning.100'
                                 }
                             }}
                         >
@@ -495,7 +818,7 @@ const VerticalStackTimeline = ({
                             <List dense sx={{ py: 0 }}>
                                 {timeline.allNextOptions?.map((option, index) => (
                                     <ListItem 
-                                        key={option.pk} 
+                                        key={option.step_id} 
                                         sx={{ 
                                             px: 0, 
                                             py: 0.5,
@@ -522,7 +845,7 @@ const VerticalStackTimeline = ({
                                                             color: index === 0 ? 'primary.main' : 'text.primary'
                                                         }}
                                                     >
-                                                        {option.step}
+                                                        {option.step_name}
                                                     </Typography>
                                                     {index === 0 && (
                                                         <Chip 
@@ -544,12 +867,68 @@ const VerticalStackTimeline = ({
                                 ))}
                             </List>
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', fontStyle: 'italic' }}>
-                                A opção "{timeline.allNextOptions?.[0]?.step}" está a ser apresentada na cronologia.
+                                A opção "{timeline.allNextOptions?.[0]?.step_name}" está a ser apresentada na cronologia.
                             </Typography>
                         </Box>
                     </Popover>
                 </Box>
             )}
+            
+            {/* Modal do Workflow */}
+            <Dialog 
+                open={workflowModalOpen} 
+                onClose={() => setWorkflowModalOpen(false)}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: { maxHeight: '90vh' }
+                }}
+            >
+                <DialogTitle sx={{ pb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <WorkflowIcon color="success" />
+                            <Typography variant="h6">
+                                Processo Completo - {document?.tt_type}
+                            </Typography>
+                        </Box>
+                        <IconButton 
+                            onClick={() => setWorkflowModalOpen(false)}
+                            size="small"
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                
+                <DialogContent dividers sx={{ p: 0 }}>
+                    {workflowData && (
+                        <WorkflowTreeModal 
+                            workflowData={workflowData}
+                            steps={steps}
+                            document={document}
+                            metaData={metaData}
+                        />
+                    )}
+                </DialogContent>
+                
+                <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
+                    {/* Legenda no lado esquerdo */}
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                    Legenda:
+                </Typography>
+                        <Chip icon={<CheckCircleIcon />} label="Executado" size="small" color="success" />
+                        <Chip icon={<CurrentIcon />} label="Actual" size="small" color="primary" />
+                        <Chip icon={<PendingIcon />} label="Pendente" size="small" variant="outlined" />
+                    </Box>
+                    
+                    {/* Botão fechar no lado direito */}
+                    <Button onClick={() => setWorkflowModalOpen(false)}>
+                        Fechar
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 };

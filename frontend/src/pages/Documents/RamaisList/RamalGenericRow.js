@@ -75,7 +75,7 @@ const RamalGenericRow = ({
         if (filteredPav.length === 0) return null;
 
         return (
-            <Grid size={{ xs: 12 }} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
                 <Typography variant="subtitle1"><strong>Pavimentações Individuais:</strong></Typography>
                 <Table size="small">
                     <TableHead>
@@ -154,17 +154,17 @@ const RamalGenericRow = ({
                         <Box margin={1}>
                             <Typography variant="h6" gutterBottom>Detalhes</Typography>
                             <Grid container spacing={2}>
-                                <Grid size={{ xs: 12 }} md={3}>
+                                <Grid size={{ xs: 12, md: 3 }}>
                                     <Typography><strong>Morada Completa:</strong></Typography>
                                     <Typography>{row.address} {row.door}, {row.floor}</Typography>
                                     <Typography>{row.postal}, {row.nut4}</Typography>
                                     <Typography><strong>Contacto:</strong> {row.phone}</Typography>
                                 </Grid>
-                                <Grid size={{ xs: 12 }} md={3}>
+                                <Grid size={{ xs: 12, md: 3 }}>
                                     <Typography><strong>Freguesia:</strong></Typography>
                                     <Typography>{row.nut3}, {row.nut2}</Typography>
                                 </Grid>
-                                <Grid size={{ xs: 12 }} md={3}>
+                                <Grid size={{ xs: 12, md: 3 }}>
                                     <Typography><strong>Observações:</strong> {row.memo}</Typography>
                                 </Grid>
                                 {getPavimentacoesIndividuais()}

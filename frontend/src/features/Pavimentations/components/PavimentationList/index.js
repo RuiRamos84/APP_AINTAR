@@ -9,10 +9,14 @@ import {
     Alert,
     Fade,
     Skeleton,
-    Card,
-    CardContent,
-    Divider
+    Divider,
+    IconButton,
+    Collapse
 } from '@mui/material';
+import {
+    ExpandMore as ExpandIcon,
+    ExpandLess as CollapseIcon
+} from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { usePavimentations } from '../../hooks/usePavimentations';
 import { usePavimentationActions } from '../../hooks/usePavimentationActions';
@@ -25,8 +29,6 @@ import { notifySuccess, notifyError } from '../../../../components/common/Toaste
 
 /**
  * Componente principal para listagem de pavimentações
- * @param {Object} props - Propriedades do componente
- * @returns {JSX.Element} Componente de lista
  */
 const PavimentationList = ({
     status,
@@ -37,7 +39,7 @@ const PavimentationList = ({
     showStats = true,
     showFilters = true,
     autoRefresh = true,
-    refreshInterval = 5 * 60 * 1000, // 5 minutos
+    refreshInterval = 5 * 60 * 1000,
     maxHeight,
     dense = false,
     elevation = 2,
@@ -56,18 +58,12 @@ const PavimentationList = ({
         onCancel: null,
         actionColor: 'primary'
     });
+    const [statsExpanded, setStatsExpanded] = useState(false);
 
-    // Verificar se status é válido
+    // CORREÇÃO: Validar status ANTES dos hooks
     const statusConfig = StatusUtils.getStatusConfig(status);
-    if (!statusConfig) {
-        return (
-            <Alert severity="error" sx={{ m: 2 }}>
-                Status inválido: {status}
-            </Alert>
-        );
-    }
 
-    // Hook de dados
+    // CORREÇÃO: Hooks sempre chamados, independente do status
     const {
         data,
         paginatedData,
@@ -96,23 +92,29 @@ const PavimentationList = ({
         refreshInterval
     });
 
-    // Hook de ações
     const {
         executeAction,
         loading: actionLoading,
         isActionPending
     } = usePavimentationActions(
-        // onSuccess
         (pavimentationId, actionId, result) => {
             notifySuccess(result.message);
             removeItem(pavimentationId);
-            refresh(); // Refresh para garantir consistência
+            refresh();
         },
-        // onError
         (pavimentationId, actionId, error) => {
             notifyError(`Erro na ação: ${error.message}`);
         }
     );
+
+    // CORREÇÃO: Validação após hooks
+    if (!statusConfig) {
+        return (
+            <Alert severity="error" sx={{ m: 2 }}>
+                Status inválido: {status}
+            </Alert>
+        );
+    }
 
     /**
      * Executar ação com confirmação
@@ -152,7 +154,6 @@ const PavimentationList = ({
         <Box sx={{ p: 3 }}>
             <Skeleton variant="text" width="40%" height={40} sx={{ mb: 2 }} />
             <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
-
             {Array.from({ length: 5 }).map((_, index) => (
                 <Box key={index} sx={{ mb: 2 }}>
                     <Skeleton variant="rectangular" height={60} sx={{ borderRadius: 1 }} />
@@ -192,7 +193,7 @@ const PavimentationList = ({
             </Typography>
             <Typography variant="body2" color="text.secondary">
                 {isFiltered
-                    ? 'Tente ajustar os filtros de pesquisa'
+                    ? 'Tenta ajustar os filtros de pesquisa'
                     : statusConfig.description
                 }
             </Typography>
@@ -203,7 +204,7 @@ const PavimentationList = ({
      * Renderizar cabeçalho
      */
     const renderHeader = () => (
-        <Box sx={{ p: 3, pb: showStats ? 1 : 3 }}>
+        <Box sx={{ p: 3, pb: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
                 <Box sx={{ flex: 1 }}>
                     <Typography variant="h5" component="h1" gutterBottom>
@@ -224,21 +225,30 @@ const PavimentationList = ({
                         {hasData && (
                             <Typography variant="body2" color="primary" sx={{ fontWeight: 500 }}>
                                 {isFiltered
-                                    ? `${filteredCount} de ${totalCount} registros`
-                                    : `${totalCount} ${totalCount === 1 ? 'registro' : 'registros'}`
+                                    ? `${filteredCount} de ${totalCount} registos`
+                                    : `${totalCount} ${totalCount === 1 ? 'registo' : 'registos'}`
                                 }
                             </Typography>
                         )}
 
                         {lastFetch && (
                             <Typography variant="caption" color="text.secondary">
-                                Atualizado: {lastFetch.toLocaleTimeString('pt-PT')}
+                                Actualizado: {lastFetch.toLocaleTimeString('pt-PT')}
                             </Typography>
                         )}
                     </Box>
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {showStats && hasData && (
+                        <IconButton
+                            onClick={() => setStatsExpanded(!statsExpanded)}
+                            size="small"
+                            sx={{ mr: 1 }}
+                        >
+                            {statsExpanded ? <CollapseIcon /> : <ExpandIcon />}
+                        </IconButton>
+                    )}
                     <statusConfig.icon
                         sx={{
                             fontSize: 32,
@@ -249,19 +259,24 @@ const PavimentationList = ({
                 </Box>
             </Box>
 
+            {/* Estatísticas colapsáveis */}
             {showStats && hasData && (
-                <Box sx={{ mt: 2 }}>
-                    <PavimentationStats
-                        statistics={statistics}
-                        status={status}
-                        compact={dense}
-                    />
-                </Box>
+                <Collapse in={statsExpanded} timeout="auto" unmountOnExit>
+                    <Box sx={{ mt: 2, mb: 1 }}>
+                        <PavimentationStats
+                            statistics={statistics}
+                            status={status}
+                            compact={dense}
+                            showAverages={false}
+                            isFiltered={isFiltered}
+                        />
+                    </Box>
+                </Collapse>
             )}
         </Box>
     );
 
-    // Renderizar loading principal
+    // Loading principal
     if (loading && !hasData) {
         return (
             <Paper elevation={elevation} sx={{ m: 2, ...sx }} {...otherProps}>
@@ -270,7 +285,7 @@ const PavimentationList = ({
         );
     }
 
-    // Renderizar erro
+    // Erro
     if (error && !hasData) {
         return (
             <Paper elevation={elevation} sx={{ m: 2, ...sx }} {...otherProps}>
@@ -339,7 +354,7 @@ const PavimentationList = ({
                                 Nenhum resultado encontrado
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Tente ajustar os filtros de pesquisa
+                                Tenta ajustar os filtros de pesquisa
                             </Typography>
                         </Box>
                     ) : (

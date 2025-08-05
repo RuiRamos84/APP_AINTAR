@@ -1,6 +1,6 @@
 // frontend/src/features/Pavimentations/hooks/usePavimentationActions.js
 
-import { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { pavimentationService } from '../services/pavimentationService';
 import { StatusUtils, PAVIMENTATION_ACTIONS } from '../constants/pavimentationTypes';
 import {

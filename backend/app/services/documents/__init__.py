@@ -19,6 +19,7 @@ from .workflow import (
     add_document_step,
     get_document_type_param,
     update_document_params,
+    step_hierarchy,
 )
 
 # Anexos
