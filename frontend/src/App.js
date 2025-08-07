@@ -55,7 +55,7 @@ import {
   TaskManagement
 } from './pages/Tasks/index.js';
 import UserInfo from "./pages/UserInfo/UserInfo";
-import { initializeSessionManagement } from "./services/authService";
+// import { initializeSessionManagement } from "./services/authService";
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
 import { darkTheme, lightTheme } from "./styles/theme";
@@ -78,9 +78,9 @@ const AppContent = () => {
   const [isCreateDocumentModalOpen, setIsCreateDocumentModalOpen] = useState(false);
   const [isCreateEntityModalOpen, setIsCreateEntityModalOpen] = useState(false);
 
-  useEffect(() => {
-    initializeSessionManagement();
-  }, []);
+  // useEffect(() => {
+  //   initializeSessionManagement();
+  // }, []);
 
   useEffect(() => {
     document.documentElement.style.setProperty(

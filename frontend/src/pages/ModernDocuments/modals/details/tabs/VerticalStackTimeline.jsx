@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -276,7 +276,9 @@ const WorkflowTreeModal = ({ workflowData, steps, document, metaData }) => {
     
     // Mapear steps executados
     const mapExecutedSteps = (hierarchy) => {
-        return hierarchy.map(step => {
+    if (!hierarchy || !Array.isArray(hierarchy)) return [];
+    
+    return hierarchy.map(step => {
             const executed = steps.find(exec => 
                 exec.what === step.step_name ||
                 metaData?.what?.find(meta => meta.step === exec.what)?.pk === step.step_id
@@ -467,11 +469,19 @@ const WorkflowTreeModal = ({ workflowData, steps, document, metaData }) => {
         );
     };
 
-    const mappedHierarchy = mapExecutedSteps(workflowData.hierarchy);
-    const treeData = buildTree(mappedHierarchy);
+    const mappedHierarchy = useMemo(() => {
+        if (!workflowData?.hierarchy) return [];
+        return mapExecutedSteps(workflowData.hierarchy);
+    }, [workflowData?.hierarchy, steps, metaData]);
 
-    // Expandir primeiros 3 níveis por defeito
-    React.useEffect(() => {
+    const treeData = useMemo(() => {
+        return buildTree(mappedHierarchy);
+    }, [mappedHierarchy]);
+
+    // useEffect só dependente de workflowData
+    useEffect(() => {
+        if (mappedHierarchy.length === 0) return;
+        
         const defaultExpanded = new Set();
         mappedHierarchy.forEach(step => {
             if (step.level <= 3) {
@@ -481,6 +491,18 @@ const WorkflowTreeModal = ({ workflowData, steps, document, metaData }) => {
         setExpandedNodes(defaultExpanded);
     }, [workflowData]);
 
+    if (mappedHierarchy.length === 0) {
+        return (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                    Sem dados de workflow
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Não existem dados hierárquicos para apresentar.
+                </Typography>
+            </Box>
+        );
+    }
     return (
         <Box sx={{ p: 2, maxHeight: 500, overflow: 'auto' }}>
             {treeData.map((node) => (

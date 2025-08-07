@@ -1,7 +1,7 @@
 import axios from "axios";
 import Swal from "sweetalert2";
 import config from "../config";
-import { sessionService } from './SessionService';
+// import { sessionService } from './SessionService';
 // console.log("API Base URL:", process.env.REACT_APP_API_BASE_URL);
 
 const api = axios.create({
@@ -46,7 +46,7 @@ api.interceptors.request.use(
     if (user?.access_token) {
       config.headers["Authorization"] = `Bearer ${user.access_token}`;
     }
-    sessionService.updateActivity();
+    // sessionService.updateActivity();
     return config;
   },
   (error) => Promise.reject(error)
