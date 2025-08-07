@@ -900,6 +900,7 @@ const VerticalStackTimeline = ({
             <Dialog 
                 open={workflowModalOpen} 
                 onClose={() => setWorkflowModalOpen(false)}
+                disableRestoreFocus={true}
                 maxWidth="lg"
                 fullWidth
                 PaperProps={{
