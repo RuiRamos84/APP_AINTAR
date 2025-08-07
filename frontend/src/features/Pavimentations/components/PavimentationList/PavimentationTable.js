@@ -100,13 +100,17 @@ const PavimentationTable = ({
         const isExpanded = expandedRows.has(row.pk);
         if (!isExpanded) return null;
 
+        // Calcular correctamente o número total de colunas
+        const totalColumns = 1 + TABLE_COLUMNS.length + (allowActions ? 1 : 0);
+        // 1 (expansão) + 6 (dados) + 1 (acções se permitidas) = 8 ou 7
+
         return (
             <TableRow>
-                <TableCell colSpan={allowActions ? 7 : 6} sx={{ py: 0 }}>
+                <TableCell colSpan={totalColumns} sx={{ py: 0 }}>
                     <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                         <Box sx={{
                             py: 2,
-                            px: 3,
+                            px: 6, // remove o padding horizontal
                             backgroundColor: alpha(theme.palette.grey[50], 0.5),
                             borderTop: `1px solid ${theme.palette.divider}`,
                             borderBottom: `1px solid ${theme.palette.divider}`
@@ -138,62 +142,114 @@ const PavimentationTable = ({
                                     </Typography>
                                 </Grid>
 
-                                {/* Pavimentação */}
+                                {/* Pavimentação - área sombreada */}
                                 <Grid size={{ xs: 12, sm: 12, md: 6 }}>
                                     <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem', mb: 0.5, display: 'block' }}>
                                         Pavimentação
                                     </Typography>
-                                    <Grid container spacing={1}>
-                                        {[
-                                            { label: 'Betuminoso', comprimento: row.comprimento_bet, area: row.area_bet },
-                                            { label: 'Paralelos', comprimento: row.comprimento_gra, area: row.area_gra },
-                                            { label: 'Pavê', comprimento: row.comprimento_pav, area: row.area_pav }
-                                        ].map(tipo => {
-                                            const hasComprimento = DataHelpers.isValidNumber(tipo.comprimento);
-                                            const hasArea = DataHelpers.isValidNumber(tipo.area);
-                                            const hasData = hasComprimento || hasArea;
+                                    <Box sx={{
+                                        p: 2,
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                        border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                                        borderRadius: 1,
+                                        boxShadow: `0 2px 8px ${alpha(theme.palette.grey[500], 0.1)}`
+                                    }}>
+                                        <Grid container spacing={1}>
+                                            {[
+                                                { label: 'Betuminoso', comprimento: row.comprimento_bet, area: row.area_bet, color: '#2E7D32' },
+                                                { label: 'Paralelos', comprimento: row.comprimento_gra, area: row.area_gra, color: '#1976D2' },
+                                                { label: 'Pavê', comprimento: row.comprimento_pav, area: row.area_pav, color: '#7B1FA2' }
+                                            ].map(tipo => {
+                                                const hasComprimento = DataHelpers.isValidNumber(tipo.comprimento);
+                                                const hasArea = DataHelpers.isValidNumber(tipo.area);
+                                                const hasData = hasComprimento || hasArea;
 
-                                            return (
-                                                <Grid size={{ xs: 4 }} key={tipo.label}>
-                                                    <Box sx={{
-                                                        p: 0.8,
-                                                        border: `1px solid ${theme.palette.divider}`,
-                                                        borderRadius: 0.5,
-                                                        backgroundColor: hasData ? 'background.paper' : alpha(theme.palette.grey[500], 0.03),
-                                                        opacity: hasData ? 1 : 0.5,
-                                                        textAlign: 'center'
-                                                    }}>
-                                                        <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', fontSize: '0.7rem' }}>
-                                                            {tipo.label}
-                                                        </Typography>
-                                                        {hasData ? (
-                                                            <Box sx={{ mt: 0.3 }}>
-                                                                {hasComprimento && (
-                                                                    <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                                                                        {DataHelpers.formatMeasurement(tipo.comprimento, 'm')}
-                                                                    </Typography>
-                                                                )}
-                                                                {hasArea && (
-                                                                    <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                                                                        {DataHelpers.formatMeasurement(tipo.area, 'm²')}
-                                                                    </Typography>
-                                                                )}
-                                                            </Box>
-                                                        ) : (
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                                —
+                                                return (
+                                                    <Grid size={{ xs: 4 }} key={tipo.label}>
+                                                        <Box sx={{
+                                                            p: 1,
+                                                            borderRadius: 1,
+                                                            textAlign: 'center',
+                                                            backgroundColor: hasData
+                                                                ? alpha(tipo.color, 0.08)
+                                                                : alpha(theme.palette.grey[300], 0.3),
+                                                            border: hasData
+                                                                ? `2px solid ${alpha(tipo.color, 0.3)}`
+                                                                : `1px solid ${alpha(theme.palette.grey[400], 0.2)}`,
+                                                            boxShadow: hasData
+                                                                ? `0 2px 4px ${alpha(tipo.color, 0.15)}`
+                                                                : 'none',
+                                                            transform: 'scale(1)',
+                                                            transition: 'all 0.2s ease',
+                                                            opacity: hasData ? 1 : 0.6
+                                                        }}>
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{
+                                                                    fontWeight: hasData ? 700 : 500,
+                                                                    display: 'block',
+                                                                    fontSize: '0.75rem',
+                                                                    color: hasData ? tipo.color : 'text.secondary',
+                                                                    mb: 0.5
+                                                                }}
+                                                            >
+                                                                {tipo.label}
                                                             </Typography>
-                                                        )}
-                                                    </Box>
-                                                </Grid>
-                                            );
-                                        })}
-                                    </Grid>
+                                                            {hasData ? (
+                                                                <Box>
+                                                                    {hasComprimento && (
+                                                                        <Typography
+                                                                            variant="caption"
+                                                                            sx={{
+                                                                                display: 'block',
+                                                                                fontSize: '0.7rem',
+                                                                                fontWeight: 600,
+                                                                                color: tipo.color
+                                                                            }}
+                                                                        >
+                                                                            {DataHelpers.formatMeasurement(tipo.comprimento, 'm')}
+                                                                            <Typography component="span" sx={{ fontSize: '0.6rem', opacity: 0.7, ml: 0.3 }}>
+                                                                                linear
+                                                                            </Typography>
+                                                                        </Typography>
+                                                                    )}
+                                                                    {hasArea && (
+                                                                        <Typography
+                                                                            variant="caption"
+                                                                            sx={{
+                                                                                display: 'block',
+                                                                                fontSize: '0.7rem',
+                                                                                fontWeight: 600,
+                                                                                color: tipo.color
+                                                                            }}
+                                                                        >
+                                                                            {DataHelpers.formatMeasurement(tipo.area, 'm²')}
+                                                                            <Typography component="span" sx={{ fontSize: '0.6rem', opacity: 0.7, ml: 0.3 }}>
+                                                                                área
+                                                                            </Typography>
+                                                                        </Typography>
+                                                                    )}
+                                                                </Box>
+                                                            ) : (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.disabled"
+                                                                    sx={{ fontSize: '0.7rem' }}
+                                                                >
+                                                                    Sem dados
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    </Grid>
+                                                );
+                                            })}
+                                        </Grid>
+                                    </Box>
                                 </Grid>
 
                                 {/* Observações - linha separada */}
                                 {row.memo && (
-                                    <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+                                    <Grid size={{ xs: 12 }}>
                                         <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                                             Observações
                                         </Typography>
@@ -246,7 +302,7 @@ const PavimentationTable = ({
 
                     {/* Ações */}
                     {allowActions && (
-                        <TableCell align="right" sx={{ minWidth: 120 }}>
+                        <TableCell align="left" sx={{ minWidth: 120 }}>
                             {renderActionButtons(row)}
                         </TableCell>
                     )}
@@ -267,7 +323,7 @@ const PavimentationTable = ({
                 <TableCell
                     colSpan={allowActions ? 7 : 6}
                     sx={{
-                        backgroundColor: alpha(statusConfig.color + '.main', 0.1),
+                        backgroundColor: alpha(theme.palette[statusConfig.color].main, 0.1),
                         fontWeight: 600,
                         fontSize: '0.875rem'
                     }}
@@ -326,7 +382,7 @@ const PavimentationTable = ({
                                 </TableCell>
                             ))}
                             {allowActions && (
-                                <TableCell align="right" sx={{ fontWeight: 600 }}>
+                                <TableCell align="left" sx={{ fontWeight: 600 }}>
                                     Ações
                                 </TableCell>
                             )}

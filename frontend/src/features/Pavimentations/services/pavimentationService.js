@@ -463,6 +463,51 @@ class PavimentationService {
             };
         }
     }
+    
+    applyDateFilter(data, dateStart, dateEnd) {
+        if (!dateStart && !dateEnd) return data;
+
+        return data.filter(item => {
+            if (!item.submission) return false;
+            const itemDate = item.submission.split(' às ')[0];
+            if (dateStart && itemDate < dateStart) return false;
+            if (dateEnd && itemDate > dateEnd) return false;
+            return true;
+        });
+    }
+
+    multiSort(data, sortFields) {
+        if (!sortFields?.length) return data;
+
+        return [...data].sort((a, b) => {
+            for (const { field, order } of sortFields) {
+                let aVal = a[field];
+                let bVal = b[field];
+
+                if (['comprimento_total', 'area_total'].includes(field)) {
+                    aVal = parseFloat(aVal || 0);
+                    bVal = parseFloat(bVal || 0);
+                    const comparison = aVal - bVal;
+                    if (comparison !== 0) return order === 'desc' ? -comparison : comparison;
+                    continue;
+                }
+
+                if (field === 'submission') {
+                    aVal = new Date(aVal || 0);
+                    bVal = new Date(bVal || 0);
+                    const comparison = aVal - bVal;
+                    if (comparison !== 0) return order === 'desc' ? -comparison : comparison;
+                    continue;
+                }
+
+                aVal = (aVal || '').toString().toLowerCase();
+                bVal = (bVal || '').toString().toLowerCase();
+                const comparison = aVal.localeCompare(bVal, 'pt-PT');
+                if (comparison !== 0) return order === 'desc' ? -comparison : comparison;
+            }
+            return 0;
+        });
+    }
 }
 
 // Instância singleton do serviço

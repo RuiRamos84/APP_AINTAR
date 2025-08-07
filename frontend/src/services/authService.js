@@ -27,7 +27,7 @@ export const initializeSessionManagement = () => {
       showCancelButton: true,
       confirmButtonText: "Continuar sessão",
       cancelButtonText: "Fazer logout",
-      timer: 900000, // 15 minutos
+      timer: 900000,
       timerProgressBar: true,
     }).then((result) => {
       if (result.isConfirmed) {

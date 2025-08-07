@@ -275,7 +275,7 @@ const AppContent = () => {
                 path="/ramais"
                 element={
                   <PrivateRoute>
-                    <RamaisActivePage />
+                    <PendingPavimentations />
                   </PrivateRoute>
                 }
               />
@@ -283,7 +283,7 @@ const AppContent = () => {
                 path="/ramais/executed"
                 element={
                   <PrivateRoute>
-                    <RamaisExecutedPage />
+                    <ExecutedPavimentations />
                   </PrivateRoute>
                 }
               />
@@ -291,7 +291,7 @@ const AppContent = () => {
                 path="/ramais/concluded"
                 element={
                   <PrivateRoute>
-                    <RamaisConcludedPage />
+                    <CompletedPavimentations />
                   </PrivateRoute>
                 }
               />

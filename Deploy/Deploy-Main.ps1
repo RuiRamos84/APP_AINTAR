@@ -232,9 +232,9 @@ function Invoke-NonInteractiveMode {
     }
 }
 
-# ============================================================================
-# MODO INTERATIVO
-# ============================================================================
+# ============================================================================  
+# MODO INTERATIVO  
+# ============================================================================  
 
 function Start-InteractiveMode {
     Write-DeployInfo "Iniciando modo interativo" "MAIN"
@@ -249,38 +249,28 @@ function Start-InteractiveMode {
             "1" {
                 Write-DeployInfo "Iniciando deployment completo..." "MAIN"
                 Show-DeployStatus "Executando deployment completo (Frontend + Backend + Nginx)..." "Info"
-                
                 $result = Invoke-FullDeployment -BuildFirst $true
-                
                 if ($result) {
                     Show-DeployStatus "Deployment completo realizado com sucesso!" "Success"
                 } else {
                     Show-DeployStatus "Deployment completo falhou!" "Error"
                 }
-                
                 $Global:UI.PauseForUser()
             }
-            
             "2" {
                 Write-DeployInfo "Iniciando deployment do frontend com build..." "MAIN"
                 Show-DeployStatus "Executando deployment do frontend (com build)..." "Info"
-                
                 $result = Deploy-Frontend -BuildFirst $true
-                
                 if ($result) {
                     Show-DeployStatus "Deployment do frontend realizado com sucesso!" "Success"
                 } else {
                     Show-DeployStatus "Deployment do frontend falhou!" "Error"
                 }
-                
                 $Global:UI.PauseForUser()
             }
-            
             "3" {
                 Write-DeployInfo "Iniciando deployment do frontend sem build..." "MAIN"
                 Show-DeployStatus "Executando deployment do frontend (sem build)..." "Info"
-                
-                # Verificar se build existe
                 if (-not (Test-FrontendBuild)) {
                     Show-DeployStatus "Build nao encontrado ou invalido!" "Error"
                     if (Confirm-Action "Deseja fazer o build antes do deployment?") {
@@ -293,87 +283,66 @@ function Start-InteractiveMode {
                 } else {
                     $result = Deploy-Frontend -BuildFirst $false
                 }
-                
                 if ($result) {
                     Show-DeployStatus "Deployment do frontend realizado com sucesso!" "Success"
                 } else {
                     Show-DeployStatus "Deployment do frontend falhou!" "Error"
                 }
-                
                 $Global:UI.PauseForUser()
             }
-            
             "4" {
                 Write-DeployInfo "Iniciando deployment do backend..." "MAIN"
                 Show-DeployStatus "Executando deployment do backend..." "Info"
-                
                 $result = Deploy-Backend
-                
                 if ($result) {
                     Show-DeployStatus "Deployment do backend realizado com sucesso!" "Success"
                 } else {
                     Show-DeployStatus "Deployment do backend falhou!" "Error"
                 }
-                
                 $Global:UI.PauseForUser()
             }
-            
             "5" {
                 Write-DeployInfo "Iniciando deployment frontend + backend..." "MAIN"
                 Show-DeployStatus "Executando deployment do frontend e backend..." "Info"
-                
                 $result = Invoke-FrontendBackendDeployment -BuildFirst $true
-                
                 if ($result) {
                     Show-DeployStatus "Deployment do frontend e backend realizado com sucesso!" "Success"
                 } else {
                     Show-DeployStatus "Deployment do frontend e backend falhou!" "Error"
                 }
-                
                 $Global:UI.PauseForUser()
             }
-            
             "6" {
                 Write-DeployInfo "Iniciando deployment da configuracao Nginx..." "MAIN"
                 Show-DeployStatus "Executando deployment da configuracao Nginx..." "Info"
-                
                 $result = Deploy-NginxConfig
-                
                 if ($result) {
                     Show-DeployStatus "Configuracao Nginx atualizada com sucesso!" "Success"
                 } else {
                     Show-DeployStatus "Falha ao atualizar configuracao Nginx!" "Error"
                 }
-                
                 $Global:UI.PauseForUser()
             }
-            
             "7" {
                 Show-FileStatus
             }
-            
             "8" {
                 Show-SystemInfo
             }
-            
             "9" {
                 Show-ConnectivityTest
             }
-            
             "10" {
                 Show-ServerStructure
             }
-            
             "11" {
                 Show-AdvancedSettings
             }
-            
             "0" {
                 Write-DeployInfo "Sistema finalizado pelo usuario" "MAIN"
                 Show-DeployStatus "Encerrando sistema..." "Info"
                 break
             }
-            
             default {
                 Show-DeployStatus "Opcao invalida!" "Error"
                 Start-Sleep -Seconds 1
@@ -382,6 +351,34 @@ function Start-InteractiveMode {
         
     } while ($opcao -ne "0")
 }
+
+# ============================================================================  
+# MENU INTERATIVO  
+# ============================================================================  
+
+function Show-DeployMenu {
+    Clear-Host
+    Write-Host "===============================================" -ForegroundColor Cyan
+    Write-Host "         SISTEMA DE DEPLOYMENT MODULAR         " -ForegroundColor Cyan
+    Write-Host "===============================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host " 1. Deployment Completo (Frontend + Backend + Nginx)"
+    Write-Host " 2. Deployment Frontend (com build)"
+    Write-Host " 3. Deployment Frontend (sem build)"
+    Write-Host " 4. Deployment Backend"
+    Write-Host " 5. Deployment Frontend + Backend (sem Nginx)"
+    Write-Host " 6. Deployment Configuração Nginx"
+    Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
+    Write-Host " 7. Ver ficheiros em estado relevante"
+    Write-Host " 8. Ver informações do sistema"
+    Write-Host " 9. Testar conectividade com o servidor"
+    Write-Host "10. Mostrar estrutura do servidor"
+    Write-Host "11. Configurações avançadas"
+    Write-Host ""
+    Write-Host " 0. Sair"
+    Write-Host ""
+}
+
 
 # ============================================================================
 # FUNCAO PRINCIPAL

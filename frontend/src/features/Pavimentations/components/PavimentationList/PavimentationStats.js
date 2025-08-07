@@ -150,7 +150,7 @@ const PavimentationStats = ({
     const mainStats = [
         {
             icon: ItemsIcon,
-            label: 'Total de Itens',
+            label: 'Total de Pedidos',
             value: statistics.totalItems.toLocaleString('pt-PT'),
             color: 'primary',
             trend: showTrends ? calculateTrend(statistics, previousStats, 'totalItems') : null,
@@ -299,7 +299,7 @@ const PavimentationStats = ({
             </Grid>
 
             {/* Informação contextual */}
-            <Box
+            {/* <Box
                 sx={{
                     textAlign: 'center',
                     p: 2,
@@ -315,7 +315,7 @@ const PavimentationStats = ({
                     {previousStats && showTrends && '📈 Comparação com período anterior disponível • '}
                     🔄 Dados actualizados automaticamente
                 </Typography>
-            </Box>
+            </Box> */}
         </Paper>
     );
 };
@@ -329,7 +329,7 @@ export const PavimentationStatsInline = ({ statistics, separator = ' • ' }) =>
     }
 
     const items = [
-        `${statistics.totalItems} ${statistics.totalItems === 1 ? 'item' : 'itens'}`,
+        `${statistics.totalItems} ${statistics.totalItems === 1 ? 'pedido' : 'pedidos'}`,
         `${DataHelpers.formatMeasurement(statistics.totalComprimento, 'm')} total`,
         `${DataHelpers.formatMeasurement(statistics.totalArea, 'm²')} total`
     ];

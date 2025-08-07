@@ -191,7 +191,7 @@ const ExportButton = ({
             excel: {
                 label: 'Excel (XLSX)',
                 icon: ExcelIcon,
-                description: 'Planilha do Excel com formatação'
+                description: 'Arquivo de Excel com formatação'
             },
             csv: {
                 label: 'CSV',

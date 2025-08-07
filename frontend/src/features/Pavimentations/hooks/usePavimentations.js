@@ -24,6 +24,10 @@ export const usePavimentations = (status, options = {}) => {
         groupBy: '',
         sortBy: 'regnumber',
         sortOrder: 'asc',
+        sortBy2: '',
+        sortOrder2: 'asc',
+        dateStart: '',
+        dateEnd: '',
         page: 0,
         rowsPerPage: 10
     });
@@ -81,6 +85,7 @@ export const usePavimentations = (status, options = {}) => {
             retryCountRef.current = 0;
 
             console.log(`✅ ${result.length} pavimentações carregadas`);
+            console.log(result)
 
         } catch (err) {
             // Ignorar erros de cancelamento
@@ -141,18 +146,24 @@ export const usePavimentations = (status, options = {}) => {
     const processedData = useMemo(() => {
         let result = [...data];
 
-        // Aplicar filtro de pesquisa
         if (filters.search?.trim()) {
             result = pavimentationService.applySearchFilter(result, filters.search);
         }
 
-        // Aplicar ordenação
+        if (filters.dateStart || filters.dateEnd) {
+            result = pavimentationService.applyDateFilter(result, filters.dateStart, filters.dateEnd);
+        }
+
         if (filters.sortBy) {
-            result = pavimentationService.sortData(result, filters.sortBy, filters.sortOrder);
+            const sortFields = [{ field: filters.sortBy, order: filters.sortOrder }];
+            if (filters.sortBy2) {
+                sortFields.push({ field: filters.sortBy2, order: filters.sortOrder2 });
+            }
+            result = pavimentationService.multiSort(result, sortFields);
         }
 
         return result;
-    }, [data, filters.search, filters.sortBy, filters.sortOrder]);
+    }, [data, filters.search, filters.sortBy, filters.sortOrder, filters.sortBy2, filters.sortOrder2, filters.dateStart, filters.dateEnd]);
 
     /**
      * Dados agrupados
@@ -213,6 +224,10 @@ export const usePavimentations = (status, options = {}) => {
             groupBy: '',
             sortBy: 'regnumber',
             sortOrder: 'asc',
+            sortBy2: '',
+            sortOrder2: 'asc',
+            dateStart: '',
+            dateEnd: '',
             page: 0,
             rowsPerPage: 10
         });

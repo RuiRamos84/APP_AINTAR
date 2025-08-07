@@ -72,7 +72,7 @@ const PavimentationFilters = ({
     /**
      * Verificar se tem filtros ativos
      */
-    const hasActiveFilters = filters.search || filters.groupBy;
+    const hasActiveFilters = filters.search || filters.groupBy || filters.dateStart || filters.dateEnd || filters.sortBy2;
 
     /**
      * Obter chips de filtros ativos
@@ -94,6 +94,30 @@ const PavimentationFilters = ({
             chips.push({
                 label: `Agrupado por: ${groupOption?.label || filters.groupBy}`,
                 onDelete: () => handleClearFilter('groupBy')
+            });
+        }
+
+        if (filters.dateStart) {
+            chips.push({
+                label: `Data início: ${filters.dateStart}`,
+                onDelete: () => handleClearFilter('dateStart')
+            });
+        }
+
+        if (filters.dateEnd) {
+            chips.push({
+                label: `Data fim: ${filters.dateEnd}`,
+                onDelete: () => handleClearFilter('dateEnd')
+            });
+        }
+
+        if (filters.sortBy2) {
+            const sortOption = FILTER_OPTIONS.SORT_OPTIONS.find(
+                opt => opt.value === filters.sortBy2
+            );
+            chips.push({
+                label: `2ª ordenação: ${sortOption?.label || filters.sortBy2}`,
+                onDelete: () => handleClearFilter('sortBy2')
             });
         }
 
@@ -329,6 +353,30 @@ const PavimentationFilters = ({
                     </Typography>
 
                     <Grid container spacing={2} alignItems="center">
+                        {/* Filtros de data */}
+                        <Grid item xs={6}>
+                            <TextField
+                                type="date"
+                                label="Data início"
+                                value={filters.dateStart || ''}
+                                onChange={(e) => handleFilterChange('dateStart', e.target.value)}
+                                size="small"
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                type="date"
+                                label="Data fim"
+                                value={filters.dateEnd || ''}
+                                onChange={(e) => handleFilterChange('dateEnd', e.target.value)}
+                                size="small"
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+
                         {/* Controles de ordenação */}
                         <Grid item xs={12} sm={6} md={3}>
                             {renderSortControls()[0]}
@@ -336,6 +384,41 @@ const PavimentationFilters = ({
                         <Grid item xs={12} sm={6} md={2}>
                             {renderSortControls()[1]}
                         </Grid>
+
+                        {/* Segunda ordenação */}
+                        <Grid item xs={12} sm={6} md={3}>
+                            <FormControl size="small" fullWidth>
+                                <InputLabel>2ª Ordenação</InputLabel>
+                                <Select
+                                    value={filters.sortBy2 || ''}
+                                    onChange={(e) => handleFilterChange('sortBy2', e.target.value)}
+                                    label="2ª Ordenação"
+                                >
+                                    <MenuItem value="">Nenhuma</MenuItem>
+                                    {FILTER_OPTIONS.SORT_OPTIONS.map(option => (
+                                        <MenuItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        {filters.sortBy2 && (
+                            <Grid item xs={12} sm={6} md={2}>
+                                <FormControl size="small" fullWidth>
+                                    <InputLabel>2ª Ordem</InputLabel>
+                                    <Select
+                                        value={filters.sortOrder2 || 'asc'}
+                                        onChange={(e) => handleFilterChange('sortOrder2', e.target.value)}
+                                        label="2ª Ordem"
+                                    >
+                                        <MenuItem value="asc">A-Z</MenuItem>
+                                        <MenuItem value="desc">Z-A</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}
 
                         {/* Controles de paginação */}
                         <Grid item xs={12} sm={6} md={2}>
