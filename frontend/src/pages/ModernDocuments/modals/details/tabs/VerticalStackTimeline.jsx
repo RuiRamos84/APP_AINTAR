@@ -557,6 +557,12 @@ const VerticalStackTimeline = ({
         setAnchorEl(null);
     };
 
+    const handleCloseModal = () => {
+    setWorkflowModalOpen(false);
+    // Forçar blur do elemento focado
+    document.activeElement?.blur?.();
+};
+
     const open = Boolean(anchorEl);
 
     // Validação
@@ -899,8 +905,8 @@ const VerticalStackTimeline = ({
             {/* Modal do Workflow */}
             <Dialog 
                 open={workflowModalOpen} 
-                onClose={() => setWorkflowModalOpen(false)}
-                disableRestoreFocus={true}
+                onClose={handleCloseModal}
+                disableRestoreFocus={true} // Adicionar esta prop
                 maxWidth="lg"
                 fullWidth
                 PaperProps={{
