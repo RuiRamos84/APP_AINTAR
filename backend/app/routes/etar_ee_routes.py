@@ -50,6 +50,8 @@ from ..services.etar_ee_service import (
     create_requisicao_interna,
     update_etar_details,
     update_ee_details,
+    create_etar_incumprimento,
+    list_etar_incumprimentos
 
     )
 from ..utils.utils import set_session, token_required
@@ -910,4 +912,42 @@ def add_requisicao_interna():
         return jsonify({'error': 'Descrição do pedido é obrigatória'}), 400
 
     result, status_code = create_requisicao_interna(pnmemo, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/etar_incumprimento', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def add_etar_incumprimento():
+    """Registar incumprimento em ETAR"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    tb_etar = data.get('tb_etar')
+    tt_analiseparam = data.get('tt_analiseparam')
+    resultado = data.get('resultado')
+    limite = data.get('limite')
+    data_registo = data.get('data')
+    operador1 = data.get('operador1')
+    operador2 = data.get('operador2')
+
+    if not all([tb_etar, tt_analiseparam, resultado, limite, data_registo]):
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_etar_incumprimento(
+        tb_etar, tt_analiseparam, resultado, limite, data_registo, operador1, operador2, current_user
+    )
+    return jsonify(result), status_code
+
+
+@bp.route('/etar_incumprimentos/<int:tb_etar>', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_etar_incumprimentos(tb_etar):
+    """Listar incumprimentos de uma ETAR"""
+    current_user = get_jwt_identity()
+    result, status_code = list_etar_incumprimentos(tb_etar, current_user)
     return jsonify(result), status_code

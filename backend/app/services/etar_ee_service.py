@@ -787,3 +787,43 @@ def create_requisicao_interna(pnmemo, current_user):
             return {'message': 'Pedido de requisição interna criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de requisição interna: {str(e)}"}, 500
+
+
+def create_etar_incumprimento(tb_etar, tt_analiseparam, resultado, limite, data, operador1, operador2, current_user):
+    """Registar incumprimento em ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT fbo_etar_incumprimento_createdirect(
+                    :tb_etar, :tt_analiseparam, :resultado, :limite, :data, :operador1, :operador2
+                )
+            """)
+            result = session.execute(query, {
+                'tb_etar': tb_etar,
+                'tt_analiseparam': tt_analiseparam,
+                'resultado': resultado,
+                'limite': limite,
+                'data': data,
+                'operador1': operador1,
+                'operador2': operador2
+            }).scalar()
+            success_message = format_message(result)
+            return {'message': 'Incumprimento registado com sucesso', 'result': success_message}, 201
+    except Exception as e:
+        return {'error': f"Erro ao registar incumprimento: {str(e)}"}, 500
+
+
+def list_etar_incumprimentos(tb_etar, current_user):
+    """Listar incumprimentos de uma ETAR"""
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT * FROM vbl_etar_incumprimento
+                WHERE tb_etar = :tb_etar
+                ORDER BY data DESC
+            """)
+            results = session.execute(query, {'tb_etar': tb_etar}).fetchall()
+            incumprimentos = [dict(row._mapping) for row in results]
+            return {'incumprimentos': incumprimentos}, 200
+    except Exception as e:
+        return {'error': f"Erro ao listar incumprimentos: {str(e)}"}, 500

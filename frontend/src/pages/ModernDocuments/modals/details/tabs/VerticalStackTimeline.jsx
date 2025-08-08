@@ -498,7 +498,7 @@ const WorkflowTreeModal = ({ workflowData, steps, document, metaData }) => {
                     Sem dados de workflow
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                    Não existem dados hierárquicos para apresentar.
+                    Para este tipo de pedido não estão definidos dados hierárquicos para apresentar.
                 </Typography>
             </Box>
         );
@@ -942,17 +942,20 @@ const VerticalStackTimeline = ({
                 </DialogContent>
                 
                 <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
-                    {/* Legenda no lado esquerdo */}
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                    Legenda:
-                </Typography>
-                        <Chip icon={<CheckCircleIcon />} label="Executado" size="small" color="success" />
-                        <Chip icon={<CurrentIcon />} label="Actual" size="small" color="primary" />
-                        <Chip icon={<PendingIcon />} label="Pendente" size="small" variant="outlined" />
-                    </Box>
-                    
-                    {/* Botão fechar no lado direito */}
+                    {/* Legenda condicional */}
+                    {workflowData?.hierarchy && workflowData.hierarchy.length > 0 ? (
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                                Legenda:
+                            </Typography>
+                            <Chip icon={<CheckCircleIcon />} label="Executado" size="small" color="success" />
+                            <Chip icon={<CurrentIcon />} label="Actual" size="small" color="primary" />
+                            <Chip icon={<PendingIcon />} label="Pendente" size="small" variant="outlined" />
+                        </Box>
+                    ) : (
+                        <Box />
+                    )}                    
+                    {/* Botão sempre à direita */}
                     <Button onClick={() => setWorkflowModalOpen(false)}>
                         Fechar
                     </Button>
