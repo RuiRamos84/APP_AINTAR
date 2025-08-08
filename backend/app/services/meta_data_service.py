@@ -39,6 +39,7 @@ def fetch_meta_data(current_user):
         'task_status': "SELECT * FROM vbl_notestatus ORDER BY pk",
         'payment_method': "SELECT * FROM vbl_metodopagamento ORDER BY pk",
         'step_transitions': "SELECT * FROM vbl_step_transition ORDER BY doctype, from_step, to_step",
+        'analiseParams': "SELECT * FROM vbl_analiseparam"
     }
 
     response_data = {}

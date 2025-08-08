@@ -794,9 +794,10 @@ def create_etar_incumprimento(tb_etar, tt_analiseparam, resultado, limite, data,
     try:
         with db_session_manager(current_user) as session:
             query = text("""
-                SELECT fbo_etar_incumprimento_createdirect(
-                    :tb_etar, :tt_analiseparam, :resultado, :limite, :data, :operador1, :operador2
-                )
+                INSERT INTO vbf_etar_incumprimento 
+                (tb_etar, tt_analiseparam, resultado, limite, data, operador1, operador2)
+                VALUES (:tb_etar, :tt_analiseparam, :resultado, :limite, :data, :operador1, :operador2)
+                RETURNING pk
             """)
             result = session.execute(query, {
                 'tb_etar': tb_etar,
@@ -807,10 +808,10 @@ def create_etar_incumprimento(tb_etar, tt_analiseparam, resultado, limite, data,
                 'operador1': operador1,
                 'operador2': operador2
             }).scalar()
-            success_message = format_message(result)
-            return {'message': 'Incumprimento registado com sucesso', 'result': success_message}, 201
+
+            return {'message': 'Incumprimento registado', 'pk': result}, 201
     except Exception as e:
-        return {'error': f"Erro ao registar incumprimento: {str(e)}"}, 500
+        return {'error': f"Erro: {str(e)}"}, 500
 
 
 def list_etar_incumprimentos(tb_etar, current_user):

@@ -344,3 +344,27 @@ export const createInternalRequest = async (data, requestType) => {
         throw error;
     }
   };
+
+// Incumprimentos Records
+export const getIncumprimentoRecords = async (pk) => {
+    try {
+        if (!pk) {
+            throw new Error("PK inválida.");
+        }
+        const response = await api.get(`/etar_incumprimentos/${pk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar registos de incumprimentos:", error);
+        throw error;
+    }
+};
+
+export const addIncumprimentoRecord = async (data) => {
+    try {
+        const response = await api.post("/etar_incumprimento", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao adicionar registo de incumprimento:", error);
+        throw error;
+    }
+};

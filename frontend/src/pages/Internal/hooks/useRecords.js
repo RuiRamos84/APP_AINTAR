@@ -39,6 +39,10 @@ export function useRecords(recordType) {
                     response = await InternalService.getExpenseRecords(areaType, selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.expenses || [] });
                     break;
+                case "incumprimentos": // NOVO
+                    response = await InternalService.getIncumprimentoRecords(selectedEntity?.pk);
+                    dispatch({ type: "FETCH_SUCCESS", payload: response.incumprimentos || [] });
+                    break;
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
@@ -48,13 +52,14 @@ export function useRecords(recordType) {
         }
     };
 
+    // Adicionar no addRecord também
     const addRecord = async (data) => {
         try {
             setSubmitting(true);
 
             // Validar se há entidade selecionada para tipos que exigem
             if (
-                (["volume", "water_volume", "energy"].includes(recordType) ||
+                (["volume", "water_volume", "energy", "incumprimentos"].includes(recordType) ||
                     (recordType === "expense" && ["etar", "ee"].includes(getTypeByArea(selectedArea))))
                 && !selectedEntity
             ) {
@@ -77,6 +82,10 @@ export function useRecords(recordType) {
             // Para water_volume, usar função específica
             else if (recordType === "water_volume") {
                 await InternalService.addWaterVolumeRecord(selectedArea, finalPayload);
+            }
+            // Para incumprimentos
+            else if (recordType === "incumprimentos") {
+                await InternalService.addIncumprimentoRecord(finalPayload);
             }
             // Para despesas, usar areaType
             else if (recordType === "expense") {
@@ -117,6 +126,7 @@ export function useRecords(recordType) {
             case "water_volume": return "volume de água";
             case "energy": return "energia";
             case "expense": return "despesa";
+            case "incumprimentos": return "incumprimento";
             default: return type;
         }
     };

@@ -6,7 +6,7 @@ import {
     Grid
 } from '@mui/material';
 import ExpenseRecordsTable from './ExpenseRecordsTable';
-import MaintenanceRecordsTable from './MaintenanceRecordsTable';
+import MaintenanceRecordsTable from '../MaintenanceRecordsTable';
 
 const RamalRedeManagement = ({ selectedArea, metaData }) => {
     const [selectedTab, setSelectedTab] = useState(0);

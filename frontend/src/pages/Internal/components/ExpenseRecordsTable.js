@@ -18,9 +18,9 @@ import {
     useTheme,
     TableContainer,
 } from "@mui/material";
-import { getCurrentDateTime } from "../../utils/dataUtils";
-import { getExpenseRecords, addExpenseRecord } from "../../services/InternalService";
-import { notifySuccess, notifyError, notifyWarning, notifyInfo, notifyCustom } from "../../components/common/Toaster/ThemedToaster";
+import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { getExpenseRecords, addExpenseRecord } from "../../../services/InternalService";
+import { notifySuccess, notifyError, notifyWarning, notifyInfo, notifyCustom } from "../../../components/common/Toaster/ThemedToaster";
 
 
 const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
