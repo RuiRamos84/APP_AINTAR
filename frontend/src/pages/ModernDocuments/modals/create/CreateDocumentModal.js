@@ -41,34 +41,30 @@ import { notifySuccess, notifyError, notifyInfo } from '../../../../components/c
 import paymentService from '../../../../features/Payment/services/paymentService';
 
 /**
- * Modal de criação de documentos com formulário por passos e pagamentos
+ * Modal de criação completo com todas as funcionalidades migradas
  */
 const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const { metaData } = useMetaData();
     const { user } = useAuth();
 
-    // Definição dos passos do stepper
+    // Definição dos passos
     const steps = [
         { label: 'Identificação', description: 'Identificação fiscal e dados da entidade' },
         { label: 'Morada', description: 'Morada do pedido e de faturação' },
         { label: 'Detalhes', description: 'Tipo de pedido, associado e informações' },
-        { label: 'Parâmetros', description: 'Parâmetros adicionais' },
+        { label: 'Parâmetros', description: 'Parâmetros específicos do tipo de documento' },
         { label: 'Anexos', description: 'Adicione documentos relacionados ao pedido' },
         { label: 'Confirmação', description: 'Rever e confirmar os dados do pedido' }
     ];
 
     // Estados para diálogos
     const [confirmClose, setConfirmClose] = useState(false);
-
-    // Estados para pagamento
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [finalPaymentData, setFinalPaymentData] = useState(null);
-
-    // Estados para sugestão de criação de entidade
     const [suggestEntityCreation, setSuggestEntityCreation] = useState(false);
     const [pendingNipc, setPendingNipc] = useState('');
 
-    // Inicialização dos hooks personalizados
+    // Hooks principais
     const documentForm = useDocumentForm(initialNipc, handleCloseAfterSuccess);
     const {
         formData, setFormData, activeStep, setActiveStep, errors, setErrors,
@@ -76,7 +72,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         validateCurrentStep, resetForm
     } = documentForm;
 
-    // Usando o hook useEntityData
+    // Hook de entidades corrigido
     const entityDataHook = useEntityData(formData, setFormData);
     const {
         entityData, representativeData, isRepresentative, isDifferentAddress,
@@ -88,12 +84,14 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         handleCreateEntitySuccess
     } = entityDataHook;
 
+    // Hook de parâmetros corrigido
     const documentParams = useDocumentParams(formData, entityData, metaData);
     const {
         docTypeParams, paramValues, selectedCountType,
         selectedTypeText, handleParamChange
     } = documentParams;
 
+    // Hook de ficheiros com colagem
     const fileHandling = useFileHandling(formData, setFormData);
     const {
         paymentMethod, setPaymentMethod, paymentInfo, setPaymentInfo,
@@ -101,32 +99,19 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         handlePaymentMethodChange, handlePaymentChange, handlePaymentProofUpload
     } = fileHandling;
 
-    // Reset ao abrir modal
+    // ✅ RESET COMPLETO
     useEffect(() => {
         if (open) {
             resetForm();
-            // Limpar dados da entidade
             entityDataHook.setEntityData(null);
             entityDataHook.setRepresentativeData(null);
             setBillingAddress({
-                postal: "",
-                address: "",
-                door: "",
-                floor: "",
-                nut1: "",
-                nut2: "",
-                nut3: "",
-                nut4: "",
+                postal: "", address: "", door: "", floor: "",
+                nut1: "", nut2: "", nut3: "", nut4: "",
             });
             setShippingAddress({
-                postal: "",
-                address: "",
-                door: "",
-                floor: "",
-                nut1: "",
-                nut2: "",
-                nut3: "",
-                nut4: "",
+                postal: "", address: "", door: "", floor: "",
+                nut1: "", nut2: "", nut3: "", nut4: "",
             });
 
             if (initialNipc) {
@@ -136,7 +121,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     }, [open, initialNipc]);
 
-    // Handler personalizado para mudança do NIPC
+    // ✅ HANDLER NIPC CORRIGIDO
     const handleNipcChange = async (event) => {
         const nipc = event.target.value;
         handleChange(event);
@@ -144,7 +129,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         if (nipc && nipc.length >= 9) {
             const entityResult = await checkEntityData(nipc);
 
-            // Se não encontrou dados da entidade, sugerir criação
             if (!entityResult || !entityData) {
                 setPendingNipc(nipc);
                 setSuggestEntityCreation(true);
@@ -152,7 +136,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     };
 
-    // Handler para confirmar criação de nova entidade
     const handleConfirmCreateEntity = () => {
         setSuggestEntityCreation(false);
         entityDataHook.setNewEntityNipc(pendingNipc);
@@ -160,12 +143,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         setPendingNipc('');
     };
 
-    // Handler para rejeitar criação de entidade
     const handleRejectCreateEntity = () => {
         setSuggestEntityCreation(false);
         setPendingNipc('');
-        // Mantém o NIPC no formulário mas sem dados da entidade
     };
+
+    // ✅ VALIDAÇÃO CORRIGIDA
     const validateStep = () => {
         const newErrors = validateCurrentStep(
             activeStep, formData, billingAddress, shippingAddress,
@@ -176,8 +159,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // Sincronizar endereços
     useEffect(() => {
-        // Sincronizar endereços quando entityData muda
         if (entityData && entityData.pk) {
             const addressData = {
                 postal: entityData.postal || "",
@@ -198,32 +181,28 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     }, [entityData]);
 
-    // Navegar para o próximo passo
+    // Navegação
     const handleNext = () => {
         if (validateStep()) {
             setActiveStep(prev => prev + 1);
             const modalContent = document.querySelector('.MuiDialogContent-root');
-            if (modalContent) {
-                modalContent.scrollTop = 0;
-            }
+            if (modalContent) modalContent.scrollTop = 0;
         } else {
-            notifyError("Por favor, corrija os erros antes de continuar.");
+            notifyError("Corrija os erros antes de continuar.");
         }
     };
 
-    // Voltar ao passo anterior
     const handleBack = () => {
         setActiveStep(prev => prev - 1);
         const modalContent = document.querySelector('.MuiDialogContent-root');
-        if (modalContent) {
-            modalContent.scrollTop = 0;
-        }
+        if (modalContent) modalContent.scrollTop = 0;
     };
 
-    // Função para preparar dados do formulário para envio
+    // ✅ PREPARAR DADOS COMPLETOS
     function prepareFormData() {
         const submitFormData = new FormData();
 
+        // Dados base
         Object.entries(formData).forEach(([key, value]) => {
             if (key !== "files") {
                 submitFormData.append(key, value);
@@ -232,6 +211,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
         submitFormData.append("isDifferentAddress", isDifferentAddress);
 
+        // Endereços
         Object.entries(billingAddress).forEach(([key, value]) => {
             submitFormData.append(key, value);
             submitFormData.append(`billing_${key}`, value);
@@ -243,15 +223,18 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             });
         }
 
+        // ✅ PARÂMETROS
         Object.entries(paramValues).forEach(([key, value]) => {
             submitFormData.append(key, value || '');
         });
 
+        // Ficheiros
         formData.files.forEach((fileObj, index) => {
             submitFormData.append("files", fileObj.file);
             submitFormData.append(`descr${index}`, fileObj.description || "");
         });
 
+        // Entidades
         if (entityData) {
             submitFormData.append("ts_entity", entityData.pk);
         }
@@ -265,53 +248,33 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         return submitFormData;
     }
 
-    // Handler para fechar após pagamento
+    // Fechar após pagamento
     const handlePaymentClose = (success, result) => {
         setPaymentDialogOpen(false);
 
         if (success) {
-            notifySuccess('Pagamento processado com sucesso!');
+            notifySuccess('Pagamento processado!');
         } else {
-            notifyInfo('Documento criado. Pagamento pode ser efectuado posteriormente.');
+            notifyInfo('Documento criado. Pagamento pendente.');
         }
 
-        // Limpar todos os dados e fechar modal
         resetForm();
         clearEntityData();
         onClose(true, finalPaymentData?.regnumber, false);
         setFinalPaymentData(null);
     };
 
-    // Função para limpar dados da entidade
     const clearEntityData = () => {
         entityDataHook.setEntityData(null);
         entityDataHook.setRepresentativeData(null);
-        setBillingAddress({
-            postal: "",
-            address: "",
-            door: "",
-            floor: "",
-            nut1: "",
-            nut2: "",
-            nut3: "",
-            nut4: "",
-        });
-        setShippingAddress({
-            postal: "",
-            address: "",
-            door: "",
-            floor: "",
-            nut1: "",
-            nut2: "",
-            nut3: "",
-            nut4: "",
-        });
+        setBillingAddress({ postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "" });
+        setShippingAddress({ postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "" });
     };
 
-    // Submeter formulário
+    // ✅ SUBMIT FINAL
     const handleSubmit = async () => {
         if (!validateStep()) {
-            notifyError("Por favor, preencha todos os campos obrigatórios.");
+            notifyError("Preencha todos os campos obrigatórios.");
             return;
         }
 
@@ -322,12 +285,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             const response = await createDocument(submitFormData);
 
             if (response && response.regnumber) {
-                notifySuccess(`Pedido ${response.regnumber} criado com sucesso!`);
+                notifySuccess(`Pedido ${response.regnumber} criado!`);
 
                 const documentId = response.pk || response.order_id;
                 const regnumber = response.regnumber;
 
-                // Verificar se precisa pagamento
+                // Verificar pagamento
                 if (documentId) {
                     try {
                         const invoiceResult = await paymentService.getInvoiceAmount(documentId);
@@ -336,14 +299,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                             invoiceResult.invoice_data &&
                             invoiceResult.invoice_data.invoice > 0) {
 
-                            // Preparar dados para pagamento
                             setFinalPaymentData({
                                 documentId: documentId,
                                 amount: invoiceResult.invoice_data.invoice,
                                 regnumber: regnumber
                             });
 
-                            // Abrir modal de pagamento
                             setPaymentDialogOpen(true);
                             setLoading(false);
                             return;
@@ -353,7 +314,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                     }
                 }
 
-                // Sem pagamento - fechar normal
+                // Sem pagamento
                 resetForm();
                 clearEntityData();
                 onClose(true, regnumber, false);
@@ -367,19 +328,13 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     };
 
-    // Fechar o modal após sucesso
     function handleCloseAfterSuccess(success, regnumber, redirectToPayment = false) {
         onClose(success, regnumber, redirectToPayment);
     }
 
-    // Handler para fechar o modal
     const handleCloseRequest = () => {
-        const hasData = formData.nipc ||
-            formData.tt_type ||
-            formData.ts_associate ||
-            formData.memo ||
-            formData.files.length > 0 ||
-            entityData ||
+        const hasData = formData.nipc || formData.tt_type || formData.ts_associate ||
+            formData.memo || formData.files.length > 0 || entityData ||
             Object.values(billingAddress).some(value => value);
 
         if (hasData) {
@@ -390,7 +345,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     };
 
-    // Confirmar fechamento do modal
     const handleConfirmClose = () => {
         resetForm();
         clearEntityData();
@@ -398,7 +352,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         onClose(false);
     };
 
-    // Renderizar o conteúdo atual do passo
+    // ✅ RENDER STEPS CORRIGIDO
     const renderStepContent = () => {
         switch (activeStep) {
             case 0:
@@ -460,6 +414,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         errors={errors}
                         metaData={metaData}
                         lastDocument={lastDocument}
+                        entityData={entityData}
+                        formData={formData}
                     />
                 );
 
@@ -521,11 +477,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         <Typography variant="h6">
                             {activeStep === 5 ? 'Confirmar Pedido' : 'Novo Pedido'}
                         </Typography>
-                        <IconButton
-                            onClick={handleCloseRequest}
-                            size="small"
-                            aria-label="fechar"
-                        >
+                        <IconButton onClick={handleCloseRequest} size="small">
                             <CloseIcon />
                         </IconButton>
                     </Box>
@@ -535,9 +487,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                     <Stepper
                         activeStep={activeStep}
                         alternativeLabel
-                        sx={{
-                            display: { xs: 'none', sm: 'flex' }
-                        }}
+                        sx={{ display: { xs: 'none', sm: 'flex' } }}
                     >
                         {steps.map((step) => (
                             <Step key={step.label}>
@@ -546,14 +496,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         ))}
                     </Stepper>
 
-                    <Box
-                        sx={{
-                            display: { xs: 'flex', sm: 'none' },
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            mb: 1
-                        }}
-                    >
+                    <Box sx={{ display: { xs: 'flex', sm: 'none' }, justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">
                             Passo {activeStep + 1} de {steps.length}
                         </Typography>
@@ -568,7 +511,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100%">
                             <CircularProgress />
                             <Typography variant="body1" sx={{ mt: 2 }}>
-                                Enviando pedido...
+                                A enviar pedido...
                             </Typography>
                         </Box>
                     ) : (
@@ -576,7 +519,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                             <Typography variant="subtitle1" color="text.secondary" gutterBottom>
                                 {steps[activeStep].description}
                             </Typography>
-
                             <Box mt={2}>
                                 {renderStepContent()}
                             </Box>
@@ -597,10 +539,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
                     <Box sx={{ flexGrow: 1 }} />
 
-                    <Button
-                        onClick={handleCloseRequest}
-                        disabled={loading}
-                    >
+                    <Button onClick={handleCloseRequest} disabled={loading}>
                         Cancelar
                     </Button>
 
@@ -627,47 +566,40 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 </DialogActions>
             </Dialog>
 
-            {/* Modal de sugestão para criar entidade */}
+            {/* Sugestão criar entidade */}
             <Dialog open={suggestEntityCreation} onClose={handleRejectCreateEntity}>
                 <DialogTitle>Entidade não encontrada</DialogTitle>
                 <DialogContent>
                     <Typography>
                         Não foram encontrados dados para o NIF {pendingNipc}.
-                        Deseja criar uma nova entidade com este NIF?
+                        Criar nova entidade?
                     </Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleRejectCreateEntity}>
                         Continuar sem criar
                     </Button>
-                    <Button
-                        onClick={handleConfirmCreateEntity}
-                        variant="contained"
-                        color="primary"
-                        autoFocus
-                    >
-                        Criar nova entidade
+                    <Button onClick={handleConfirmCreateEntity} variant="contained" autoFocus>
+                        Criar entidade
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Modal de confirmação para fechar */}
+            {/* Confirmação fechar */}
             <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
                 <DialogTitle>Descartar alterações?</DialogTitle>
                 <DialogContent>
                     <Typography>
-                        Existem dados que não foram guardados. Tem certeza que deseja sair sem guardar o pedido?
+                        Dados não guardados. Sair sem guardar?
                     </Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setConfirmClose(false)}>Não</Button>
-                    <Button onClick={handleConfirmClose} autoFocus color="error">
-                        Sim
-                    </Button>
+                    <Button onClick={handleConfirmClose} autoFocus color="error">Sim</Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Modal de pagamento */}
+            {/* Pagamento */}
             {paymentDialogOpen && finalPaymentData && (
                 <PaymentDialog
                     open={paymentDialogOpen}
@@ -677,26 +609,15 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 />
             )}
 
-            {/* Entity modals */}
+            {/* Modais entidade */}
             <Dialog open={isUpdateNeeded} onClose={() => setIsUpdateNeeded(false)}>
                 <DialogTitle>Dados Incompletos</DialogTitle>
                 <DialogContent>
-                    <Typography>
-                        Os dados desta entidade estão incompletos. É necessário atualizá-los
-                        para prosseguir.
-                    </Typography>
+                    <Typography>Entidade com campos incompletos. Actualizar?</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setIsUpdateNeeded(false)} color="primary">
-                        Cancelar
-                    </Button>
-                    <Button
-                        onClick={() => setEntityDetailOpen(true)}
-                        color="primary"
-                        autoFocus
-                    >
-                        Atualizar Dados
-                    </Button>
+                    <Button onClick={() => setIsUpdateNeeded(false)}>Cancelar</Button>
+                    <Button onClick={() => setEntityDetailOpen(true)} autoFocus>Actualizar</Button>
                 </DialogActions>
             </Dialog>
 

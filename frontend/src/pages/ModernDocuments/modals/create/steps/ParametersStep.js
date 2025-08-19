@@ -25,10 +25,17 @@ import {
     Restore as RestoreIcon
 } from '@mui/icons-material';
 
-// Mapeamento de nomes de objetos de referência para chaves nos metadados
-const REF_OBJ_MAPPING = {
-    'vbl_metodopagamento': 'payment_method',
-    // Adicionar outros mapeamentos conforme necessário
+// Função auxiliar para normalizar nomes de zona
+const normalizeZoneName = (zoneName) => {
+    if (!zoneName) return "";
+    return zoneName.replace(/^Município de /, "").trim();
+};
+
+// Função para filtrar ETARs por zona do associado
+const getFilteredEtars = (etars, zoneName) => {
+    if (!etars || !zoneName) return [];
+    const normalizedZone = normalizeZoneName(zoneName);
+    return etars.filter((etar) => normalizeZoneName(etar.ts_entity) === normalizedZone);
 };
 
 const ParametersStep = ({
@@ -37,76 +44,43 @@ const ParametersStep = ({
     handleParamChange,
     errors,
     metaData,
-    lastDocument
+    lastDocument,
+    entityData, // Adicionar entityData para filtrar ETARs
+    formData    // Adicionar formData para obter ts_associate
 }) => {
     const theme = useTheme();
 
-    // Log dos metadados disponíveis para ajudar no desenvolvimento
+    // Obter nome da zona do associado selecionado
+    const getAssociateName = () => {
+        if (!formData?.ts_associate || !metaData?.associates) return "";
+        const associate = metaData.associates.find(a => a.pk === parseInt(formData.ts_associate));
+        return associate ? associate.name : "";
+    };
+
+    const associateName = getAssociateName();
+
+    // Log dos metadados disponíveis para debug
     useEffect(() => {
-        console.log("MetaData completo:", metaData);
-        // Listar todas as chaves de metadados disponíveis
-        if (metaData) {
-            console.log("Chaves de metadados disponíveis:", Object.keys(metaData));
-        }
+        console.log("MetaData para parâmetros:", {
+            etar: metaData?.etar?.length || 0,
+            payment_method: metaData?.payment_method?.length || 0,
+            associates: metaData?.associates?.length || 0
+        });
     }, [metaData]);
 
-    // Construir mapeamento dinâmico baseado nos metadados disponíveis
-    const dynamicRefMapping = useMemo(() => {
-        const mapping = { ...REF_OBJ_MAPPING };
-
-        // Se os metadados estiverem disponíveis, verificar se podemos encontrar
-        // correspondências automáticas para referências que não estão no mapeamento estático
-        if (metaData) {
-            docTypeParams.forEach(param => {
-                if (param.type === '3' && param.refobj && !mapping[param.refobj]) {
-                    // Verificar se existe uma chave semelhante no metaData
-                    const possibleKey = Object.keys(metaData).find(key =>
-                        key.toLowerCase() === param.refobj.toLowerCase() ||
-                        key.toLowerCase().includes(param.refobj.toLowerCase().replace('vbl_', ''))
-                    );
-
-                    if (possibleKey) {
-                        mapping[param.refobj] = possibleKey;
-                        console.log(`Mapeamento automático: ${param.refobj} -> ${possibleKey}`);
-                    }
-                }
-            });
-        }
-
-        return mapping;
-    }, [metaData, docTypeParams]);
-
-    // Função para obter a lista de opções baseada no refobj
-    const getOptionsFromRefObj = (refobj, refpk, refvalue) => {
-        // Mapear o nome do objeto de referência para a chave real nos metadados
-        const metaDataKey = dynamicRefMapping[refobj] || refobj;
-
-        console.log(`Tentando mapear ${refobj} para ${metaDataKey} nos metadados`);
-
-        // Verificar se temos a lista nos metadados com a chave mapeada
-        if (!metaData || !metaData[metaDataKey] || !Array.isArray(metaData[metaDataKey])) {
-            // Tentativa de busca direta se o mapeamento falhar
-            const allKeys = metaData ? Object.keys(metaData) : [];
-            console.log(`Lista de opções não encontrada para ${refobj} (${metaDataKey}). Chaves disponíveis:`, allKeys);
-
-            // Verificar se temos a lista em alguma outra chave que poderia ser compatível
-            for (const key of allKeys) {
-                if (Array.isArray(metaData[key]) && metaData[key].length > 0) {
-                    const firstItem = metaData[key][0];
-                    if (firstItem &&
-                        (firstItem[refpk] !== undefined || firstItem.pk !== undefined) &&
-                        (firstItem[refvalue] !== undefined || firstItem.value !== undefined)) {
-                        console.log(`Encontrada possível lista compatível em ${key}:`, metaData[key]);
-                        return metaData[key];
-                    }
-                }
-            }
-
-            return [];
-        }
-
-        console.log(`Opções encontradas para ${refobj} (${metaDataKey}):`, metaData[metaDataKey]);
-        return metaData[metaDataKey];
+    // Função para verificar se é parâmetro booleano
+    const isBooleanParam = (paramName) => {
+        const booleanParams = [
+            'Existe pavimento',
+            'Existe rede de águas',
+            'Existe rede de esgotos',
+            'Existe rede de telecomunicações',
+            'Existe rede de gás',
+            'Existe rede elétrica',
+            'Necessita licenciamento',
+            'Obra em zona protegida'
+        ];
+        return booleanParams.some(bp => paramName.toLowerCase().includes(bp.toLowerCase()));
     };
 
     const handleBooleanChange = (paramId, value) => {
@@ -119,12 +93,9 @@ const ParametersStep = ({
     };
 
     const getBooleanDisplayValue = (value) => {
-        // Se o valor for undefined, null ou string vazia, não seleciona nenhuma opção
         if (value === undefined || value === null || value === '') {
             return '';
         }
-
-        // Caso contrário, retorna '1' para verdadeiro ou '0' para falso
         if (value === '1' || value === 1 || value === 'true' || value === true) {
             return '1';
         }
@@ -132,20 +103,58 @@ const ParametersStep = ({
     };
 
     const renderParameterField = (param) => {
-        console.log("Renderizando parâmetro:", param);
-
         const paramId = param.tb_param;
         const paramKey = `param_${paramId}`;
         const currentValue = paramValues[paramKey] || '';
         const isRequired = param.mandatory === 1;
         const hasError = !!errors[paramKey];
-
         const paramType = String(param.type);
 
+        // Parâmetro de seleção (tipo 3)
         if (paramType === '3') {
-            // Verificar se temos as informações necessárias de referência
+            // Caso especial: Local de descarga/ETAR
+            if (param.name === "Local de descarga/ETAR") {
+                const filteredEtars = getFilteredEtars(metaData?.etar, associateName);
+
+                return (
+                    <FormControl fullWidth required={isRequired} error={hasError}>
+                        <InputLabel>Local de descarga/ETAR</InputLabel>
+                        <Select
+                            value={currentValue}
+                            onChange={(e) => handleParamChange({
+                                target: {
+                                    name: paramKey,
+                                    value: parseInt(e.target.value, 10)
+                                }
+                            })}
+                            label="Local de descarga/ETAR"
+                            displayEmpty
+                        >
+                            <MenuItem value="" disabled>
+                                Selecione uma ETAR
+                            </MenuItem>
+                            {filteredEtars.map((etar) => (
+                                <MenuItem key={etar.pk} value={etar.pk}>
+                                    {etar.nome}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                        {hasError && (
+                            <Typography variant="caption" color="error">
+                                {errors[paramKey]}
+                            </Typography>
+                        )}
+                        {filteredEtars.length === 0 && (
+                            <Typography variant="caption" color="warning.main">
+                                Nenhuma ETAR disponível para {associateName}
+                            </Typography>
+                        )}
+                    </FormControl>
+                );
+            }
+
+            // Outros parâmetros de seleção
             if (!param.refobj || !param.refpk || !param.refvalue) {
-                console.warn("Parâmetro de tipo 3 sem informações de referência completas:", param);
                 return (
                     <TextField
                         fullWidth
@@ -153,20 +162,20 @@ const ParametersStep = ({
                         value={currentValue}
                         disabled
                         error={hasError}
+                        helperText={hasError ? errors[paramKey] : "Configuração de parâmetro incompleta"}
                     />
                 );
             }
 
-            // Obter a lista de opções
-            const options = getOptionsFromRefObj(param.refobj, param.refpk, param.refvalue);
-            console.log(`Opções para ${param.name}:`, options);
+            // Mapear refobj para metaData
+            const refDataKey = param.refobj.replace('vbl_', '');
+            const options = metaData?.[refDataKey] || metaData?.[param.refobj] || [];
 
-            // Se não encontrarmos opções, tente exibir o valor atual como texto
             if (!options || options.length === 0) {
                 return (
                     <TextField
                         fullWidth
-                        label={`${param.name}`}
+                        label={param.name}
                         name={paramKey}
                         value={currentValue}
                         onChange={handleParamChange}
@@ -178,11 +187,7 @@ const ParametersStep = ({
             }
 
             return (
-                <FormControl
-                    fullWidth
-                    required={isRequired}
-                    error={hasError}
-                >
+                <FormControl fullWidth required={isRequired} error={hasError}>
                     <InputLabel>{param.name}</InputLabel>
                     <Select
                         name={paramKey}
@@ -206,7 +211,10 @@ const ParametersStep = ({
                     )}
                 </FormControl>
             );
-        } else if (paramType === '4') {
+        }
+
+        // Parâmetro booleano (tipo 4 ou nome específico)
+        else if (paramType === '4' || isBooleanParam(param.name)) {
             return (
                 <FormControl component="fieldset" required={isRequired} error={hasError}>
                     <Typography variant="subtitle2" gutterBottom>
@@ -218,16 +226,8 @@ const ParametersStep = ({
                         value={getBooleanDisplayValue(currentValue)}
                         onChange={(e) => handleBooleanChange(paramId, e.target.value)}
                     >
-                        <FormControlLabel
-                            value="1"
-                            control={<Radio />}
-                            label="Sim"
-                        />
-                        <FormControlLabel
-                            value="0"
-                            control={<Radio />}
-                            label="Não"
-                        />
+                        <FormControlLabel value="1" control={<Radio />} label="Sim" />
+                        <FormControlLabel value="0" control={<Radio />} label="Não" />
                     </RadioGroup>
                     {hasError && (
                         <Typography variant="caption" color="error">
@@ -236,7 +236,10 @@ const ParametersStep = ({
                     )}
                 </FormControl>
             );
-        } else {
+        }
+
+        // Parâmetro de texto/número (padrão)
+        else {
             return (
                 <TextField
                     fullWidth

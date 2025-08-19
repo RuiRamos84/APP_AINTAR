@@ -10,9 +10,7 @@ import { notifySuccess, notifyError, notifyWarning, notifyInfo, notifyCustom, to
 
 /**
  * Hook para gerenciar dados de entidades e endereços
- * @param {Object} formData - Dados do formulário
- * @param {Function} setFormData - Função para atualizar os dados do formulário
- * @returns {Object} Estados e funções para gerenciar entidades
+ * Agora com validações completas do modelo antigo
  */
 export const useEntityData = (formData, setFormData) => {
     const [entityData, setEntityData] = useState(null);
@@ -63,6 +61,13 @@ export const useEntityData = (formData, setFormData) => {
                     const countTypes = await getEntityCountTypes(entityData.pk);
                     setEntityCountTypes(countTypes || []);
 
+                    // ✅ CRÍTICO: Verificar se há tipos de entidade
+                    if (countTypes && countTypes.length > 0) {
+                        notifyWarning(
+                            "A entidade possui tipos de entidade. Por favor, atualize os dados"
+                        );
+                    }
+
                     // Buscar documentos anteriores
                     fetchEntitiesDocuments(entityData.pk);
                 } catch (error) {
@@ -79,11 +84,9 @@ export const useEntityData = (formData, setFormData) => {
     // Função para buscar documentos da entidade usando getDocuments()
     const fetchEntitiesDocuments = async (entityPk) => {
         try {
-            // Buscar todos os documentos e filtrar pelo pk da entidade
             const allDocuments = await getDocuments();
             console.log("Todos os documentos:", allDocuments);
 
-            // Filtrar os documentos que pertencem à entidade específica
             const entityDocuments = allDocuments.filter(doc => {
                 return (
                     doc.ts_entity === entityPk ||
@@ -94,7 +97,6 @@ export const useEntityData = (formData, setFormData) => {
 
             console.log("Documentos da entidade filtrados:", entityDocuments);
 
-            // Ordenar por data de criação (mais recentes primeiro)
             entityDocuments.sort((a, b) => {
                 const dateA = new Date(a.createdAt || a.created_at || 0);
                 const dateB = new Date(b.createdAt || b.created_at || 0);
@@ -103,7 +105,6 @@ export const useEntityData = (formData, setFormData) => {
 
             setPreviousDocuments(entityDocuments);
 
-            // Definir o documento mais recente
             if (entityDocuments.length > 0) {
                 setLastDocument(entityDocuments[0]);
                 console.log("Último documento definido:", entityDocuments[0]);
@@ -115,52 +116,22 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
-    // Efeito para pré-preencher dados com base no último documento
-    useEffect(() => {
-        if (lastDocument && entityData) {
-            console.log("Pré-preenchendo dados com base no último documento:", lastDocument);
+    // ✅ VALIDAÇÃO CRÍTICA: Verificar campos obrigatórios da entidade
+    const validateEntityCompleteness = (entity) => {
+        const requiredFields = ['nut1', 'nut2', 'nut3', 'nut4', 'address', 'postal'];
+        const missingFields = [];
 
-            // Pré-preencher dados com base no último documento
-            setFormData(prev => {
-                const newData = { ...prev };
-
-                // Preencher apenas se os valores existirem no último documento
-                if (lastDocument.ts_associate) newData.ts_associate = lastDocument.ts_associate;
-                if (lastDocument.tt_presentation) newData.tt_presentation = lastDocument.tt_presentation;
-                if (lastDocument.tt_type) newData.tt_type = lastDocument.tt_type;
-
-                // Verificar se há representante
-                if (lastDocument.tb_representative) {
-                    setIsRepresentative(true);
-                    newData.tb_representative = lastDocument.tb_representative;
-                    // Buscar dados do representante
-                    fetchRepresentativeData(lastDocument.tb_representative);
-                }
-
-                return newData;
-            });
-
-            // Verificar se tem morada de entrega diferente
-            if (lastDocument.shipping_address &&
-                lastDocument.shipping_address !== lastDocument.billing_address) {
-                setIsDifferentAddress(true);
-                // Seria necessário buscar os dados da morada de entrega para preencher
+        requiredFields.forEach(field => {
+            if (!entity[field] || entity[field].trim() === '') {
+                missingFields.push(field);
             }
+        });
 
-            notifyInfo("Dados pré-preenchidos com base no último pedido desta entidade.");
-        }
-    }, [lastDocument, entityData]);
-
-    // Função auxiliar para buscar dados do representante
-    const fetchRepresentativeData = async (representativeId) => {
-        try {
-            const response = await getEntityByNIF(representativeId);
-            if (response && response.entity) {
-                setRepresentativeData(response.entity);
-            }
-        } catch (error) {
-            console.error("Erro ao buscar representante:", error);
-        }
+        return {
+            isComplete: missingFields.length === 0,
+            missingFields,
+            isIncomplete: missingFields.length > 0
+        };
     };
 
     // Verificar dados da entidade pelo NIPC/NIF
@@ -168,7 +139,8 @@ export const useEntityData = (formData, setFormData) => {
         console.log("Verificando entidade com NIPC/NIF:", nipc, "isRep:", isRep);
         try {
             const response = await getEntityByNIF(nipc);
-            console.log("Resposta da verificação:", response.entity);
+            console.log("Resposta da verificação:", response?.entity);
+
             if (!response || !response.entity) {
                 setNewEntityNipc(nipc);
                 notifyCustom((t) => (
@@ -199,30 +171,28 @@ export const useEntityData = (formData, setFormData) => {
                         </Box>
                     </Box>
                 ));
-                return;
+                return null;
             }
 
             const entity = response.entity;
             console.log("Entidade encontrada:", entity);
 
-            const isIncomplete =
-                !entity.nut1 ||
-                !entity.nut2 ||
-                !entity.nut3 ||
-                !entity.nut4 ||
-                !entity.address ||
-                !entity.postal;
+            // ✅ VALIDAÇÃO CRÍTICA: Verificar se a entidade está completa
+            const validation = validateEntityCompleteness(entity);
 
-            if (isIncomplete) {
+            if (validation.isIncomplete) {
+                console.log("Entidade incompleta. Campos em falta:", validation.missingFields);
+
                 notifyWarning(
-                    "A entidade possui campos incompletos. Por favor, atualize os dados."
+                    `A entidade possui campos incompletos: ${validation.missingFields.join(', ')}. Por favor, atualize os dados.`
                 );
+
                 setEntityToUpdate(entity);
                 setIsUpdateNeeded(true);
-                return;
+                return entity; // Retornar mesmo assim para permitir edição
             }
 
-            // Criar objeto de endereço explicitamente com os campos esperados pelo ModernAddressForm
+            // Criar objeto de endereço explicitamente
             const addressData = {
                 postal: entity.postal || "",
                 address: entity.address || "",
@@ -249,7 +219,7 @@ export const useEntityData = (formData, setFormData) => {
                 // Primeiro atualizamos os dados da entidade
                 setEntityData(entity);
 
-                // Depois atualizamos explicitamente o billingAddress com uma nova referência de objeto
+                // Depois atualizamos explicitamente o billingAddress
                 console.log("Configurando billingAddress com:", addressData);
                 setBillingAddress(addressData);
 
@@ -266,9 +236,54 @@ export const useEntityData = (formData, setFormData) => {
 
                 notifyInfo(`NIF inserido corresponde a - ${entity.name}`);
             }
+
+            return entity;
         } catch (error) {
             console.error("Erro ao verificar entidade:", error);
             notifyError("Erro ao verificar os dados da entidade.");
+            return null;
+        }
+    };
+
+    // Efeito para pré-preencher dados com base no último documento
+    useEffect(() => {
+        if (lastDocument && entityData) {
+            console.log("Pré-preenchendo dados com base no último documento:", lastDocument);
+
+            setFormData(prev => {
+                const newData = { ...prev };
+
+                if (lastDocument.ts_associate) newData.ts_associate = lastDocument.ts_associate;
+                if (lastDocument.tt_presentation) newData.tt_presentation = lastDocument.tt_presentation;
+                if (lastDocument.tt_type) newData.tt_type = lastDocument.tt_type;
+
+                if (lastDocument.tb_representative) {
+                    setIsRepresentative(true);
+                    newData.tb_representative = lastDocument.tb_representative;
+                    fetchRepresentativeData(lastDocument.tb_representative);
+                }
+
+                return newData;
+            });
+
+            if (lastDocument.shipping_address &&
+                lastDocument.shipping_address !== lastDocument.billing_address) {
+                setIsDifferentAddress(true);
+            }
+
+            notifyInfo("Dados pré-preenchidos com base no último pedido desta entidade.");
+        }
+    }, [lastDocument, entityData]);
+
+    // Função auxiliar para buscar dados do representante
+    const fetchRepresentativeData = async (representativeId) => {
+        try {
+            const response = await getEntityByNIF(representativeId);
+            if (response && response.entity) {
+                setRepresentativeData(response.entity);
+            }
+        } catch (error) {
+            console.error("Erro ao buscar representante:", error);
         }
     };
 
@@ -287,7 +302,6 @@ export const useEntityData = (formData, setFormData) => {
         if (!e.target.checked) {
             setShippingAddress({ ...billingAddress });
         } else {
-            // Limpar os dados da morada de envio se marcar como diferente
             setShippingAddress({
                 postal: '',
                 address: '',
@@ -306,10 +320,21 @@ export const useEntityData = (formData, setFormData) => {
         setCreateEntityModalOpen(false);
         if (newEntity) {
             try {
-                // Buscar os dados completos da entidade recém-criada
                 const response = await getEntityByNIF(newEntity.nipc);
                 if (response && response.entity) {
                     const entity = response.entity;
+
+                    // ✅ VALIDAR entidade recém-criada também
+                    const validation = validateEntityCompleteness(entity);
+
+                    if (validation.isIncomplete) {
+                        notifyWarning(
+                            `A entidade recém-criada possui campos incompletos: ${validation.missingFields.join(', ')}. Por favor, complete os dados.`
+                        );
+                        setEntityToUpdate(entity);
+                        setIsUpdateNeeded(true);
+                    }
+
                     const newAddressData = {
                         postal: entity.postal || "",
                         address: entity.address || "",
@@ -333,7 +358,6 @@ export const useEntityData = (formData, setFormData) => {
                         setFormData(prev => ({
                             ...prev,
                             nipc: entity.nipc,
-                            // Se a entidade tiver um associado padrão, pré-preencher
                             ...(entity.ts_associate ? { ts_associate: entity.ts_associate } : {})
                         }));
                         if (!isDifferentAddress) {
@@ -356,8 +380,21 @@ export const useEntityData = (formData, setFormData) => {
     const handleEntityUpdate = async (updatedEntity) => {
         try {
             await updateEntity(updatedEntity);
+
+            // ✅ VALIDAR entidade actualizada
+            const validation = validateEntityCompleteness(updatedEntity);
+
+            if (validation.isIncomplete) {
+                notifyWarning(
+                    `A entidade ainda possui campos incompletos: ${validation.missingFields.join(', ')}.`
+                );
+                // Manter o modal aberto se ainda houver campos em falta
+                return;
+            }
+
             notifySuccess("Entidade atualizada com sucesso.");
             setEntityData(updatedEntity);
+
             const updatedBillingAddress = {
                 postal: updatedEntity.postal || "",
                 address: updatedEntity.address || "",
@@ -369,13 +406,11 @@ export const useEntityData = (formData, setFormData) => {
                 nut4: updatedEntity.nut4 || "",
             };
 
-            // Usar cópia explícita para garantir mudança de referência
             setBillingAddress({ ...updatedBillingAddress });
 
             setFormData(prevDocument => ({
                 ...prevDocument,
                 nipc: updatedEntity.nipc,
-                // Se a entidade atualizada tiver um associado, atualizar no formulário
                 ...(updatedEntity.ts_associate ? { ts_associate: updatedEntity.ts_associate } : {})
             }));
 
@@ -408,6 +443,7 @@ export const useEntityData = (formData, setFormData) => {
         createEntityModalOpen,
         setCreateEntityModalOpen,
         newEntityNipc,
+        setNewEntityNipc,
         isUpdateNeeded,
         setIsUpdateNeeded,
         entityToUpdate,
@@ -417,6 +453,7 @@ export const useEntityData = (formData, setFormData) => {
         handleRepresentativeToggle,
         handleDifferentAddressToggle,
         handleEntityUpdate,
-        handleCreateEntitySuccess
+        handleCreateEntitySuccess,
+        validateEntityCompleteness 
     };
 };
