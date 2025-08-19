@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
     Grid,
     Typography,
@@ -7,11 +7,13 @@ import {
     FormControlLabel,
     Checkbox,
     useTheme,
-    Alert
+    Alert,
+    Button
 } from '@mui/material';
 import {
     LocationOn as LocationIcon,
-    LocalShipping as ShippingIcon
+    LocalShipping as ShippingIcon,
+    Warning as WarningIcon
 } from '@mui/icons-material';
 
 // Importar o ModernAddressForm
@@ -26,19 +28,81 @@ const AddressStep = ({
     isDifferentAddress,
     handleDifferentAddressToggle,
     isEntityFound,
-    isInternal
+    isInternal,
+    // ✅ Props adicionais necessárias
+    entityData,
+    setEntityDetailOpen,
+    setEntityToUpdate
 }) => {
     const theme = useTheme();
 
-    // Logs para depuração
-    // useEffect(() => {
-    //     console.log("AddressStep - billingAddress:", billingAddress);
-    //     console.log("AddressStep - shippingAddress:", shippingAddress);
-    //     console.log("AddressStep - isEntityFound:", isEntityFound);
-    // }, [billingAddress, shippingAddress, isEntityFound]);
+    // ✅ Validação dos dados da entidade para campos críticos
+    const entityValidation = useMemo(() => {
+        if (!entityData) return null;
+
+        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+        const missingFields = requiredFields.filter(field =>
+            !entityData[field] || entityData[field].toString().trim() === ''
+        );
+
+        return {
+            isComplete: missingFields.length === 0,
+            missingFields,
+            missingLabels: missingFields.map(field => {
+                const labels = {
+                    phone: 'Telefone',
+                    nut1: 'Distrito',
+                    nut2: 'Concelho',
+                    nut3: 'Freguesia',
+                    nut4: 'Localidade'
+                };
+                return labels[field] || field;
+            })
+        };
+    }, [entityData]);
+
+    // ✅ Handler para abrir modal de actualização da entidade
+    const handleUpdateEntity = () => {
+        if (entityData) {
+            setEntityToUpdate(entityData);
+            setEntityDetailOpen(true);
+        }
+    };
 
     return (
         <Grid container spacing={3}>
+            {/* ✅ Alerta crítico se dados da entidade incompletos */}
+            {entityData && entityValidation && !entityValidation.isComplete && (
+                <Grid size={{ xs: 12 }}>
+                    <Alert
+                        severity="error"
+                        sx={{ mb: 3 }}
+                        icon={<WarningIcon />}
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={handleUpdateEntity}
+                                variant="outlined"
+                                sx={{ ml: 1 }}
+                            >
+                                Actualizar Entidade
+                            </Button>
+                        }
+                    >
+                        <Typography variant="body2" gutterBottom>
+                            <strong>Dados da entidade incompletos!</strong>
+                        </Typography>
+                        <Typography variant="body2">
+                            Campos em falta: <strong>{entityValidation.missingLabels.join(', ')}</strong>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Complete os dados da entidade antes de prosseguir.
+                        </Typography>
+                    </Alert>
+                </Grid>
+            )}
+
             <Grid size={{ xs: 12 }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
                     <Box display="flex" alignItems="center">
@@ -48,9 +112,16 @@ const AddressStep = ({
                         </Typography>
                     </Box>
 
-                    {isEntityFound && (
+                    {isEntityFound && entityValidation?.isComplete && (
                         <Alert severity="success" sx={{ ml: 2, flexGrow: 1 }}>
-                            Os dados da morada foram preenchidos automaticamente com os dados da entidade. Queira validar se correspondem aos dados po pedido.
+                            Os dados da morada foram preenchidos automaticamente com os dados da entidade.
+                            Queira validar se correspondem aos dados do pedido.
+                        </Alert>
+                    )}
+
+                    {isEntityFound && entityValidation && !entityValidation.isComplete && (
+                        <Alert severity="warning" sx={{ ml: 2, flexGrow: 1 }}>
+                            Dados da entidade incompletos. Complete os dados antes de prosseguir.
                         </Alert>
                     )}
                 </Box>
@@ -61,9 +132,10 @@ const AddressStep = ({
                     setAddressData={setBillingAddress}
                     errors={errors}
                     required={!isInternal}
-                    isAutoFilled={isEntityFound}
+                    isAutoFilled={isEntityFound && entityValidation?.isComplete}
                     title=""
                     skipPaper={true}
+                    disabled={entityValidation && !entityValidation.isComplete} // ✅ Desabilitar se dados incompletos
                 />
             </Grid>
 
@@ -73,7 +145,7 @@ const AddressStep = ({
                         <Checkbox
                             checked={isDifferentAddress}
                             onChange={handleDifferentAddressToggle}
-                            disabled={isInternal}
+                            disabled={isInternal || (entityValidation && !entityValidation.isComplete)}
                         />
                     }
                     label="Morada do pedido diferente da morada de faturação?"
@@ -98,6 +170,7 @@ const AddressStep = ({
                         variant="secondary"
                         title=""
                         skipPaper={true}
+                        disabled={entityValidation && !entityValidation.isComplete} // ✅ Desabilitar se dados incompletos
                     />
                 </Grid>
             )}

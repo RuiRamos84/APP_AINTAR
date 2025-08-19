@@ -54,7 +54,7 @@ export const useDocumentForm = (initialNipc, onClose) => {
         }));
     };
 
-    // Validação do passo atual
+    // Validação do passo atual - CORRIGIDA
     const validateCurrentStep = (
         activeStep,
         formData,
@@ -64,7 +64,8 @@ export const useDocumentForm = (initialNipc, onClose) => {
         paymentMethod,
         paymentInfo,
         docTypeParams,
-        paramValues
+        paramValues,
+        entityData = null // ✅ Parâmetro adicional
     ) => {
         const newErrors = {};
 
@@ -83,6 +84,19 @@ export const useDocumentForm = (initialNipc, onClose) => {
 
             case 1: // Morada
                 if (!isInternal) {
+                    // ✅ Verificar se entidade tem dados completos PRIMEIRO
+                    if (entityData) {
+                        const requiredEntityFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+                        const missingEntityFields = requiredEntityFields.filter(field =>
+                            !entityData[field] || entityData[field].toString().trim() === ''
+                        );
+
+                        if (missingEntityFields.length > 0) {
+                            newErrors.entity_incomplete = 'Complete os dados da entidade antes de prosseguir';
+                            break; // Parar validação aqui
+                        }
+                    }
+
                     // Validar morada de faturação
                     if (!billingAddress.postal) {
                         newErrors.postal = 'Código postal é obrigatório';
@@ -164,26 +178,6 @@ export const useDocumentForm = (initialNipc, onClose) => {
                     }
                 });
                 break;
-
-            // case 5: // Pagamentos
-            //     // Se não for gratuito, validar dados de pagamento
-            //     if (paymentMethod && paymentMethod !== 'gratuito') {
-            //         if (!paymentInfo.amount) {
-            //             newErrors.amount = 'Valor do pagamento é obrigatório';
-            //         }
-            //         if (!paymentInfo.reference) {
-            //             newErrors.reference = 'Referência é obrigatória';
-            //         }
-            //         if (!paymentInfo.date) {
-            //             newErrors.date = 'Data do pagamento é obrigatória';
-            //         }
-            //         if (!paymentInfo.proof) {
-            //             newErrors.proof = 'Comprovativo de pagamento é obrigatório';
-            //         }
-            //     } else if (!paymentMethod) {
-            //         newErrors.paymentMethod = 'Selecione um método de pagamento';
-            //     }
-            //     break;
 
             case 5: // Confirmação - apenas validação geral
                 // Verificação final, que agrupa todas as validações anteriores

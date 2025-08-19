@@ -226,20 +226,25 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
     setIsDirty(true);
   };
 
+  // ✅ Validação algorítmica do NIF português
   const isValidNIF = (nif) => {
-    if (nif.length !== 9) return false;
+    if (!nif || nif.length !== 9) return false;
+
+    // Primeiro dígito deve ser válido
     const validFirstDigits = [1, 2, 3, 5, 6, 8, 9];
     if (!validFirstDigits.includes(parseInt(nif[0]))) return false;
+
+    // Algoritmo de verificação
     let total = 0;
     for (let i = 0; i < 8; i++) {
       total += parseInt(nif[i]) * (9 - i);
     }
-    const checkDigit = total % 11;
-    return checkDigit < 2
-      ? parseInt(nif[8]) === 0
-      : parseInt(nif[8]) === 11 - checkDigit;
-  };
 
+    const checkDigit = total % 11;
+    const expectedDigit = checkDigit < 2 ? 0 : 11 - checkDigit;
+
+    return parseInt(nif[8]) === expectedDigit;
+  };
   const checkNIF = async (nipc) => {
     const entity = await getEntityByNIF(nipc);
     if (entity) {

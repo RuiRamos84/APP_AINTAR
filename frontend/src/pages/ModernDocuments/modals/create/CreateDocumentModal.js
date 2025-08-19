@@ -181,9 +181,17 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     }, [entityData]);
 
-    // Navegação
     const handleNext = () => {
-        if (validateStep()) {
+        // ✅ Passar entityData
+        const newErrors = validateCurrentStep(
+            activeStep, formData, billingAddress, shippingAddress,
+            isDifferentAddress, paymentMethod, paymentInfo, docTypeParams, paramValues,
+            entityData // ✅ ADICIONAR
+        );
+
+        setErrors(newErrors);
+
+        if (Object.keys(newErrors).length === 0) {
             setActiveStep(prev => prev + 1);
             const modalContent = document.querySelector('.MuiDialogContent-root');
             if (modalContent) modalContent.scrollTop = 0;
@@ -386,6 +394,9 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         handleDifferentAddressToggle={handleDifferentAddressToggle}
                         isEntityFound={entityData !== null}
                         isInternal={isInternal}
+                        entityData={entityData}
+                        setEntityDetailOpen={setEntityDetailOpen}
+                        setEntityToUpdate={entityDataHook.setEntityToUpdate}
                     />
                 );
 

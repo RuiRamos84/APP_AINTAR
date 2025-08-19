@@ -6,11 +6,13 @@ import {
     FormControlLabel,
     Checkbox,
     useTheme,
-    Divider
+    Alert,
+    Button
 } from '@mui/material';
 import {
     Business as BusinessIcon,
-    Person as PersonIcon
+    Person as PersonIcon,
+    Warning as WarningIcon
 } from '@mui/icons-material';
 
 // Componentes personalizados
@@ -19,6 +21,7 @@ import EntitySearchField from '../fields/EntitySearchField';
 const IdentificationStep = ({
     formData,
     handleChange,
+    handleNipcChange,
     errors,
     entityData,
     representativeData,
@@ -31,6 +34,34 @@ const IdentificationStep = ({
     isInterProfile
 }) => {
     const theme = useTheme();
+
+    // ✅ Função para verificar se entidade tem dados incompletos
+    const getEntityValidationStatus = (entity) => {
+        if (!entity) return null;
+
+        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+        const missingFields = requiredFields.filter(field =>
+            !entity[field] || entity[field].toString().trim() === ''
+        );
+
+        return {
+            isComplete: missingFields.length === 0,
+            missingFields,
+            missingLabels: missingFields.map(field => {
+                const labels = {
+                    phone: 'Telefone',
+                    nut1: 'Distrito',
+                    nut2: 'Concelho',
+                    nut3: 'Freguesia',
+                    nut4: 'Localidade'
+                };
+                return labels[field] || field;
+            })
+        };
+    };
+
+    const entityValidation = getEntityValidationStatus(entityData);
+    const representativeValidation = getEntityValidationStatus(representativeData);
 
     return (
         <Box>
@@ -75,7 +106,11 @@ const IdentificationStep = ({
                     <Box
                         sx={{
                             border: `1px solid ${theme.palette.divider}`,
-                            borderLeft: entityData ? `3px solid ${theme.palette.success.main}` : `3px solid ${theme.palette.primary.main}`,
+                            borderLeft: entityData
+                                ? (entityValidation?.isComplete
+                                    ? `3px solid ${theme.palette.success.main}`
+                                    : `3px solid ${theme.palette.warning.main}`)
+                                : `3px solid ${theme.palette.primary.main}`,
                             borderRadius: 1,
                             p: 2
                         }}
@@ -89,7 +124,7 @@ const IdentificationStep = ({
 
                         <EntitySearchField
                             value={formData.nipc}
-                            onChange={handleChange}
+                            onChange={handleNipcChange}
                             onEntityFound={setEntityData}
                             entityData={entityData}
                             error={!!errors.nipc}
@@ -97,19 +132,49 @@ const IdentificationStep = ({
                             name="nipc"
                             disabled={isInternal}
                         />
+
+                        {/* ✅ Alerta de dados incompletos */}
+                        {entityData && entityValidation && !entityValidation.isComplete && (
+                            <Alert
+                                severity="warning"
+                                sx={{ mt: 2 }}
+                                icon={<WarningIcon />}
+                            >
+                                <Box>
+                                    <Typography variant="body2" gutterBottom>
+                                        <strong>Dados incompletos:</strong>
+                                    </Typography>
+                                    <Typography variant="body2" gutterBottom>
+                                        {entityValidation.missingLabels.join(', ')}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Complete os dados para prosseguir correctamente.
+                                    </Typography>
+                                </Box>
+                            </Alert>
+                        )}
+
+                        {/* ✅ Confirmação de dados completos */}
+                        {entityData && entityValidation?.isComplete && (
+                            <Alert severity="success" sx={{ mt: 2 }}>
+                                Dados da entidade completos ✓
+                            </Alert>
+                        )}
                     </Box>
                 </Grid>
 
-                <Grid size={{ xs: 12 }} md={isRepresentative ? 6 : 12}>
-
-                    {isRepresentative && (
+                {isRepresentative && (
+                    <Grid size={{ xs: 12 }} md={6}>
                         <Box
                             sx={{
                                 border: `1px solid ${theme.palette.divider}`,
-                                borderLeft: representativeData ? `3px solid ${theme.palette.success.main}` : `3px solid ${theme.palette.secondary.main}`,
+                                borderLeft: representativeData
+                                    ? (representativeValidation?.isComplete
+                                        ? `3px solid ${theme.palette.success.main}`
+                                        : `3px solid ${theme.palette.warning.main}`)
+                                    : `3px solid ${theme.palette.secondary.main}`,
                                 borderRadius: 1,
                                 p: 2,
-                                // mt: 2
                             }}
                         >
                             <Box display="flex" alignItems="center" mb={2}>
@@ -128,9 +193,34 @@ const IdentificationStep = ({
                                 helperText={errors.tb_representative}
                                 name="tb_representative"
                             />
+
+                            {/* ✅ Alerta de dados incompletos do representante */}
+                            {representativeData && representativeValidation && !representativeValidation.isComplete && (
+                                <Alert
+                                    severity="warning"
+                                    sx={{ mt: 2 }}
+                                    icon={<WarningIcon />}
+                                >
+                                    <Box>
+                                        <Typography variant="body2" gutterBottom>
+                                            <strong>Dados incompletos:</strong>
+                                        </Typography>
+                                        <Typography variant="body2" gutterBottom>
+                                            {representativeValidation.missingLabels.join(', ')}
+                                        </Typography>
+                                    </Box>
+                                </Alert>
+                            )}
+
+                            {/* ✅ Confirmação de dados completos do representante */}
+                            {representativeData && representativeValidation?.isComplete && (
+                                <Alert severity="success" sx={{ mt: 2 }}>
+                                    Dados do representante completos ✓
+                                </Alert>
+                            )}
                         </Box>
-                    )}
-                </Grid>
+                    </Grid>
+                )}
             </Grid>
         </Box>
     );

@@ -17,7 +17,8 @@ import {
     Search as SearchIcon,
     Email as EmailIcon,
     Phone as PhoneIcon,
-    LocationOn as LocationIcon
+    LocationOn as LocationIcon,
+    Error as ErrorIcon
 } from '@mui/icons-material';
 import { getEntityByNIF } from '../../../../../services/entityService';
 
@@ -34,14 +35,48 @@ const EntitySearchField = ({
     const theme = useTheme();
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState(null);
+    const [nifValidation, setNifValidation] = useState(null);
+
+    // ✅ Validação algorítmica do NIF
+    const isValidNIF = (nif) => {
+        if (!nif || nif.length !== 9) return false;
+
+        const validFirstDigits = [1, 2, 3, 5, 6, 8, 9];
+        if (!validFirstDigits.includes(parseInt(nif[0]))) return false;
+
+        let total = 0;
+        for (let i = 0; i < 8; i++) {
+            total += parseInt(nif[i]) * (9 - i);
+        }
+
+        const checkDigit = total % 11;
+        const expectedDigit = checkDigit < 2 ? 0 : 11 - checkDigit;
+
+        return parseInt(nif[8]) === expectedDigit;
+    };
 
     const handleNifChange = (e) => {
         const newValue = e.target.value;
+
+        // Permitir apenas números
         if (newValue === '' || /^\d+$/.test(newValue)) {
             if (newValue.length <= 9) {
                 onChange(e);
+                setSearchError(null);
+                setNifValidation(null);
+                onEntityFound && onEntityFound(null);
+
+                // ✅ Validação em tempo real
                 if (newValue.length === 9) {
-                    searchEntity(newValue);
+                    if (isValidNIF(newValue)) {
+                        setNifValidation('valid');
+                        searchEntity(newValue);
+                    } else {
+                        setNifValidation('invalid');
+                        setSearchError('NIF inválido - verifique os dígitos');
+                    }
+                } else if (newValue.length > 0) {
+                    setNifValidation('incomplete');
                 }
             }
         }
@@ -50,6 +85,7 @@ const EntitySearchField = ({
     const searchEntity = async (nif) => {
         setSearching(true);
         setSearchError(null);
+
         try {
             const response = await getEntityByNIF(nif);
             if (response && response.entity) {
@@ -75,6 +111,38 @@ const EntitySearchField = ({
         return parts.join(', ');
     };
 
+    // ✅ Ícone do estado da validação
+    const getValidationIcon = () => {
+        if (searching) return <CircularProgress size={20} />;
+
+        switch (nifValidation) {
+            case 'valid':
+                return entityData ? (
+                    <Tooltip title="Entidade encontrada">
+                        <CheckCircleIcon color="success" />
+                    </Tooltip>
+                ) : (
+                    <Tooltip title="NIF válido - a procurar...">
+                        <SearchIcon color="primary" />
+                    </Tooltip>
+                );
+            case 'invalid':
+                return (
+                    <Tooltip title="NIF inválido">
+                        <ErrorIcon color="error" />
+                    </Tooltip>
+                );
+            case 'incomplete':
+                return (
+                    <Tooltip title="NIF incompleto">
+                        <SearchIcon color="action" />
+                    </Tooltip>
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <Box>
             <TextField
@@ -82,7 +150,7 @@ const EntitySearchField = ({
                 label="NIPC / NIF da Entidade"
                 value={value}
                 onChange={handleNifChange}
-                error={error}
+                error={error || nifValidation === 'invalid'}
                 helperText={helperText || searchError}
                 required
                 inputProps={{
@@ -98,17 +166,7 @@ const EntitySearchField = ({
                     ),
                     endAdornment: (
                         <InputAdornment position="end">
-                            {searching && <CircularProgress size={20} />}
-                            {entityData && !searching && (
-                                <Tooltip title="Entidade encontrada">
-                                    <CheckCircleIcon color="success" />
-                                </Tooltip>
-                            )}
-                            {!entityData && !searching && value.length === 9 && (
-                                <Tooltip title="Entidade não encontrada">
-                                    <SearchIcon color="action" />
-                                </Tooltip>
-                            )}
+                            {getValidationIcon()}
                         </InputAdornment>
                     )
                 }}

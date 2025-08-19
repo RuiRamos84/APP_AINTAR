@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
+import React, {
     Button,
     Box,
     Typography
@@ -116,13 +116,34 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
+    // ✅ Validação algorítmica do NIF português
+    const isValidNIF = (nif) => {
+        if (!nif || nif.length !== 9) return false;
+
+        // Primeiro dígito deve ser válido
+        const validFirstDigits = [1, 2, 3, 5, 6, 8, 9];
+        if (!validFirstDigits.includes(parseInt(nif[0]))) return false;
+
+        // Algoritmo de verificação
+        let total = 0;
+        for (let i = 0; i < 8; i++) {
+            total += parseInt(nif[i]) * (9 - i);
+        }
+
+        const checkDigit = total % 11;
+        const expectedDigit = checkDigit < 2 ? 0 : 11 - checkDigit;
+
+        return parseInt(nif[8]) === expectedDigit;
+    };
+
     // ✅ VALIDAÇÃO CRÍTICA: Verificar campos obrigatórios da entidade
     const validateEntityCompleteness = (entity) => {
-        const requiredFields = ['nut1', 'nut2', 'nut3', 'nut4', 'address', 'postal'];
+        // Campos obrigatórios específicos conforme requisito
+        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
         const missingFields = [];
 
         requiredFields.forEach(field => {
-            if (!entity[field] || entity[field].trim() === '') {
+            if (!entity[field] || entity[field].toString().trim() === '') {
                 missingFields.push(field);
             }
         });
@@ -134,9 +155,16 @@ export const useEntityData = (formData, setFormData) => {
         };
     };
 
-    // Verificar dados da entidade pelo NIPC/NIF
+    // ✅ Verificar dados da entidade pelo NIPC/NIF - ACTUALIZADO
     const checkEntityData = async (nipc, isRep = false) => {
         console.log("Verificando entidade com NIPC/NIF:", nipc, "isRep:", isRep);
+
+        // ✅ VALIDAÇÃO: Verificar se NIF é válido primeiro
+        if (!isValidNIF(nipc)) {
+            notifyError("NIF inválido. Introduza um NIF válido.");
+            return null;
+        }
+
         try {
             const response = await getEntityByNIF(nipc);
             console.log("Resposta da verificação:", response?.entity);
@@ -183,16 +211,66 @@ export const useEntityData = (formData, setFormData) => {
             if (validation.isIncomplete) {
                 console.log("Entidade incompleta. Campos em falta:", validation.missingFields);
 
-                notifyWarning(
-                    `A entidade possui campos incompletos: ${validation.missingFields.join(', ')}. Por favor, atualize os dados.`
-                );
+                // Mapear nomes técnicos para nomes user-friendly
+                const fieldLabels = {
+                    phone: 'Telefone',
+                    nut1: 'Distrito',
+                    nut2: 'Concelho',
+                    nut3: 'Freguesia',
+                    nut4: 'Localidade'
+                };
 
-                setEntityToUpdate(entity);
-                setIsUpdateNeeded(true);
-                return entity; // Retornar mesmo assim para permitir edição
+                const missingLabels = validation.missingFields.map(field => fieldLabels[field] || field);
+
+                notifyCustom((t) => (
+                    <Box>
+                        <Typography variant="body1" gutterBottom>
+                            <strong>Dados incompletos</strong>
+                        </Typography>
+                        <Typography variant="body2" gutterBottom>
+                            A entidade não possui os seguintes campos obrigatórios:
+                        </Typography>
+                        <Typography variant="body2" color="error" gutterBottom sx={{ fontWeight: 'bold' }}>
+                            • {missingLabels.join(', ')}
+                        </Typography>
+                        <Typography variant="body2" gutterBottom>
+                            Deseja actualizar os dados da entidade?
+                        </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2, gap: 1 }}>
+                            <Button
+                                onClick={() => {
+                                    toast.dismiss(t);
+                                    // Continuar sem actualizar
+                                }}
+                                variant="outlined"
+                                size="small"
+                            >
+                                Continuar assim
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    setEntityToUpdate(entity);
+                                    setEntityDetailOpen(true);
+                                    toast.dismiss(t);
+                                }}
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                            >
+                                Actualizar Dados
+                            </Button>
+                        </Box>
+                    </Box>
+                ), {
+                    duration: 0, // Não fechar automaticamente
+                    position: 'top-center'
+                });
+
+                // Retornar a entidade mesmo assim para permitir edição
+                return entity;
             }
 
-            // Criar objeto de endereço explicitamente
+            // Entidade completa - prosseguir normalmente
             const addressData = {
                 postal: entity.postal || "",
                 address: entity.address || "",
@@ -212,14 +290,9 @@ export const useEntityData = (formData, setFormData) => {
                     ...prev,
                     tb_representative: nipc
                 }));
-                notifyInfo(
-                    `NIF do representante inserido corresponde a - ${entity.name}`
-                );
+                notifyInfo(`NIF do representante inserido corresponde a - ${entity.name}`);
             } else {
-                // Primeiro atualizamos os dados da entidade
                 setEntityData(entity);
-
-                // Depois atualizamos explicitamente o billingAddress
                 console.log("Configurando billingAddress com:", addressData);
                 setBillingAddress(addressData);
 
@@ -229,7 +302,6 @@ export const useEntityData = (formData, setFormData) => {
                     ...(entity.ts_associate ? { ts_associate: entity.ts_associate } : {})
                 }));
 
-                // Se não tiver endereço diferente, atualizar também o shippingAddress
                 if (!isDifferentAddress) {
                     setShippingAddress({ ...addressData });
                 }
