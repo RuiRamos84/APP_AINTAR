@@ -20,6 +20,7 @@ import {
     History as HistoryIcon,
     Business as BusinessIcon
 } from '@mui/icons-material';
+import { notifyWarning } from '../../../../../components/common/Toaster/ThemedToaster';
 
 // Componente existente DocumentSuggestions...
 const DocumentSuggestions = ({ previousDocuments, onSelectSuggestion }) => {
@@ -74,7 +75,8 @@ const DetailsStep = ({
     isInterProfile,
     selectedCountType,
     selectedTypeText,
-    previousDocuments = []
+    previousDocuments = [],
+    entityData 
 }) => {
     const theme = useTheme();
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -86,12 +88,39 @@ const DetailsStep = ({
         return aintar ? aintar.name : "AINTAR";
     };
 
-    // Verificar se há documentos anteriores para mostrar sugestões
+    // ✅ DEBUG: Verificar se os dados chegam
     useEffect(() => {
-        if (previousDocuments && previousDocuments.length > 0) {
-            setShowSuggestions(true);
+        console.log('🔍 DetailsStep DEBUG:', {
+            'formData.tt_type': formData.tt_type,
+            'selectedCountType': selectedCountType,
+            'selectedTypeText': selectedTypeText,
+            'previousDocuments.length': previousDocuments.length,
+            'entityData': entityData?.name
+        });
+    }, [formData.tt_type, selectedCountType, selectedTypeText, previousDocuments, entityData]);
+
+    // ✅ NOTIFICAÇÃO: Verificar se dados existem primeiro
+    useEffect(() => {
+        console.log('🔔 Verificando notificação:', {
+            hasType: !!formData.tt_type,
+            hasCountType: !!selectedCountType,
+            typeCountAll: selectedCountType?.typecountall
+        });
+
+        if (formData.tt_type && selectedCountType && selectedCountType.typecountall > 0) {
+            const selectedTypeName = metaData?.types?.find(
+                type => type.tt_doctype_code === formData.tt_type
+            )?.tt_doctype_value;
+
+            console.log('📢 Enviando notificação para tipo:', selectedTypeName);
+
+            if (selectedTypeName) {
+                notifyWarning(
+                    `Esta entidade já submeteu ${selectedCountType.typecountall} pedido(s) do tipo "${selectedTypeName}". Verifique se não é duplicado.`
+                );
+            }
         }
-    }, [previousDocuments]);
+    }, [formData.tt_type, selectedCountType, metaData?.types]);
 
     // Efeito para manipular o preenchimento automático do associado quando isInternal muda
     useEffect(() => {

@@ -32,31 +32,42 @@ export const useDocumentParams = (formData, entityData, metaData) => {
 
     // Efeito para atualizar o tipo de documento selecionado
     useEffect(() => {
+        console.log('🔍 useDocumentParams DEBUG:', {
+            'formData.tt_type': formData.tt_type,
+            'entityData?.pk': entityData?.pk,
+            'entityData?.entityCountTypes': entityData?.entityCountTypes?.length,
+            'metaData?.types length': metaData?.types?.length
+        });
+
         if (formData.tt_type && entityData?.pk) {
             const selectedType = metaData?.types?.find(
                 type => type.tt_doctype_code === formData.tt_type
             );
 
+            console.log('📋 Tipo encontrado:', selectedType);
+
             if (selectedType) {
                 const typeText = selectedType.tt_doctype_value;
                 setSelectedTypeText(typeText);
+
+                console.log('🏢 entityCountTypes:', entityData.entityCountTypes);
 
                 if (entityData.entityCountTypes && entityData.entityCountTypes.length > 0) {
                     const countType = entityData.entityCountTypes.find(
                         ct => ct.tt_type === typeText
                     );
 
+                    console.log('📊 countType encontrado:', countType);
                     setSelectedCountType(countType || null);
 
                     if (countType) {
                         notifyInfo(
                             `No ano corrente: ${countType.typecountyear} pedidos do tipo ${typeText}. Total global: ${countType.typecountall}.`
                         );
-                    } else {
-                        notifyWarning(
-                            `Sem registo de pedidos do tipo ${typeText} por esta entidade.`
-                        );
                     }
+                } else {
+                    console.log('⚠️ Sem entityCountTypes disponível');
+                    setSelectedCountType(null);
                 }
             }
         } else {

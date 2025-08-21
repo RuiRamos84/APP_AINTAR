@@ -62,11 +62,11 @@ export const useEntityData = (formData, setFormData) => {
                     setEntityCountTypes(countTypes || []);
 
                     // ✅ CRÍTICO: Verificar se há tipos de entidade
-                    if (countTypes && countTypes.length > 0) {
-                        notifyWarning(
-                            "A entidade possui tipos de entidade. Por favor, atualize os dados"
-                        );
-                    }
+                    // if (countTypes && countTypes.length > 0) {
+                    //     notifyWarning(
+                    //         "A entidade possui tipos de entidade. Por favor, atualize os dados"
+                    //     );
+                    // }
 
                     // Buscar documentos anteriores
                     fetchEntitiesDocuments(entityData.pk);
@@ -159,17 +159,30 @@ export const useEntityData = (formData, setFormData) => {
     const checkEntityData = async (nipc, isRep = false) => {
         console.log("Verificando entidade com NIPC/NIF:", nipc, "isRep:", isRep);
 
-        // ✅ VALIDAÇÃO: Verificar se NIF é válido primeiro
+        // ✅ VALIDAÇÃO 1: Verificar se NIF é válido PRIMEIRO
         if (!isValidNIF(nipc)) {
             notifyError("NIF inválido. Introduza um NIF válido.");
+            // ✅ CRÍTICO: Limpar estados quando NIF é inválido
+            if (isRep) {
+                setRepresentativeData(null);
+                setFormData(prev => ({ ...prev, tb_representative: '' }));
+            } else {
+                setEntityData(null);
+                setBillingAddress({
+                    postal: '', address: '', door: '', floor: '',
+                    nut1: '', nut2: '', nut3: '', nut4: ''
+                });
+            }
             return null;
         }
 
+        // ✅ VALIDAÇÃO 2: Só consultar BD se NIF for algoritmicamente válido
         try {
             const response = await getEntityByNIF(nipc);
             console.log("Resposta da verificação:", response?.entity);
 
             if (!response || !response.entity) {
+                // ✅ NIF VÁLIDO mas entidade não existe - AGORA pode sugerir criação
                 setNewEntityNipc(nipc);
                 notifyCustom((t) => (
                     <Box>
@@ -202,16 +215,15 @@ export const useEntityData = (formData, setFormData) => {
                 return null;
             }
 
+            // Resto da lógica permanece igual...
             const entity = response.entity;
             console.log("Entidade encontrada:", entity);
 
-            // ✅ VALIDAÇÃO CRÍTICA: Verificar se a entidade está completa
             const validation = validateEntityCompleteness(entity);
 
             if (validation.isIncomplete) {
                 console.log("Entidade incompleta. Campos em falta:", validation.missingFields);
 
-                // Mapear nomes técnicos para nomes user-friendly
                 const fieldLabels = {
                     phone: 'Telefone',
                     nut1: 'Distrito',
@@ -234,19 +246,18 @@ export const useEntityData = (formData, setFormData) => {
                             • {missingLabels.join(', ')}
                         </Typography>
                         <Typography variant="body2" gutterBottom>
-                            Deseja actualizar os dados da entidade?
+                            Para poder proceseguir tem de actualizar os dados da entidade!
                         </Typography>
                         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2, gap: 1 }}>
-                            <Button
+                            {/* <Button
                                 onClick={() => {
                                     toast.dismiss(t);
-                                    // Continuar sem actualizar
                                 }}
                                 variant="outlined"
                                 size="small"
                             >
                                 Continuar assim
-                            </Button>
+                            </Button> */}
                             <Button
                                 onClick={() => {
                                     setEntityToUpdate(entity);
@@ -262,11 +273,10 @@ export const useEntityData = (formData, setFormData) => {
                         </Box>
                     </Box>
                 ), {
-                    duration: 0, // Não fechar automaticamente
+                    duration: 0,
                     position: 'top-center'
                 });
 
-                // Retornar a entidade mesmo assim para permitir edição
                 return entity;
             }
 
@@ -526,6 +536,7 @@ export const useEntityData = (formData, setFormData) => {
         handleDifferentAddressToggle,
         handleEntityUpdate,
         handleCreateEntitySuccess,
-        validateEntityCompleteness 
+        validateEntityCompleteness,
+        setEntityToUpdate
     };
 };

@@ -61,8 +61,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const [confirmClose, setConfirmClose] = useState(false);
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [finalPaymentData, setFinalPaymentData] = useState(null);
-    const [suggestEntityCreation, setSuggestEntityCreation] = useState(false);
-    const [pendingNipc, setPendingNipc] = useState('');
+    // const [suggestEntityCreation, setSuggestEntityCreation] = useState(false);
+    // const [pendingNipc, setPendingNipc] = useState('');
 
     // Hooks principais
     const documentForm = useDocumentForm(initialNipc, handleCloseAfterSuccess);
@@ -126,26 +126,52 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         const nipc = event.target.value;
         handleChange(event);
 
+        // ✅ Deixar o useEntityData gerir tudo
         if (nipc && nipc.length >= 9) {
-            const entityResult = await checkEntityData(nipc);
-
-            if (!entityResult || !entityData) {
-                setPendingNipc(nipc);
-                setSuggestEntityCreation(true);
-            }
+            await checkEntityData(nipc);
         }
     };
 
-    const handleConfirmCreateEntity = () => {
-        setSuggestEntityCreation(false);
-        entityDataHook.setNewEntityNipc(pendingNipc);
-        setCreateEntityModalOpen(true);
-        setPendingNipc('');
+    const isEntityDataComplete = () => {
+        if (!entityData) return false;
+
+        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+        return requiredFields.every(field =>
+            entityData[field] && entityData[field].toString().trim() !== ''
+        );
     };
 
-    const handleRejectCreateEntity = () => {
-        setSuggestEntityCreation(false);
-        setPendingNipc('');
+    // 2. Verificar se representante está completo (se aplicável)
+    const isRepresentativeDataComplete = () => {
+        if (!isRepresentative) return true; // Se não é representante, não precisa validar
+
+        // ✅ CORRECÇÃO: Verificar se representante existe E está completo
+        if (!representativeData) return false; // Representante não foi encontrado/criado
+
+        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+        return requiredFields.every(field =>
+            representativeData[field] && representativeData[field].toString().trim() !== ''
+        );
+    };
+
+    // 3. Determinar se pode avançar do passo 0 (Identificação)
+    const canAdvanceFromIdentification = () => {
+        if (isInternal) return true; // Pedidos internos não precisam de entidade
+
+        // ✅ Entidade principal é sempre obrigatória
+        if (!isEntityDataComplete()) return false;
+
+        // ✅ Se é representante, tem de existir E estar completo
+        if (isRepresentative) {
+            if (!formData.tb_representative || formData.tb_representative.length !== 9) {
+                return false; // NIF do representante não foi inserido
+            }
+            if (!isRepresentativeDataComplete()) {
+                return false; // Representante não existe ou está incompleto
+            }
+        }
+
+        return true;
     };
 
     // ✅ VALIDAÇÃO CORRIGIDA
@@ -182,11 +208,31 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     }, [entityData]);
 
     const handleNext = () => {
-        // ✅ Passar entityData
+        // ✅ Validação específica para passo 0
+        if (activeStep === 0 && !canAdvanceFromIdentification()) {
+            let errorMessage = "Complete os dados antes de continuar:";
+
+            if (!isEntityDataComplete()) {
+                errorMessage += "\n• Dados da entidade principal incompletos";
+            }
+
+            if (isRepresentative && !isRepresentativeDataComplete()) {
+                if (!representativeData) {
+                    errorMessage += "\n• Representante legal não encontrado - criar ou verificar NIF";
+                } else {
+                    errorMessage += "\n• Dados do representante legal incompletos";
+                }
+            }
+
+            notifyError(errorMessage);
+            return;
+        }
+
+        // Validação normal dos campos
         const newErrors = validateCurrentStep(
             activeStep, formData, billingAddress, shippingAddress,
             isDifferentAddress, paymentMethod, paymentInfo, docTypeParams, paramValues,
-            entityData // ✅ ADICIONAR
+            entityData
         );
 
         setErrors(newErrors);
@@ -379,6 +425,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         isInternal={isInternal}
                         handleInternalSwitch={handleInternalSwitch}
                         isInterProfile={isInterProfile}
+                        // ✅ Passar o hook completo
+                        entityDataHook={entityDataHook}
                     />
                 );
 
@@ -410,9 +458,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         isInternal={isInternal}
                         handleInternalSwitch={handleInternalSwitch}
                         isInterProfile={isInterProfile}
-                        selectedCountType={selectedCountType}
-                        selectedTypeText={selectedTypeText}
-                        previousDocuments={previousDocuments}
+                        // ✅ ADICIONAR estas props que estavam em falta:
+                        selectedCountType={documentParams.selectedCountType}
+                        selectedTypeText={documentParams.selectedTypeText}
+                        previousDocuments={entityDataHook.previousDocuments}
+                        // ✅ Adicionar entityData para debug
+                        entityData={entityData}
                     />
                 );
 
@@ -568,7 +619,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         <Button
                             variant="contained"
                             onClick={handleNext}
-                            disabled={loading}
+                            disabled={loading || (activeStep === 0 && !canAdvanceFromIdentification())}
                             endIcon={<NextIcon />}
                         >
                             Próximo
@@ -578,7 +629,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             </Dialog>
 
             {/* Sugestão criar entidade */}
-            <Dialog open={suggestEntityCreation} onClose={handleRejectCreateEntity}>
+            {/* <Dialog open={suggestEntityCreation} onClose={handleRejectCreateEntity}>
                 <DialogTitle>Entidade não encontrada</DialogTitle>
                 <DialogContent>
                     <Typography>
@@ -594,7 +645,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         Criar entidade
                     </Button>
                 </DialogActions>
-            </Dialog>
+            </Dialog> */}
 
             {/* Confirmação fechar */}
             <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
@@ -634,7 +685,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
             {entityDetailOpen && entityToUpdate && (
                 <EntityDetail
-                    entity={entityToUpdate}
+                    entity={entityToUpdate}  // ✅ Já correcto
                     onSave={handleEntityUpdate}
                     onClose={() => setEntityDetailOpen(false)}
                     open={entityDetailOpen}

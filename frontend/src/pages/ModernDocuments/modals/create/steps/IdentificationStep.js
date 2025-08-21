@@ -7,12 +7,15 @@ import {
     Checkbox,
     useTheme,
     Alert,
-    Button
+    Paper,
+    Button,
+    alpha
 } from '@mui/material';
 import {
     Business as BusinessIcon,
     Person as PersonIcon,
-    Warning as WarningIcon
+    Warning as WarningIcon,
+    CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 
 // Componentes personalizados
@@ -31,11 +34,13 @@ const IdentificationStep = ({
     handleRepresentativeToggle,
     isInternal,
     handleInternalSwitch,
-    isInterProfile
+    isInterProfile,
+    // ✅ Hook da entidade para accesso às funções
+    entityDataHook
 }) => {
     const theme = useTheme();
 
-    // ✅ Função para verificar se entidade tem dados incompletos
+    // Validação entidade
     const getEntityValidationStatus = (entity) => {
         if (!entity) return null;
 
@@ -63,17 +68,94 @@ const IdentificationStep = ({
     const entityValidation = getEntityValidationStatus(entityData);
     const representativeValidation = getEntityValidationStatus(representativeData);
 
+    // Componente para mostrar dados da entidade
+    const EntityDataDisplay = ({ entity, validation, title, icon }) => {
+        if (!entity) return null;
+
+        const isComplete = validation?.isComplete;
+
+        return (
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: 2,
+                    borderLeft: isComplete
+                        ? `4px solid ${theme.palette.success.main}`
+                        : `4px solid ${theme.palette.warning.main}`,
+                    bgcolor: isComplete
+                        ? alpha(theme.palette.success.main, 0.1)
+                        : alpha(theme.palette.warning.main, 0.1)
+                }}
+            >
+                {/* Header com título à esquerda e status à direita */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                    <Box display="flex" alignItems="center">
+                        {icon}
+                        <Typography variant="subtitle1" fontWeight="bold" sx={{ ml: 1 }}>
+                            {title}
+                        </Typography>
+                    </Box>
+
+                    {/* Status do lado direito */}
+                    {isComplete ? (
+                        <Typography variant="body2" color="success.dark" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <CheckCircleIcon fontSize="small" />
+                            Dados completos
+                        </Typography>
+                    ) : (
+                        <Typography variant="body2" color="warning.dark" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <WarningIcon fontSize="small" />
+                            Dados incompletos
+                        </Typography>
+                    )}
+                </Box>
+
+                <Typography variant="h6" fontWeight="medium" gutterBottom sx={{ color: 'text.primary' }}>
+                    {entity.name}
+                </Typography>
+
+                {isComplete ? (
+                    /* Contactos quando dados completos */
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        {entity.email && (
+                            <Typography variant="body2" color="text.secondary">
+                                📧 {entity.email}
+                            </Typography>
+                        )}
+                        {entity.phone && (
+                            <Typography variant="body2" color="text.secondary">
+                                📞 {entity.phone}
+                            </Typography>
+                        )}
+                    </Box>
+                ) : (
+                    /* Botão de actualizar quando dados incompletos */
+                    <Box display="flex" justifyContent="flex-end" sx={{ mt: 1 }}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            onClick={() => {
+                                entityDataHook.setEntityToUpdate(entity);
+                                entityDataHook.setEntityDetailOpen(true);
+                            }}
+                        >
+                            Actualizar
+                        </Button>
+                    </Box>
+                )}
+            </Paper>
+        );
+    };
+
     return (
         <Box>
+            {/* Controlos superiores */}
             <Box
                 display="flex"
                 justifyContent="space-between"
                 alignItems="center"
-                sx={{
-                    borderBottom: !isRepresentative ? `1px solid ${theme.palette.divider}` : 'none',
-                    pb: !isRepresentative ? 2 : 0,
-                    mb: 2
-                }}
+                sx={{ mb: 3, pb: 2, borderBottom: `1px solid ${theme.palette.divider}` }}
             >
                 {isInterProfile && (
                     <FormControlLabel
@@ -101,126 +183,150 @@ const IdentificationStep = ({
                 />
             </Box>
 
+            {/* Layout duas colunas */}
             <Grid container spacing={3}>
-                <Grid size={{ xs: 12 }} md={isRepresentative ? 6 : 12}>
+                {/* COLUNA ESQUERDA - Inputs */}
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Box
                         sx={{
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderLeft: entityData
-                                ? (entityValidation?.isComplete
-                                    ? `3px solid ${theme.palette.success.main}`
-                                    : `3px solid ${theme.palette.warning.main}`)
-                                : `3px solid ${theme.palette.primary.main}`,
-                            borderRadius: 1,
-                            p: 2
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 3,
+                            height: '100%'
                         }}
                     >
-                        <Box display="flex" alignItems="center" mb={2}>
-                            <BusinessIcon color="primary" sx={{ mr: 1 }} />
-                            <Typography variant="h6">
-                                Identificação da Entidade
-                            </Typography>
-                        </Box>
-
-                        <EntitySearchField
-                            value={formData.nipc}
-                            onChange={handleNipcChange}
-                            onEntityFound={setEntityData}
-                            entityData={entityData}
-                            error={!!errors.nipc}
-                            helperText={errors.nipc}
-                            name="nipc"
-                            disabled={isInternal}
-                        />
-
-                        {/* ✅ Alerta de dados incompletos */}
-                        {entityData && entityValidation && !entityValidation.isComplete && (
-                            <Alert
-                                severity="warning"
-                                sx={{ mt: 2 }}
-                                icon={<WarningIcon />}
-                            >
-                                <Box>
-                                    <Typography variant="body2" gutterBottom>
-                                        <strong>Dados incompletos:</strong>
-                                    </Typography>
-                                    <Typography variant="body2" gutterBottom>
-                                        {entityValidation.missingLabels.join(', ')}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Complete os dados para prosseguir correctamente.
-                                    </Typography>
-                                </Box>
-                            </Alert>
-                        )}
-
-                        {/* ✅ Confirmação de dados completos */}
-                        {entityData && entityValidation?.isComplete && (
-                            <Alert severity="success" sx={{ mt: 2 }}>
-                                Dados da entidade completos ✓
-                            </Alert>
-                        )}
-                    </Box>
-                </Grid>
-
-                {isRepresentative && (
-                    <Grid size={{ xs: 12 }} md={6}>
-                        <Box
+                        {/* Input da entidade principal */}
+                        <Paper
+                            variant="outlined"
                             sx={{
-                                border: `1px solid ${theme.palette.divider}`,
-                                borderLeft: representativeData
-                                    ? (representativeValidation?.isComplete
-                                        ? `3px solid ${theme.palette.success.main}`
-                                        : `3px solid ${theme.palette.warning.main}`)
-                                    : `3px solid ${theme.palette.secondary.main}`,
-                                borderRadius: 1,
                                 p: 2,
+                                borderLeft: `4px solid ${theme.palette.primary.main}`
                             }}
                         >
                             <Box display="flex" alignItems="center" mb={2}>
-                                <PersonIcon color="secondary" sx={{ mr: 1 }} />
+                                <BusinessIcon color="primary" sx={{ mr: 1 }} />
                                 <Typography variant="h6">
-                                    Dados do Representante
+                                    Identificação da Entidade
                                 </Typography>
                             </Box>
 
                             <EntitySearchField
-                                value={formData.tb_representative}
-                                onChange={handleChange}
-                                onEntityFound={setRepresentativeData}
-                                entityData={representativeData}
-                                error={!!errors.tb_representative}
-                                helperText={errors.tb_representative}
-                                name="tb_representative"
+                                value={formData.nipc}
+                                onChange={handleNipcChange}
+                                onEntityFound={setEntityData}
+                                entityData={null} // Não mostrar card aqui
+                                error={!!errors.nipc}
+                                helperText={errors.nipc}
+                                name="nipc"
+                                disabled={isInternal}
                             />
+                        </Paper>
 
-                            {/* ✅ Alerta de dados incompletos do representante */}
-                            {representativeData && representativeValidation && !representativeValidation.isComplete && (
-                                <Alert
-                                    severity="warning"
-                                    sx={{ mt: 2 }}
-                                    icon={<WarningIcon />}
+                        {/* Input do representante (se activado) */}
+                        {isRepresentative && (
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 2,
+                                    borderLeft: `4px solid ${theme.palette.secondary.main}`
+                                }}
+                            >
+                                <Box display="flex" alignItems="center" mb={2}>
+                                    <PersonIcon color="secondary" sx={{ mr: 1 }} />
+                                    <Typography variant="h6">
+                                        Dados do Representante
+                                    </Typography>
+                                </Box>
+
+                                <EntitySearchField
+                                    value={formData.tb_representative}
+                                    onChange={handleChange}
+                                    onEntityFound={setRepresentativeData}
+                                    entityData={null} // Não mostrar card aqui
+                                    error={!!errors.tb_representative}
+                                    helperText={errors.tb_representative}
+                                    name="tb_representative"
+                                />
+                            </Paper>
+                        )}
+                    </Box>
+                </Grid>
+
+                {/* COLUNA DIREITA - Dados das entidades */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 3,
+                            height: '100%'
+                        }}
+                    >
+                        {/* Dados da entidade principal */}
+                        {entityData ? (
+                            <EntityDataDisplay
+                                entity={entityData}
+                                validation={entityValidation}
+                                title="Entidade Principal"
+                                icon={<BusinessIcon color="primary" />}
+                            />
+                        ) : (
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 3,
+                                    textAlign: 'center',
+                                    bgcolor: 'background.default',
+                                    border: `2px dashed ${theme.palette.divider}`
+                                }}
+                            >
+                                <BusinessIcon
+                                    sx={{
+                                        fontSize: 48,
+                                        color: 'text.disabled',
+                                        mb: 1
+                                    }}
+                                />
+                                <Typography variant="body2" color="text.secondary">
+                                    Introduza um NIF válido para ver os dados da entidade
+                                </Typography>
+                            </Paper>
+                        )}
+
+                        {/* Dados do representante */}
+                        {isRepresentative && (
+                            representativeData ? (
+                                <EntityDataDisplay
+                                    entity={representativeData}
+                                    validation={representativeValidation}
+                                    title="Representante Legal"
+                                    icon={<PersonIcon color="secondary" />}
+                                />
+                            ) : (
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        p: 3,
+                                        textAlign: 'center',
+                                        bgcolor: 'background.default',
+                                        border: `2px dashed ${theme.palette.divider}`
+                                    }}
                                 >
-                                    <Box>
-                                        <Typography variant="body2" gutterBottom>
-                                            <strong>Dados incompletos:</strong>
-                                        </Typography>
-                                        <Typography variant="body2" gutterBottom>
-                                            {representativeValidation.missingLabels.join(', ')}
-                                        </Typography>
-                                    </Box>
-                                </Alert>
-                            )}
-
-                            {/* ✅ Confirmação de dados completos do representante */}
-                            {representativeData && representativeValidation?.isComplete && (
-                                <Alert severity="success" sx={{ mt: 2 }}>
-                                    Dados do representante completos ✓
-                                </Alert>
-                            )}
-                        </Box>
-                    </Grid>
-                )}
+                                    <PersonIcon
+                                        sx={{
+                                            fontSize: 48,
+                                            color: 'text.disabled',
+                                            mb: 1
+                                        }}
+                                    />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Introduza o NIF do representante legal
+                                    </Typography>
+                                </Paper>
+                            )
+                        )}
+                    </Box>
+                </Grid>
             </Grid>
         </Box>
     );
