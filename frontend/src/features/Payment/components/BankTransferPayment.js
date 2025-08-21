@@ -1,40 +1,125 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useCallback } from 'react';
 import {
-    Box, Button, TextField, Typography, Alert, CircularProgress,
-    Paper, InputAdornment, Grid
+    Box,
+    Button,
+    TextField,
+    Typography,
+    Alert,
+    CircularProgress,
+    Paper,
+    InputAdornment,
+    Grid,
+    Divider
 } from '@mui/material';
-import { AccountBalance as BankIcon } from '@mui/icons-material';
+import { AccountBalance as BankIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
+import { useDropzone } from 'react-dropzone';
 import { PaymentContext } from '../context/PaymentContext';
+import { generateFilePreview } from '../../../pages/ModernDocuments/utils/fileUtils';
+import { addDocumentAnnex } from '../../../services/documentService';
 
 const BankTransferPayment = ({ onSuccess, userInfo }) => {
     const { state, payManual } = useContext(PaymentContext);
 
+    // Estados do formulário
     const [formData, setFormData] = useState({
         accountHolder: '',
-        iban: '',
         transferDate: new Date().toISOString().split('T')[0],
         transferReference: '',
         notes: ''
     });
+
+    const [attachments, setAttachments] = useState([]);
     const [error, setError] = useState('');
 
-    const formatIBAN = (value) => {
-        const clean = value.replace(/\s/g, '').toUpperCase();
-        return clean.match(/.{1,4}/g)?.join(' ') || clean;
-    };
-
+    // Handler para mudanças no formulário
     const handleChange = (field) => (e) => {
-        const value = field === 'iban' ? formatIBAN(e.target.value) : e.target.value;
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => ({ ...prev, [field]: e.target.value }));
     };
 
+    // Upload de comprovativos
+    const onDropAttachments = useCallback(async (acceptedFiles) => {
+        if (acceptedFiles.length + attachments.length > 3) {
+            setError('Máximo 3 comprovativos.');
+            return;
+        }
+
+        const newFiles = await Promise.all(
+            acceptedFiles.map(async (file) => {
+                const preview = await generateFilePreview(file);
+                return {
+                    file,
+                    preview,
+                    description: `Comprovativo transferência - ${formData.accountHolder}`,
+                };
+            })
+        );
+
+        setAttachments(prev => [...prev, ...newFiles]);
+        setError('');
+    }, [attachments.length, formData.accountHolder]);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop: onDropAttachments,
+        accept: {
+            'application/pdf': ['.pdf'],
+            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        },
+        maxFiles: 3
+    });
+
+    // Remoção de anexos
+    const handleRemoveAttachment = (index) => {
+        const updatedFiles = [...attachments];
+        updatedFiles.splice(index, 1);
+        setAttachments(updatedFiles);
+    };
+
+    // Actualização de descrições
+    const handleAttachmentDescriptionChange = (index, value) => {
+        const updatedFiles = [...attachments];
+        updatedFiles[index].description = value;
+        setAttachments(updatedFiles);
+    };
+
+    // Anexar comprovativos ao documento
+    const addAttachmentsToDocument = async (documentId) => {
+        if (attachments.length === 0) return true;
+
+        try {
+            const formDataAttachments = new FormData();
+            formDataAttachments.append('tb_document', documentId);
+
+            attachments.forEach((fileItem) => {
+                formDataAttachments.append('files', fileItem.file);
+                formDataAttachments.append('descr', fileItem.description);
+            });
+
+            await addDocumentAnnex(formDataAttachments);
+            console.log('✅ Comprovativos anexados');
+            return true;
+        } catch (error) {
+            console.error('❌ Erro anexar comprovativos:', error);
+            return false;
+        }
+    };
+
+    // Validação do formulário
     const validateForm = () => {
         if (!formData.accountHolder.trim()) return 'Nome do titular obrigatório';
-        if (!formData.iban.trim() || formData.iban.replace(/\s/g, '').length < 15) return 'IBAN inválido';
         if (!formData.transferDate) return 'Data obrigatória';
+        if (attachments.length === 0) return 'Comprovativo obrigatório';
+
+        // Validar descrições dos anexos
+        for (let i = 0; i < attachments.length; i++) {
+            if (!attachments[i].description.trim()) {
+                return 'Todos os comprovativos devem ter descrição';
+            }
+        }
+
         return null;
     };
 
+    // Submissão do pagamento
     const handlePay = async () => {
         const validation = validateForm();
         if (validation) {
@@ -44,38 +129,28 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
 
         setError('');
         try {
-            console.log('🏦 Processando transferência bancária:', {
-                amount: state.amount,
-                formData
-            });
-
-            // Criar estrutura de dados detalhada
-            const transferDetails = {
-                type: 'BANK_TRANSFER',
-                accountHolder: formData.accountHolder.trim(),
-                iban: formData.iban.replace(/\s/g, ''),
-                transferDate: formData.transferDate,
-                transferReference: formData.transferReference.trim(),
-                notes: formData.notes.trim(),
-                amount: state.amount,
-                submitted_at: new Date().toISOString()
-            };
-
-            // Criar descrição legível para reference_info
-            const referenceInfo = `Transferência bancária de ${formData.accountHolder} (IBAN: ${formData.iban}) realizada em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''}`;
+            // Criar referência detalhada
+            const referenceInfo = `Transferência de ${formData.accountHolder} em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''} [${attachments.length} anexo(s)]`;
 
             const result = await payManual('BANK_TRANSFER', referenceInfo);
 
-            console.log('✅ Transferência registada:', result);
+            // Anexar comprovativos ao documento
+            if (attachments.length > 0) {
+                const attachmentSuccess = await addAttachmentsToDocument(state.documentId);
+                if (!attachmentSuccess) {
+                    console.warn('⚠️ Pagamento registado mas erro ao anexar comprovativos');
+                }
+            }
+
             onSuccess?.(result);
         } catch (err) {
-            console.error('❌ Erro transferência:', err);
             setError(err.message);
         }
     };
 
     return (
         <Box sx={{ p: 3 }}>
+            {/* Header */}
             <Box sx={{ textAlign: 'center', mb: 3 }}>
                 <BankIcon sx={{ fontSize: 48, color: 'primary.main' }} />
                 <Typography variant="h6" gutterBottom>
@@ -111,65 +186,170 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 </Grid>
             </Paper>
 
-            {/* Formulário de confirmação */}
+            {/* Formulário */}
             <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
-                📝 Confirmação da transferência realizada:
+                📝 Dados da transferência realizada:
             </Typography>
 
-            <TextField
-                fullWidth
-                required
-                label="Titular da conta origem"
-                value={formData.accountHolder}
-                onChange={handleChange('accountHolder')}
-                InputProps={{
-                    startAdornment: <InputAdornment position="start"><BankIcon /></InputAdornment>
-                }}
-                sx={{ mb: 2 }}
-                helperText="Nome do titular da conta que fez a transferência"
-            />
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                        fullWidth
+                        required
+                        label="Titular da conta origem"
+                        value={formData.accountHolder}
+                        onChange={handleChange('accountHolder')}
+                        InputProps={{
+                            startAdornment: <InputAdornment position="start"><BankIcon /></InputAdornment>
+                        }}
+                        helperText="Nome do titular que fez a transferência"
+                    />
+                </Grid>
 
-            <TextField
-                fullWidth
-                required
-                label="IBAN da conta origem"
-                value={formData.iban}
-                onChange={handleChange('iban')}
-                placeholder="PT50 0000 0000 0000 0000 0000 0"
-                sx={{ mb: 2 }}
-                helperText="IBAN da conta que fez a transferência"
-            />
+                <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                        fullWidth
+                        required
+                        type="date"
+                        label="Data da transferência"
+                        value={formData.transferDate}
+                        onChange={handleChange('transferDate')}
+                        InputLabelProps={{ shrink: true }}
+                    />
+                </Grid>
 
-            <TextField
-                fullWidth
-                required
-                type="date"
-                label="Data da transferência"
-                value={formData.transferDate}
-                onChange={handleChange('transferDate')}
-                InputLabelProps={{ shrink: true }}
-                sx={{ mb: 2 }}
-            />
+                <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                        fullWidth
+                        label="Referência da transferência"
+                        value={formData.transferReference}
+                        onChange={handleChange('transferReference')}
+                        helperText="Referência ou número da operação"
+                    />
+                </Grid>
 
-            <TextField
-                fullWidth
-                label="Referência da transferência"
-                value={formData.transferReference}
-                onChange={handleChange('transferReference')}
-                sx={{ mb: 2 }}
-                helperText="Referência ou número da operação (se disponível)"
-            />
+                <Grid size={{ xs: 12 }}>
+                    <TextField
+                        fullWidth
+                        label="Observações"
+                        multiline
+                        rows={2}
+                        value={formData.notes}
+                        onChange={handleChange('notes')}
+                        helperText="Informações adicionais"
+                    />
+                </Grid>
+            </Grid>
 
-            <TextField
-                fullWidth
-                label="Observações"
-                multiline
-                rows={2}
-                value={formData.notes}
-                onChange={handleChange('notes')}
-                sx={{ mb: 2 }}
-                helperText="Informações adicionais que possam ajudar na validação"
-            />
+            {/* Upload de comprovativos */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" gutterBottom>
+                📎 Comprovativos (Obrigatório)
+            </Typography>
+
+            {attachments.length < 3 && (
+                <Box
+                    {...getRootProps()}
+                    sx={{
+                        border: isDragActive ? `2px dashed #1976d2` : `2px dashed #e0e0e0`,
+                        borderRadius: 1,
+                        p: 2,
+                        textAlign: 'center',
+                        bgcolor: isDragActive ? 'rgba(25, 118, 210, 0.04)' : 'background.paper',
+                        cursor: 'pointer',
+                        mb: 2,
+                        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+                    }}
+                >
+                    <input {...getInputProps()} />
+                    <UploadIcon sx={{ fontSize: 24, mb: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                        {isDragActive ? 'Solte aqui...' : 'Clique ou arraste comprovativos'}
+                    </Typography>
+                </Box>
+            )}
+
+            {attachments.length > 0 && (
+                <Paper sx={{ p: 2, mb: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                        Comprovativos ({attachments.length})
+                    </Typography>
+                    <Grid container spacing={2}>
+                        {attachments.map((fileItem, index) => (
+                            <Grid size={{ xs: 12, md: 6 }} key={index}>
+                                <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: 2,
+                                    p: 2,
+                                    border: 1,
+                                    borderColor: 'divider',
+                                    borderRadius: 1
+                                }}>
+                                    <Box sx={{ flexShrink: 0 }}>
+                                        {fileItem.preview && fileItem.preview !== "url/to/generic/file/icon.png" ? (
+                                            <img
+                                                src={fileItem.preview}
+                                                alt="preview"
+                                                style={{ width: 60, height: 60, objectFit: 'contain' }}
+                                            />
+                                        ) : (
+                                            <Box sx={{
+                                                width: 60,
+                                                height: 60,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                bgcolor: 'grey.200',
+                                                borderRadius: 1
+                                            }}>
+                                                📄
+                                            </Box>
+                                        )}
+                                    </Box>
+
+                                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                        <Typography variant="body2" fontWeight="medium" noWrap>
+                                            {fileItem.file.name}
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="Descrição"
+                                            value={fileItem.description}
+                                            onChange={(e) => handleAttachmentDescriptionChange(index, e.target.value)}
+                                            required
+                                            sx={{ mt: 1 }}
+                                        />
+                                    </Box>
+
+                                    <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 40,
+                                        height: 60
+                                    }}>
+                                        <Button
+                                            size="small"
+                                            onClick={() => handleRemoveAttachment(index)}
+                                            sx={{
+                                                minWidth: 32,
+                                                height: 32,
+                                                color: '#d32f2f'
+                                            }}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M3 6h18v2H3V6zm2 3h14l-1 14H6L5 9zm5-6h4v1H10V3z" />
+                                            </svg>
+                                        </Button>
+                                    </Box>
+                                </Box>
+                            </Grid>
+                        ))}
+                    </Grid>
+                </Paper>
+            )}
 
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -195,9 +375,10 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
 
             <Alert severity="info" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                    <strong>Nota importante:</strong><br />
-                    • Este registo confirma que a transferência já foi realizada<br />
-                    • Será necessária validação posterior para aprovação<br />
+                    <strong>Importante:</strong><br />
+                    • Este registo confirma que a transferência foi realizada<br />
+                    • Será necessária validação posterior<br />
+                    {attachments.length > 0 && `• ${attachments.length} comprovativo(s) será(ão) anexado(s)<br />`}
                     • Certifique-se de que os dados estão corretos
                 </Typography>
             </Alert>

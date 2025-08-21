@@ -237,12 +237,16 @@ const IdentificationStep = ({
                                         Dados do Representante
                                     </Typography>
                                 </Box>
-
                                 <EntitySearchField
                                     value={formData.tb_representative}
-                                    onChange={handleChange}
+                                    onChange={(e) => {
+                                        handleChange(e);
+                                        if (e.target.value?.length === 9) {
+                                            entityDataHook.checkRepresentativeData(e.target.value);
+                                        }
+                                    }}
                                     onEntityFound={setRepresentativeData}
-                                    entityData={null} // Não mostrar card aqui
+                                    entityData={null}
                                     error={!!errors.tb_representative}
                                     helperText={errors.tb_representative}
                                     name="tb_representative"

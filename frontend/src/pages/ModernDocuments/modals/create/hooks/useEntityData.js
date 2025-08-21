@@ -157,38 +157,29 @@ export const useEntityData = (formData, setFormData) => {
     };
 
     // ✅ Verificar dados da entidade pelo NIPC/NIF - ACTUALIZADO
-    const checkEntityData = async (nipc, isRep = false) => {
-        console.log("Verificando entidade com NIPC/NIF:", nipc, "isRep:", isRep);
+    // Função específica para entidade principal
+    const checkEntityData = async (nipc) => {
+        console.log("Verificando entidade principal:", nipc);
 
-        // ✅ VALIDAÇÃO 1: Verificar se NIF é válido PRIMEIRO
         if (!isValidNIF(nipc)) {
-            notifyError("NIF inválido. Introduza um NIF válido.");
-            // ✅ CRÍTICO: Limpar estados quando NIF é inválido
-            if (isRep) {
-                setRepresentativeData(null);
-                setFormData(prev => ({ ...prev, tb_representative: '' }));
-            } else {
-                setEntityData(null);
-                setBillingAddress({
-                    postal: '', address: '', door: '', floor: '',
-                    nut1: '', nut2: '', nut3: '', nut4: ''
-                });
-            }
+            notifyError("NIF inválido.");
+            setEntityData(null);
+            setBillingAddress({
+                postal: '', address: '', door: '', floor: '',
+                nut1: '', nut2: '', nut3: '', nut4: ''
+            });
             return null;
         }
 
-        // ✅ VALIDAÇÃO 2: Só consultar BD se NIF for algoritmicamente válido
         try {
             const response = await getEntityByNIF(nipc);
-            console.log("Resposta da verificação:", response?.entity);
 
-            if (!response || !response.entity) {
-                // ✅ NIF VÁLIDO mas entidade não existe - AGORA pode sugerir criação
+            if (!response?.entity) {
                 setNewEntityNipc(nipc);
                 notifyCustom((t) => (
                     <Box>
                         <Typography variant="body1" gutterBottom>
-                            Entidade não encontrada. Deseja criar uma nova?
+                            Entidade não encontrada. Criar nova?
                         </Typography>
                         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
                             <Button
@@ -203,11 +194,7 @@ export const useEntityData = (formData, setFormData) => {
                             >
                                 Criar Entidade
                             </Button>
-                            <Button
-                                onClick={() => toast.dismiss(t)}
-                                variant="outlined"
-                                size="small"
-                            >
+                            <Button onClick={() => toast.dismiss(t)} variant="outlined" size="small">
                                 Cancelar
                             </Button>
                         </Box>
@@ -216,52 +203,26 @@ export const useEntityData = (formData, setFormData) => {
                 return null;
             }
 
-            // Resto da lógica permanece igual...
             const entity = response.entity;
-            console.log("Entidade encontrada:", entity);
-
             const validation = validateEntityCompleteness(entity);
 
             if (validation.isIncomplete) {
-                console.log("Entidade incompleta. Campos em falta:", validation.missingFields);
-
                 const fieldLabels = {
-                    phone: 'Telefone',
-                    nut1: 'Distrito',
-                    nut2: 'Concelho',
-                    nut3: 'Freguesia',
-                    nut4: 'Localidade'
+                    phone: 'Telefone', nut1: 'Distrito', nut2: 'Concelho',
+                    nut3: 'Freguesia', nut4: 'Localidade'
                 };
-
                 const missingLabels = validation.missingFields.map(field => fieldLabels[field] || field);
 
                 notifyCustom((t) => (
                     <Box>
-                        <Typography variant="body1" gutterBottom>
-                            <strong>Dados incompletos</strong>
-                        </Typography>
-                        <Typography variant="body2" gutterBottom>
-                            A entidade não possui os seguintes campos obrigatórios:
-                        </Typography>
+                        <Typography variant="body1" gutterBottom><strong>Dados incompletos</strong></Typography>
                         <Typography variant="body2" color="error" gutterBottom sx={{ fontWeight: 'bold' }}>
                             • {missingLabels.join(', ')}
                         </Typography>
-                        <Typography variant="body2" gutterBottom>
-                            Para poder proceseguir tem de actualizar os dados da entidade!
-                        </Typography>
-                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2, gap: 1 }}>
-                            {/* <Button
-                                onClick={() => {
-                                    toast.dismiss(t);
-                                }}
-                                variant="outlined"
-                                size="small"
-                            >
-                                Continuar assim
-                            </Button> */}
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
                             <Button
                                 onClick={() => {
-                                    setEntityToUpdate(entity);
+                                    setEntityToUpdate({ ...entity, _isRepresentative: false });
                                     setEntityDetailOpen(true);
                                     toast.dismiss(t);
                                 }}
@@ -273,57 +234,127 @@ export const useEntityData = (formData, setFormData) => {
                             </Button>
                         </Box>
                     </Box>
-                ), {
-                    duration: 0,
-                    position: 'top-center'
-                });
-
+                ), { duration: 0, position: 'top-center' });
                 return entity;
             }
 
-            // Entidade completa - prosseguir normalmente
+            // Entidade completa
             const addressData = {
-                postal: entity.postal || "",
-                address: entity.address || "",
-                door: entity.door || "",
-                floor: entity.floor || "",
-                nut1: entity.nut1 || "",
-                nut2: entity.nut2 || "",
-                nut3: entity.nut3 || "",
-                nut4: entity.nut4 || "",
+                postal: entity.postal || "", address: entity.address || "",
+                door: entity.door || "", floor: entity.floor || "",
+                nut1: entity.nut1 || "", nut2: entity.nut2 || "",
+                nut3: entity.nut3 || "", nut4: entity.nut4 || ""
             };
 
-            console.log("Dados de endereço obtidos:", addressData);
+            setEntityData(entity);
+            setBillingAddress(addressData);
+            setFormData(prev => ({
+                ...prev,
+                nipc: nipc,
+                ...(entity.ts_associate ? { ts_associate: entity.ts_associate } : {})
+            }));
 
-            if (isRep) {
-                setRepresentativeData(entity);
-                setFormData(prev => ({
-                    ...prev,
-                    tb_representative: nipc
-                }));
-                notifyInfo(`NIF do representante inserido corresponde a - ${entity.name}`);
-            } else {
-                setEntityData(entity);
-                console.log("Configurando billingAddress com:", addressData);
-                setBillingAddress(addressData);
-
-                setFormData(prev => ({
-                    ...prev,
-                    nipc: nipc,
-                    ...(entity.ts_associate ? { ts_associate: entity.ts_associate } : {})
-                }));
-
-                if (!isDifferentAddress) {
-                    setShippingAddress({ ...addressData });
-                }
-
-                notifyInfo(`NIF inserido corresponde a - ${entity.name}`);
+            if (!isDifferentAddress) {
+                setShippingAddress({ ...addressData });
             }
 
+            notifyInfo(`Entidade: ${entity.name}`);
             return entity;
+
         } catch (error) {
             console.error("Erro ao verificar entidade:", error);
-            notifyError("Erro ao verificar os dados da entidade.");
+            notifyError("Erro ao verificar entidade.");
+            return null;
+        }
+    };
+
+    // Função específica para representante
+    const checkRepresentativeData = async (nipc) => {
+        console.log("Verificando representante:", nipc);
+
+        if (!isValidNIF(nipc)) {
+            notifyError("NIF do representante inválido.");
+            setRepresentativeData(null);
+            setFormData(prev => ({ ...prev, tb_representative: '' }));
+            return null;
+        }
+
+        try {
+            const response = await getEntityByNIF(nipc);
+
+            if (!response?.entity) {
+                setNewEntityNipc(nipc);
+                notifyCustom((t) => (
+                    <Box>
+                        <Typography variant="body1" gutterBottom>
+                            Representante não encontrado. Criar nova entidade?
+                        </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                            <Button
+                                onClick={() => {
+                                    setCreateEntityModalOpen(true);
+                                    toast.dismiss(t);
+                                }}
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                sx={{ mr: 1 }}
+                            >
+                                Criar Entidade
+                            </Button>
+                            <Button onClick={() => toast.dismiss(t)} variant="outlined" size="small">
+                                Cancelar
+                            </Button>
+                        </Box>
+                    </Box>
+                ));
+                return null;
+            }
+
+            const entity = response.entity;
+            const validation = validateEntityCompleteness(entity);
+
+            if (validation.isIncomplete) {
+                const fieldLabels = {
+                    phone: 'Telefone', nut1: 'Distrito', nut2: 'Concelho',
+                    nut3: 'Freguesia', nut4: 'Localidade'
+                };
+                const missingLabels = validation.missingFields.map(field => fieldLabels[field] || field);
+
+                notifyCustom((t) => (
+                    <Box>
+                        <Typography variant="body1" gutterBottom><strong>Representante com dados incompletos</strong></Typography>
+                        <Typography variant="body2" color="error" gutterBottom sx={{ fontWeight: 'bold' }}>
+                            • {missingLabels.join(', ')}
+                        </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                            <Button
+                                onClick={() => {
+                                    setEntityToUpdate({ ...entity, _isRepresentative: true });
+                                    setEntityDetailOpen(true);
+                                    toast.dismiss(t);
+                                }}
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                            >
+                                Actualizar Representante
+                            </Button>
+                        </Box>
+                    </Box>
+                ), { duration: 0, position: 'top-center' });
+                return entity;
+            }
+
+            // Representante completo
+            setRepresentativeData(entity);
+            setFormData(prev => ({ ...prev, tb_representative: nipc }));
+            notifyInfo(`Representante: ${entity.name}`);
+            return entity;
+
+        } catch (error) {
+            console.error("Erro ao verificar representante:", error);
+            notifyError("Erro ao verificar representante.");
             return null;
         }
     };
@@ -406,13 +437,11 @@ export const useEntityData = (formData, setFormData) => {
                 const response = await getEntityByNIF(newEntity.nipc);
                 if (response && response.entity) {
                     const entity = response.entity;
-
-                    // ✅ VALIDAR entidade recém-criada também
                     const validation = validateEntityCompleteness(entity);
 
                     if (validation.isIncomplete) {
                         notifyWarning(
-                            `A entidade recém-criada possui campos incompletos: ${validation.missingFields.join(', ')}. Por favor, complete os dados.`
+                            `A entidade recém-criada possui campos incompletos: ${validation.missingFields.join(', ')}. Complete os dados.`
                         );
                         setEntityToUpdate(entity);
                         setIsUpdateNeeded(true);
@@ -429,13 +458,18 @@ export const useEntityData = (formData, setFormData) => {
                         nut4: entity.nut4 || "",
                     };
 
-                    if (isRepresentative) {
+                    // ✅ DETERMINAR CONTEXTO DA CRIAÇÃO
+                    const isForRepresentative = newEntityNipc === formData.tb_representative;
+
+                    if (isForRepresentative) {
+                        // ✅ NOVA ENTIDADE É REPRESENTANTE
                         setRepresentativeData(entity);
                         setFormData(prev => ({
                             ...prev,
                             tb_representative: entity.nipc
                         }));
                     } else {
+                        // ✅ NOVA ENTIDADE É PRINCIPAL
                         setEntityData(entity);
                         setBillingAddress({ ...newAddressData });
                         setFormData(prev => ({
@@ -460,51 +494,50 @@ export const useEntityData = (formData, setFormData) => {
     };
 
     // Atualizar entidade
+    // useEntityData.js - handleEntityUpdate
     const handleEntityUpdate = async (updatedEntity) => {
         try {
             await updateEntity(updatedEntity);
 
-            // ✅ VALIDAR entidade actualizada
             const validation = validateEntityCompleteness(updatedEntity);
-
             if (validation.isIncomplete) {
-                notifyWarning(
-                    `A entidade ainda possui campos incompletos: ${validation.missingFields.join(', ')}.`
-                );
-                // Manter o modal aberto se ainda houver campos em falta
+                notifyWarning(`Campos incompletos: ${validation.missingFields.join(', ')}.`);
                 return;
             }
 
-            notifySuccess("Entidade atualizada com sucesso.");
-            setEntityData(updatedEntity);
+            notifySuccess("Entidade actualizada com sucesso.");
 
-            const updatedBillingAddress = {
-                postal: updatedEntity.postal || "",
-                address: updatedEntity.address || "",
-                door: updatedEntity.door || "",
-                floor: updatedEntity.floor || "",
-                nut1: updatedEntity.nut1 || "",
-                nut2: updatedEntity.nut2 || "",
-                nut3: updatedEntity.nut3 || "",
-                nut4: updatedEntity.nut4 || "",
-            };
+            // ✅ CORRECÇÃO: Verificar flag _isRepresentative primeiro
+            if (updatedEntity._isRepresentative === true) {
+                console.log("Actualizando dados do representante");
+                setRepresentativeData(updatedEntity);
+            } else {
+                console.log("Actualizando dados da entidade principal");
+                setEntityData(updatedEntity);
 
-            setBillingAddress({ ...updatedBillingAddress });
+                // Só actualizar endereços para entidade principal
+                const addressData = {
+                    postal: updatedEntity.postal || "",
+                    address: updatedEntity.address || "",
+                    door: updatedEntity.door || "",
+                    floor: updatedEntity.floor || "",
+                    nut1: updatedEntity.nut1 || "",
+                    nut2: updatedEntity.nut2 || "",
+                    nut3: updatedEntity.nut3 || "",
+                    nut4: updatedEntity.nut4 || "",
+                };
 
-            setFormData(prevDocument => ({
-                ...prevDocument,
-                nipc: updatedEntity.nipc,
-                ...(updatedEntity.ts_associate ? { ts_associate: updatedEntity.ts_associate } : {})
-            }));
+                setBillingAddress(addressData);
 
-            if (!isDifferentAddress) {
-                setShippingAddress({ ...updatedBillingAddress });
+                if (!isDifferentAddress) {
+                    setShippingAddress(addressData);
+                }
             }
 
             setEntityDetailOpen(false);
             setIsUpdateNeeded(false);
         } catch (error) {
-            notifyError("Erro ao atualizar entidade.");
+            notifyError("Erro ao actualizar entidade.");
         }
     };
 
@@ -533,6 +566,7 @@ export const useEntityData = (formData, setFormData) => {
         entityDetailOpen,
         setEntityDetailOpen,
         checkEntityData,
+        checkRepresentativeData,
         handleRepresentativeToggle,
         handleDifferentAddressToggle,
         handleEntityUpdate,
