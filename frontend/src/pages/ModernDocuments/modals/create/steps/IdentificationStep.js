@@ -1,3 +1,5 @@
+// IdentificationStep.js - CORRIGIDO
+
 import React from 'react';
 import {
     Grid,
@@ -18,7 +20,6 @@ import {
     CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 
-// Componentes personalizados
 import EntitySearchField from '../fields/EntitySearchField';
 
 const IdentificationStep = ({
@@ -35,12 +36,11 @@ const IdentificationStep = ({
     isInternal,
     handleInternalSwitch,
     isInterProfile,
-    // ✅ Hook da entidade para accesso às funções
     entityDataHook
 }) => {
     const theme = useTheme();
 
-    // Validação entidade
+    // ✅ Validação entidade
     const getEntityValidationStatus = (entity) => {
         if (!entity) return null;
 
@@ -68,8 +68,28 @@ const IdentificationStep = ({
     const entityValidation = getEntityValidationStatus(entityData);
     const representativeValidation = getEntityValidationStatus(representativeData);
 
+    // ✅ CRÍTICO: Handler para entidade principal
+    const handleEntityNipcChange = async (e) => {
+        const nipc = e.target.value;
+        handleNipcChange(e); // Actualizar form
+
+        if (nipc && nipc.length >= 9) {
+            await entityDataHook.checkEntityData(nipc);
+        }
+    };
+
+    // ✅ CRÍTICO: Handler para representante
+    const handleRepresentativeNipcChange = async (e) => {
+        const nipc = e.target.value;
+        handleChange(e); // Actualizar form
+
+        if (nipc && nipc.length >= 9) {
+            await entityDataHook.checkRepresentativeData(nipc);
+        }
+    };
+
     // Componente para mostrar dados da entidade
-    const EntityDataDisplay = ({ entity, validation, title, icon }) => {
+    const EntityDataDisplay = ({ entity, validation, title, icon, isRepresentativeEntity }) => {
         if (!entity) return null;
 
         const isComplete = validation?.isComplete;
@@ -87,7 +107,6 @@ const IdentificationStep = ({
                         : alpha(theme.palette.warning.main, 0.1)
                 }}
             >
-                {/* Header com título à esquerda e status à direita */}
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
                     <Box display="flex" alignItems="center">
                         {icon}
@@ -96,7 +115,6 @@ const IdentificationStep = ({
                         </Typography>
                     </Box>
 
-                    {/* Status do lado direito */}
                     {isComplete ? (
                         <Typography variant="body2" color="success.dark" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <CheckCircleIcon fontSize="small" />
@@ -115,7 +133,6 @@ const IdentificationStep = ({
                 </Typography>
 
                 {isComplete ? (
-                    /* Contactos quando dados completos */
                     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                         {entity.email && (
                             <Typography variant="body2" color="text.secondary">
@@ -129,14 +146,17 @@ const IdentificationStep = ({
                         )}
                     </Box>
                 ) : (
-                    /* Botão de actualizar quando dados incompletos */
                     <Box display="flex" justifyContent="flex-end" sx={{ mt: 1 }}>
                         <Button
                             size="small"
                             variant="outlined"
                             color="warning"
                             onClick={() => {
-                                entityDataHook.setEntityToUpdate(entity);
+                                // ✅ CRÍTICO: Marcar tipo de entidade
+                                entityDataHook.setEntityToUpdate({
+                                    ...entity,
+                                    _isRepresentative: isRepresentativeEntity
+                                });
                                 entityDataHook.setEntityDetailOpen(true);
                             }}
                         >
@@ -195,7 +215,7 @@ const IdentificationStep = ({
                             height: '100%'
                         }}
                     >
-                        {/* Input da entidade principal */}
+                        {/* ✅ Input da entidade PRINCIPAL */}
                         <Paper
                             variant="outlined"
                             sx={{
@@ -206,15 +226,15 @@ const IdentificationStep = ({
                             <Box display="flex" alignItems="center" mb={2}>
                                 <BusinessIcon color="primary" sx={{ mr: 1 }} />
                                 <Typography variant="h6">
-                                    Identificação da Entidade
+                                    Identificação da Entidade Principal
                                 </Typography>
                             </Box>
 
                             <EntitySearchField
                                 value={formData.nipc}
-                                onChange={handleNipcChange}
+                                onChange={handleEntityNipcChange}
                                 onEntityFound={setEntityData}
-                                entityData={null} // Não mostrar card aqui
+                                entityData={null}
                                 error={!!errors.nipc}
                                 helperText={errors.nipc}
                                 name="nipc"
@@ -222,7 +242,7 @@ const IdentificationStep = ({
                             />
                         </Paper>
 
-                        {/* Input do representante (se activado) */}
+                        {/* ✅ Input do REPRESENTANTE (se activado) */}
                         {isRepresentative && (
                             <Paper
                                 variant="outlined"
@@ -234,17 +254,12 @@ const IdentificationStep = ({
                                 <Box display="flex" alignItems="center" mb={2}>
                                     <PersonIcon color="secondary" sx={{ mr: 1 }} />
                                     <Typography variant="h6">
-                                        Dados do Representante
+                                        Dados do Representante Legal
                                     </Typography>
                                 </Box>
                                 <EntitySearchField
                                     value={formData.tb_representative}
-                                    onChange={(e) => {
-                                        handleChange(e);
-                                        if (e.target.value?.length === 9) {
-                                            entityDataHook.checkRepresentativeData(e.target.value);
-                                        }
-                                    }}
+                                    onChange={handleRepresentativeNipcChange}
                                     onEntityFound={setRepresentativeData}
                                     entityData={null}
                                     error={!!errors.tb_representative}
@@ -266,13 +281,14 @@ const IdentificationStep = ({
                             height: '100%'
                         }}
                     >
-                        {/* Dados da entidade principal */}
+                        {/* ✅ Dados da entidade PRINCIPAL */}
                         {entityData ? (
                             <EntityDataDisplay
                                 entity={entityData}
                                 validation={entityValidation}
                                 title="Entidade Principal"
                                 icon={<BusinessIcon color="primary" />}
+                                isRepresentativeEntity={false}
                             />
                         ) : (
                             <Paper
@@ -297,7 +313,7 @@ const IdentificationStep = ({
                             </Paper>
                         )}
 
-                        {/* Dados do representante */}
+                        {/* ✅ Dados do REPRESENTANTE */}
                         {isRepresentative && (
                             representativeData ? (
                                 <EntityDataDisplay
@@ -305,6 +321,7 @@ const IdentificationStep = ({
                                     validation={representativeValidation}
                                     title="Representante Legal"
                                     icon={<PersonIcon color="secondary" />}
+                                    isRepresentativeEntity={true}
                                 />
                             ) : (
                                 <Paper

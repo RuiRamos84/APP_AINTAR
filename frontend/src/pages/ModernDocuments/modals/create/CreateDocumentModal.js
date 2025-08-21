@@ -126,9 +126,9 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         const nipc = event.target.value;
         handleChange(event);
 
-        // ✅ Deixar o useEntityData gerir tudo
+        // ✅ O entityDataHook.checkEntityData já gere tudo internamente
         if (nipc && nipc.length >= 9) {
-            await checkEntityData(nipc);
+            await entityDataHook.checkEntityData(nipc);
         }
     };
 
@@ -156,29 +156,70 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
     // 3. Determinar se pode avançar do passo 0 (Identificação)
     const canAdvanceFromIdentification = () => {
-        if (isInternal) return true; // Pedidos internos não precisam de entidade
+        if (isInternal) return true;
+
+        // ✅ Usar entityDataHook.entityData em vez de entityData local
+        const currentEntityData = entityDataHook.entityData;
+        const currentRepresentativeData = entityDataHook.representativeData;
+
+        console.log('🔍 Debug validação:', {
+            hasEntityData: !!currentEntityData,
+            entityName: currentEntityData?.name,
+            isRepresentative,
+            hasRepresentativeData: !!currentRepresentativeData,
+            representativeName: currentRepresentativeData?.name
+        });
 
         // ✅ Entidade principal é sempre obrigatória
-        if (!isEntityDataComplete()) return false;
+        if (!currentEntityData) {
+            console.log('❌ Sem entidade principal');
+            return false;
+        }
 
-        // ✅ Se é representante, tem de existir E estar completo
+        const entityValidation = entityDataHook.validateEntityCompleteness(currentEntityData);
+        if (!entityValidation.isComplete) {
+            console.log('❌ Entidade principal incompleta:', entityValidation.missingFields);
+            return false;
+        }
+
+        // ✅ Se é representante, validar completude
         if (isRepresentative) {
             if (!formData.tb_representative || formData.tb_representative.length !== 9) {
-                return false; // NIF do representante não foi inserido
+                console.log('❌ NIF representante inválido');
+                return false;
             }
-            if (!isRepresentativeDataComplete()) {
-                return false; // Representante não existe ou está incompleto
+
+            if (!currentRepresentativeData) {
+                console.log('❌ Sem dados do representante');
+                return false;
+            }
+
+            const representativeValidation = entityDataHook.validateEntityCompleteness(currentRepresentativeData);
+            if (!representativeValidation.isComplete) {
+                console.log('❌ Representante incompleto:', representativeValidation.missingFields);
+                return false;
             }
         }
 
+        console.log('✅ Validação passou');
         return true;
     };
 
     // ✅ VALIDAÇÃO CORRIGIDA
     const validateStep = () => {
         const newErrors = validateCurrentStep(
-            activeStep, formData, billingAddress, shippingAddress,
-            isDifferentAddress, paymentMethod, paymentInfo, docTypeParams, paramValues
+            activeStep,
+            formData,
+            billingAddress,
+            shippingAddress,
+            isDifferentAddress,
+            paymentMethod,
+            paymentInfo,
+            docTypeParams,
+            paramValues,
+            entityData,           // ✅ Passar entityData
+            representativeData,   // ✅ Passar representativeData  
+            isRepresentative      // ✅ Passar flag isRepresentative
         );
 
         setErrors(newErrors);
@@ -209,30 +250,49 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
     const handleNext = () => {
         // ✅ Validação específica para passo 0
-        if (activeStep === 0 && !canAdvanceFromIdentification()) {
-            let errorMessage = "Complete os dados antes de continuar:";
+        if (activeStep === 0) {
+            if (!canAdvanceFromIdentification()) {
+                // ✅ Mensagem mais específica baseada no estado actual
+                const currentEntityData = entityDataHook.entityData;
+                const currentRepresentativeData = entityDataHook.representativeData;
 
-            if (!isEntityDataComplete()) {
-                errorMessage += "\n• Dados da entidade principal incompletos";
-            }
+                let errorMessage = "Dados incompletos:";
 
-            if (isRepresentative && !isRepresentativeDataComplete()) {
-                if (!representativeData) {
-                    errorMessage += "\n• Representante legal não encontrado - criar ou verificar NIF";
-                } else {
-                    errorMessage += "\n• Dados do representante legal incompletos";
+                if (!currentEntityData) {
+                    errorMessage += "\n• Introduza um NIF válido para a entidade principal";
+                } else if (!entityDataHook.validateEntityCompleteness(currentEntityData).isComplete) {
+                    errorMessage += "\n• Complete os dados da entidade principal";
                 }
-            }
 
-            notifyError(errorMessage);
-            return;
+                if (isRepresentative) {
+                    if (!formData.tb_representative) {
+                        errorMessage += "\n• Introduza o NIF do representante legal";
+                    } else if (!currentRepresentativeData) {
+                        errorMessage += "\n• Representante não encontrado - verificar NIF";
+                    } else if (!entityDataHook.validateEntityCompleteness(currentRepresentativeData).isComplete) {
+                        errorMessage += "\n• Complete os dados do representante legal";
+                    }
+                }
+
+                notifyError(errorMessage);
+                return;
+            }
         }
 
-        // Validação normal dos campos
+        // ✅ Validação normal para outros passos
         const newErrors = validateCurrentStep(
-            activeStep, formData, billingAddress, shippingAddress,
-            isDifferentAddress, paymentMethod, paymentInfo, docTypeParams, paramValues,
-            entityData
+            activeStep,
+            formData,
+            billingAddress,
+            shippingAddress,
+            isDifferentAddress,
+            paymentMethod,
+            paymentInfo,
+            docTypeParams,
+            paramValues,
+            entityDataHook.entityData,        // ✅ Usar dados do hook
+            entityDataHook.representativeData, // ✅ Usar dados do hook
+            isRepresentative
         );
 
         setErrors(newErrors);
@@ -301,6 +361,17 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
         return submitFormData;
     }
+
+    // ✅ CORREÇÃO: useEffect para debug
+    useEffect(() => {
+        console.log('🔄 Estado actualizado:', {
+            entityData: entityDataHook.entityData?.name,
+            representativeData: entityDataHook.representativeData?.name,
+            isRepresentative,
+            formData_nipc: formData.nipc,
+            formData_representative: formData.tb_representative
+        });
+    }, [entityDataHook.entityData, entityDataHook.representativeData, isRepresentative, formData.nipc, formData.tb_representative]);
 
     // Fechar após pagamento
     const handlePaymentClose = (success, result) => {
@@ -425,7 +496,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         isInternal={isInternal}
                         handleInternalSwitch={handleInternalSwitch}
                         isInterProfile={isInterProfile}
-                        // ✅ Passar o hook completo
                         entityDataHook={entityDataHook}
                     />
                 );

@@ -54,7 +54,7 @@ export const useDocumentForm = (initialNipc, onClose) => {
         }));
     };
 
-    // Validação do passo atual - CORRIGIDA
+    // ✅ Validação do passo atual - CORRIGIDA para separar entidade e representante
     const validateCurrentStep = (
         activeStep,
         formData,
@@ -65,77 +65,92 @@ export const useDocumentForm = (initialNipc, onClose) => {
         paymentInfo,
         docTypeParams,
         paramValues,
-        entityData = null // ✅ Parâmetro adicional
+        entityData = null,
+        representativeData = null,
+        isRepresentative = false
     ) => {
         const newErrors = {};
+
+        // ✅ Função auxiliar para validar completude de entidade
+        const validateEntityCompleteness = (entity) => {
+            if (!entity) return false;
+            const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+            return requiredFields.every(field =>
+                entity[field] && entity[field].toString().trim() !== ''
+            );
+        };
 
         switch (activeStep) {
             case 0: // Identificação
                 if (!isInternal) {
+                    // ✅ 1. Validar NIF da entidade principal
                     if (!formData.nipc || formData.nipc.length !== 9) {
-                        newErrors.nipc = 'NIPC válido é obrigatório';
+                        newErrors.nipc = 'NIPC da entidade principal é obrigatório';
+                        break;
                     }
 
-                    if (formData.tb_representative && formData.tb_representative.length !== 9) {
-                        newErrors.tb_representative = 'NIF do representante é obrigatório';
+                    // ✅ 2. Validar completude da entidade principal
+                    if (!validateEntityCompleteness(entityData)) {
+                        newErrors.entity_incomplete = 'Complete os dados da entidade principal antes de prosseguir';
+                        break;
+                    }
+
+                    // ✅ 3. Se é representante, validar NIF e completude
+                    if (isRepresentative) {
+                        if (!formData.tb_representative || formData.tb_representative.length !== 9) {
+                            newErrors.tb_representative = 'NIF do representante é obrigatório quando seleccionado';
+                            break;
+                        }
+
+                        if (!validateEntityCompleteness(representativeData)) {
+                            newErrors.representative_incomplete = 'Complete os dados do representante antes de prosseguir';
+                            break;
+                        }
                     }
                 }
                 break;
 
             case 1: // Morada
                 if (!isInternal) {
-                    // ✅ Verificar se entidade tem dados completos PRIMEIRO
-                    if (entityData) {
-                        const requiredEntityFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
-                        const missingEntityFields = requiredEntityFields.filter(field =>
-                            !entityData[field] || entityData[field].toString().trim() === ''
-                        );
-
-                        if (missingEntityFields.length > 0) {
-                            newErrors.entity_incomplete = 'Complete os dados da entidade antes de prosseguir';
-                            break; // Parar validação aqui
-                        }
+                    // ✅ Verificar novamente se entidade principal está completa
+                    if (!validateEntityCompleteness(entityData)) {
+                        newErrors.entity_incomplete = 'Complete os dados da entidade antes de definir moradas';
+                        break;
                     }
 
-                    // Validar morada de faturação
-                    if (!billingAddress.postal) {
-                        newErrors.postal = 'Código postal é obrigatório';
-                    }
-                    if (!billingAddress.address) {
-                        newErrors.address = 'Morada é obrigatória';
-                    }
-                    if (!billingAddress.nut4) {
-                        newErrors.nut4 = 'Localidade é obrigatória';
-                    }
-                    if (!billingAddress.nut3) {
-                        newErrors.nut3 = 'Freguesia é obrigatória';
-                    }
-                    if (!billingAddress.nut2) {
-                        newErrors.nut2 = 'Concelho é obrigatório';
-                    }
-                    if (!billingAddress.nut1) {
-                        newErrors.nut1 = 'Distrito é obrigatório';
+                    // ✅ Validar morada de faturação (baseada na entidade principal)
+                    const requiredAddressFields = ['postal', 'address', 'nut4', 'nut3', 'nut2', 'nut1'];
+                    const missingBillingFields = requiredAddressFields.filter(field => !billingAddress[field]);
+
+                    if (missingBillingFields.length > 0) {
+                        missingBillingFields.forEach(field => {
+                            const fieldNames = {
+                                postal: 'Código postal',
+                                address: 'Morada',
+                                nut4: 'Localidade',
+                                nut3: 'Freguesia',
+                                nut2: 'Concelho',
+                                nut1: 'Distrito'
+                            };
+                            newErrors[field] = `${fieldNames[field]} é obrigatório`;
+                        });
                     }
 
-                    // Se usa morada diferente, validar também
+                    // ✅ Se usa morada diferente, validar também
                     if (isDifferentAddress) {
-                        if (!shippingAddress.postal) {
-                            newErrors.shipping_postal = 'Código postal é obrigatório';
-                        }
-                        if (!shippingAddress.address) {
-                            newErrors.shipping_address = 'Morada é obrigatória';
-                        }
-                        if (!shippingAddress.nut4) {
-                            newErrors.shipping_nut4 = 'Localidade é obrigatória';
-                        }
-                        if (!shippingAddress.nut3) {
-                            newErrors.shipping_nut3 = 'Freguesia é obrigatória';
-                        }
-                        if (!shippingAddress.nut2) {
-                            newErrors.shipping_nut2 = 'Concelho é obrigatório';
-                        }
-                        if (!shippingAddress.nut1) {
-                            newErrors.shipping_nut1 = 'Distrito é obrigatório';
+                        const missingShippingFields = requiredAddressFields.filter(field => !shippingAddress[field]);
+                        if (missingShippingFields.length > 0) {
+                            missingShippingFields.forEach(field => {
+                                const fieldNames = {
+                                    postal: 'Código postal',
+                                    address: 'Morada',
+                                    nut4: 'Localidade',
+                                    nut3: 'Freguesia',
+                                    nut2: 'Concelho',
+                                    nut1: 'Distrito'
+                                };
+                                newErrors[`shipping_${field}`] = `${fieldNames[field]} (correspondência) é obrigatório`;
+                            });
                         }
                     }
                 }
@@ -154,7 +169,6 @@ export const useDocumentForm = (initialNipc, onClose) => {
                 break;
 
             case 3: // Parâmetros
-                // Validar parâmetros obrigatórios
                 if (docTypeParams && docTypeParams.length > 0) {
                     docTypeParams.forEach(param => {
                         if (param.mandatory === 1 && !paramValues[`param_${param.tb_param}`]) {
@@ -165,13 +179,11 @@ export const useDocumentForm = (initialNipc, onClose) => {
                 break;
 
             case 4: // Anexos
-                // Verificar se o pedido tem descrição ou pelo menos um arquivo
                 if (!formData.memo && formData.files.length === 0) {
                     newErrors.memo = 'Preencha as observações ou anexe pelo menos um arquivo';
                     newErrors.files = 'Preencha as observações ou anexe pelo menos um arquivo';
                 }
 
-                // Verificar se todos os arquivos têm descrição
                 formData.files.forEach((file, index) => {
                     if (!file.description.trim()) {
                         newErrors[`file_${index}`] = 'Descrição obrigatória';
@@ -179,8 +191,8 @@ export const useDocumentForm = (initialNipc, onClose) => {
                 });
                 break;
 
-            case 5: // Confirmação - apenas validação geral
-                // Verificação final, que agrupa todas as validações anteriores
+            case 5: // Confirmação
+                // Validação final - pode incluir verificações adicionais
                 break;
 
             default:
