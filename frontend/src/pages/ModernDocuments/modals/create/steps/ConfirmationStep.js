@@ -46,8 +46,8 @@ const ConfirmationStep = ({
         <Grid container spacing={3}>
             <Grid size={{ xs: 12 }}>
                 <Alert severity="info" sx={{ mb: 3 }}>
-                    Por favor, revise os dados abaixo antes de submeter o pedido.
-                    Após a submissão, você será redirecionado para a página de pagamento.
+                    Por favor, confirme os dados abaixo antes de submeter o pedido.
+                    Após a submissão, será redirecionado para a página de pagamento.
                 </Alert>
 
                 {errors.general && (
@@ -77,6 +77,9 @@ const ConfirmationStep = ({
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                                 NIPC: {formData.nipc}
                             </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Contacto: {entityData?.phone }
+                            </Typography>
                         </Grid>
 
                         {formData.tb_representative && (
@@ -90,6 +93,9 @@ const ConfirmationStep = ({
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
                                     NIF: {formData.tb_representative}
                                 </Typography>
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    Contacto: {representativeData?.phone || '-'}
+                                </Typography>
                             </Grid>
                         )}
 
@@ -99,7 +105,7 @@ const ConfirmationStep = ({
 
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                Morada de Faturação
+                                Morada do Pedido
                             </Typography>
                             <Typography variant="body2" gutterBottom>
                                 {billingAddress.address}
@@ -153,52 +159,40 @@ const ConfirmationStep = ({
                         {docTypeParams.length > 0 && (
                             <>
                                 <Grid size={{ xs: 12 }}>
+
                                     <Divider sx={{ my: 1 }} />
                                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                         Parâmetros Específicos
                                     </Typography>
                                     <Box sx={{ ml: 2 }}>
-                                        {docTypeParams.map(param => (
-                                            <Box key={param.tb_param} sx={{ mb: 1 }}>
-                                                <Typography variant="body2" gutterBottom>
-                                                    <strong>{param.name}:</strong> {
-                                                        param.type === '4'
-                                                            ? (paramValues[`param_${param.tb_param}`] === 'true' ? 'Sim' : 'Não')
-                                                            : paramValues[`param_${param.tb_param}`] || '-'
-                                                    }
-                                                    {param.units && ` ${param.units}`}
-                                                </Typography>
-                                                {paramValues[`param_memo_${param.tb_param}`] && (
-                                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                                                        Obs: {paramValues[`param_memo_${param.tb_param}`]}
+                                        {docTypeParams.map(param => {
+                                            const value = paramValues[`param_${param.tb_param}`];
+                                            let displayValue = value;
+
+                                            // ✅ CORRECÇÃO: Converter booleanos para Sim/Não
+                                            if (param.type === '4' || param.type === 4) {
+                                                displayValue = (value === '1' || value === 1 || value === 'true') ? 'Sim' : 'Não';
+                                            }
+
+                                            return (
+                                                <Box key={param.tb_param} sx={{ mb: 1 }}>
+                                                    <Typography variant="body2" gutterBottom>
+                                                        <strong>{param.name}:</strong> {displayValue || '-'}
+                                                        {param.units && ` ${param.units}`}
                                                     </Typography>
-                                                )}
-                                            </Box>
-                                        ))}
+                                                    {paramValues[`param_memo_${param.tb_param}`] && (
+                                                        <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                                                            Obs: {paramValues[`param_memo_${param.tb_param}`]}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            );
+                                        })}
                                     </Box>
                                 </Grid>
                             </>
                         )}
 
-                        {/* Informação sobre pagamento pendente */}
-                        <Grid size={{ xs: 12 }}>
-                            <Divider sx={{ my: 1 }} />
-                            <Box
-                                sx={{
-                                    p: 2,
-                                    mt: 2,
-                                    bgcolor: theme.palette.info.light,
-                                    borderRadius: 1,
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <PaymentIcon sx={{ mr: 1 }} color="info" />
-                                <Typography variant="body1">
-                                    Após submeter o pedido, você será redirecionado para a página de pagamento.
-                                </Typography>
-                            </Box>
-                        </Grid>
 
                         {formData.memo && (
                             <Grid size={{ xs: 12 }}>
@@ -244,6 +238,28 @@ const ConfirmationStep = ({
                         )}
                     </Grid>
                 </Paper>
+                        {/* Informação sobre pagamento pendente */}
+                        <Grid size={{ xs: 12 }}>
+                            {/* <Divider sx={{ my: 1 }} /> */}
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    mt: 2,
+                                    bgcolor: theme.palette.info.light,
+                                    borderRadius: 1,
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <PaymentIcon sx={{ mr: 1 }} color="info" />
+                                <Typography variant="body1">
+                                    Após submeter o pedido, será redirecionado para a página de pagamento.
+                                </Typography>
+                            </Box>
+                        </Grid>
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
 
                 <Box display="flex" justifyContent="center">
                     <Button

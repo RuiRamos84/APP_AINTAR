@@ -114,7 +114,7 @@ const AddressStep = ({
 
                     {isEntityFound && entityValidation?.isComplete && (
                         <Alert severity="success" sx={{ ml: 2, flexGrow: 1 }}>
-                            Os dados da morada foram preenchidos automaticamente com os dados da entidade.
+                            Os dados da morada são preenchidos automaticamente com os dados da entidade.
                             Queira validar se correspondem aos dados do pedido.
                         </Alert>
                     )}

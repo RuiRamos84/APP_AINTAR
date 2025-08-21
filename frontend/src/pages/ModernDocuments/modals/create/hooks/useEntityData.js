@@ -59,14 +59,15 @@ export const useEntityData = (formData, setFormData) => {
                 try {
                     // Buscar contagem de tipos
                     const countTypes = await getEntityCountTypes(entityData.pk);
-                    setEntityCountTypes(countTypes || []);
+                    console.log('✅ EntityCountTypes recebidos:', countTypes);
 
-                    // ✅ CRÍTICO: Verificar se há tipos de entidade
-                    // if (countTypes && countTypes.length > 0) {
-                    //     notifyWarning(
-                    //         "A entidade possui tipos de entidade. Por favor, atualize os dados"
-                    //     );
-                    // }
+                    // ✅ CORRECÇÃO: Actualizar entityData com os dados de contagem
+                    setEntityData(prevEntity => ({
+                        ...prevEntity,
+                        entityCountTypes: countTypes || []
+                    }));
+
+                    setEntityCountTypes(countTypes || []);
 
                     // Buscar documentos anteriores
                     fetchEntitiesDocuments(entityData.pk);
@@ -79,7 +80,7 @@ export const useEntityData = (formData, setFormData) => {
         };
 
         fetchEntityData();
-    }, [entityData]);
+    }, [entityData?.pk]);
 
     // Função para buscar documentos da entidade usando getDocuments()
     const fetchEntitiesDocuments = async (entityPk) => {

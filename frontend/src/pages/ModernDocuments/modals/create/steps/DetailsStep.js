@@ -1,3 +1,5 @@
+// DetailsStep.js - Correcção para mostrar contagem de pedidos da entidade
+
 import React, { useEffect, useState } from 'react';
 import {
     Grid,
@@ -24,7 +26,6 @@ import { notifyWarning } from '../../../../../components/common/Toaster/ThemedTo
 
 // Componente existente DocumentSuggestions...
 const DocumentSuggestions = ({ previousDocuments, onSelectSuggestion }) => {
-    // código existente...
     const uniqueTypes = [];
     const uniqueDocs = previousDocuments
         .filter(doc => {
@@ -76,11 +77,15 @@ const DetailsStep = ({
     selectedCountType,
     selectedTypeText,
     previousDocuments = [],
-    entityData 
+    entityData
 }) => {
     const theme = useTheme();
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [previousAssociateValue, setPreviousAssociateValue] = useState('');
+
+    // ✅ CORRECÇÃO: Obter contagem de tipos da entidade
+    const [entityCountTypes, setEntityCountTypes] = useState([]);
+    const [currentTypeCount, setCurrentTypeCount] = useState(null);
 
     // Encontrar o nome de AINTAR para exibição
     const getAintarName = () => {
@@ -88,53 +93,67 @@ const DetailsStep = ({
         return aintar ? aintar.name : "AINTAR";
     };
 
-    // ✅ DEBUG: Verificar se os dados chegam
+    // ✅ CORRECÇÃO: Actualizar entityCountTypes quando entityData mudar
     useEffect(() => {
-        console.log('🔍 DetailsStep DEBUG:', {
-            'formData.tt_type': formData.tt_type,
-            'selectedCountType': selectedCountType,
-            'selectedTypeText': selectedTypeText,
-            'previousDocuments.length': previousDocuments.length,
-            'entityData': entityData?.name
-        });
-    }, [formData.tt_type, selectedCountType, selectedTypeText, previousDocuments, entityData]);
+        if (entityData?.entityCountTypes) {
+            setEntityCountTypes(entityData.entityCountTypes);
+            console.log('📊 EntityCountTypes actualizados:', entityData.entityCountTypes);
+        }
+    }, [entityData]);
 
-    // ✅ NOTIFICAÇÃO: Verificar se dados existem primeiro
+    // ✅ CORRECÇÃO: Actualizar contagem quando tipo de documento mudar
     useEffect(() => {
-        console.log('🔔 Verificando notificação:', {
-            hasType: !!formData.tt_type,
-            hasCountType: !!selectedCountType,
-            typeCountAll: selectedCountType?.typecountall
-        });
-
-        if (formData.tt_type && selectedCountType && selectedCountType.typecountall > 0) {
+        if (formData.tt_type && entityCountTypes.length > 0) {
             const selectedTypeName = metaData?.types?.find(
                 type => type.tt_doctype_code === formData.tt_type
             )?.tt_doctype_value;
 
-            console.log('📢 Enviando notificação para tipo:', selectedTypeName);
+            console.log('🔍 Busca contagem:', {
+                selectedCode: formData.tt_type,
+                selectedName: selectedTypeName,
+                availableTypes: entityCountTypes.map(ct => ct.tt_type)
+            });
 
             if (selectedTypeName) {
-                notifyWarning(
-                    `Esta entidade já submeteu ${selectedCountType.typecountall} pedido(s) do tipo "${selectedTypeName}". Verifique se não é duplicado.`
+                const countData = entityCountTypes.find(
+                    ct => ct.tt_type === selectedTypeName
                 );
+
+                console.log('📊 Resultado busca:', countData);
+
+                setCurrentTypeCount(countData || null);
+
+                // ✅ CORRECÇÃO: Notificar apenas se há contagem > 0
+                if (countData && countData.typecountall > 3) {
+                    notifyWarning(
+                        `Esta entidade já submeteu ${countData.typecountyear} pedido(s) do tipo "${selectedTypeName}". Verifique se não é duplicado.`
+                    );
+                }
             }
+        } else {
+            setCurrentTypeCount(null);
         }
-    }, [formData.tt_type, selectedCountType, metaData?.types]);
+    }, [formData.tt_type, entityCountTypes, metaData?.types]);
+
+    // ✅ DEBUG: Logs para verificar dados
+    useEffect(() => {
+        console.log('🔍 DetailsStep DEBUG:', {
+            'formData.tt_type': formData.tt_type,
+            'entityCountTypes.length': entityCountTypes.length,
+            'currentTypeCount': currentTypeCount,
+            'entityData.name': entityData?.name
+        });
+    }, [formData.tt_type, entityCountTypes, currentTypeCount, entityData]);
 
     // Efeito para manipular o preenchimento automático do associado quando isInternal muda
     useEffect(() => {
         if (isInternal) {
-            // Guardar o valor atual do associado antes de mudar
             setPreviousAssociateValue(formData.ts_associate || '');
-
-            // Criar evento sintético para preencher com AINTAR (pk = 1)
             const associateEvent = {
                 target: { name: 'ts_associate', value: '1' }
             };
             handleChange(associateEvent);
         } else if (previousAssociateValue) {
-            // Restaurar o valor anterior quando desmarcar "Pedido Interno"
             const associateEvent = {
                 target: { name: 'ts_associate', value: previousAssociateValue }
             };
@@ -144,7 +163,6 @@ const DetailsStep = ({
 
     // Handler para selecionar uma sugestão
     const handleSelectSuggestion = (doc) => {
-        // código existente
         const syntheticEvent = {
             target: { name: 'tt_type', value: doc.tt_type }
         };
@@ -168,7 +186,6 @@ const DetailsStep = ({
     // Componente especial para renderizar quando é pedido interno
     const renderAssociateField = () => {
         if (isInternal) {
-            // Usar um TextField regular para mostrar AINTAR quando é pedido interno
             return (
                 <TextField
                     fullWidth
@@ -196,7 +213,6 @@ const DetailsStep = ({
             );
         }
 
-        // O select normal para quando não é pedido interno
         return (
             <TextField
                 select
@@ -239,7 +255,6 @@ const DetailsStep = ({
                             </Typography>
                         </Box>
 
-                        {/* Checkbox alinhado à direita */}
                         {isInterProfile && (
                             <FormControlLabel
                                 control={
@@ -255,7 +270,6 @@ const DetailsStep = ({
                         )}
                     </Box>
 
-                    {/* Sugestões baseadas em pedidos anteriores */}
                     {showSuggestions && (
                         <DocumentSuggestions
                             previousDocuments={previousDocuments}
@@ -315,54 +329,57 @@ const DetailsStep = ({
                             </TextField>
                         </Grid>
 
-                        {/* Informação sobre histórico de pedidos do mesmo tipo */}
-                        {formData.tt_type && selectedTypeText && (
+                        {/* ✅ CORRECÇÃO: Informação sobre histórico melhorada */}
+                        {formData.tt_type && currentTypeCount && (
                             <Grid size={{ xs: 12 }}>
                                 <Paper
                                     variant="outlined"
                                     sx={{
                                         p: 1.5,
                                         mt: 1,
-                                        bgcolor: theme.palette.info.light,
-                                        color: theme.palette.info.dark,
+                                        bgcolor: currentTypeCount.typecountall > 3
+                                            ? theme.palette.warning.main
+                                            : theme.palette.info.light,
+                                        color: currentTypeCount.typecountall > 3
+                                            ? theme.palette.common.white
+                                            : theme.palette.info.dark,
                                         borderRadius: 1
                                     }}
                                 >
                                     <Box display="flex" alignItems="center">
                                         <InfoIcon sx={{ mr: 1 }} />
                                         <Typography variant="body2">
-                                            {selectedCountType ? (
-                                                <>
-                                                    {selectedCountType.typecountyear}º registo de pedido do
-                                                    tipo {selectedTypeText} efetuados no ano corrente por
-                                                    esta entidade, e {selectedCountType.typecountall} no total
-                                                    global.
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Não dispomos de nenhum registo de pedidos do tipo {selectedTypeText} realizados por esta entidade.
-                                                </>
-                                            )}
+                                            <strong>Histórico da entidade:</strong> {currentTypeCount.typecountyear}º pedido do tipo
+                                            "{currentTypeCount.tt_type}" no ano corrente,
+                                            e {currentTypeCount.typecountall} no total global.
                                         </Typography>
                                     </Box>
                                 </Paper>
                             </Grid>
                         )}
 
-                        {/* <Grid size={{ xs: 12 }}>
-                            <TextField
-                                fullWidth
-                                label="Observações"
-                                name="memo"
-                                multiline
-                                rows={4}
-                                value={formData.memo || ''}
-                                onChange={handleChange}
-                                placeholder="Informe qualquer detalhe adicional relevante para este pedido..."
-                                error={!!errors.memo}
-                                helperText={errors.memo}
-                            />
-                        </Grid> */}
+                        {/* ✅ Caso não haja histórico */}
+                        {formData.tt_type && !currentTypeCount && entityData && (
+                            <Grid size={{ xs: 12 }}>
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        p: 1.5,
+                                        mt: 1,
+                                        bgcolor: theme.palette.success.light,
+                                        color: theme.palette.success.dark,
+                                        borderRadius: 1
+                                    }}
+                                >
+                                    <Box display="flex" alignItems="center">
+                                        <InfoIcon sx={{ mr: 1 }} />
+                                        <Typography variant="body2">
+                                            Primeiro pedido deste tipo para esta entidade.
+                                        </Typography>
+                                    </Box>
+                                </Paper>
+                            </Grid>
+                        )}
                     </Grid>
                 </Paper>
             </Grid>
