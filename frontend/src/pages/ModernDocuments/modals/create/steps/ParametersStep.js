@@ -60,13 +60,13 @@ const ParametersStep = ({
     const associateName = getAssociateName();
 
     // Log dos metadados disponíveis para debug
-    useEffect(() => {
-        console.log("MetaData para parâmetros:", {
-            etar: metaData?.etar?.length || 0,
-            payment_method: metaData?.payment_method?.length || 0,
-            associates: metaData?.associates?.length || 0
-        });
-    }, [metaData]);
+    // useEffect(() => {
+    //     console.log("MetaData para parâmetros:", {
+    //         etar: metaData?.etar?.length || 0,
+    //         payment_method: metaData?.payment_method?.length || 0,
+    //         associates: metaData?.associates?.length || 0
+    //     });
+    // }, [metaData]);
 
     // Função para verificar se é parâmetro booleano
     const isBooleanParam = (paramName) => {

@@ -213,17 +213,9 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
         // ✅ CRÍTICO: Ficheiros com descrições
         formData.files.forEach((fileObj, index) => {
-            // Ficheiro
             submitFormData.append("files", fileObj.file);
-
-            // ✅ Usar a descrição correcta do objecto
             const description = fileObj.description || '';
-            submitFormData.append(`file_description_${index}`, description);
-
-            console.log(`📎 Ficheiro ${index}:`, {
-                name: fileObj.file.name,
-                description: description
-            });
+            submitFormData.append("descr", description); // ✅ Usar 'descr'
         });
 
         // Entidades
@@ -313,8 +305,28 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     };
 
     const clearEntityData = () => {
+        // Estados principais
         entityDataHook.setEntityData(null);
         entityDataHook.setRepresentativeData(null);
+
+        // Endereços
+        entityDataHook.setRequestAddress({
+            postal: '', address: '', door: '', floor: '',
+            nut1: '', nut2: '', nut3: '', nut4: ''
+        });
+
+        // Parâmetros
+        documentParams.setParamValues({});
+
+        // Estados UI
+        entityDataHook.setIsUpdateNeeded(false);
+        entityDataHook.setEntityDetailOpen(false);
+        entityDataHook.setCreateEntityModalOpen(false);
+
+        // ✅ Checkboxes via hook
+        documentForm.resetForm(); // Já limpa isInternal
+        entityDataHook.handleRepresentativeToggle({ target: { checked: false } });
+        entityDataHook.handleCustomAddressToggle(false);
     };
 
     const handleCloseRequest = () => {

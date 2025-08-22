@@ -103,11 +103,11 @@ const DetailsStep = ({
             }
 
             setLoadingCounts(true);
-            console.log("📊 Buscando contagens para entidade:", entityData.pk);
+            // console.log("📊 Buscando contagens para entidade:", entityData.pk);
 
             try {
                 const countTypes = await getEntityCountTypes(entityData.pk);
-                console.log("📊 Resultado API getEntityCountTypes:", countTypes);
+                // console.log("📊 Resultado API getEntityCountTypes:", countTypes);
 
                 setEntityCountTypes(Array.isArray(countTypes) ? countTypes : []);
             } catch (error) {
@@ -133,11 +133,11 @@ const DetailsStep = ({
             type => type.tt_doctype_code === formData.tt_type
         )?.tt_doctype_value;
 
-        console.log('🔍 Busca contagem para tipo:', {
-            selectedCode: formData.tt_type,
-            selectedName: selectedTypeName,
-            availableTypes: entityCountTypes.map(ct => ct.tt_type)
-        });
+        // console.log('🔍 Busca contagem para tipo:', {
+        //     selectedCode: formData.tt_type,
+        //     selectedName: selectedTypeName,
+        //     availableTypes: entityCountTypes.map(ct => ct.tt_type)
+        // });
 
         if (!selectedTypeName) {
             setCurrentTypeCount(null);
@@ -149,7 +149,7 @@ const DetailsStep = ({
             ct => ct.tt_type === selectedTypeName
         );
 
-        console.log('📊 Resultado busca contagem:', countData);
+        // console.log('📊 Resultado busca contagem:', countData);
         setCurrentTypeCount(countData || null);
 
         // ✅ Notificar apenas se há contagem significativa
@@ -161,16 +161,16 @@ const DetailsStep = ({
     }, [formData.tt_type, entityCountTypes, metaData?.types]);
 
     // ✅ DEBUG: Logs para verificar fluxo de dados
-    useEffect(() => {
-        console.log('🔍 DetailsStep DEBUG:', {
-            'entityData.pk': entityData?.pk,
-            'entityData.name': entityData?.name,
-            'formData.tt_type': formData.tt_type,
-            'entityCountTypes.length': entityCountTypes.length,
-            'currentTypeCount': currentTypeCount,
-            'loadingCounts': loadingCounts
-        });
-    }, [entityData, formData.tt_type, entityCountTypes, currentTypeCount, loadingCounts]);
+    // useEffect(() => {
+    //     console.log('🔍 DetailsStep DEBUG:', {
+    //         'entityData.pk': entityData?.pk,
+    //         'entityData.name': entityData?.name,
+    //         'formData.tt_type': formData.tt_type,
+    //         'entityCountTypes.length': entityCountTypes.length,
+    //         'currentTypeCount': currentTypeCount,
+    //         'loadingCounts': loadingCounts
+    //     });
+    // }, [entityData, formData.tt_type, entityCountTypes, currentTypeCount, loadingCounts]);
 
     // Efeito para manipular o preenchimento automático do associado quando isInternal muda
     useEffect(() => {

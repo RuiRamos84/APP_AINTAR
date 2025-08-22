@@ -216,7 +216,7 @@ export const useDocumentForm = (initialNipc, onClose) => {
         setActiveStep(0);
         setErrors({});
         setLoading(false);
-        setIsInternal(false);
+        setIsInternal(false); // ✅ Reset checkbox
     };
 
     return {

@@ -36,9 +36,9 @@ export const useDocumentParams = (formData, entityData, metaData) => {
         const fetchEntityCountTypes = async () => {
             if (entityData?.pk) {
                 try {
-                    console.log("📊 Buscando contagens para entidade:", entityData.pk);
+                    // console.log("📊 Buscando contagens para entidade:", entityData.pk);
                     const countTypes = await getEntityCountTypes(entityData.pk);
-                    console.log("📊 Resultado API countTypes:", countTypes);
+                    // console.log("📊 Resultado API countTypes:", countTypes);
                     setEntityCountTypes(countTypes || []);
                 } catch (error) {
                     console.error("❌ Erro ao buscar contagens:", error);

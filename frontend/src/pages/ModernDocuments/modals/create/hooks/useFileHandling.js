@@ -129,18 +129,12 @@ export const useFileHandling = (formData, setFormData) => {
 
         setFormData(prev => {
             const updatedFiles = [...prev.files];
-
             if (updatedFiles[index]) {
                 updatedFiles[index] = {
                     ...updatedFiles[index],
-                    description: description
+                    description: description // ✅ Verificar se isto está correcto
                 };
-
-                console.log(`✅ Descrição actualizada para ficheiro ${index}:`, updatedFiles[index]);
-            } else {
-                console.warn(`⚠️ Ficheiro no índice ${index} não encontrado`);
             }
-
             return { ...prev, files: updatedFiles };
         });
     }, [setFormData]);
