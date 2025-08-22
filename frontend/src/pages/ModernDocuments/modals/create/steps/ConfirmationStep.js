@@ -16,16 +16,11 @@ import {
     Payment as PaymentIcon
 } from '@mui/icons-material';
 
-/**
- * Passo final do formulário - Confirmação (sem a parte de pagamento)
- */
 const ConfirmationStep = ({
     formData,
     entityData,
     representativeData,
-    billingAddress,
-    shippingAddress,
-    isDifferentAddress,
+    requestAddress,
     docTypeParams,
     paramValues,
     metaData,
@@ -35,7 +30,7 @@ const ConfirmationStep = ({
 }) => {
     const theme = useTheme();
 
-    // Função auxiliar para encontrar valores em metadados
+    // Encontrar valor em metadados
     const findMetaValue = (array, key, value) => {
         if (!array || !Array.isArray(array)) return '-';
         const item = array.find(item => item[key] === value);
@@ -46,8 +41,7 @@ const ConfirmationStep = ({
         <Grid container spacing={3}>
             <Grid size={{ xs: 12 }}>
                 <Alert severity="info" sx={{ mb: 3 }}>
-                    Por favor, confirme os dados abaixo antes de submeter o pedido.
-                    Após a submissão, será redirecionado para a página de pagamento.
+                    Confirme os dados antes de submeter o pedido.
                 </Alert>
 
                 {errors.general && (
@@ -67,6 +61,7 @@ const ConfirmationStep = ({
                     <Divider sx={{ mb: 2 }} />
 
                     <Grid container spacing={2}>
+                        {/* Entidade Principal */}
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Entidade
@@ -78,23 +73,24 @@ const ConfirmationStep = ({
                                 NIPC: {formData.nipc}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Contacto: {entityData?.phone }
+                                Contacto: {entityData?.phone || '-'}
                             </Typography>
                         </Grid>
 
-                        {formData.tb_representative && (
+                        {/* Representante */}
+                        {formData.tb_representative && representativeData && (
                             <Grid size={{ xs: 12, sm: 6 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     Representante
                                 </Typography>
                                 <Typography variant="body1" gutterBottom fontWeight="medium">
-                                    {representativeData?.name || '-'}
+                                    {representativeData.name || '-'}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
                                     NIF: {formData.tb_representative}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                                    Contacto: {representativeData?.phone || '-'}
+                                    Contacto: {representativeData.phone || '-'}
                                 </Typography>
                             </Grid>
                         )}
@@ -103,40 +99,34 @@ const ConfirmationStep = ({
                             <Divider sx={{ my: 1 }} />
                         </Grid>
 
+                        {/* Morada do Pedido */}
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Morada do Pedido
                             </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                {billingAddress.address}
-                                {billingAddress.door && `, ${billingAddress.door}`}
-                                {billingAddress.floor && `, ${billingAddress.floor}`}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                                {billingAddress.postal} {billingAddress.nut4} {billingAddress.nut3}
-                            </Typography>
+                            {requestAddress ? (
+                                <>
+                                    <Typography variant="body2" gutterBottom>
+                                        {requestAddress.address || '-'}
+                                        {requestAddress.door && `, ${requestAddress.door}`}
+                                        {requestAddress.floor && `, ${requestAddress.floor}`}
+                                    </Typography>
+                                    <Typography variant="body2" gutterBottom>
+                                        {requestAddress.postal} {requestAddress.nut4} {requestAddress.nut3}
+                                    </Typography>
+                                </>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                    Morada não definida
+                                </Typography>
+                            )}
                         </Grid>
-
-                        {isDifferentAddress && (
-                            <Grid size={{ xs: 12, sm: 6 }}>
-                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                    Morada de Correspondência
-                                </Typography>
-                                <Typography variant="body2" gutterBottom>
-                                    {shippingAddress.address}
-                                    {shippingAddress.door && `, ${shippingAddress.door}`}
-                                    {shippingAddress.floor && `, ${shippingAddress.floor}`}
-                                </Typography>
-                                <Typography variant="body2" gutterBottom>
-                                    {shippingAddress.postal} {shippingAddress.nut4} {shippingAddress.nut3}
-                                </Typography>
-                            </Grid>
-                        )}
 
                         <Grid size={{ xs: 12 }}>
                             <Divider sx={{ my: 1 }} />
                         </Grid>
 
+                        {/* Tipo e Associado */}
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Tipo de Documento
@@ -155,11 +145,10 @@ const ConfirmationStep = ({
                             </Typography>
                         </Grid>
 
-                        {/* Parâmetros específicos */}
-                        {docTypeParams.length > 0 && (
+                        {/* Parâmetros */}
+                        {docTypeParams && docTypeParams.length > 0 && (
                             <>
                                 <Grid size={{ xs: 12 }}>
-
                                     <Divider sx={{ my: 1 }} />
                                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                         Parâmetros Específicos
@@ -169,7 +158,7 @@ const ConfirmationStep = ({
                                             const value = paramValues[`param_${param.tb_param}`];
                                             let displayValue = value;
 
-                                            // ✅ CORRECÇÃO: Converter booleanos para Sim/Não
+                                            // Converter booleanos
                                             if (param.type === '4' || param.type === 4) {
                                                 displayValue = (value === '1' || value === 1 || value === 'true') ? 'Sim' : 'Não';
                                             }
@@ -193,7 +182,7 @@ const ConfirmationStep = ({
                             </>
                         )}
 
-
+                        {/* Observações */}
                         {formData.memo && (
                             <Grid size={{ xs: 12 }}>
                                 <Divider sx={{ my: 1 }} />
@@ -214,6 +203,7 @@ const ConfirmationStep = ({
                             </Grid>
                         )}
 
+                        {/* Anexos */}
                         {formData.files && formData.files.length > 0 && (
                             <>
                                 <Grid size={{ xs: 12 }}>
@@ -238,29 +228,28 @@ const ConfirmationStep = ({
                         )}
                     </Grid>
                 </Paper>
-                        {/* Informação sobre pagamento pendente */}
-                        <Grid size={{ xs: 12 }}>
-                            {/* <Divider sx={{ my: 1 }} /> */}
-                            <Box
-                                sx={{
-                                    p: 2,
-                                    mt: 2,
-                                    bgcolor: theme.palette.info.light,
-                                    borderRadius: 1,
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <PaymentIcon sx={{ mr: 1 }} color="info" />
-                                <Typography variant="body1">
-                                    Após submeter o pedido, será redirecionado para a página de pagamento.
-                                </Typography>
-                            </Box>
-                        </Grid>
+
+                {/* Informação sobre pagamento */}
+                <Grid size={{ xs: 12 }}>
+                    <Box
+                        sx={{
+                            p: 2,
+                            mt: 2,
+                            bgcolor: theme.palette.info.light,
+                            borderRadius: 1,
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <PaymentIcon sx={{ mr: 1 }} color="info" />
+                        <Typography variant="body1">
+                            Após submeter o pedido, será redirecionado para a página de pagamento.
+                        </Typography>
+                    </Box>
+                </Grid>
             </Grid>
 
             <Grid size={{ xs: 12 }}>
-
                 <Box display="flex" justifyContent="center">
                     <Button
                         variant="contained"

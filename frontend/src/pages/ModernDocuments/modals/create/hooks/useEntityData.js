@@ -1,4 +1,4 @@
-// useEntityData.js - CORRIGIDO
+// useEntityData.js - CORRIGIDO E ORGANIZADO
 
 import { Box, Button, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
@@ -7,37 +7,37 @@ import { getDocuments, getEntityCountTypes } from '../../../../../services/docum
 import { getEntityByNIF, updateEntity } from '../../../../../services/entityService';
 
 export const useEntityData = (formData, setFormData) => {
-    // Estados separados para entidade principal e representante
+    // ✅ ENTIDADES SEPARADAS
     const [entityData, setEntityData] = useState(null);
     const [representativeData, setRepresentativeData] = useState(null);
 
-    // Estados de configuração
+    // ✅ CONFIGURAÇÃO
     const [isRepresentative, setIsRepresentative] = useState(false);
-    const [isDifferentAddress, setIsDifferentAddress] = useState(false);
+    const [isCustomRequestAddress, setIsCustomRequestAddress] = useState(false);
 
-    // Endereços (sempre baseados na entidade PRINCIPAL)
-    const [billingAddress, setBillingAddress] = useState({
+    // ✅ ENDEREÇOS SEPARADOS
+    const [entityAddress, setEntityAddress] = useState({
         postal: '', address: '', door: '', floor: '',
         nut1: '', nut2: '', nut3: '', nut4: ''
     });
-    const [shippingAddress, setShippingAddress] = useState({
+    const [requestAddress, setRequestAddress] = useState({
         postal: '', address: '', door: '', floor: '',
         nut1: '', nut2: '', nut3: '', nut4: ''
     });
 
-    // Estados de UI
+    // ✅ UI STATES
     const [createEntityModalOpen, setCreateEntityModalOpen] = useState(false);
     const [newEntityNipc, setNewEntityNipc] = useState("");
     const [isUpdateNeeded, setIsUpdateNeeded] = useState(false);
     const [entityToUpdate, setEntityToUpdate] = useState(null);
     const [entityDetailOpen, setEntityDetailOpen] = useState(false);
 
-    // Estados de dados derivados
+    // ✅ DADOS DERIVADOS
     const [entityCountTypes, setEntityCountTypes] = useState([]);
     const [previousDocuments, setPreviousDocuments] = useState([]);
     const [lastDocument, setLastDocument] = useState(null);
 
-    // ✅ CRÍTICO: Validação NIF português
+    // ✅ VALIDAÇÃO NIF
     const isValidNIF = (nif) => {
         if (!nif || nif.length !== 9) return false;
         const validFirstDigits = [1, 2, 3, 5, 6, 8, 9];
@@ -52,37 +52,73 @@ export const useEntityData = (formData, setFormData) => {
         return parseInt(nif[8]) === expectedDigit;
     };
 
-    // ✅ CRÍTICO: Validação campos obrigatórios
+    // ✅ VALIDAÇÃO COMPLETUDE
     const validateEntityCompleteness = (entity) => {
         const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
         const missingFields = requiredFields.filter(field => {
             const value = entity[field];
             if (!value || value.toString().trim() === '') return true;
-
             if (field === 'phone') {
                 const phone = value.toString().replace(/\s/g, '');
                 return !/^[29]\d{8}$/.test(phone) && !/^\d{9,}$/.test(phone);
             }
-
             return false;
         });
 
         return {
-            validateEntityCompleteness,
             isComplete: missingFields.length === 0,
             missingFields,
             isIncomplete: missingFields.length > 0
         };
     };
 
-    // ✅ CRÍTICO: Função específica para entidade PRINCIPAL
+    // ✅ APLICAR DADOS ENTIDADE PRINCIPAL
+    const applyEntityData = (entity) => {
+        // console.log("📍 Aplicando dados da entidade principal");
+        setEntityData(entity);
+
+        const addressData = {
+            postal: entity.postal || "",
+            address: entity.address || "",
+            door: entity.door || "",
+            floor: entity.floor || "",
+            nut1: entity.nut1 || "",
+            nut2: entity.nut2 || "",
+            nut3: entity.nut3 || "",
+            nut4: entity.nut4 || "",
+        };
+
+        setEntityAddress(addressData);
+
+        // Só actualiza morada do pedido se não foi personalizada
+        if (!isCustomRequestAddress) {
+            setRequestAddress({ ...addressData });
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            nipc: entity.nipc,
+            ...(entity.ts_associate ? { ts_associate: entity.ts_associate } : {})
+        }));
+    };
+
+    // ✅ RESET ENDEREÇOS
+    const resetAddresses = () => {
+        const emptyAddress = {
+            postal: '', address: '', door: '', floor: '',
+            nut1: '', nut2: '', nut3: '', nut4: ''
+        };
+        setEntityAddress(emptyAddress);
+        setRequestAddress(emptyAddress);
+    };
+
+    // ✅ VERIFICAR ENTIDADE PRINCIPAL
     const checkEntityData = async (nipc) => {
-        console.log("🏢 Verificando entidade PRINCIPAL:", nipc);
+        // console.log("🏢 Verificando entidade PRINCIPAL:", nipc);
 
         if (!isValidNIF(nipc)) {
             notifyError("NIF inválido.");
             setEntityData(null);
-            // ✅ Limpar endereços quando entidade é inválida
             resetAddresses();
             return null;
         }
@@ -91,8 +127,7 @@ export const useEntityData = (formData, setFormData) => {
             const response = await getEntityByNIF(nipc);
 
             if (!response?.entity) {
-                // ✅ Entidade não encontrada - oferecer criação
-                handleEntityNotFound(nipc, false); // false = não é representante
+                handleEntityNotFound(nipc, false);
                 return null;
             }
 
@@ -100,12 +135,10 @@ export const useEntityData = (formData, setFormData) => {
             const validation = validateEntityCompleteness(entity);
 
             if (validation.isIncomplete) {
-                // ✅ Entidade incompleta - oferecer actualização
-                handleIncompleteEntity(entity, validation, false); // false = não é representante
+                handleIncompleteEntity(entity, validation, false);
                 return entity;
             }
 
-            // ✅ Entidade completa - aplicar dados
             applyEntityData(entity);
             notifyInfo(`Entidade: ${entity.name}`);
             return entity;
@@ -117,9 +150,9 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
-    // ✅ CRÍTICO: Função específica para REPRESENTANTE
+    // ✅ VERIFICAR REPRESENTANTE
     const checkRepresentativeData = async (nipc) => {
-        console.log("👤 Verificando REPRESENTANTE:", nipc);
+        // console.log("👤 Verificando REPRESENTANTE:", nipc);
 
         if (!isValidNIF(nipc)) {
             notifyError("NIF do representante inválido.");
@@ -132,8 +165,7 @@ export const useEntityData = (formData, setFormData) => {
             const response = await getEntityByNIF(nipc);
 
             if (!response?.entity) {
-                // ✅ Representante não encontrado - oferecer criação
-                handleEntityNotFound(nipc, true); // true = é representante
+                handleEntityNotFound(nipc, true);
                 return null;
             }
 
@@ -141,12 +173,10 @@ export const useEntityData = (formData, setFormData) => {
             const validation = validateEntityCompleteness(entity);
 
             if (validation.isIncomplete) {
-                // ✅ Representante incompleto - oferecer actualização
-                handleIncompleteEntity(entity, validation, true); // true = é representante
+                handleIncompleteEntity(entity, validation, true);
                 return entity;
             }
 
-            // ✅ Representante completo - aplicar apenas aos dados do representante
             setRepresentativeData(entity);
             setFormData(prev => ({ ...prev, tb_representative: nipc }));
             notifyInfo(`Representante: ${entity.name}`);
@@ -159,53 +189,9 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
-    // ✅ FUNÇÃO: Aplicar dados da entidade PRINCIPAL (endereços, etc.)
-    const applyEntityData = (entity) => {
-        console.log("📍 Aplicando dados da entidade principal");
-
-        // ✅ Definir entidade
-        setEntityData(entity);
-
-        // ✅ Extrair dados de endereço
-        const addressData = {
-            postal: entity.postal || "",
-            address: entity.address || "",
-            door: entity.door || "",
-            floor: entity.floor || "",
-            nut1: entity.nut1 || "",
-            nut2: entity.nut2 || "",
-            nut3: entity.nut3 || "",
-            nut4: entity.nut4 || "",
-        };
-
-        // ✅ Aplicar endereços
-        setBillingAddress(addressData);
-        if (!isDifferentAddress) {
-            setShippingAddress({ ...addressData });
-        }
-
-        // ✅ Actualizar form data
-        setFormData(prev => ({
-            ...prev,
-            nipc: entity.nipc,
-            ...(entity.ts_associate ? { ts_associate: entity.ts_associate } : {})
-        }));
-    };
-
-    // ✅ FUNÇÃO: Reset endereços
-    const resetAddresses = () => {
-        const emptyAddress = {
-            postal: '', address: '', door: '', floor: '',
-            nut1: '', nut2: '', nut3: '', nut4: ''
-        };
-        setBillingAddress(emptyAddress);
-        setShippingAddress(emptyAddress);
-    };
-
-    // ✅ FUNÇÃO: Gerir entidade não encontrada
+    // ✅ ENTIDADE NÃO ENCONTRADA
     const handleEntityNotFound = (nipc, isRepresentative) => {
         const entityType = isRepresentative ? "Representante" : "Entidade";
-
         setNewEntityNipc(nipc);
         notifyCustom((t) => (
             <Box>
@@ -233,7 +219,7 @@ export const useEntityData = (formData, setFormData) => {
         ));
     };
 
-    // ✅ FUNÇÃO: Gerir entidade incompleta
+    // ✅ ENTIDADE INCOMPLETA
     const handleIncompleteEntity = (entity, validation, isRepresentative) => {
         const entityType = isRepresentative ? "Representante" : "Entidade";
         const fieldLabels = {
@@ -253,7 +239,6 @@ export const useEntityData = (formData, setFormData) => {
                 <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
                     <Button
                         onClick={() => {
-                            // ✅ CRÍTICO: Marcar o tipo de entidade sendo actualizada
                             setEntityToUpdate({ ...entity, _isRepresentative: isRepresentative });
                             setEntityDetailOpen(true);
                             toast.dismiss(t);
@@ -269,7 +254,7 @@ export const useEntityData = (formData, setFormData) => {
         ), { duration: 0, position: 'top-center' });
     };
 
-    // ✅ FUNÇÃO: Handler para actualização de entidades
+    // ✅ ACTUALIZAR ENTIDADE
     const handleEntityUpdate = async (updatedEntity) => {
         try {
             await updateEntity(updatedEntity);
@@ -282,13 +267,11 @@ export const useEntityData = (formData, setFormData) => {
 
             notifySuccess("Entidade actualizada com sucesso.");
 
-            // ✅ CRÍTICO: Aplicar actualização baseada no tipo
             if (updatedEntity._isRepresentative === true) {
-                console.log("📝 Actualizando dados do representante");
+                // console.log("📝 Actualizando dados do representante");
                 setRepresentativeData(updatedEntity);
             } else {
-                console.log("📝 Actualizando dados da entidade principal");
-                // ✅ Para entidade principal, aplicar todos os dados (incluindo endereços)
+                // console.log("📝 Actualizando dados da entidade principal");
                 applyEntityData(updatedEntity);
             }
 
@@ -299,7 +282,7 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
-    // ✅ FUNÇÃO: Handler para criação de entidade
+    // ✅ CRIAR ENTIDADE
     const handleCreateEntitySuccess = async (newEntity) => {
         setCreateEntityModalOpen(false);
         if (!newEntity) return;
@@ -321,15 +304,12 @@ export const useEntityData = (formData, setFormData) => {
                 setIsUpdateNeeded(true);
             }
 
-            // ✅ CRÍTICO: Determinar se é para representante ou entidade principal
             const isForRepresentative = newEntityNipc === formData.tb_representative;
 
             if (isForRepresentative) {
-                // ✅ Nova entidade é representante
                 setRepresentativeData(entity);
                 setFormData(prev => ({ ...prev, tb_representative: entity.nipc }));
             } else {
-                // ✅ Nova entidade é principal - aplicar todos os dados
                 applyEntityData(entity);
             }
 
@@ -340,11 +320,28 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
-    // ✅ Efeito para buscar dados derivados (apenas da entidade principal)
+    // ✅ TOGGLE PERSONALIZAR MORADA
+    const handleCustomAddressToggle = (useCustom) => {
+        setIsCustomRequestAddress(useCustom);
+        if (!useCustom) {
+            setRequestAddress({ ...entityAddress });
+        }
+    };
+
+    // ✅ TOGGLE REPRESENTANTE
+    const handleRepresentativeToggle = (e) => {
+        setIsRepresentative(e.target.checked);
+        if (!e.target.checked) {
+            setFormData(prev => ({ ...prev, tb_representative: '' }));
+            setRepresentativeData(null);
+        }
+    };
+
+    // ✅ BUSCAR DADOS DERIVADOS
     useEffect(() => {
         const fetchEntityData = async () => {
             if (entityData?.pk) {
-                console.log("📊 Buscando dados derivados para entidade:", entityData.pk);
+                // console.log("📊 Buscando dados derivados para entidade:", entityData.pk);
                 try {
                     const countTypes = await getEntityCountTypes(entityData.pk);
                     setEntityData(prevEntity => ({
@@ -364,7 +361,7 @@ export const useEntityData = (formData, setFormData) => {
         fetchEntityData();
     }, [entityData?.pk]);
 
-    // ✅ Função para buscar documentos da entidade
+    // ✅ BUSCAR DOCUMENTOS DA ENTIDADE
     const fetchEntitiesDocuments = async (entityPk) => {
         try {
             const allDocuments = await getDocuments();
@@ -393,27 +390,6 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
-    // ✅ Handlers de toggle
-    const handleRepresentativeToggle = (e) => {
-        setIsRepresentative(e.target.checked);
-        if (!e.target.checked) {
-            setFormData(prev => ({ ...prev, tb_representative: '' }));
-            setRepresentativeData(null);
-        }
-    };
-
-    const handleDifferentAddressToggle = (e) => {
-        setIsDifferentAddress(e.target.checked);
-        if (!e.target.checked) {
-            setShippingAddress({ ...billingAddress });
-        } else {
-            setShippingAddress({
-                postal: '', address: '', door: '', floor: '',
-                nut1: '', nut2: '', nut3: '', nut4: ''
-            });
-        }
-    };
-
     return {
         // Estados principais
         entityData,
@@ -421,15 +397,14 @@ export const useEntityData = (formData, setFormData) => {
         representativeData,
         setRepresentativeData,
 
-        // Estados de configuração
+        // Configuração
         isRepresentative,
-        isDifferentAddress,
+        isCustomRequestAddress,
 
-        // Endereços (sempre da entidade principal)
-        billingAddress,
-        setBillingAddress,
-        shippingAddress,
-        setShippingAddress,
+        // Endereços
+        entityAddress,
+        requestAddress,
+        setRequestAddress,
 
         // Dados derivados
         entityCountTypes,
@@ -437,7 +412,7 @@ export const useEntityData = (formData, setFormData) => {
         previousDocuments,
         lastDocument,
 
-        // Estados de UI
+        // UI States
         createEntityModalOpen,
         setCreateEntityModalOpen,
         newEntityNipc,
@@ -452,7 +427,7 @@ export const useEntityData = (formData, setFormData) => {
         checkEntityData,
         checkRepresentativeData,
         handleRepresentativeToggle,
-        handleDifferentAddressToggle,
+        handleCustomAddressToggle,
         handleEntityUpdate,
         handleCreateEntitySuccess,
         validateEntityCompleteness,

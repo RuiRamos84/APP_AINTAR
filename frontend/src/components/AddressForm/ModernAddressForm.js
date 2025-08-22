@@ -449,7 +449,7 @@ const ModernAddressForm = ({
       {!fetchSuccess && addressData?.postal?.length === 8 && !loading && (
         <Fade in={!fetchSuccess && addressData?.postal?.length === 8}>
           <Alert severity="info" sx={{ mt: 2 }}>
-            Se o código postal não for encontrado, preencha os dados manualmente.
+            Se o código postal não devolver resultados, deve preencher os dados manualmente.
           </Alert>
         </Fade>
       )}

@@ -40,17 +40,13 @@ import { createDocument } from '../../../../services/documentService';
 import { notifySuccess, notifyError, notifyInfo } from '../../../../components/common/Toaster/ThemedToaster';
 import paymentService from '../../../../features/Payment/services/paymentService';
 
-/**
- * Modal de criação completo com todas as funcionalidades migradas
- */
 const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const { metaData } = useMetaData();
     const { user } = useAuth();
 
-    // Definição dos passos
     const steps = [
         { label: 'Identificação', description: 'Identificação fiscal e dados da entidade' },
-        { label: 'Morada', description: 'Morada do pedido e de faturação' },
+        { label: 'Morada', description: 'Morada do pedido' },
         { label: 'Detalhes', description: 'Tipo de pedido, associado e informações' },
         { label: 'Parâmetros', description: 'Parâmetros específicos do tipo de documento' },
         { label: 'Anexos', description: 'Adicione documentos relacionados ao pedido' },
@@ -61,8 +57,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const [confirmClose, setConfirmClose] = useState(false);
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [finalPaymentData, setFinalPaymentData] = useState(null);
-    // const [suggestEntityCreation, setSuggestEntityCreation] = useState(false);
-    // const [pendingNipc, setPendingNipc] = useState('');
 
     // Hooks principais
     const documentForm = useDocumentForm(initialNipc, handleCloseAfterSuccess);
@@ -72,26 +66,26 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         validateCurrentStep, resetForm
     } = documentForm;
 
-    // Hook de entidades corrigido
+    // Hook de entidades
     const entityDataHook = useEntityData(formData, setFormData);
     const {
-        entityData, representativeData, isRepresentative, isDifferentAddress,
-        billingAddress, setBillingAddress, shippingAddress, setShippingAddress,
+        entityData, representativeData, setEntityData, setRepresentativeData,
+        isRepresentative, isCustomRequestAddress, handleCustomAddressToggle,
+        entityAddress, requestAddress, setRequestAddress,
         createEntityModalOpen, setCreateEntityModalOpen, newEntityNipc,
         isUpdateNeeded, setIsUpdateNeeded, entityToUpdate, entityDetailOpen, setEntityDetailOpen,
         entityCountTypes, previousDocuments, lastDocument, checkEntityData,
-        handleRepresentativeToggle, handleDifferentAddressToggle, handleEntityUpdate,
-        handleCreateEntitySuccess
+        handleRepresentativeToggle, handleEntityUpdate, handleCreateEntitySuccess
     } = entityDataHook;
 
-    // Hook de parâmetros corrigido
+    // Hook de parâmetros
     const documentParams = useDocumentParams(formData, entityData, metaData);
     const {
         docTypeParams, paramValues, selectedCountType,
         selectedTypeText, handleParamChange
     } = documentParams;
 
-    // Hook de ficheiros com colagem
+    // Hook de ficheiros
     const fileHandling = useFileHandling(formData, setFormData);
     const {
         paymentMethod, setPaymentMethod, paymentInfo, setPaymentInfo,
@@ -99,20 +93,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         handlePaymentMethodChange, handlePaymentChange, handlePaymentProofUpload
     } = fileHandling;
 
-    // ✅ RESET COMPLETO
+    // Reset completo
     useEffect(() => {
         if (open) {
             resetForm();
             entityDataHook.setEntityData(null);
             entityDataHook.setRepresentativeData(null);
-            setBillingAddress({
-                postal: "", address: "", door: "", floor: "",
-                nut1: "", nut2: "", nut3: "", nut4: "",
-            });
-            setShippingAddress({
-                postal: "", address: "", door: "", floor: "",
-                nut1: "", nut2: "", nut3: "", nut4: "",
-            });
 
             if (initialNipc) {
                 setFormData(prev => ({ ...prev, nipc: initialNipc }));
@@ -121,148 +107,69 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         }
     }, [open, initialNipc]);
 
-    // ✅ HANDLER NIPC CORRIGIDO
+    // Handler NIPC
     const handleNipcChange = async (event) => {
         const nipc = event.target.value;
         handleChange(event);
 
-        // ✅ O entityDataHook.checkEntityData já gere tudo internamente
         if (nipc && nipc.length >= 9) {
             await entityDataHook.checkEntityData(nipc);
         }
     };
 
-    const isEntityDataComplete = () => {
-        if (!entityData) return false;
-
-        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
-        return requiredFields.every(field =>
-            entityData[field] && entityData[field].toString().trim() !== ''
-        );
-    };
-
-    // 2. Verificar se representante está completo (se aplicável)
-    const isRepresentativeDataComplete = () => {
-        if (!isRepresentative) return true; // Se não é representante, não precisa validar
-
-        // ✅ CORRECÇÃO: Verificar se representante existe E está completo
-        if (!representativeData) return false; // Representante não foi encontrado/criado
-
-        const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
-        return requiredFields.every(field =>
-            representativeData[field] && representativeData[field].toString().trim() !== ''
-        );
-    };
-
-    // 3. Determinar se pode avançar do passo 0 (Identificação)
+    // Validação avanço do passo 0
     const canAdvanceFromIdentification = () => {
         if (isInternal) return true;
 
-        // ✅ USAR APENAS dados do hook
-        const currentEntityData = entityDataHook.entityData;
-        const currentRepresentativeData = entityDataHook.representativeData;
+        const nipcStr = String(formData.nipc || '');
+        const hasNipc = nipcStr.length === 9;
+        const hasEntity = !!entityDataHook.entityData;
 
-        if (!currentEntityData || !entityDataHook.validateEntityCompleteness(currentEntityData).isComplete) {
-            return false;
-        }
+        if (!hasNipc || !hasEntity) return false;
+
+        const entityComplete = entityDataHook.validateEntityCompleteness(entityDataHook.entityData).isComplete;
+        if (!entityComplete) return false;
 
         if (isRepresentative) {
-            if (!formData.tb_representative || !currentRepresentativeData ||
-                !entityDataHook.validateEntityCompleteness(currentRepresentativeData).isComplete) {
-                return false;
-            }
+            const repNipcStr = String(formData.tb_representative || '');
+            const hasRepNipc = repNipcStr.length === 9;
+            const hasRepData = !!entityDataHook.representativeData;
+
+            if (!hasRepNipc || !hasRepData) return false;
+
+            const repComplete = entityDataHook.validateEntityCompleteness(entityDataHook.representativeData).isComplete;
+            if (!repComplete) return false;
         }
 
         return true;
     };
 
-    // ✅ VALIDAÇÃO CORRIGIDA
-    const validateStep = () => {
-        const newErrors = validateCurrentStep(
-            activeStep,
-            formData,
-            billingAddress,
-            shippingAddress,
-            isDifferentAddress,
-            paymentMethod,
-            paymentInfo,
-            docTypeParams,
-            paramValues,
-            entityData,           // ✅ Passar entityData
-            representativeData,   // ✅ Passar representativeData  
-            isRepresentative      // ✅ Passar flag isRepresentative
-        );
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    // Sincronizar endereços
-    useEffect(() => {
-        if (entityData && entityData.pk) {
-            const addressData = {
-                postal: entityData.postal || "",
-                address: entityData.address || "",
-                door: entityData.door || "",
-                floor: entityData.floor || "",
-                nut1: entityData.nut1 || "",
-                nut2: entityData.nut2 || "",
-                nut3: entityData.nut3 || "",
-                nut4: entityData.nut4 || "",
-            };
-
-            setBillingAddress(addressData);
-
-            if (!isDifferentAddress) {
-                setShippingAddress({ ...addressData });
-            }
-        }
-    }, [entityData]);
-
     const handleNext = () => {
-        // ✅ Para passo 0, usar validação específica
+        // Passo 0: validação específica
         if (activeStep === 0) {
             if (!canAdvanceFromIdentification()) {
-                // Mensagem de erro específica
-                const currentEntityData = entityDataHook.entityData;
-                const currentRepresentativeData = entityDataHook.representativeData;
-
-                let errorMessage = "Dados incompletos:";
-
-                if (!currentEntityData) {
-                    errorMessage += "\n• Introduza um NIF válido para a entidade principal";
-                } else if (!entityDataHook.validateEntityCompleteness(currentEntityData).isComplete) {
-                    errorMessage += "\n• Complete os dados da entidade principal";
-                }
-
-                if (isRepresentative) {
-                    if (!formData.tb_representative) {
-                        errorMessage += "\n• Introduza o NIF do representante legal";
-                    } else if (!currentRepresentativeData) {
-                        errorMessage += "\n• Representante não encontrado";
-                    } else if (!entityDataHook.validateEntityCompleteness(currentRepresentativeData).isComplete) {
-                        errorMessage += "\n• Complete os dados do representante legal";
-                    }
-                }
-
-                notifyError(errorMessage);
+                notifyError("Complete todos os dados obrigatórios antes de prosseguir.");
                 return;
             }
+            setActiveStep(prev => prev + 1);
+            const modalContent = document.querySelector('.MuiDialogContent-root');
+            if (modalContent) modalContent.scrollTop = 0;
+            return;
         }
 
-        // ✅ Para outros passos, usar validação com dados do hook
+        // Outros passos: validação normal
         const newErrors = validateCurrentStep(
             activeStep,
             formData,
-            billingAddress,
-            shippingAddress,
-            isDifferentAddress,
+            requestAddress, // Usar requestAddress
+            requestAddress, // Usar requestAddress
+            false, // Não há endereços diferentes
             paymentMethod,
             paymentInfo,
             docTypeParams,
             paramValues,
-            entityDataHook.entityData,        // ✅ Dados do hook
-            entityDataHook.representativeData, // ✅ Dados do hook
+            entityData,
+            representativeData,
             isRepresentative
         );
 
@@ -283,7 +190,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         if (modalContent) modalContent.scrollTop = 0;
     };
 
-    // ✅ PREPARAR DADOS COMPLETOS
+    // Preparar dados para submissão
     function prepareFormData() {
         const submitFormData = new FormData();
 
@@ -294,21 +201,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             }
         });
 
-        submitFormData.append("isDifferentAddress", isDifferentAddress);
-
-        // Endereços
-        Object.entries(billingAddress).forEach(([key, value]) => {
+        // Endereço do pedido
+        Object.entries(requestAddress).forEach(([key, value]) => {
             submitFormData.append(key, value);
-            submitFormData.append(`billing_${key}`, value);
         });
 
-        if (isDifferentAddress) {
-            Object.entries(shippingAddress).forEach(([key, value]) => {
-                submitFormData.append(`shipping_${key}`, value);
-            });
-        }
-
-        // ✅ PARÂMETROS
+        // Parâmetros
         Object.entries(paramValues).forEach(([key, value]) => {
             submitFormData.append(key, value || '');
         });
@@ -333,47 +231,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         return submitFormData;
     }
 
-    // ✅ CORREÇÃO: useEffect para debug
-    useEffect(() => {
-        console.log('🔄 Estado actualizado:', {
-            entityData: entityDataHook.entityData?.name,
-            representativeData: entityDataHook.representativeData?.name,
-            isRepresentative,
-            formData_nipc: formData.nipc,
-            formData_representative: formData.tb_representative
-        });
-    }, [entityDataHook.entityData, entityDataHook.representativeData, isRepresentative, formData.nipc, formData.tb_representative]);
-
-    // Fechar após pagamento
-    const handlePaymentClose = (success, result) => {
-        setPaymentDialogOpen(false);
-
-        if (success) {
-            notifySuccess('Pagamento processado!');
-        } else {
-            notifyInfo('Documento criado. Pagamento pendente.');
-        }
-
-        resetForm();
-        clearEntityData();
-        onClose(true, finalPaymentData?.regnumber, false);
-        setFinalPaymentData(null);
-    };
-
-    const clearEntityData = () => {
-        entityDataHook.setEntityData(null);
-        entityDataHook.setRepresentativeData(null);
-        setBillingAddress({ postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "" });
-        setShippingAddress({ postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "" });
-    };
-
-    // ✅ SUBMIT FINAL
+    // Submit final
     const handleSubmit = async () => {
-        if (!validateStep()) {
-            notifyError("Preencha todos os campos obrigatórios.");
-            return;
-        }
-
         setLoading(true);
 
         try {
@@ -428,10 +287,31 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         onClose(success, regnumber, redirectToPayment);
     }
 
+    // Fechar após pagamento
+    const handlePaymentClose = (success, result) => {
+        setPaymentDialogOpen(false);
+
+        if (success) {
+            notifySuccess('Pagamento processado!');
+        } else {
+            notifyInfo('Documento criado. Pagamento pendente.');
+        }
+
+        resetForm();
+        clearEntityData();
+        onClose(true, finalPaymentData?.regnumber, false);
+        setFinalPaymentData(null);
+    };
+
+    const clearEntityData = () => {
+        entityDataHook.setEntityData(null);
+        entityDataHook.setRepresentativeData(null);
+    };
+
     const handleCloseRequest = () => {
         const hasData = formData.nipc || formData.tt_type || formData.ts_associate ||
             formData.memo || formData.files.length > 0 || entityData ||
-            Object.values(billingAddress).some(value => value);
+            Object.values(requestAddress).some(value => value);
 
         if (hasData) {
             setConfirmClose(true);
@@ -448,23 +328,18 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         onClose(false);
     };
 
-    // ✅ RENDER STEPS CORRIGIDO
+    // Render passos
     const renderStepContent = () => {
         switch (activeStep) {
             case 0:
-                console.log('🔍 Debug antes render:', {
-                    entityData_type: typeof entityDataHook.entityData,
-                    entityData_value: entityDataHook.entityData,
-                    hasPhone: entityDataHook.entityData?.phone
-                });
                 return (
                     <IdentificationStep
                         formData={formData}
                         handleChange={handleChange}
                         handleNipcChange={handleNipcChange}
                         errors={errors}
-                        entityData={entityDataHook.entityData}           // ✅ Só hook
-                        representativeData={entityDataHook.representativeData} // ✅ Só hook
+                        entityData={entityDataHook.entityData}
+                        representativeData={entityDataHook.representativeData}
                         setEntityData={entityDataHook.setEntityData}
                         setRepresentativeData={entityDataHook.setRepresentativeData}
                         isRepresentative={isRepresentative}
@@ -479,18 +354,14 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             case 1:
                 return (
                     <AddressStep
-                        billingAddress={billingAddress}
-                        setBillingAddress={setBillingAddress}
-                        shippingAddress={shippingAddress}
-                        setShippingAddress={setShippingAddress}
-                        errors={errors}
-                        isDifferentAddress={isDifferentAddress}
-                        handleDifferentAddressToggle={handleDifferentAddressToggle}
-                        isEntityFound={entityData !== null}
-                        isInternal={isInternal}
                         entityData={entityData}
-                        setEntityDetailOpen={setEntityDetailOpen}
-                        setEntityToUpdate={entityDataHook.setEntityToUpdate}
+                        entityAddress={entityAddress}
+                        requestAddress={requestAddress}
+                        setRequestAddress={setRequestAddress}
+                        isCustomRequestAddress={isCustomRequestAddress}
+                        handleCustomAddressToggle={handleCustomAddressToggle}
+                        errors={errors}
+                        isInternal={isInternal}
                     />
                 );
 
@@ -504,11 +375,9 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         isInternal={isInternal}
                         handleInternalSwitch={handleInternalSwitch}
                         isInterProfile={isInterProfile}
-                        // ✅ ADICIONAR estas props que estavam em falta:
                         selectedCountType={documentParams.selectedCountType}
                         selectedTypeText={documentParams.selectedTypeText}
                         previousDocuments={entityDataHook.previousDocuments}
-                        // ✅ Adicionar entityData para debug
                         entityData={entityData}
                     />
                 );
@@ -547,9 +416,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                         formData={formData}
                         entityData={entityData}
                         representativeData={representativeData}
-                        billingAddress={billingAddress}
-                        shippingAddress={shippingAddress}
-                        isDifferentAddress={isDifferentAddress}
+                        requestAddress={requestAddress}
                         docTypeParams={docTypeParams}
                         paramValues={paramValues}
                         metaData={metaData}
@@ -674,25 +541,6 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 </DialogActions>
             </Dialog>
 
-            {/* Sugestão criar entidade */}
-            {/* <Dialog open={suggestEntityCreation} onClose={handleRejectCreateEntity}>
-                <DialogTitle>Entidade não encontrada</DialogTitle>
-                <DialogContent>
-                    <Typography>
-                        Não foram encontrados dados para o NIF {pendingNipc}.
-                        Criar nova entidade?
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleRejectCreateEntity}>
-                        Continuar sem criar
-                    </Button>
-                    <Button onClick={handleConfirmCreateEntity} variant="contained" autoFocus>
-                        Criar entidade
-                    </Button>
-                </DialogActions>
-            </Dialog> */}
-
             {/* Confirmação fechar */}
             <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
                 <DialogTitle>Descartar alterações?</DialogTitle>
@@ -731,7 +579,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
             {entityDetailOpen && entityToUpdate && (
                 <EntityDetail
-                    entity={entityToUpdate}  // ✅ Já correcto
+                    entity={entityToUpdate}
                     onSave={handleEntityUpdate}
                     onClose={() => setEntityDetailOpen(false)}
                     open={entityDetailOpen}

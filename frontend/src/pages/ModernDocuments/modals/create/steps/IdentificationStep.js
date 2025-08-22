@@ -73,8 +73,10 @@ const IdentificationStep = ({
         const nipc = e.target.value;
         handleNipcChange(e); // Actualizar form
 
+        // ✅ AGUARDAR actualização antes de validar
         if (nipc && nipc.length >= 9) {
-            await entityDataHook.checkEntityData(nipc);
+            const result = await entityDataHook.checkEntityData(nipc);
+            // console.log('🔍 Resultado checkEntityData:', result);
         }
     };
 

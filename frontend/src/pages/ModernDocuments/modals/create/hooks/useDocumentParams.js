@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { notifyInfo, notifyWarning, notifyError } from '../../../../../components/common/Toaster/ThemedToaster';
-import { getDocumentTypeParams } from '../../../../../services/documentService';
+import { getDocumentTypeParams, getEntityCountTypes } from '../../../../../services/documentService';
 
 export const useDocumentParams = (formData, entityData, metaData) => {
     const [docTypeParams, setDocTypeParams] = useState([]);
     const [paramValues, setParamValues] = useState({});
     const [selectedCountType, setSelectedCountType] = useState(null);
     const [selectedTypeText, setSelectedTypeText] = useState("");
+    const [entityCountTypes, setEntityCountTypes] = useState([]);
 
     // Função segura para converter para string
     const safeToString = (value) => {
@@ -30,51 +31,51 @@ export const useDocumentParams = (formData, entityData, metaData) => {
         return value !== null && value !== undefined ? value : '';
     };
 
-    // Efeito para atualizar o tipo de documento selecionado
+    // Efeito para buscar contagens quando entityData mudar
     useEffect(() => {
-        console.log('🔍 useDocumentParams DEBUG:', {
-            'formData.tt_type': formData.tt_type,
-            'entityData?.pk': entityData?.pk,
-            'entityData?.entityCountTypes': entityData?.entityCountTypes?.length,
-            'metaData?.types length': metaData?.types?.length
-        });
+        const fetchEntityCountTypes = async () => {
+            if (entityData?.pk) {
+                try {
+                    console.log("📊 Buscando contagens para entidade:", entityData.pk);
+                    const countTypes = await getEntityCountTypes(entityData.pk);
+                    console.log("📊 Resultado API countTypes:", countTypes);
+                    setEntityCountTypes(countTypes || []);
+                } catch (error) {
+                    console.error("❌ Erro ao buscar contagens:", error);
+                    setEntityCountTypes([]);
+                }
+            }
+        };
 
-        if (formData.tt_type && entityData?.pk) {
+        fetchEntityCountTypes();
+    }, [entityData?.pk]);
+
+
+    // Substituir useEffect que depende de entityData?.entityCountTypes
+    useEffect(() => {
+        if (formData.tt_type && entityCountTypes.length > 0) {
             const selectedType = metaData?.types?.find(
                 type => type.tt_doctype_code === formData.tt_type
             );
-
-            console.log('📋 Tipo encontrado:', selectedType);
 
             if (selectedType) {
                 const typeText = selectedType.tt_doctype_value;
                 setSelectedTypeText(typeText);
 
-                console.log('🏢 entityCountTypes:', entityData.entityCountTypes);
+                const countType = entityCountTypes.find(
+                    ct => ct.tt_type === typeText
+                );
 
-                if (entityData.entityCountTypes && entityData.entityCountTypes.length > 0) {
-                    const countType = entityData.entityCountTypes.find(
-                        ct => ct.tt_type === typeText
+                setSelectedCountType(countType || null);
+
+                if (countType && countType.typecountall > 0) {
+                    notifyInfo(
+                        `Esta entidade já submeteu ${countType.typecountyear} pedido(s) do tipo "${typeText}" este ano. Total: ${countType.typecountall}.`
                     );
-
-                    console.log('📊 countType encontrado:', countType);
-                    setSelectedCountType(countType || null);
-
-                    if (countType) {
-                        notifyInfo(
-                            `No ano corrente: ${countType.typecountyear} pedidos do tipo ${typeText}. Total global: ${countType.typecountall}.`
-                        );
-                    }
-                } else {
-                    console.log('⚠️ Sem entityCountTypes disponível');
-                    setSelectedCountType(null);
                 }
             }
-        } else {
-            setSelectedTypeText("");
-            setSelectedCountType(null);
         }
-    }, [formData.tt_type, entityData?.pk, metaData?.types, entityData?.entityCountTypes]);
+    }, [formData.tt_type, entityCountTypes, metaData?.types]);
 
     // ✅ BUSCAR PARÂMETROS - FUNCIONALIDADE CRÍTICA EM FALTA
     useEffect(() => {
@@ -86,11 +87,11 @@ export const useDocumentParams = (formData, entityData, metaData) => {
             }
 
             try {
-                console.log("🔍 Buscando parâmetros para tipo:", formData.tt_type);
+                // console.log("🔍 Buscando parâmetros para tipo:", formData.tt_type);
 
                 // 1. Verificar se temos param_doctype nos metadados
                 const paramDocTypeMeta = metaData?.param_doctype || [];
-                console.log("📋 Metadados param_doctype:", paramDocTypeMeta.length);
+                // console.log("📋 Metadados param_doctype:", paramDocTypeMeta.length);
 
                 // 2. Filtrar parâmetros relevantes
                 const relevantParams = paramDocTypeMeta.filter(param => {
@@ -103,7 +104,7 @@ export const useDocumentParams = (formData, entityData, metaData) => {
                     return isRelevantType && isOncreate;
                 });
 
-                console.log("✅ Parâmetros relevantes:", relevantParams.length);
+                // console.log("✅ Parâmetros relevantes:", relevantParams.length);
 
                 if (relevantParams.length === 0) {
                     setDocTypeParams([]);
@@ -116,7 +117,7 @@ export const useDocumentParams = (formData, entityData, metaData) => {
                 try {
                     const apiResponse = await getDocumentTypeParams(formData.tt_type);
                     apiParams = Array.isArray(apiResponse) ? apiResponse : [];
-                    console.log("🌐 Parâmetros da API:", apiParams.length);
+                    // console.log("🌐 Parâmetros da API:", apiParams.length);
                 } catch (apiError) {
                     console.warn("⚠️ API não disponível, usando só metadados:", apiError);
                 }
@@ -151,7 +152,7 @@ export const useDocumentParams = (formData, entityData, metaData) => {
                     return 0;
                 });
 
-                console.log("🎯 Parâmetros finais:", sortedParams);
+                // console.log("🎯 Parâmetros finais:", sortedParams);
                 setDocTypeParams(sortedParams);
 
                 // 6. Inicializar valores
