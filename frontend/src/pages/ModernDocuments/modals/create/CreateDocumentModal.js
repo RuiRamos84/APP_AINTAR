@@ -161,9 +161,9 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         const newErrors = validateCurrentStep(
             activeStep,
             formData,
-            requestAddress, // Usar requestAddress
-            requestAddress, // Usar requestAddress
-            false, // Não há endereços diferentes
+            requestAddress,
+            requestAddress,
+            false,
             paymentMethod,
             paymentInfo,
             docTypeParams,
@@ -190,7 +190,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         if (modalContent) modalContent.scrollTop = 0;
     };
 
-    // Preparar dados para submissão
+    // ✅ CORRECÇÃO: Preparar dados com descrições correctas
     function prepareFormData() {
         const submitFormData = new FormData();
 
@@ -211,10 +211,19 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             submitFormData.append(key, value || '');
         });
 
-        // Ficheiros
+        // ✅ CRÍTICO: Ficheiros com descrições
         formData.files.forEach((fileObj, index) => {
+            // Ficheiro
             submitFormData.append("files", fileObj.file);
-            submitFormData.append(`descr${index}`, fileObj.description || "");
+
+            // ✅ Usar a descrição correcta do objecto
+            const description = fileObj.description || '';
+            submitFormData.append(`file_description_${index}`, description);
+
+            console.log(`📎 Ficheiro ${index}:`, {
+                name: fileObj.file.name,
+                description: description
+            });
         });
 
         // Entidades

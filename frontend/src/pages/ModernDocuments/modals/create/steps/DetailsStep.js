@@ -1,4 +1,4 @@
-// DetailsStep.js - Correcção para mostrar contagem de pedidos da entidade
+// DetailsStep.js - Corrigido para usar dados da API getEntityCountTypes
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -23,8 +23,9 @@ import {
     Business as BusinessIcon
 } from '@mui/icons-material';
 import { notifyWarning } from '../../../../../components/common/Toaster/ThemedToaster';
+import { getEntityCountTypes } from '../../../../../services/documentService';
 
-// Componente existente DocumentSuggestions...
+// Componente DocumentSuggestions existente...
 const DocumentSuggestions = ({ previousDocuments, onSelectSuggestion }) => {
     const uniqueTypes = [];
     const uniqueDocs = previousDocuments
@@ -74,8 +75,6 @@ const DetailsStep = ({
     isInternal,
     handleInternalSwitch,
     isInterProfile,
-    selectedCountType,
-    selectedTypeText,
     previousDocuments = [],
     entityData
 }) => {
@@ -83,9 +82,10 @@ const DetailsStep = ({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [previousAssociateValue, setPreviousAssociateValue] = useState('');
 
-    // ✅ CORRECÇÃO: Obter contagem de tipos da entidade
+    // ✅ CORRECÇÃO: Estados locais para dados da API
     const [entityCountTypes, setEntityCountTypes] = useState([]);
     const [currentTypeCount, setCurrentTypeCount] = useState(null);
+    const [loadingCounts, setLoadingCounts] = useState(false);
 
     // Encontrar o nome de AINTAR para exibição
     const getAintarName = () => {
@@ -93,57 +93,84 @@ const DetailsStep = ({
         return aintar ? aintar.name : "AINTAR";
     };
 
-    // ✅ CORRECÇÃO: Actualizar entityCountTypes quando entityData mudar
+    // ✅ CORRECÇÃO: Buscar contagens quando entityData mudar
     useEffect(() => {
-        if (entityData?.entityCountTypes) {
-            setEntityCountTypes(entityData.entityCountTypes);
-            console.log('📊 EntityCountTypes actualizados:', entityData.entityCountTypes);
-        }
-    }, [entityData]);
+        const fetchEntityCountTypes = async () => {
+            if (!entityData?.pk) {
+                setEntityCountTypes([]);
+                setCurrentTypeCount(null);
+                return;
+            }
+
+            setLoadingCounts(true);
+            console.log("📊 Buscando contagens para entidade:", entityData.pk);
+
+            try {
+                const countTypes = await getEntityCountTypes(entityData.pk);
+                console.log("📊 Resultado API getEntityCountTypes:", countTypes);
+
+                setEntityCountTypes(Array.isArray(countTypes) ? countTypes : []);
+            } catch (error) {
+                console.error("❌ Erro ao buscar contagens da entidade:", error);
+                setEntityCountTypes([]);
+            } finally {
+                setLoadingCounts(false);
+            }
+        };
+
+        fetchEntityCountTypes();
+    }, [entityData?.pk]);
 
     // ✅ CORRECÇÃO: Actualizar contagem quando tipo de documento mudar
     useEffect(() => {
-        if (formData.tt_type && entityCountTypes.length > 0) {
-            const selectedTypeName = metaData?.types?.find(
-                type => type.tt_doctype_code === formData.tt_type
-            )?.tt_doctype_value;
-
-            console.log('🔍 Busca contagem:', {
-                selectedCode: formData.tt_type,
-                selectedName: selectedTypeName,
-                availableTypes: entityCountTypes.map(ct => ct.tt_type)
-            });
-
-            if (selectedTypeName) {
-                const countData = entityCountTypes.find(
-                    ct => ct.tt_type === selectedTypeName
-                );
-
-                console.log('📊 Resultado busca:', countData);
-
-                setCurrentTypeCount(countData || null);
-
-                // ✅ CORRECÇÃO: Notificar apenas se há contagem > 0
-                if (countData && countData.typecountall > 3) {
-                    notifyWarning(
-                        `Esta entidade já submeteu ${countData.typecountyear} pedido(s) do tipo "${selectedTypeName}". Verifique se não é duplicado.`
-                    );
-                }
-            }
-        } else {
+        if (!formData.tt_type || entityCountTypes.length === 0) {
             setCurrentTypeCount(null);
+            return;
+        }
+
+        // Encontrar o nome do tipo seleccionado
+        const selectedTypeName = metaData?.types?.find(
+            type => type.tt_doctype_code === formData.tt_type
+        )?.tt_doctype_value;
+
+        console.log('🔍 Busca contagem para tipo:', {
+            selectedCode: formData.tt_type,
+            selectedName: selectedTypeName,
+            availableTypes: entityCountTypes.map(ct => ct.tt_type)
+        });
+
+        if (!selectedTypeName) {
+            setCurrentTypeCount(null);
+            return;
+        }
+
+        // Buscar nos dados da API usando o nome do tipo
+        const countData = entityCountTypes.find(
+            ct => ct.tt_type === selectedTypeName
+        );
+
+        console.log('📊 Resultado busca contagem:', countData);
+        setCurrentTypeCount(countData || null);
+
+        // ✅ Notificar apenas se há contagem significativa
+        if (countData && countData.typecountall > 3) {
+            notifyWarning(
+                `Esta entidade já submeteu ${countData.typecountyear} pedido(s) do tipo "${selectedTypeName}" este ano (Total: ${countData.typecountall}).`
+            );
         }
     }, [formData.tt_type, entityCountTypes, metaData?.types]);
 
-    // ✅ DEBUG: Logs para verificar dados
+    // ✅ DEBUG: Logs para verificar fluxo de dados
     useEffect(() => {
         console.log('🔍 DetailsStep DEBUG:', {
+            'entityData.pk': entityData?.pk,
+            'entityData.name': entityData?.name,
             'formData.tt_type': formData.tt_type,
             'entityCountTypes.length': entityCountTypes.length,
             'currentTypeCount': currentTypeCount,
-            'entityData.name': entityData?.name
+            'loadingCounts': loadingCounts
         });
-    }, [formData.tt_type, entityCountTypes, currentTypeCount, entityData]);
+    }, [entityData, formData.tt_type, entityCountTypes, currentTypeCount, loadingCounts]);
 
     // Efeito para manipular o preenchimento automático do associado quando isInternal muda
     useEffect(() => {
@@ -289,6 +316,7 @@ const DetailsStep = ({
                                 onChange={handleChange}
                                 error={!!errors.tt_type}
                                 helperText={errors.tt_type}
+                                disabled={loadingCounts}
                             >
                                 {metaData?.types
                                     ?.filter(type => {
@@ -329,55 +357,76 @@ const DetailsStep = ({
                             </TextField>
                         </Grid>
 
-                        {/* ✅ CORRECÇÃO: Informação sobre histórico melhorada */}
-                        {formData.tt_type && currentTypeCount && (
+                        {/* ✅ CORRECÇÃO: Informação sobre histórico da entidade */}
+                        {entityData && formData.tt_type && (
                             <Grid size={{ xs: 12 }}>
-                                <Paper
-                                    variant="outlined"
-                                    sx={{
-                                        p: 1.5,
-                                        mt: 1,
-                                        bgcolor: currentTypeCount.typecountall > 3
-                                            ? theme.palette.warning.main
-                                            : theme.palette.info.light,
-                                        color: currentTypeCount.typecountall > 3
-                                            ? theme.palette.common.white
-                                            : theme.palette.info.dark,
-                                        borderRadius: 1
-                                    }}
-                                >
-                                    <Box display="flex" alignItems="center">
-                                        <InfoIcon sx={{ mr: 1 }} />
-                                        <Typography variant="body2">
-                                            <strong>Histórico da entidade:</strong> {currentTypeCount.typecountyear}º pedido do tipo
-                                            "{currentTypeCount.tt_type}" no ano corrente,
-                                            e {currentTypeCount.typecountall} no total global.
+                                {loadingCounts ? (
+                                    <Paper
+                                        variant="outlined"
+                                        sx={{
+                                            p: 2,
+                                            mt: 1,
+                                            bgcolor: '#e3f2fd',
+                                            color: '#0d47a1',
+                                            borderRadius: 1,
+                                            borderLeft: `4px solid #1976d2`,
+                                            display: 'flex',
+                                            alignItems: 'center'
+                                        }}
+                                    >
+                                        <InfoIcon sx={{ mr: 1, fontSize: 20, color: '#1976d2' }} />
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                            A verificar histórico da entidade...
                                         </Typography>
-                                    </Box>
-                                </Paper>
-                            </Grid>
-                        )}
-
-                        {/* ✅ Caso não haja histórico */}
-                        {formData.tt_type && !currentTypeCount && entityData && (
-                            <Grid size={{ xs: 12 }}>
-                                <Paper
-                                    variant="outlined"
-                                    sx={{
-                                        p: 1.5,
-                                        mt: 1,
-                                        bgcolor: theme.palette.success.light,
-                                        color: theme.palette.success.dark,
-                                        borderRadius: 1
-                                    }}
-                                >
-                                    <Box display="flex" alignItems="center">
-                                        <InfoIcon sx={{ mr: 1 }} />
-                                        <Typography variant="body2">
-                                            Primeiro pedido deste tipo para esta entidade.
-                                        </Typography>
-                                    </Box>
-                                </Paper>
+                                    </Paper>
+                                ) : currentTypeCount ? (
+                                    <Paper
+                                        variant="outlined"
+                                        sx={{
+                                            p: 2,
+                                            mt: 1,
+                                            bgcolor: currentTypeCount.typecountall > 3 ? '#fff3e0' : '#e8f5e8',
+                                            color: currentTypeCount.typecountall > 3 ? '#e65100' : '#1b5e20',
+                                            borderLeft: currentTypeCount.typecountall > 3
+                                                ? `4px solid #ff9800`
+                                                : `4px solid #4caf50`,
+                                            borderRadius: 1
+                                        }}
+                                    >
+                                        <Box display="flex" alignItems="center">
+                                            <InfoIcon sx={{
+                                                mr: 1,
+                                                fontSize: 20,
+                                                color: currentTypeCount.typecountall > 3 ? '#ff9800' : '#4caf50'
+                                            }} />
+                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                <strong>Histórico da entidade:</strong> {currentTypeCount.typecountyear}º pedido do tipo
+                                                "{currentTypeCount.tt_type}" este ano,
+                                                {currentTypeCount.typecountall} no total global.
+                                                {currentTypeCount.typecountall > 3 }
+                                            </Typography>
+                                        </Box>
+                                    </Paper>
+                                ) : (
+                                    <Paper
+                                        variant="outlined"
+                                        sx={{
+                                            p: 2,
+                                            mt: 1,
+                                            bgcolor: '#e8f5e8',
+                                            color: '#1b5e20',
+                                            borderLeft: `4px solid #4caf50`,
+                                            borderRadius: 1
+                                        }}
+                                    >
+                                        <Box display="flex" alignItems="center">
+                                            <InfoIcon sx={{ mr: 1, fontSize: 20, color: '#4caf50' }} />
+                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                Primeiro pedido deste tipo para esta entidade.
+                                            </Typography>
+                                        </Box>
+                                    </Paper>
+                                )}
                             </Grid>
                         )}
                     </Grid>
