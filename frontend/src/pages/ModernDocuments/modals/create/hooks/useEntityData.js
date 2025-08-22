@@ -1,10 +1,10 @@
 // useEntityData.js - CORRIGIDO
 
-import { useState, useEffect } from 'react';
-import React, { Button, Box, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { notifyCustom, notifyError, notifyInfo, notifySuccess, notifyWarning, toast } from '../../../../../components/common/Toaster/ThemedToaster';
+import { getDocuments, getEntityCountTypes } from '../../../../../services/documentService';
 import { getEntityByNIF, updateEntity } from '../../../../../services/entityService';
-import { getEntityCountTypes, getDocuments } from '../../../../../services/documentService';
-import { notifySuccess, notifyError, notifyWarning, notifyInfo, notifyCustom, toast } from '../../../../../components/common/Toaster/ThemedToaster';
 
 export const useEntityData = (formData, setFormData) => {
     // Estados separados para entidade principal e representante
@@ -55,11 +55,20 @@ export const useEntityData = (formData, setFormData) => {
     // ✅ CRÍTICO: Validação campos obrigatórios
     const validateEntityCompleteness = (entity) => {
         const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
-        const missingFields = requiredFields.filter(field =>
-            !entity[field] || entity[field].toString().trim() === ''
-        );
+        const missingFields = requiredFields.filter(field => {
+            const value = entity[field];
+            if (!value || value.toString().trim() === '') return true;
+
+            if (field === 'phone') {
+                const phone = value.toString().replace(/\s/g, '');
+                return !/^[29]\d{8}$/.test(phone) && !/^\d{9,}$/.test(phone);
+            }
+
+            return false;
+        });
 
         return {
+            validateEntityCompleteness,
             isComplete: missingFields.length === 0,
             missingFields,
             isIncomplete: missingFields.length > 0

@@ -65,13 +65,13 @@ export const useDocumentForm = (initialNipc, onClose) => {
         paymentInfo,
         docTypeParams,
         paramValues,
-        entityData = null,
-        representativeData = null,
+        entityData = null,        // ✅ Usar dados do hook
+        representativeData = null, // ✅ Usar dados do hook
         isRepresentative = false
     ) => {
         const newErrors = {};
 
-        // ✅ Função auxiliar para validar completude de entidade
+        // ✅ Função auxiliar interna
         const validateEntityCompleteness = (entity) => {
             if (!entity) return false;
             const requiredFields = ['phone', 'nut1', 'nut2', 'nut3', 'nut4'];
@@ -83,27 +83,27 @@ export const useDocumentForm = (initialNipc, onClose) => {
         switch (activeStep) {
             case 0: // Identificação
                 if (!isInternal) {
-                    // ✅ 1. Validar NIF da entidade principal
+                    // ✅ Validar NIF principal
                     if (!formData.nipc || formData.nipc.length !== 9) {
                         newErrors.nipc = 'NIPC da entidade principal é obrigatório';
                         break;
                     }
 
-                    // ✅ 2. Validar completude da entidade principal
+                    // ✅ Validar completude da entidade principal (dados do hook)
                     if (!validateEntityCompleteness(entityData)) {
-                        newErrors.entity_incomplete = 'Complete os dados da entidade principal antes de prosseguir';
+                        newErrors.entity_incomplete = 'Complete os dados da entidade principal';
                         break;
                     }
 
-                    // ✅ 3. Se é representante, validar NIF e completude
+                    // ✅ Se é representante, validar
                     if (isRepresentative) {
                         if (!formData.tb_representative || formData.tb_representative.length !== 9) {
-                            newErrors.tb_representative = 'NIF do representante é obrigatório quando seleccionado';
+                            newErrors.tb_representative = 'NIF do representante é obrigatório';
                             break;
                         }
 
                         if (!validateEntityCompleteness(representativeData)) {
-                            newErrors.representative_incomplete = 'Complete os dados do representante antes de prosseguir';
+                            newErrors.representative_incomplete = 'Complete os dados do representante';
                             break;
                         }
                     }
