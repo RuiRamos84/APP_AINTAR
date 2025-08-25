@@ -239,10 +239,11 @@ def create_document(data, files, current_user):
                 session.commit()
             except IntegrityError as ie:
                 session.rollback()
+                current_app.logger.error(f"Erro ao inserir documento: {str(ie)}")
                 if "unique constraint" in str(ie).lower():
                     raise DuplicateResourceError("Documento", "regnumber", "")
-                raise APIError(
-                    f"Erro ao inserir documento: {str(ie)}", 500, "ERR_DB_INTEGRITY")
+                    current_app.logger.error(f"Erro de duplicação: {str(ie)}")
+                raise APIError(f"Erro ao inserir documento: {str(ie)}", 500, "ERR_DB_INTEGRITY")
 
             # Obter regnumber e who
             reg_query = text(

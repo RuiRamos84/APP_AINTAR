@@ -8,7 +8,7 @@ import { notifyError } from '../../../../../components/common/Toaster/ThemedToas
  * @param {Function} onClose - Função de callback para fechar o modal após submissão bem-sucedida
  * @returns {Object} Estados e funções para gerenciar o formulário
  */
-export const useDocumentForm = (initialNipc, onClose) => {
+export const useDocumentForm = (initialNipc, onClose, onInternalSwitch) => {
     const { metaData } = useMetaData();
 
     // Estados para o formulário
@@ -47,11 +47,20 @@ export const useDocumentForm = (initialNipc, onClose) => {
 
     // Manipulador para pedidos internos
     const handleInternalSwitch = (e) => {
-        setIsInternal(e.target.checked);
+        const isInternalChecked = e.target.checked;
+        setIsInternal(isInternalChecked);
+
         setFormData(prev => ({
             ...prev,
-            tt_type: ""
+            tt_type: "",
+            nipc: isInternalChecked ? '516132822' : (initialNipc || ''),
+            tb_representative: isInternalChecked ? '' : prev.tb_representative // ✅ Limpar representante
         }));
+
+        // ✅ Chamar callback para limpar dados do representante no hook de entidades
+        if (isInternalChecked && onInternalSwitch) {
+            onInternalSwitch(true);
+        }
     };
 
     // ✅ Validação do passo atual - CORRIGIDA para separar entidade e representante

@@ -274,7 +274,7 @@ def get_entity_count_types(pk, current_user):
 
             if result:
                 count_types_list = [dict(row) for row in result]
-                current_app.logger.info(f"Contagens de tipos obtidas com sucesso: {count_types_list}")
+                # current_app.logger.debug(f"Contagens de tipos obtidas com sucesso: {count_types_list}")
                 return {'count_types': count_types_list}, 200
             else:
                 return {'mensagem': 'Nenhum tipo de pedido encontrado para esta entidade.'}, 200

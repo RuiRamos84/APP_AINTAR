@@ -361,6 +361,12 @@ export const useEntityData = (formData, setFormData) => {
         fetchEntityData();
     }, [entityData?.pk]);
 
+    useEffect(() => {
+        if (formData.nipc === '516132822') {
+            checkEntityData('516132822'); // ✅ Auto-buscar entidade interna
+        }
+    }, [formData.nipc]);
+
     // ✅ BUSCAR DOCUMENTOS DA ENTIDADE
     const fetchEntitiesDocuments = async (entityPk) => {
         try {

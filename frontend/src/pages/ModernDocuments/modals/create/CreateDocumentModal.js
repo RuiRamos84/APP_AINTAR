@@ -58,8 +58,16 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [finalPaymentData, setFinalPaymentData] = useState(null);
 
+
+    // Função para limpar representante quando torna interno
+    const handleInternalSwitchCallback = (isInternal) => {
+        if (isInternal) {
+            entityDataHook.setRepresentativeData(null);
+            entityDataHook.handleRepresentativeToggle({ target: { checked: false } });
+        }
+    };
     // Hooks principais
-    const documentForm = useDocumentForm(initialNipc, handleCloseAfterSuccess);
+    const documentForm = useDocumentForm(initialNipc, handleCloseAfterSuccess, handleInternalSwitchCallback);
     const {
         formData, setFormData, activeStep, setActiveStep, errors, setErrors,
         loading, setLoading, isInternal, isInterProfile, handleChange, handleInternalSwitch,

@@ -218,31 +218,22 @@ const IdentificationStep = ({
                         }}
                     >
                         {/* ✅ Input da entidade PRINCIPAL */}
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2,
-                                borderLeft: `4px solid ${theme.palette.primary.main}`
-                            }}
-                        >
-                            <Box display="flex" alignItems="center" mb={2}>
-                                <BusinessIcon color="primary" sx={{ mr: 1 }} />
-                                <Typography variant="h6">
-                                    Identificação da Entidade Principal
-                                </Typography>
-                            </Box>
-
-                            <EntitySearchField
-                                value={formData.nipc}
-                                onChange={handleEntityNipcChange}
-                                onEntityFound={setEntityData}
-                                entityData={null}
-                                error={!!errors.nipc}
-                                helperText={errors.nipc}
-                                name="nipc"
-                                disabled={isInternal}
-                            />
-                        </Paper>
+                        {!isInternal && (
+                            <Paper variant="outlined" sx={{ p: 2, borderLeft: `4px solid ${theme.palette.primary.main}` }}>
+                                <Box display="flex" alignItems="center" mb={2}>
+                                    <BusinessIcon color="primary" sx={{ mr: 1 }} />
+                                    <Typography variant="h6">Identificação da Entidade Principal</Typography>
+                                </Box>
+                                <EntitySearchField
+                                    value={formData.nipc}
+                                    onChange={handleEntityNipcChange}
+                                    onEntityFound={setEntityData}
+                                    error={!!errors.nipc}
+                                    helperText={errors.nipc}
+                                    name="nipc"
+                                />
+                            </Paper>
+                        )}
 
                         {/* ✅ Input do REPRESENTANTE (se activado) */}
                         {isRepresentative && (
@@ -273,57 +264,25 @@ const IdentificationStep = ({
                     </Box>
                 </Grid>
 
-                {/* COLUNA DIREITA - Dados das entidades */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 3,
-                            height: '100%'
-                        }}
-                    >
-                        {/* ✅ Dados da entidade PRINCIPAL */}
-                        {entityData ? (
-                            <EntityDataDisplay
-                                entity={entityData}
-                                validation={entityValidation}
-                                title="Entidade Principal"
-                                icon={<BusinessIcon color="primary" />}
-                                isRepresentativeEntity={false}
-                            />
-                        ) : (
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    p: 3,
-                                    textAlign: 'center',
-                                    bgcolor: 'background.default',
-                                    border: `2px dashed ${theme.palette.divider}`
-                                }}
-                            >
-                                <BusinessIcon
-                                    sx={{
-                                        fontSize: 48,
-                                        color: 'text.disabled',
-                                        mb: 1
-                                    }}
-                                />
-                                <Typography variant="body2" color="text.secondary">
-                                    Introduza um NIF válido para ver os dados da entidade
-                                </Typography>
-                            </Paper>
-                        )}
-
-                        {/* ✅ Dados do REPRESENTANTE */}
-                        {isRepresentative && (
-                            representativeData ? (
+                {/* COLUNA DIREITA - Dados das entidades - ocultar se interno */}
+                {!isInternal && (
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 3,
+                                height: '100%'
+                            }}
+                        >
+                            {/* Dados da entidade PRINCIPAL */}
+                            {entityData ? (
                                 <EntityDataDisplay
-                                    entity={representativeData}
-                                    validation={representativeValidation}
-                                    title="Representante Legal"
-                                    icon={<PersonIcon color="secondary" />}
-                                    isRepresentativeEntity={true}
+                                    entity={entityData}
+                                    validation={entityValidation}
+                                    title="Entidade Principal"
+                                    icon={<BusinessIcon color="primary" />}
+                                    isRepresentativeEntity={false}
                                 />
                             ) : (
                                 <Paper
@@ -335,7 +294,7 @@ const IdentificationStep = ({
                                         border: `2px dashed ${theme.palette.divider}`
                                     }}
                                 >
-                                    <PersonIcon
+                                    <BusinessIcon
                                         sx={{
                                             fontSize: 48,
                                             color: 'text.disabled',
@@ -343,13 +302,47 @@ const IdentificationStep = ({
                                         }}
                                     />
                                     <Typography variant="body2" color="text.secondary">
-                                        Introduza o NIF do representante legal
+                                        Introduza um NIF válido para ver os dados da entidade
                                     </Typography>
                                 </Paper>
-                            )
-                        )}
-                    </Box>
-                </Grid>
+                            )}
+
+                            {/* Dados do REPRESENTANTE */}
+                            {isRepresentative && (
+                                representativeData ? (
+                                    <EntityDataDisplay
+                                        entity={representativeData}
+                                        validation={representativeValidation}
+                                        title="Representante Legal"
+                                        icon={<PersonIcon color="secondary" />}
+                                        isRepresentativeEntity={true}
+                                    />
+                                ) : (
+                                    <Paper
+                                        variant="outlined"
+                                        sx={{
+                                            p: 3,
+                                            textAlign: 'center',
+                                            bgcolor: 'background.default',
+                                            border: `2px dashed ${theme.palette.divider}`
+                                        }}
+                                    >
+                                        <PersonIcon
+                                            sx={{
+                                                fontSize: 48,
+                                                color: 'text.disabled',
+                                                mb: 1
+                                            }}
+                                        />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Introduza o NIF do representante legal
+                                        </Typography>
+                                    </Paper>
+                                )
+                            )}
+                        </Box>
+                    </Grid>
+                )}
             </Grid>
         </Box>
     );
