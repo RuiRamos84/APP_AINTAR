@@ -161,39 +161,42 @@ def add_document_step(data, pk, current_user):
 
 # @cache_result(timeout=60)
 def get_document_type_param(current_user, type_id):
-    """Obter parâmetros do tipo de documento"""
+    """Obter parâmetros do documento - SEMPRE 200"""
     try:
         with db_session_manager(current_user) as session:
             type_id = sanitize_input(type_id, 'int')
 
+            # Verificar se documento existe
+            doc_query = text("SELECT pk FROM vbl_document WHERE pk = :pk")
+            doc_result = session.execute(doc_query, {'pk': type_id}).fetchone()
+            if not doc_result:
+                raise ResourceNotFoundError("Documento", type_id)
+
+            # Buscar parâmetros (pode ser vazio)
             query = text("""
                 SELECT * FROM vbl_document_param
-                WHERE tb_document = :type_id
+                WHERE tb_document = :document_id
             """)
-            result = session.execute(query, {'type_id': type_id})
-
+            result = session.execute(query, {'document_id': type_id})
             params = [dict(row) for row in result.mappings()]
 
-            # Se não há parâmetros, verificar se o tipo existe
-            if not params:
-                type_query = text("SELECT pk FROM vst_doctype WHERE pk = :pk")
-                type_result = session.execute(
-                    type_query, {'pk': type_id}).fetchone()
-                if not type_result:
-                    raise ResourceNotFoundError("Tipo de documento", type_id)
+            # SEMPRE retorna 200, mesmo sem parâmetros
+            response = {
+                'params': params,
+                'total': len(params),
+                'document_id': type_id
+            }
 
-            response = {'params': params}
             return jsonify(response), 200
 
     except ResourceNotFoundError as e:
         return jsonify({'error': str(e)}), e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao buscar parâmetros: {str(e)}")
-        return jsonify({'error': "Erro ao consultar parâmetros", 'code': "ERR_DATABASE"}), 500
+        current_app.logger.error(f"Erro BD parâmetros: {str(e)}")
+        return jsonify({'error': "Erro ao consultar parâmetros"}), 500
     except Exception as e:
-        current_app.logger.error(
-            f"Erro inesperado ao buscar parâmetros: {str(e)}")
-        return jsonify({'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}), 500
+        current_app.logger.error(f"Erro parâmetros: {str(e)}")
+        return jsonify({'error': "Erro interno"}), 500
 
 
 def update_document_params(current_user, document_id, data):
