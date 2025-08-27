@@ -647,7 +647,7 @@ const DetailsTab = ({
                                         )}
 
                                         {getFullAddress() && (
-                                            <Grid size={{ xs: 12, sm: 9 }}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
                                                 <Box display="flex" alignItems="flex-start">
                                                     <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                                     <Box>
