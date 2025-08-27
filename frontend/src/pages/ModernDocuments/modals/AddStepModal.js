@@ -126,55 +126,34 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         const targetStep = stepData.what;
         const targetUser = stepData.who;
 
-        // Verificar se é transferência válida
+        // Se é o mesmo passo = transferência (permitir qualquer utilizador)
         if (targetStep === currentStep) {
-            if (workflowData.canTransfer) {
-                const transferUsers = getUsersForTransfer(document, metaData);
-                const canTransferToUser = transferUsers.some(u => u.pk === parseInt(targetUser));
+            const canTransferToUser = availableUsers.some(u => u.pk === parseInt(targetUser));
 
-                if (canTransferToUser) {
-                    setWorkflowValidation({
-                        isValid: true,
-                        message: 'Transferência válida no mesmo passo',
-                        type: 'success'
-                    });
-                } else {
-                    setWorkflowValidation({
-                        isValid: false,
-                        message: 'Utilizador não pode receber transferências neste passo',
-                        type: 'error'
-                    });
-                }
-            } else {
-                setWorkflowValidation({
-                    isValid: false,
-                    message: 'Transferência não permitida neste passo',
-                    type: 'error'
-                });
-            }
+            setWorkflowValidation({
+                isValid: canTransferToUser,
+                message: canTransferToUser
+                    ? 'Transferência válida no mesmo estado'
+                    : 'Utilizador não disponível',
+                type: canTransferToUser ? 'success' : 'error'
+            });
             return;
         }
 
-        // Verificar transição válida
+        // Se é passo diferente = transição (respeitar workflow)
         const isValidTransition = workflowData.validTransitions.some(t =>
             t.to_step_pk === targetStep &&
             (Array.isArray(t.client) ? t.client.includes(parseInt(targetUser)) : t.client === parseInt(targetUser))
         );
 
-        if (isValidTransition) {
-            setWorkflowValidation({
-                isValid: true,
-                message: 'Transição válida conforme workflow',
-                type: 'success'
-            });
-        } else {
-            setWorkflowValidation({
-                isValid: false,
-                message: 'Transição não permitida pelo workflow configurado',
-                type: 'error'
-            });
-        }
-    }, [stepData.what, stepData.who, document, metaData, workflowData]);
+        setWorkflowValidation({
+            isValid: isValidTransition,
+            message: isValidTransition
+                ? 'Transição válida conforme workflow'
+                : 'Transição não permitida pelo workflow',
+            type: isValidTransition ? 'success' : 'error'
+        });
+    }, [stepData.what, stepData.who, document, metaData, workflowData, availableUsers]);
 
     // Reset quando abrir
     useEffect(() => {
