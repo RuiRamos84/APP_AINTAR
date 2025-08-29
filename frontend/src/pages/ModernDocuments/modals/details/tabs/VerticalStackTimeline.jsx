@@ -41,7 +41,7 @@ import { getValidTransitions } from '../../../utils/workflowUtils';
  * Timeline baseado no workflow (método preferido)
  */
 const getWorkflowTimeline = (document, metaData, steps, workflowData) => {
-    console.log('🎯 Gerando timeline baseado no workflow');
+    // console.log('🎯 Gerando timeline baseado no workflow');
     
     if (!workflowData?.hierarchy) return null;
 
@@ -512,24 +512,24 @@ const WorkflowTreeModal = ({ workflowData, steps, document, metaData }) => {
     );
 };
 const getSimpleTimeline = (document, metaData, steps, workflowData) => {
-    console.log('🔍 Timeline Input:', {
-        document_what: document.what,
-        steps_count: steps.length,
-        has_workflow: !!workflowData,
-        workflow_steps: workflowData?.hierarchy?.length
-    });
+    // console.log('🔍 Timeline Input:', {
+    //     document_what: document.what,
+    //     steps_count: steps.length,
+    //     has_workflow: !!workflowData,
+    //     workflow_steps: workflowData?.hierarchy?.length
+    // });
 
     // PRIORIDADE: Usar workflow se disponível
     if (workflowData?.hierarchy) {
         const workflowTimeline = getWorkflowTimeline(document, metaData, steps, workflowData);
         if (workflowTimeline) {
-            console.log('✅ Timeline gerado pelo workflow:', workflowTimeline);
+            // console.log('✅ Timeline gerado pelo workflow:', workflowTimeline);
             return workflowTimeline;
         }
     }
 
     // FALLBACK: Método original
-    console.log('⚠️ Fallback para método original');
+    // console.log('⚠️ Fallback para método original');
     return getOriginalTimeline(document, metaData, steps);
 };
 

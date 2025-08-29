@@ -748,7 +748,7 @@ def add_ee_qualidade_ambiental():
         pnts_associate, pnmemo, pnpk_ee, current_user)
     return jsonify(result), status_code
 
-# Rotas para Rede
+# Rotas para Rede (atualizadas)
 
 
 @bp.route('/rede/desobstrucao', methods=['POST'])
@@ -763,11 +763,24 @@ def add_rede_desobstrucao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_rede_desobstrucao(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
 
@@ -783,14 +796,27 @@ def add_rede_reparacao_colapso():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_rede_reparacao_colapso(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
-# Rotas para Caixas
+# Rotas para Caixas (atualizadas)
 
 
 @bp.route('/caixas/desobstrucao', methods=['POST'])
@@ -805,11 +831,24 @@ def add_caixa_desobstrucao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_caixa_desobstrucao(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
 
@@ -825,11 +864,24 @@ def add_caixa_reparacao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_caixa_reparacao(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
 
@@ -845,14 +897,27 @@ def add_caixa_reparacao_tampa():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_caixa_reparacao_tampa(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
-# Rotas para Ramais
+# Rotas para Ramais (atualizadas)
 
 
 @bp.route('/ramais/desobstrucao', methods=['POST'])
@@ -867,11 +932,24 @@ def add_ramal_desobstrucao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_ramal_desobstrucao(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
 
@@ -887,11 +965,24 @@ def add_ramal_reparacao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
 
+    # Novos parâmetros de localização
+    pnaddress = data.get('pnaddress')
+    pnpostal = data.get('pnpostal')
+    pndoor = data.get('pndoor')
+    pnfloor = data.get('pnfloor')
+    pnnut1 = data.get('pnnut1')
+    pnnut2 = data.get('pnnut2')
+    pnnut3 = data.get('pnnut3')
+    pnnut4 = data.get('pnnut4')
+    pnglat = data.get('pnglat')
+    pnglong = data.get('pnglong')
+
     if not all([pnts_associate, pnmemo]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_ramal_reparacao(
-        pnts_associate, pnmemo, current_user)
+        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
+        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
     return jsonify(result), status_code
 
 # Rota para Requisição Interna

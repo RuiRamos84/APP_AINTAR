@@ -661,112 +661,224 @@ def create_ee_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user)
     except Exception as e:
         return {'error': f"Erro ao criar pedido de controlo de qualidade ambiental para EE: {str(e)}"}, 500
 
-# Funções para Rede
+# Funções para Rede (atualizadas)
 
 
-def create_rede_desobstrucao(pnts_associate, pnmemo, current_user):
+def create_rede_desobstrucao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de desobstrução para Rede"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(28, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    28, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de desobstrução para Rede criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de desobstrução para Rede: {str(e)}"}, 500
 
 
-def create_rede_reparacao_colapso(pnts_associate, pnmemo, current_user):
+def create_rede_reparacao_colapso(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de reparação/colapso para Rede"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(27, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    27, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de reparação/colapso para Rede criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de reparação/colapso para Rede: {str(e)}"}, 500
 
-# Funções para Caixas
+# Funções para Caixas (atualizadas)
 
 
-def create_caixa_desobstrucao(pnts_associate, pnmemo, current_user):
+def create_caixa_desobstrucao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de desobstrução para Caixas"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(23, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    23, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de desobstrução para Caixas criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de desobstrução para Caixas: {str(e)}"}, 500
 
 
-def create_caixa_reparacao(pnts_associate, pnmemo, current_user):
+def create_caixa_reparacao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de reparação para Caixas"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(22, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    22, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de reparação para Caixas criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de reparação para Caixas: {str(e)}"}, 500
 
 
-def create_caixa_reparacao_tampa(pnts_associate, pnmemo, current_user):
+def create_caixa_reparacao_tampa(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de reparação de tampa para Caixas"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(29, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    29, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de reparação de tampa para Caixas criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de reparação de tampa para Caixas: {str(e)}"}, 500
 
-# Funções para Ramais
+# Funções para Ramais (atualizadas)
 
 
-def create_ramal_desobstrucao(pnts_associate, pnmemo, current_user):
+def create_ramal_desobstrucao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de desobstrução para Ramais"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(25, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    25, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de desobstrução para Ramais criado com sucesso', 'document_id': result}, 201
     except Exception as e:
         return {'error': f"Erro ao criar pedido de desobstrução para Ramais: {str(e)}"}, 500
 
 
-def create_ramal_reparacao(pnts_associate, pnmemo, current_user):
+def create_ramal_reparacao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
     """Criar pedido de reparação para Ramais"""
     try:
         with db_session_manager(current_user) as session:
-            query = text(
-                "SELECT fbo_document_createintern(24, :pnts_associate, :pnmemo, NULL, NULL)")
+            query = text("""
+                SELECT fbo_document_createintern(
+                    24, :pnts_associate, :pnmemo, NULL, NULL,
+                    :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                    :pnnut1, :pnnut2, :pnnut3, :pnnut4,
+                    :pnglat, :pnglong
+                )
+            """)
             result = session.execute(query, {
                 'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo
+                'pnmemo': pnmemo,
+                'pnaddress': pnaddress,
+                'pnpostal': pnpostal,
+                'pndoor': pndoor,
+                'pnfloor': pnfloor,
+                'pnnut1': pnnut1,
+                'pnnut2': pnnut2,
+                'pnnut3': pnnut3,
+                'pnnut4': pnnut4,
+                'pnglat': float(pnglat) if pnglat else None,
+                'pnglong': float(pnglong) if pnglong else None
             }).scalar()
             return {'message': 'Pedido de reparação para Ramais criado com sucesso', 'document_id': result}, 201
     except Exception as e:

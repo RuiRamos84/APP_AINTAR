@@ -261,7 +261,7 @@ export const updateEntityDetails = async (areaId, pk, data) => {
     }
   };
 
-// Versão completa e melhorada da função para criar pedidos internos
+// Função melhorada para criar pedidos internos com localização
 export const createInternalRequest = async (data, requestType) => {
     try {
         let url;
@@ -301,7 +301,7 @@ export const createInternalRequest = async (data, requestType) => {
                 url = "/ee/qualidade_ambiental";
                 break;
 
-            // Rede
+            // Rede - ACTUALIZADOS para suportar localização
             case "rede_desobstrucao":
                 url = "/rede/desobstrucao";
                 break;
@@ -309,7 +309,7 @@ export const createInternalRequest = async (data, requestType) => {
                 url = "/rede/reparacao_colapso";
                 break;
 
-            // Caixas
+            // Caixas - ACTUALIZADOS para suportar localização
             case "caixa_desobstrucao":
                 url = "/caixas/desobstrucao";
                 break;
@@ -320,7 +320,7 @@ export const createInternalRequest = async (data, requestType) => {
                 url = "/caixas/reparacao_tampa";
                 break;
 
-            // Ramais
+            // Ramais - ACTUALIZADOS para suportar localização
             case "ramal_desobstrucao":
                 url = "/ramais/desobstrucao";
                 break;
@@ -337,13 +337,41 @@ export const createInternalRequest = async (data, requestType) => {
                 throw new Error(`Tipo de pedido inválido: ${requestType}`);
         }
 
-        const response = await api.post(url, data);
+        // Validar e preparar payload
+        const payload = {
+            pnts_associate: data.pnts_associate || null,
+            pnmemo: data.pnmemo
+        };
+
+        // Adicionar campos ETAR/EE se existirem
+        if (data.pnpk_etar) payload.pnpk_etar = data.pnpk_etar;
+        if (data.pnpk_ee) payload.pnpk_ee = data.pnpk_ee;
+
+        // Adicionar campos de localização apenas se fornecidos
+        if (data.pnaddress) payload.pnaddress = data.pnaddress;
+        if (data.pnpostal) payload.pnpostal = data.pnpostal;
+        if (data.pndoor) payload.pndoor = data.pndoor;
+        if (data.pnfloor) payload.pnfloor = data.pnfloor;
+        if (data.pnnut1) payload.pnnut1 = data.pnnut1;
+        if (data.pnnut2) payload.pnnut2 = data.pnnut2;
+        if (data.pnnut3) payload.pnnut3 = data.pnnut3;
+        if (data.pnnut4) payload.pnnut4 = data.pnnut4;
+        if (data.pnglat !== null && data.pnglat !== undefined && data.pnglat !== "") {
+            payload.pnglat = parseFloat(data.pnglat);
+        }
+        if (data.pnglong !== null && data.pnglong !== undefined && data.pnglong !== "") {
+            payload.pnglong = parseFloat(data.pnglong);
+        }
+
+        console.log(`Enviando pedido para ${url} com payload:`, payload);
+
+        const response = await api.post(url, payload);
         return response.data;
     } catch (error) {
         console.error("Erro ao criar pedido interno:", error);
         throw error;
     }
-  };
+};
 
 // Incumprimentos Records
 export const getIncumprimentoRecords = async (pk) => {

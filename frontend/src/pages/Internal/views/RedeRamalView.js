@@ -1,6 +1,11 @@
 // /views/RedeRamalView.js
 import React, { useState, useEffect } from "react";
-import { Box, Tabs, Tab, Typography, Paper, TextField, Grid, Button } from "@mui/material";
+import {
+    Box, Tabs, Tab, Typography, Paper, TextField, Grid, Button, FormControl,
+    InputLabel, Select, MenuItem, Collapse, IconButton, Dialog, DialogTitle,
+    DialogContent, DialogActions
+} from "@mui/material";
+import { ExpandMore, ExpandLess, LocationOn } from '@mui/icons-material';
 import { useInternalContext } from "../context/InternalContext";
 import TabPanel from "../components/TabPanel";
 import GenericTable from "../components/GenericTable";
@@ -66,31 +71,50 @@ const RedeRamalView = ({ areaId }) => {
             </TabPanel>
 
             <TabPanel value={selectedTab} index={1}>
-                <DesobstrucaoTab
+                <MaintenanceFormTab
                     areaId={areaId}
                     type={areaId === 3 ? "rede_desobstrucao" : "ramal_desobstrucao"}
+                    title={areaId === 3 ? "Desobstrução da Conduta" : "Desobstrução de Ramais"}
+                    metaData={metaData}
                 />
             </TabPanel>
 
             <TabPanel value={selectedTab} index={2}>
-                <ReparacaoTab
+                <MaintenanceFormTab
                     areaId={areaId}
                     type={areaId === 3 ? "rede_reparacao_colapso" : "ramal_reparacao"}
+                    title={areaId === 3 ? "Reparação/Colapso da Conduta" : "Reparação de Ramais"}
+                    metaData={metaData}
                 />
             </TabPanel>
 
             {areaId === 3 && (
                 <>
                     <TabPanel value={selectedTab} index={3}>
-                        <DesobstrucaoTab areaId={areaId} type="caixa_desobstrucao" />
+                        <MaintenanceFormTab
+                            areaId={areaId}
+                            type="caixa_desobstrucao"
+                            title="Desobstrução de Caixas"
+                            metaData={metaData}
+                        />
                     </TabPanel>
 
                     <TabPanel value={selectedTab} index={4}>
-                        <ReparacaoTab areaId={areaId} type="caixa_reparacao" />
+                        <MaintenanceFormTab
+                            areaId={areaId}
+                            type="caixa_reparacao"
+                            title="Reparação de Caixas"
+                            metaData={metaData}
+                        />
                     </TabPanel>
 
                     <TabPanel value={selectedTab} index={5}>
-                        <ReparacaoTab areaId={areaId} type="caixa_reparacao_tampa" />
+                        <MaintenanceFormTab
+                            areaId={areaId}
+                            type="caixa_reparacao_tampa"
+                            title="Reparação de Tampas"
+                            metaData={metaData}
+                        />
                     </TabPanel>
                 </>
             )}
@@ -98,7 +122,7 @@ const RedeRamalView = ({ areaId }) => {
     );
 };
 
-// Componentes para cada tab
+// Componente para despesas (inalterado)
 const ExpenseTab = ({ areaId }) => {
     const { metaData } = useMetaData();
     const { records, loading, newRecord, setNewRecord, addRecord } = useRecords("expense");
@@ -169,137 +193,306 @@ const ExpenseTab = ({ areaId }) => {
     );
 };
 
-// Tab para pedidos de desobstrução
-const DesobstrucaoTab = ({ areaId, type }) => {
-    const { metaData } = useMetaData();
+// Novo componente para formulários de manutenção com localização
+// Substituir apenas o componente MaintenanceFormTab no teu código existente
+
+const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
+    const [loading, setLoading] = useState(false);
+    const [locationOpen, setLocationOpen] = useState(false); // NOVO
+    const [confirmDialog, setConfirmDialog] = useState(false); // NOVO
     const [formData, setFormData] = useState({
         pnts_associate: "",
-        pnmemo: ""
+        pnmemo: "",
+        // Campos de localização (mantidos como estavam)
+        pnaddress: "",
+        pnpostal: "",
+        pndoor: "",
+        pnfloor: "",
+        pnnut1: "",
+        pnnut2: "",
+        pnnut3: "",
+        pnnut4: "",
+        pnglat: "",
+        pnglong: ""
     });
 
-    const handleSubmit = async () => {
-        try {
-            await createInternalRequest(formData, type);
-            notifySuccess("Pedido de desobstrução criado com sucesso");
-            setFormData({
-                pnts_associate: "",
-                pnmemo: ""
-            });
-        } catch (error) {
-            notifyError("Erro ao criar pedido de desobstrução");
-        }
+    const handleInputChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const fieldConfig = [
-        {
-            name: "pnts_associate",
-            label: "Associado",
-            type: "select",
-            options: metaData?.associates || [],
-            required: true,
-            size: 6
-        },
-        {
-            name: "pnmemo",
-            label: "Descrição",
-            type: "text",
-            multiline: true,
-            rows: 3,
-            required: true,
-            size: 12
-        }
-    ];
+    // NOVO: Verificar se há dados de localização
+    const hasLocationData = () => {
+        return formData.pnaddress || formData.pnpostal || formData.pndoor ||
+            formData.pnfloor || formData.pnnut1 || formData.pnnut2 ||
+            formData.pnnut3 || formData.pnnut4 || formData.pnglat || formData.pnglong;
+    };
 
-    const getDesobstrucaoTitle = () => {
-        if (type.includes("rede")) return "Rede";
-        if (type.includes("ramal")) return "Ramais";
-        if (type.includes("caixa")) return "Caixas";
-        return "";
+    // ALTERADO: Verificar localização antes de submeter
+    const handleSubmit = async () => {
+        if (!formData.pnts_associate || !formData.pnmemo) {
+            notifyError("Preencha os campos obrigatórios");
+            return;
+        }
+
+        // Se não há dados de localização, mostrar confirmação
+        if (!hasLocationData()) {
+            setConfirmDialog(true);
+            return;
+        }
+
+        await executeSubmit();
+    };
+
+    // NOVO: Executar submissão
+    const executeSubmit = async () => {
+        setLoading(true);
+        setConfirmDialog(false);
+
+        try {
+            const payload = {
+                pnts_associate: parseInt(formData.pnts_associate, 10),
+                pnmemo: formData.pnmemo,
+                pnaddress: formData.pnaddress || null,
+                pnpostal: formData.pnpostal || null,
+                pndoor: formData.pndoor || null,
+                pnfloor: formData.pnfloor || null,
+                pnnut1: formData.pnnut1 || null,
+                pnnut2: formData.pnnut2 || null,
+                pnnut3: formData.pnnut3 || null,
+                pnnut4: formData.pnnut4 || null,
+                pnglat: formData.pnglat ? parseFloat(formData.pnglat) : null,
+                pnglong: formData.pnglong ? parseFloat(formData.pnglong) : null
+            };
+
+            await createInternalRequest(payload, type);
+            notifySuccess(`Pedido criado com sucesso`);
+
+            // Reset
+            setFormData({
+                pnts_associate: "",
+                pnmemo: "",
+                pnaddress: "",
+                pnpostal: "",
+                pndoor: "",
+                pnfloor: "",
+                pnnut1: "",
+                pnnut2: "",
+                pnnut3: "",
+                pnnut4: "",
+                pnglat: "",
+                pnglong: ""
+            });
+        } catch (error) {
+            notifyError(`Erro ao criar pedido`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <Box>
             <Typography variant="h6" gutterBottom>
-                {`Pedido de Desobstrução - ${getDesobstrucaoTitle()}`}
+                {`Pedido de ${title}`}
             </Typography>
 
-            <Paper sx={{ p: 2 }}>
-                <RecordForm
-                    formData={formData}
-                    setFormData={setFormData}
-                    onSubmit={handleSubmit}
-                    metaData={metaData}
-                    fieldsConfig={fieldConfig}
-                />
+            <Paper sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                    {/* Campos obrigatórios - MANTIDOS IGUAIS */}
+                    <Grid size={{ xs: 12, md: 3 }}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Associado</InputLabel>
+                            <Select
+                                value={formData.pnts_associate}
+                                onChange={(e) => handleInputChange("pnts_associate", e.target.value)}
+                                label="Associado"
+                            >
+                                <MenuItem value="">Seleccionar...</MenuItem>
+                                {metaData?.associates?.map(associate => (
+                                    <MenuItem key={associate.pk} value={associate.pk}>
+                                        {associate.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 9 }}>
+                        <TextField
+                            label="Descrição"
+                            value={formData.pnmemo}
+                            onChange={(e) => handleInputChange("pnmemo", e.target.value)}
+                            fullWidth
+                            required
+                        />
+                    </Grid>
+
+                    {/* NOVO: Header clickável para collapse */}
+                    <Grid size={{ xs: 12 }}>
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            sx={{ cursor: 'pointer', mt: 2 }}
+                            onClick={() => setLocationOpen(!locationOpen)}
+                        >
+                            <LocationOn sx={{ mr: 1, color: 'primary.main' }} />
+                            <Typography variant="h6">
+                                Localização (Opcional)
+                            </Typography>
+                            <IconButton size="small" sx={{ ml: 1 }}>
+                                {locationOpen ? <ExpandLess /> : <ExpandMore />}
+                            </IconButton>
+                        </Box>
+                    </Grid>
+
+                    {/* ALTERADO: Toda a área de localização dentro do collapse */}
+                    <Grid size={{ xs: 12 }}>
+                        <Collapse in={locationOpen}>
+                            <Grid container spacing={2} sx={{ mt: 1 }}>
+                                <Grid size={{ xs: 12, md: 2 }}>
+                                    <TextField
+                                        label="Código Postal"
+                                        value={formData.pnpostal}
+                                        onChange={(e) => handleInputChange("pnpostal", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: 1000-001"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                        label="Morada"
+                                        value={formData.pnaddress}
+                                        onChange={(e) => handleInputChange("pnaddress", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: Rua das Flores, 123"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 1 }}>
+                                    <TextField
+                                        label="Porta"
+                                        value={formData.pndoor}
+                                        onChange={(e) => handleInputChange("pndoor", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: 2º Esq"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 1 }}>
+                                    <TextField
+                                        label="Andar"
+                                        value={formData.pnfloor}
+                                        onChange={(e) => handleInputChange("pnfloor", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: 2"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 2 }}>
+                                    <TextField
+                                        label="Latitude"
+                                        type="number"
+                                        value={formData.pnglat}
+                                        onChange={(e) => handleInputChange("pnglat", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: 38.736946"
+                                        inputProps={{ step: "any" }}
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 2 }}>
+                                    <TextField
+                                        label="Longitude"
+                                        type="number"
+                                        value={formData.pnglong}
+                                        onChange={(e) => handleInputChange("pnglong", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: -9.142685"
+                                        inputProps={{ step: "any" }}
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 6, md: 3 }}>
+                                    <TextField
+                                        label="Localidade"
+                                        value={formData.pnnut4}
+                                        onChange={(e) => handleInputChange("pnnut4", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: Naia"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 6, md: 3 }}>
+                                    <TextField
+                                        label="Freguesia"
+                                        value={formData.pnnut3}
+                                        onChange={(e) => handleInputChange("pnnut3", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: Canas de Santa Maria"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 6, md: 3 }}>
+                                    <TextField
+                                        label="Concelho"
+                                        value={formData.pnnut2}
+                                        onChange={(e) => handleInputChange("pnnut2", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: Tondela"
+                                    />
+                                </Grid>
+
+                                <Grid size={{ xs: 6, md: 3 }}>
+                                    <TextField
+                                        label="Distrito"
+                                        value={formData.pnnut1}
+                                        onChange={(e) => handleInputChange("pnnut1", e.target.value)}
+                                        fullWidth
+                                        placeholder="Ex: Viseu"
+                                    />
+                                </Grid>
+                            </Grid>
+                        </Collapse>
+                    </Grid>
+
+                    {/* Botão - MANTIDO IGUAL */}
+                    <Grid size={{ xs: 12 }}>
+                        <Box display="flex" justifyContent="flex-end" sx={{ mt: 2 }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="large"
+                                onClick={handleSubmit}
+                                disabled={!formData.pnts_associate || !formData.pnmemo || loading}
+                            >
+                                {loading ? "A processar..." : `Criar Pedido`}
+                            </Button>
+                        </Box>
+                    </Grid>
+                </Grid>
             </Paper>
-        </Box>
-    );
-};
 
-// Tab para pedidos de reparação
-const ReparacaoTab = ({ areaId, type }) => {
-    const { metaData } = useMetaData();
-    const [formData, setFormData] = useState({
-        pnts_associate: "",
-        pnmemo: ""
-    });
-
-    const handleSubmit = async () => {
-        try {
-            await createInternalRequest(formData, type);
-            notifySuccess("Pedido de reparação criado com sucesso");
-            setFormData({
-                pnts_associate: "",
-                pnmemo: ""
-            });
-        } catch (error) {
-            notifyError("Erro ao criar pedido de reparação");
-        }
-    };
-
-    const fieldConfig = [
-        {
-            name: "pnts_associate",
-            label: "Associado",
-            type: "select",
-            options: metaData?.associates || [],
-            required: true,
-            size: 6
-        },
-        {
-            name: "pnmemo",
-            label: "Descrição",
-            type: "text",
-            multiline: true,
-            rows: 3,
-            required: true,
-            size: 12
-        }
-    ];
-
-    const getReparacaoTitle = () => {
-        if (type.includes("reparacao_colapso")) return "Reparação/Colapso da Rede";
-        if (type.includes("ramal_reparacao")) return "Reparação de Ramais";
-        if (type.includes("caixa_reparacao_tampa")) return "Reparação de Tampas";
-        if (type.includes("caixa_reparacao")) return "Reparação de Caixas";
-        return "Reparação";
-    };
-
-    return (
-        <Box>
-            <Typography variant="h6" gutterBottom>
-                {`Pedido de ${getReparacaoTitle()}`}
-            </Typography>
-
-            <Paper sx={{ p: 2 }}>
-                <RecordForm
-                    formData={formData}
-                    setFormData={setFormData}
-                    onSubmit={handleSubmit}
-                    metaData={metaData}
-                    fieldsConfig={fieldConfig}
-                />
-            </Paper>
+            {/* NOVO: Diálogo de confirmação */}
+            <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)}>
+                <DialogTitle>Confirmar criação sem localização</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Pretende criar o pedido sem dados de localização?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmDialog(false)}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={executeSubmit}
+                        variant="contained"
+                        disabled={loading}
+                    >
+                        {loading ? "A processar..." : "Confirmar"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

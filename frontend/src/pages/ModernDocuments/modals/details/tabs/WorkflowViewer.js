@@ -51,10 +51,10 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
     useEffect(() => {
         const fetchWorkflow = async () => {
             if (!document?.tt_type || !metaData?.types) {
-                console.log('Documento sem tt_type ou metadados sem types:', {
-                    tt_type: document?.tt_type,
-                    hasTypes: !!metaData?.types
-                });
+                // console.log('Documento sem tt_type ou metadados sem types:', {
+                //     tt_type: document?.tt_type,
+                //     hasTypes: !!metaData?.types
+                // });
                 return;
             }
 
@@ -62,15 +62,15 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
             const doctypePk = getDocumentTypePk(document.tt_type);
 
             if (!doctypePk) {
-                console.log('Não foi possível encontrar PK para tt_type:', document.tt_type);
+                // console.log('Não foi possível encontrar PK para tt_type:', document.tt_type);
                 return;
             }
 
             setLoadingWorkflow(true);
             try {
-                console.log('🔍 Buscando workflow para:', document.tt_type, '→ PK:', doctypePk);
+                // console.log('🔍 Buscando workflow para:', document.tt_type, '→ PK:', doctypePk);
                 const workflow = await getDocumentWorkflow(doctypePk);
-                console.log('📋 Workflow recebido:', workflow);
+                // console.log('📋 Workflow recebido:', workflow);
                 setWorkflowData(workflow);
 
                 // Callback para partilhar workflow com HistoryTab

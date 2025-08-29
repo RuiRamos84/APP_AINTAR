@@ -631,11 +631,9 @@ const DetailsTab = ({
                             </Typography>
                             <Divider sx={{ my: 2 }} />
 
-                            <List disablePadding>
-                                <ListItem sx={{ px: 0, py: 0.75 }}>
                                     <Grid container spacing={2}>
                                         {document.postal && (
-                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                            <Grid size={{ xs: 12, md: 3 }}>
                                                 <Box display="flex" alignItems="flex-start">
                                                     <HomeIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                                     <Box>
@@ -647,7 +645,7 @@ const DetailsTab = ({
                                         )}
 
                                         {getFullAddress() && (
-                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                            <Grid size={{ xs: 12, md: 9 }}>
                                                 <Box display="flex" alignItems="flex-start">
                                                     <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                                     <Box>
@@ -658,8 +656,6 @@ const DetailsTab = ({
                                             </Grid>
                                         )}
                                     </Grid>
-                                </ListItem>
-                            </List>
 
                             {(document.nut1 || document.nut2 || document.nut3 || document.nut4) && (
                                 <>
@@ -727,7 +723,7 @@ const DetailsTab = ({
                                     Estatísticas do Pedido
                                 </Typography>
                                 <Divider sx={{ my: 2 }} />
-
+                                
                                 <Grid container spacing={2}>
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box>
