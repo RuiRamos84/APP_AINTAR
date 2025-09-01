@@ -129,6 +129,7 @@ const SearchBar = ({ searchTerm: externalSearchTerm, onSearch }) => {
     handleSearchChange("");
     searchInputRef.current?.focus();
   };
+  
 
   const handleSearchChange = (value) => {
     // Se estiver em modo controlado, apenas chama onSearch

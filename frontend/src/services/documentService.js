@@ -431,7 +431,7 @@ export const downloadFile = async (regnumber, filename, displayName = null) => {
 
 export const previewFile = async (regnumber, filename) => {
   const url = `/files/${regnumber}/${filename}?v=${Date.now()}`;
-  console.log('📡 API call URL:', url);
+  // console.log('📡 API call URL:', url);
 
   try {
     const response = await api.get(url, {
@@ -439,7 +439,7 @@ export const previewFile = async (regnumber, filename) => {
       headers: { 'Accept': '*/*' }
     });
 
-    console.log('✅ Response status:', response.status);
+    // console.log('✅ Response status:', response.status);
     const blob = response.data;
     return {
       url: window.URL.createObjectURL(blob),

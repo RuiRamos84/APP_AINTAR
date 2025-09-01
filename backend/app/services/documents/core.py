@@ -253,9 +253,8 @@ def create_document(data, files, current_user):
             who = result.who
 
             # Processar arquivos
-            UPLOAD_FOLDER = current_app.config['FILES_DIR']
-            order_folder = os.path.join(UPLOAD_FOLDER, str(reg_result))
-            os.makedirs(order_folder, exist_ok=True)
+            request_path, anexos_path, oficios_path = ensure_directories(
+                reg_result)
 
             file_descriptions = data.getlist('descr')
             for i, file in enumerate(files[:5]):
@@ -265,7 +264,7 @@ def create_document(data, files, current_user):
                     file_descriptions) else 'file description'
                 extension = os.path.splitext(file.filename)[1]
                 filename = f"{file_pk}{extension}"
-                filepath = os.path.join(order_folder, filename)
+                filepath = os.path.join(anexos_path, filename)
 
                 try:
                     file.save(filepath)

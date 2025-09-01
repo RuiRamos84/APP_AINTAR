@@ -41,6 +41,11 @@ import { FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
 import { getValidTransitions, getAvailableSteps, getAvailableUsersForStep, canStayInSameStep, getUsersForTransfer } from '../utils/workflowUtils';
 import { DocumentEventManager, DOCUMENT_EVENTS } from '../utils/documentEventSystem';
 
+// ===== FUNÇÃO AUXILIAR PARA PK = 0 =====
+const isValidValue = (value) => {
+    return value !== null && value !== undefined && value !== '';
+};
+
 const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => {
     const { emit, isConnected, refreshNotifications } = useSocket();
 
@@ -59,7 +64,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
     const [vacationAlert, setVacationAlert] = useState(false);
     const [confirmClose, setConfirmClose] = useState(false);
 
-    // ✅ VALIDAÇÕES WORKFLOW AVANÇADAS
+    // Validações workflow avançadas
     const [workflowValidation, setWorkflowValidation] = useState({
         isValid: true,
         message: '',
@@ -75,7 +80,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         { type: 'Email', icon: <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
     ];
 
-    // ✅ VALIDAÇÕES WORKFLOW COMPLETAS
+    // Validações workflow completas
     const workflowData = useMemo(() => {
         if (!document || !metaData?.step_transitions) {
             return {
@@ -102,7 +107,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
     // Utilizadores disponíveis baseados no passo selecionado
     const availableUsers = useMemo(() => {
-        if (stepData.what === null || stepData.what === undefined || stepData.what === '') {
+        if (!isValidValue(stepData.what)) {
             return workflowData.availableUsers;
         }
 
@@ -115,9 +120,9 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return getAvailableUsersForStep(stepData.what, document, metaData);
     }, [stepData.what, document, metaData, workflowData]);
 
-    // ✅ VALIDAÇÃO EM TEMPO REAL
+    // ===== VALIDAÇÃO EM TEMPO REAL (CORRIGIDA) =====
     useEffect(() => {
-        if (!stepData.what || !stepData.who || !workflowData.hasWorkflow) {
+        if (!isValidValue(stepData.what) || !isValidValue(stepData.who) || !workflowData.hasWorkflow) {
             setWorkflowValidation({ isValid: true, message: '', type: 'info' });
             return;
         }
@@ -172,13 +177,16 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
 
     // Auto-selecionar se só há uma opção
     useEffect(() => {
-        if (workflowData.availableSteps.length === 1 && !stepData.what) {
+        if (workflowData.availableSteps.length === 1 && !isValidValue(stepData.what)) {
             setStepData(prev => ({ ...prev, what: workflowData.availableSteps[0].pk }));
         }
     }, [workflowData.availableSteps, stepData.what]);
 
+    // ===== AUTO-SELECT UTILIZADOR (CORRIGIDO) =====
     useEffect(() => {
-        if (availableUsers.length === 1 && stepData.what && !stepData.who) {
+        if (availableUsers.length === 1 &&
+            isValidValue(stepData.what) &&
+            !isValidValue(stepData.who)) {
             setStepData(prev => ({
                 ...prev,
                 who: availableUsers[0].pk,
@@ -237,7 +245,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 whoName: selectedUser ? `${selectedUser.name} (${selectedUser.username})` : ''
             }));
 
-            // ✅ VERIFICAÇÃO FÉRIAS MELHORADA
+            // Verificação férias melhorada
             try {
                 const vacationStatus = await checkVacationStatus(value);
                 if (vacationStatus === 1) {
@@ -273,12 +281,12 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         });
     };
 
-    // ✅ VALIDAÇÃO COMPLETA
+    // ===== VALIDAÇÃO COMPLETA (CORRIGIDA) =====
     const validateForm = () => {
         const newErrors = {};
 
-        if (stepData.what !== 0 && !stepData.what) newErrors.what = 'Estado obrigatório';
-        if (stepData.who !== 0 && !stepData.who) newErrors.who = 'Destinatário obrigatório';
+        if (!isValidValue(stepData.what)) newErrors.what = 'Estado obrigatório';
+        if (!isValidValue(stepData.who)) newErrors.who = 'Destinatário obrigatório';
         if (!stepData.memo) newErrors.memo = 'Observações obrigatórias';
 
         // Validar workflow se activo
@@ -300,7 +308,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return Object.keys(newErrors).length === 0;
     };
 
-    // Submit
+    // ===== SUBMIT (CORRIGIDO) =====
     const handleSubmit = async () => {
         if (!validateForm()) return;
         setLoading(true);
@@ -317,10 +325,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 await addDocumentAnnex(formData);
             }
 
-            // Passo
+            // Passo - Mantém valor original (incluindo 0)
             const stepDataObj = {
                 tb_document: document.pk,
-                what: stepData.what === 0 ? "0" : stepData.what,
+                what: stepData.what,
                 who: stepData.who,
                 memo: stepData.memo
             };
@@ -465,7 +473,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                     value={stepData.who}
                                     onChange={handleChange}
                                     label="Para quem"
-                                    disabled={loading || !stepData.what}
+                                    disabled={loading || !isValidValue(stepData.what)}
                                 >
                                     {availableUsers.map(user => (
                                         <MenuItem key={user.pk} value={user.pk}>
@@ -478,7 +486,8 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                                         {errors.who}
                                     </Typography>
                                 )}
-                                {stepData.what && availableUsers.length === 0 && (
+                                {/* ===== MENSAGEM UTILIZADORES DISPONÍVEIS (CORRIGIDA) ===== */}
+                                {isValidValue(stepData.what) && availableUsers.length === 0 && (
                                     <Typography variant="caption" color="warning.main">
                                         Nenhum utilizador disponível
                                     </Typography>
@@ -627,11 +636,17 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                     <Button onClick={handleModalClose} disabled={loading}>
                         Cancelar
                     </Button>
+                    {/* ===== BOTÃO SUBMIT (CORRIGIDO) ===== */}
                     <Button
                         variant="contained"
                         color="primary"
                         onClick={handleSubmit}
-                        disabled={loading || (stepData.what !== 0 && !stepData.what) || (stepData.who !== 0 && !stepData.who) || !workflowValidation.isValid}
+                        disabled={
+                            loading ||
+                            !isValidValue(stepData.what) ||
+                            !isValidValue(stepData.who) ||
+                            !workflowValidation.isValid
+                        }
                         startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
                     >
                         {loading ? 'A enviar...' : 'Guardar e Enviar'}

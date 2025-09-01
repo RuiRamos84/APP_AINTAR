@@ -40,8 +40,6 @@ import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtil
 import { getStatusName, getStatusColor } from './utils/statusUtils';
 import { getDaysSinceSubmission } from '../../utils/dataUtils';
 
-import { useNormalizedSearch } from '../../../';
-
 const DocumentManagerContent = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -104,11 +102,6 @@ const DocumentManagerContent = () => {
         openDocuments,
         modalInstanceKey,
     } = useDocumentActions();
-
-    const searchFields = ['regnumber', 'ts_entity', 'tt_type', 'ts_associate', 'creator'];
-
-    // Usar o hook em vez da função filterDocuments
-    const filteredBySearch = useNormalizedSearch(docs, searchTerm, searchFields);
 
     // Handler simples
     const handleUpdateDocument = useCallback((newDocument) => {
@@ -300,8 +293,7 @@ const DocumentManagerContent = () => {
 
         // Aplicar filtro de busca textual
         if (searchTerm) {
-            const filteredBySearch = useNormalizedSearch(docs, searchTerm, searchFields);
-            docs = filteredBySearch;
+            docs = filterDocuments(docs, searchTerm);
         }
 
         // 3. Aplicar ordenação

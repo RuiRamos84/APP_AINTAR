@@ -528,19 +528,25 @@ const DocumentPreview = ({
                         {(isPdf || isImage) && !loading && !error && !isAndroid && (
                             <>
                                 <Tooltip title="Diminuir zoom">
-                                    <IconButton onClick={handleZoomOut} disabled={zoom <= 0.5}>
-                                        <ZoomOutIcon />
-                                    </IconButton>
+                                    <span>
+                                        <IconButton onClick={handleZoomOut} disabled={zoom <= 0.5}>
+                                            <ZoomOutIcon />
+                                        </IconButton>
+                                    </span>
                                 </Tooltip>
                                 <Tooltip title="Resetar zoom">
-                                    <IconButton onClick={handleResetZoom} disabled={zoom === 1}>
-                                        <FullscreenIcon />
-                                    </IconButton>
+                                    <span>
+                                        <IconButton onClick={handleResetZoom} disabled={zoom === 1}>
+                                            <FullscreenIcon />
+                                        </IconButton>
+                                    </span>
                                 </Tooltip>
                                 <Tooltip title="Aumentar zoom">
-                                    <IconButton onClick={handleZoomIn} disabled={zoom >= 3}>
-                                        <ZoomInIcon />
-                                    </IconButton>
+                                    <span>
+                                        <IconButton onClick={handleZoomIn} disabled={zoom >= 3}>
+                                            <ZoomInIcon />
+                                        </IconButton>
+                                    </span>
                                 </Tooltip>
                             </>
                         )}

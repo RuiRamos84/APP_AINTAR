@@ -14,7 +14,7 @@ def ensure_directories(regnumber):
     try:
         base_path = current_app.config['FILES_DIR']
         request_path = os.path.join(base_path, str(regnumber))
-        anexos_path = os.path.join(request_path, 'anexos')
+        anexos_path = os.path.join(request_path, 'Anexos')
         oficios_path = os.path.join(request_path, 'Oficios')
 
         os.makedirs(request_path, exist_ok=True)

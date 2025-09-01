@@ -26,15 +26,16 @@ def cache_result(timeout=120):
 
 
 def normalize_filename_extensions(filename):
-    """Gerar variações com extensões equivalentes"""
+    """Normalizar extensões equivalentes"""
     if not filename:
         return [filename]
-    
+
     name, ext = os.path.splitext(filename)
     ext_lower = ext.lower()
-    
+
     variations = [filename]  # Original primeiro
-    
+
+    # Adicionar variações para jpeg/jpg
     if ext_lower == '.jpeg':
         variations.append(name + '.jpg')
     elif ext_lower == '.jpg':
@@ -43,7 +44,7 @@ def normalize_filename_extensions(filename):
         variations.append(name + '.tif')
     elif ext_lower == '.tif':
         variations.append(name + '.tiff')
-    
+
     return variations
 
 
@@ -114,15 +115,21 @@ def add_document_annex(data, current_user):
 
                     pk_query = text("SELECT fs_nextcode()")
                     pk_result = session.execute(pk_query).scalar()
-                    
-                    # Normalizar extensão
-                    original_ext = os.path.splitext(file.filename)[1].lower()
-                    if original_ext == '.jpeg':
-                        normalized_ext = '.jpg'
+
+                    # ✅ USAR A FUNÇÃO DE NORMALIZAÇÃO
+                    original_filename = file.filename
+                    variations = normalize_filename_extensions(original_filename)
+
+                    # Escolher a primeira variação (original ou normalizada)
+                    filename = variations[0] if variations else original_filename
+
+                    # Garantir que tem extensão
+                    if not os.path.splitext(filename)[1]:
+                        filename = f"{pk_result}.bin"
                     else:
-                        normalized_ext = original_ext
-                    
-                    filename = f"{pk_result}{normalized_ext}"
+                        name, ext = os.path.splitext(filename)
+                        filename = f"{pk_result}{ext.lower()}"
+
                     file_path = os.path.join(anexos_path, filename)
                     file.save(file_path)
                     
@@ -181,78 +188,81 @@ def add_document_annex(data, current_user):
 
 
 def download_file(regnumber, filename, current_user):
-    """Download com normalização de extensões - baseado no código original"""
+    """Download com normalização robusta"""
     try:
-        print(f"Download iniciado: {regnumber}/{filename}")
-        print(f"Download: {regnumber}/{filename}")
-        
-        # Validação básica
+        # print(f"📁 Download: {regnumber}/{filename}")
+
+        # Validações
         if '..' in filename or '/' in filename or '\\' in filename:
-            current_app.logger.warning(f"Path traversal: {filename}")
-            return jsonify({'error': 'Nome ficheiro inválido'}), 400
-
+            return jsonify({'error': 'Nome inválido'}), 400
         if '..' in regnumber or '/' in regnumber or '\\' in regnumber:
-            current_app.logger.warning(f"Path traversal: {regnumber}")
-            return jsonify({'error': 'Número registo inválido'}), 400
+            return jsonify({'error': 'Registo inválido'}), 400
 
-        # Caminhos (igual ao código original)
         base_path = current_app.config.get('FILES_DIR', '/var/www/html/files')
         request_path = os.path.join(base_path, regnumber)
-        
-        # Variações do nome
+
+        # ✅ USAR NORMALIZAÇÃO ROBUSTA
         filename_variations = normalize_filename_extensions(filename)
-        print(f"Variações geradas: {filename_variations}")
-        current_app.logger.info(f"Variações: {filename_variations}")
-        
+
+        # Adicionar variações de case (para Windows/Linux)
+        all_variations = []
+        for var in filename_variations:
+            all_variations.extend([
+                var,                    # Original
+                var.lower(),           # Minúsculas
+                var.upper(),           # Maiúsculas
+            ])
+
+        # Remover duplicados mantendo ordem
+        unique_variations = []
+        for var in all_variations:
+            if var not in unique_variations:
+                unique_variations.append(var)
+
+        # print(f"🔍 Variações: {unique_variations}")
+
         # Procurar ficheiro
+        search_paths = [
+            request_path,
+            os.path.join(request_path, 'Anexos'),
+            os.path.join(request_path, 'Oficios'),
+        ]
+
         file_path = None
         actual_filename = None
-        
-        # Primeiro anexos, depois raiz (igual ao original)
-        search_paths = [
-            os.path.join(request_path, 'anexos'),
-            os.path.join(request_path, 'Oficios'),
-            request_path
-        ]
-        
+
         for search_dir in search_paths:
-            for filename_var in filename_variations:
+            if not os.path.exists(search_dir):
+                continue
+
+            for filename_var in unique_variations:
                 potential_path = os.path.join(search_dir, filename_var)
-                if os.path.exists(potential_path):
+
+                if os.path.exists(potential_path) and os.path.isfile(potential_path):
                     file_path = potential_path
                     actual_filename = filename_var
-                    current_app.logger.info(f"Encontrado: {file_path}")
+                    # print(f"✅ Encontrado: {file_path}")
                     break
+
             if file_path:
                 break
-        
+
         if not file_path:
-            current_app.logger.error(f"Não encontrado: {regnumber}/{filename}")
+            print(f"❌ Não encontrado: {unique_variations}")
             return jsonify({'error': 'Ficheiro não encontrado'}), 404
-        
+
         # Verificar permissões
         if not os.access(file_path, os.R_OK):
-            current_app.logger.error(f"Sem permissões: {file_path}")
-            return jsonify({'error': 'Ficheiro não acessível'}), 403
-        
-        current_app.logger.info(f"Servindo: {file_path}")
-        if actual_filename != filename:
-            current_app.logger.info(f"Normalizado: {filename} → {actual_filename}")
-        
-        # Send file (igual ao original)
+            return jsonify({'error': 'Sem permissões'}), 403
+
         response = send_file(file_path, as_attachment=True)
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        
-        # Headers informativos
+        response.headers["Cache-Control"] = "no-cache"
+
         if actual_filename != filename:
-            response.headers["X-Original-Filename"] = filename
-            response.headers["X-Actual-Filename"] = actual_filename
-        
+            response.headers["X-Normalized"] = actual_filename
+
         return response
-        
+
     except Exception as e:
         current_app.logger.error(f"Erro download: {str(e)}")
         return jsonify({'error': 'Erro interno'}), 500
-

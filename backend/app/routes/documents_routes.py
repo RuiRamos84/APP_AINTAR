@@ -210,10 +210,10 @@ def add_document_steps(pk):
 def download_file_route(regnumber, filename):
     """Servir ficheiros com normalização de extensões"""
     current_user = get_jwt_identity()
-    print(f"Download file request: regnumber={regnumber}, filename={filename}")
+    # print(f"Download file request: regnumber={regnumber}, filename={filename}")
     try:
         with db_session_manager(current_user):
-            print(f"Download: {regnumber}/{filename}")
+            # print(f"Download: {regnumber}/{filename}")
             return download_file(regnumber, filename, current_user)
 
     except Exception as e:
