@@ -248,3 +248,52 @@ def return_epi_delivery(pk, data, current_user):
     except Exception as e:
         current_app.logger.error(f"Erro ao anular entrega de EPI: {str(e)}")
         return {'error': format_message(str(e))}, 500
+
+
+def create_epi(data, current_user):
+    """
+    Cria um novo colaborador EPI usando a função fbo_epi_insert
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT aintar_server_dev.fbo_epi_insert(
+                    :pk, :name, :tt_epishoetype, :shoenumber, :tshirt, :sweatshirt, 
+                    :jacket, :pants, :apron, :gown, :welderboot, :waterproof,
+                    :reflectivevest, :galoshes, :gloves, :mask, :memo
+                ) AS result
+            """)
+
+            result = session.execute(query, {
+                'pk': data.get('pk'),
+                'name': data.get('name'),
+                'tt_epishoetype': data.get('tt_epishoetype'),
+                'shoenumber': data.get('shoenumber'),
+                'tshirt': data.get('tshirt', ''),
+                'sweatshirt': data.get('sweatshirt', ''),
+                'jacket': data.get('jacket', ''),
+                'pants': data.get('pants', ''),
+                'apron': data.get('apron', ''),
+                'gown': data.get('gown', ''),
+                'welderboot': data.get('welderboot', ''),
+                'waterproof': data.get('waterproof', ''),
+                'reflectivevest': data.get('reflectivevest', ''),
+                'galoshes': data.get('galoshes', ''),
+                'gloves': data.get('gloves', ''),
+                'mask': data.get('mask', ''),
+                'memo': data.get('memo', '')
+            }).scalar()
+
+            if result:
+                session.commit()
+                formatted_result = format_message(result)
+                return {
+                    'message': 'Colaborador criado com sucesso',
+                    'result': formatted_result
+                }, 201
+
+            return {'error': 'Falha ao criar colaborador'}, 400
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao criar colaborador EPI: {str(e)}")
+        return {'error': format_message(str(e))}, 500

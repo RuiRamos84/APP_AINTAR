@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..services.epi_service import (
+    create_epi,
     get_epi_deliveries,
     create_epi_delivery,
     update_epi_preferences,
@@ -143,6 +144,23 @@ def return_epi_delivery_route(pk):
             return return_epi_delivery(pk, data, current_user)
     except Exception as e:
         current_app.logger.error(f"Erro ao anular entrega de EPI: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/epi', methods=['POST'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def create_epi_route():
+    """Criar novo colaborador EPI"""
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        with db_session_manager(current_user):
+            return create_epi(data, current_user)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao criar colaborador EPI: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 

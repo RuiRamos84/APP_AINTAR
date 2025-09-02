@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Box,
     FormControl,
@@ -6,15 +6,25 @@ import {
     Select,
     MenuItem,
     Typography,
-    Fade
+    Fade,
+    Button
 } from '@mui/material';
+import { Add } from '@mui/icons-material';
+import CreateEmployeeForm from './CreateEmployeeForm';
 
 const EmployeeSelector = ({
     employees = [],
     selectedEmployee,
     onChange,
-    isCentered = false
+    isCentered = false,
+    shoeTypes = []
 }) => {
+    const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
+
+    const handleAfterSuccess = () => {
+        // Recarregar a página para actualizar a lista de funcionários
+        window.location.reload();
+    };
 
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
@@ -22,7 +32,7 @@ const EmployeeSelector = ({
                 // Select centralizado quando vazio
                 <Box sx={{ minHeight: '40vh', display: 'flex', alignItems: 'center' }}>
                     <Fade in timeout={600}>
-                        <Box>
+                        <Box sx={{ textAlign: 'center' }}>
                             <FormControl sx={{ width: '450px' }}>
                                 <InputLabel>Funcionário</InputLabel>
                                 <Select
@@ -40,14 +50,24 @@ const EmployeeSelector = ({
                                     ))}
                                 </Select>
                             </FormControl>
+
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
                                 align="center"
-                                sx={{ mt: 2, opacity: 0.8 }}
+                                sx={{ mt: 2, mb: 3, opacity: 0.8 }}
                             >
                                 Seleccione o funcionário para continuar
                             </Typography>
+
+                            <Button
+                                variant="outlined"
+                                startIcon={<Add />}
+                                onClick={() => setCreateEmployeeOpen(true)}
+                                sx={{ mt: 1 }}
+                            >
+                                Criar Novo Funcionário
+                            </Button>
                         </Box>
                     </Fade>
                 </Box>
@@ -70,6 +90,13 @@ const EmployeeSelector = ({
                     </FormControl>
                 </Box>
             )}
+
+            <CreateEmployeeForm
+                open={createEmployeeOpen}
+                onClose={() => setCreateEmployeeOpen(false)}
+                shoeTypes={shoeTypes}
+                afterSuccess={handleAfterSuccess}
+            />
         </Box>
     );
 };

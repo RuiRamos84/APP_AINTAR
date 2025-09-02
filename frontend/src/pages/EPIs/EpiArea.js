@@ -280,6 +280,7 @@ const EpiArea = () => {
                     employees={metaData?.epi_list || []}
                     selectedEmployee={selectedEmployee}
                     onChange={setSelectedEmployee}
+                    shoeTypes={metaData?.epi_shoe_types || []}
                 />
             )}
 

@@ -93,6 +93,16 @@ export const returnEpiDelivery = async (pk, data) => {
     }
 };
 
+export const createEpi = async (data) => {
+    try {
+        const response = await api.post('/epi', data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar colaborador:", error);
+        throw error;
+    }
+};
+
 // Função auxiliar para formatar data
 export const formatDate = (date) => {
     if (!date) return '';
