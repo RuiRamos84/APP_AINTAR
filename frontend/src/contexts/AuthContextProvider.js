@@ -1,53 +1,32 @@
-import React, { useEffect } from "react";
+// contexts/AuthContextProvider.js
+import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { CircularProgress } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
+import { useRouteConfig } from "../hooks/useRouteConfig";
 import { notifyError } from "../components/common/Toaster/ThemedToaster";
 
-const PrivateRoute = ({ children, requiredProfil, allowedUserIds, requiredProfiles }) => {
+const LoadingSpinner = () => (
+  <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}>
+    <CircularProgress />
+  </div>
+);
+
+const PrivateRoute = ({ children, ...props }) => {
   const { user, isLoading } = useAuth();
+  const { canAccessRoute } = useRouteConfig();
   const location = useLocation();
 
-  useEffect(() => {
-    if (!user) return;
+  if (isLoading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-    // Verificar perfil único (compatibilidade)
-    if (requiredProfil !== undefined && user.profil !== requiredProfil) {
-      notifyError("Não tem permissão para aceder a esta área.");
-      window.location.href = "/";
-    }
+  // Se tem props específicos, usar eles; senão usar a config da rota
+  const hasAccess = Object.keys(props).length > 0
+    ? canAccessRoute(location.pathname, props)
+    : canAccessRoute(location.pathname);
 
-    // Verificar múltiplos perfis
-    if (requiredProfiles && !requiredProfiles.includes(user.profil)) {
-      notifyError("Não tem permissão para aceder a esta área.");
-      window.location.href = "/";
-    }
-
-    // Verificar user_id
-    if (allowedUserIds && !allowedUserIds.includes(Number(user.user_id))) {
-      notifyError("Não tem permissão para aceder a esta área.");
-      window.location.href = "/";
-    }
-  }, [user, requiredProfil, requiredProfiles, allowedUserIds]);
-
-  if (isLoading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}>
-        <CircularProgress />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // Verificações de permissão
-  const hasRequiredProfile = requiredProfil === undefined || user.profil === requiredProfil;
-  const hasRequiredProfiles = !requiredProfiles || requiredProfiles.includes(user.profil);
-  const hasAllowedUserId = !allowedUserIds || allowedUserIds.includes(Number(user.user_id));
-
-  if (!hasRequiredProfile || !hasRequiredProfiles || !hasAllowedUserId) {
+  if (!hasAccess) {
+    notifyError("Não tem permissão para aceder a esta área.");
     return <Navigate to="/" replace />;
   }
 

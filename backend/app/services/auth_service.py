@@ -113,12 +113,22 @@ def login_user(username, password):
                 current_app.logger.error(f"Informações do usuário não encontradas para: {username}")
                 return None, 'Erro ao obter informações do utilizador'
 
+            interfaces_query = text("""
+                SELECT COALESCE(interface, ARRAY[]::integer[]) as interfaces 
+                FROM ts_client 
+                WHERE pk = :user_id
+            """)
+
+            interfaces_result = session.execute(
+                interfaces_query, {'user_id': user_info_result.pk}
+            ).fetchone()
+
             user_data = {
                 'user_id': user_info_result.pk,
                 'user_name': user_info_result.client_name,
                 'profil': profil,
                 'session_id': session_id,
-                # 'notification_count': user_info_result.notification,
+                'interfaces': interfaces_result.interfaces or [],
                 'dark_mode': user_info_result.darkmode,
                 'vacation': user_info_result.vacation,
                 'entity': user_info_result.ts_entity,

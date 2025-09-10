@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import { restartServer } from "../../services/authService";
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
+import api from "../../services/api";
 
 const SystemSettings = () => {
   const [settings, setSettings] = useState({
@@ -205,12 +206,17 @@ const SystemSettings = () => {
                 <Button
                   fullWidth
                   variant="outlined"
-                  color="secondary"
-                  onClick={() => {
-                    notifySuccess("Cache limpo com sucesso");
+                  color="warning"
+                  onClick={async () => {
+                    try {
+                      await api.post('/clear-metadata-cache');
+                      notifySuccess("Cache de metadados limpo");
+                    } catch (error) {
+                      notifyError("Erro ao limpar cache");
+                    }
                   }}
                 >
-                  Limpar Cache
+                  Limpar Cache MetaDados
                 </Button>
               </Grid>
             </Grid>

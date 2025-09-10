@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, current_app, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..services.meta_data_service import fetch_meta_data
+from ..services.meta_data_service import fetch_meta_data, clear_meta_data_cache
 from ..utils.utils import set_session, token_required, db_session_manager
 from sqlalchemy.exc import SQLAlchemyError
 from app.utils.error_handler import api_error_handler
@@ -31,6 +31,13 @@ def get_meta_data_route():
     except Exception as e:
         current_app.logger.error(f"Erro inesperado em get_meta_data_route: {str(e)}")
         return jsonify({"error": "Erro interno do servidor ao buscar metadados"}), 500
+
+
+@bp.route('/clear-metadata-cache', methods=['POST'])
+@jwt_required()
+def clear_metadata_cache():
+    clear_meta_data_cache()
+    return jsonify({'message': 'Cache limpo com sucesso'}), 200
 
 
 @bp.after_request

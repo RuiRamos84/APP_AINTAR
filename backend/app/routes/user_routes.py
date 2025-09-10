@@ -11,6 +11,10 @@ from ..services.user_service import (
     reset_password,
     fsf_client_vacationadd,
     fsf_client_vacationclean,
+    get_all_users,
+    get_all_interfaces,
+    update_user_permissions
+
 )
 from ..utils.utils import set_session, token_required, db_session_manager
 from app.utils.error_handler import api_error_handler
@@ -128,6 +132,34 @@ def vacation_status():
                 return jsonify({"error": f"Falha ao atualizar o estado de férias: {result}"}), 500
     except Exception as e:
         return jsonify({"error": f"Falha ao atualizar o estado de férias:{str(e)}"}), 500
+
+
+@bp.route('/users', methods=['GET'])
+@jwt_required()
+@set_session
+@api_error_handler
+def get_users():
+    current_user = get_jwt_identity()
+    return get_all_users(current_user)
+
+
+@bp.route('/interfaces', methods=['GET'])
+@jwt_required()
+@set_session
+@api_error_handler
+def get_interfaces():
+    current_user = get_jwt_identity()
+    return get_all_interfaces(current_user)
+
+
+@bp.route('/users/<int:user_id>/interfaces', methods=['PUT'])
+@jwt_required()
+@set_session
+@api_error_handler
+def update_user_interfaces(user_id):
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return update_user_permissions(user_id, data, current_user)
 
 
 @bp.after_request

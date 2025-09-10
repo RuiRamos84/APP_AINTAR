@@ -9,7 +9,7 @@ metadata_cache = {}
 CACHE_DURATION = timedelta(hours=1)
 
 
-@lru_cache(maxsize=1)
+# @lru_cache(maxsize=1)
 def fetch_meta_data(current_user):
     global metadata_cache
     current_time = datetime.now()
@@ -72,5 +72,5 @@ def fetch_meta_data(current_user):
 def clear_meta_data_cache():
     global metadata_cache
     metadata_cache = {}
-    fetch_meta_data.cache_clear()
+    # fetch_meta_data.cache_clear()
     current_app.logger.info("Metadata cache cleared")

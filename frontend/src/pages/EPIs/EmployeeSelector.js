@@ -17,13 +17,15 @@ const EmployeeSelector = ({
     selectedEmployee,
     onChange,
     isCentered = false,
-    shoeTypes = []
+    shoeTypes = [],
+    refreshMetaData,
 }) => {
     const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
 
-    const handleAfterSuccess = () => {
-        // Recarregar a página para actualizar a lista de funcionários
-        window.location.reload();
+    const handleAfterSuccess = async () => {
+        console.log('🔄 A actualizar metadados...');
+        await refreshMetaData();
+        console.log('✅ Metadados actualizados');
     };
 
     return (

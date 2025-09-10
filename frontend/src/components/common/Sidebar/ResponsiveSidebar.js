@@ -5,9 +5,15 @@ import { useSocket } from '../../../contexts/SocketContext';
 import { useSidebar } from '../../../contexts/SidebarContext';
 
 const ResponsiveSidebar = ({ children }) => {
-    const { sidebarMode, setSidebarMode, isMobile } = useSidebar();
+    const {
+        sidebarMode,
+        setSidebarMode,
+        isMobile,
+        isOpen,
+        toggleSidebar
+    } = useSidebar();
+
     const { notificationCount, refreshNotifications } = useSocket();
-    const isOpen = sidebarMode !== 'closed';
 
     // Solicitar contagem de notificações ao montar o componente
     React.useEffect(() => {
@@ -17,6 +23,17 @@ const ResponsiveSidebar = ({ children }) => {
 
         return () => clearTimeout(timer);
     }, [refreshNotifications]);
+
+    // Handler para toggle com lógica correta
+    const handleToggle = () => {
+        if (isMobile) {
+            // Mobile: toggle entre 'closed' e 'full'
+            setSidebarMode(isOpen ? 'closed' : 'full');
+        } else {
+            // Desktop: usar o toggle padrão
+            toggleSidebar();
+        }
+    };
 
     return (
         <>
@@ -44,7 +61,7 @@ const ResponsiveSidebar = ({ children }) => {
                     invisible={notificationCount === 0}
                 >
                     <IconButton
-                        onClick={() => setSidebarMode(isOpen ? 'closed' : 'full')}
+                        onClick={handleToggle}
                         sx={{
                             backgroundColor: 'background.paper',
                             boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
@@ -62,7 +79,7 @@ const ResponsiveSidebar = ({ children }) => {
                 </Badge>
             )}
 
-            {/* Backdrop - Only on mobile */}
+            {/* Backdrop - Only on mobile when open */}
             {isMobile && isOpen && (
                 <Box
                     onClick={() => setSidebarMode('closed')}
@@ -84,8 +101,19 @@ const ResponsiveSidebar = ({ children }) => {
                     top: 0,
                     height: '100%',
                     zIndex: isMobile ? 1200 : 1,
-                    width: isMobile ? (isOpen ? '250px' : '0px') : 'auto',
-                    visibility: isMobile && !isOpen ? 'hidden' : 'visible',
+                    width: (() => {
+                        if (isMobile) {
+                            return sidebarMode === 'closed' ? '0px' : '250px';
+                        }
+                        // Desktop
+                        switch (sidebarMode) {
+                            case 'full': return '240px';
+                            case 'compact': return '72px';
+                            case 'closed': return '0px';
+                            default: return 'auto';
+                        }
+                    })(),
+                    visibility: (isMobile && sidebarMode === 'closed') ? 'hidden' : 'visible',
                     transition: 'width 0.3s ease-in-out',
                     overflow: 'hidden'
                 }}

@@ -114,7 +114,7 @@ export const MetaDataProvider = ({ children }) => {
 
   // Forçar a atualização dos metadados
   const refreshMetaData = useCallback(() => {
-    return fetchMetaData(true);
+    return fetchMetaData(true); // força bypass
   }, [fetchMetaData]);
 
   return (

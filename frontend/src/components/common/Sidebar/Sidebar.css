@@ -1,116 +1,313 @@
-/* Estilos modernos para a sidebar */
-.modern-sidebar {
+/* components/common/Sidebar/Sidebar.css */
+
+/* ===== VARIÁVEIS CSS ===== */
+:root {
     --sidebar-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 100%;
+    --sidebar-z-index: 1200;
+    --sidebar-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --sidebar-backdrop-blur: 10px;
+    --sidebar-width-compact: 72px;
+    --sidebar-width-full: 300px;
+}
+
+/* ===== CONTAINER PRINCIPAL ===== */
+.main-sidebar {
+    transition: var(--sidebar-transition);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+    backdrop-filter: blur(var(--sidebar-backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--sidebar-backdrop-blur));
+}
+
+.main-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.main-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.main-sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.main-sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .main-sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .main-sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== ITENS DA SIDEBAR ===== */
+.sidebar-item {
+    position: relative;
+    transition: var(--sidebar-transition);
+    border-radius: 8px;
     overflow: hidden;
 }
 
-/* Estilos para os três modos */
-.sidebar-mode-full {
-    width: 240px;
+.sidebar-item:hover {
+    transform: translateX(4px);
 }
 
-.sidebar-mode-compact {
-    width: 72px;
+.sidebar-item.active {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.sidebar-mode-closed {
-    width: 0;
+[data-theme="dark"] .sidebar-item.active {
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.05);
 }
 
-/* Estilos para itens de menu */
-.menu-item {
-    border-radius: 8px !important;
-    transition: var(--sidebar-transition) !important;
-    margin: 4px 8px !important;
-    position: relative !important;
-    overflow: hidden !important;
+/* ===== ANIMAÇÕES ===== */
+@keyframes sidebar-item-enter {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
-.sidebar-mode-compact .menu-item {
-    margin: 4px auto !important;
-    width: 48px;
-    justify-content: center !important;
+@keyframes sidebar-item-exit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
 }
 
-.menu-item:hover {
-    background-color: rgba(0, 0, 0, 0.04) !important;
+.sidebar-item-enter {
+    animation: sidebar-item-enter 300ms ease-out;
 }
 
-[data-theme="dark"] .menu-item:hover {
-    background-color: rgba(255, 255, 255, 0.08) !important;
+.sidebar-item-exit {
+    animation: sidebar-item-exit 300ms ease-in;
 }
 
-/* Indicador de item ativo */
-.menu-item.active::before {
-    content: '' !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 20% !important;
-    height: 60% !important;
-    width: 4px !important;
-    background-color: var(--mui-palette-primary-main) !important;
-    border-radius: 0 4px 4px 0 !important;
+/* ===== EFEITO GLASS MORPHISM ===== */
+.sidebar-glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
-.menu-item.active {
-    background-color: rgba(25, 118, 210, 0.08) !important;
+[data-theme="dark"] .sidebar-glass {
+    background: rgba(18, 18, 18, 0.8);
 }
 
-[data-theme="dark"] .menu-item.active {
-    background-color: rgba(144, 202, 249, 0.08) !important;
+/* ===== ANIMAÇÃO FLOATING PARA ITENS ATIVOS ===== */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-2px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
 }
 
-/* Textos e ícones */
-.menu-item-text {
-    margin-left: 12px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+.sidebar-item.active {
+    animation: float 3s ease-in-out infinite;
 }
 
-.menu-item.active .list-item-text {
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 768px) {
+    .main-sidebar {
+        width: 300px !important;
+    }
+
+    .sidebar-overlay {
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+    }
+}
+
+/* ===== TOOLTIP HOVER ===== */
+.hover-tooltip {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 12px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    white-space: nowrap;
+    z-index: 1300;
+    font-weight: 500;
+    animation: tooltip-appear 200ms ease-out;
+}
+
+@keyframes tooltip-appear {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
+}
+
+.sidebar-item:hover .hover-tooltip {
+    display: block;
+}
+
+/* ===== BADGE DE NOTIFICAÇÃO ===== */
+.notification-badge .MuiBadge-badge {
+    right: -2px !important;
+    top: 4px !important;
+    border: 2px solid !important;
+    padding: 0 4px !important;
+    font-size: 0.65rem !important;
     font-weight: 600 !important;
-    color: var(--mui-palette-primary-main) !important;
 }
 
-.menu-item.active svg {
-    color: var(--mui-palette-primary-main) !important;
+/* ===== BOTÃO TOGGLE MOBILE ===== */
+.mobile-toggle-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: calc(var(--sidebar-z-index) + 102);
+    box-shadow: var(--sidebar-shadow);
+    transition: transform 0.2s ease;
 }
 
-/* Submenu */
+.mobile-toggle-button:hover {
+    transform: scale(1.1);
+}
+
+/* ===== OVERLAY MOBILE ===== */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: calc(var(--sidebar-z-index) - 1);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* ===== PERFIL SECTION ===== */
+.sidebar-profile-section {
+    transition: background-color 0.2s ease;
+}
+
+.sidebar-profile-section:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .sidebar-profile-section:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ===== HEADER & FOOTER ===== */
+.sidebar-header {
+    position: relative;
+    z-index: 1;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+}
+
+/* ===== SUBMENU STYLES ===== */
 .submenu-item {
     padding-left: 24px !important;
     border-radius: 0 8px 8px 0 !important;
 }
 
-/* Customização da barra de scroll */
+.submenu-item:before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    background-color: currentColor;
+    border-radius: 50%;
+    opacity: 0.5;
+    transform: translateY(-50%);
+}
+
+.submenu-item.active:before {
+    opacity: 1;
+    background-color: var(--mui-palette-primary-main);
+}
+
+/* ===== UTILITIES ===== */
 .sidebar-content {
-    overflow-y: auto !important;
-    height: 100% !important;
+    overflow-y: auto;
+    height: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
-.sidebar-content::-webkit-scrollbar {
-    width: 4px !important;
+.sidebar-divider {
+    opacity: 0.2;
+    margin: 8px 0;
 }
 
-.sidebar-content::-webkit-scrollbar-track {
-    background: transparent !important;
+/* ===== HIGH CONTRAST MODE ===== */
+@media (prefers-contrast: high) {
+    .sidebar-item {
+        border: 1px solid;
+    }
+
+    .sidebar-item.active {
+        border-width: 2px;
+    }
+
+    .hover-tooltip {
+        border: 1px solid;
+    }
 }
 
-.sidebar-content::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2) !important;
-    border-radius: 4px !important;
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+
+    .main-sidebar,
+    .sidebar-item,
+    .sidebar-item-enter,
+    .sidebar-item-exit,
+    .mobile-toggle-button {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .sidebar-item.active {
+        animation: none !important;
+    }
 }
 
-[data-theme="dark"] .sidebar-content::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-}
+/* ===== PRINT STYLES ===== */
+@media print {
 
-/* Badge de notificação */
-.badge-notification .MuiBadge-badge {
-    right: -2px !important;
-    top: 4px !important;
-    border: 2px solid var(--mui-palette-background-paper) !important;
-    padding: '0 4px' !important;
+    .main-sidebar,
+    .mobile-toggle-button,
+    .sidebar-overlay {
+        display: none !important;
+    }
 }

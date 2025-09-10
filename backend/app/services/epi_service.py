@@ -286,6 +286,10 @@ def create_epi(data, current_user):
 
             if result:
                 session.commit()
+                # Limpar cache após inserção
+                from ..services.meta_data_service import clear_meta_data_cache
+                clear_meta_data_cache()
+
                 formatted_result = format_message(result)
                 return {
                     'message': 'Colaborador criado com sucesso',

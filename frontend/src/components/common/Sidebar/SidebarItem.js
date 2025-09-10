@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+// components/common/Sidebar/SidebarItem.js
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     ListItemButton,
-    ListItemButtonButton,
+    ListItemIcon,
     ListItemText,
     Tooltip,
     Box,
@@ -14,266 +15,375 @@ import {
     MenuList,
     MenuItem,
     ClickAwayListener,
-    List
+    List,
+    useTheme,
+    alpha
 } from '@mui/material';
 import { ArrowForwardIos } from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import { useAuth } from "../../../contexts/AuthContext";
-import { motion, AnimatePresence } from 'framer-motion';
 
-const SidebarItem = ({
+const SidebarItem = React.memo(({
     item,
-    notificationCount,
-    handleAction
+    isActive,
+    onHover,
+    onLeave,
+    isHovered,
+    notificationCount = 0
 }) => {
+    const theme = useTheme();
     const location = useLocation();
     const { user } = useAuth();
-    const { sidebarMode, openSubmenu, setOpenSubmenu } = useSidebar();
+    const {
+        sidebarMode,
+        openSubmenus,
+        toggleSubmenu,
+        closeAllSubmenus,
+        isCompact
+    } = useSidebar();
+
     const [anchorEl, setAnchorEl] = useState(null);
 
-    // Verificar se o item atual está ativo
-    const isItemActive = item.to === location.pathname;
+    // Memoizar conversão de submenu para evitar re-cálculos
+    const submenuArray = useMemo(() => {
+        return item.submenu ? Object.values(item.submenu) : [];
+    }, [item.submenu]);
 
-    // Verificar se algum submenu está ativo (para destacar o item pai)
-    const isSubmenuActive = item.submenu && item.submenu.some(
-        subItem => subItem.to === location.pathname
-    );
+    // Memoizar estados derivados
+    const isSubmenuActive = useMemo(() => {
+        return submenuArray.length > 0 && submenuArray.some(
+            subItem => subItem.to === location.pathname
+        );
+    }, [submenuArray, location.pathname]);
 
-    // Estado ativo combinado (próprio item ou qualquer submenu)
-    const isActive = isItemActive || isSubmenuActive;
+    const isItemActive = isActive || isSubmenuActive;
+    const hasSubmenu = submenuArray.length > 0;
 
-    const hasSubmenu = item.submenu && item.submenu.length > 0;
-    const isOpen = openSubmenu === item.id;
+    // Verificar se ESTE item específico está aberto
+    const isOpen = openSubmenus[item.id] || false;
     const popperOpen = Boolean(anchorEl);
 
-    const handleClick = (event) => {
+    // Função de verificação de acesso memoizada
+    const hasAccess = useCallback((rolesAllowed, allowedUserIds = []) => {
+        const hasRoleAccess = rolesAllowed ? rolesAllowed.includes(user.profil) : true;
+        const hasUserIdAccess = !allowedUserIds || allowedUserIds.length === 0 || allowedUserIds.includes(user.user_id);
+        return hasRoleAccess && hasUserIdAccess;
+    }, [user.profil, user.user_id]);
+
+    // Memoizar submenu acessível
+    const accessibleSubmenu = useMemo(() => {
+        return submenuArray.filter(subItem => {
+            if (subItem.permissions) {
+                if (subItem.permissions.rolesAllowed) {
+                    return hasAccess(subItem.permissions.rolesAllowed, subItem.permissions.allowedUserIds);
+                }
+                return true;
+            } else if (subItem.rolesAllowed) {
+                return hasAccess(subItem.rolesAllowed, subItem.allowedUserIds);
+            }
+            return true;
+        });
+    }, [submenuArray, hasAccess]);
+
+    // Handlers memoizados para evitar re-renders filhos
+    const handleClick = useCallback((event) => {
         if (hasSubmenu) {
-            if (sidebarMode === 'compact') {
-                // No modo compacto, mostra o popup
-                setAnchorEl(anchorEl ? null : event.currentTarget);
+            if (isCompact) {
+                setAnchorEl(prev => prev ? null : event.currentTarget);
             } else {
-                // No modo full, expande o submenu normalmente
-                setOpenSubmenu(isOpen ? null : item.id);
+                toggleSubmenu(item.id);
             }
         } else if (item.onClick) {
-            handleAction(item.onClick);
+            item.onClick();
+            closeAllSubmenus();
         }
-    };
+    }, [hasSubmenu, isCompact, item.id, item.onClick, toggleSubmenu, closeAllSubmenus]);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setAnchorEl(null);
-    };
+    }, []);
 
-    const handleSubmenuItemClick = (subItem) => {
+    const handleSubmenuItemClick = useCallback((subItem) => {
         if (subItem.onClick) {
-            handleAction(subItem.onClick);
+            subItem.onClick();
         }
         handleClose();
-    };
+        closeAllSubmenus();
+    }, [handleClose, closeAllSubmenus]);
 
-    const hasAccess = (rolesAllowed) => {
-        return rolesAllowed.includes(user.profil);
-    };
-
-    // Filtrar os submenus com base nas permissões do usuário
-    const accessibleSubmenu = item.submenu
-        ? item.submenu.filter(subItem => hasAccess(subItem.rolesAllowed))
-        : [];
+    // Memoizar estilos para evitar re-cálculos
+    const itemStyles = useMemo(() => ({
+        borderRadius: 2,
+        mx: 1,
+        mb: 0.5,
+        py: 1.5,
+        px: isCompact ? 2.5 : 2,
+        minHeight: 52,
+        justifyContent: isCompact ? 'center' : 'flex-start',
+        background: isItemActive
+            ? `linear-gradient(45deg, ${alpha(theme.palette.primary.main, 0.2)} 0%, ${alpha(theme.palette.primary.main, 0.1)} 100%)`
+            : 'transparent',
+        color: isItemActive ? theme.palette.primary.main : 'text.primary',
+        border: isItemActive ? `1px solid ${alpha(theme.palette.primary.main, 0.2)}` : '1px solid transparent',
+        '&:hover': {
+            background: `linear-gradient(45deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+            transform: 'translateX(4px)',
+            color: theme.palette.primary.main
+        },
+        transition: 'all 0.2s ease-in-out',
+        position: 'relative',
+        overflow: 'hidden'
+    }), [isItemActive, isCompact, theme]);
 
     return (
         <>
             <Tooltip
-                title={sidebarMode === 'compact' ? item.text : ""}
+                title={isCompact ? item.text : ""}
                 placement="right"
-                disableHoverListener={sidebarMode === 'full'}
+                disableHoverListener={!isCompact}
                 arrow
+                componentsProps={{
+                    tooltip: {
+                        sx: {
+                            bgcolor: theme.palette.background.paper,
+                            color: theme.palette.text.primary,
+                            boxShadow: theme.shadows[8],
+                            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                            fontSize: '0.8rem',
+                            fontWeight: 500
+                        }
+                    }
+                }}
             >
-                <ListItemButton     // ← Forma correta para componentes React
+                <ListItemButton
                     component={item.to && !hasSubmenu ? Link : "div"}
                     to={item.to && !hasSubmenu ? item.to : undefined}
                     onClick={handleClick}
-                    className={`menu-item ${isActive ? "active" : ""} ${isSubmenuActive ? "submenu-active" : ""}`}
-                    sx={{
-                        borderRadius: '8px',
-                        py: 1.2,
-                        px: 1.5,
-                        my: 0.5,
-                        mx: 1,
-                        position: 'relative',
-                        bgcolor: isActive ? 'action.selected' : 'transparent',
-                        color: isActive ? 'primary.main' : 'text.primary',
-                        '&:hover': {
-                            bgcolor: 'action.hover',
-                        },
-                        // Indicador lateral para item ativo
-                        ...(isActive && {
-                            '&::before': {
-                                content: '""',
+                    onMouseEnter={() => onHover?.(item.id)}
+                    onMouseLeave={onLeave}
+                    sx={itemStyles}
+                >
+                    {/* Active indicator bar */}
+                    {isItemActive && (
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: 4 }}
+                            style={{
                                 position: 'absolute',
                                 left: 0,
-                                top: '20%',
-                                height: '60%',
-                                width: 4,
-                                borderRadius: '0 4px 4px 0',
-                                bgcolor: 'primary.main',
-                            }
-                        })
-                    }}
-                >
-                    {/* Icon with badge if needed */}
-                    <Box sx={{
-                        position: 'relative',
-                        minWidth: 40,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        color: isActive ? 'primary.main' : 'inherit'
-                    }}>
-                        {item.isBadged ? (
-                            <Badge
-                                badgeContent={notificationCount}
-                                color="secondary"
-                                sx={{
-                                    '& .MuiBadge-badge': {
-                                        right: sidebarMode === 'compact' ? -2 : -6,
-                                        top: 4
-                                    }
-                                }}
-                            >
-                                {item.icon}
-                            </Badge>
-                        ) : item.icon}
-                    </Box>
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                height: 24,
+                                borderRadius: '0 2px 2px 0',
+                                background: `linear-gradient(180deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                            }}
+                        />
+                    )}
+
+                    {/* Halo effect for active items */}
+                    {isItemActive && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                borderRadius: 8,
+                                boxShadow: `0 0 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+                                zIndex: -1
+                            }}
+                        />
+                    )}
+
+                    {/* Icon with badge */}
+                    <ListItemIcon
+                        sx={{
+                            minWidth: 0,
+                            mr: isCompact ? 0 : 2,
+                            justifyContent: 'center',
+                            color: 'inherit'
+                        }}
+                    >
+                        <Badge
+                            badgeContent={item.isBadged ? notificationCount : item.badge}
+                            color="secondary"
+                            sx={{
+                                '& .MuiBadge-badge': {
+                                    right: isCompact ? -2 : -6,
+                                    top: 4,
+                                    boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+                                }
+                            }}
+                            invisible={!item.isBadged && !item.badge}
+                        >
+                            {React.cloneElement(item.icon, {
+                                sx: {
+                                    fontSize: isCompact ? 24 : 24,
+                                    filter: isItemActive ? 'drop-shadow(0 0 2px rgba(0,0,0,0.3))' : 'none'
+                                }
+                            })}
+                        </Badge>
+                    </ListItemIcon>
 
                     {/* Text with animation */}
-                    <AnimatePresence>
-                        {sidebarMode === 'full' && (
-                            <motion.div
-                                initial={{ opacity: 0, width: 0 }}
-                                animate={{ opacity: 1, width: "auto" }}
-                                exit={{ opacity: 0, width: 0 }}
-                                transition={{ duration: 0.2 }}
-                                style={{ overflow: 'hidden' }}
-                            >
-                                <ListItemText
-                                    primary={
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                ml: 1,
-                                                fontWeight: isActive ? 600 : 400,
-                                                color: isActive ? 'primary.main' : 'inherit'
-                                            }}
-                                        >
-                                            {item.text}
-                                        </Typography>
-                                    }
-                                    className="list-item-text"
-                                />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    {!isCompact && (
+                        <ListItemText
+                            primary={
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        fontWeight: isItemActive ? 700 : 500,
+                                        fontSize: '0.9rem',
+                                        background: isItemActive
+                                            ? `linear-gradient(45deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                                            : 'none',
+                                        WebkitBackgroundClip: isItemActive ? 'text' : null,
+                                        WebkitTextFillColor: isItemActive ? 'transparent' : null,
+                                    }}
+                                >
+                                    {item.text}
+                                </Typography>
+                            }
+                        />
+                    )}
 
                     {/* Arrow for submenu */}
-                    {hasSubmenu && sidebarMode === 'full' && (
+                    {hasSubmenu && !isCompact && (
                         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
                             <ArrowForwardIos sx={{
                                 fontSize: 12,
                                 transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
                                 transition: 'transform 0.3s',
-                                color: isActive ? 'primary.main' : 'inherit'
+                                color: isItemActive ? 'primary.main' : 'inherit'
                             }} />
                         </Box>
+                    )}
+
+                    {/* Hover expansion effect for compact mode */}
+                    {isCompact && isHovered && (
+                        <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            style={{
+                                position: 'absolute',
+                                left: '100%',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: theme.palette.background.paper,
+                                color: theme.palette.text.primary,
+                                padding: '8px 16px',
+                                borderRadius: 8,
+                                boxShadow: theme.shadows[8],
+                                whiteSpace: 'nowrap',
+                                zIndex: 1300,
+                                marginLeft: 12,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                fontWeight: 500
+                            }}
+                        >
+                            {item.text}
+                        </motion.div>
                     )}
                 </ListItemButton>
             </Tooltip>
 
-            {/* Submenu expandido no modo full */}
-            {hasSubmenu && sidebarMode === 'full' && isOpen && (
-                <List sx={{ pl: 1 }}>
-                    {accessibleSubmenu.map(subItem => {
-                        // Verificar se este submenu está ativo
-                        const isSubItemActive = subItem.to === location.pathname;
+            {/* Submenu expandido - renderiza apenas se for ESTE item que está aberto */}
+            <AnimatePresence>
+                {hasSubmenu && !isCompact && isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        style={{ overflow: 'hidden' }}
+                    >
+                        <List sx={{ pl: 1 }}>
+                            {accessibleSubmenu.map(subItem => {
+                                const isSubItemActive = subItem.to === location.pathname;
 
-                        return (
-                            <ListItemButton
-                                key={subItem.id}
-                                button={true}
-                                component={subItem.to ? Link : "div"}
-                                to={subItem.to}
-                                onClick={() => subItem.onClick && handleAction(subItem.onClick)}
-                                className={`menu-item submenu-item ${isSubItemActive ? "active" : ""}`}
-                                sx={{
-                                    borderRadius: '0 8px 8px 0',
-                                    py: 1.2,
-                                    px: 2,
-                                    my: 0.5,
-                                    mx: 0,
-                                    position: 'relative',
-                                    bgcolor: isSubItemActive ? 'action.selected' : 'transparent',
-                                    color: isSubItemActive ? 'primary.main' : 'text.primary',
-                                    '&:hover': {
-                                        bgcolor: 'action.hover',
-                                    },
-                                    ...(isSubItemActive && {
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            left: 0,
-                                            top: '20%',
-                                            height: '60%',
-                                            width: 4,
-                                            borderRadius: '0 4px 4px 0',
-                                            bgcolor: 'primary.main',
-                                        }
-                                    })
-                                }}
-                            >
-                                <Box sx={{
-                                    position: 'relative',
-                                    minWidth: 40,
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    color: isSubItemActive ? 'primary.main' : 'inherit'
-                                }}>
-                                    {subItem.isBadged ? (
-                                        <Badge
-                                            badgeContent={notificationCount}
-                                            color="secondary"
-                                            sx={{
-                                                '& .MuiBadge-badge': {
-                                                    right: -6,
-                                                    top: 4
+                                return (
+                                    <ListItemButton
+                                        key={subItem.id}
+                                        component={subItem.to ? Link : "div"}
+                                        to={subItem.to}
+                                        onClick={() => handleSubmenuItemClick(subItem)}
+                                        sx={{
+                                            borderRadius: '0 8px 8px 0',
+                                            py: 1.2,
+                                            px: 2,
+                                            my: 0.5,
+                                            mx: 0,
+                                            position: 'relative',
+                                            bgcolor: isSubItemActive ? 'action.selected' : 'transparent',
+                                            color: isSubItemActive ? 'primary.main' : 'text.primary',
+                                            '&:hover': {
+                                                bgcolor: 'action.hover',
+                                            },
+                                            ...(isSubItemActive && {
+                                                '&::before': {
+                                                    content: '""',
+                                                    position: 'absolute',
+                                                    left: 0,
+                                                    top: '20%',
+                                                    height: '60%',
+                                                    width: 4,
+                                                    borderRadius: '0 4px 4px 0',
+                                                    bgcolor: 'primary.main',
                                                 }
-                                            }}
-                                        >
-                                            {subItem.icon}
-                                        </Badge>
-                                    ) : subItem.icon}
-                                </Box>
+                                            })
+                                        }}
+                                    >
+                                        <ListItemIcon sx={{
+                                            minWidth: 0,
+                                            mr: 2,
+                                            justifyContent: 'center',
+                                            color: isSubItemActive ? 'primary.main' : 'inherit'
+                                        }}>
+                                            {subItem.isBadged ? (
+                                                <Badge
+                                                    badgeContent={notificationCount}
+                                                    color="secondary"
+                                                    sx={{
+                                                        '& .MuiBadge-badge': {
+                                                            right: -6,
+                                                            top: 4
+                                                        }
+                                                    }}
+                                                >
+                                                    {subItem.icon}
+                                                </Badge>
+                                            ) : subItem.icon}
+                                        </ListItemIcon>
 
-                                <ListItemText
-                                    primary={
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                ml: 1,
-                                                fontWeight: isSubItemActive ? 600 : 400,
-                                                color: isSubItemActive ? 'primary.main' : 'inherit'
-                                            }}
-                                        >
-                                            {subItem.text}
-                                        </Typography>
-                                    }
-                                    className="list-item-text"
-                                />
-                            </ListItemButton>
-                        );
-                    })}
-                </List>
-            )}
+                                        <ListItemText
+                                            primary={
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        fontWeight: isSubItemActive ? 600 : 400,
+                                                        color: isSubItemActive ? 'primary.main' : 'inherit'
+                                                    }}
+                                                >
+                                                    {subItem.text}
+                                                </Typography>
+                                            }
+                                        />
+                                    </ListItemButton>
+                                );
+                            })}
+                        </List>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Popup submenu para modo compacto */}
-            {hasSubmenu && sidebarMode === 'compact' && (
+            {hasSubmenu && isCompact && (
                 <Popper
                     open={popperOpen}
                     anchorEl={anchorEl}
@@ -283,9 +393,7 @@ const SidebarItem = ({
                     modifiers={[
                         {
                             name: 'offset',
-                            options: {
-                                offset: [0, 5],
-                            },
+                            options: { offset: [0, 5] },
                         },
                         {
                             name: 'preventOverflow',
@@ -324,14 +432,12 @@ const SidebarItem = ({
                                                 fontWeight: 600,
                                                 borderBottom: '1px solid',
                                                 borderColor: 'divider',
-                                                color: isActive ? 'primary.main' : 'inherit'
+                                                color: isItemActive ? 'primary.main' : 'inherit'
                                             }}
                                         >
                                             {item.text}
                                         </Typography>
-                                        {/* Usar a mesma lista filtrada de submenus */}
                                         {accessibleSubmenu.map((subItem) => {
-                                            // Verificar se este submenu está ativo
                                             const isSubItemActive = subItem.to === location.pathname;
 
                                             return (
@@ -353,7 +459,6 @@ const SidebarItem = ({
                                                         '&:hover': {
                                                             bgcolor: 'action.hover'
                                                         },
-                                                        // Indicador lateral para submenu ativo
                                                         ...(isSubItemActive && {
                                                             '&::before': {
                                                                 content: '""',
@@ -401,6 +506,9 @@ const SidebarItem = ({
             )}
         </>
     );
-};
+});
+
+// Adicionar displayName para debugging
+SidebarItem.displayName = 'SidebarItem';
 
 export default SidebarItem;

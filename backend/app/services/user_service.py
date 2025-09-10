@@ -1,6 +1,6 @@
 import os
 import jwt
-from flask import current_app
+from flask import current_app, jsonify
 from flask_mail import Message
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
@@ -289,3 +289,52 @@ def fsf_client_vacationclean(user_id, current_user):
             return s
     except Exception as e:        
         return f"Erro ao atualizar o vacation: {str(e)}"
+
+
+def get_all_users(current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text("""
+                SELECT c.pk, c.name, c.username, c.ts_profile as profil, 
+                       COALESCE(c.interface, ARRAY[]::integer[]) as interface,
+                       e.name as entity_name
+                FROM ts_client c 
+                LEFT JOIN ts_entity e ON c.ts_entity = e.pk
+                ORDER BY c.name
+            """)
+            result = session.execute(query).fetchall()
+            users = [dict(row._mapping) for row in result]
+            return jsonify(users), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+def get_all_interfaces(current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            query = text(
+                "SELECT pk, value as name FROM ts_interface ORDER BY pk")
+            result = session.execute(query).fetchall()
+            interfaces = [dict(row._mapping) for row in result]
+            return jsonify(interfaces), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+def update_user_permissions(user_id, data, current_user):
+    try:
+        interfaces = data.get('interfaces', [])
+
+        with db_session_manager(current_user) as session:
+            query = text("""
+                UPDATE ts_client 
+                SET interface = :interfaces 
+                WHERE pk = :user_id
+            """)
+            session.execute(query, {
+                'interfaces': interfaces if interfaces else None,
+                'user_id': user_id
+            })
+            return jsonify({'message': 'Permissões actualizadas'}), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500

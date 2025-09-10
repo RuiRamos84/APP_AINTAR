@@ -1,19 +1,13 @@
+// components/common/Sidebar/Sidebar.js
 import React from "react";
-import { useSidebar } from "../../../contexts/SidebarContext";
-import ModernSidebar from "./ModernSidebar";
+import MainSidebar from "./MainSidebar";
 
-// Mantém o componente Sidebar original para compatibilidade
-const Sidebar = (props) => {
-  const { isOpen, legacyToggleSidebar } = useSidebar();
-
-  // Passa as propriedades isOpen e toggleSidebar para o ModernSidebar
-  return (
-    <ModernSidebar
-      {...props}
-      isOpen={isOpen}
-      toggleSidebar={legacyToggleSidebar}
-    />
-  );
+/**
+ * Componente wrapper da sidebar principal
+ * Este é o ponto de entrada único para a sidebar em toda a aplicação
+ */
+const Sidebar = () => {
+  return <MainSidebar />;
 };
 
 export default Sidebar;

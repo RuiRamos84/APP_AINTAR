@@ -1,274 +1,142 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton,
-  Grid,
-  Chip
+  Box, Paper, Typography, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Button, Dialog,
+  DialogActions, DialogContent, DialogTitle, FormGroup,
+  FormControlLabel, Checkbox, Grid, Chip, CircularProgress
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Search as SearchIcon,
-} from '@mui/icons-material';
-
-// Dados de exemplo para mostrar o UI
-const mockUsers = [
-  { id: 1, name: 'Ana Silva', email: 'ana.silva@exemplo.pt', role: 'admin', status: 'active' },
-  { id: 2, name: 'João Costa', email: 'joao.costa@exemplo.pt', role: 'user', status: 'active' },
-  { id: 3, name: 'Marta Oliveira', email: 'marta.oliveira@exemplo.pt', role: 'manager', status: 'active' },
-  { id: 4, name: 'Pedro Santos', email: 'pedro.santos@exemplo.pt', role: 'user', status: 'inactive' },
-  { id: 5, name: 'Carla Mendes', email: 'carla.mendes@exemplo.pt', role: 'user', status: 'active' },
-];
-
-const roleOptions = [
-  { value: 'admin', label: 'Administrador' },
-  { value: 'manager', label: 'Gestor' },
-  { value: 'user', label: 'Utilizador Regular' },
-];
+import { Edit as EditIcon } from '@mui/icons-material';
+import api from '../../services/api';
+import { notifySuccess, notifyError } from '../../components/common/Toaster/ThemedToaster';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState(mockUsers);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [users, setUsers] = useState([]);
+  const [interfaces, setInterfaces] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
-  const [currentUser, setCurrentUser] = useState({ name: '', email: '', role: 'user', status: 'active' });
-  const [isEditing, setIsEditing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedInterfaces, setSelectedInterfaces] = useState([]);
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleOpenAddDialog = () => {
-    setCurrentUser({ name: '', email: '', role: 'user', status: 'active' });
-    setIsEditing(false);
-    setOpenDialog(true);
-  };
-
-  const handleOpenEditDialog = (user) => {
-    setCurrentUser(user);
-    setIsEditing(true);
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentUser({ ...currentUser, [name]: value });
-  };
-
-  const handleSaveUser = () => {
-    if (isEditing) {
-      // Atualizar utilizador existente (simulado)
-      setUsers(users.map(user => user.id === currentUser.id ? currentUser : user));
-    } else {
-      // Adicionar novo utilizador (simulado)
-      const newUser = {
-        ...currentUser,
-        id: Math.max(...users.map(u => u.id)) + 1,
-      };
-      setUsers([...users, newUser]);
+  const loadData = async () => {
+    try {
+      const [usersRes, interfacesRes] = await Promise.all([
+        api.get('/user/users'),
+        api.get('/user/interfaces')
+      ]);
+      setUsers(usersRes.data);
+      setInterfaces(interfacesRes.data);
+    } catch (error) {
+      notifyError('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
     }
-    setOpenDialog(false);
   };
 
-  const handleDeleteUser = (userId) => {
-    // Simulando exclusão de utilizador
-    setUsers(users.filter(user => user.id !== userId));
+  const handleOpenDialog = (user) => {
+    setSelectedUser(user);
+    setSelectedInterfaces(user.interface || []);
+    setOpenDialog(true);
   };
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    setPage(0);
+  const handleInterfaceChange = (interfaceId, checked) => {
+    if (checked) {
+      setSelectedInterfaces([...selectedInterfaces, interfaceId]);
+    } else {
+      setSelectedInterfaces(selectedInterfaces.filter(id => id !== interfaceId));
+    }
   };
 
-  // Filtrar usuários com base na pesquisa
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleSave = async () => {
+    try {
+      await api.put(`/user/users/${selectedUser.pk}/interfaces`, {
+        interfaces: selectedInterfaces
+      });
+
+      // Actualizar lista local
+      setUsers(users.map(user =>
+        user.pk === selectedUser.pk
+          ? { ...user, interface: selectedInterfaces }
+          : user
+      ));
+
+      notifySuccess('Permissões actualizadas');
+      setOpenDialog(false);
+    } catch (error) {
+      notifyError('Erro ao actualizar permissões');
+    }
+  };
+
+  if (loading) return <CircularProgress />;
 
   return (
     <Box>
-      <Paper sx={{ p: 3 }}>
-        <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <Grid xs>
-            <Typography variant="h6">Gestão de Utilizadores</Typography>
-          </Grid>
-          <Grid>
-            <TextField
-              placeholder="Pesquisar utilizadores"
-              variant="outlined"
-              size="small"
-              value={searchQuery}
-              onChange={handleSearch}
-              InputProps={{
-                startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1 }} />,
-              }}
-            />
-          </Grid>
-          <Grid>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenAddDialog}
-            >
-              Novo Utilizador
-            </Button>
-          </Grid>
-        </Grid>
+      <Typography variant="h6" gutterBottom>
+        Gestão de Permissões
+      </Typography>
 
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nome</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Função</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell align="right">Ações</TableCell>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Nome</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Perfil</TableCell>
+              <TableCell>Interfaces</TableCell>
+              <TableCell>Acções</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {users.map(user => (
+              <TableRow key={user.pk}>
+                <TableCell>{user.name}</TableCell>
+                <TableCell>{user.username}</TableCell>
+                <TableCell>
+                  <Chip label={user.profil === '0' ? 'Admin' : 'User'} />
+                </TableCell>
+                <TableCell>
+                  {user.interface?.length || 0} interfaces
+                </TableCell>
+                <TableCell>
+                  <Button
+                    startIcon={<EditIcon />}
+                    onClick={() => handleOpenDialog(user)}
+                  >
+                    Editar
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredUsers
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={roleOptions.find(r => r.value === user.role)?.label || user.role}
-                        color={user.role === 'admin' ? 'primary' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={user.status === 'active' ? 'Ativo' : 'Inativo'}
-                        color={user.status === 'active' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenEditDialog(user)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={filteredUsers.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Linhas por página:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-        />
-      </Paper>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      {/* Modal de Adição/Edição de Utilizador */}
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>{isEditing ? 'Editar Utilizador' : 'Adicionar Utilizador'}</DialogTitle>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Editar Permissões - {selectedUser?.name}
+        </DialogTitle>
         <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <TextField
-              fullWidth
-              label="Nome Completo"
-              name="name"
-              value={currentUser.name}
-              onChange={handleInputChange}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              label="Email"
-              name="email"
-              value={currentUser.email}
-              onChange={handleInputChange}
-              margin="normal"
-              required
-              type="email"
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Função</InputLabel>
-              <Select
-                name="role"
-                value={currentUser.role}
-                onChange={handleInputChange}
-                label="Função"
-              >
-                {roleOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Estado</InputLabel>
-              <Select
-                name="status"
-                value={currentUser.status}
-                onChange={handleInputChange}
-                label="Estado"
-              >
-                <MenuItem value="active">Ativo</MenuItem>
-                <MenuItem value="inactive">Inativo</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
+          <FormGroup>
+            {interfaces.map(item => (
+              <FormControlLabel
+                key={item.pk}
+                control={
+                  <Checkbox
+                    checked={selectedInterfaces.includes(item.pk)}
+                    onChange={(e) => handleInterfaceChange(item.pk, e.target.checked)}
+                  />
+                }
+                label={item.name}
+              />
+            ))}
+          </FormGroup>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button onClick={handleSaveUser} variant="contained">
-            {isEditing ? 'Guardar' : 'Adicionar'}
-          </Button>
+          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
+          <Button onClick={handleSave} variant="contained">Guardar</Button>
         </DialogActions>
       </Dialog>
     </Box>

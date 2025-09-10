@@ -28,7 +28,7 @@ import UniformSection from "./UniformSection";
 import EpiSummarySection from "./EpiSummarySection";
 
 const EpiArea = () => {
-    const { metaData } = useMetaData();
+    const { metaData, refreshMetaData } = useMetaData();
     const [selectedSection, setSelectedSection] = useState(null);
     const [selectedEmployee, setSelectedEmployee] = useState("");
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -87,6 +87,7 @@ const EpiArea = () => {
         const employee = metaData?.epi_list?.find(emp => emp.pk === selectedEmployee);
         return employee ? `${employee.pk} - ${employee.name}` : "";
     };
+
 
     const getCurrentSection = () => sections.find(s => s.id === selectedSection);
 
@@ -281,6 +282,7 @@ const EpiArea = () => {
                     selectedEmployee={selectedEmployee}
                     onChange={setSelectedEmployee}
                     shoeTypes={metaData?.epi_shoe_types || []}
+                    refreshMetaData={refreshMetaData}
                 />
             )}
 
