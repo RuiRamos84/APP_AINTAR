@@ -1,18 +1,17 @@
-import logging
+# backend/app/routes/payment_routes.py - VERSÃO CORRIGIDA
 
+import logging
 from app.services.payment_service import payment_service
 from app.utils.error_handler import api_error_handler
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
-
 from ..utils.utils import set_session, token_required
 
 bp = Blueprint("payments", __name__)
 logger = logging.getLogger(__name__)
 
-# ===== GESTÃO CENTRALIZADA DE PERMISSÕES =====
+# ===== GESTÃO CENTRALIZADA DE PERMISSÕES (SINCRONIZADA COM FRONTEND) =====
 
-# Métodos de pagamento
 PAYMENT_METHODS = {
     'MBWAY': 'MBWAY',
     'MULTIBANCO': 'MULTIBANCO',
@@ -21,40 +20,39 @@ PAYMENT_METHODS = {
     'MUNICIPALITY': 'MUNICIPALITY'
 }
 
-# Perfis especiais com acesso total
 ADMIN_PROFILES = ['0']
 
-# Regras de permissão por método (sincronizadas com frontend)
+# ✅ REGRAS EXACTAS DO FRONTEND
 PERMISSION_RULES = {
     PAYMENT_METHODS['MBWAY']: {
         'profiles': ['0', '1', '2', '3'],
-        'description': 'Disponível para todos os perfis'
+        'description': 'Disponível para todos os perfis exceto 4'
     },
     PAYMENT_METHODS['MULTIBANCO']: {
         'profiles': ['0', '1', '2', '3'],
-        'description': 'Disponível para todos os perfis'
+        'description': 'Disponível para todos os perfis exceto 4'
     },
     PAYMENT_METHODS['BANK_TRANSFER']: {
         'profiles': ['0', '1', '2', '3'],
-        'description': 'Disponível para todos os perfis'
+        'description': 'Disponível para todos os perfis exceto 4'
     },
     PAYMENT_METHODS['CASH']: {
-        'profiles': [],  # Lista vazia - só IDs específicos
-        'description': 'Restrito apenas a utilizadores específicos',
-        'restrictedUsers': [12, 15]
+        'profiles': ['0', '1'],  # Perfis base
+        'description': 'Perfis 0,1 + utilizadores específicos',
+        'restrictedUsers': [12, 15]  # IDs específicos que TAMBÉM podem
     },
     PAYMENT_METHODS['MUNICIPALITY']: {
         'profiles': ['0', '2'],
-        'description': 'Restrito a admin e municípios'
+        'description': 'Admin e municípios'
     }
 }
 
-# Gestão de pagamentos (ver/aprovar todos)
-PAYMENT_ADMIN_IDS = [12, 16]
+# ✅ GESTÃO DE PAGAMENTOS - IDs ESPECÍFICOS
+PAYMENT_ADMIN_IDS = [12, 100111]  # Apenas utilizador 12 e 100111
 
 
 def can_use_payment_method(user_profile, payment_method, user_id=None):
-    """Verificar se utilizador pode usar método específico (sincronizado com frontend)"""
+    """Verificar se utilizador pode usar método específico"""
     if not user_profile or not payment_method:
         return False
 
@@ -62,15 +60,18 @@ def can_use_payment_method(user_profile, payment_method, user_id=None):
     if not rule:
         return False
 
-    # Admin sempre pode (excepto se tiver restrictedUsers definidos)
-    if str(user_profile) in ADMIN_PROFILES and not rule.get('restrictedUsers'):
+    # CASH: lógica especial (perfis OU IDs específicos)
+    if payment_method == PAYMENT_METHODS['CASH']:
+        # Pode usar se: tem perfil permitido OU está na lista de IDs
+        has_profile = str(user_profile) in rule.get('profiles', [])
+        has_id = user_id and int(user_id) in rule.get('restrictedUsers', [])
+        return has_profile or has_id
+
+    # Admin sempre pode (exceto CASH que tem lógica acima)
+    if str(user_profile) in ADMIN_PROFILES:
         return True
 
-    # Se tem restrictedUsers, só esses podem
-    if rule.get('restrictedUsers'):
-        return user_id and int(user_id) in rule['restrictedUsers']
-
-    # Senão, verificar perfil normal
+    # Outros métodos: verificar perfil
     return str(user_profile) in rule.get('profiles', [])
 
 
@@ -79,91 +80,67 @@ def can_manage_payments(user_id):
     return user_id and int(user_id) in PAYMENT_ADMIN_IDS
 
 
-def can_process_cash_payments(user_id):
-    """Verificar permissões para processar pagamentos CASH específicos"""
-    cash_processor_ids = PERMISSION_RULES[PAYMENT_METHODS['CASH']].get(
-        'restrictedUsers', [])
-    return user_id and int(user_id) in cash_processor_ids
-
-
 def debug_user_permissions(user_profile, user_id, payment_method=None):
-    """Debug: listar permissões do utilizador"""
+    """Debug detalhado"""
     logger.info(
         f"=== Permissões Pagamento - Perfil: {user_profile}, User ID: {user_id} ===")
 
     for method_name, method_key in PAYMENT_METHODS.items():
         can_use = can_use_payment_method(user_profile, method_key, user_id)
         rule = PERMISSION_RULES[method_key]
-        logger.info(
-            f"{method_name}: {'✅' if can_use else '❌'} - {rule['description']}")
+
+        # Log detalhado para CASH
+        if method_key == PAYMENT_METHODS['CASH']:
+            has_profile = str(user_profile) in rule.get('profiles', [])
+            has_id = user_id and int(user_id) in rule.get(
+                'restrictedUsers', [])
+            logger.info(
+                f"{method_name}: {'✅' if can_use else '❌'} - Perfil: {has_profile}, ID: {has_id}")
+        else:
+            logger.info(
+                f"{method_name}: {'✅' if can_use else '❌'} - {rule['description']}")
 
     logger.info(
-        f"Gestão pagamentos: {'✅' if can_manage_payments(user_id) else '❌'}")
-
-    if payment_method:
-        logger.info(
-            f"Método solicitado ({payment_method}): {'✅' if can_use_payment_method(user_profile, payment_method, user_id) else '❌'}")
-
-
-# Mapeamento temporário user_id → perfil (fallback enquanto tokens antigos não expiram)
-USER_PROFILE_MAPPING = {
-    5: '2',    # User 5 = Perfil 2 (Município)
-    12: '0',   # User 12 = Perfil 0 (Admin)
-    15: '1',   # User 15 = Perfil 1 (AINTAR)
-    16: '0',   # User 16 = Perfil 0 (Admin)
-    17: '1',   # User 17 = Perfil 1 (AINTAR)
-    # Adicionar mais conforme necessário
-}
+        f"Gestão pagamentos: {'✅' if can_manage_payments(user_id) else '❌'} (IDs permitidos: {PAYMENT_ADMIN_IDS})")
 
 
 def get_user_info_from_jwt():
-    """Extrair informações do utilizador do JWT (agora com profil incluído)"""
+    """Extrair informações do JWT"""
     try:
         jwt_data = get_jwt()
 
-        # Extrair user_id
+        # User ID
         user_id = jwt_data.get('user_id')
         if isinstance(user_id, dict):
             user_id = user_id.get('user_id')
 
-        # Extrair perfil (agora deve estar no JWT)
+        # Perfil
         user_profile = (
             jwt_data.get('profil') or
             jwt_data.get('profile') or
             jwt_data.get('user_profile')
         )
 
-        # Fallback temporário para mapeamento (remover depois)
-        if not user_profile and user_id:
-            user_profile = USER_PROFILE_MAPPING.get(int(user_id))
-            logger.warning(
-                f"⚠️ Usando fallback mapping para user {user_id}: {user_profile}")
-
         logger.info(
             f"🔍 JWT dados - User ID: {user_id}, Perfil: {user_profile}")
         return int(user_id) if user_id else None, str(user_profile) if user_profile else None
 
     except Exception as e:
-        logger.error(f"Erro ao extrair dados JWT: {e}")
+        logger.error(f"Erro extrair JWT: {e}")
         return None, None
 
 
 def check_payment_permissions(required_level="submit", payment_method=None):
-    """Verificar permissões de pagamento com método específico"""
+    """Verificar permissões centralizadas"""
     user_id, user_profile = get_user_info_from_jwt()
 
-    logger.info(
-        f"🔍 Verificando permissões - User ID: {user_id}, Perfil: {user_profile}, Level: {required_level}, Method: {payment_method}")
-
     if not user_id:
-        logger.warning("❌ User ID não encontrado no JWT")
+        logger.warning("❌ User ID não encontrado")
         return False, None, None
 
-    # Debug das permissões em desenvolvimento
-    if logger.level <= logging.INFO:
-        debug_user_permissions(user_profile, user_id, payment_method)
+    # Debug em desenvolvimento
+    debug_user_permissions(user_profile, user_id, payment_method)
 
-    # Verificar permissões específicas
     if required_level == "admin":
         has_permission = can_manage_payments(user_id)
         if not has_permission:
@@ -176,18 +153,12 @@ def check_payment_permissions(required_level="submit", payment_method=None):
         if not has_permission:
             logger.warning(
                 f"❌ User {user_id} (perfil {user_profile}) não pode usar {payment_method}")
-        else:
-            logger.info(
-                f"✅ User {user_id} (perfil {user_profile}) pode usar {payment_method}")
         return has_permission, user_id, user_profile
 
-    # Fallback
-    logger.warning(
-        f"⚠️ Verificação de permissão incompleta: level={required_level}, method={payment_method}")
     return False, user_id, user_profile
 
-# ===== ENDPOINTS COM PERMISSÕES CENTRALIZADAS =====
 
+# ===== ENDPOINTS =====
 
 @bp.route("/payments/invoice/<int:document_id>", methods=["GET"])
 @jwt_required()
@@ -195,22 +166,13 @@ def check_payment_permissions(required_level="submit", payment_method=None):
 @set_session
 @api_error_handler
 def get_invoice_data(document_id):
-    """Obter dados da fatura - SEMPRE 200"""
+    """Obter dados da fatura"""
     user = get_jwt_identity()
-
     try:
         data = payment_service.get_invoice_data(document_id, user)
-
-        # SEMPRE sucesso
-        return jsonify({
-            "success": True,
-            "invoice_data": data
-        }), 200
-
+        return jsonify({"success": True, "invoice_data": data}), 200
     except Exception as e:
         logger.error(f"Erro fatura {document_id}: {e}")
-
-        # Mesmo com erro, retornar estrutura válida
         return jsonify({
             "success": True,
             "invoice_data": {
@@ -222,46 +184,6 @@ def get_invoice_data(document_id):
                 'closed': False,
                 'urgency': False,
                 'tb_sibs': None
-            }
-        }), 200
-
-
-@bp.route("/payments/document/<int:document_id>/status", methods=["GET"])
-@jwt_required()
-@token_required
-@set_session
-@api_error_handler
-def get_document_payment_status(document_id):
-    """Estado pagamento - SEMPRE 200"""
-    user = get_jwt_identity()
-
-    try:
-        status = payment_service.get_document_payment_status(document_id, user)
-
-        return jsonify({
-            "success": True,
-            "payment_status": status
-        }), 200
-
-    except Exception as e:
-        logger.error(f"Erro estado {document_id}: {e}")
-
-        # Estrutura padrão
-        return jsonify({
-            "success": True,
-            "payment_status": {
-                'tb_document': document_id,
-                'invoice': 0.0,
-                'presented': False,
-                'accepted': False,
-                'payed': False,
-                'closed': False,
-                'sibs_pk': None,
-                'transaction_id': None,
-                'payment_status': None,
-                'payment_method': None,
-                'amount': None,
-                'payment_created': None
             }
         }), 200
 
@@ -279,14 +201,9 @@ def create_checkout():
         return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
 
     user = get_jwt_identity()
-
     try:
         result = payment_service.create_checkout_only(
-            data["document_id"],
-            data["amount"],
-            data["payment_method"],
-            user
-        )
+            data["document_id"], data["amount"], data["payment_method"], user)
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -305,13 +222,9 @@ def process_mbway():
         return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
 
     user = get_jwt_identity()
-
     try:
         result = payment_service.process_mbway_from_checkout(
-            data["transaction_id"],
-            data["phone_number"],
-            user
-        )
+            data["transaction_id"], data["phone_number"], user)
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -330,31 +243,11 @@ def process_multibanco():
         return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
 
     user = get_jwt_identity()
-
     try:
         result = payment_service.process_multibanco_from_checkout(
-            data["transaction_id"],
-            user
-        )
+            data["transaction_id"], user)
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@bp.route("/payments/status/<transaction_id>", methods=["GET"])
-@jwt_required()
-@token_required
-@set_session
-@api_error_handler
-def check_payment_status(transaction_id):
-    """Verificar estado de uma transação"""
-    user = get_jwt_identity()
-
-    try:
-        result = payment_service.check_payment_status(transaction_id, user)
-        return jsonify(result), (200 if result.get("success") else 400)
-    except Exception as e:
-        logger.error(f"Erro ao verificar estado {transaction_id}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -364,14 +257,14 @@ def check_payment_status(transaction_id):
 @set_session
 @api_error_handler
 def register_manual_payment():
-    """Registar pagamento manual direto com permissões centralizadas"""
+    """Registar pagamento manual com permissões centralizadas"""
     data = request.json or {}
     required = ["document_id", "amount", "payment_type", "reference_info"]
 
     if not all(k in data for k in required):
         return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
 
-    # Verificar permissões usando lógica centralizada
+    # ✅ VERIFICAR PERMISSÕES
     payment_method = data.get("payment_type")
     has_permission, user_id, user_profile = check_payment_permissions(
         "submit", payment_method)
@@ -379,27 +272,19 @@ def register_manual_payment():
     if not has_permission:
         return jsonify({
             "success": False,
-            "error": f"Sem permissão para pagamento {payment_method}",
+            "error": f"Sem permissão para {payment_method}",
             "user_id": user_id,
-            "user_profile": user_profile,
-            "method": payment_method
+            "user_profile": user_profile
         }), 403
 
     user = get_jwt_identity()
-
     try:
-        # ✅ PASSAR USER_ID DIRETAMENTE DO JWT
         result = payment_service.register_manual_payment_direct(
-            data["document_id"],
-            data["amount"],
-            data["payment_type"],
-            data["reference_info"],
-            user,  # session_id para compatibilidade
-            user_id  # ✅ NOVO: user_id do JWT
-        )
+            data["document_id"], data["amount"], data["payment_type"],
+            data["reference_info"], user, user_id)
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro no pagamento manual direto: {e}")
+        logger.error(f"Erro pagamento manual: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -409,23 +294,22 @@ def register_manual_payment():
 @set_session
 @api_error_handler
 def get_pending_payments():
-    """Listar pagamentos pendentes de validação"""
-    # Verificar permissões usando lógica centralizada
+    """Listar pagamentos pendentes"""
     has_permission, user_id, user_profile = check_payment_permissions("admin")
     if not has_permission:
         return jsonify({
             "success": False,
-            "error": "Sem permissão para gestão de pagamentos",
-            "user_id": user_id
+            "error": "Sem permissão para gestão",
+            "user_id": user_id,
+            "required_ids": PAYMENT_ADMIN_IDS
         }), 403
 
     user = get_jwt_identity()
-
     try:
         payments = payment_service.get_pending_payments(user)
         return jsonify({"success": True, "payments": payments}), 200
     except Exception as e:
-        logger.error(f"Erro ao obter pagamentos pendentes: {e}")
+        logger.error(f"Erro pendentes: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -435,25 +319,19 @@ def get_pending_payments():
 @set_session
 @api_error_handler
 def get_payment_details(payment_pk):
-    """Obter detalhes completos do pagamento"""
+    """Detalhes do pagamento"""
     has_permission, user_id, user_profile = check_payment_permissions("admin")
     if not has_permission:
-        return jsonify({
-            "success": False,
-            "error": "Sem permissão",
-            "user_id": user_id
-        }), 403
+        return jsonify({"success": False, "error": "Sem permissão"}), 403
 
     user = get_jwt_identity()
-
     try:
         details = payment_service.get_payment_details(payment_pk, user)
         if not details:
-            return jsonify({"success": False, "error": "Pagamento não encontrado"}), 404
-
+            return jsonify({"success": False, "error": "Não encontrado"}), 404
         return jsonify({"success": True, "payment": details}), 200
     except Exception as e:
-        logger.error(f"Erro ao obter detalhes {payment_pk}: {e}")
+        logger.error(f"Erro detalhes {payment_pk}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -463,56 +341,17 @@ def get_payment_details(payment_pk):
 @set_session
 @api_error_handler
 def approve_payment(payment_pk):
-    """Aprovar pagamento pendente"""
-    # Verificar permissões usando lógica centralizada
+    """Aprovar pagamento"""
     has_permission, user_id, user_profile = check_payment_permissions("admin")
     if not has_permission:
-        return jsonify({
-            "success": False,
-            "error": "Sem permissão para aprovar pagamentos",
-            "user_id": user_id
-        }), 403
+        return jsonify({"success": False, "error": "Sem permissão"}), 403
 
     user = get_jwt_identity()
-
     try:
         result = payment_service.approve_payment(payment_pk, user_id, user)
         return jsonify(result), (200 if result.get("success") else 400)
     except Exception as e:
-        logger.error(f"Erro ao aprovar pagamento {payment_pk}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@bp.route("/payments/sibs/<order_id>", methods=["GET"])
-@jwt_required()
-@token_required
-@set_session
-@api_error_handler
-def get_sibs_data(order_id):
-    """Dados SIBS por order_id"""
-    user = get_jwt_identity()
-
-    try:
-        result = payment_service.get_sibs_data(order_id, user)
-        if not result:
-            return jsonify({"success": False, "error": "Dados não encontrados"}), 404
-
-        return jsonify({"success": True, "data": result}), 200
-    except Exception as e:
-        logger.error(f"Erro SIBS data {order_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@bp.route("/payments/webhook", methods=["POST"])
-def webhook():
-    """Processar webhook SIBS (sem autenticação)"""
-    data = request.json or {}
-
-    try:
-        result = payment_service.process_webhook(data)
-        return jsonify(result), (200 if result.get("success") else 400)
-    except Exception as e:
-        logger.error(f"Erro no webhook: {e}")
+        logger.error(f"Erro aprovar {payment_pk}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -522,22 +361,20 @@ def webhook():
 @set_session
 @api_error_handler
 def get_payment_history():
-    """Histórico de pagamentos com filtros e paginação"""
+    """Histórico de pagamentos"""
     has_permission, user_id, user_profile = check_payment_permissions("admin")
     if not has_permission:
         return jsonify({
             "success": False,
-            "error": "Sem permissão para ver histórico",
-            "user_id": user_id
+            "error": "Sem permissão para histórico",
+            "user_id": user_id,
+            "required_ids": PAYMENT_ADMIN_IDS
         }), 403
 
     user = get_jwt_identity()
-
-    # Parâmetros de paginação
     page = int(request.args.get('page', 1))
     page_size = min(int(request.args.get('page_size', 10)), 50)
 
-    # Filtros
     filters = {
         'start_date': request.args.get('start_date'),
         'end_date': request.args.get('end_date'),
@@ -553,7 +390,33 @@ def get_payment_history():
         logger.error(f"Erro histórico: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-# ===== ENDPOINT DE DEBUG DAS PERMISSÕES =====
+
+@bp.route("/payments/status/<transaction_id>", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def check_payment_status(transaction_id):
+    """Status da transação"""
+    user = get_jwt_identity()
+    try:
+        result = payment_service.check_payment_status(transaction_id, user)
+        return jsonify(result), (200 if result.get("success") else 400)
+    except Exception as e:
+        logger.error(f"Erro status {transaction_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route("/payments/webhook", methods=["POST"])
+def webhook():
+    """Webhook SIBS"""
+    data = request.json or {}
+    try:
+        result = payment_service.process_webhook(data)
+        return jsonify(result), (200 if result.get("success") else 400)
+    except Exception as e:
+        logger.error(f"Erro webhook: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @bp.route("/payments/debug/permissions", methods=["GET"])
@@ -561,7 +424,7 @@ def get_payment_history():
 @token_required
 @set_session
 def debug_permissions():
-    """Debug das permissões do utilizador atual"""
+    """Debug permissões"""
     user_id, user_profile = get_user_info_from_jwt()
 
     permissions = {}
@@ -575,6 +438,6 @@ def debug_permissions():
         "user_id": user_id,
         "user_profile": user_profile,
         "can_manage_payments": can_manage_payments(user_id),
-        "can_process_cash": can_process_cash_payments(user_id),
+        "payment_admin_ids": PAYMENT_ADMIN_IDS,
         "permissions": permissions
     }), 200

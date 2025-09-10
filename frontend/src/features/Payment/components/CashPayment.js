@@ -4,14 +4,14 @@ import {
 } from '@mui/material';
 import { Euro as CashIcon } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
-import { canUsePaymentMethod, PAYMENT_METHODS, canProcessCashPayments } from '../services/paymentTypes';
+import { canProcessCashPayments, PAYMENT_METHODS } from '../services/paymentTypes';
 
 const CashPayment = ({ onSuccess, userInfo }) => {
     const { state, payManual } = useContext(PaymentContext);
     const [reference, setReference] = useState('');
     const [error, setError] = useState('');
 
-    // Usar gestão centralizada
+    // ===== USAR GESTÃO CENTRALIZADA =====
     const hasPermission = canProcessCashPayments(userInfo?.user_id);
 
     const handlePay = async () => {
@@ -22,17 +22,9 @@ const CashPayment = ({ onSuccess, userInfo }) => {
 
         setError('');
         try {
-            console.log('💰 Processando pagamento CASH:', {
-                amount: state.amount,
-                reference: reference.trim()
-            });
-
             const result = await payManual('CASH', reference.trim());
-
-            console.log('✅ Pagamento CASH criado:', result);
             onSuccess?.(result);
         } catch (err) {
-            console.error('❌ Erro pagamento CASH:', err);
             setError(err.message);
         }
     };

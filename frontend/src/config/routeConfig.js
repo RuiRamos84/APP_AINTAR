@@ -33,10 +33,8 @@ const iconStyle = {
     strokeWidth: 1.5
 };
 
-// ===== CONFIGURAÇÃO CENTRALIZADA =====
-
 export const ROUTE_CONFIG = {
-    // Rotas de Administração
+    // Administração
     '/settings': {
         id: 'settings',
         text: 'Administração',
@@ -95,7 +93,7 @@ export const ROUTE_CONFIG = {
         }
     },
 
-    // Pagamentos
+    // Pagamentos - GESTÃO CENTRALIZADA
     '/payment-admin': {
         id: 'payments',
         text: 'Validar Pagamentos',
@@ -375,7 +373,7 @@ export const ROUTE_CONFIG = {
         showInSidebar: false
     },
 
-    // Rotas de usuário
+    // Rotas de utilizador
     '/user-info': {
         id: 'user_info',
         permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
@@ -389,8 +387,7 @@ export const ROUTE_CONFIG = {
     }
 };
 
-// ===== FUNÇÕES UTILITÁRIAS =====
-
+// Funções utilitárias
 export const getRouteConfig = (path) => {
     return ROUTE_CONFIG[path] || null;
 };

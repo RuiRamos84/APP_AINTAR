@@ -15,6 +15,7 @@ import {
 } from '@mui/icons-material';
 import { PaymentContext } from '../context/PaymentContext';
 import { canUsePaymentMethod, PAYMENT_METHODS } from '../services/paymentTypes';
+import { useRouteConfig } from '../../../hooks/useRouteConfig';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import { FilePreviewItem, generateFilePreview } from '../../../pages/ModernDocuments/utils/fileUtils';
 import { addDocumentAnnex } from '../../../services/documentService';
@@ -22,28 +23,30 @@ import { addDocumentAnnex } from '../../../services/documentService';
 const MunicipalityPayment = ({ onSuccess, userInfo }) => {
     const { state, payManual } = useContext(PaymentContext);
     const { metaData } = useMetaData();
+    const { hasPermission } = useRouteConfig();
+
     const [formData, setFormData] = useState({
         municipality: '',
         reference: '',
         paymentDate: new Date().toISOString().split('T')[0]
     });
     const [error, setError] = useState('');
-
-    // Estados para anexos
     const [attachments, setAttachments] = useState([]);
     const [attachmentError, setAttachmentError] = useState('');
 
-    // Usar gestão centralizada de permissões
-    const hasPermission = canUsePaymentMethod(userInfo?.profil, PAYMENT_METHODS.MUNICIPALITY, userInfo?.user_id);
+    // ===== USAR GESTÃO CENTRALIZADA =====
+    const hasAccess = hasPermission({
+        requiredProfil: "2" // Municípios
+    }) || hasPermission({
+        requiredProfil: "0" // Admin
+    });
 
-    // Tipos de arquivo aceitos para comprovativo
     const acceptedFileTypes = [
         { type: 'PDF', icon: <PdfIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'error' },
         { type: 'Imagens', icon: <ImageIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'success' },
         { type: 'Documentos', icon: <DescriptionIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
     ];
 
-    // Função para obter município por entity
     const getMunicipalityByEntity = (entityPk) => {
         if (entityPk === 1) {
             return 'AINTAR';
@@ -53,7 +56,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         return associate?.name || null;
     };
 
-    // Obter lista de todos os municípios disponíveis
     const getAvailableMunicipalities = () => {
         const municipalities = ['AINTAR'];
 
@@ -78,7 +80,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         }
     }, [userInfo?.entity, userInfo?.profil, metaData?.associates]);
 
-    // Configuração do dropzone para anexos
     const onDropAttachments = useCallback(async (acceptedFiles) => {
         if (acceptedFiles.length + attachments.length > 3) {
             setAttachmentError('Máximo 3 comprovativos por pagamento.');
@@ -111,7 +112,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         maxFiles: 3
     });
 
-    // Gerenciamento de anexos
     const handleRemoveAttachment = (index) => {
         const updatedFiles = [...attachments];
         updatedFiles.splice(index, 1);
@@ -124,13 +124,11 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         setAttachments(updatedFiles);
     };
 
-    // Validação do formulário
     const validateForm = () => {
         if (!formData.municipality) return 'Município obrigatório';
         if (!formData.reference.trim()) return 'Referência obrigatória';
         if (!formData.paymentDate) return 'Data obrigatória';
 
-        // Validar descrições dos anexos
         for (let i = 0; i < attachments.length; i++) {
             if (!attachments[i].description.trim()) {
                 return 'Todos os comprovativos devem ter uma descrição';
@@ -140,7 +138,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         return null;
     };
 
-    // Função para adicionar anexos após pagamento registrado
     const addAttachmentsToDocument = async (documentId) => {
         if (attachments.length === 0) return true;
 
@@ -154,15 +151,13 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
             });
 
             await addDocumentAnnex(formData);
-            console.log('✅ Comprovativos anexados com sucesso');
             return true;
         } catch (error) {
-            console.error('❌ Erro ao anexar comprovativos:', error);
+            console.error('Erro ao anexar comprovativos:', error);
             return false;
         }
     };
 
-    // Submissão do pagamento
     const handlePay = async () => {
         const validation = validateForm();
         if (validation) {
@@ -172,14 +167,12 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
 
         setError('');
         try {
-            // ✅ USAR APENAS A REFERÊNCIA INSERIDA PELO UTILIZADOR
             const result = await payManual('MUNICIPALITY', formData.reference.trim());
 
-            // Tentar adicionar anexos se existirem
             if (attachments.length > 0) {
                 const attachmentSuccess = await addAttachmentsToDocument(state.documentId);
                 if (!attachmentSuccess) {
-                    console.warn('⚠️ Pagamento registrado mas erro ao anexar comprovativos');
+                    console.warn('Pagamento registrado mas erro ao anexar comprovativos');
                 }
             }
 
@@ -189,8 +182,7 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         }
     };
 
-    // Verificar permissões
-    if (!hasPermission) {
+    if (!hasAccess) {
         return (
             <Alert severity="warning" sx={{ m: 3 }}>
                 Sem permissão para este método de pagamento.
@@ -198,7 +190,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         );
     }
 
-    // Determinar se utilizador pode alterar município
     const isAdmin = userInfo?.profil === '0';
     const canChangeMunicipality = isAdmin;
 
@@ -286,7 +277,7 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                         helperText="Número do recibo ou referência oficial do pagamento"
                     />
 
-                    {/* Espaço adicional ou campo extra futuro */}
+                    {/* Espaço adicional */}
                     <Box sx={{ height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #e0e0e0', borderRadius: 1, bgcolor: 'grey.50' }}>
                         <Typography variant="caption" color="text.secondary">
                             Espaço reservado para campos adicionais

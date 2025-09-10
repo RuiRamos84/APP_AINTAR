@@ -20,7 +20,7 @@ const PrivateRoute = ({ children, ...props }) => {
   if (isLoading) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-  // Se tem props específicos, usar eles; senão usar a config da rota
+  // ===== USAR GESTÃO CENTRALIZADA =====
   const hasAccess = Object.keys(props).length > 0
     ? canAccessRoute(location.pathname, props)
     : canAccessRoute(location.pathname);

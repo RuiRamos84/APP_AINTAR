@@ -12,14 +12,12 @@ import {
 } from '@mui/icons-material';
 import paymentService from '../services/paymentService';
 import { canManagePayments, PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
-import { useMetaData } from '../../../contexts/MetaDataContext'; // Ajusta o path conforme necessário
+import { useMetaData } from '../../../contexts/MetaDataContext';
+import { useRouteConfig } from '../../../hooks/useRouteConfig';
 
 const PaymentAdminPage = ({ userInfo }) => {
-    const { metaData } = useMetaData(); // Usar o contexto de metadados
-
-    console.log('🏗️ PaymentAdminPage renderizado');
-    console.log('👤 userInfo:', userInfo);
-    console.log('🗃️ metaData do contexto:', metaData);
+    const { metaData } = useMetaData();
+    const { hasPermission } = useRouteConfig();
 
     const [tab, setTab] = useState(0);
     const [payments, setPayments] = useState([]);
@@ -30,7 +28,7 @@ const PaymentAdminPage = ({ userInfo }) => {
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
-    // Filtros
+    // Filtros e paginação
     const [filters, setFilters] = useState({
         startDate: null,
         endDate: null,
@@ -38,33 +36,23 @@ const PaymentAdminPage = ({ userInfo }) => {
         status: '',
         user: ''
     });
-
-    // Paginação
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 10;
 
-    // Usar gestão centralizada
-    const hasPermission = canManagePayments(userInfo?.user_id);
+    // ===== USAR GESTÃO CENTRALIZADA =====
+    const hasAccess = hasPermission({
+        requiredProfil: "1",
+        requiredInterface: 3
+    });
 
-    // Função para buscar nome do utilizador a partir da pk nos metadados
     const getUserNameByPk = useCallback((userPk) => {
-        console.log('🔍 getUserNameByPk chamada com userPk:', userPk);
-        console.log('📊 metaData disponível:', metaData);
-        console.log('👥 metaData.who:', metaData?.who);
-
         if (!userPk || !metaData?.who) {
-            console.log('❌ Condições não cumpridas - userPk ou metaData.who em falta');
             return `Utilizador ${userPk}`;
         }
 
-        // Procurar nos metadados pelo pk
         const user = metaData.who.find(user => user.pk === userPk);
-        console.log(`🔎 Procurando utilizador com pk ${userPk}:`, user);
-
-        const result = user?.name || `Utilizador ${userPk}`;
-        console.log('✅ Resultado final:', result);
-        return result;
+        return user?.name || `Utilizador ${userPk}`;
     }, [metaData]);
 
     const fetchPendingPayments = useCallback(async () => {
@@ -137,14 +125,46 @@ const PaymentAdminPage = ({ userInfo }) => {
     };
 
     useEffect(() => {
-        if (hasPermission && tab === 0) fetchPendingPayments();
-    }, [hasPermission, tab, fetchPendingPayments]);
+        if (hasAccess && tab === 0) fetchPendingPayments();
+    }, [hasAccess, tab, fetchPendingPayments]);
 
     useEffect(() => {
         if (tab === 1) fetchPaymentHistory();
     }, [page, tab, fetchPaymentHistory]);
 
-    if (!hasPermission) {
+    const handleDetailsClick = async (payment) => {
+        if (!payment?.pk) return;
+
+        setSelectedPayment(null);
+        setDetailsOpen(true);
+
+        try {
+            const result = await paymentService.getPaymentDetails(payment.pk);
+            const paymentData = result.success ? result.payment : payment;
+
+            if (paymentData.payment_reference) {
+                try {
+                    const ref = typeof paymentData.payment_reference === 'string'
+                        ? JSON.parse(paymentData.payment_reference)
+                        : paymentData.payment_reference;
+
+                    if (ref.submitted_by) {
+                        paymentData.submitter_name = getUserNameByPk(ref.submitted_by);
+                    }
+                } catch (e) {
+                    console.error('Erro ao processar payment_reference:', e);
+                }
+            }
+
+            setSelectedPayment(paymentData);
+        } catch (err) {
+            console.error('Erro geral:', err);
+            setSelectedPayment(payment);
+        }
+    };
+
+    // ===== VERIFICAÇÃO DE ACESSO =====
+    if (!hasAccess) {
         return (
             <Container>
                 <Alert severity="warning" sx={{ mt: 3 }}>
@@ -155,49 +175,6 @@ const PaymentAdminPage = ({ userInfo }) => {
     }
 
     const currentData = tab === 0 ? payments : history;
-
-    const handleDetailsClick = async (payment) => {
-        console.log('🎯 handleDetailsClick chamada com payment:', payment);
-
-        if (!payment?.pk) return;
-
-        setSelectedPayment(null); // Reset primeiro
-        setDetailsOpen(true);
-
-        try {
-            const result = await paymentService.getPaymentDetails(payment.pk);
-            const paymentData = result.success ? result.payment : payment;
-            console.log('💰 Dados do pagamento recebidos:', paymentData);
-            console.log('🔗 payment_reference:', paymentData.payment_reference);
-
-            // Buscar nome do utilizador se existir submitted_by
-            if (paymentData.payment_reference) {
-                try {
-                    const ref = typeof paymentData.payment_reference === 'string'
-                        ? JSON.parse(paymentData.payment_reference)
-                        : paymentData.payment_reference;
-
-                    console.log('📋 payment_reference parseado:', ref);
-                    console.log('👤 submitted_by encontrado:', ref.submitted_by);
-
-                    if (ref.submitted_by) {
-                        const userName = getUserNameByPk(ref.submitted_by);
-                        console.log('✨ Nome do utilizador obtido:', userName);
-                        paymentData.submitter_name = userName;
-                    }
-                } catch (e) {
-                    console.error('❌ Erro ao processar payment_reference:', e);
-                    console.log('🔧 payment_reference original:', paymentData.payment_reference);
-                }
-            }
-
-            console.log('💾 paymentData final antes de setSelectedPayment:', paymentData);
-            setSelectedPayment(paymentData);
-        } catch (err) {
-            console.error('❌ Erro geral:', err);
-            setSelectedPayment(payment);
-        }
-    };
 
     return (
         <Container maxWidth="lg">
