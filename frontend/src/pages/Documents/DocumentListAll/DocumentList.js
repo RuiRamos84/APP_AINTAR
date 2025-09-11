@@ -21,23 +21,14 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { makeStyles } from "@mui/styles";
 import { Add as AddIcon, FilterList as FilterIcon } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import SearchBar from "../../../components/common/SearchBar/SearchBar";
 import CreateDocumentModal from "../DocumentCreate/CreateDocumentModal";
 import { getDocuments } from "../../../services/documentService";
 import Row from "./Row";
-// import "../DocumentListAll/DocumentList.css";
-
-const useStyles = makeStyles((theme) => ({
-  filterIconActive: {
-    backgroundColor: theme.palette.action.selected,
-  },
-}));
 
 const DocumentList = () => {
-  const classes = useStyles();
   const theme = useTheme();
   const { metaData, loading: metaLoading, error: metaError } = useMetaData();
   const [documents, setDocuments] = useState([]);
@@ -290,11 +281,11 @@ const DocumentList = () => {
                       <IconButton
                         size="small"
                         onClick={(event) => handleFilterClick(event, column.id)}
-                        className={
-                          filterValues[column.id]
-                            ? classes.filterIconActive
-                            : ""
-                        }
+                        sx={{
+                          ...(filterValues[column.id] && {
+                            backgroundColor: theme.palette.action.selected,
+                          }),
+                        }}
                       >
                         <FilterIcon />
                       </IconButton>

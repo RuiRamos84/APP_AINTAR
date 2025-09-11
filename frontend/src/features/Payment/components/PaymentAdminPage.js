@@ -12,12 +12,10 @@ import {
 } from '@mui/icons-material';
 import paymentService from '../services/paymentService';
 import { canManagePayments, PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
-import { useMetaData } from '../../../contexts/MetaDataContext';
-import { useRouteConfig } from '../../../hooks/useRouteConfig';
+import { useMetaData } from '../../../contexts/MetaDataContext'; 
 
 const PaymentAdminPage = ({ userInfo }) => {
     const { metaData } = useMetaData();
-    const { hasPermission } = useRouteConfig();
 
     const [tab, setTab] = useState(0);
     const [payments, setPayments] = useState([]);
@@ -41,10 +39,7 @@ const PaymentAdminPage = ({ userInfo }) => {
     const pageSize = 10;
 
     // ===== USAR GESTÃO CENTRALIZADA =====
-    const hasAccess = hasPermission({
-        requiredProfil: "1",
-        requiredInterface: 3
-    });
+    const hasAccess = canManagePayments(userInfo);
 
     const getUserNameByPk = useCallback((userPk) => {
         if (!userPk || !metaData?.who) {

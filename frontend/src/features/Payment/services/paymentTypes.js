@@ -94,21 +94,42 @@ const PERMISSION_RULES = {
  * Regras específicas para gestão de pagamentos
  */
 const ADMIN_PERMISSIONS = {
+    /** Permissão para gerir todos os pagamentos */
+    MANAGE_PAYMENTS: { name: 'admin.payments', id: 3 },
+    /** Permissão para processar pagamentos em numerário */
+    PROCESS_CASH: { name: 'admin.cash', id: 4 },
+
     /**
      * Gestão completa de pagamentos (ver/aprovar todos)
+     * @deprecated Use MANAGE_PAYMENTS_INTERFACE_ID
      */
-    MANAGE_PAYMENTS: {
-        userIds: [12], // Apenas utilizador específico
+    OLD_MANAGE_PAYMENTS: {
+        userIds: [], // Manter para compatibilidade, mas não usar
         description: 'Gestão completa de todos os pagamentos'
     },
 
     /**
      * Processar pagamentos CASH específicos
+     * @deprecated Use PROCESS_CASH_INTERFACE_ID
      */
-    PROCESS_CASH: {
-        userIds: [12, 15], // Utilizadores específicos
+    OLD_PROCESS_CASH: {
+        userIds: [], // Manter para compatibilidade, mas não usar
         description: 'Autorização para processar pagamentos em numerário'
     }
+};
+
+/**
+ * Cache para o mapeamento de ID de interface para nome.
+ * Preenchido uma vez a partir da API.
+ */
+let interfaceMap = null;
+
+/**
+ * Inicializa o mapa de interfaces. Deve ser chamado no início da aplicação.
+ * @param {Array<Object>} interfaces - Array de objetos de interface ({ pk, name })
+ */
+export const initializeInterfaceMap = (interfaces) => {
+    interfaceMap = new Map(interfaces.map(i => [i.pk, i.name]));
 };
 
 /**
@@ -161,21 +182,46 @@ export const getAvailableMethodsForUser = (userProfile, userId = null) => {
 /**
  * Verifica se utilizador pode gerir pagamentos (ver/aprovar todos)
  * 
- * @param {number} userId - ID do utilizador
+ * @param {object} user - Objeto do utilizador com `pk` e `interfaces` (array de IDs)
  * @returns {boolean} Se pode gerir pagamentos
  */
-export const canManagePayments = (userId) => {
-    return ADMIN_PERMISSIONS.MANAGE_PAYMENTS.userIds.includes(Number(userId));
+export const canManagePayments = (user) => {
+    if (!user) return false;
+    const userInterfaceIds = user.interface || user.interfaces || [];
+
+    // Método 1: Por ID (funciona sempre)
+    if (userInterfaceIds.includes(ADMIN_PERMISSIONS.MANAGE_PAYMENTS.id)) return true;
+
+    // Método 2: Por nome (se o mapa estiver carregado)
+    if (interfaceMap) {
+        return userInterfaceIds.some(id => interfaceMap.get(id) === ADMIN_PERMISSIONS.MANAGE_PAYMENTS.name);
+    }
+
+    return false;
 };
 
 /**
  * Verifica se utilizador pode processar pagamentos CASH
  * 
- * @param {number} userId - ID do utilizador
+ * @param {object} user - Objeto do utilizador com `pk` e `interfaces` (array de IDs)
  * @returns {boolean} Se pode processar CASH
  */
-export const canProcessCashPayments = (userId) => {
-    return ADMIN_PERMISSIONS.PROCESS_CASH.userIds.includes(Number(userId));
+export const canProcessCashPayments = (user) => {
+    if (!user) return false;
+    const userInterfaceIds = user.interface || user.interfaces || [];
+
+    // Utilizadores com permissão de gestão também podem processar numerário
+    if (canManagePayments(user)) return true;
+
+    // Método 1: Por ID (funciona sempre)
+    if (userInterfaceIds.includes(ADMIN_PERMISSIONS.PROCESS_CASH.id)) return true;
+
+    // Método 2: Por nome (se o mapa estiver carregado)
+    if (interfaceMap) {
+        return userInterfaceIds.some(id => interfaceMap.get(id) === ADMIN_PERMISSIONS.PROCESS_CASH.name);
+    }
+
+    return false;
 };
 
 /**
@@ -347,6 +393,8 @@ export const debugSystemRules = () => {
  * ===== EXPORTAÇÕES =====
  */
 
+export const PAYMENT_ADMIN_PERMISSIONS = ADMIN_PERMISSIONS;
+
 // Exportação padrão com todas as funções principais
 export default {
     // Constantes
@@ -355,6 +403,7 @@ export default {
     PAYMENT_METHOD_LABELS,
     PAYMENT_STATUS_LABELS,
     PAYMENT_STATUS_COLORS,
+    PAYMENT_ADMIN_PERMISSIONS,
 
     // Verificações principais
     canUsePaymentMethod,

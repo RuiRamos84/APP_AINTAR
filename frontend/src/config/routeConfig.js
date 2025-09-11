@@ -58,37 +58,37 @@ export const ROUTE_CONFIG = {
                 id: 'admin_documents',
                 text: 'Gestão de Documentos',
                 icon: <DocumentIcon sx={iconStyle} />,
-                permissions: { requiredInterface: 1 }
+                permissions: { requiredInterface: 10 } // admin.docs.manage
             },
             '/settings?tab=reopen': {
                 id: 'admin_reopen',
                 text: 'Reabertura de Pedidos',
                 icon: <HistoryIcon sx={iconStyle} />,
-                permissions: { requiredInterface: 1 }
+                permissions: { requiredInterface: 11 } // admin.docs.reopen
             },
             '/settings?tab=database': {
                 id: 'admin_database',
                 text: 'Gestão de BDs',
                 icon: <StorageIcon sx={iconStyle} />,
-                permissions: { requiredInterface: 1 }
+                permissions: { requiredInterface: 12 } // admin.db.manage
             },
             '/settings?tab=logs': {
                 id: 'admin_logs',
                 text: 'Logs e Auditoria',
                 icon: <NotificationIcon sx={iconStyle} />,
-                permissions: { requiredInterface: 1 }
+                permissions: { requiredInterface: 13 } // admin.logs.view
             },
             '/settings?tab=reports': {
                 id: 'admin_reports',
                 text: 'Relatórios',
                 icon: <TimelineIcon sx={iconStyle} />,
-                permissions: { requiredInterface: 1 }
+                permissions: { requiredInterface: 14 } // admin.reports.view
             },
             '/settings?tab=settings': {
                 id: 'admin_settings',
                 text: 'Configurações',
                 icon: <SettingsIcon sx={iconStyle} />,
-                permissions: { requiredInterface: 1 }
+                permissions: { requiredInterface: 15 } // admin.system.settings
             }
         }
     },
@@ -99,7 +99,6 @@ export const ROUTE_CONFIG = {
         text: 'Validar Pagamentos',
         icon: <PaymentBalanceIcon sx={iconStyle} />,
         permissions: {
-            requiredProfil: "1",
             requiredInterface: 3
         },
         showInSidebar: true
@@ -110,13 +109,13 @@ export const ROUTE_CONFIG = {
         id: 'modern_documents',
         text: 'Gestão Moderna',
         icon: <ViewModuleIcon sx={iconStyle} />,
-        permissions: { requiredInterface: 4 },
+        permissions: { requiredInterface: 20 },
         showInSidebar: true
     },
 
     '/modern-documents': {
         id: 'modern_documents_admin',
-        permissions: { requiredProfil: "0" },
+        permissions: { requiredInterface: 20 },
         showInSidebar: false
     },
 
@@ -125,7 +124,7 @@ export const ROUTE_CONFIG = {
         id: 'dashboard',
         text: 'Dashboard',
         icon: <DashboardIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1"], requiredInterface: 6 },
+        permissions: { requiredInterface: 17 }, // dashboard.view
         showInSidebar: true
     },
 
@@ -134,7 +133,7 @@ export const ROUTE_CONFIG = {
         id: 'operations',
         text: 'Operação',
         icon: <WorkIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1"] },
+        permissions: { requiredInterface: 16 }, // operation.access
         showInSidebar: true
     },
 
@@ -143,21 +142,21 @@ export const ROUTE_CONFIG = {
         id: 'entidades',
         text: 'Entidades',
         icon: <DomainIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {}, // Acesso livre
         showInSidebar: true,
         submenu: {
             'nova_entidade': {
                 id: 'nova_entidade',
                 text: 'Nova Entidade',
                 icon: <AddIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+                permissions: {},
                 onClick: 'handleOpenModal'
             },
             '/entities': {
                 id: 'listar_entidades',
                 text: 'Listar Entidades',
                 icon: <ListAltIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] }
+                permissions: {}
             }
         }
     },
@@ -170,7 +169,7 @@ export const ROUTE_CONFIG = {
 
     '/add-entity': {
         id: 'add_entity',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {},
         showInSidebar: false
     },
 
@@ -179,7 +178,7 @@ export const ROUTE_CONFIG = {
         id: 'pedidos',
         text: 'Pedidos',
         icon: <AssignmentIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {}, // Acesso livre ao menu
         showInSidebar: true,
         isBadged: true,
         submenu: {
@@ -187,52 +186,52 @@ export const ROUTE_CONFIG = {
                 id: 'novo_pedido',
                 text: 'Novo Pedido',
                 icon: <AddIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+                permissions: {},
                 onClick: 'openNewDocumentModal'
             },
             '/document_self': {
                 id: 'para_tratamento',
                 text: 'Para tratamento',
                 icon: <AssignmentIndIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "3"] },
+                permissions: { requiredInterface: 19 }, // docs.assigned.view
                 isBadged: true
             },
             '/document_owner': {
                 id: 'meus_pedidos',
                 text: 'Meus pedidos',
                 icon: <PersonIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] }
+                permissions: {}
             },
             '/documents': {
                 id: 'todos_pedidos',
                 text: 'Todos os Pedidos',
                 icon: <ListAltIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2"] }
+                permissions: { requiredInterface: 18 } // docs.view.all
             }
         }
     },
 
     '/documents/:id': {
         id: 'document_detail',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {},
         showInSidebar: false
     },
 
     '/create_document': {
         id: 'create_document',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {},
         showInSidebar: false
     },
 
     '/document_owner': {
         id: 'document_owner',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {},
         showInSidebar: false
     },
 
     '/document_self': {
         id: 'document_self',
-        permissions: { rolesAllowed: ["0", "1", "3"] },
+        permissions: { requiredInterface: 19 }, // docs.assigned.view
         showInSidebar: false
     },
 
@@ -241,39 +240,39 @@ export const ROUTE_CONFIG = {
         id: 'pavimentacoes',
         text: 'Pavimentações',
         icon: <AccountTreeIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1", "2"] },
+        permissions: {}, // Acesso livre ao menu
         showInSidebar: true,
         submenu: {
             '/ramais': {
                 id: 'pavimentacoes_pendentes',
                 text: 'Pendentes',
                 icon: <ListAltIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2"] }
+                permissions: {}
             },
             '/ramais/executed': {
                 id: 'pavimentacoes_executadas',
                 text: 'Executadas (Aguardam Pagamento)',
                 icon: <PaymentIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2"] }
+                permissions: {}
             },
             '/ramais/concluded': {
                 id: 'pavimentacoes_concluidas',
                 text: 'Concluídas e Pagas',
                 icon: <CheckIcon sx={iconStyle} />,
-                permissions: { rolesAllowed: ["0", "1", "2"] }
+                permissions: {}
             }
         }
     },
 
     '/ramais/executed': {
         id: 'ramais_executed',
-        permissions: { rolesAllowed: ["0", "1", "2"] },
+        permissions: {},
         showInSidebar: false
     },
 
     '/ramais/concluded': {
         id: 'ramais_concluded',
-        permissions: { rolesAllowed: ["0", "1", "2"] },
+        permissions: {},
         showInSidebar: false
     },
 
@@ -282,7 +281,7 @@ export const ROUTE_CONFIG = {
         id: 'letters',
         text: 'Gestão de Ofícios',
         icon: <DraftsIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1"] },
+        permissions: { requiredInterface: 7 }, // letters.manage
         showInSidebar: true
     },
 
@@ -291,7 +290,7 @@ export const ROUTE_CONFIG = {
         id: 'tasks',
         text: 'Tarefas',
         icon: <ListAltIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1"] },
+        permissions: { rolesAllowed: ["0", "1"] }, // Acesso restrito ao menu
         showInSidebar: true,
         isBadged: true,
         submenu: {
@@ -319,7 +318,7 @@ export const ROUTE_CONFIG = {
 
     '/tasks/all': {
         id: 'tasks_all',
-        permissions: { requiredProfil: "0" },
+        permissions: { requiredInterface: 5 }, // Acesso via interface
         showInSidebar: false
     },
 
@@ -346,7 +345,7 @@ export const ROUTE_CONFIG = {
         id: 'internal',
         text: 'Internal Area',
         icon: <AppsIcon sx={iconStyle} />,
-        permissions: { rolesAllowed: ["0", "1"] },
+        permissions: { requiredInterface: 8 }, // internal.access
         showInSidebar: true
     },
 
@@ -369,20 +368,20 @@ export const ROUTE_CONFIG = {
     // Pagamentos (flow)
     '/payment/:regnumber': {
         id: 'payment_flow',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"], requiredInterface: 6 },
+        permissions: {}, // Acesso livre, a lógica está no componente
         showInSidebar: false
     },
 
     // Rotas de utilizador
     '/user-info': {
         id: 'user_info',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {},
         showInSidebar: false
     },
 
     '/change-password': {
         id: 'change_password',
-        permissions: { rolesAllowed: ["0", "1", "2", "3", "4"] },
+        permissions: {},
         showInSidebar: false
     }
 };

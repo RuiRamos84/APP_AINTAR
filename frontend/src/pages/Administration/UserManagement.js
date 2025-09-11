@@ -1,24 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Button, Dialog,
   DialogActions, DialogContent, DialogTitle, FormGroup,
   FormControlLabel, Checkbox, Grid, Chip, CircularProgress,
-  Alert, Tabs, Tab, Card, CardContent, Switch, List, ListItem,
-  ListItemText, ListItemSecondaryAction, Divider
+  Alert, Tabs, Tab, Card, CardContent, List, ListItem,
+  ListItemText, Divider, TextField, FormControl, InputLabel,
+  Select, MenuItem, TableSortLabel
 } from '@mui/material';
 import {
+  Search as SearchIcon,
+  Clear as ClearIcon,
   Edit as EditIcon,
   Security as SecurityIcon,
   Payment as PaymentIcon
 } from '@mui/icons-material';
 import api from '../../services/api';
 import { notifySuccess, notifyError } from '../../components/common/Toaster/ThemedToaster';
+import {
+  canManagePayments,
+  canProcessCashPayments,
+  canUsePaymentMethod,
+  PAYMENT_METHODS
+} from '../../features/Payment/services/paymentTypes';
 import { PROFILE_LABELS, getProfileColor } from '../../config/profileSystem';
-
-
-const PAYMENT_ADMIN_IDS = [12]; // Sincronizado com backend
-const CASH_PROCESSOR_IDS = [12, 15];
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -27,6 +32,9 @@ const UserManagement = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedInterfaces, setSelectedInterfaces] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [profileFilter, setProfileFilter] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [tab, setTab] = useState(0);
 
   useEffect(() => {
@@ -81,49 +89,77 @@ const UserManagement = () => {
     }
   };
 
-  const getPaymentPermissions = (user) => {
-    const permissions = [];
-
-    // Admin completo
-    if (user.profil === '0') {
-      permissions.push('Admin Geral');
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
-
-    // Gestão pagamentos
-    if (PAYMENT_ADMIN_IDS.includes(user.pk)) {
-      permissions.push('Gestão Pagamentos');
-    }
-
-    // Processar CASH
-    if (CASH_PROCESSOR_IDS.includes(user.pk)) {
-      permissions.push('Numerário');
-    }
-
-    // Métodos por perfil
-    if (['0', '1', '2', '3'].includes(user.profil)) {
-      permissions.push('MB WAY, Multibanco, Transferência');
-    }
-
-    if (['0', '2'].includes(user.profil)) {
-      permissions.push('Municípios');
-    }
-
-    return permissions;
+    setSortConfig({ key, direction });
   };
+
+  const filteredAndSortedUsers = useMemo(() => {
+    let filtered = [...users];
+
+    // Filtragem
+    if (searchQuery) {
+      const lowercasedQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(user =>
+        user.name.toLowerCase().includes(lowercasedQuery) ||
+        user.username.toLowerCase().includes(lowercasedQuery) ||
+        String(user.pk).includes(lowercasedQuery)
+      );
+    }
+
+    if (profileFilter) {
+      filtered = filtered.filter(user => String(user.profil) === String(profileFilter));
+    }
+
+    // Ordenação
+    filtered.sort((a, b) => {
+      const aValue = a[sortConfig.key] || '';
+      const bValue = b[sortConfig.key] || '';
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [users, searchQuery, profileFilter, sortConfig]);
 
   const renderGeneralPermissions = () => (
     <TableContainer component={Paper}>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Utilizador</TableCell>
-            <TableCell>Perfil</TableCell>
+            <TableCell sortDirection={sortConfig.key === 'name' ? sortConfig.direction : false}>
+              <TableSortLabel
+                active={sortConfig.key === 'name'}
+                direction={sortConfig.key === 'name' ? sortConfig.direction : 'asc'}
+                onClick={() => handleSort('name')}
+              >
+                Utilizador
+              </TableSortLabel>
+            </TableCell>
+            <TableCell sortDirection={sortConfig.key === 'profil' ? sortConfig.direction : false}>
+              <TableSortLabel
+                active={sortConfig.key === 'profil'}
+                direction={sortConfig.key === 'profil' ? sortConfig.direction : 'asc'}
+                onClick={() => handleSort('profil')}
+              >
+                Perfil
+              </TableSortLabel>
+            </TableCell>
             <TableCell>Interfaces</TableCell>
             <TableCell>Acções</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {users.map(user => (
+          {filteredAndSortedUsers.map(user => (
             <TableRow key={user.pk}>
               <TableCell>
                 <Box>
@@ -137,8 +173,8 @@ const UserManagement = () => {
               </TableCell>
               <TableCell>
                 <Chip
-                  label={user.profil === '0' ? 'Admin' : `Perfil ${user.profil}`}
-                  color={user.profil === '0' ? 'error' : 'default'}
+                  label={PROFILE_LABELS[user.profil] || `Perfil ${user.profil}`}
+                  color={getProfileColor(user.profil)}
                 />
               </TableCell>
               <TableCell>
@@ -191,10 +227,10 @@ const UserManagement = () => {
                 Gestão de Pagamentos
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Utilizadores que podem ver e aprovar todos os pagamentos.
+                Utilizadores que podem ver e aprovar todos os pagamentos manuais.
               </Typography>
               <List dense>
-                {users.filter(u => PAYMENT_ADMIN_IDS.includes(u.pk)).map(user => (
+                {users.filter(u => canManagePayments(u)).map(user => (
                   <ListItem key={user.pk}>
                     <ListItemText
                       primary={user.name}
@@ -203,11 +239,10 @@ const UserManagement = () => {
                     <Chip label="Admin Pagamentos" color="primary" size="small" />
                   </ListItem>
                 ))}
-                {users.filter(u => PAYMENT_ADMIN_IDS.includes(u.pk)).length === 0 && (
+                {users.filter(u => canManagePayments(u)).length === 0 && (
                   <ListItem>
                     <ListItemText
                       primary="Nenhum utilizador configurado"
-                      secondary="IDs permitidos: [12]"
                     />
                   </ListItem>
                 )}
@@ -228,7 +263,7 @@ const UserManagement = () => {
                 Utilizadores que podem processar pagamentos em dinheiro.
               </Typography>
               <List dense>
-                {users.filter(u => CASH_PROCESSOR_IDS.includes(u.pk)).map(user => (
+                {users.filter(u => canProcessCashPayments(u)).map(user => (
                   <ListItem key={user.pk}>
                     <ListItemText
                       primary={user.name}
@@ -260,10 +295,9 @@ const UserManagement = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {users.map(user => {
-                      const permissions = getPaymentPermissions(user);
-                      const isPaymentAdmin = PAYMENT_ADMIN_IDS.includes(user.pk);
-                      const canProcessCash = CASH_PROCESSOR_IDS.includes(user.pk);
+                    {filteredAndSortedUsers.map(user => {
+                      const isPaymentAdmin = canManagePayments(user);
+                      const canProcessCash = canProcessCashPayments(user);
 
                       return (
                         <TableRow key={user.pk}>
@@ -285,7 +319,7 @@ const UserManagement = () => {
                           <TableCell>
                             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                               {/* MB WAY, Multibanco, Transferência */}
-                              {['0', '1', '2', '3'].includes(user.profil) && (
+                              {canUsePaymentMethod(user.profil, PAYMENT_METHODS.MBWAY, user.pk) && (
                                 <>
                                   <Chip label="MB WAY" size="small" variant="outlined" />
                                   <Chip label="Multibanco" size="small" variant="outlined" />
@@ -294,17 +328,17 @@ const UserManagement = () => {
                               )}
 
                               {/* Numerário */}
-                              {(canProcessCash || ['0', '1'].includes(user.profil)) && (
+                              {canUsePaymentMethod(user.profil, PAYMENT_METHODS.CASH, user.pk) && (
                                 <Chip
                                   label="Numerário"
                                   size="small"
                                   variant="outlined"
-                                  color={canProcessCash ? "success" : "default"}
+                                  color={canProcessCash ? 'success' : 'default'}
                                 />
                               )}
 
                               {/* Municípios */}
-                              {['0', '2'].includes(user.profil) && (
+                              {canUsePaymentMethod(user.profil, PAYMENT_METHODS.MUNICIPALITY, user.pk) && (
                                 <Chip label="Municípios" size="small" variant="outlined" />
                               )}
 
@@ -348,6 +382,49 @@ const UserManagement = () => {
       <Typography variant="h6" gutterBottom>
         Gestão de Permissões
       </Typography>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, md: 5 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Pesquisar por nome, username ou ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
+              InputProps={{
+                startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Filtrar por Perfil</InputLabel>
+              <Select
+                value={profileFilter}
+                label="Filtrar por Perfil"
+                onChange={(e) => setProfileFilter(e.target.value)}
+              >
+                <MenuItem value="">Todos os Perfis</MenuItem>
+                {Object.entries(PROFILE_LABELS).map(([id, label]) => (
+                  <MenuItem key={id} value={id}>{label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => { setSearchQuery(''); setProfileFilter(''); }}
+              startIcon={<ClearIcon />}
+            >
+              Limpar Filtros
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
 
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tab} onChange={(e, v) => setTab(v)}>

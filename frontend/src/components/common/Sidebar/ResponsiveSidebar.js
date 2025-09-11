@@ -4,7 +4,7 @@ import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useSocket } from '../../../contexts/SocketContext';
 import { useSidebar } from '../../../contexts/SidebarContext';
 
-const ResponsiveSidebar = ({ children }) => {
+const ResponsiveSidebar = ({ children, ...props }) => {
     const {
         sidebarMode,
         setSidebarMode,
@@ -118,7 +118,7 @@ const ResponsiveSidebar = ({ children }) => {
                     overflow: 'hidden'
                 }}
             >
-                {children}
+                {React.cloneElement(children, props)}
             </Box>
         </>
     );

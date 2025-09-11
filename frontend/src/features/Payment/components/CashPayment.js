@@ -12,7 +12,7 @@ const CashPayment = ({ onSuccess, userInfo }) => {
     const [error, setError] = useState('');
 
     // ===== USAR GESTÃO CENTRALIZADA =====
-    const hasPermission = canProcessCashPayments(userInfo?.user_id);
+    const hasPermission = canProcessCashPayments(userInfo);
 
     const handlePay = async () => {
         if (!reference.trim()) {

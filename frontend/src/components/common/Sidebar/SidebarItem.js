@@ -30,7 +30,8 @@ const SidebarItem = React.memo(({
     onHover,
     onLeave,
     isHovered,
-    notificationCount = 0
+    notificationCount = 0,
+    onItemClick // Nova prop para gerir cliques
 }) => {
     const theme = useTheme();
     const location = useLocation();
@@ -94,23 +95,20 @@ const SidebarItem = React.memo(({
             } else {
                 toggleSubmenu(item.id);
             }
-        } else if (item.onClick) {
-            item.onClick();
-            closeAllSubmenus();
+        } else {
+            onItemClick?.(item); // Usar o handler centralizado
         }
-    }, [hasSubmenu, isCompact, item.id, item.onClick, toggleSubmenu, closeAllSubmenus]);
+    }, [hasSubmenu, isCompact, item, toggleSubmenu, onItemClick]);
 
     const handleClose = useCallback(() => {
         setAnchorEl(null);
     }, []);
 
     const handleSubmenuItemClick = useCallback((subItem) => {
-        if (subItem.onClick) {
-            subItem.onClick();
-        }
-        handleClose();
-        closeAllSubmenus();
-    }, [handleClose, closeAllSubmenus]);
+        onItemClick?.(subItem); // Usar o handler centralizado para sub-itens
+        closeAllSubmenus(); // Fechar todos os submenus após o clique
+        handleClose(); // Fechar o popper se estiver aberto
+    }, [onItemClick, handleClose, closeAllSubmenus]);
 
     // Memoizar estilos para evitar re-cálculos
     const itemStyles = useMemo(() => ({

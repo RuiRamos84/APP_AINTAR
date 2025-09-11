@@ -1,5 +1,5 @@
 import { CssBaseline, ThemeProvider, useMediaQuery, Box, AppBar, Toolbar, Typography, Button } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Navigate,
   Route,
@@ -19,6 +19,8 @@ import { MetaDataProvider } from "./contexts/MetaDataContext";
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
 import { SocketProvider } from "./contexts/SocketContext";
 import { PaymentProvider } from './features/Payment/context/PaymentContext';
+import { initializeInterfaceMap } from './features/Payment/services/paymentTypes';
+import api from './services/api';
 import "./styles/global.css";
 import "./styles/sessionAlert.css";
 import { darkTheme, lightTheme } from "./styles/theme";
@@ -383,7 +385,10 @@ const AppContent = () => {
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', height: '100vh' }}>
-        <Sidebar />
+        <Sidebar
+          onNewDocument={openNewDocumentModal}
+          onNewEntity={openEntityModal}
+        />
         <Box
           component="main"
           sx={{

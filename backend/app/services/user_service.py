@@ -316,6 +316,7 @@ def get_all_interfaces(current_user):
                 "SELECT pk, value as name FROM ts_interface ORDER BY pk")
             result = session.execute(query).fetchall()
             interfaces = [dict(row._mapping) for row in result]
+            print(interfaces)
             return jsonify(interfaces), 200
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
