@@ -1,45 +1,32 @@
 // contexts/EpiContext.js
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
 const EpiContext = createContext();
 
 export const useEpi = () => useContext(EpiContext);
 
+const fetchEpiDataAPI = async () => {
+    const response = await api.get('/epi/data');
+    return response.data;
+};
+
 export const EpiProvider = ({ children }) => {
-    const [epiData, setEpiData] = useState({
-        epi_list: [],
-        epi_shoe_types: [],
-        epi_what_types: []
+    const queryClient = useQueryClient();
+
+    const { data: epiData, isLoading: loading, error, refetch: fetchEpiData } = useQuery({
+        queryKey: ['epiData'],
+        queryFn: fetchEpiDataAPI,
+        staleTime: 1000 * 60 * 30, // Cache de 30 minutos
+        initialData: { epi_list: [], epi_shoe_types: [], epi_what_types: [] }
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
 
-    const fetchEpiData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await api.get('/epi/data');
-            setEpiData(response.data);
-        } catch (err) {
-            console.error('Erro ao buscar dados de EPI:', err);
-            setError(err.response?.data?.error || 'Erro ao carregar dados de EPI');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    const updateEpiList = useCallback(async () => {
-        try {
-            const response = await api.get('/epi/list');
-            setEpiData(prev => ({
-                ...prev,
-                epi_list: response.data
-            }));
-        } catch (err) {
-            console.error('Erro ao atualizar lista de EPIs:', err);
-        }
-    }, []);
+    // Função para invalidar o cache e forçar um refetch da lista de EPIs
+    const updateEpiList = () => {
+        // Invalida a query 'epiData', o que fará com que o React Query a busque novamente na próxima vez que for necessária.
+        queryClient.invalidateQueries({ queryKey: ['epiData'] });
+    };
 
     return (
         <EpiContext.Provider value={{

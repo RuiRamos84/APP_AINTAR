@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.utils.permissions_decorator import require_permission
 from ..services.user_service import (
     send_email,
     create_user_ext,
@@ -28,15 +29,11 @@ bp = Blueprint('user', __name__)
 @api_error_handler
 def send_mail():
     data = request.get_json()
-    print(data)
     email = data.get('email')
     subject = data.get('subject')
     message = data.get('message')
-    result = send_email(email, subject, message)
-    if result:
-        return {'message': 'Email enviado com sucesso.'}, 200
-    else:
-        return {'message': 'Erro ao enviar o email.'}, 500
+    send_email(email, subject, message)
+    return {'message': 'Email enviado com sucesso.'}, 200
 
 
 @bp.route('/create_user_ext', methods=['POST'])
@@ -57,20 +54,13 @@ def activate_user(id, activation_code):
 @set_session
 @api_error_handler
 def user_info():
-    try:
-        current_user = get_jwt_identity()
-        with db_session_manager(current_user):
-            if request.method == 'GET':
-                user_info = get_user_info(current_user)
-                return jsonify({'user_info': user_info}), 200
-            elif request.method == 'PUT':
-                data = request.get_json()
-                update_user_info(data, current_user)
-                return jsonify({'message': 'Informações do utilizador atualizadas com sucesso'}), 200
-    except Exception as e:
-        error_message = str(e)
-        current_app.logger.error(f"Erro ao processar {request.method} /user_info: {error_message}")
-        return jsonify({'erro': f"Erro ao processar {request.method} /user_info: {error_message}"}), 500
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        if request.method == 'GET':
+            return get_user_info(current_user)
+        elif request.method == 'PUT':
+            data = request.get_json()
+            return update_user_info(data, current_user)
 
 
 @bp.route('/change_password', methods=['PUT'])
@@ -87,12 +77,8 @@ def change_password_route():
     if not old_password or not new_password:
         return jsonify({"erro": "Passwords não fornecidas"}), 400
 
-    success, message = update_password(
-        old_password, new_password, current_user)
-    if success:
-        return jsonify({"mensagem": message}), 200
-    else:
-        return jsonify({"erro": message}), 400
+    result = update_password(data, current_user)
+    return jsonify(result), 200
 
 
 @bp.route('/password_recovery', methods=['POST'])
@@ -113,29 +99,23 @@ def reset_password_route():
 @set_session
 @api_error_handler
 def vacation_status():
-    try:
-        current_user = get_jwt_identity()
-        with db_session_manager(current_user):
-            data = request.get_json()
-            user_id = data.get('user_id')
-            vacation = data.get('vacation')
-            if vacation is None:
-                return jsonify({"error": "Status de férias não fornecido"}), 400
-            if vacation == 1:
-                result = fsf_client_vacationadd(user_id, current_user)
-            else:
-                result = fsf_client_vacationclean(user_id, current_user)
-            if isinstance(result, int) and result == 1:
-                message = "De férias" if vacation == 1 else "A trabalhar"
-                return jsonify({"message": "Estado de férias atualizado com sucesso", "status": message}), 200
-            else:
-                return jsonify({"error": f"Falha ao atualizar o estado de férias: {result}"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Falha ao atualizar o estado de férias:{str(e)}"}), 500
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        data = request.get_json()
+        user_id = data.get('user_id')
+        vacation = data.get('vacation')
+        if vacation is None:
+            return jsonify({"error": "Status de férias não fornecido"}), 400
+        
+        if vacation == 1:
+            return fsf_client_vacationadd(user_id, current_user)
+        else:
+            return fsf_client_vacationclean(user_id, current_user)
 
 
 @bp.route('/users', methods=['GET'])
 @jwt_required()
+@require_permission("admin.users")
 @set_session
 @api_error_handler
 def get_users():
@@ -145,6 +125,7 @@ def get_users():
 
 @bp.route('/interfaces', methods=['GET'])
 @jwt_required()
+@require_permission("admin.users")
 @set_session
 @api_error_handler
 def get_interfaces():
@@ -154,6 +135,7 @@ def get_interfaces():
 
 @bp.route('/users/<int:user_id>/interfaces', methods=['PUT'])
 @jwt_required()
+@require_permission("admin.users")
 @set_session
 @api_error_handler
 def update_user_interfaces(user_id):

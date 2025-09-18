@@ -41,10 +41,12 @@ from app.utils.error_handler import api_error_handler
 
 bp = Blueprint('documents_routes', __name__)
 
+from app.utils.permissions_decorator import require_permission
 
 @bp.route('/documents', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("docs.view.all")
 @set_session
 @api_error_handler
 def get_documents():
@@ -210,15 +212,8 @@ def add_document_steps(pk):
 def download_file_route(regnumber, filename):
     """Servir ficheiros com normalização de extensões"""
     current_user = get_jwt_identity()
-    # print(f"Download file request: regnumber={regnumber}, filename={filename}")
-    try:
-        with db_session_manager(current_user):
-            # print(f"Download: {regnumber}/{filename}")
-            return download_file(regnumber, filename, current_user)
-
-    except Exception as e:
-        current_app.logger.error(f"Erro servir ficheiro: {str(e)}")
-        return jsonify({'error': 'Erro interno'}), 500
+    with db_session_manager(current_user):
+        return download_file(regnumber, filename, current_user)
 
 
 @bp.route('/add_document_annex', methods=['POST'])
@@ -251,19 +246,16 @@ def get_entity_count_types_route(pk):
 @api_error_handler
 def create_document_extern():
     data = request.json
-    try:
-        result = create_document_direct(
-            data.get('ntype'),
-            data.get('associate'),
-            data.get('nif'),
-            data.get('name'),
-            data.get('phone'),
-            data.get('email'),
-            data.get('text')
-        )
-        return jsonify({"message": result}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    result = create_document_direct(
+        data.get('ntype'),
+        data.get('associate'),
+        data.get('nif'),
+        data.get('name'),
+        data.get('phone'),
+        data.get('email'),
+        data.get('text')
+    )
+    return jsonify({"message": result}), 201
 
 
 @bp.route('/extrair_comprovativo/<int:pk>', methods=['GET'])
@@ -272,41 +264,30 @@ def create_document_extern():
 @set_session
 @api_error_handler
 def extrair_comprovativo(pk):
-    try:
-        current_user = get_jwt_identity()
-        current_app.logger.info(
-            f"Iniciando extração de comprovativo para o pedido {pk}")
+    current_user = get_jwt_identity()
+    current_app.logger.info(f"Iniciando extração de comprovativo para o pedido {pk}")
 
-        dados_pedido = buscar_dados_pedido(pk, current_user)
+    dados_pedido = buscar_dados_pedido(pk, current_user)
 
-        if dados_pedido is None:
-            current_app.logger.warning(f"Pedido {pk} não encontrado")
-            return jsonify({"erro": "Pedido não encontrado"}), 404
+    if dados_pedido is None:
+        current_app.logger.warning(f"Pedido {pk} não encontrado")
+        return jsonify({"erro": "Pedido não encontrado"}), 404
 
-        current_app.logger.info(
-            f"Dados do pedido {pk} recuperados com sucesso")
-        current_app.logger.debug(
-            f"Dados para preenchimento do PDF: {dados_pedido}")
+    current_app.logger.info(f"Dados do pedido {pk} recuperados com sucesso")
 
-        # Preencher o PDF com os dados do pedido
-        current_app.logger.info(
-            f"Iniciando preenchimento do PDF para o pedido {pk}")
-        pdf_buffer = preencher_pdf(dados_pedido)
+    # Preencher o PDF com os dados do pedido
+    current_app.logger.info(f"Iniciando preenchimento do PDF para o pedido {pk}")
+    pdf_buffer = preencher_pdf(dados_pedido)
 
-        current_app.logger.info(f"PDF para o pedido {pk} gerado com sucesso")
+    current_app.logger.info(f"PDF para o pedido {pk} gerado com sucesso")
 
-        # Retornar o PDF gerado para o utilizador
-        return send_file(
-            pdf_buffer,
-            as_attachment=True,
-            download_name=f"comprovativo_pedido_{pk}.pdf",
-            mimetype='application/pdf'
-        )
-
-    except Exception as e:
-        current_app.logger.error(
-            f"Erro ao gerar comprovativo para o pedido {pk}: {str(e)}", exc_info=True)
-        return jsonify({"erro": str(e)}), 500
+    # Retornar o PDF gerado para o utilizador
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=f"comprovativo_pedido_{pk}.pdf",
+        mimetype='application/pdf'
+    )
 
 
 @bp.route('/create_etar_document/<int:etar_pk>', methods=['POST'])
@@ -317,12 +298,8 @@ def extrair_comprovativo(pk):
 def create_etar_document(etar_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
-        try:
-            result = create_etar_document_direct(etar_pk, current_user)
-            return jsonify(result)
-        except Exception as e:
-            current_app.logger.error(f"Erro ao criar pedido ETAR: {str(e)}")
-            return jsonify({"erro": str(e)}), 500
+        result = create_etar_document_direct(etar_pk, current_user)
+        return jsonify(result)
 
 
 @bp.route('/create_ee_document/<int:ee_pk>', methods=['POST'])
@@ -333,12 +310,8 @@ def create_etar_document(etar_pk):
 def create_ee_document(ee_pk):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
-        try:
-            result = create_ee_document_direct(ee_pk, current_user)
-            return jsonify(result)
-        except Exception as e:
-            current_app.logger.error(f"Erro ao criar pedido EE: {str(e)}")
-            return jsonify({"erro": str(e)}), 500
+        result = create_ee_document_direct(ee_pk, current_user)
+        return jsonify(result)
 
 
 # ===== ROTAS DOS RAMAIS =====
@@ -426,62 +399,54 @@ def replicate_document(pk):
     Returns:
         JSON com resultado da operação incluindo detalhes do documento original e novo
     """
-    try:
-        current_user = get_jwt_identity()
-        data = request.get_json()
+    current_user = get_jwt_identity()
+    data = request.get_json()
 
-        if not data or 'new_type' not in data:
+    if not data or 'new_type' not in data:
+        return jsonify({
+            'error': 'Novo tipo de documento não especificado',
+            'details': 'O campo new_type é obrigatório no corpo da requisição'
+        }), 400
+
+    new_type = data.get('new_type')
+
+    # Valida se new_type é um número
+    if not isinstance(new_type, int):
+        try:
+            new_type = int(new_type)
+        except (TypeError, ValueError):
             return jsonify({
-                'error': 'Novo tipo de documento não especificado',
-                'details': 'O campo new_type é obrigatório no corpo da requisição'
+                'error': 'Tipo de documento inválido',
+                'details': 'O new_type deve ser um número inteiro'
             }), 400
 
-        new_type = data.get('new_type')
-
-        # Valida se new_type é um número
-        if not isinstance(new_type, int):
-            try:
-                new_type = int(new_type)
-            except (TypeError, ValueError):
-                return jsonify({
-                    'error': 'Tipo de documento inválido',
-                    'details': 'O new_type deve ser um número inteiro'
-                }), 400
-
-        with db_session_manager(current_user):
-            result = replicate_document_service(pk, new_type, current_user)
-            return jsonify(result[0]), result[1]
-
-    except Exception as e:
-        current_app.logger.error(f"Erro ao replicar documento: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    with db_session_manager(current_user):
+        result = replicate_document_service(pk, new_type, current_user)
+        return jsonify(result[0]), result[1]
 
 
 @bp.route('/document/reopen', methods=['POST'])
 @jwt_required()
 @token_required
 @set_session
+@require_permission("docs.reopen")
 @api_error_handler
 def reopen_document_route():
-    try:
-        current_user = get_jwt_identity()
-        data = request.get_json()
-        regnumber = data.get('regnumber')
-        user_id = data.get('user_id')
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    regnumber = data.get('regnumber')
+    user_id = data.get('user_id')
 
-        if not regnumber or not user_id:
-            return jsonify({'error': 'regnumber e user_id são obrigatórios'}), 400
+    if not regnumber or not user_id:
+        return jsonify({'error': 'regnumber e user_id são obrigatórios'}), 400
 
-        return reopen_document(regnumber, user_id, current_user)
-
-    except Exception as e:
-        current_app.logger.error(f"Erro na rota de reabrir pedido: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    return reopen_document(regnumber, user_id, current_user)
 
 
 @bp.route('/documents/late', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("docs.view.all")
 @set_session
 @api_error_handler
 def get_documents_late_route():

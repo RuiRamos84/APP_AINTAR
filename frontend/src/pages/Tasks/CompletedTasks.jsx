@@ -1,38 +1,20 @@
-import React, { useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import React from "react";
 import { 
   Box, 
   Typography, 
-  CircularProgress, 
   Grid, 
   Paper,
   Chip,
   useTheme
 } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useTasks } from "../../hooks/useTasks";
 import { useAuth } from "../../contexts/AuthContext";
 import TaskCard from "./TaskCard";
 
-const CompletedTasks = () => {
-  const { onTaskClick, searchTerm } = useOutletContext();
-  const { tasks, loading, error, setFetchType } = useTasks('completed');
+const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) => {
   const { user } = useAuth();
   const isDarkMode = user?.dark_mode || false;
   const theme = useTheme();
-
-  // Atualizar o tipo de busca para tarefas concluídas
-  useEffect(() => {
-    setFetchType('completed');
-  }, [setFetchType]);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (error) {
     return (
@@ -64,7 +46,7 @@ const CompletedTasks = () => {
   const filteredCompletedTasks = filterTasks(allCompletedTasks, searchTerm);
 
   return (
-    <Box>
+    <Box sx={{ p: 2 }}>
       <Box sx={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -80,7 +62,7 @@ const CompletedTasks = () => {
         />
       </Box>
 
-      {filteredCompletedTasks.length === 0 ? (
+      {filteredCompletedTasks.length === 0 && !isLoading ? (
         <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
           Nenhuma tarefa concluída encontrada.
         </Typography>

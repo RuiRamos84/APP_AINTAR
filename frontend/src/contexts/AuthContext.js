@@ -16,6 +16,7 @@ import {
 } from "../components/common/Toaster/ThemedToaster";
 import { updateDarkMode, updateVacationStatus } from "../services/userService";
 import { connectSocket, disconnectSocket } from "../services/socketService";
+import permissionService from "../services/permissionService";
 
 const AuthContext = createContext();
 
@@ -32,14 +33,26 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(authState.isLoading);
       setIsLoggingOut(authState.isLoggingOut);
 
-      // Conectar socket quando user está disponível
+      // ADICIONAR ESTAS LINHAS
+      if (authState.user) {
+        permissionService.setUser(authState.user);
+      } else {
+        permissionService.clearLocalState();
+      }
+
+      // Socket já existente...
       if (authState.user && !isLoggedOutRef.current) {
         connectSocket(authState.user.user_id).catch(console.error);
       }
     });
 
-    // Estado inicial
-    setUser(authManager.getUser());
+    // Estado inicial - ADICIONAR TAMBÉM AQUI
+    const initialUser = authManager.getUser();
+    setUser(initialUser);
+    if (initialUser) {
+      permissionService.setUser(initialUser);
+    }
+
     setIsLoading(authManager.isLoading());
     setIsLoggingOut(authManager.isLoggingOut());
 

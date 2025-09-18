@@ -120,13 +120,8 @@ def add_etar_volume():
     """Registar volume de ETAR"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnpk = data.get('pnpk')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pnspot = data.get('pnspot')
-    result, status_code = create_etar_volume(
-        pnpk, pndate, pnval, pnspot, current_user)
-    return jsonify(result), status_code
+    # O serviço create_etar_volume já valida os dados com Pydantic
+    return create_etar_volume(data.get('pnpk'), data, current_user)
 
 
 @bp.route('/ee_volume', methods=['POST'])
@@ -138,13 +133,8 @@ def add_ee_volume():
     """Registar volume de EE"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnpk = data.get('pnpk')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pnspot = data.get('pnspot')
-    result, status_code = create_ee_volume(
-        pnpk, pndate, pnval, pnspot, current_user)
-    return jsonify(result), status_code
+    # O serviço create_ee_volume já valida os dados com Pydantic
+    return create_ee_volume(data.get('pnpk'), data, current_user)
 
 
 @bp.route('/etar_volumes/<int:tb_etar>', methods=['GET'])
@@ -180,12 +170,8 @@ def add_water_etar_volume():
     """Registar volume de ETAR com água"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnpk = data.get('pnpk')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    result, status_code = create_water_etar_volume(
-        pnpk, pndate, pnval, current_user)
-    return jsonify(result), status_code
+    # O serviço create_water_etar_volume já valida os dados com Pydantic
+    return create_water_etar_volume(data.get('pnpk'), data, current_user)
 
 
 @bp.route('/ee_water_volume', methods=['POST'])
@@ -197,12 +183,8 @@ def add_water_ee_volume():
     """Registar volume de EE com água"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnpk = data.get('pnpk')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    result, status_code = create_water_ee_volume(
-        pnpk, pndate, pnval, current_user)
-    return jsonify(result), status_code
+    # O serviço create_water_ee_volume já valida os dados com Pydantic
+    return create_water_ee_volume(data.get('pnpk'), data, current_user)
 
 
 @bp.route('/etar_water_volumes/<int:tb_etar>', methods=['GET'])
@@ -238,14 +220,8 @@ def add_etar_energy():
     """Registar energia de ETAR"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnpk = data.get('pnpk')
-    pndate = data.get('pndate')
-    pnval_vazio = data.get('pnval_vazio')
-    pnval_ponta = data.get('pnval_ponta')
-    pnval_cheia = data.get('pnval_cheia')
-    result, status_code = create_etar_energy(
-        pnpk, pndate, pnval_vazio, pnval_ponta, pnval_cheia, current_user)
-    return jsonify(result), status_code
+    # O serviço create_etar_energy já valida os dados com Pydantic
+    return create_etar_energy(data.get('pnpk'), data, current_user)
 
 
 @bp.route('/ee_energy', methods=['POST'])
@@ -257,14 +233,8 @@ def add_ee_energy():
     """Registar energia de EE"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnpk = data.get('pnpk')
-    pndate = data.get('pndate')
-    pnval_vazio = data.get('pnval_vazio')
-    pnval_ponta = data.get('pnval_ponta')
-    pnval_cheia = data.get('pnval_cheia')
-    result, status_code = create_ee_energy(
-        pnpk, pndate, pnval_vazio, pnval_ponta, pnval_cheia, current_user)
-    return jsonify(result), status_code
+    # O serviço create_ee_energy já valida os dados com Pydantic
+    return create_ee_energy(data.get('pnpk'), data, current_user)
 
 
 @bp.route('/etar_energy/<int:tb_etar>', methods=['GET'])
@@ -300,15 +270,7 @@ def add_etar_expense():
     """Registar despesa em ETAR"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pntt_expensedest = data.get('pntt_expensedest')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pntt_etar = data.get('pntt_etar')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-    result, status_code = create_etar_expense(
-        pntt_expensedest, pndate, pnval, pntt_etar, pnts_associate, pnmemo, current_user)
-    return jsonify(result), status_code
+    return create_etar_expense(data, current_user)
 
 
 @bp.route('/ee_expense', methods=['POST'])
@@ -320,15 +282,8 @@ def add_ee_expense():
     """Registar despesa em EE"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pntt_expensedest = data.get('pntt_expensedest')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pntt_ee = data.get('pntt_ee')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-    result, status_code = create_ee_expense(
-        pntt_expensedest, pndate, pnval, pntt_ee, pnts_associate, pnmemo, current_user)
-    return jsonify(result), status_code
+    # O serviço create_ee_expense já valida os dados com Pydantic
+    return create_ee_expense(data, current_user)
 
 
 @bp.route('/rede_expense', methods=['POST'])
@@ -340,14 +295,8 @@ def add_rede_expense():
     """Registar despesa na rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pntt_expensedest = data.get('pntt_expensedest')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-    result, status_code = create_rede_expense(
-        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user)
-    return jsonify(result), status_code
+    # O serviço create_rede_expense já valida os dados com Pydantic
+    return create_rede_expense(data, current_user)
 
 
 @bp.route('/ramal_expense', methods=['POST'])
@@ -359,14 +308,8 @@ def add_ramal_expense():
     """Registar despesa no ramal"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pntt_expensedest = data.get('pntt_expensedest')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-    result, status_code = create_ramal_expense(
-        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user)
-    return jsonify(result), status_code
+    # O serviço create_ramal_expense já valida os dados com Pydantic
+    return create_ramal_expense(data, current_user)
 
 
 @bp.route('/etar_expenses/<int:tb_etar>', methods=['GET'])
@@ -438,14 +381,8 @@ def created_manut_expense():
     """Criar uma despesa de manutenção"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pntt_expensedest = data.get('pntt_expensedest')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-    result, status_code = create_manut_expense(
-        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user)
-    return jsonify(result), status_code
+    # O serviço create_manut_expense já valida os dados com Pydantic
+    return create_manut_expense(data, current_user)
 
 
 @bp.route('/etar_details/<int:pk>', methods=['GET'])
@@ -485,16 +422,8 @@ def add_equip_expense():
     """Registar despesa de Equipamento"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pntt_expensedest = data.get('pntt_expensedest')
-    pndate = data.get('pndate')
-    pnval = data.get('pnval')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    result, status_code = create_equip_expense(
-        pntt_expensedest, pndate, pnval, pnts_associate, pnmemo, current_user
-    )
-    return jsonify(result), status_code
+    # O serviço create_equip_expense já valida os dados com Pydantic
+    return create_equip_expense(data, current_user)
 
 
 @bp.route('/equip_expenses', methods=['GET'])
@@ -760,28 +689,8 @@ def add_rede_desobstrucao():
     """Criar pedido de desobstrução para Rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_rede_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_rede_desobstrucao já valida os dados
+    return create_rede_desobstrucao(data, current_user)
 
 
 @bp.route('/rede/reparacao_colapso', methods=['POST'])
@@ -793,28 +702,8 @@ def add_rede_reparacao_colapso():
     """Criar pedido de reparação/colapso para Rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_rede_reparacao_colapso(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_rede_reparacao_colapso já valida os dados
+    return create_rede_reparacao_colapso(data, current_user)
 
 # Rotas para Caixas (atualizadas)
 
@@ -828,28 +717,8 @@ def add_caixa_desobstrucao():
     """Criar pedido de desobstrução para Caixas"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_caixa_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_caixa_desobstrucao já valida os dados
+    return create_caixa_desobstrucao(data, current_user)
 
 
 @bp.route('/caixas/reparacao', methods=['POST'])
@@ -861,28 +730,8 @@ def add_caixa_reparacao():
     """Criar pedido de reparação para Caixas"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_caixa_reparacao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_caixa_reparacao já valida os dados
+    return create_caixa_reparacao(data, current_user)
 
 
 @bp.route('/caixas/reparacao_tampa', methods=['POST'])
@@ -894,28 +743,8 @@ def add_caixa_reparacao_tampa():
     """Criar pedido de reparação de tampa para Caixas"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_caixa_reparacao_tampa(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_caixa_reparacao_tampa já valida os dados
+    return create_caixa_reparacao_tampa(data, current_user)
 
 # Rotas para Ramais (atualizadas)
 
@@ -929,28 +758,8 @@ def add_ramal_desobstrucao():
     """Criar pedido de desobstrução para Ramais"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_ramal_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_ramal_desobstrucao já valida os dados
+    return create_ramal_desobstrucao(data, current_user)
 
 
 @bp.route('/ramais/reparacao', methods=['POST'])
@@ -962,28 +771,8 @@ def add_ramal_reparacao():
     """Criar pedido de reparação para Ramais"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-
-    # Novos parâmetros de localização
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
-
-    if not all([pnts_associate, pnmemo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_ramal_reparacao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
-    return jsonify(result), status_code
+    # O serviço create_ramal_reparacao já valida os dados
+    return create_ramal_reparacao(data, current_user)
 
 # Rota para Requisição Interna
 
@@ -1015,21 +804,8 @@ def add_etar_incumprimento():
     """Registar incumprimento em ETAR"""
     current_user = get_jwt_identity()
     data = request.get_json()
-    tb_etar = data.get('tb_etar')
-    tt_analiseparam = data.get('tt_analiseparam')
-    resultado = data.get('resultado')
-    limite = data.get('limite')
-    data_registo = data.get('data')
-    operador1 = data.get('operador1')
-    operador2 = data.get('operador2')
-
-    if not all([tb_etar, tt_analiseparam, resultado, limite, data_registo]):
-        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
-
-    result, status_code = create_etar_incumprimento(
-        tb_etar, tt_analiseparam, resultado, limite, data_registo, operador1, operador2, current_user
-    )
-    return jsonify(result), status_code
+    # O serviço create_etar_incumprimento já valida os dados
+    return create_etar_incumprimento(data, current_user)
 
 
 @bp.route('/etar_incumprimentos/<int:tb_etar>', methods=['GET'])

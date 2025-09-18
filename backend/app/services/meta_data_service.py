@@ -4,11 +4,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from functools import lru_cache
 from datetime import datetime, timedelta
 from ..utils.utils import db_session_manager
+from app.utils.error_handler import api_error_handler
 
 metadata_cache = {}
 CACHE_DURATION = timedelta(hours=1)
 
 
+@api_error_handler
 # @lru_cache(maxsize=1)
 def fetch_meta_data(current_user):
     global metadata_cache
@@ -43,30 +45,20 @@ def fetch_meta_data(current_user):
     }
 
     response_data = {}
-    try:
-        with db_session_manager(current_user) as session:
-            for key, query in queries.items():
-                result = session.execute(text(query))
-                columns = result.keys()
-                response_data[key] = [
-                    {column: value for column, value in zip(columns, row)}
-                    for row in result
-                ]
+    with db_session_manager(current_user) as session:
+        for key, query in queries.items():
+            result = session.execute(text(query))
+            columns = result.keys()
+            response_data[key] = [
+                {column: value for column, value in zip(columns, row)}
+                for row in result
+            ]
 
-        metadata_cache = {
-            'data': response_data,
-            'timestamp': current_time
-        }
-        return response_data, 200
-
-    except SQLAlchemyError as e:
-        current_app.logger.error(
-            f"Database error while fetching metadata: {str(e)}")
-        return {'error': "Database error while fetching metadata"}, 500
-    except Exception as e:
-        current_app.logger.error(
-            f"Unexpected error while fetching metadata: {str(e)}")
-        return {'error': "Unexpected error while fetching metadata"}, 500
+    metadata_cache = {
+        'data': response_data,
+        'timestamp': current_time
+    }
+    return response_data, 200
 
 
 def clear_meta_data_cache():

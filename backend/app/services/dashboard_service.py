@@ -3,8 +3,10 @@ from sqlalchemy.sql import text
 from sqlalchemy.exc import ProgrammingError, OperationalError
 from flask import current_app
 from ..utils.utils import db_session_manager
+from app.utils.error_handler import api_error_handler
 
 
+@api_error_handler
 def get_dashboard_data(current_user):
     views = {
         'vbr_document_fossa01': 'Limpezas de fossa global',
@@ -24,35 +26,30 @@ def get_dashboard_data(current_user):
 
     dashboard_data = {}
 
-    for view_name, friendly_name in views.items():
-        try:
-            with db_session_manager(current_user) as session:
-                query = text("SELECT * FROM :view_name")
-                result = session.execute(query, {"view_name": view_name})
-                view_data = {
+    with db_session_manager(current_user) as session:
+        for view_name, friendly_name in views.items():
+            try:
+                # NOTA: A passagem de nomes de tabelas/views como parâmetros não é suportada diretamente.
+                # A abordagem de f-string é aceitável aqui porque os nomes das views são controlados internamente.
+                query = text(f"SELECT * FROM {view_name}")
+                result = session.execute(query)
+                
+                columns = list(result.keys()) if result.returns_rows else []
+                data = [dict(row) for row in result.mappings().all()]
+
+                dashboard_data[view_name] = {
+                    'name': friendly_name,
+                    'total': len(data),
+                    'data': data,
+                    'columns': columns
+                }
+            except Exception as e:
+                current_app.logger.error(f"Erro ao processar a view {friendly_name}: {str(e)}", exc_info=True)
+                dashboard_data[view_name] = {
                     'name': friendly_name,
                     'total': 0,
                     'data': [],
-                    'columns': []
+                    'columns': [],
+                    'error': 'Falha ao carregar dados'
                 }
-
-                if result.returns_rows:
-                    view_data['columns'] = list(result.keys())
-
-                for row in result:
-                    view_data['total'] += 1
-                    row_dict = {}
-                    for column in view_data['columns']:
-                        row_dict[column] = getattr(row, column, None)
-                    view_data['data'].append(row_dict)
-
-                dashboard_data[view_name] = view_data
-
-                # current_app.logger.info(f"Processados {view_data['total']} registros para a view {friendly_name}")
-                # current_app.logger.info(f"Colunas da view {friendly_name}: {view_data['columns']}")
-
-        except Exception as e:
-            current_app.logger.error(f"Erro ao processar a view {friendly_name}: {str(e)}", exc_info=True)
-
-    # current_app.logger.info(f"Total de views processadas: {len(dashboard_data)}")
     return dashboard_data

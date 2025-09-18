@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from app.utils.permissions_decorator import require_permission
 from ..services.tasks_service import (
     list_tasks,
     create_task,
@@ -21,6 +22,7 @@ bp = Blueprint('tasks_routes', __name__)
 @bp.route('/tasks', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("tasks.view.all")
 @set_session
 @api_error_handler
 def get_tasks():
@@ -33,74 +35,50 @@ def get_tasks():
 @bp.route('/tasks', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("tasks.manage")
 @set_session
 @api_error_handler
 def new_task():
     """Criar uma nova tarefa"""
     current_user = get_jwt_identity()
-    data = request.json
-
-    # Validate required fields
-    required_fields = ['name', 'ts_client', 'ts_priority']
-    for field in required_fields:
-        if field not in data:
-            return jsonify({"error": f"{field} is required"}), 400
-
-    return create_task(
-        name=data['name'],
-        ts_client=data['ts_client'],
-        ts_priority=data['ts_priority'],
-        memo=data.get('memo', ''),
-        current_user=current_user
-    )
+    data = request.get_json()
+    # A validação dos campos é feita pelo Pydantic no serviço
+    return create_task(data, current_user)
 
 
 @bp.route('/tasks/<int:task_id>/notes', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("tasks.manage")
 @set_session
 @api_error_handler
 def add_note(task_id):
     """Adicionar nota a uma tarefa"""
     current_user = get_jwt_identity()
     data = request.json
-    memo = data.get('memo')
-    if not memo:
-        return jsonify({"error": "Memo is required"}), 400
-
+    # A validação do campo 'memo' é feita pelo Pydantic no serviço
     with db_session_manager(current_user):
-        return add_task_note(task_id, memo, current_user)
+        return add_task_note(task_id, data, current_user)
 
 
 @bp.route('/tasks/<int:task_id>', methods=['PUT'])
 @jwt_required()
 @token_required
+@require_permission("tasks.manage")
 @set_session
 @api_error_handler
 def update_task_route(task_id):
     """Atualizar detalhes de uma tarefa"""
     current_user = get_jwt_identity()
-    data = request.json
-
-    # Validate required fields
-    required_fields = ['name', 'ts_client', 'ts_priority']
-    for field in required_fields:
-        if field not in data:
-            return jsonify({"error": f"{field} is required"}), 400
-
-    return update_task(
-        task_id=task_id,
-        name=data['name'],
-        ts_client=data['ts_client'],
-        ts_priority=data['ts_priority'],
-        memo=data.get('memo', ''),
-        current_user=current_user
-    )
+    data = request.get_json()
+    # A validação dos campos é feita pelo Pydantic no serviço
+    return update_task(task_id, data, current_user)
 
 
 @bp.route('/tasks/<int:task_id>/close', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("tasks.manage")
 @set_session
 @api_error_handler
 def close_task_route(task_id):
@@ -113,6 +91,7 @@ def close_task_route(task_id):
 @bp.route('/tasks/<int:task_id>/status', methods=['PUT'])
 @jwt_required()
 @token_required
+@require_permission("tasks.manage")
 @set_session
 @api_error_handler
 def update_task_status_route(task_id):
@@ -132,6 +111,7 @@ def update_task_status_route(task_id):
 @bp.route('/tasks/<int:task_id>/history', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("tasks.view.all")
 @set_session
 @api_error_handler
 def get_task_history_route(task_id):
@@ -144,6 +124,7 @@ def get_task_history_route(task_id):
 @bp.route('/tasks/<int:task_id>/notification', methods=['PUT'])
 @jwt_required()
 @token_required
+@require_permission("tasks.manage")
 @set_session
 @api_error_handler
 def update_task_notification(task_id):
@@ -165,5 +146,3 @@ def get_notifications():
     with db_session_manager(current_user):
         count = get_notification_count(current_user, user_id)
         return {"count": count}
-
-

@@ -1,6 +1,5 @@
-// frontend/src/features/Pavimentations/components/common/ConfirmationDialog.js
-
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
 import {
     Dialog,
     DialogTitle,
@@ -15,17 +14,30 @@ import {
     Chip,
     Divider,
     useTheme,
-    useMediaQuery
+    useMediaQuery,
+    Stack,
+    List,
+    Collapse
 } from '@mui/material';
 import {
     Warning as WarningIcon,
     Info as InfoIcon,
     CheckCircle as SuccessIcon,
-    Error as ErrorIcon
+    Error as ErrorIcon,
+    CloudUpload as UploadIcon,
+    ExpandMore as ExpandMoreIcon,
+    ExpandLess as ExpandLessIcon,
+    Description as DescriptionIcon,
+    PictureAsPdf as PdfIcon,
+    Image as ImageIcon,
+    TableChart as TableIcon,
+    Email as EmailIcon
 } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
+import { FilePreviewItem, generateFilePreview, processFiles } from '../../utils/fileUtils';
 
 /**
- * Dialog de confirmação reutilizável para ações em pavimentações
+ * Dialog de confirmação com suporte a anexos (estilo AddStepModal)
  */
 const ConfirmationDialog = ({
     open,
@@ -43,12 +55,104 @@ const ConfirmationDialog = ({
     showIcon = true,
     maxWidth = 'sm',
     fullWidth = true,
-    additionalContent,
-    footerContent,
+    // Props para anexos
+    allowAttachments = false,
+    attachmentLabel = 'Anexar comprovativo',
+    attachmentRequired = false,
     ...dialogProps
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+    // Estados para anexos
+    const [files, setFiles] = useState([]);
+    const [attachmentExpanded, setAttachmentExpanded] = useState(false);
+    const [fileErrors, setFileErrors] = useState('');
+
+    // Tipos de ficheiro aceites
+    const fileTypes = [
+        { type: 'PDF', icon: <PdfIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'error' },
+        { type: 'Imagens', icon: <ImageIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'success' },
+        { type: 'Word', icon: <DescriptionIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' },
+        { type: 'Excel', icon: <TableIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'primary' },
+        { type: 'Email', icon: <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
+    ];
+
+    // Reset quando fecha/abre
+    useEffect(() => {
+        if (!open) {
+            setFiles([]);
+            setAttachmentExpanded(false);
+            setFileErrors('');
+        }
+    }, [open]);
+    const onDrop = useCallback(async (acceptedFiles) => {
+        if (acceptedFiles.length + files.length > 5) {
+            setFileErrors('Máximo 5 ficheiros');
+            return;
+        }
+
+        const newFiles = await Promise.all(
+            acceptedFiles.map(async (file) => {
+                const preview = await generateFilePreview(file);
+                return { file, preview, description: '' };
+            })
+        );
+
+        setFiles(prev => [...prev, ...newFiles]);
+        setFileErrors('');
+    }, [files.length]);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: {
+            'application/pdf': ['.pdf'],
+            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+            'application/msword': ['.doc'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'application/vnd.ms-excel': ['.xls'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'message/rfc822': ['.eml'],
+            'application/vnd.ms-outlook': ['.msg']
+        },
+        maxFiles: 5,
+        multiple: true
+    });
+
+    /**
+     * Remover ficheiro
+     */
+    const handleFileRemove = (index) => {
+        setFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    /**
+     * Alterar descrição do ficheiro
+     */
+    const handleFileDescriptionChange = (index, value) => {
+        setFiles(prev => {
+            const updated = [...prev];
+            updated[index].description = value;
+            return updated;
+        });
+    };
+
+    /**
+     * Validar se pode confirmar
+     */
+    const canConfirm = () => {
+        if (attachmentRequired && allowAttachments && files.length === 0) {
+            return false;
+        }
+
+        // Verificar se todos os ficheiros têm descrição
+        if (files.length > 0) {
+            const hasEmptyDescription = files.some(f => !f.description.trim());
+            if (hasEmptyDescription) return false;
+        }
+
+        return !disabled && !loading;
+    };
 
     /**
      * Obter ícone baseado na severidade
@@ -76,7 +180,7 @@ const ConfirmationDialog = ({
     };
 
     /**
-     * Obter cor do botão de confirmação baseada na severidade
+     * Obter cor do botão de confirmação
      */
     const getConfirmButtonColor = () => {
         if (confirmColor !== 'primary') return confirmColor;
@@ -97,8 +201,8 @@ const ConfirmationDialog = ({
      * Manipular confirmação
      */
     const handleConfirm = () => {
-        if (onConfirm && !loading && !disabled) {
-            onConfirm();
+        if (onConfirm && canConfirm()) {
+            onConfirm(files);
         }
     };
 
@@ -112,14 +216,149 @@ const ConfirmationDialog = ({
     };
 
     /**
-     * Manipular teclas
+     * Renderizar seção de anexos (estilo AddStepModal)
      */
-    const handleKeyDown = (event) => {
-        if (event.key === 'Enter' && !loading && !disabled) {
-            handleConfirm();
-        } else if (event.key === 'Escape' && !loading) {
-            handleCancel();
-        }
+    const renderAttachmentSection = () => {
+        if (!allowAttachments) return null;
+
+        return (
+            <Box sx={{ mt: 2 }}>
+                <Button
+                    startIcon={attachmentExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    onClick={() => setAttachmentExpanded(!attachmentExpanded)}
+                    sx={{ mb: 1 }}
+                >
+                    {attachmentLabel}
+                    {attachmentRequired && <Typography component="span" color="error"> *</Typography>}
+                    {files.length > 0 && (
+                        <Chip
+                            label={files.length}
+                            size="small"
+                            sx={{ ml: 1 }}
+                        />
+                    )}
+                </Button>
+
+                <Collapse in={attachmentExpanded}>
+                    <Box sx={{
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 1,
+                        p: 2,
+                        backgroundColor: alpha(theme.palette.grey[50], 0.5)
+                    }}>
+                        {/* Tipos aceites */}
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" fontSize="0.875rem" color="text.secondary" gutterBottom>
+                                Formatos aceites:
+                            </Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                                {fileTypes.map((type, index) => (
+                                    <Chip
+                                        key={index}
+                                        icon={type.icon}
+                                        label={type.type}
+                                        size="small"
+                                        color={type.color}
+                                        variant="outlined"
+                                    />
+                                ))}
+                            </Stack>
+                        </Box>
+
+                        {/* Dropzone */}
+                        {files.length < 5 ? (
+                            <Box
+                                {...getRootProps()}
+                                sx={{
+                                    border: isDragActive
+                                        ? `2px dashed #1976d2`
+                                        : `2px dashed #e0e0e0`,
+                                    borderRadius: 1,
+                                    p: 3,
+                                    textAlign: 'center',
+                                    bgcolor: isDragActive
+                                        ? 'rgba(25, 118, 210, 0.04)'
+                                        : 'background.paper',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        bgcolor: 'rgba(0, 0, 0, 0.04)',
+                                    }
+                                }}
+                            >
+                                <input {...getInputProps()} disabled={loading} />
+                                <UploadIcon
+                                    sx={{
+                                        fontSize: 40,
+                                        mb: 1,
+                                        color: isDragActive
+                                            ? '#1976d2'
+                                            : 'text.secondary'
+                                    }}
+                                />
+
+                                <Typography variant="body1" gutterBottom>
+                                    {isDragActive
+                                        ? 'Largue os ficheiros aqui...'
+                                        : 'Arraste, largue, cole ou clique'
+                                    }
+                                </Typography>
+
+                                <Typography variant="body2" color="text.secondary">
+                                    PDF, imagens, documentos Office e emails
+                                </Typography>
+
+                                {fileErrors && (
+                                    <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+                                        {fileErrors}
+                                    </Typography>
+                                )}
+                            </Box>
+                        ) : (
+                            <Typography variant="subtitle1" color="error" textAlign="center" mt={2}>
+                                Número máximo de anexos atingido.
+                            </Typography>
+                        )}
+
+                        {/* Lista de ficheiros */}
+                        {files.length > 0 && (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="subtitle1" gutterBottom>
+                                    Ficheiros ({files.length})
+                                </Typography>
+                                <List>
+                                    {files.map((fileItem, index) => (
+                                        <FilePreviewItem
+                                            key={`${fileItem.file.name}-${index}`}
+                                            file={fileItem.file}
+                                            description={fileItem.description}
+                                            onDescriptionChange={(value) => handleFileDescriptionChange(index, value)}
+                                            onRemove={() => handleFileRemove(index)}
+                                            disabled={loading}
+                                            previewUrl={fileItem.preview}
+                                        />
+                                    ))}
+                                </List>
+                            </Box>
+                        )}
+
+                        {/* Alerta se obrigatório */}
+                        {attachmentRequired && files.length === 0 && (
+                            <Alert severity="warning" sx={{ mt: 1 }}>
+                                É obrigatório anexar pelo menos um ficheiro
+                            </Alert>
+                        )}
+
+                        {/* Alerta descrições obrigatórias */}
+                        {files.length > 0 && files.some(f => !f.description.trim()) && (
+                            <Alert severity="warning" sx={{ mt: 1 }}>
+                                Todos os ficheiros precisam de descrição
+                            </Alert>
+                        )}
+                    </Box>
+                </Collapse>
+            </Box>
+        );
     };
 
     return (
@@ -129,7 +368,6 @@ const ConfirmationDialog = ({
             maxWidth={maxWidth}
             fullWidth={fullWidth}
             fullScreen={isMobile}
-            onKeyDown={handleKeyDown}
             PaperProps={{
                 sx: {
                     borderRadius: isMobile ? 0 : 2,
@@ -179,12 +417,8 @@ const ConfirmationDialog = ({
                 </DialogContentText>
 
                 {/* Alerta visual para ações críticas */}
-                {severity === 'error' || severity === 'warning' && (
-                    <Alert
-                        severity={severity}
-                        sx={{ mb: 2 }}
-                        icon={false}
-                    >
+                {(severity === 'error' || severity === 'warning') && (
+                    <Alert severity={severity} sx={{ mb: 2 }} icon={false}>
                         <Typography variant="body2">
                             {severity === 'error'
                                 ? 'Esta ação pode ter consequências permanentes.'
@@ -194,25 +428,12 @@ const ConfirmationDialog = ({
                     </Alert>
                 )}
 
-                {/* Conteúdo adicional */}
-                {additionalContent && (
-                    <>
-                        <Divider sx={{ my: 2 }} />
-                        {additionalContent}
-                    </>
-                )}
+                {/* Seção de anexos */}
+                {renderAttachmentSection()}
             </DialogContent>
 
             {/* Ações */}
             <DialogActions sx={{ p: 3, pt: 1 }}>
-                {/* Conteúdo do rodapé */}
-                {footerContent && (
-                    <Box sx={{ flex: 1, mr: 2 }}>
-                        {footerContent}
-                    </Box>
-                )}
-
-                {/* Botões */}
                 <Box sx={{
                     display: 'flex',
                     gap: 2,
@@ -231,7 +452,7 @@ const ConfirmationDialog = ({
 
                     <Button
                         onClick={handleConfirm}
-                        disabled={disabled || loading}
+                        disabled={!canConfirm()}
                         color={getConfirmButtonColor()}
                         variant="contained"
                         size={isMobile ? 'large' : 'medium'}
@@ -251,80 +472,5 @@ const ConfirmationDialog = ({
         </Dialog>
     );
 };
-
-/**
- * Hook para usar dialog de confirmação
- */
-export const useConfirmationDialog = () => {
-    const [dialogState, setDialogState] = React.useState({
-        open: false,
-        title: '',
-        message: '',
-        onConfirm: null,
-        onCancel: null,
-        ...{}
-    });
-
-    const showConfirmation = React.useCallback((options) => {
-        return new Promise((resolve) => {
-            setDialogState({
-                open: true,
-                onConfirm: () => {
-                    setDialogState(prev => ({ ...prev, open: false }));
-                    resolve(true);
-                },
-                onCancel: () => {
-                    setDialogState(prev => ({ ...prev, open: false }));
-                    resolve(false);
-                },
-                ...options
-            });
-        });
-    }, []);
-
-    const hideConfirmation = React.useCallback(() => {
-        setDialogState(prev => ({ ...prev, open: false }));
-    }, []);
-
-    const ConfirmationDialogComponent = React.useCallback(() => (
-        <ConfirmationDialog {...dialogState} />
-    ), [dialogState]);
-
-    return {
-        showConfirmation,
-        hideConfirmation,
-        ConfirmationDialog: ConfirmationDialogComponent
-    };
-};
-
-/**
- * Variantes pré-configuradas do dialog
- */
-export const DeleteConfirmationDialog = (props) => (
-    <ConfirmationDialog
-        severity="error"
-        confirmLabel="Excluir"
-        confirmColor="error"
-        {...props}
-    />
-);
-
-export const SaveConfirmationDialog = (props) => (
-    <ConfirmationDialog
-        severity="info"
-        confirmLabel="Salvar"
-        confirmColor="primary"
-        {...props}
-    />
-);
-
-export const ActionConfirmationDialog = (props) => (
-    <ConfirmationDialog
-        severity="warning"
-        confirmLabel="Executar"
-        confirmColor="primary"
-        {...props}
-    />
-);
 
 export default ConfirmationDialog;

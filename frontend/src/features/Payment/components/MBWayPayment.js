@@ -7,12 +7,12 @@ import {
 import {
     PhoneAndroid, Security, Speed, CheckCircle, Send
 } from '@mui/icons-material';
-import { PaymentContext } from '../context/PaymentContext';
+import { useMutation } from '@tanstack/react-query';
+import paymentService from '../services/paymentService';
 
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
-const MBWayPayment = ({ onSuccess, transactionId }) => {
-    const { state, payWithMBWay, checkStatus, startPolling, stopPolling } = useContext(PaymentContext);
+const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
     const [localStep, setLocalStep] = useState(0);
@@ -21,6 +21,28 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
     const pollingIntervalRef = useRef(null);
     const isPollingRef = useRef(false);
 
+    const { mutate: payWithMBWay, isLoading: isSubmitting } = useMutation({
+        mutationFn: (phoneNumber) => paymentService.processMBWay(transactionId, phoneNumber),
+        onSuccess: (data) => {
+            setLocalStep(2); // Avança para o passo de espera
+            startControlledPolling();
+            onSuccess?.(data);
+        },
+        onError: (err) => {
+            setError(err.message || 'Erro ao processar MB WAY');
+            setLocalStep(0); // Volta ao passo inicial em caso de erro
+        }
+    });
+
+    const { mutate: checkStatus, isLoading: isCheckingStatus } = useMutation({
+        mutationFn: () => paymentService.checkStatus(transactionId),
+        onSuccess: (data) => {
+            if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(data.payment_status)) {
+                stopControlledPolling();
+            }
+        }
+    });
+
     // Limpar polling ao desmontar componente
     useEffect(() => {
         return () => {
@@ -28,20 +50,18 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                 clearInterval(pollingIntervalRef.current);
                 pollingIntervalRef.current = null;
             }
-            stopPolling();
             isPollingRef.current = false;
         };
-    }, [stopPolling]);
+    }, []);
 
     // Iniciar polling APENAS quando necessário
     const startControlledPolling = () => {
-        if (isPollingRef.current || !state.transactionId) {
+        if (isPollingRef.current || !transactionId) {
             return; // Já está a fazer polling ou não tem transactionId
         }
 
-        console.log('🔄 Iniciando polling controlado para:', state.transactionId);
+        console.log('🔄 Iniciando polling controlado para:', transactionId);
         isPollingRef.current = true;
-        startPolling();
 
         pollingIntervalRef.current = setInterval(() => {
             console.log('🔍 Verificando status MB WAY...');
@@ -55,26 +75,9 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
         }
-        stopPolling();
         isPollingRef.current = false;
         console.log('⏹️ Polling MB WAY parado');
     };
-
-    // Gerir transições de step
-    useEffect(() => {
-        if (state.transactionId && localStep === 1) {
-            setLocalStep(2);
-            startControlledPolling(); // Iniciar polling só no step 2
-            onSuccess?.();
-        }
-    }, [state.transactionId, localStep, onSuccess]);
-
-    // Parar polling quando status final
-    useEffect(() => {
-        if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(state.status)) {
-            stopControlledPolling();
-        }
-    }, [state.status]);
 
     const formatPhone = (value) => {
         const numbers = value.replace(/\D/g, '');
@@ -93,7 +96,7 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
         }
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = () => {
         const cleanPhone = phone.replace(/\s/g, '');
 
         if (!validatePhone(cleanPhone)) {
@@ -108,23 +111,12 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
 
         setError('');
         setLocalStep(1); // Avançar para processing
-
-        try {
-            await payWithMBWay(cleanPhone);
-            // Estado gerido pelo contexto + useEffect
-        } catch (err) {
-            setError(err.message);
-            setLocalStep(0); // Voltar ao início
-        }
+        payWithMBWay(cleanPhone);
     };
 
     // Verificação manual (para debug)
-    const handleManualCheck = async () => {
-        try {
-            await checkStatus();
-        } catch (err) {
-            console.error('Erro verificação manual:', err);
-        }
+    const handleManualCheck = () => {
+        checkStatus();
     };
 
     return (
@@ -142,7 +134,7 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                 </Avatar>
                 <Typography variant="h5" gutterBottom>MB WAY</Typography>
                 <Typography variant="body2" color="text.secondary">
-                    Pagamento de €{Number(state.amount || 0).toFixed(2)}
+                    Pagamento de €{Number(amount || 0).toFixed(2)}
                 </Typography>
             </Box>
 
@@ -156,9 +148,9 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
             </Stepper>
 
             {/* Erro global */}
-            {(error || state.error) && (
+            {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                    {error || state.error}
+                    {error}
                 </Alert>
             )}
 
@@ -214,11 +206,11 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                             variant="contained"
                             size="large"
                             onClick={handleSubmit}
-                            disabled={!validatePhone(phone.replace(/\s/g, '')) || state.loading}
-                            startIcon={state.loading ? <CircularProgress size={20} /> : <Send />}
+                            disabled={!validatePhone(phone.replace(/\s/g, '')) || isSubmitting}
+                            startIcon={isSubmitting ? <CircularProgress size={20} /> : <Send />}
                             sx={{ py: 1.5 }}
                         >
-                            {state.loading ? 'A enviar...' : 'Enviar Pagamento'}
+                            {isSubmitting ? 'A enviar...' : 'Enviar Pagamento'}
                         </Button>
 
                         <Alert severity="info" sx={{ mt: 2 }}>
@@ -246,7 +238,7 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                             <Typography variant="body2">
                                 <strong>Próximos passos:</strong><br />
                                 1. Abra a notificação MB WAY<br />
-                                2. Confirme €{Number(state.amount || 0).toFixed(2)}<br />
+                                2. Confirme €{Number(amount || 0).toFixed(2)}<br />
                                 3. Aguarde confirmação
                             </Typography>
                         </Paper>
@@ -272,16 +264,16 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                         <Button
                             variant="outlined"
                             onClick={handleManualCheck}
-                            disabled={state.loading}
-                            startIcon={state.loading ? <CircularProgress size={16} /> : null}
+                            disabled={isCheckingStatus}
+                            startIcon={isCheckingStatus ? <CircularProgress size={16} /> : null}
                             sx={{ mt: 2 }}
                         >
-                            {state.loading ? 'A verificar...' : 'Verificar Status'}
+                            {isCheckingStatus ? 'A verificar...' : 'Verificar Status'}
                         </Button>
 
                         <Alert severity="success" sx={{ mt: 2 }}>
                             <Typography variant="body2">
-                                <strong>Status:</strong> {state.status}<br />
+                                <strong>Status:</strong> A aguardar...<br />
                                 Verificação automática a cada 15s
                                 {isPollingRef.current && ' (Activo)'}
                             </Typography>
@@ -291,9 +283,8 @@ const MBWayPayment = ({ onSuccess, transactionId }) => {
                         {process.env.NODE_ENV === 'development' && (
                             <Alert severity="info" sx={{ mt: 1 }}>
                                 <Typography variant="caption">
-                                    Transaction: {state.transactionId}<br />
+                                    Transaction: {transactionId}<br />
                                     Polling: {isPollingRef.current ? 'Ativo' : 'Inativo'}<br />
-                                    Status: {state.status}
                                 </Typography>
                             </Alert>
                         )}

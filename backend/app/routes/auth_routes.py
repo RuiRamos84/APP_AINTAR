@@ -3,7 +3,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..services.auth_service import (
     login_user, logout_user, refresh_access_token,
     update_last_activity, check_inactivity, get_last_activity,
-    list_cached_activities, fsf_client_darkmodeadd, fsf_client_darkmodeclean
+    list_cached_activities, fsf_client_darkmodeadd, fsf_client_darkmodeclean,
+    # set_user_dark_mode # Descomentar quando a função for adicionada ao serviço
 )
 from ..utils.utils import format_message, set_session, db_session_manager
 import pytz
@@ -23,14 +24,9 @@ def login():
     # current_app.logger.info("Tentativa de login iniciada")
     username = request.json.get("username")
     password = request.json.get("password")
-    # current_app.logger.debug(f"Tentativa de login para o utilizador: {username}")
-
-    user_data, error = login_user(username, password)
-    if error:
-        # current_app.logger.error(f"Falha no login para {username}: {error}")
-        return jsonify(error=error), 401
-
-    # current_app.logger.info(f"Login bem-sucedido para {username}")
+    
+    # A função login_user agora lança uma exceção em caso de erro, que é tratada pelo @api_error_handler
+    user_data = login_user(username, password)
     return jsonify(user_data), 200
 
 
@@ -40,11 +36,8 @@ def login():
 def logout():
     user_identity = get_jwt_identity()
     if user_identity:
-        # Limpa a sessão no backend
-        if logout_user(user_identity):
-            return jsonify(msg="Logout bem-sucedido"), 200
-        else:
-            return jsonify(msg="Erro ao fazer logout"), 500
+        logout_user(user_identity)
+        return jsonify(msg="Logout bem-sucedido"), 200
     else:
         # Mesmo sem user_identity, retorna 200 para garantir que o frontend processa o logout
         return jsonify(msg="Sessão terminada"), 200
@@ -56,62 +49,54 @@ def logout():
 @api_error_handler
 def refresh():
     current_app.logger.info("Tentativa de refresh de token")
+    # Verificar e obter os dados da requisição
+    data = request.get_json()
+    current_app.logger.info(f"Dados da requisição recebidos: {data}")
+
+    # Verificar se o corpo da requisição contém o campo 'current_time'
+    if not data:
+        current_app.logger.error(
+            "O corpo da requisição está vazio ou inválido")
+        return jsonify({"error": "Corpo da requisição vazio ou inválido"}), 400
+
+    if 'current_time' not in data:
+        current_app.logger.error(
+            "current_time não foi passado no corpo da requisição")
+        return jsonify({"error": "current_time não foi passado corretamente"}), 400
+
+    current_time = data.get('current_time')
+    current_app.logger.info(f"current_time recebido: {current_time}")
+
+    # Verificar se current_time é None
+    if current_time is None:
+        current_app.logger.error("current_time é nulo ou inválido")
+        return jsonify({"error": "current_time é nulo ou inválido"}), 400
+
     try:
-        # Verificar e obter os dados da requisição
-        data = request.get_json()
-        current_app.logger.info(f"Dados da requisição recebidos: {data}")
+        # Converter current_time para inteiro, se necessário
+        current_time = int(current_time)
+        client_time = datetime.fromtimestamp(
+            current_time / 1000, tz=timezone.utc)
+        current_app.logger.info(f"client_time calculado: {client_time}")
+    except (TypeError, ValueError) as e:
+        current_app.logger.error(
+            f"Erro ao processar current_time: {str(e)}")
+        return jsonify({"error": f"Erro ao processar current_time: {str(e)}"}), 400
 
-        # Verificar se o corpo da requisição contém o campo 'current_time'
-        if not data:
-            current_app.logger.error(
-                "O corpo da requisição está vazio ou inválido")
-            return jsonify({"error": "Corpo da requisição vazio ou inválido"}), 400
+    # Obter o tempo do servidor
+    server_time = datetime.now(timezone.utc)
 
-        if 'current_time' not in data:
-            current_app.logger.error(
-                "current_time não foi passado no corpo da requisição")
-            return jsonify({"error": "current_time não foi passado corretamente"}), 400
+    # Verificar o refresh token
+    refresh_token = request.headers.get('Authorization', '')
+    if not refresh_token or len(refresh_token.split()) < 2:
+        return jsonify({"error": "Token de refresh não encontrado"}), 400
 
-        current_time = data.get('current_time')
-        current_app.logger.info(f"current_time recebido: {current_time}")
+    refresh_token = refresh_token.split()[1]
 
-        # Verificar se current_time é None
-        if current_time is None:
-            current_app.logger.error("current_time é nulo ou inválido")
-            return jsonify({"error": "current_time é nulo ou inválido"}), 400
-
-        try:
-            # Converter current_time para inteiro, se necessário
-            current_time = int(current_time)
-            client_time = datetime.fromtimestamp(
-                current_time / 1000, tz=timezone.utc)
-            current_app.logger.info(f"client_time calculado: {client_time}")
-        except (TypeError, ValueError) as e:
-            current_app.logger.error(
-                f"Erro ao processar current_time: {str(e)}")
-            return jsonify({"error": f"Erro ao processar current_time: {str(e)}"}), 400
-
-        # Obter o tempo do servidor
-        server_time = datetime.now(timezone.utc)
-
-        # Verificar o refresh token
-        refresh_token = request.headers.get('Authorization', '')
-        if not refresh_token or len(refresh_token.split()) < 2:
-            return jsonify({"error": "Token de refresh não encontrado"}), 400
-
-        refresh_token = refresh_token.split()[1]
-
-        # Chama a função para atualizar os tokens
-        new_tokens, error, status_code = refresh_access_token(
-            refresh_token, client_time, server_time)
-
-        if error:
-            return jsonify({"error": error}), status_code
-
-        return jsonify(new_tokens), 200
-    except Exception as e:
-        current_app.logger.error(f"Erro ao renovar token: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    # Chama a função para atualizar os tokens
+    # A função refresh_access_token agora lança exceções em caso de erro
+    new_tokens = refresh_access_token(refresh_token, client_time, server_time)
+    return jsonify(new_tokens), 200
 
 
 @bp.route('/update_dark_mode', methods=['POST'])
@@ -119,25 +104,21 @@ def refresh():
 @set_session
 @api_error_handler
 def update_dark_mode():
-    try:
-        current_app.logger.info(f"Atualização de dark mode para o utilizador {get_jwt_identity()}")
-        current_user = get_jwt_identity()
-        with db_session_manager(current_user):
-            data = request.get_json()
-            user_id = data.get('user_id')
-            dark_mode = data.get('dark_mode')
-            if dark_mode not in [0, 1]:
-                return jsonify({"error": "Invalid dark_mode value"}), 400
-            if dark_mode == 1:
-                result = fsf_client_darkmodeadd(user_id, current_user)
-            else:
-                result = fsf_client_darkmodeclean(user_id, current_user)
-            if isinstance(result, int) and result in [0, 1]:
-                return jsonify({"message": "Dark mode atualizado com sucesso"}), 200
-            else:
-                return jsonify({"error": "Falha ao atualizar dark mode"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    current_user_session = get_jwt_identity()
+    data = request.get_json()
+    user_id = data.get('user_id')
+    dark_mode = data.get('dark_mode')
+
+    if user_id is None or dark_mode is None:
+        return jsonify({"error": "user_id e dark_mode são obrigatórios"}), 400
+
+    # Idealmente, chamaríamos o serviço:
+    # set_user_dark_mode(user_id, dark_mode, current_user_session)
+    # Por agora, mantemos a lógica mas sem o try/except
+    with db_session_manager(current_user_session):
+        fsf_client_darkmodeadd(user_id, current_user_session) if dark_mode else fsf_client_darkmodeclean(user_id, current_user_session)
+
+    return jsonify({"message": "Dark mode atualizado com sucesso"}), 200
 
 
 @bp.route('/heartbeat', methods=['POST'])

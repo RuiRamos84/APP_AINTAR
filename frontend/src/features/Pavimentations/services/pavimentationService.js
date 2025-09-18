@@ -77,12 +77,13 @@ class PavimentationService {
     }
 
     /**
-     * Executar ação em uma pavimentação
-     * @param {number} pavimentationId - ID da pavimentação
-     * @param {string} actionId - ID da ação (execute, pay)
-     * @returns {Promise<Object>} Resultado da operação
-     */
-    async executeAction(pavimentationId, actionId) {
+ * Executar ação em uma pavimentação com suporte a anexos
+ * @param {number} pavimentationId - ID da pavimentação
+ * @param {string} actionId - ID da ação (execute, pay)
+ * @param {Object} options - Opções incluindo anexos
+ * @returns {Promise<Object>} Resultado da operação
+ */
+    async executeAction(pavimentationId, actionId, options = {}) {
         try {
             const actionConfig = StatusUtils.getActionConfig(actionId);
             if (!actionConfig) {
@@ -91,6 +92,13 @@ class PavimentationService {
 
             console.log(`Executando ação ${actionId} na pavimentação ${pavimentationId}`);
 
+            // 1. Se existirem anexos, processá-los primeiro
+            if (options.attachments && options.attachments.length > 0) {
+                console.log(`📎 Processando ${options.attachments.length} anexos...`);
+                await this.addAttachmentsToPavimentation(pavimentationId, options.attachments);
+            }
+
+            // 2. Executar a ação principal
             const endpoint = `${actionConfig.endpoint}/${pavimentationId}`;
             const response = await api.put(endpoint);
 
@@ -109,7 +117,8 @@ class PavimentationService {
                 actionId,
                 pavimentationId,
                 fromStatus: actionConfig.fromStatus,
-                toStatus: actionConfig.toStatus
+                toStatus: actionConfig.toStatus,
+                attachmentsProcessed: options.attachments?.length || 0
             };
 
         } catch (error) {
@@ -119,6 +128,48 @@ class PavimentationService {
             const errorMessage = actionConfig?.errorMessage || 'Erro ao executar ação';
 
             throw new Error(`${errorMessage}: ${error.message}`);
+        }
+    }
+
+    /**
+     * Adicionar anexos a uma pavimentação
+     * @param {number} pavimentationId - ID da pavimentação
+     * @param {Array} attachments - Lista de anexos
+     * @returns {Promise<void>}
+     */
+    async addAttachmentsToPavimentation(pavimentationId, attachments) {
+        try {
+            // Obter dados da pavimentação para ter o regnumber
+            const pavimentationData = await this.getPavimentationById(pavimentationId);
+            if (!pavimentationData?.regnumber) {
+                throw new Error('Não foi possível obter o número de registo da pavimentação');
+            }
+
+            // Processar cada anexo
+            for (const attachment of attachments) {
+                const formData = new FormData();
+                formData.append('file', attachment.file);
+                formData.append('regnumber', pavimentationData.regnumber);
+                formData.append('comment', attachment.comment || '');
+                formData.append('steptype', 'payment_proof'); // tipo específico para comprovativos
+
+                // Usar API directamente
+                const response = await api.post('/add_document_annex', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+
+                if (!response.data) {
+                    throw new Error(`Falha ao adicionar anexo: ${attachment.name}`);
+                }
+
+                console.log(`✅ Anexo ${attachment.name} adicionado`);
+            }
+
+        } catch (error) {
+            console.error('Erro ao adicionar anexos:', error);
+            throw new Error(`Falha ao adicionar anexos: ${error.message}`);
         }
     }
 

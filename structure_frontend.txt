@@ -1,3 +1,4 @@
+├── .env
 ├── .env.development
 ├── .env.production
 ├── .gitignore
@@ -17,25 +18,20 @@
 │   │   └── notification.mp3
 │   └── static
 │       ├── css
-│       │   ├── main.94ceef82.css
-│       │   └── main.94ceef82.css.map
+│       │   └── main.08e58ac9.css
 │       └── js
-│           ├── 133.44f8238a.chunk.js
-│           ├── 133.44f8238a.chunk.js.LICENSE.txt
-│           ├── 133.44f8238a.chunk.js.map
-│           ├── 239.dfdb0d71.chunk.js
-│           ├── 239.dfdb0d71.chunk.js.LICENSE.txt
-│           ├── 239.dfdb0d71.chunk.js.map
-│           ├── 455.ec63873d.chunk.js
-│           ├── 455.ec63873d.chunk.js.map
-│           ├── 566.611a20d1.chunk.js
-│           ├── 566.611a20d1.chunk.js.map
-│           ├── 977.2caed02d.chunk.js
-│           ├── 977.2caed02d.chunk.js.LICENSE.txt
-│           ├── 977.2caed02d.chunk.js.map
-│           ├── main.47faaae3.js
-│           ├── main.47faaae3.js.LICENSE.txt
-│           └── main.47faaae3.js.map
+│           ├── 239.2f7cf969.chunk.js
+│           ├── 460.7a01168e.chunk.js
+│           ├── 460.7a01168e.chunk.js.LICENSE.txt
+│           ├── 51.0b2e5971.chunk.js
+│           ├── 52.efacb25d.chunk.js
+│           ├── 52.efacb25d.chunk.js.LICENSE.txt
+│           ├── 82.8aa65602.chunk.js
+│           ├── 82.8aa65602.chunk.js.LICENSE.txt
+│           ├── main.528af9a8.js
+│           └── main.528af9a8.js.LICENSE.txt
+├── build_error.log
+├── build_output.log
 ├── eslint.config.mjs
 ├── loadEnv.js
 ├── package-lock.json
@@ -73,18 +69,19 @@
 │   │   │   │   ├── Navbar.css
 │   │   │   │   ├── Navbar.js
 │   │   │   │   └── VacationSwitch.js
+│   │   │   ├── PermissionGate.js
 │   │   │   ├── SearchBar
 │   │   │   │   ├── SearchBar.css
 │   │   │   │   └── SearchBar.js
 │   │   │   ├── Sidebar
-│   │   │   │   ├── ModernSidebar.js
+│   │   │   │   ├── MainSidebar.js
 │   │   │   │   ├── ResponsiveSidebar.js
 │   │   │   │   ├── Sidebar.css
 │   │   │   │   ├── Sidebar.js
-│   │   │   │   └── SidebarItem.js
+│   │   │   │   ├── SidebarItem.js
+│   │   │   │   └── SidebarProfile.js
 │   │   │   └── Toaster
 │   │   │       └── ThemedToaster.js
-│   │   ├── Dashboard
 │   │   ├── Documents
 │   │   │   ├── DocumentPDF.js
 │   │   │   ├── DocumentPreview.css
@@ -93,19 +90,48 @@
 │   │   │   └── mapselector.js
 │   │   ├── Notification
 │   │   │   └── Notification.js
-│   │   ├── Payment
 │   │   └── Socket
 │   │       └── SocketComponent.js
+│   ├── config
+│   │   ├── profileSystem.js
+│   │   └── routeConfig.js
 │   ├── config.js
 │   ├── contexts
 │   │   ├── AuthContext.js
 │   │   ├── AuthContextProvider.js
 │   │   ├── EpiContext.js
 │   │   ├── MetaDataContext.js
+│   │   ├── PermissionContext.js
 │   │   ├── SidebarContext.js
 │   │   ├── SocketContext.js
 │   │   └── ThemeContext.js
 │   ├── features
+│   │   ├── Pavimentations
+│   │   │   ├── components
+│   │   │   │   ├── common
+│   │   │   │   │   ├── ConfirmationDialog.js
+│   │   │   │   │   └── ExportButton.js
+│   │   │   │   └── PavimentationList
+│   │   │   │       ├── index.js
+│   │   │   │       ├── PavimentationFilters.js
+│   │   │   │       ├── PavimentationStats.js
+│   │   │   │       └── PavimentationTable.js
+│   │   │   ├── constants
+│   │   │   │   ├── pavimentationTypes.js
+│   │   │   │   └── tableColumns.js
+│   │   │   ├── hooks
+│   │   │   │   ├── usePavimentationActions.js
+│   │   │   │   └── usePavimentations.js
+│   │   │   ├── index.js
+│   │   │   ├── pages
+│   │   │   │   ├── CompletedPavimentations.js
+│   │   │   │   ├── ExecutedPavimentations.js
+│   │   │   │   ├── PavimentationsDashboard.js
+│   │   │   │   └── PendingPavimentations.js
+│   │   │   ├── services
+│   │   │   │   └── pavimentationService.js
+│   │   │   └── utils
+│   │   │       └── fileUtils.js
 │   │   └── Payment
 │   │       ├── components
 │   │       │   ├── BankTransferPayment.js
@@ -135,7 +161,10 @@
 │   ├── hooks
 │   │   ├── useDeliveries.js
 │   │   ├── useFilePreview.js
+│   │   ├── useNormalizedSearch.js
 │   │   ├── useOperations.js
+│   │   ├── usePermissions.js
+│   │   ├── useRouteConfig.js
 │   │   ├── useSocket.js
 │   │   └── useTasks.js
 │   ├── index.css
@@ -233,6 +262,7 @@
 │   │   │       ├── RamaisActivePage.js
 │   │   │       ├── RamaisConcludedList.js
 │   │   │       ├── RamaisConcludedPage.js
+│   │   │       ├── RamaisExecutedPage.js
 │   │   │       ├── RamalConcludedRow.js
 │   │   │       ├── RamalGenericList.js
 │   │   │       ├── RamalGenericRow.js
@@ -257,55 +287,83 @@
 │   │   │   ├── AdvancedFilters.js
 │   │   │   ├── BulkDeliveryForm.js
 │   │   │   ├── CancelDelivery.js
+│   │   │   ├── CreateEmployeeForm.js
 │   │   │   ├── dataUtils.js
 │   │   │   ├── DeliveriesTable.js
 │   │   │   ├── EditDelivery.js
+│   │   │   ├── EmployeeSelector.js
 │   │   │   ├── EpiArea.js
 │   │   │   ├── EpiSection.js
 │   │   │   ├── EpiSummarySection.js
 │   │   │   ├── exportUtils.js
 │   │   │   ├── PreferencesSection.js
 │   │   │   └── UniformSection.js
+│   │   ├── Global
+│   │   │   ├── components
+│   │   │   │   ├── common
+│   │   │   │   │   ├── DataTable.js
+│   │   │   │   │   ├── DetailsModal.js
+│   │   │   │   │   ├── EnhancedDetailsModal.js
+│   │   │   │   │   ├── EntitySelector.js
+│   │   │   │   │   ├── FormBuilder.js
+│   │   │   │   │   └── RecordManager.js
+│   │   │   │   └── forms
+│   │   │   │       ├── MassRequestManager.js
+│   │   │   │       ├── RequestManager.js
+│   │   │   │       ├── RequestModal.js
+│   │   │   │       ├── SimpleRequestForm.js
+│   │   │   │       └── WaterVolumeManager.js
+│   │   │   ├── context
+│   │   │   │   └── GlobalContext.js
+│   │   │   ├── hooks
+│   │   │   │   ├── useEntity.js
+│   │   │   │   └── useRecords.js
+│   │   │   ├── index.js
+│   │   │   ├── types
+│   │   │   │   └── index.js
+│   │   │   ├── utils
+│   │   │   │   ├── constants.js
+│   │   │   │   └── helpers.js
+│   │   │   └── views
+│   │   │       ├── AreaSelector.js
+│   │   │       ├── EntityManagement.js
+│   │   │       ├── MaintenanceView.js
+│   │   │       └── NetworkManagement.js
 │   │   ├── Home
 │   │   │   ├── Home.css
 │   │   │   └── Home.js
 │   │   ├── Internal
 │   │   │   ├── components
 │   │   │   │   ├── DetailsModal.js
+│   │   │   │   ├── EnergyRecordsTable.js
 │   │   │   │   ├── EntityDetailsView.js
 │   │   │   │   ├── EntitySelector.js
+│   │   │   │   ├── EquipExpenseTable.js
+│   │   │   │   ├── ExpenseRecordsTable.js
 │   │   │   │   ├── GenericTable.js
+│   │   │   │   ├── IncumprimentosTable.js
 │   │   │   │   ├── InternalRequestForm.js
+│   │   │   │   ├── RamalRedeManagement.js
 │   │   │   │   ├── RecordForm.js
-│   │   │   │   └── TabPanel.js
+│   │   │   │   ├── TabPanel.js
+│   │   │   │   ├── VolumeRecordsTable.js
+│   │   │   │   └── WaterVolumeRecordsTable.js
 │   │   │   ├── context
 │   │   │   │   └── InternalContext.js
-│   │   │   ├── EnergyRecordsTable.js
-│   │   │   ├── EntityDetailsDialog.js
-│   │   │   ├── EquipExpenseTable.js
-│   │   │   ├── ExpenseRecordsTable.js
 │   │   │   ├── hooks
 │   │   │   │   ├── useEntityDetails.js
 │   │   │   │   └── useRecords.js
 │   │   │   ├── index.js
-│   │   │   ├── InternalArea.js
-│   │   │   ├── InternalDetails.js
-│   │   │   ├── InternalMaintenance.js
-│   │   │   ├── InternalTabs.js
-│   │   │   ├── MaintenanceRecordsTable.js
-│   │   │   ├── RamalRedeContent.js
-│   │   │   ├── RamalRedeExpense.js
-│   │   │   ├── RamalRedeManagement.js
 │   │   │   ├── utils
 │   │   │   │   ├── errorHandler.js
+│   │   │   │   ├── locationMapping.js
 │   │   │   │   └── recordsFormatter.js
-│   │   │   ├── views
-│   │   │   │   ├── EquipamentoView.js
-│   │   │   │   ├── EtarEeView.js
-│   │   │   │   ├── ManutencaoView.js
-│   │   │   │   ├── RedeRamalView.js
-│   │   │   │   └── RequisicaoInternaView.js
-│   │   │   └── VolumeRecordsTable.js
+│   │   │   └── views
+│   │   │       ├── EquipamentoView.js
+│   │   │       ├── EtarEeView.js
+│   │   │       ├── ManutencaoView.js
+│   │   │       ├── RedeRamalView.js
+│   │   │       └── RequisicaoInternaView.js
 │   │   ├── Letters
 │   │   │   ├── CreateLetterModal.js
 │   │   │   ├── IssuedLettersList.js
@@ -347,6 +405,7 @@
 │   │   │   │   │   └── StatisticsDashboard.js
 │   │   │   │   ├── tables
 │   │   │   │   │   └── DocumentsTable.js
+│   │   │   │   ├── VacationStatusChecker.js
 │   │   │   │   ├── ViewSwitcher.js
 │   │   │   │   └── WorkflowTimeline.jsx
 │   │   │   ├── context
@@ -397,7 +456,9 @@
 │   │   │   │   │       ├── DetailsTab.js
 │   │   │   │   │       ├── HistoryTab.js
 │   │   │   │   │       ├── ParametersTab.js
-│   │   │   │   │       └── PaymentsTab .js
+│   │   │   │   │       ├── PaymentsTab .js
+│   │   │   │   │       ├── VerticalStackTimeline.jsx
+│   │   │   │   │       └── WorkflowViewer.js
 │   │   │   │   └── ReplicateDocumentModal.js
 │   │   │   ├── reducers
 │   │   │   │   └── DocumentManagerReducer.js
@@ -413,7 +474,8 @@
 │   │   │   │   ├── fileUtils.js
 │   │   │   │   ├── operationLockSystem.js
 │   │   │   │   ├── statusUtils.js
-│   │   │   │   └── workflowUtils.js
+│   │   │   │   ├── workflowUtils.js
+│   │   │   │   └── workflowValidationUtils.js
 │   │   │   └── views
 │   │   │       ├── DocumentView.js
 │   │   │       ├── GridView.js
@@ -578,8 +640,13 @@
 │   │       └── UserInfo.js
 │   ├── reportWebVitals.js
 │   ├── services
-│   │   ├── activityTracker.js
 │   │   ├── api.js
+│   │   ├── auth
+│   │   │   ├── AlertManager.js
+│   │   │   ├── AuthManager.js
+│   │   │   ├── AuthState.js
+│   │   │   ├── SessionManager.js
+│   │   │   └── TokenManager.js
 │   │   ├── authService.js
 │   │   ├── dashboardService.js
 │   │   ├── documentService.js
@@ -589,9 +656,8 @@
 │   │   ├── letter_service.js
 │   │   ├── NotificacaoService.js
 │   │   ├── operationsService.js
+│   │   ├── permissionService.js
 │   │   ├── postalCodeService.js
-│   │   ├── SessionManager.js
-│   │   ├── SessionService.js
 │   │   ├── socketService.js
 │   │   ├── TaskService.js
 │   │   └── userService.js

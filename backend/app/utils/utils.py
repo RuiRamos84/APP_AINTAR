@@ -1,6 +1,7 @@
 from flask_jwt_extended import get_jwt
 import xml.etree.ElementTree as ET
 from sqlalchemy.sql import text
+from .error_handler import InvalidSessionError
 from functools import wraps
 from flask import g, jsonify, current_app
 from flask_jwt_extended import verify_jwt_in_request
@@ -191,8 +192,7 @@ def db_session_manager(session_id):
             # current_app.logger.debug(f"Configurando sessão no banco de dados para session_id: {session_id}")
             result = fs_setsession(session_id)
             if not result:
-                # current_app.logger.error(f"Falha ao configurar a sessão para session_id: {session_id}")
-                raise Exception(f"Erro ao configurar a sessão com session_id: {session_id}")
+                raise InvalidSessionError(f"Sessão inválida ou expirada para session_id: {session_id}")
         yield session
         session.commit()
     except SQLAlchemyError as e:

@@ -4,147 +4,103 @@ from ..utils.utils import format_message, db_session_manager
 from datetime import datetime
 from flask import g, current_app
 from app.repositories import EntityRepository
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
+from pydantic import BaseModel, EmailStr, constr, Field
 from app.utils.serializers import model_to_dict
+from app.utils.error_handler import api_error_handler, ResourceNotFoundError, DuplicateResourceError
+from typing import Optional
+
+# ===================================================================
+# MODELOS DE DADOS COM PYDANTIC
+# ===================================================================
+
+class EntityModel(BaseModel):
+    nipc: int = Field(..., ge=100000000, le=999999999, description="NIF deve ser um número inteiro de 9 dígitos")
+    name: str
+    address: str
+    postal: str
+    door: Optional[str] = None
+    floor: Optional[str] = None
+    nut1: Optional[str] = None
+    nut2: Optional[str] = None
+    nut3: Optional[str] = None
+    nut4: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    ident_type: Optional[int] = None
+    ident_value: Optional[str] = None
+    descr: Optional[str] = None
+
+class EntityUpdateModel(EntityModel):
+    pass # Herda todos os campos, que já são opcionais em Pydantic para updates
 
 
-def get_entity_detail(pk, current_user):
-    try:
-        entity = EntityRepository.get_by_id(pk)
-        if entity:
-            return {'entity': model_to_dict(entity)}, 200
-        return {'error': 'Entidade não encontrada'}, 404
-    except Exception as e:
-        current_app.logger.error(
-            f"Erro ao obter detalhes da entidade: {str(e)}")
-        return {'error': f"Erro ao obter detalhes da entidade: {str(e)}"}, 500
+@api_error_handler
+def get_entity_detail(pk: int, current_user: str):
+    entity = EntityRepository.get_by_id(pk)
+    if not entity:
+        raise ResourceNotFoundError('Entidade', pk)
+    return {'entity': model_to_dict(entity)}, 200
 
 
-def get_entity_detail_nipc(nipc, current_user):
-    try:
-        with db_session_manager(current_user) as session:
-            entity_query = text("SELECT * FROM vbf_entity WHERE nipc = :nipc")
-            entity_result = session.execute(
-                entity_query, {'nipc': nipc}).fetchone()
-            if entity_result:
-                entity_dict = entity_result._asdict()
-                return {'entity': entity_dict}, 200
-            else:
-                return {'message': 'Entidade não encontrada'}, 204
-    except Exception as e:
-        print({str(e)})
-        return {'error': f"Erro ao obter detalhes da entidade: {str(e)}"}, 500
+@api_error_handler
+def get_entity_detail_nipc(nipc: str, current_user: str):
+    with db_session_manager(current_user) as session:
+        entity_query = text("SELECT * FROM vbf_entity WHERE nipc = :nipc")
+        entity_result = session.execute(entity_query, {'nipc': nipc}).fetchone()
+        # print(entity_result)
+        if not entity_result:
+            return {}, 204  # NIF não encontrado, mas é um sucesso para a criação.
+        return {'entity': entity_result._asdict()}, 200
 
 
-def create_entity(data, current_user):
-    try:
-        current_app.logger.info(
-            f"Iniciando criação de entidade para o usuário: {current_user}")
-        current_app.logger.debug(f"Dados recebidos: {data}")
+@api_error_handler
+def create_entity(data: dict, current_user: str):
+    entity_data = EntityModel.model_validate(data)
+    entity_dict = entity_data.model_dump()
 
-        with db_session_manager(current_user) as session:
-            existing_entity = session.execute(
-                text("SELECT * FROM vbf_entity WHERE nipc = :nipc"),
-                {'nipc': data.get('nipc')}
-            ).fetchone()
-            if existing_entity:
-                current_app.logger.warning(
-                    f"Tentativa de criar entidade duplicada com NIPC: {data.get('nipc')}")
-                return {'message': 'Entidade já existe'}, 409
+    with db_session_manager(current_user) as session:
+        existing_entity = session.execute(
+            text("SELECT pk FROM vbf_entity WHERE nipc = :nipc"),
+            {'nipc': entity_dict['nipc']}
+        ).scalar()
+        if existing_entity:
+            raise DuplicateResourceError('Entidade já existe')
 
-            insert_query = text(
-                """
-                INSERT INTO vbf_entity 
-                    (nipc, name, address, postal, door, floor, nut1, nut2, nut3, nut4, phone, email, ident_type, ident_value, descr) 
-                VALUES 
-                    (:nipc, :name, :address, :postal, :door, :floor, :nut1, :nut2, :nut3, :nut4, :phone, :email, :ident_type, :ident_value, :descr)
-                """
-            )
-            session.execute(
-                insert_query,
-                {
-                    'nipc': data.get('nipc'),
-                    'name': data.get('name'),
-                    'address': data.get('address'),
-                    'postal': data.get('postal'),
-                    'door': data.get('door') if data.get('door') else None,
-                    'floor': data.get('floor') if data.get('floor') else None,
-                    'nut1': data.get('nut1'),
-                    'nut2': data.get('nut2'),
-                    'nut3': data.get('nut3'),
-                    'nut4': data.get('nut4'),
-                    'phone': data.get('phone'),
-                    'email': data.get('email'),
-                    'ident_type': data.get('ident_type') if data.get('ident_type') else None,
-                    'ident_value': data.get('ident_value') if data.get('ident_value') else None,
-                    'descr': data.get('descr')
-                }
-            )
-            current_app.logger.info(
-                f"Entidade criada com sucesso: {data.get('nipc')}")
-        return {'message': 'Entidade criada com sucesso'}, 201
-    except Exception as e:
-        current_app.logger.error(f"Erro ao criar entidade: {str(e)}")
-        return {'error': f"Erro ao criar entidade: {str(e)}"}, 500
+        insert_query = text("""
+            INSERT INTO vbf_entity 
+                (nipc, name, address, postal, door, floor, nut1, nut2, nut3, nut4, phone, email, ident_type, ident_value, descr)
+            VALUES 
+                (:nipc, :name, :address, :postal, :door, :floor, :nut1, :nut2, :nut3, :nut4, :phone, :email, :ident_type, :ident_value, :descr)
+        """)
+        session.execute(insert_query, entity_dict)
+        current_app.logger.info(f"Entidade criada com sucesso: {entity_dict['nipc']}")
+    return {'message': 'Entidade criada com sucesso'}, 201
 
 
-def update_entity_detail(pk, data, current_user):
-    try:
-        with db_session_manager(current_user) as session:
-            update_query = text(
-                """UPDATE vbf_entity SET 
-                nipc = :nipc, name = :name, address = :address, postal = :postal, door = :door, floor = :floor, 
-                nut1 = :nut1, nut2 = :nut2, nut3 = :nut3, nut4 = :nut4, phone = :phone, email = :email, 
-                ident_type = :ident_type, ident_value = :ident_value, descr = :descr 
-                WHERE pk = :pk"""
-            )
+@api_error_handler
+def update_entity_detail(pk: int, data: dict, current_user: str):
+    update_data = EntityUpdateModel.model_validate(data)
+    # Remove chaves com valor None para não substituir campos existentes por nulo no update
+    update_dict = update_data.model_dump(exclude_unset=True)
 
-            session.execute(
-                update_query,
-                {
-                    'pk': pk,
-                    'nipc': data['nipc'],
-                    'name': data['name'],
-                    'address': data['address'],
-                    'postal': data['postal'],
-                    'door': data['door'] if data['door'] else None,
-                    'floor': data['floor'] if data['floor'] else None,
-                    'nut1': data['nut1'],
-                    'nut2': data['nut2'],
-                    'nut3': data['nut3'],
-                    'nut4': data['nut4'],
-                    'phone': data['phone'],
-                    'email': data['email'],
-                    'ident_type': data['ident_type'] if data['ident_type'] else None,
-                    'ident_value': data['ident_value'] if data['ident_value'] else None,
-                    'descr': data['descr'],
-                }
-            )
-            return {'message': 'Detalhes da entidade atualizados com sucesso'}, 200
-    except Exception as e:
-        current_app.logger.error(
-            f"Erro ao atualizar detalhes da entidade: {str(e)}")
-        return {'error': f"Erro ao atualizar detalhes da entidade: {str(e)}"}, 500
+    if not update_dict:
+        return {'message': 'Nenhum dado para atualizar'}, 200
+
+    set_clause = ", ".join([f"{key} = :{key}" for key in update_dict.keys()])
+    update_query = text(f"UPDATE vbf_entity SET {set_clause} WHERE pk = :pk")
+    
+    with db_session_manager(current_user) as session:
+        result = session.execute(update_query, {**update_dict, 'pk': pk})
+        if result.rowcount == 0:
+            raise ResourceNotFoundError("Entidade", pk)
+    return {'message': 'Detalhes da entidade atualizados com sucesso'}, 200
 
 
-def list_entities(current_user):
-    try:
-        with db_session_manager(current_user) as session:
-            entities_query = text("SELECT * FROM vbf_entity")
-            entities_result = session.execute(entities_query).fetchall()
-
-            if entities_result:
-                entities_list = []
-                for entity in entities_result:
-                    entity_dict = entity._asdict()
-                    # Log da entidade para ver a estrutura
-                    # print(f"Entidade: {entity_dict}")
-                    # Não precisa verificar "created_on" pois não existe na view
-                    entities_list.append(entity_dict)
-                return {'entities': entities_list}, 200
-            else:
-                return {'error': 'Nenhuma entidade encontrada'}, 404
-    except Exception as e:
-        print({str(e)})
-        return {'error': f"Erro ao listar entidades: {str(e)}"}, 500
+@api_error_handler
+def list_entities(current_user: str):
+    with db_session_manager(current_user) as session:
+        entities_query = text("SELECT * FROM vbf_entity ORDER BY name")
+        entities_result = session.execute(entities_query).mappings().all()
+        return {'entities': [dict(row) for row in entities_result]}, 200

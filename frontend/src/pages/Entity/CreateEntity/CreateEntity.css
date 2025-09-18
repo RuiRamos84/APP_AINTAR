@@ -45,3 +45,15 @@
 .MuiOutlinedInput-root.invalid-nif .MuiOutlinedInput-notchedOutline {
     border-color: red;
 }
+
+.nif-available {
+  border-color: #4caf50 !important; /* Verde */
+}
+
+.nif-exists {
+  border-color: #2196f3 !important; /* Azul */
+}
+
+.nif-invalid {
+  border-color: #f44336 !important; /* Vermelho */
+}

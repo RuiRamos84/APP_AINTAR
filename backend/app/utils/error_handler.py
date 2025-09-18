@@ -37,6 +37,25 @@ class DuplicateResourceError(APIError):
         message = f"{resource_type} com {field}={value} já existe"
         super().__init__(message, 409, "ERR_DUPLICATE", payload)
 
+
+class InvalidSessionError(APIError):
+    """Exceção para sessões inválidas no banco de dados."""
+    def __init__(self, message="Sessão inválida ou expirada.", status_code=419, error_code="INVALID_SESSION"):
+        super().__init__(message, status_code, error_code)
+
+
+class InvalidCredentialsError(APIError):
+    """Exceção para credenciais de login inválidas."""
+    def __init__(self, message="Credenciais inválidas"):
+        super().__init__(message, status_code=401)
+
+
+class TokenExpiredError(APIError):
+    """Exceção para tokens expirados (login ou refresh)."""
+    def __init__(self, message="Token expirado"):
+        # Usamos 419 Authentication Timeout, um status não oficial mas comum para este caso
+        super().__init__(message, status_code=419)
+
 # Mapeamento de erros SQL para erros de API
 
 

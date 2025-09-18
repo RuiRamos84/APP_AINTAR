@@ -1,3 +1,5 @@
+# app/create_app.py
+
 from config import get_config
 import logging
 from flask import Flask, request, jsonify
@@ -143,7 +145,7 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp
+        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp, permissions_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
         app.register_blueprint(user_bp, url_prefix='/api/v1/user')
@@ -158,6 +160,7 @@ def create_app(config_class):
         app.register_blueprint(payment_bp, url_prefix='/api/v1')
         app.register_blueprint(tasks_bp, url_prefix='/api/v1')
         app.register_blueprint(operations_bp, url_prefix='/api/v1')
+        app.register_blueprint(permissions_bp, url_prefix='/api/v1')
 
         # Configuração do search_path para o PostgreSQL
         @db.event.listens_for(db.engine, "connect")
@@ -169,6 +172,12 @@ def create_app(config_class):
         # Registro dos eventos do Socket.IO
         from .socketio.socketio_events import register_socket_events
         register_socket_events(socket_io)
+
+        # Armazenar a instância do Socket.IO no app.extensions para acesso global
+        # A instância é criada dentro de register_socket_events
+        if not hasattr(app, 'extensions') or 'socketio_events' not in app.extensions:
+            app.logger.warning("A instância de SocketIOEvents não foi registrada no app.extensions.")
+
         app.logger.info("Socket.IO events registados com sucesso!")
 
     # Configuração da limpeza de sessão após cada requisição

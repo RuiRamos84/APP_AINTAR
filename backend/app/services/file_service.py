@@ -17,6 +17,7 @@ from reportlab.platypus.frames import Frame
 # Importações específicas
 from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate
 import os
+from pydantic import BaseModel, Field, field_validator
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Optional, Any
 
@@ -30,25 +31,9 @@ class BaseLetterTemplate(BaseDocTemplate):
         self.page_width, self.page_height = A4
         self.has_custom_font = False
         self._setup_fonts()
-        self._setup_document()
-        self.page_count = 1
-        self.current_page = 1
         self.data = {}
         self.version = '1.0'
-
-    def afterPage(self):
-        """Chamado após cada página ser gerada"""
-        self.current_page += 1
-        self.page_count = max(self.page_count, self.current_page)
-
-    def beforeDocument(self):
-        """Chamado antes de começar a construir o documento"""
-        self.current_page = 1
-        self.page_count = 1
-
-    def beforePage(self):
-        """Chamado antes de cada página ser gerada"""
-        self.current_page += 1
+        self._setup_document()
 
     def _setup_document(self):
         """Configura o documento com frame principal"""
@@ -75,18 +60,7 @@ class BaseLetterTemplate(BaseDocTemplate):
         # Remove o 'v' da versão se existir
         self.version = data.get('VS_M', version).replace('v', '') if data.get(
             'VS_M', version).startswith('v') else data.get('VS_M', version)
-        self.current_page = 1
-        self.page_count = 1
         self.build(story)
-
-    def afterFlowable(self, flowable):
-        """
-        Chamado após cada flowable ser adicionado.
-        Atualiza a contagem de páginas.
-        """
-        page_count = getattr(flowable, 'pageCount', None)
-        if page_count is not None:
-            self.page_count = max(self.page_count, page_count)
 
     def _draw_header(self, canvas, doc):
         """Desenha o logo no cabeçalho de todas as páginas preservando a transparência"""
@@ -187,7 +161,7 @@ class BaseLetterTemplate(BaseDocTemplate):
         # Versão e página em linha separada, alinhada à direita
         version = self.version.replace(
             'v', '') if self.version.startswith('v') else self.version
-        page_info = f"Página {self.current_page} de {self.page_count}  |  {version}"
+        page_info = f"Página {doc.page} de {self._pageCount}  |  {version}"
         canvas.drawRightString(doc.pagesize[0]-2*cm, 0.7*cm, page_info)
 
         canvas.restoreState()
@@ -202,69 +176,31 @@ class LetterDocument:
 
     def create_content(self, data: Dict) -> List:
         """Cria o conteúdo do ofício baseado nos dados fornecidos"""
-        elements = []
-
-        # Destinatário alinhado à direita no nível do logo
-        elements.extend([
-            Paragraph("Ex.mo(a) Senhor(a)", self.styles['RecipientHeader']),
-            Paragraph(data.get('NOME', ''), self.styles['RecipientHeader']),
-            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}", self.styles['RecipientHeader']),
-            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}", self.styles['RecipientHeader']),
-        ])
-
-        # Espaço após o cabeçalho
-        elements.append(Spacer(1, 2*cm))
-
-        # Tabela de referências sem bordas
-        table = self._create_reference_table(data)
-        elements.append(table)
-        elements.append(Spacer(1, 1*cm))
-
-        # Assunto em negrito
-        elements.append(Paragraph("Assunto: Autorização de Ligação", self.styles['Subject']))
-        elements.append(Spacer(1, 0.5*cm))
-
-        # Corpo do ofício
-        elements.extend([
-            Paragraph("Ex.mo(a). Senhor(a),", self.styles['BodyLeft']),
-            Spacer(1, 0.5*cm),
-            Paragraph(data.get('BODY', ''), self.styles['Body'])
-        ])
-
-        # Texto padrão se não for ofício livre
-        if not data.get('is_free_letter'):
-            elements.extend(self._create_standard_text())
-
-        # Assinatura
-        elements.extend([
-            Spacer(1, 0.5*cm),
-            Paragraph("Com os melhores cumprimentos,",
-                    self.styles['BodyLeft']),
-            Spacer(1, 1.5*cm),
-            Paragraph("O Presidente da Direção,", self.styles['BodyCenter']),
-            Spacer(1, 1*cm),
-            Paragraph("_" * 35, self.styles['BodyCenter']),
-            Paragraph("Paulo Jorge Catalino de Almeida Ferraz", self.styles['BodyCenter'])
-        ])
-
-        return elements
+        story = []
+        story.extend(self._create_recipient_section(data))
+        story.extend(self._create_reference_section(data))
+        story.extend(self._create_subject_section(data))
+        story.extend(self._create_body_section(data))
+        story.extend(self._create_signature_section(data))
+        return story
 
     def _create_recipient_section(self, data: Dict) -> List:
         """Cria seção do destinatário"""
         return [
-            Paragraph("Ex.mo(a) Senhor(a)", self.styles['Recipient']),
-            Paragraph(data.get('NOME', ''), self.styles['Recipient']),
-            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}", self.styles['Recipient']),
-            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}", self.styles['Recipient']),
-            Spacer(1, 20*mm)
+            Paragraph("Ex.mo(a) Senhor(a)", self.styles['RecipientHeader']),
+            Paragraph(data.get('NOME', ''), self.styles['RecipientHeader']),
+            Paragraph(f"{data.get('MORADA', '')}, {data.get('PORTA', '')}",
+                      self.styles['RecipientHeader']),
+            Paragraph(f"{data.get('CODIGO_POSTAL', '')} {data.get('LOCALIDADE', '')}",
+                      self.styles['RecipientHeader']),
         ]
 
     def _create_reference_section(self, data: Dict) -> List:
         """Cria seção de referências com espaçamento adequado"""
         elements = []
         
-        # Adicionar espaço após o cabeçalho
-        elements.append(Spacer(1, 4*cm))
+        # Espaço após o destinatário
+        elements.append(Spacer(1, 2*cm))
         
         # Criar e adicionar a tabela de referências
         table = self._create_reference_table(data)
@@ -278,15 +214,15 @@ class LetterDocument:
     def _create_subject_section(self, data: Dict) -> List:
         """Cria seção do assunto"""
         return [
-            Paragraph(data.get('SUBJECT', 'Assunto: Autorização de Ligação'), self.styles['HeaderBold']),
-            Spacer(1, 5*mm)
+            Paragraph(data.get('SUBJECT', 'Assunto: Autorização de Ligação'), self.styles['Subject']),
+            Spacer(1, 0.5*cm)
         ]
 
     def _create_body_section(self, data: Dict) -> List:
         """Cria seção do corpo do ofício"""
         elements = [
             Paragraph("Ex.mo(a). Senhor(a),", self.styles['BodyLeft']),
-            Spacer(1, 5*mm),
+            Spacer(1, 0.5*cm),
             Paragraph(data.get('BODY', ''), self.styles['Body'])
         ]
 
@@ -299,12 +235,13 @@ class LetterDocument:
     def _create_signature_section(self, data: Dict) -> List:
         """Cria seção da assinatura"""
         return [
-            Spacer(1, 15*mm),
+            Spacer(1, 0.5*cm),
             Paragraph("Com os melhores cumprimentos,", self.styles['BodyLeft']),
-            Paragraph(data.get('SIGNATURE_TITLE', 'O Presidente da Direção'), self.styles['BodyLeft']),
-            Spacer(1, 25*mm),
+            Spacer(1, 1.5*cm),
+            Paragraph(data.get('SIGNATURE_TITLE', 'O Presidente da Direção,'), self.styles['BodyCenter']),
+            Spacer(1, 1*cm),
             Paragraph("_" * 35, self.styles['BodyCenter']),
-            Paragraph(data.get('SIGNATURE_NAME', 'Paulo Jorge Catalino de Almeida Ferraz'), self.styles['BodyLeft'])
+            Paragraph(data.get('SIGNATURE_NAME', 'Paulo Jorge Catalino de Almeida Ferraz'), self.styles['BodyCenter'])
         ]
 
     def _create_styles(self) -> Dict[str, ParagraphStyle]:
@@ -415,6 +352,33 @@ class LetterDocument:
             )
         ]
 
+# ===================================================================
+# MODELOS DE DADOS COM PYDANTIC
+# ===================================================================
+
+class LetterContext(BaseModel):
+    """Modelo Pydantic para validar o contexto de um ofício."""
+    NOME: str
+    MORADA: str
+    PORTA: str
+    CODIGO_POSTAL: str
+    LOCALIDADE: str
+    DATA: str
+    NUMERO_PEDIDO: str
+    NUMERO_OFICIO: str
+    DATA_PEDIDO: str
+    BODY: str
+    VS_M: str = Field("v1.0", alias='version')
+    is_free_letter: bool = False
+    SUBJECT: str = "Assunto: Autorização de Ligação"
+    SIGNATURE_TITLE: str = "O Presidente da Direção"
+    SIGNATURE_NAME: str = "Paulo Jorge Catalino de Almeida Ferraz"
+
+    @field_validator('DATA', 'DATA_PEDIDO', mode='before')
+    def format_date(cls, v):
+        if isinstance(v, datetime):
+            return v.strftime('%Y-%m-%d')
+        return v
 
 class FileService:
     """Serviço para gerenciamento de arquivos e geração de documentos"""
@@ -447,58 +411,34 @@ class FileService:
     def generate_letter(self, context: Dict, regnumber: str = None, document_number: str = None, is_free_letter: bool = False) -> Tuple[str, str]:
         """Gera um ofício usando o template base"""
         try:
+            # 1. Validar e preparar o contexto com Pydantic
+            # Adiciona o número do ofício ao contexto antes de validar
+            context['NUMERO_OFICIO'] = document_number
+            context['is_free_letter'] = is_free_letter
+            
+            validated_context = LetterContext.model_validate(context)
+            # Converte o modelo Pydantic de volta para um dicionário para uso no template
+            full_context = validated_context.model_dump(by_alias=True)
+
             # Definir nome e caminho do arquivo
             output_filename = f"OF-{document_number}.pdf"
             output_path = self._get_output_path(
                 regnumber, output_filename, is_free_letter)
 
-            # Criar documento
+            # 2. Criar documento e conteúdo
             template = BaseLetterTemplate(output_path)
             letter = LetterDocument(template)
-
-            # Preparar contexto completo
-            full_context = self._prepare_context(context, document_number)
-
-            # Criar conteúdo
             elements = letter.create_content(full_context)
 
-            # Gerar PDF (inclua o argumento `data=full_context`)
+            # 3. Gerar PDF
             template.build_letter(
-                elements, data=full_context, version=context.get('VS_M', 'v1.0'))
+                elements, data=full_context, version=full_context.get('VS_M', 'v1.0'))
 
             return output_path, output_filename
 
         except Exception as e:
             current_app.logger.error(f"Erro ao gerar ofício: {str(e)}")
             raise
-
-    def _prepare_context(self, context: Dict, document_number: str) -> Dict:
-        """
-        Prepara o contexto completo para geração do documento
-        
-        Args:
-            context: Contexto original
-            document_number: Número do documento
-            
-        Returns:
-            Contexto enriquecido com dados adicionais
-        """
-        # Criar uma cópia do contexto para não modificar o original
-        full_context = context.copy()
-
-        # Adicionar dados padrão se não existirem
-        defaults = {
-            'SUBJECT': 'Assunto: Autorização de Ligação',
-            'SIGNATURE_NAME': 'Paulo Jorge Catalino de Almeida Ferraz',
-            'NUMERO_OFICIO': document_number,
-            # Adicionar outros dados padrão conforme necessário
-        }
-
-        for key, value in defaults.items():
-            if key not in full_context:
-                full_context[key] = value
-
-        return full_context
 
     def save_attachment(self, file, regnumber: str, filename: str, current_user) -> bool:
         """
@@ -521,46 +461,45 @@ class FileService:
             return True
         except Exception as e:
             current_app.logger.error(f"Erro ao salvar anexo: {str(e)}")
-            return False
+            raise
 
-    def download_file(self, regnumber: str, filename: str, current_user) -> Any:
+    def download_file(self, regnumber: Optional[str], filename: str, current_user) -> Any:
         """
         Faz download de um arquivo
         
         Args:
-            regnumber: Número do registro
+            regnumber: Número do registro (opcional para ofícios livres)
             filename: Nome do arquivo
             current_user: Usuário atual
             
         Returns:
             Arquivo para download ou mensagem de erro
         """
-        try:
-            # Verificar ofício livre
-            if not regnumber and (filename.startswith('OF-') or filename.startswith('oficio_')):
-                file_path = os.path.join(self.base_path, 'letters', filename)
-                if os.path.exists(file_path):
-                    return send_file(file_path, as_attachment=True)
+        # 1. Tentar como ofício livre (sem regnumber)
+        if not regnumber:
+            file_path = os.path.join(self.base_path, 'letters', filename)
+            if os.path.exists(file_path):
+                return send_file(file_path, as_attachment=True)
+            else:
+                raise ResourceNotFoundError("Arquivo não encontrado.")
 
-            # Verificar nas pastas do pedido
-            if regnumber:
-                paths = self.ensure_directories(regnumber)
+        # 2. Tentar como ficheiro de um pedido (com regnumber)
+        paths = self.ensure_directories(regnumber)
 
-                # Tentar na pasta de ofícios
-                oficio_path = os.path.join(paths['oficios_path'], filename)
-                if os.path.exists(oficio_path):
-                    return send_file(oficio_path, as_attachment=True)
+        # Lista de pastas a verificar, por ordem de prioridade
+        possible_locations = [
+            os.path.join(paths['oficios_path'], filename),
+            os.path.join(paths['anexos_path'], filename),
+            os.path.join(paths['request_path'], filename) # Fallback para a raiz do pedido
+        ]
 
-                # Tentar na pasta de anexos
-                anexo_path = os.path.join(paths['anexos_path'], filename)
-                if os.path.exists(anexo_path):
-                    return send_file(anexo_path, as_attachment=True)
+        for file_path in possible_locations:
+            if os.path.exists(file_path):
+                return send_file(file_path, as_attachment=True)
 
-            return {'error': 'Arquivo não encontrado'}, 404
-
-        except Exception as e:
-            current_app.logger.error(f"Erro ao baixar arquivo: {str(e)}")
-            return {'error': 'Erro interno ao baixar arquivo'}, 500
+        # 3. Se não for encontrado em lado nenhum
+        current_app.logger.error(f"Arquivo não encontrado: reg: {regnumber}, file: {filename}")
+        raise ResourceNotFoundError("Arquivo não encontrado.")
 
     def _get_output_path(self, regnumber: str, filename: str, is_free_letter: bool) -> str:
         """Determina o caminho de saída para o arquivo"""

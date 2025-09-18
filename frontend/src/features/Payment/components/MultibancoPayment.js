@@ -10,10 +10,10 @@ import {
     Schedule,
     Security
 } from '@mui/icons-material';
-import { PaymentContext } from '../context/PaymentContext';
+import { useMutation } from '@tanstack/react-query';
+import paymentService from '../services/paymentService';
 
-const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
-    const { state, payWithMultibanco, resetPayment } = useContext(PaymentContext);
+const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount }) => {
     const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
     const [step, setStep] = useState('generate');
@@ -21,39 +21,23 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
 
     // Auto-detectar se já tem referência no state
     useEffect(() => {
-        if (state.reference && state.entity) {
+        // Esta lógica pode ser removida se o fluxo for sempre linear
+    }, []);
+
+    const { mutate: generateReference, isLoading } = useMutation({
+        mutationFn: () => paymentService.processMultibanco(transactionId),
+        onSuccess: (data) => {
             setReferenceData({
-                reference: state.reference,
-                entity: state.entity,
-                amount: state.amount
+                ...data,
+                amount: amount
             });
             setStep('reference');
-        }
-    }, [state.reference, state.entity, state.amount]);
-
-    const handleGenerate = async () => {
-        if (!transactionId) {
-            console.error('Transaction ID não encontrado');
-            return;
-        }
-
-        try {
-            const result = await payWithMultibanco();
-
-            // Fallback: se result não tem dados, usar do state
-            const refData = result || {
-                reference: state.reference,
-                entity: state.entity || '11249',
-                amount: state.amount
-            };
-
-            console.log('🏦 Dados Multibanco:', refData);
-            setReferenceData(refData);
-            setStep('reference');
-        } catch (err) {
+        },
+        onError: (err) => {
             console.error('❌ Erro Multibanco:', err);
         }
-    };
+    });
+
 
     const copyToClipboard = (text, field) => {
         navigator.clipboard.writeText(text);
@@ -69,7 +53,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
     const handleGenerateNew = async () => {
         setReferenceData(null);
         setStep('generate');
-        resetPayment();
+        // A lógica de reset agora pertence ao componente pai (PaymentModule)
     };
 
     const renderGenerate = () => (
@@ -105,7 +89,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                     }}
                 >
                     <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                        €{Number(state.amount || 0).toFixed(2)}
+                        €{Number(amount || 0).toFixed(2)}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
                         Valor a pagar
@@ -115,9 +99,9 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                 <Button
                     variant="contained"
                     size="large"
-                    onClick={handleGenerate}
-                    disabled={state.loading}
-                    startIcon={state.loading ? <CircularProgress size={20} color="inherit" /> : <BankIcon />}
+                    onClick={() => generateReference()}
+                    disabled={isLoading}
+                    startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <BankIcon />}
                     sx={{
                         px: 4,
                         py: 1.5,
@@ -125,7 +109,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                         background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
                     }}
                 >
-                    {state.loading ? 'A gerar...' : 'Gerar Referência'}
+                    {isLoading ? 'A gerar...' : 'Gerar Referência'}
                 </Button>
             </Box>
         </Fade>
@@ -175,11 +159,11 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                                         letterSpacing: 2
                                     }}
                                 >
-                                    {referenceData?.entity || state.entity || '11249'}
+                                    {referenceData?.entity || 'A carregar...'}
                                 </Typography>
                                 <IconButton
                                     size="small"
-                                    onClick={() => copyToClipboard(referenceData?.entity || state.entity, 'entity')}
+                                    onClick={() => copyToClipboard(referenceData?.entity, 'entity')}
                                     sx={{ color: 'white' }}
                                 >
                                     <CopyIcon fontSize="small" />
@@ -207,11 +191,11 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                                         letterSpacing: 2
                                     }}
                                 >
-                                    {referenceData?.reference || state.reference || 'A carregar...'}
+                                    {referenceData?.reference || 'A carregar...'}
                                 </Typography>
                                 <IconButton
                                     size="small"
-                                    onClick={() => copyToClipboard(referenceData?.reference || state.reference, 'ref')}
+                                    onClick={() => copyToClipboard(referenceData?.reference, 'ref')}
                                     sx={{ color: 'white' }}
                                 >
                                     <CopyIcon fontSize="small" />
@@ -232,7 +216,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete }) => {
                             Valor
                         </Typography>
                         <Typography variant="h3" sx={{ fontWeight: 600 }}>
-                            €{Number(state.amount || 0).toFixed(2)}
+                            €{Number(amount || 0).toFixed(2)}
                         </Typography>
                     </Box>
                 </Paper>

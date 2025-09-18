@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     Box,
     Button,
@@ -8,17 +8,17 @@ import {
     CircularProgress,
     Paper,
     InputAdornment,
-    Grid,
-    Divider
+    Grid
 } from '@mui/material';
 import { AccountBalance as BankIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
-import { PaymentContext } from '../context/PaymentContext';
 import { generateFilePreview } from '../../../pages/ModernDocuments/utils/fileUtils';
 import { addDocumentAnnex } from '../../../services/documentService';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import paymentService from '../services/paymentService';
 
-const BankTransferPayment = ({ onSuccess, userInfo }) => {
-    const { state, payManual } = useContext(PaymentContext);
+const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
+    const queryClient = useQueryClient();
 
     // Estados do formulário
     const [formData, setFormData] = useState({
@@ -30,6 +30,29 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
 
     const [attachments, setAttachments] = useState([]);
     const [error, setError] = useState('');
+
+    const { mutate: registerPayment, isLoading } = useMutation({
+        mutationFn: async (paymentData) => {
+            // 1. Registar o pagamento
+            const result = await paymentService.processManual(
+                paymentData.documentId,
+                paymentData.amount,
+                'BANK_TRANSFER',
+                paymentData.reference
+            );
+
+            // 2. Anexar ficheiros se o registo for bem-sucedido
+            if (paymentData.attachments.length > 0 && result.success) {
+                await addAttachmentsToDocument(paymentData.documentId, paymentData.attachments);
+            }
+            return result;
+        },
+        onSuccess: (result) => {
+            onSuccess?.(result);
+            queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+        },
+        onError: (err) => setError(err.message || 'Ocorreu um erro ao registar o pagamento.'),
+    });
 
     // Handler para mudanças no formulário
     const handleChange = (field) => (e) => {
@@ -74,13 +97,6 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
         setAttachments(updatedFiles);
     };
 
-    // Actualização de descrições
-    const handleAttachmentDescriptionChange = (index, value) => {
-        const updatedFiles = [...attachments];
-        updatedFiles[index].description = value;
-        setAttachments(updatedFiles);
-    };
-
     // Anexar comprovativos ao documento
     const addAttachmentsToDocument = async (documentId) => {
         if (attachments.length === 0) return true;
@@ -103,49 +119,31 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
         }
     };
 
-    // Validação do formulário
-    const validateForm = () => {
-        if (!formData.accountHolder.trim()) return 'Nome do titular obrigatório';
-        if (!formData.transferDate) return 'Data obrigatória';
-        if (attachments.length === 0) return 'Comprovativo obrigatório';
-
-        // Validar descrições dos anexos
-        for (let i = 0; i < attachments.length; i++) {
-            if (!attachments[i].description.trim()) {
-                return 'Todos os comprovativos devem ter descrição';
-            }
-        }
-
-        return null;
-    };
-
     // Submissão do pagamento
-    const handlePay = async () => {
-        const validation = validateForm();
-        if (validation) {
-            setError(validation);
+    const handlePay = () => {
+        if (!formData.accountHolder.trim()) {
+            setError('Nome do titular obrigatório');
+            return;
+        }
+        if (!formData.transferDate) {
+            setError('Data obrigatória');
+            return;
+        }
+        if (attachments.length === 0) {
+            setError('Comprovativo obrigatório');
             return;
         }
 
         setError('');
-        try {
-            // Criar referência detalhada
-            const referenceInfo = `Transferência de ${formData.accountHolder} em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''} [${attachments.length} anexo(s)]`;
 
-            const result = await payManual('BANK_TRANSFER', referenceInfo);
+        const referenceInfo = `Transferência de ${formData.accountHolder} em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''}`;
 
-            // Anexar comprovativos ao documento
-            if (attachments.length > 0) {
-                const attachmentSuccess = await addAttachmentsToDocument(state.documentId);
-                if (!attachmentSuccess) {
-                    console.warn('⚠️ Pagamento registado mas erro ao anexar comprovativos');
-                }
-            }
-
-            onSuccess?.(result);
-        } catch (err) {
-            setError(err.message);
-        }
+        registerPayment({
+            documentId,
+            amount,
+            reference: referenceInfo,
+            attachments
+        });
     };
 
     return (
@@ -157,7 +155,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                     Transferência Bancária
                 </Typography>
                 <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
-                    €{Number(state.amount || 0).toFixed(2)}
+                    €{Number(amount || 0).toFixed(2)}
                 </Typography>
             </Box>
 
@@ -177,10 +175,10 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
-                            <strong>Valor:</strong> €{Number(state.amount || 0).toFixed(2)}
+                            <strong>Valor:</strong> €{Number(amount || 0).toFixed(2)}
                         </Typography>
                         <Typography variant="body2">
-                            <strong>Referência:</strong> {state.documentId}
+                            <strong>Referência:</strong> {documentId}
                         </Typography>
                     </Grid>
                 </Grid>
@@ -242,7 +240,6 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
             </Grid>
 
             {/* Upload de comprovativos */}
-            <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle2" gutterBottom>
                 📎 Comprovativos (Obrigatório)
             </Typography>
@@ -261,7 +258,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                         '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
                     }}
                 >
-                    <input {...getInputProps()} />
+                    <input {...getInputProps()} disabled={isLoading} />
                     <UploadIcon sx={{ fontSize: 24, mb: 1, color: 'text.secondary' }} />
                     <Typography variant="body2">
                         {isDragActive ? 'Solte aqui...' : 'Clique ou arraste comprovativos'}
@@ -312,15 +309,6 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                                         <Typography variant="body2" fontWeight="medium" noWrap>
                                             {fileItem.file.name}
                                         </Typography>
-                                        <TextField
-                                            fullWidth
-                                            size="small"
-                                            label="Descrição"
-                                            value={fileItem.description}
-                                            onChange={(e) => handleAttachmentDescriptionChange(index, e.target.value)}
-                                            required
-                                            sx={{ mt: 1 }}
-                                        />
                                     </Box>
 
                                     <Box sx={{
@@ -361,8 +349,8 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                 fullWidth
                 variant="contained"
                 onClick={handlePay}
-                disabled={state.loading}
-                startIcon={state.loading ? <CircularProgress size={20} /> : <BankIcon />}
+                disabled={isLoading}
+                startIcon={isLoading ? <CircularProgress size={20} /> : <BankIcon />}
                 sx={{
                     background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
                     '&:hover': {
@@ -370,7 +358,7 @@ const BankTransferPayment = ({ onSuccess, userInfo }) => {
                     }
                 }}
             >
-                {state.loading ? 'A registar...' : 'Confirmar Transferência'}
+                {isLoading ? 'A registar...' : 'Confirmar Transferência'}
             </Button>
 
             <Alert severity="info" sx={{ mt: 2 }}>

@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from .. import db, cache
 import time
 from ..utils.utils import format_message, parse_xml_response, fs_setsession, add_token_to_blacklist, is_token_revoked, db_session_manager
+from ..utils.error_handler import APIError, InvalidCredentialsError, TokenExpiredError
 
 
 # Constante para o prefixo da chave de cache
@@ -67,7 +68,7 @@ def fsf_client_darkmodeclean(user_id, current_user):
             return s
     except Exception as e:
         current_app.logger.error(f"Erro ao atualizar o darkmode: {str(e)}")
-        return f"Erro ao atualizar o darkmode: {str(e)}"
+        raise APIError(f"Erro ao atualizar o darkmode: {str(e)}", 500)
 
 
 def fsf_client_darkmodeadd(user_id, current_user):
@@ -81,7 +82,7 @@ def fsf_client_darkmodeadd(user_id, current_user):
             return s
     except Exception as e:
         db.session.rollback()
-        return f"Erro ao atualizar o darkmode: {str(e)}"
+        raise APIError(f"Erro ao atualizar o darkmode: {str(e)}", 500)
 
 
 def is_temp_password(password):
@@ -97,21 +98,17 @@ def validate_session(session):
 
 def login_user(username, password):
     try:
-        # current_app.logger.debug(f"Iniciando processo de login para: {username}")
-        session_id, profil, error_message = fs_login(username, password)
-        if session_id is None:
-            # current_app.logger.warning(f"Login falhou para {username} - Razão: {error_message}")
-            return None, 'Utilizador ou password incorretos'
-
-        # current_app.logger.debug(f"Login bem-sucedido para {username}. Obtendo informações do usuário...")
+        # fs_login agora lança InvalidCredentialsError em caso de falha
+        session_id, profil = fs_login(username, password)
 
         with db_session_manager(session_id) as session:
             user_info_query = text("SELECT * FROM vsl_client$self")
             user_info_result = session.execute(user_info_query).fetchone()
 
             if user_info_result is None:
-                current_app.logger.error(f"Informações do usuário não encontradas para: {username}")
-                return None, 'Erro ao obter informações do utilizador'
+                # Se o login teve sucesso mas não encontramos o user, é um erro de servidor
+                current_app.logger.error(f"Informações do utilizador não encontradas para {username} após login bem-sucedido.")
+                raise APIError('Erro ao obter informações do utilizador após o login.', 500)
 
             interfaces_query = text("""
                 SELECT COALESCE(interface, ARRAY[]::integer[]) as interfaces 
@@ -134,20 +131,17 @@ def login_user(username, password):
                 'entity': user_info_result.ts_entity,
             }
 
-        # current_app.logger.debug(f"Informações do usuário obtidas com sucesso para: {username}")
         update_last_activity(user_data['user_id'])
 
-        # current_app.logger.debug("Gerando tokens...")
         access_token, refresh_token = create_tokens(user_data)
         user_data['access_token'] = access_token
         user_data['refresh_token'] = refresh_token
 
-        # current_app.logger.info(f"Login concluído com sucesso para {username} com session_id: {session_id}")
-        return user_data, None
+        current_app.logger.info(f"Login concluído com sucesso para {username} com session_id: {session_id}")
+        return user_data
     except Exception as e:
-        current_app.logger.error(
-            f'Erro durante o processo de login para {username}: {str(e)}', exc_info=True)
-        return None, 'Erro durante o processo de login'
+        current_app.logger.error(f'Erro durante o processo de login para {username}: {str(e)}', exc_info=True)
+        raise # Re-lança a exceção para ser tratada pelo @api_error_handler
 
 
 def create_tokens(user_data, refresh_count=0):
@@ -159,6 +153,7 @@ def create_tokens(user_data, refresh_count=0):
         "user_id": user_data['user_id'],
         "profil": user_data['profil'],  # ← NOVO: Incluir profil
         "entity": user_data.get('entity'),  # ← NOVO: Incluir entity também
+        "interfaces": user_data.get('interfaces', []), # ← NOVO: Incluir interfaces
         "user_name": user_data.get('user_name'),  # ← ÚTIL para debug
         "created_at": current_time.timestamp(),
         "last_activity": current_time.timestamp()
@@ -185,26 +180,23 @@ def create_tokens(user_data, refresh_count=0):
 
 def fs_login(username, password):
     try:
-        # current_app.logger.debug(f"Chamando fs_login para usuário: {username}")
         query = text("SELECT * FROM fs_login(:username, :password)")
         result = db.session.execute(
             query, {'username': username, 'password': password}).fetchone()
         if result:
             message = result[0]
-            # current_app.logger.debug(f"Resposta recebida de fs_login: {message}")
             session_id, profil, error_message = parse_xml_response(message)
             if error_message:
-                # current_app.logger.warning(f"Erro retornado por fs_login: {error_message}")
-                return None, None, format_message(error_message)
-            # current_app.logger.info(f'Login bem-sucedido para {username} com perfil {profil}')
+                raise InvalidCredentialsError(format_message(error_message))
             db.session.commit()
-            return session_id, profil, None
-        # current_app.logger.warning(f"fs_login não retornou resultado esperado para {username}")
-        return None, None, 'Login function did not return expected result'
+            return session_id, profil
+        raise InvalidCredentialsError('Resposta inválida do procedimento de login.')
     except Exception as e:
-        error_message = str(e)
-        # current_app.logger.error(f'Erro ao executar fs_login para {username}: {error_message}', exc_info=True)
-        return None, None, format_message(error_message)
+        current_app.logger.error(f'Erro ao executar fs_login para {username}: {str(e)}', exc_info=True)
+        # Se não for uma InvalidCredentialsError, lança um erro genérico
+        if not isinstance(e, InvalidCredentialsError):
+            raise APIError(f"Erro inesperado no login: {format_message(str(e))}", 500)
+        raise e
 
 
 def decode_token(token):
@@ -224,7 +216,7 @@ def refresh_access_token(refresh_token, client_time, server_time):
 
         # Verificar se o token foi descodificado corretamente e se é um token de refresh
         if not decoded_token or decoded_token.get('token_type') != 'refresh':
-            return None, "Token inválido para atualização", 401
+            raise InvalidTokenError("Token inválido para atualização")
 
         # ✅ EXTRAIR PROFIL E ENTITY DO TOKEN
         user_data = {
@@ -233,6 +225,7 @@ def refresh_access_token(refresh_token, client_time, server_time):
             'session_id': decoded_token.get('session_id'),
             'profil': decoded_token.get('profil'),  # ← NOVO: Extrair profil
             'entity': decoded_token.get('entity'),   # ← NOVO: Extrair entity
+            'interfaces': decoded_token.get('interfaces', []), # ← NOVO: Extrair interfaces
             'notification_count': decoded_token.get('notification_count'),
             'dark_mode': decoded_token.get('dark_mode'),
             'vacation': decoded_token.get('vacation'),
@@ -246,7 +239,7 @@ def refresh_access_token(refresh_token, client_time, server_time):
         if token_created_at_timestamp is None or last_activity_timestamp is None:
             current_app.logger.error(
                 f"Campos do token em falta: created_at={token_created_at_timestamp}, last_activity={last_activity_timestamp}")
-            return None, "Os dados do token estão incompletos", 400
+            raise InvalidTokenError("Os dados do token estão incompletos")
 
         # Calcular a idade do token com base no tempo de criação
         token_created_at = datetime.fromtimestamp(
@@ -254,15 +247,15 @@ def refresh_access_token(refresh_token, client_time, server_time):
         token_age = server_time - token_created_at
 
         if token_age > current_app.config['REFRESH_TOKEN_EXPIRES']:
-            return None, "Token de atualização expirado", 419
+            raise TokenExpiredError("Token de atualização expirado")
 
         last_activity = datetime.fromtimestamp(
             last_activity_timestamp, timezone.utc)
         if (server_time - last_activity) > timedelta(hours=2):
-            return None, "Sessão expirada por inatividade total", 419
+            raise TokenExpiredError("Sessão expirada por inatividade total")
 
         if (server_time - client_time).total_seconds() > current_app.config['INACTIVITY_TIMEOUT'].total_seconds():
-            return None, "Sessão expirada por inatividade", 419
+            raise TokenExpiredError("Sessão expirada por inatividade")
 
         # Incrementar o contador de atualizações e criar novos tokens
         refresh_count += 1
@@ -278,17 +271,18 @@ def refresh_access_token(refresh_token, client_time, server_time):
             "user_name": user_data['user_name'],
             "profil": user_data['profil'],  # ← NOVO: Incluir no retorno
             "entity": user_data['entity'],   # ← NOVO: Incluir no retorno
+            "interfaces": user_data['interfaces'], # ← NOVO: Incluir no retorno
             "session_id": user_data['session_id'],
             "notification_count": user_data['notification_count'],
             "dark_mode": user_data['dark_mode'],
             "vacation": user_data['vacation'],
             "access_token": new_access_token,
             "refresh_token": new_refresh_token
-        }, None, 200
+        }
 
     except Exception as e:
         current_app.logger.error(f"Erro ao renovar token: {str(e)}")
-        return None, str(e), 500
+        raise # Re-lança a exceção para ser tratada pelo controller
 
 
 def update_last_activity(current_user):
@@ -379,7 +373,7 @@ def logout_user(user_identity):
         return True
     except Exception as e:
         current_app.logger.error(f"Erro ao fazer logout: {str(e)}")
-        return False
+        raise
 
 
 def fs_passwd_recover(email):

@@ -1,53 +1,40 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchOperationsData } from "../services/operationsService";
 import { sortViews } from "../pages/Operação/operationsHelpers";
+import { useMetaData } from "../contexts/MetaDataContext";
 
 export const useOperationsData = () => {
-    const [operationsData, setOperationsData] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [metaData, setMetaData] = useState(null);
-    const [associates, setAssociates] = useState(["all"]);
+    const { metaData } = useMetaData();
 
-    useEffect(() => {
-        const loadOperationsData = async () => {
-            try {
-                const data = await fetchOperationsData();
-                setOperationsData(data);
+    const { data: operationsData, isLoading: loading, error } = useQuery({
+        queryKey: ['operationsData'],
+        queryFn: () => fetchOperationsData(),
+        staleTime: 1000 * 60 * 5, // Cache de 5 minutos
+        refetchOnWindowFocus: false,
+    });
 
-                const storedMetaData = localStorage.getItem("metaData");
-                if (storedMetaData) {
-                    setMetaData(JSON.parse(storedMetaData).data);
+    const associates = useMemo(() => {
+        if (!operationsData) return ["all"];
+
+        const uniqueAssociates = new Set(["all"]);
+        Object.values(operationsData).forEach(item => {
+            item.data.forEach(d => {
+                if (d.ts_associate && typeof d.ts_associate === 'string' && isNaN(Number(d.ts_associate))) {
+                    uniqueAssociates.add(d.ts_associate);
                 }
+            });
+        });
+        return Array.from(uniqueAssociates);
+    }, [operationsData]);
 
-                // Filtro para associados válidos
-                const uniqueAssociates = [
-                    "all",
-                    ...new Set(
-                        Object.values(data)
-                            .flatMap((item) => item.data.map((d) => d.ts_associate))
-                            .filter(associate =>
-                                associate &&
-                                typeof associate === 'string' &&
-                                isNaN(Number(associate))
-                            )
-                    )
-                ];
-                setAssociates(uniqueAssociates);
-            } catch (error) {
-                console.error("Erro ao carregar dados de operações:", error);
-                setError(
-                    "Falha ao carregar dados de operações. Por favor, tente novamente mais tarde."
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadOperationsData();
-    }, []);
-
-    return { operationsData, loading, error, metaData, associates };
+    return { 
+        operationsData: operationsData || {}, 
+        loading, 
+        error, 
+        metaData, // Vem do hook useMetaData
+        associates 
+    };
 };
 
 export const useOperationsFiltering = (operationsData) => {

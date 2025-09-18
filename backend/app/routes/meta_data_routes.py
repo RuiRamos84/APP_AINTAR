@@ -15,22 +15,10 @@ bp = Blueprint('meta_data_routes', __name__)
 @api_error_handler
 def get_meta_data_route():
     """Obtém metadados"""
-    try:
-        current_user = get_jwt_identity()
-        with db_session_manager(current_user):
-            # current_app.logger.info("Iniciando requisição de metadados")
-            # current_app.logger.debug(f"JWT Identity: {get_jwt_identity()}")
-            # current_app.logger.debug(f"Current User: {g.current_user if hasattr(g, 'current_user') else 'Not set'}")
-
-            metadata, status_code = fetch_meta_data(current_user)
-            # current_app.logger.info(f"Metadados obtidos com sucesso. Status code: {status_code}")
-            return jsonify(metadata), status_code
-    except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de banco de dados ao buscar metadados: {str(e)}")
-        return jsonify({"error": "Erro de banco de dados ao buscar metadados"}), 500
-    except Exception as e:
-        current_app.logger.error(f"Erro inesperado em get_meta_data_route: {str(e)}")
-        return jsonify({"error": "Erro interno do servidor ao buscar metadados"}), 500
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        metadata, status_code = fetch_meta_data(current_user)
+        return jsonify(metadata), status_code
 
 
 @bp.route('/clear-metadata-cache', methods=['POST'])

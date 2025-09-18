@@ -1,155 +1,92 @@
-// hooks/useRouteConfig.js
-import { useAuth } from '../contexts/AuthContext';
-import { ROUTE_CONFIG, getRouteConfig, getRoutePermissions, getSidebarItems } from '../config/routeConfig';
+// hooks/useRouteConfig.js - VERSÃO COM DEBUG TEMPORÁRIO
+import { useCallback, useMemo } from 'react';
+import { usePermissionContext } from '../contexts/PermissionContext';
+import { ROUTE_CONFIG } from '../config/routeConfig';
+import { Home as HomeIcon } from '@mui/icons-material';
 
 export const useRouteConfig = () => {
-    const { user } = useAuth();
+    const { hasPermission, hasAnyPermission, checkPermissions } = usePermissionContext();
 
-    // ===== VALIDAÇÃO DE PERMISSÕES =====
+    const canAccessRoute = useCallback((path, additionalConfig = {}) => {
+        // CORREÇÃO: Se o 'path' não é uma rota (não começa com '/'),
+        // significa que é uma ação (ex: 'add-entity-action').
+        // Nesse caso, as permissões estão no 'additionalConfig'.
+        const routeConfig = path.startsWith('/') ? ROUTE_CONFIG[path] : null;
+        
+        // Se não há configuração de rota e nem configuração adicional, permitir.
+        // Ou se a rota não existe no ROUTE_CONFIG (pode ser uma sub-rota dinâmica).
+        if (!routeConfig && Object.keys(additionalConfig).length === 0) return true;
 
-    const hasAccess = (requiredInterface) => {
-        if (user?.profil === '0') return true;
-        if (!user?.interfaces || !Array.isArray(user.interfaces)) return false;
-        return user.interfaces.includes(requiredInterface);
-    };
+        const permissions = { ...(routeConfig?.permissions || {}), ...additionalConfig };
 
-    const hasPermission = (config) => {
-        if (!user) return false;
-        if (user.profil === '0') return true;
+        // Se não há requisitos de permissão, permitir acesso
+        if (!permissions.required) return true;
 
-        // 1. Perfil + Interface
-        if (config.requiredProfil && config.requiredInterface) {
-            return user.profil === config.requiredProfil &&
-                hasAccess(config.requiredInterface);
-        }
+        return hasPermission(permissions.required);
+    }, [hasPermission]);
 
-        // 2. Só Perfil
-        if (config.requiredProfil) {
-            return user.profil === config.requiredProfil;
-        }
+    const getAccessibleSidebarItems = useCallback(() => {
+        const sidebarItems = Object.entries(ROUTE_CONFIG)
+            .filter(([_, config]) => config.showInSidebar);
 
-        // 3. Só Interface  
-        if (config.requiredInterface) {
-            return hasAccess(config.requiredInterface);
-        }
+        const accessibleItems = [];
 
-        // 4. Legacy (rolesAllowed)
-        if (config.rolesAllowed) {
-            const hasRole = config.rolesAllowed.includes(user.profil);
-            const hasUserId = !config.allowedUserIds ||
-                config.allowedUserIds.includes(user.user_id);
-            return hasRole && hasUserId;
-        }
+        for (const [path, config] of sidebarItems) {
 
-        return true;
-    };
+            let hasAccess = canAccessRoute(path);
 
-    // ===== FUNÇÕES PRINCIPAIS =====
+            // LÓGICA ADICIONAL: Se não tem acesso direto, verificar submenus
+            if (!hasAccess && config.submenu) {
+                const submenuPermissions = Object.values(config.submenu)
+                    .map(sub => sub.permissions?.required)
+                    .filter(Boolean);
 
-    const hasRouteAccess = (path) => {
-        const permissions = getRoutePermissions(path);
-        return hasPermission(permissions);
-    };
-
-    const getAccessibleRoutes = () => {
-        return Object.entries(ROUTE_CONFIG)
-            .filter(([path]) => hasRouteAccess(path))
-            .reduce((acc, [path, config]) => ({ ...acc, [path]: config }), {});
-    };
-
-    const getAccessibleSidebarItems = () => {
-        const sidebarItems = getSidebarItems();
-
-        return sidebarItems.filter(item => {
-            const hasAccess = hasPermission(item.permissions);
-
-            // Se tem submenu, filtrar também os itens do submenu
-            if (item.submenu && hasAccess) {
-                const accessibleSubmenu = {};
-
-                Object.entries(item.submenu).forEach(([key, subItem]) => {
-                    if (hasPermission(subItem.permissions)) {
-                        // CORREÇÃO: Transferir a chave como 'to' se o subitem não tiver 'to' definido
-                        const processedSubItem = {
-                            ...subItem,
-                            // Se a chave parece uma URL (começa com '/') e o subitem não tem 'to', usar a chave
-                            to: subItem.to || (key.startsWith('/') ? key : undefined)
-                        };
-
-                        accessibleSubmenu[key] = processedSubItem;
-
-                        // console.log('🔧 Processed submenu item:', {
-                        //     key,
-                        //     originalTo: subItem.to,
-                        //     newTo: processedSubItem.to,
-                        //     text: subItem.text
-                        // });
-                    }
-                });
-
-                item.submenu = accessibleSubmenu;
+                if (submenuPermissions.length > 0) {
+                    // CORREÇÃO: Usar hasAnyPermission para verificar se o utilizador tem acesso a pelo menos um dos sub-itens.
+                    hasAccess = hasAnyPermission(submenuPermissions);
+                }
             }
 
-            return hasAccess;
-        });
-    };
+            if (hasAccess) {
+                const item = { ...config, to: path, id: path };
 
-    const canAccessRoute = (path, additionalConfig = {}) => {
-        const routePermissions = getRoutePermissions(path);
-        const combinedConfig = { ...routePermissions, ...additionalConfig };
-        return hasPermission(combinedConfig);
-    };
+                // Otimização: Filtrar submenu apenas se existir
+                if (config.submenu && Object.keys(config.submenu).length > 0) {
+                    const submenuEntries = Object.entries(config.submenu);
 
-    // ===== FUNÇÕES UTILITÁRIAS =====
+                    const accessibleSubmenu = submenuEntries.reduce((acc, [subPath, subConfig]) => {
+                        // CORREÇÃO: Chamar canAccessRoute para cada sub-item e verificar o resultado booleano.
+                        // Passar as permissões do sub-item como configuração adicional.
+                        const subPermissions = subConfig.permissions || {};
+                        if (canAccessRoute(subPath, subPermissions)) {
+                            acc[subPath] = {
+                                ...subConfig
+                            };
+                            // CORREÇÃO: Apenas atribuir 'to' se não houver uma ação 'onClick'.
+                            // Isto previne que itens como "Adicionar Entidade" tenham uma rota e uma ação.
+                            if (!subConfig.onClick) {
+                                acc[subPath].to = subConfig.to || (subPath.startsWith('/') ? subPath : undefined);
+                            };
+                        }
+                        return acc;
+                    }, {});
 
-    const getRouteInfo = (path) => {
-        return getRouteConfig(path);
-    };
+                    // Apenas adicionar submenu se tiver itens acessíveis
+                    if (Object.keys(accessibleSubmenu).length > 0) {
+                        item.submenu = accessibleSubmenu;
+                    }
+                }
 
-    const isPublicRoute = (path) => {
-        const publicRoutes = [
-            '/',
-            '/login',
-            '/create-user',
-            '/activation',
-            '/password-recovery',
-            '/reset-password'
-        ];
-        return publicRoutes.some(route => path.startsWith(route));
-    };
+                accessibleItems.push(item);
+            }
+        }
 
-    const getRequiredPermissionsForRoute = (path) => {
-        return getRoutePermissions(path);
-    };
-
-    // ===== COMPATIBILIDADE =====
-
-    // Manter compatibilidade com usePermissions anterior
-    const hasAccessLegacy = hasAccess;
-    const hasPermissionLegacy = hasPermission;
+        return accessibleItems;
+    }, [canAccessRoute, hasAnyPermission]);
 
     return {
-        // Principais
-        hasRouteAccess,
-        getAccessibleRoutes,
-        getAccessibleSidebarItems,
         canAccessRoute,
-
-        // Utilitárias
-        getRouteInfo,
-        getRoutePermissions,
-        getRequiredPermissionsForRoute,
-        isPublicRoute,
-
-        // Permissões básicas
-        hasAccess,
-        hasPermission,
-
-        // Compatibilidade
-        hasAccessLegacy,
-        hasPermissionLegacy,
-
-        // Dados
+        getAccessibleSidebarItems,
         routeConfig: ROUTE_CONFIG
     };
 };

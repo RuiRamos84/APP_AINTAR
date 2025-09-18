@@ -43,7 +43,6 @@ export const usePavimentationActions = (onSuccess, onError, options = {}) => {
      */
     const executeAction = useCallback(async (pavimentationId, actionId, actionOptions = {}) => {
         try {
-            // Validações iniciais
             const actionConfig = StatusUtils.getActionConfig(actionId);
             if (!actionConfig) {
                 throw new Error(`Ação inválida: ${actionId}`);
@@ -69,7 +68,6 @@ export const usePavimentationActions = (onSuccess, onError, options = {}) => {
             const abortController = new AbortController();
             abortControllersRef.current.set(actionKey, abortController);
 
-            // Configurar timeout
             const timeoutId = setTimeout(() => {
                 abortController.abort();
             }, config.timeout);
@@ -77,7 +75,7 @@ export const usePavimentationActions = (onSuccess, onError, options = {}) => {
             try {
                 console.log(`🎬 Executando ação: ${actionId} na pavimentação ${pavimentationId}`);
 
-                // Executar ação no serviço
+                // Executar ação no serviço (com anexos se fornecidos)
                 const result = await pavimentationService.executeAction(
                     pavimentationId,
                     actionId,
@@ -99,15 +97,19 @@ export const usePavimentationActions = (onSuccess, onError, options = {}) => {
                         timestamp: new Date(),
                         success: true,
                         result,
-                        duration: Date.now() - pendingActions.get(actionKey)?.startTime
+                        duration: Date.now() - pendingActions.get(actionKey)?.startTime,
+                        hasAttachments: actionOptions.attachments?.length > 0
                     };
 
-                    setActionHistory(prev => [historyEntry, ...prev.slice(0, 99)]); // Manter últimas 100
+                    setActionHistory(prev => [historyEntry, ...prev.slice(0, 99)]);
                 }
 
                 // Notificar sucesso
                 if (config.showNotifications) {
-                    notifySuccess(result.message || actionConfig.successMessage);
+                    const message = result.attachmentsProcessed > 0
+                        ? `${result.message} (${result.attachmentsProcessed} anexo(s) adicionado(s))`
+                        : result.message || actionConfig.successMessage;
+                    notifySuccess(message);
                 }
 
                 // Chamar callback de sucesso

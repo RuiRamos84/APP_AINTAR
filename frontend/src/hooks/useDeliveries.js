@@ -1,22 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as epiService from '../services/episervice';
 
 export const useDeliveries = (employeeId, type = 'all') => {
-    const [deliveries, setDeliveries] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const queryClient = useQueryClient();
     const [pagination, setPagination] = useState({
         page: 0,
         pageSize: 10,
-        total: 0
     });
 
-    const fetchDeliveries = useCallback(async () => {
-        if (!employeeId) return;
+    const queryKey = ['deliveries', employeeId, type, pagination.page, pagination.pageSize];
 
-        try {
-            setLoading(true);
-            setError(null);
+    const { data, isLoading: loading, error, refetch } = useQuery({
+        queryKey,
+        queryFn: async () => {
+            if (!employeeId) return { deliveries: [], total: 0 };
 
             const response = await epiService.getEpiDeliveries({
                 employeeId,
@@ -24,45 +22,28 @@ export const useDeliveries = (employeeId, type = 'all') => {
                 page: pagination.page,
                 pageSize: pagination.pageSize
             });
+            return response;
+        },
+        enabled: !!employeeId,
+        keepPreviousData: true, // Mantém os dados anteriores visíveis durante o fetch de novas páginas
+    });
 
-            // Reset deliveries quando mudar o funcionário
-            if (pagination.page === 0) {
-                setDeliveries(response.deliveries);
-            } else {
-                setDeliveries(prev => [...prev, ...response.deliveries]);
-            }
-
-            setPagination(prev => ({
-                ...prev,
-                total: response.total
-            }));
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [employeeId, type, pagination.page, pagination.pageSize]);
-
-    // Reset pagination quando mudar o funcionário ou tipo
-    useEffect(() => {
-        setPagination(prev => ({ ...prev, page: 0 }));
-    }, [employeeId, type]);
-
-    useEffect(() => {
-        fetchDeliveries();
-    }, [fetchDeliveries]);
+    const { mutate: addDelivery, isLoading: isAdding } = useMutation({
+        mutationFn: (deliveryData) => epiService.createEpiDelivery(deliveryData),
+        onSuccess: () => {
+            // Invalida a query para forçar a atualização da lista
+            queryClient.invalidateQueries({ queryKey: ['deliveries', employeeId] });
+        },
+    });
 
     return {
-        deliveries,
+        deliveries: data?.deliveries || [],
         loading,
         error,
         pagination,
-        setPagination,
-        refetch: fetchDeliveries,
-        addDelivery: async (data) => {
-            const newDelivery = await epiService.createEpiDelivery(data);
-            setDeliveries(prev => [newDelivery, ...prev]);
-            return newDelivery;
-        }
+        total: data?.total || 0,
+        refetch,
+        addDelivery,
+        isAdding,
     };
 };

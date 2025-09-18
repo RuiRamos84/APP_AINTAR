@@ -1,173 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Paper, Tabs, Tab } from '@mui/material';
-import { useMetaData } from '../../contexts/MetaDataContext';
-import { getAllDashboardData } from '../../services/dashboardService';
-import { DEFAULT_VIEW_TYPES } from './constants';
-import { getViewTitle } from './utils/viewHelpers';
+import React, { useState } from 'react';
+import {
+    Box,
+    Typography,
+    CircularProgress,
+    Alert,
+    Grid,
+    Paper,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel
+} from '@mui/material';
+import { useDashboardData } from '../../hooks/useDashboardData';
 
-// Ícones
-import DonutLargeIcon from '@mui/icons-material/DonutLarge';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import PersonIcon from '@mui/icons-material/Person';
+// Um componente de exemplo para mostrar um cartão de dados
+const DataCard = ({ title, data }) => (
+    <Paper elevation={3} sx={{ p: 2, textAlign: 'center', height: '100%' }}>
+        <Typography variant="h6" color="text.secondary">{title}</Typography>
+        {data ? (
+            <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
+                {data.total || 0}
+            </Typography>
+        ) : (
+            <Typography variant="body2" color="text.secondary">Sem dados</Typography>
+        )}
+    </Paper>
+);
 
-// Componentes
-import LoadingView from './components/LoadingView';
-import ErrorView from './components/ErrorView';
-import DashboardHeader from './components/DashboardHeader';
-import SummaryStats from './components/SummaryStats';
-import OverviewTab from './tabs/OverviewTab';
-import DetailsTab from './DetailsTab'; // Corrigido o caminho de importação
-import PerformanceTab from './tabs/PerformanceTab';
-
-/**
- * Componente principal do Dashboard
- * 
- * @returns {React.ReactElement}
- */
 const Dashboard = () => {
-  const { metaData } = useMetaData();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [dashboardData, setDashboardData] = useState({});
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [availableYears, setAvailableYears] = useState([]);
-  const [tabValue, setTabValue] = useState(0);
-  const [viewTypes, setViewTypes] = useState(DEFAULT_VIEW_TYPES);
-  const [animationComplete, setAnimationComplete] = useState(false);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const { dashboardData, isLoading, isError, error } = useDashboardData(selectedYear);
 
-  // Efeito para carregar os dados iniciais
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        // Buscar dados do dashboard
-        const dashboardDataResponse = await getAllDashboardData(selectedYear);
-        setDashboardData(dashboardDataResponse);
-
-        console.log("Dados do dashboard carregados:", dashboardDataResponse);
-
-        // Extrair anos disponíveis
-        // Na implementação real, isso poderia vir da API
-        const currentYear = new Date().getFullYear();
-        const yearsArray = Array.from(
-          { length: 5 },
-          (_, i) => (currentYear - i).toString()
-        );
-        setAvailableYears(yearsArray);
-
-        setLoading(false);
-
-        // Permitir que as animações iniciais sejam concluídas
-        setTimeout(() => {
-          setAnimationComplete(true);
-        }, 300);
-      } catch (err) {
-        console.error("Erro ao carregar dados do dashboard:", err);
-        setError(
-          "Não foi possível carregar os dados do dashboard. Por favor, tente novamente mais tarde."
-        );
-        setLoading(false);
-      }
+    const handleYearChange = (event) => {
+        setSelectedYear(event.target.value);
     };
 
-    fetchData();
-  }, [selectedYear]);
+    const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  // Manipuladores de eventos
-  const handleYearChange = (year) => {
-    setSelectedYear(year);
-  };
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>A carregar dados do Dashboard...</Typography>
+            </Box>
+        );
+    }
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
+    if (isError) {
+        return (
+            <Alert severity="error" sx={{ m: 3 }}>
+                Ocorreu um erro ao carregar os dados do Dashboard: {error.message}
+            </Alert>
+        );
+    }
 
-  const handleRefresh = () => {
-    setAnimationComplete(false);
-    getAllDashboardData(selectedYear).then((data) => {
-      setDashboardData(data);
-      setTimeout(() => {
-        setAnimationComplete(true);
-      }, 300);
-    });
-  };
+    return (
+        <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h4" gutterBottom>
+                    Dashboard Operacional
+                </Typography>
+                <FormControl sx={{ minWidth: 120 }} size="small">
+                    <InputLabel>Ano</InputLabel>
+                    <Select value={selectedYear} label="Ano" onChange={handleYearChange}>
+                        {years.map(year => (
+                            <MenuItem key={year} value={year}>{year}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Box>
 
-  const handleViewTypeChange = (viewName, newViewType) => {
-    setViewTypes(prev => ({
-      ...prev,
-      [viewName]: newViewType
-    }));
-  };
-
-  // Função para obter título da view com metadados
-  const getViewTitleWithMetadata = (viewName) => {
-    return getViewTitle(metaData, viewName);
-  };
-
-  // Renderização condicional para estados de loading e erro
-  if (loading) return <LoadingView />;
-  if (error) return <ErrorView error={error} onRetry={handleRefresh} />;
-
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* Cabeçalho */}
-      <DashboardHeader
-        selectedYear={selectedYear}
-        availableYears={availableYears}
-        onYearChange={handleYearChange}
-        onRefresh={handleRefresh}
-      />
-
-      {/* Cards de estatísticas */}
-      <SummaryStats
-        data={dashboardData}
-        animationComplete={animationComplete}
-      />
-
-      {/* Tabs para organizar visualizações */}
-      <Paper sx={{ mb: 3 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ borderBottom: 1, borderColor: "divider" }}
-        >
-          <Tab icon={<DonutLargeIcon />} label="Visão Geral" />
-          <Tab icon={<AssessmentIcon />} label="Análise Detalhada" />
-          <Tab icon={<PersonIcon />} label="Desempenho por Técnico" />
-        </Tabs>
-      </Paper>
-
-      {/* Conteúdo das tabs */}
-      {tabValue === 0 && (
-        <OverviewTab
-          data={dashboardData}
-          viewTypes={viewTypes}
-          onViewTypeChange={handleViewTypeChange}
-          getViewTitle={getViewTitleWithMetadata}
-        />
-      )}
-
-      {tabValue === 1 && (
-        <DetailsTab
-          data={dashboardData}
-          viewTypes={viewTypes}
-          onViewTypeChange={handleViewTypeChange}
-          getViewTitle={getViewTitleWithMetadata}
-        />
-      )}
-
-      {tabValue === 2 && (
-        <PerformanceTab
-          data={dashboardData}
-          viewTypes={viewTypes}
-          onViewTypeChange={handleViewTypeChange}
-          getViewTitle={getViewTitleWithMetadata}
-        />
-      )}
-    </Box>
-  );
+            <Grid container spacing={3}>
+                {dashboardData && Object.entries(dashboardData).map(([key, value]) => (
+                    <Grid item xs={12} sm={6} md={4} key={key}>
+                        <DataCard title={value?.name || key} data={value} />
+                    </Grid>
+                ))}
+            </Grid>
+        </Box>
+    );
 };
 
 export default Dashboard;

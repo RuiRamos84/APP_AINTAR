@@ -1,44 +1,100 @@
+// frontend/src/hooks/usePermissions.js - ATUALIZADO
+
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import permissionService from '../services/permissionService';
 
 export const usePermissions = () => {
     const { user } = useAuth();
+    const [permissions, setPermissions] = useState(new Set());
+    const [loading, setLoading] = useState(false);
 
-    const hasAccess = (requiredInterface) => {
+    // Carregar permissões do utilizador
+    const loadUserPermissions = useCallback(async () => {
+        if (!user) {
+            setPermissions(new Set());
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const userPermissions = await permissionService.getUserPermissions();
+            setPermissions(new Set(userPermissions));
+        } catch (error) {
+            console.error('Erro carregar permissões:', error);
+            setPermissions(new Set());
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        loadUserPermissions();
+    }, [loadUserPermissions]);
+
+    /**
+     * Verificar se tem permissão específica
+     */
+    const hasPermission = useCallback(async (permission) => {
+        // Super admin sempre tem acesso
         if (user?.profil === '0') return true;
-        if (!user?.interfaces || !Array.isArray(user.interfaces)) return false;
-        return user.interfaces.includes(requiredInterface);
-    };
 
-    const hasPermission = (config) => {
-        if (!user) return false;
-        if (user.profil === '0') return true;
+        // Verificar no cache local primeiro
+        if (permissions.has(permission)) return true;
 
-        // 1. Perfil + Interface
-        if (config.requiredProfil && config.requiredInterface) {
-            return user.profil === config.requiredProfil &&
-                hasAccess(config.requiredInterface);
+        // Verificar via API se não estiver no cache
+        return await permissionService.hasPermission(permission);
+    }, [user, permissions]);
+
+    /**
+     * Verificar múltiplas permissões
+     */
+    const hasAnyPermission = useCallback(async (permissionList) => {
+        if (user?.profil === '0') return true;
+
+        for (const permission of permissionList) {
+            if (await hasPermission(permission)) {
+                return true;
+            }
         }
+        return false;
+    }, [user, hasPermission]);
 
-        // 2. Só Perfil
-        if (config.requiredProfil) {
-            return user.profil === config.requiredProfil;
+    /**
+     * Verificar todas as permissões
+     */
+    const hasAllPermissions = useCallback(async (permissionList) => {
+        if (user?.profil === '0') return true;
+
+        for (const permission of permissionList) {
+            if (!(await hasPermission(permission))) {
+                return false;
+            }
         }
-
-        // 3. Só Interface  
-        if (config.requiredInterface) {
-            return hasAccess(config.requiredInterface);
-        }
-
-        // 4. Legacy (rolesAllowed)
-        if (config.rolesAllowed) {
-            const hasRole = config.rolesAllowed.includes(user.profil);
-            const hasUserId = !config.allowedUserIds ||
-                config.allowedUserIds.includes(user.user_id);
-            return hasRole && hasUserId;
-        }
-
         return true;
-    };
+    }, [user, hasPermission]);
 
-    return { hasAccess, hasPermission };
+    /**
+     * Verificar permissões batch
+     */
+    const checkPermissions = useCallback(async (permissionMap) => {
+        if (user?.profil === '0') {
+            return Object.keys(permissionMap).reduce((acc, key) => {
+                acc[key] = true;
+                return acc;
+            }, {});
+        }
+
+        return await permissionService.checkBatchPermissions(permissionMap);
+    }, [user]);
+
+    return {
+        permissions: Array.from(permissions),
+        hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
+        checkPermissions,
+        loading,
+        reload: loadUserPermissions
+    };
 };

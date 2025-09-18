@@ -1,31 +1,30 @@
-// contexts/AuthContextProvider.js
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { CircularProgress } from "@mui/material";
+import { CircularProgress, Box } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
-import { useRouteConfig } from "../hooks/useRouteConfig";
+import { usePermissionContext } from "../contexts/PermissionContext"; // NOVO IMPORT
 import { notifyError } from "../components/common/Toaster/ThemedToaster";
 
 const LoadingSpinner = () => (
-  <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}>
+  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
     <CircularProgress />
-  </div>
+  </Box>
 );
 
-const PrivateRoute = ({ children, ...props }) => {
+const PrivateRoute = ({ children, requiredPermission, ...props }) => {
   const { user, isLoading } = useAuth();
-  const { canAccessRoute } = useRouteConfig();
+  const { hasPermission, initialized } = usePermissionContext(); // NOVO HOOK
   const location = useLocation();
 
-  if (isLoading) return <LoadingSpinner />;
+  // Loading states
+  if (isLoading || !initialized) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-  // ===== USAR GESTÃO CENTRALIZADA =====
-  const hasAccess = Object.keys(props).length > 0
-    ? canAccessRoute(location.pathname, props)
-    : canAccessRoute(location.pathname);
+  // Verificar acesso diretamente
+  const hasAccess = requiredPermission ? hasPermission(requiredPermission) : true;
 
-  if (!hasAccess) {
+  // Verificar acesso
+  if (requiredPermission && !hasAccess) {
     notifyError("Não tem permissão para aceder a esta área.");
     return <Navigate to="/" replace />;
   }

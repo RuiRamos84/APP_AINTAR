@@ -6,7 +6,7 @@ import {
     Schedule
 } from '@mui/icons-material';
 import { Avatar, Box, Card, CardContent, Chip, Grid, Radio, Typography } from '@mui/material';
-import { getAvailableMethodsForUser, PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
+import { PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
 
 // Ícones SIBS reais
 const MBWayIcon = ({ sx, ...props }) => (
@@ -102,9 +102,8 @@ const PaymentMethodSelector = ({
         return internalReady;
     };
 
-    // ===== USAR GESTÃO CENTRALIZADA =====
-    const filteredMethods = getAvailableMethodsForUser(user?.profil, user?.user_id)
-        .filter(method => availableMethods.includes(method));
+    // ✅ Simplificado: agora recebe os métodos filtrados diretamente
+    const filteredMethods = availableMethods;
 
     return (
         <Box sx={{ p: 2 }}>

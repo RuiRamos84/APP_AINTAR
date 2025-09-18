@@ -4,9 +4,14 @@ import logging
 from app.utils.utils import db_session_manager
 from sqlalchemy import text
 import json
+from datetime import date
 import time
+from pydantic import BaseModel, Field, conint, constr, condecimal
+from typing import Optional
+from app.utils.error_handler import api_error_handler, ResourceNotFoundError, APIError
 
 logger = logging.getLogger(__name__)
+
 
 
 class PaymentStatus:
@@ -16,6 +21,30 @@ class PaymentStatus:
     SUCCESS = 'SUCCESS'
     DECLINED = 'DECLINED'
     EXPIRED = 'EXPIRED'
+
+class CheckoutCreate(BaseModel):
+    document_id: int
+    amount: condecimal(gt=0)
+    payment_method: constr(pattern=r'^(MBWAY|MULTIBANCO)$')
+
+class MBWayProcess(BaseModel):
+    transaction_id: str
+    phone_number: constr(pattern=r'^(\+351)?[0-9]{9}$')
+    document_id: Optional[int] = None # Opcional, para recriação
+    amount: Optional[condecimal(gt=0)] = None # Opcional, para recriação
+
+class ManualPaymentRegister(BaseModel):
+    document_id: int
+    amount: condecimal(gt=0)
+    payment_type: str
+    reference_info: str
+    user_id: Optional[int] = None
+
+class PaymentHistoryFilters(BaseModel):
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    method: Optional[str] = None
+    status: Optional[str] = None
 
 
 class PaymentService:
@@ -55,60 +84,38 @@ class PaymentService:
             del self.checkout_cache[k]
 
     def get_invoice_data(self, document_id, current_user):
-        """Obter dados da fatura - SEMPRE retorna estrutura"""
-        try:
-            with db_session_manager(current_user) as session:
-                # Verificar se documento existe
-                doc_check = text(
-                    "SELECT pk FROM vbl_document WHERE pk = :document_id")
-                doc_exists = session.execute(
-                    doc_check, {"document_id": document_id}).fetchone()
+        """
+        Obtém os dados da fatura de um documento.
+        Tenta criar a fatura se ela não existir.
+        Lança um erro se o documento não for encontrado.
+        """
+        with db_session_manager(current_user) as session:
+            # 1. Verificar se o documento existe
+            doc_check_query = text("SELECT pk FROM vbl_document WHERE pk = :document_id")
+            doc_exists = session.execute(doc_check_query, {"document_id": document_id}).scalar()
+            if not doc_exists:
+                raise ResourceNotFoundError(f"Documento {document_id} não encontrado.")
 
-                if not doc_exists:
-                    raise Exception(f"Documento {document_id} não encontrado")
+            # 2. Tentar obter os dados da fatura
+            invoice_query = text("SELECT * FROM vbl_document_invoice WHERE tb_document = :document_id")
+            result = session.execute(invoice_query, {"document_id": document_id}).fetchone()
 
-                # Buscar dados da fatura
-                query = text("""
-                    SELECT * FROM vbl_document_invoice 
-                    WHERE tb_document = :document_id
-                """)
-                result = session.execute(
-                    query, {"document_id": document_id}).fetchone()
+            # 3. Se a fatura existir, retorná-la
+            if result:
+                return dict(result._mapping)
 
+            # 4. Se não existir, tentar criar a fatura
+            try:
+                session.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
+                # Tentar buscar novamente após a criação
+                result = session.execute(invoice_query, {"document_id": document_id}).fetchone()
                 if result:
                     return dict(result._mapping)
-
-                # Tentar criar automaticamente
-                try:
-                    session.execute(text("""
-                        SELECT fbo_document_invoice$getset(:document_id)
-                    """), {"document_id": document_id})
-
-                    result = session.execute(
-                        query, {"document_id": document_id}).fetchone()
-
-                    if result:
-                        return dict(result._mapping)
-                except Exception as create_error:
-                    current_app.logger.warning(
-                        f"Não foi possível criar invoice: {create_error}")
-
-                # Se tudo falhou, retornar estrutura com valores 0
-                return {
-                    'tb_document': document_id,
-                    'invoice': 0.0,
-                    'presented': False,
-                    'accepted': False,
-                    'payed': False,
-                    'closed': False,
-                    'urgency': False,
-                    'tb_sibs': None
-                }
-
-        except Exception as e:
-            logger.error(f"Erro fatura {document_id}: {e}")
-
-            # Mesmo com erro, retornar estrutura válida
+            except Exception as create_error:
+                logger.warning(f"Não foi possível criar a fatura para o documento {document_id}: {create_error}")
+            
+            # 5. Se a criação falhar ou não retornar dados, retornar uma estrutura vazia, mas válida.
+            # Isto indica que o documento existe, mas não tem fatura associada.
             return {
                 'tb_document': document_id,
                 'invoice': 0.0,
@@ -120,23 +127,20 @@ class PaymentService:
                 'tb_sibs': None
             }
 
-    def create_checkout_only(self, document_id, amount, payment_method, current_user):
+    def create_checkout_only(self, data: dict, current_user: str):
         """Criar checkout SIBS sem gravar BD"""
+        checkout_data = CheckoutCreate.model_validate(data)
         try:
-            if payment_method not in ['MBWAY', 'MULTIBANCO']:
-                return {"success": False, "error": "Método inválido para checkout SIBS"}
-
             # Limpeza do cache
             self._cleanup_expired_cache()
 
             with db_session_manager(current_user) as db:
                 regnumber = db.execute(text("""
                     SELECT regnumber FROM tb_document WHERE pk = :doc_id
-                """), {"doc_id": document_id}).scalar()
-
+                """), {"doc_id": checkout_data.document_id}).scalar()
                 if not regnumber:
-                    return {"success": False, "error": "Documento não encontrado"}
-
+                    raise ResourceNotFoundError("Documento não encontrado")
+            
             # Criar checkout SIBS
             now = datetime.utcnow().isoformat()
             expiry = (datetime.utcnow() + timedelta(days=2)).isoformat()
@@ -152,13 +156,13 @@ class PaymentService:
                     "description": f"Pagamento do pedido {regnumber}",
                     "moto": False,
                     "paymentType": "PURS",
-                    "amount": {"value": float(amount), "currency": "EUR"},
+                    "amount": {"value": float(checkout_data.amount), "currency": "EUR"},
                     "paymentMethod": ["CARD", "MBWAY", "REFERENCE"],
                     "paymentReference": {
                         "initialDatetime": now,
                         "finalDatetime": expiry,
-                        "maxAmount": {"value": float(amount), "currency": "EUR"},
-                        "minAmount": {"value": float(amount), "currency": "EUR"},
+                        "maxAmount": {"value": float(checkout_data.amount), "currency": "EUR"},
+                        "minAmount": {"value": float(checkout_data.amount), "currency": "EUR"},
                         "entity": self.entity
                     }
                 }
@@ -173,8 +177,8 @@ class PaymentService:
 
             # Guardar no cache (15 min)
             self.checkout_cache[transaction_id] = {
-                "document_id": document_id,
-                "amount": amount,
+                "document_id": checkout_data.document_id,
+                "amount": checkout_data.amount,
                 "order_id": regnumber,
                 "transaction_signature": data.get("transactionSignature"),
                 "payment_reference": data.get("paymentReference", {}),
@@ -184,44 +188,66 @@ class PaymentService:
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "amount": amount,
+                "amount": checkout_data.amount,
                 "expiry_date": expiry
             }
 
         except Exception as e:
             logger.error(f"Erro create_checkout_only: {e}")
-            return {"success": False, "error": str(e)}
+            raise
 
     def _get_checkout_data(self, transaction_id):
         """Recuperar dados do cache"""
         data = self.checkout_cache.get(transaction_id)
         if not data:
-            return None
+            logger.info(f"Checkout {transaction_id} não encontrado no cache.")
+            return None, False # Não existe, não está expirado
 
         # Verificar expiração (15 min)
         if time.time() - data["timestamp"] > 900:
-            del self.checkout_cache[transaction_id]
-            return None
+            # Não apagar já, para permitir recriação
+            logger.info(f"Checkout {transaction_id} encontrado no cache, mas está expirado.")
+            return data, True  # Retorna os dados e um indicador de que está expirado
 
-        return data
+        logger.info(f"Checkout {transaction_id} encontrado no cache e válido.")
+        return data, False  # Retorna os dados e indica que não está expirado
 
-    def process_mbway_from_checkout(self, transaction_id, phone_number, current_user):
+    def process_mbway_from_checkout(self, data: dict, current_user: str):
         """MBWay usando checkout cache"""
+        mbway_data = MBWayProcess.model_validate(data)
         try:
-            checkout_data = self._get_checkout_data(transaction_id)
+            transaction_id = mbway_data.transaction_id
+            checkout_data, is_expired = self._get_checkout_data(transaction_id)
+
+            # Se o checkout não for encontrado ou estiver expirado, tenta recriar
+            if not checkout_data or is_expired:
+                logger.warning(f"Checkout {transaction_id} não encontrado ou expirado. Tentando recriar...")
+                if not mbway_data.document_id or not mbway_data.amount:
+                    raise APIError("Sessão de pagamento expirada. Por favor, tente novamente desde o início.", 410)
+
+                new_checkout_data = {
+                    "document_id": mbway_data.document_id,
+                    "amount": mbway_data.amount,
+                    "payment_method": "MBWAY"
+                }
+                new_checkout_result = self.create_checkout_only(new_checkout_data, current_user)
+                transaction_id = new_checkout_result["transaction_id"]
+                checkout_data, _ = self._get_checkout_data(transaction_id)
+
             if not checkout_data:
-                return {"success": False, "error": "Checkout expirado"}
+                # Se mesmo após a tentativa de recriação não houver checkout, lança erro.
+                raise APIError("Falha ao criar ou recuperar a sessão de pagamento.", 500)
 
             # Processar MBWay
-            if not phone_number.startswith("351#"):
-                phone_number = f"351#{phone_number.replace('+351', '').replace(' ', '')}"
+            phone_number = mbway_data.phone_number.replace('+351', '').replace(' ', '')
+            formatted_phone = f"351#{phone_number}"
 
-            url = f"{self.base_url}/payments/{transaction_id}/mbway-id/purchase"
+            url = f"{self.base_url}/payments/{mbway_data.transaction_id}/mbway-id/purchase"
             headers = self._get_headers(
                 "Digest", checkout_data["transaction_signature"])
 
             resp = requests.post(
-                url, json={"customerPhone": phone_number}, headers=headers, timeout=30)
+                url, json={"customerPhone": formatted_phone}, headers=headers, timeout=30)
             resp.raise_for_status()
 
             sibs_response = resp.json()
@@ -244,7 +270,7 @@ class PaymentService:
                 sibs_result = db.execute(text("""
                     SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
                                 :transaction_signature, :amount, :currency, 
-                                :method, :status, :pref, :entity, 
+                                :method, :status, :pref, :entity,
                                 :expiry, :created_at, NULL, NULL, NULL)
                 """), {
                     "pk": new_pk,
@@ -270,7 +296,8 @@ class PaymentService:
                 """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
 
             # Limpar cache
-            del self.checkout_cache[transaction_id]
+            if transaction_id in self.checkout_cache:
+                del self.checkout_cache[transaction_id]
 
             return {
                 "success": True,
@@ -281,15 +308,35 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro process_mbway_from_checkout: {e}")
-            return {"success": False, "error": str(e)}
+            raise
 
-    def process_multibanco_from_checkout(self, transaction_id, current_user):
+    def process_multibanco_from_checkout(self, data: dict, current_user: str):
         """Multibanco usando checkout cache"""
         try:
-            checkout_data = self._get_checkout_data(transaction_id)
-            if not checkout_data:
-                return {"success": False, "error": "Checkout expirado"}
+            # Pydantic doesn't have a model for this, so we validate manually for now.
+            original_transaction_id = data.get('transaction_id')
+            if not original_transaction_id:
+                raise APIError("transaction_id é obrigatório.", 400)
 
+            checkout_data, is_expired = self._get_checkout_data(original_transaction_id)
+
+            # Recreate if expired or not found, provided we have the necessary info
+            if (not checkout_data or is_expired) and data.get('document_id') and data.get('amount'):
+                logger.warning(f"Checkout {original_transaction_id} não encontrado ou expirado. A recriar...")
+                new_checkout_data = {
+                    "document_id": data["document_id"],
+                    "amount": data["amount"],
+                    "payment_method": "MULTIBANCO"
+                }
+                new_checkout_result = self.create_checkout_only(new_checkout_data, current_user)
+                transaction_id = new_checkout_result["transaction_id"]
+                checkout_data, _ = self._get_checkout_data(transaction_id)
+            else:
+                transaction_id = original_transaction_id
+
+            if not checkout_data:
+                raise APIError("Sessão de pagamento expirou. Por favor, tente novamente.", 410)
+            
             # Gerar referência MB
             url = f"{self.base_url}/payments/{transaction_id}/service-reference/generate"
             headers = self._get_headers(
@@ -339,7 +386,8 @@ class PaymentService:
                 """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
 
             # Limpar cache
-            del self.checkout_cache[transaction_id]
+            if transaction_id in self.checkout_cache:
+                del self.checkout_cache[transaction_id]
 
             return {
                 "success": True,
@@ -351,22 +399,24 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro process_multibanco_from_checkout: {e}")
-            return {"success": False, "error": str(e)}
+            raise
 
-    def register_manual_payment_direct(self, document_id, amount, payment_type, reference_info, user_session, user_id=None):
+    def register_manual_payment_direct(self, data: dict, user_session: str):
         """Registar pagamento manual direto - CORRIGIDO"""
+        payment_data = ManualPaymentRegister.model_validate(data)
         try:
+            document_id = payment_data.document_id
             # Criar payment_reference estruturado
             payment_reference = {
                 "manual_payment": True,
-                "payment_details": reference_info,
-                "submitted_by": user_id,
+                "payment_details": payment_data.reference_info,
+                "submitted_by": payment_data.user_id,
                 "submitted_at": datetime.now().isoformat(),
-                "payment_type": payment_type
+                "payment_type": payment_data.payment_type
             }
 
             # Gerar transaction_id único
-            transaction_id = f"MANUAL-{payment_type}-{document_id}-{int(time.time())}"
+            transaction_id = f"MANUAL-{payment_data.payment_type}-{document_id}-{int(time.time())}"
 
             # Inserir na base de dados usando session manager
             with db_session_manager(user_session) as db:
@@ -383,8 +433,8 @@ class PaymentService:
                     "pk": new_pk,
                     "order_id": f"MANUAL-{document_id}",
                     "transaction_id": transaction_id,
-                    "amount": float(amount),
-                    "method": payment_type,
+                    "amount": float(payment_data.amount),
+                    "method": payment_data.payment_type,
                     "status": PaymentStatus.PENDING_VALIDATION,
                     "pref": json.dumps(payment_reference),
                     "created_at": datetime.now()
@@ -411,17 +461,15 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro ao registar pagamento manual: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            raise
 
     # MANTER compatibilidade com método antigo
     def process_manual_direct(self, document_id, amount, payment_type, payment_details, current_user):
         """DEPRECATED: Usar register_manual_payment_direct"""
-        return self.register_manual_payment_direct(document_id, amount, payment_type, payment_details, current_user)
+        data = {'document_id': document_id, 'amount': amount, 'payment_type': payment_type, 'reference_info': payment_details}
+        return self.register_manual_payment_direct(data, current_user)
 
-    def check_payment_status(self, transaction_id, current_user):
+    def check_payment_status(self, transaction_id: str, current_user: str):
         """Verificar estado do pagamento"""
         try:
             # Estado local primeiro
@@ -434,7 +482,7 @@ class PaymentService:
                 """), {"transaction_id": transaction_id}).fetchone()
 
                 if not local_data:
-                    return {"success": False, "error": "Transação não encontrada"}
+                    raise ResourceNotFoundError("Transação não encontrada")
 
             # Consultar SIBS se ainda pendente
             if local_data.payment_status in [PaymentStatus.CREATED, PaymentStatus.PENDING]:
@@ -449,8 +497,8 @@ class PaymentService:
 
                 # Mapear e actualizar se mudou
                 status_map = {
-                    "Success": PaymentStatus.PENDING_VALIDATION,
-                    "Pending": PaymentStatus.PENDING,
+                    "Success": PaymentStatus.SUCCESS, # CORREÇÃO: Mapear para SUCCESS
+                    "Pending": PaymentStatus.PENDING, # Manter como está
                     "Declined": PaymentStatus.DECLINED,
                     "Expired": PaymentStatus.EXPIRED
                 }
@@ -471,6 +519,15 @@ class PaymentService:
                             "transaction_id": transaction_id
                         })
 
+                    # Se o pagamento foi bem-sucedido, atualizar a fatura
+                    if new_status == PaymentStatus.SUCCESS and local_data.tb_document:
+                        db.execute(text("""
+                            SELECT fbo_document_invoice$sibs(:doc, (
+                                SELECT pk FROM tb_sibs WHERE transaction_id = :transaction_id
+                            ))
+                        """), {"doc": local_data.tb_document, "transaction_id": transaction_id})
+
+                    # Retorna sempre o novo estado e que foi atualizado
                     return {
                         "success": True,
                         "payment_status": new_status,
@@ -487,9 +544,9 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro em check_payment_status: {e}")
-            return {"success": False, "error": str(e)}
+            raise
 
-    def approve_payment(self, payment_pk, user_pk, current_user):
+    def approve_payment(self, payment_pk: int, user_pk: int, current_user: str):
         """Aprovar pagamento pendente"""
         try:
             with db_session_manager(current_user) as db:
@@ -524,9 +581,9 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro em approve_payment: {e}")
-            return {"success": False, "error": str(e)}
+            raise
 
-    def get_pending_payments(self, current_user):
+    def get_pending_payments(self, current_user: str):
         """Obter pagamentos pendentes de validação"""
         try:
             with db_session_manager(current_user) as session:
@@ -553,7 +610,7 @@ class PaymentService:
             logger.error(f"Erro ao obter pagamentos pendentes: {e}")
             raise
 
-    def get_payment_details(self, payment_pk, current_user):
+    def get_payment_details(self, payment_pk: int, current_user: str):
         """Obter detalhes completos do pagamento"""
         try:
             with db_session_manager(current_user) as session:
@@ -581,64 +638,36 @@ class PaymentService:
             logger.error(f"Erro ao obter detalhes do pagamento {payment_pk}: {e}")
             raise
 
-    def get_document_payment_status(self, document_id, current_user):
-        """Estado pagamento - SEMPRE retorna estrutura"""
-        try:
-            with db_session_manager(current_user) as session:
-                query = text("""
-                    SELECT 
-                        di.pk, di.tb_document, di.invoice, di.presented,
-                        di.accepted, di.payed, di.closed,
-                        s.pk as sibs_pk, s.transaction_id, s.payment_status,
-                        s.payment_method, s.amount, s.created_at as payment_created
-                    FROM tb_document_invoice di
-                    LEFT JOIN tb_sibs s ON s.pk = di.tb_sibs
-                    WHERE di.tb_document = :document_id
-                """)
+    def get_document_payment_status(self, document_id: int, current_user: str):
+        """Obtém o estado do pagamento de um documento."""
+        with db_session_manager(current_user) as session:
+            # Primeiro, verifica se o documento existe para dar um erro 404 claro.
+            doc_check_query = text("SELECT pk FROM vbl_document WHERE pk = :document_id")
+            if not session.execute(doc_check_query, {"document_id": document_id}).scalar():
+                raise ResourceNotFoundError(f"Documento {document_id} não encontrado.")
 
-                result = session.execute(
-                    query, {"document_id": document_id}).fetchone()
+            # Agora, busca os dados da fatura.
+            query = text("""
+                SELECT 
+                    di.pk, di.tb_document, di.invoice, di.presented,
+                    di.accepted, di.payed, di.closed,
+                    s.pk as sibs_pk, s.transaction_id, s.payment_status,
+                    s.payment_method, s.amount, s.created_at as payment_created
+                FROM tb_document_invoice di
+                LEFT JOIN tb_sibs s ON s.pk = di.tb_sibs
+                WHERE di.tb_document = :document_id
+            """)
+            result = session.execute(query, {"document_id": document_id}).fetchone()
 
-                if result:
-                    return dict(result._mapping)
+            if not result:
+                # Se o documento existe mas não tem fatura, retorna uma estrutura vazia.
+                return {'tb_document': document_id, 'invoice': 0.0, 'payed': False}
+            
+            return dict(result._mapping)
 
-                # Sem dados = estrutura vazia mas válida
-                return {
-                    'tb_document': document_id,
-                    'invoice': 0.0,
-                    'presented': False,
-                    'accepted': False,
-                    'payed': False,
-                    'closed': False,
-                    'sibs_pk': None,
-                    'transaction_id': None,
-                    'payment_status': None,
-                    'payment_method': None,
-                    'amount': None,
-                    'payment_created': None
-                }
-
-        except Exception as e:
-            logger.error(f"Erro estado pagamento {document_id}: {e}")
-
-            # Estrutura padrão mesmo com erro
-            return {
-                'tb_document': document_id,
-                'invoice': 0.0,
-                'presented': False,
-                'accepted': False,
-                'payed': False,
-                'closed': False,
-                'sibs_pk': None,
-                'transaction_id': None,
-                'payment_status': None,
-                'payment_method': None,
-                'amount': None,
-                'payment_created': None
-            }
-
-    def get_payment_history(self, current_user, page, page_size, filters):
+    def get_payment_history(self, current_user: str, page: int, page_size: int, filters: dict):
         """Histórico de pagamentos - exclui PENDING_VALIDATION"""
+        filter_data = PaymentHistoryFilters.model_validate(filters)
         try:
             with db_session_manager(current_user) as session:
                 # Base: excluir CREATED e PENDING_VALIDATION
@@ -647,22 +676,22 @@ class PaymentService:
                 ]
                 params = {}
 
-                if filters.get('start_date'):
+                if filter_data.start_date:
                     where_conditions.append(
                         "DATE(s.created_at) >= :start_date")
-                    params['start_date'] = filters['start_date']
+                    params['start_date'] = filter_data.start_date
 
-                if filters.get('end_date'):
+                if filter_data.end_date:
                     where_conditions.append("DATE(s.created_at) <= :end_date")
-                    params['end_date'] = filters['end_date']
+                    params['end_date'] = filter_data.end_date
 
-                if filters.get('method'):
+                if filter_data.method:
                     where_conditions.append("s.payment_method = :method")
-                    params['method'] = filters['method']
+                    params['method'] = filter_data.method
 
-                if filters.get('status'):
+                if filter_data.status:
                     where_conditions.append("s.payment_status = :status")
-                    params['status'] = filters['status']
+                    params['status'] = filter_data.status
 
                 where_clause = " AND ".join(where_conditions)
 
@@ -710,7 +739,7 @@ class PaymentService:
             logger.error(f"Erro get_payment_history: {e}")
             raise
 
-    def get_sibs_data(self, order_id, current_user):
+    def get_sibs_data(self, order_id: str, current_user: str):
         """Dados completos SIBS"""
         try:
             with db_session_manager(current_user) as session:
@@ -725,7 +754,7 @@ class PaymentService:
             logger.error(f"Erro get_sibs_data: {e}")
             raise
 
-    def process_webhook(self, webhook_data):
+    def process_webhook(self, webhook_data: dict):
         """Processar webhook SIBS (notificações automáticas)"""
         try:
             transaction_id = webhook_data.get("transactionID")
@@ -786,7 +815,7 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro no webhook: {e}")
-            return {"success": False, "error": str(e)}
+            raise
 
 
 payment_service = PaymentService()

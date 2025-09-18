@@ -1,6 +1,5 @@
 import api from "./api";
 
-let isCreatingEntity = false;
 export const getEntities = async () => {
   try {
     const response = await api.get("/entities");
@@ -13,11 +12,10 @@ export const getEntities = async () => {
 export const getEntityByNIF = async (nipc) => {
   try {
     const response = await api.get(`/entity/nipc/${nipc}`);
+    // Se a resposta for 204, response.data será undefined. Se for 200, terá dados.
+    // O `|| null` garante que retornamos `null` em caso de 204.
     return response.data || null;
   } catch (error) {
-    if (error.response && error.response.status === 204) {
-      return null;
-    }
     throw error;
   }
 };
@@ -32,57 +30,33 @@ export const getEntity = async (id) => {
   }
 };
 
-export const updateEntity = async (entity) => {
+export const updateEntity = async (pk, entityData) => {
   try {
-    await api.put(`/entity/${entity.pk}`, entity);
+    const response = await api.put(`/entity/${pk}`, entityData);
+    if (response.status === 200) {
+      return { success: true, data: response.data };
+    } else {
+      throw new Error(response.data.message || "Resposta inesperada do servidor ao atualizar");
+    }
   } catch (error) {
-    throw error;
+    console.error("Erro ao atualizar entidade:", error);
+    // Lança o erro para que o useMutation o capture no `onError`
+    throw new Error(error.response?.data?.error || "Erro ao atualizar entidade");
   }
 };
 
-
-let lastCreatedEntity = null;
-let lastCreationTime = 0;
-
 export const addEntity = async (entityData) => {
-  const now = Date.now();
-  if (isCreatingEntity) {
-    console.warn("Uma criação de entidade já está em andamento.");
-    return { error: "Uma criação de entidade já está em andamento." };
-  }
-
-  // Verifica se a mesma entidade foi criada nos últimos 5 segundos
-  if (
-    lastCreatedEntity &&
-    JSON.stringify(lastCreatedEntity) === JSON.stringify(entityData) &&
-    now - lastCreationTime < 5000
-  ) {
-    console.warn(
-      "Tentativa de criar a mesma entidade em um curto período de tempo."
-    );
-    return { error: "Entidade já foi criada recentemente." };
-  }
-
-  isCreatingEntity = true;
-  // console.log("Iniciando criação de entidade com dados:", entityData);
-
   try {
     const response = await api.post("/entity", entityData);
-    // console.log("Resposta da API:", response);
-
     if (response.status === 201) {
-      // console.log("Entidade criada com sucesso:", response.data);
-      lastCreatedEntity = entityData;
-      lastCreationTime = now;
       return { success: true, data: response.data };
     } else {
-      console.warn("Resposta inesperada da API:", response);
-      return { error: "Resposta inesperada do servidor" };
+      // Lançar um erro para que o React Query o possa capturar
+      throw new Error(response.data.message || "Resposta inesperada do servidor");
     }
   } catch (error) {
     console.error("Erro ao criar entidade:", error);
-    return { error: error.response?.data?.message || "Erro ao criar entidade" };
-  } finally {
-    isCreatingEntity = false;
+    // Lançar o erro para que o useMutation o capture no `onError`
+    throw new Error(error.response?.data?.error || "Erro ao criar entidade");
   }
 };

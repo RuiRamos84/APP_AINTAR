@@ -1,25 +1,18 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getTasks,
     updateTaskStatus,
     closeTask
 } from '../services/TaskService';
 import { useAuth } from '../contexts/AuthContext';
-import { useMetaData } from '../contexts/MetaDataContext';
 
 export const useTasks = (initialFetchType = 'all') => {
-    const [tasks, setTasks] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [fetchType, setFetchType] = useState(initialFetchType);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // Controle de requisições
-    const isFetchingRef = useRef(false);
-    const pendingUpdatesRef = useRef({});
-
     const { user } = useAuth();
-    const { metaData } = useMetaData();
+    const queryClient = useQueryClient();
 
     // Mapeamento de IDs de status para nomes
     const STATUS_MAP = {
@@ -30,42 +23,6 @@ export const useTasks = (initialFetchType = 'all') => {
 
     // Status padrão para agrupar tarefas
     const DEFAULT_STATUSES = ["A Fazer", "Em Progresso", "Concluído"];
-
-    const getFilteredTasks = useCallback(() => {
-        if (!searchTerm.trim()) return tasks;
-
-        const lowercaseSearch = searchTerm.toLowerCase();
-        const filtered = {};
-
-        Object.keys(tasks).forEach(clientName => {
-            const clientData = { ...tasks[clientName] };
-            const filteredTasks = {};
-            const filteredCounts = {};
-
-            // Filtrar tarefas em cada status
-            Object.keys(clientData.tasks).forEach(status => {
-                const matchingTasks = clientData.tasks[status].filter(
-                    task => task.name.toLowerCase().includes(lowercaseSearch) ||
-                        (task.memo && task.memo.toLowerCase().includes(lowercaseSearch))
-                );
-
-                filteredTasks[status] = matchingTasks;
-                filteredCounts[status] = matchingTasks.length;
-            });
-
-            // Adicionar cliente se alguma tarefa corresponder
-            const hasResults = Object.values(filteredCounts).some(count => count > 0);
-            if (hasResults) {
-                filtered[clientName] = {
-                    ...clientData,
-                    tasks: filteredTasks,
-                    counts: filteredCounts
-                };
-            }
-        });
-
-        return filtered;
-    }, [tasks, searchTerm]);
 
     const groupTasksByPerson = useCallback((tasks) => {
         const grouped = {};
@@ -107,91 +64,57 @@ export const useTasks = (initialFetchType = 'all') => {
         return grouped;
     }, []);
 
-    const fetchTasks = useCallback(async (silent = false) => {
-        if (isFetchingRef.current) return;
-
-        isFetchingRef.current = true;
-        if (!silent) setLoading(true);
-        setError(null);
-
-        try {
+    // Query para buscar e filtrar tarefas
+    const { data: tasks, isLoading: loading, error, refetch: fetchTasks } = useQuery({
+        queryKey: ['tasks', fetchType, user?.user_id],
+        queryFn: async () => {
             const allTasks = await getTasks();
             let filteredTasks;
 
             switch (fetchType) {
                 case 'my':
-                    // Filtra tarefas onde o usuário é o cliente e que não estão fechadas
                     filteredTasks = allTasks.filter(task => task.ts_client === user?.user_id && !task.when_stop);
                     break;
                 case 'created':
-                    // Filtra tarefas criadas pelo usuário e que não estão fechadas
                     filteredTasks = allTasks.filter(task => task.owner === user?.user_id && !task.when_stop);
                     break;
                 case 'all':
-                    // Filtra todas as tarefas que não estão fechadas
                     filteredTasks = allTasks.filter(task => !task.when_stop);
                     break;
                 case 'completed':
-                    // Filtra apenas tarefas fechadas
                     filteredTasks = allTasks.filter(task => task.when_stop);
                     break;
                 default:
                     filteredTasks = allTasks;
             }
+            return groupTasksByPerson(filteredTasks);
+        },
+        enabled: !!user, // A query só é executada se houver um utilizador
+        staleTime: 5 * 60 * 1000, // Cache de 5 minutos
+    });
 
-            const groupedTasks = groupTasksByPerson(filteredTasks);
-            setTasks(groupedTasks);
-        } catch (err) {
-            setError(err);
-            console.error(`Erro ao carregar tarefas (${fetchType}):`, err);
-        } finally {
-            if (!silent) setLoading(false);
-            isFetchingRef.current = false;
-        }
-    }, [fetchType, user, groupTasksByPerson]);
+    // Mutação para mover uma tarefa (com UI otimista)
+    const { mutate: moveTask } = useMutation({
+        mutationFn: ({ taskId, newStatusId }) => updateTaskStatus(taskId, newStatusId),
+        onMutate: async ({ taskId, newStatusId, clientName }) => {
+            // Cancelar queries pendentes para evitar conflitos
+            await queryClient.cancelQueries({ queryKey: ['tasks', fetchType, user?.user_id] });
 
-    const moveTask = useCallback(async (taskId, newStatusId, clientName) => {
-        try {
-            // Verificar se o usuário atual é o cliente da tarefa
-            const flatTasks = Object.values(tasks)
-                .flatMap(client => Object.values(client.tasks).flat());
+            // Snapshot do estado anterior
+            const previousTasks = queryClient.getQueryData(['tasks', fetchType, user?.user_id]);
 
-            const currentTask = flatTasks.find(task => task.pk === taskId);
+            // Atualização otimista da UI
+            queryClient.setQueryData(['tasks', fetchType, user?.user_id], (oldData) => {
+                if (!oldData) return oldData;
 
-            if (!currentTask) {
-                console.error("Tarefa não encontrada");
-                return;
-            }
-
-            if (currentTask.ts_client !== user?.user_id) {
-                console.error("Apenas o cliente pode atualizar o status da tarefa");
-                return;
-            }
-
-            // Se o status já é o mesmo, não faz nada
-            if (currentTask.ts_notestatus === newStatusId) {
-                return;
-            }
-
-            // Criar um ID único para esta atualização
-            const updateId = `${taskId}_${Date.now()}`;
-            pendingUpdatesRef.current[updateId] = true;
-
-            // Obter o nome do status
-            const statusName = metaData?.task_status?.find(s => s.pk === newStatusId)?.value ||
-                STATUS_MAP[newStatusId] ||
-                `Status ${newStatusId}`;
-
-            // Atualização local imediata
-            setTasks(prevTasks => {
-                const newTasks = JSON.parse(JSON.stringify(prevTasks));
+                const newTasks = JSON.parse(JSON.stringify(oldData));
                 let movedTask = null;
+                const statusName = STATUS_MAP[newStatusId] || `Status ${newStatusId}`;
 
                 // Encontrar e remover a tarefa do status atual
                 if (newTasks[clientName]) {
                     Object.keys(newTasks[clientName].tasks).forEach((status) => {
                         const taskIndex = newTasks[clientName].tasks[status].findIndex(task => task.pk === taskId);
-
                         if (taskIndex !== -1) {
                             movedTask = newTasks[clientName].tasks[status][taskIndex];
                             newTasks[clientName].tasks[status].splice(taskIndex, 1);
@@ -200,58 +123,76 @@ export const useTasks = (initialFetchType = 'all') => {
                     });
                 }
 
-                // Se encontrou a tarefa, adicionar ao novo status
                 if (movedTask) {
-                    movedTask = {
-                        ...movedTask,
-                        ts_notestatus: newStatusId,
-                        status: statusName
-                    };
-
+                    movedTask.ts_notestatus = newStatusId;
+                    movedTask.status = statusName;
                     if (!newTasks[clientName].tasks[statusName]) {
                         newTasks[clientName].tasks[statusName] = [];
                         newTasks[clientName].counts[statusName] = 0;
                     }
-
                     newTasks[clientName].tasks[statusName].push(movedTask);
                     newTasks[clientName].counts[statusName] += 1;
                 }
-
                 return newTasks;
             });
 
-            // Chamar a API para persistir a mudança (em segundo plano)
-            await updateTaskStatus(taskId, newStatusId);
+            // Retornar o snapshot para rollback em caso de erro
+            return { previousTasks };
+        },
+        onError: (err, variables, context) => {
+            // Reverter para o estado anterior em caso de erro
+            if (context.previousTasks) {
+                queryClient.setQueryData(['tasks', fetchType, user?.user_id], context.previousTasks);
+            }
+        },
+        onSettled: () => {
+            // Re-sincronizar com o servidor após a mutação (sucesso ou erro)
+            queryClient.invalidateQueries({ queryKey: ['tasks', fetchType, user?.user_id] });
+        },
+    });
 
-            // Atualização silenciosa após 3 segundos para garantir sincronização sem flash visual
-            setTimeout(() => {
-                delete pendingUpdatesRef.current[updateId];
+    // Mutação para fechar uma tarefa
+    const { mutate: closeTaskAndRefresh } = useMutation({
+        mutationFn: closeTask,
+        onSuccess: () => {
+            // Invalidar a query para forçar um refetch
+            queryClient.invalidateQueries({ queryKey: ['tasks', fetchType, user?.user_id] });
+        },
+    });
 
-                // Só recarrega se não houver mais atualizações pendentes
-                if (Object.keys(pendingUpdatesRef.current).length === 0) {
-                    fetchTasks(true); // true = silencioso (não mostra loading)
-                }
-            }, 3000);
+    // Filtragem por termo de pesquisa (feita no cliente)
+    const getFilteredTasks = useCallback(() => {
+        if (!tasks || !searchTerm.trim()) return tasks;
 
-        } catch (error) {
-            console.error("Erro ao atualizar a tarefa:", error);
-        }
-    }, [tasks, user, metaData, STATUS_MAP, fetchTasks]);
+        const lowercaseSearch = searchTerm.toLowerCase();
+        const filtered = {};
 
-    const closeTaskAndRefresh = useCallback(async (taskId) => {
-        try {
-            await closeTask(taskId);
-            fetchTasks(false); // Não silencioso porque é uma operação explícita
-        } catch (error) {
-            console.error("Erro ao fechar tarefa:", error);
-            setError(error);
-        }
-    }, [fetchTasks]);
+        Object.keys(tasks).forEach(clientName => {
+            const clientData = { ...tasks[clientName] };
+            const filteredTasks = {};
+            const filteredCounts = {};
 
-    // Buscar tarefas na montagem e quando fetchType mudar
+            Object.keys(clientData.tasks).forEach(status => {
+                const matchingTasks = clientData.tasks[status].filter(
+                    task => task.name.toLowerCase().includes(lowercaseSearch) ||
+                        (task.memo && task.memo.toLowerCase().includes(lowercaseSearch))
+                );
+                filteredTasks[status] = matchingTasks;
+                filteredCounts[status] = matchingTasks.length;
+            });
+
+            if (Object.values(filteredCounts).some(count => count > 0)) {
+                filtered[clientName] = { ...clientData, tasks: filteredTasks, counts: filteredCounts };
+            }
+        });
+
+        return filtered;
+    }, [tasks, searchTerm]);
+
+    // Re-fetch quando o tipo de fetch muda
     useEffect(() => {
         fetchTasks();
-    }, [fetchType, fetchTasks]);
+    }, [fetchType]);
 
     // Listener para evento de atualização
     useEffect(() => {
@@ -261,7 +202,7 @@ export const useTasks = (initialFetchType = 'all') => {
         return () => {
             window.removeEventListener('task-refresh', handleRefresh);
         };
-    }, [fetchTasks]);
+    }, []);
 
     return {
         tasks: searchTerm ? getFilteredTasks() : tasks,

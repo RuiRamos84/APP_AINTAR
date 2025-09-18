@@ -1,12 +1,12 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
-    Box, Button, Fade, Slide, Typography, Alert,
+    Box, Button, Fade, Slide, Typography, Alert, CircularProgress,
     useTheme, useMediaQuery, AlertTitle
 } from '@mui/material';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
-import { PaymentContext } from '../context/PaymentContext';
-import { getAvailableMethodsForUser, debugUserPermissions } from '../services/paymentTypes';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useMutation } from '@tanstack/react-query';
+import paymentService from '../services/paymentService';
 
 // Componentes
 import PaymentMethodSelector from './PaymentMethodSelector';
@@ -16,7 +16,7 @@ import CashPayment from './CashPayment';
 import BankTransferPayment from './BankTransferPayment';
 import MunicipalityPayment from './MunicipalityPayment';
 import PaymentStatus from './PaymentStatus';
-
+import { usePaymentPermissions, PAYMENT_METHODS } from '../services/paymentTypes';
 const PaymentModule = ({
     documentId,
     amount,
@@ -30,94 +30,87 @@ const PaymentModule = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { user } = useAuth();
-    const payment = useContext(PaymentContext);
+
+    // Estado local para gerir o fluxo
+    const [selectedMethod, setSelectedMethod] = useState(null);
+    const [transactionId, setTransactionId] = useState(null);
+    const [status, setStatus] = useState(null);
+    const [error, setError] = useState(null);
+
     const [direction, setDirection] = useState('forward');
-    const [initialized, setInitialized] = useState(false);
-
-    // Usar gestão centralizada de permissões
-    const availableMethods = getAvailableMethodsForUser(user?.profil, user?.user_id);
-
-    // Debug permissões em desenvolvimento
-    useEffect(() => {
-        if (process.env.NODE_ENV === 'development' && user) {
-            debugUserPermissions(user.profil, user.user_id);
-        }
-    }, [user]);
+ 
+    // ✅ Usar hook para carregar permissões de forma assíncrona
+    const { availableMethods, loading: permissionsLoading } = usePaymentPermissions();
 
     // Determinar se precisa checkout SIBS
-    const hasSibsMethods = availableMethods.some(method =>
-        ['MBWAY', 'MULTIBANCO'].includes(method)
-    );
+    const hasSibsMethods = useMemo(() => availableMethods.some(method =>
+        [PAYMENT_METHODS.MBWAY, PAYMENT_METHODS.MULTIBANCO].includes(method)
+    ), [availableMethods]);
+
+    // Mutação para criar o checkout SIBS preventivo
+    const { mutate: createSibsCheckout, isLoading: isCreatingCheckout } = useMutation({
+        mutationFn: () => paymentService.createPreventiveCheckout(documentId, amount),
+        onSuccess: (data) => {
+            if (data.success) {
+                setTransactionId(data.transaction_id);
+                setError(null);
+            } else {
+                setError(data.error || 'Falha ao preparar pagamento SIBS.');
+            }
+        },
+        onError: (err) => setError(err.message || 'Erro crítico ao preparar pagamento SIBS.'),
+    });
 
     // Sync loading state
     useEffect(() => {
-        onLoadingChange?.(payment.state.loading);
-    }, [payment.state.loading, onLoadingChange]);
+        onLoadingChange?.(isCreatingCheckout);
+    }, [isCreatingCheckout, onLoadingChange]);
 
     // Inicialização inteligente
     useEffect(() => {
-        if (!initialized && user) {
-            console.log('🚀 Inicializando pagamento:', {
-                documentId,
-                amount,
-                availableMethods,
-                hasSibsMethods,
-                userProfile: user.profil,
-                userId: user.user_id
-            });
-
-            payment.setOrderDetails(documentId, amount, availableMethods, documentNumber);
-            setInitialized(true);
+        // Se houver métodos SIBS, cria o checkout preventivamente
+        if (hasSibsMethods && !transactionId && !isCreatingCheckout) {
+            createSibsCheckout();
         }
-    }, [documentId, amount, documentNumber, initialized, availableMethods, hasSibsMethods, user]);
+    }, [hasSibsMethods, transactionId, isCreatingCheckout, createSibsCheckout]);
 
     // Auto-avançar quando método selecionado
     useEffect(() => {
-        if (payment.state.selectedMethod && step === 0) {
-            const selectedMethod = payment.state.selectedMethod;
-
-            if (isMethodReady(selectedMethod)) {
-                console.log('✅ Avançando para pagamento:', {
-                    method: selectedMethod,
-                    sibsReady: payment.getSibsReady?.(),
-                    internalReady: payment.getInternalReady?.(),
-                    transactionId: payment.state.transactionId
-                });
-
-                setDirection('forward');
-                onStepChange?.(1);
-            }
+        if (selectedMethod && step === 0) {
+            setDirection('forward');
+            onStepChange?.(1);
         }
-    }, [payment.state.selectedMethod, payment.state.sibsTransactionId, payment.state.internalTransactionId, step, onStepChange]);
+    }, [selectedMethod, step, onStepChange]);
 
     // Auto-avançar para confirmação
     useEffect(() => {
-        if (payment.state.status === 'SUCCESS' ||
-            payment.state.status === 'PENDING_VALIDATION') {
+        if (status === 'SUCCESS' || status === 'PENDING_VALIDATION') {
             setDirection('forward');
             onStepChange?.(2);
         }
-    }, [payment.state.status, onStepChange]);
+    }, [status, onStepChange]);
 
     const handleMethodSelect = (method) => {
         console.log('🎯 Método selecionado:', method);
-        payment.setMethod(method);
+        setSelectedMethod(method);
     };
 
     const handleBack = () => {
         setDirection('backward');
         if (step === 1) {
-            payment.setMethod(null);
+            setSelectedMethod(null);
         }
         onStepChange?.(Math.max(0, step - 1));
     };
 
     const renderPaymentMethod = () => {
         const props = {
-            onSuccess: () => { },
+            documentId: documentId,
+            amount: amount,
             onComplete,
             userInfo: user,
-            transactionId: payment.state.transactionId
+            transactionId: transactionId,
+            onSuccess: (result) => setStatus(result.payment_status || 'SUCCESS'),
         };
 
         const components = {
@@ -128,15 +121,20 @@ const PaymentModule = ({
             'MUNICIPALITY': MunicipalityPayment
         };
 
-        const Component = components[payment.state.selectedMethod];
+        const Component = components[selectedMethod];
         return Component ? <Component {...props} /> : null;
     };
 
-    const isMethodReady = (method) => {
-        return payment.isMethodReady ? payment.isMethodReady(method) : false;
-    };
-
     const renderStepContent = () => {
+        // Mostrar loading enquanto as permissões são verificadas
+        if (permissionsLoading) {
+            return (
+                <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                    <CircularProgress />
+                    <Typography sx={{ ml: 2 }}>A verificar permissões...</Typography>
+                </Box>
+            );
+        }
         // Verificar se utilizador tem métodos disponíveis
         if (availableMethods.length === 0) {
             return (
@@ -150,11 +148,11 @@ const PaymentModule = ({
             );
         }
 
-        if (payment.state.error) {
+        if (error) {
             return (
                 <Box sx={{ p: 3 }}>
                     <Alert severity="error" sx={{ mb: 2 }}>
-                        {payment.state.error}
+                        {error}
                     </Alert>
                     <Button onClick={() => window.location.reload()}>
                         Tentar novamente
@@ -167,19 +165,19 @@ const PaymentModule = ({
             <PaymentMethodSelector
                 key="selector"
                 availableMethods={availableMethods}
-                selectedMethod={payment.state.selectedMethod}
+                selectedMethod={selectedMethod}
                 onSelect={handleMethodSelect}
                 amount={amount}
                 user={user}
-                sibsReady={payment.getSibsReady?.() || false}
-                internalReady={payment.getInternalReady?.() || false}
-                loading={payment.state.loading}
+                sibsReady={!!transactionId}
+                internalReady={true} // Métodos manuais estão sempre prontos
+                loading={isCreatingCheckout}
             />,
             renderPaymentMethod(),
-            payment.state.selectedMethod === 'MULTIBANCO' && payment.state.status === 'REFERENCE_GENERATED'
+            selectedMethod === 'MULTIBANCO' && status === 'REFERENCE_GENERATED'
                 ? renderPaymentMethod()
                 : <PaymentStatus
-                    transactionId={payment.state.transactionId}
+                    transactionId={transactionId}
                     onComplete={onComplete}
                 />
         ];
@@ -202,18 +200,15 @@ const PaymentModule = ({
     if (process.env.NODE_ENV === 'development') {
         console.log('🔍 PaymentModule State:', {
             step,
-            selectedMethod: payment.state.selectedMethod,
+            selectedMethod: selectedMethod,
             availableMethods,
             userProfile: user?.profil,
             userId: user?.user_id,
-            sibsReady: payment.getSibsReady?.(),
-            internalReady: payment.getInternalReady?.(),
-            sibsTransactionId: payment.state.sibsTransactionId,
-            internalTransactionId: payment.state.internalTransactionId,
-            transactionId: payment.state.transactionId,
-            status: payment.state.status,
-            loading: payment.state.loading,
-            error: payment.state.error
+            sibsReady: !!transactionId,
+            transactionId: transactionId,
+            status: status,
+            loading: isCreatingCheckout,
+            error: error
         });
     }
 
@@ -252,7 +247,7 @@ const PaymentModule = ({
                             <Button
                                 startIcon={<ArrowBack />}
                                 onClick={handleBack}
-                                disabled={payment.state.loading}
+                                disabled={isCreatingCheckout}
                                 sx={{ minWidth: { xs: 100, md: 120 } }}
                                 size={isMobile ? "small" : "medium"}
                             >
@@ -266,7 +261,7 @@ const PaymentModule = ({
                             <Button
                                 variant="contained"
                                 endIcon={<ArrowForward />}
-                                onClick={() => onComplete?.(payment.state)}
+                                onClick={() => onComplete?.({ status, transactionId })}
                                 sx={{
                                     minWidth: { xs: 100, md: 120 },
                                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'

@@ -14,8 +14,16 @@ import {
     Collapse
 } from '@mui/material';
 import {
+    Warning as WarningIcon,
+    Info as InfoIcon,
+    CheckCircle as SuccessIcon,
+    Error as ErrorIcon,
+    AttachFile as AttachIcon,
+    Delete as DeleteIcon,
+    ExpandMore as ExpandMoreIcon,
+    ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandIcon,
-    ExpandLess as CollapseIcon
+    ExpandLess as CollapseIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { usePavimentations } from '../../hooks/usePavimentations';
@@ -26,6 +34,8 @@ import PavimentationFilters from './PavimentationFilters';
 import PavimentationStats from './PavimentationStats';
 import ConfirmationDialog from '../common/ConfirmationDialog';
 import { notifySuccess, notifyError } from '../../../../components/common/Toaster/ThemedToaster';
+import { addDocumentAnnex } from '../../../../services/documentService';
+
 
 /**
  * Componente principal para listagem de pavimentações
@@ -56,7 +66,10 @@ const PavimentationList = ({
         details: '',
         onConfirm: null,
         onCancel: null,
-        actionColor: 'primary'
+        actionColor: 'primary',
+        allowAttachments: false,
+        attachmentRequired: false,
+        attachmentLabel: 'Anexar comprovativo'
     });
     const [statsExpanded, setStatsExpanded] = useState(false);
 
@@ -117,7 +130,7 @@ const PavimentationList = ({
     }
 
     /**
-     * Executar ação com confirmação
+     * Executar ação com confirmação e anexos
      */
     const handleActionWithConfirmation = async (pavimentationId, actionId) => {
         try {
@@ -125,15 +138,35 @@ const PavimentationList = ({
             if (!actionConfig) return;
 
             if (actionConfig.requiresConfirmation) {
+                // Verificar se é ação de pagamento que requer anexos
+                const isPaymentAction = actionId === 'pay';
+
                 setConfirmDialog({
                     open: true,
                     title: actionConfig.confirmTitle,
                     message: actionConfig.confirmMessage,
                     details: actionConfig.confirmDetails,
                     actionColor: actionConfig.color,
-                    onConfirm: async () => {
+                    allowAttachments: isPaymentAction,
+                    attachmentRequired: false, // opcional por defeito
+                    attachmentLabel: isPaymentAction ? 'Anexar comprovativo de pagamento' : 'Anexar documentos',
+                    onConfirm: async (attachments = []) => {
                         setConfirmDialog(prev => ({ ...prev, open: false }));
-                        await executeAction(pavimentationId, actionId);
+
+                        try {
+                            // 1. Primeiro adicionar anexos se existirem
+                            if (attachments.length > 0) {
+                                console.log(`📎 Adicionando ${attachments.length} anexos...`);
+                                await addAttachmentsForPavimentation(pavimentationId, attachments);
+                            }
+
+                            // 2. Depois executar a ação
+                            await executeAction(pavimentationId, actionId);
+
+                        } catch (error) {
+                            console.error('Erro no processo:', error);
+                            notifyError(`Erro: ${error.message}`);
+                        }
                     },
                     onCancel: () => {
                         setConfirmDialog(prev => ({ ...prev, open: false }));
@@ -144,6 +177,34 @@ const PavimentationList = ({
             }
         } catch (error) {
             console.error('Erro ao executar ação:', error);
+        }
+    };
+
+    /**
+     * Adicionar anexos para uma pavimentação
+     */
+    const addAttachmentsForPavimentation = async (pavimentationId, attachments) => {
+        try {
+            const pavimentationData = data.find(item => item.pk === pavimentationId);
+            if (!pavimentationData?.regnumber) {
+                throw new Error('Não foi possível obter o número de registo');
+            }
+
+            for (const attachment of attachments) {
+                const formData = new FormData();
+                formData.append('files', attachment.file);
+                formData.append('descr', attachment.description || '');
+                formData.append('tb_document', pavimentationData.pk);
+
+                await addDocumentAnnex(formData);
+                console.log(`✅ Anexo ${attachment.file.name} adicionado`);
+            }
+
+            notifySuccess(`${attachments.length} anexo(s) adicionado(s)`);
+
+        } catch (error) {
+            console.error('Erro ao adicionar anexos:', error);
+            throw new Error(`Falha ao adicionar anexos: ${error.message}`);
         }
     };
 
@@ -404,7 +465,7 @@ const PavimentationList = ({
                 )}
             </Paper>
 
-            {/* Dialog de confirmação */}
+            {/* Dialog de confirmação com anexos */}
             <ConfirmationDialog
                 open={confirmDialog.open}
                 title={confirmDialog.title}
@@ -415,6 +476,9 @@ const PavimentationList = ({
                 onConfirm={confirmDialog.onConfirm}
                 onCancel={confirmDialog.onCancel}
                 loading={actionLoading}
+                allowAttachments={confirmDialog.allowAttachments}
+                attachmentRequired={confirmDialog.attachmentRequired}
+                attachmentLabel={confirmDialog.attachmentLabel}
             />
         </>
     );

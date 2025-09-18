@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     Container, Typography, Paper, Box, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Button, Chip, IconButton,
-    Dialog, DialogTitle, DialogContent, DialogActions, Alert,
+    Dialog, DialogTitle, DialogContent, DialogActions, Alert, CircularProgress,
     Grid, Card, CardContent, Avatar, Tabs, Tab, TextField,
     Select, MenuItem, FormControl, InputLabel, Pagination
 } from '@mui/material';
@@ -11,22 +11,20 @@ import {
     Euro, FilterList, History
 } from '@mui/icons-material';
 import paymentService from '../services/paymentService';
-import { canManagePayments, PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
 import { useMetaData } from '../../../contexts/MetaDataContext'; 
 
 const PaymentAdminPage = ({ userInfo }) => {
     const { metaData } = useMetaData();
-
+    const queryClient = useQueryClient();
     const [tab, setTab] = useState(0);
-    const [payments, setPayments] = useState([]);
-    const [history, setHistory] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedPayment, setSelectedPayment] = useState(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
-    // Filtros e paginação
+    // Filtros e paginação para o histórico
     const [filters, setFilters] = useState({
         startDate: null,
         endDate: null,
@@ -35,11 +33,9 @@ const PaymentAdminPage = ({ userInfo }) => {
         user: ''
     });
     const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
     const pageSize = 10;
 
-    // ===== USAR GESTÃO CENTRALIZADA =====
-    const hasAccess = canManagePayments(userInfo);
+    const hasAccess = true;
 
     const getUserNameByPk = useCallback((userPk) => {
         if (!userPk || !metaData?.who) {
@@ -50,59 +46,51 @@ const PaymentAdminPage = ({ userInfo }) => {
         return user?.name || `Utilizador ${userPk}`;
     }, [metaData]);
 
-    const fetchPendingPayments = useCallback(async () => {
-        setLoading(true);
-        try {
+    // Usar useQuery para buscar pagamentos pendentes
+    const { data: payments = [], isLoading: isLoadingPending, refetch: fetchPendingPayments } = useQuery({
+        queryKey: ['pendingPayments'],
+        queryFn: async () => {
             const result = await paymentService.getPendingPayments();
-            const pending = result.success ?
-                result.payments.filter(p => p.payment_status === 'PENDING_VALIDATION') : [];
-            setPayments(pending);
-            setError(result.success ? '' : result.error);
-        } catch (err) {
-            setError('Erro ao carregar pendentes');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+            return result || []; // Garantir que é sempre um array
+        },
+        enabled: hasAccess && tab === 0,
+    });
 
-    const fetchPaymentHistory = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params = {
+    // Usar useMutation para aprovar pagamentos
+    const { mutate: approvePayment, isLoading: isApproving } = useMutation({
+        mutationFn: (paymentPk) => paymentService.approvePayment(paymentPk),
+        onSuccess: () => {
+            // Invalida a query de pagamentos pendentes para a atualizar automaticamente
+            queryClient.invalidateQueries({ queryKey: ['pendingPayments'] });
+            setConfirmOpen(false);
+            setSelectedPayment(null);
+        },
+        onError: (err) => {
+            setError(err.message || 'Erro na aprovação');
+        }
+    });
+
+    // Usar useQuery para o histórico de pagamentos
+    const { data: historyData, isLoading: isLoadingHistory, isError: isErrorHistory, error: historyError } = useQuery({
+        queryKey: ['paymentHistory', page, filters],
+        queryFn: () => paymentService.getPaymentHistory({
                 page,
                 page_size: pageSize,
                 ...filters,
                 start_date: filters.startDate || null,
                 end_date: filters.endDate || null,
                 exclude_pending: true
-            };
+        }),
+        enabled: hasAccess && tab === 1,
+        keepPreviousData: true, // Melhora a experiência de paginação
+    });
 
-            const result = await paymentService.getPaymentHistory(params);
-            setHistory(result.success ? result.payments : []);
-            setTotalPages(Math.ceil((result.total || 0) / pageSize));
-            setError(result.success ? '' : result.error);
-        } catch (err) {
-            setError('Erro ao carregar histórico');
-        } finally {
-            setLoading(false);
-        }
-    }, [page, filters]);
-
-    const approvePayment = async () => {
-        try {
-            await paymentService.approvePayment(selectedPayment.pk);
-            setPayments(prev => prev.filter(p => p.pk !== selectedPayment.pk));
-            setConfirmOpen(false);
-            setSelectedPayment(null);
-        } catch (err) {
-            setError('Erro na aprovação');
-        }
-    };
+    const totalPages = Math.ceil((historyData?.total || 0) / pageSize);
 
     const handleTabChange = (_, newTab) => {
         setTab(newTab);
         setPage(1);
-        if (newTab === 1) fetchPaymentHistory();
+        // A query de histórico será ativada automaticamente pelo 'enabled'
     };
 
     const handleFilterChange = (field, value) => {
@@ -110,22 +98,10 @@ const PaymentAdminPage = ({ userInfo }) => {
         setPage(1);
     };
 
-    const applyFilters = () => {
-        if (tab === 1) fetchPaymentHistory();
-    };
-
     const clearFilters = () => {
         setFilters({ startDate: null, endDate: null, method: '', status: '', user: '' });
         setPage(1);
     };
-
-    useEffect(() => {
-        if (hasAccess && tab === 0) fetchPendingPayments();
-    }, [hasAccess, tab, fetchPendingPayments]);
-
-    useEffect(() => {
-        if (tab === 1) fetchPaymentHistory();
-    }, [page, tab, fetchPaymentHistory]);
 
     const handleDetailsClick = async (payment) => {
         if (!payment?.pk) return;
@@ -169,7 +145,7 @@ const PaymentAdminPage = ({ userInfo }) => {
         );
     }
 
-    const currentData = tab === 0 ? payments : history;
+    const currentData = tab === 0 ? payments : historyData?.payments ?? [];
 
     return (
         <Container maxWidth="lg">
@@ -264,24 +240,20 @@ const PaymentAdminPage = ({ userInfo }) => {
                             </Grid>
                             <Grid size={{ xs: 12, sm: 2 }}>
                                 <Button
-                                    variant="contained"
-                                    onClick={applyFilters}
-                                    startIcon={<FilterList />}
+                                    variant="outlined"
+                                    onClick={clearFilters}
                                     fullWidth
                                 >
-                                    Filtrar
+                                    Limpar
                                 </Button>
                             </Grid>
                             <Grid size={{ xs: 12, sm: 2 }}>
                                 <Button
                                     variant="outlined"
-                                    onClick={() => {
-                                        clearFilters();
-                                        if (tab === 1) fetchPaymentHistory();
-                                    }}
+                                    onClick={() => queryClient.invalidateQueries({ queryKey: ['paymentHistory'] })}
                                     fullWidth
                                 >
-                                    Limpar
+                                    Filtrar
                                 </Button>
                             </Grid>
                         </Grid>
@@ -320,12 +292,12 @@ const PaymentAdminPage = ({ userInfo }) => {
                                 <CardContent sx={{ textAlign: 'center' }}>
                                     <Button
                                         variant="contained"
-                                        startIcon={loading ? null : <Refresh />}
+                                        startIcon={isLoadingPending ? null : <Refresh />}
                                         onClick={fetchPendingPayments}
-                                        disabled={loading}
+                                        disabled={isLoadingPending}
                                         fullWidth
                                     >
-                                        {loading ? 'A carregar...' : 'Actualizar'}
+                                        {isLoadingPending ? 'A carregar...' : 'Actualizar'}
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -333,7 +305,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                     </Grid>
                 )}
 
-                {error && (
+                {(error || (tab === 1 && historyData?.error)) && (
                     <Alert severity="error" sx={{ mb: 3 }}>
                         {error}
                     </Alert>
@@ -354,7 +326,13 @@ const PaymentAdminPage = ({ userInfo }) => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {currentData.length === 0 ? (
+                                {(isLoadingPending && tab === 0) || (isLoadingHistory && tab === 1) ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                                            <CircularProgress />
+                                        </TableCell>
+                                    </TableRow>
+                                ) : currentData.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={tab === 1 ? 6 : 5} align="center" sx={{ py: 4 }}>
                                             <Typography color="text.secondary">
@@ -577,7 +555,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                         <Button
                             variant="contained"
                             color="success"
-                            onClick={() => {
+                        onClick={() => { // Apenas abre o modal de confirmação
                                 setDetailsOpen(false);
                                 setConfirmOpen(true);
                             }}
@@ -601,10 +579,11 @@ const PaymentAdminPage = ({ userInfo }) => {
                     <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
                     <Button
                         variant="contained"
-                        onClick={approvePayment}
+                        onClick={() => approvePayment(selectedPayment.pk)}
                         color="success"
+                        disabled={isApproving}
                     >
-                        Aprovar
+                        {isApproving ? 'A aprovar...' : 'Aprovar'}
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -4,6 +4,7 @@ import axios from "axios";
 import config from "../config";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { queryClient } from '../queryClient'; // Importar a instância partilhada
 
 const SessionAlert = Swal.mixin({
   customClass: {
@@ -141,7 +142,9 @@ export const logout = async () => {
   } finally {
     localStorage.removeItem("user");
     localStorage.removeItem("lastActivityTime");
-    localStorage.removeItem("metaData");
+    
+    // Limpar o cache do React Query para garantir que os metadados são recarregados no próximo login.
+    queryClient.clear(); // Agora usa a instância correta da aplicação
     // window.location.href = "/login"; // Força o redirecionamento
     isLoggingOut = false;
   }

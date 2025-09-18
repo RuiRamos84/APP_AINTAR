@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Button, TextField, Typography, Alert, CircularProgress,
     Select, MenuItem, FormControl, InputLabel, Divider, List,
@@ -8,22 +8,18 @@ import { useDropzone } from 'react-dropzone';
 import {
     LocationCity as MunicipalityIcon,
     CloudUpload as UploadIcon,
-    AttachFile as AttachIcon,
-    PictureAsPdf as PdfIcon,
-    Image as ImageIcon,
-    Description as DescriptionIcon
+    AttachFile as AttachIcon
 } from '@mui/icons-material';
-import { PaymentContext } from '../context/PaymentContext';
-import { canUsePaymentMethod, PAYMENT_METHODS } from '../services/paymentTypes';
-import { useRouteConfig } from '../../../hooks/useRouteConfig';
+import { usePermissionContext } from '../../../contexts/PermissionContext';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import { FilePreviewItem, generateFilePreview } from '../../../pages/ModernDocuments/utils/fileUtils';
 import { addDocumentAnnex } from '../../../services/documentService';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import paymentService from '../services/paymentService';
 
-const MunicipalityPayment = ({ onSuccess, userInfo }) => {
-    const { state, payManual } = useContext(PaymentContext);
+const MunicipalityPayment = ({ onSuccess, userInfo, documentId, amount }) => {
     const { metaData } = useMetaData();
-    const { hasPermission } = useRouteConfig();
+    const { hasPermission } = usePermissionContext();
 
     const [formData, setFormData] = useState({
         municipality: '',
@@ -33,19 +29,42 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
     const [error, setError] = useState('');
     const [attachments, setAttachments] = useState([]);
     const [attachmentError, setAttachmentError] = useState('');
+    const [hasAccess, setHasAccess] = useState(false);
 
-    // ===== USAR GESTÃO CENTRALIZADA =====
-    const hasAccess = hasPermission({
-        requiredProfil: "2" // Municípios
-    }) || hasPermission({
-        requiredProfil: "0" // Admin
+    const queryClient = useQueryClient();
+
+    const { mutate: registerPayment, isLoading } = useMutation({
+        mutationFn: async (paymentData) => {
+            // 1. Registar o pagamento manual
+            const result = await paymentService.processManual(
+                paymentData.documentId,
+                paymentData.amount,
+                'MUNICIPALITY',
+                paymentData.reference
+            );
+
+            // 2. Anexar ficheiros se existirem e o pagamento for registado
+            if (paymentData.attachments.length > 0 && result.success) {
+                const attachmentSuccess = await addAttachmentsToDocument(paymentData.documentId, paymentData.attachments);
+                if (!attachmentSuccess) {
+                    // Não lançamos erro, mas avisamos que os anexos falharam
+                    console.warn('Pagamento registado, mas erro ao anexar comprovativos');
+                }
+            }
+            return result;
+        },
+        onSuccess: (result) => {
+            onSuccess?.(result);
+            // Invalidar queries relacionadas a documentos para refletir os novos anexos
+            queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+        },
+        onError: (err) => setError(err.message || 'Ocorreu um erro ao registar o pagamento.'),
     });
 
-    const acceptedFileTypes = [
-        { type: 'PDF', icon: <PdfIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'error' },
-        { type: 'Imagens', icon: <ImageIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'success' },
-        { type: 'Documentos', icon: <DescriptionIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
-    ];
+    useEffect(() => {
+        // A permissão 'payments.municipality' não tem ID de interface, é baseada no perfil '2'
+        setHasAccess(userInfo?.profil === '2' || hasPermission(3)); // ID 3 = payments.validate (admin)
+    }, [hasPermission, userInfo]);
 
     const getMunicipalityByEntity = (entityPk) => {
         if (entityPk === 1) {
@@ -118,26 +137,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         setAttachments(updatedFiles);
     };
 
-    const handleAttachmentDescriptionChange = (index, value) => {
-        const updatedFiles = [...attachments];
-        updatedFiles[index].description = value;
-        setAttachments(updatedFiles);
-    };
-
-    const validateForm = () => {
-        if (!formData.municipality) return 'Município obrigatório';
-        if (!formData.reference.trim()) return 'Referência obrigatória';
-        if (!formData.paymentDate) return 'Data obrigatória';
-
-        for (let i = 0; i < attachments.length; i++) {
-            if (!attachments[i].description.trim()) {
-                return 'Todos os comprovativos devem ter uma descrição';
-            }
-        }
-
-        return null;
-    };
-
     const addAttachmentsToDocument = async (documentId) => {
         if (attachments.length === 0) return true;
 
@@ -158,28 +157,30 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
         }
     };
 
-    const handlePay = async () => {
-        const validation = validateForm();
-        if (validation) {
-            setError(validation);
+    const handlePay = () => {
+        if (!formData.municipality) {
+            setError('Município obrigatório');
+            return;
+        }
+        if (!formData.reference.trim()) {
+            setError('Referência obrigatória');
+            return;
+        }
+        if (!formData.paymentDate) {
+            setError('Data obrigatória');
             return;
         }
 
         setError('');
-        try {
-            const result = await payManual('MUNICIPALITY', formData.reference.trim());
 
-            if (attachments.length > 0) {
-                const attachmentSuccess = await addAttachmentsToDocument(state.documentId);
-                if (!attachmentSuccess) {
-                    console.warn('Pagamento registrado mas erro ao anexar comprovativos');
-                }
-            }
+        const referenceInfo = `Pagamento no ${formData.municipality} em ${new Date(formData.paymentDate).toLocaleDateString('pt-PT')}. Ref: ${formData.reference.trim()}`;
 
-            onSuccess?.(result);
-        } catch (err) {
-            setError(err.message);
-        }
+        registerPayment({
+            documentId,
+            amount,
+            reference: referenceInfo,
+            attachments
+        });
     };
 
     if (!hasAccess) {
@@ -203,7 +204,7 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                     Registo de pagamento nos balcões municipais
                 </Typography>
                 <Typography variant="h6" color="primary" sx={{ mt: 1, fontWeight: 600 }}>
-                    €{Number(state.amount || 0).toFixed(2)}
+                    €{Number(amount || 0).toFixed(2)}
                 </Typography>
             </Box>
 
@@ -295,29 +296,6 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                     Comprovativos (Opcional)
                 </Typography>
 
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Anexe comprovativos do pagamento (recibos, faturas, etc.) para agilizar a validação.
-                </Typography>
-
-                {/* Tipos aceitos */}
-                <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                        Formatos aceitos:
-                    </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} sx={{ mt: 0.5 }}>
-                        {acceptedFileTypes.map((type, index) => (
-                            <Chip
-                                key={index}
-                                icon={type.icon}
-                                label={type.type}
-                                size="small"
-                                color={type.color}
-                                variant="outlined"
-                            />
-                        ))}
-                    </Stack>
-                </Box>
-
                 {/* Dropzone */}
                 {attachments.length < 3 && (
                     <Box
@@ -335,7 +313,7 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                             }
                         }}
                     >
-                        <input {...getInputProps()} disabled={state.loading} />
+                        <input {...getInputProps()} disabled={isLoading} />
                         <UploadIcon sx={{ fontSize: 24, mb: 1, color: 'text.secondary' }} />
                         <Typography variant="body2" gutterBottom>
                             {isDragActive ? 'Solte aqui...' : 'Clique ou arraste comprovativos'}
@@ -363,10 +341,8 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                                 <FilePreviewItem
                                     key={`${fileItem.file.name}-${index}`}
                                     file={fileItem.file}
-                                    description={fileItem.description}
-                                    onDescriptionChange={(value) => handleAttachmentDescriptionChange(index, value)}
                                     onRemove={() => handleRemoveAttachment(index)}
-                                    disabled={state.loading}
+                                    disabled={isLoading}
                                     previewUrl={fileItem.preview}
                                 />
                             ))}
@@ -387,8 +363,8 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                 fullWidth
                 variant="contained"
                 onClick={handlePay}
-                disabled={state.loading || !formData.municipality || !formData.reference.trim()}
-                startIcon={state.loading ? <CircularProgress size={20} /> : <MunicipalityIcon />}
+                disabled={isLoading || !formData.municipality || !formData.reference.trim()}
+                startIcon={isLoading ? <CircularProgress size={20} /> : <MunicipalityIcon />}
                 sx={{
                     background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
                     '&:hover': {
@@ -396,7 +372,7 @@ const MunicipalityPayment = ({ onSuccess, userInfo }) => {
                     }
                 }}
             >
-                {state.loading ? 'A registar...' : `Registar pagamento no ${formData.municipality}`}
+                {isLoading ? 'A registar...' : `Registar pagamento no ${formData.municipality}`}
             </Button>
 
             {/* Informação importante */}

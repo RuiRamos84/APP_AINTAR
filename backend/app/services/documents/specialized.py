@@ -225,8 +225,9 @@ def update_document_pavpaid(pk, current_user):
             pk = sanitize_input(pk, 'int')
 
             # Executar função para mover de "executado" para "concluído/pago"
-            sql = text("SELECT fbo_document_pavpaid(:pnpk) AS result")
-            result = session.execute(sql, {"pnpk": pk}).fetchone()
+            sql = text("SELECT fbo_document_paveclose(:pnpk, :msg) AS result")
+            result = session.execute(
+                sql, {"pnpk": pk, "msg": "Pagamento efectuado"}).fetchone()
 
             if not result or not result.result:
                 raise APIError("Erro ao marcar ramal como pago",
@@ -236,9 +237,9 @@ def update_document_pavpaid(pk, current_user):
             formatted_result = format_message(result.result)
             session.commit()
 
-            # Limpar cache relevante
-            cache.delete_memoized(get_document_ramais_executed, current_user)
-            cache.delete_memoized(get_document_ramais_concluded, current_user)
+            # Limpar cache relevante - corrigido
+            cache.delete_memoized(get_document_ramais_executed)
+            cache.delete_memoized(get_document_ramais_concluded)
 
             return {"message": "Ramal marcado como pago e concluído", "result": formatted_result}, 200
 

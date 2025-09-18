@@ -1,5 +1,5 @@
-// components/common/Sidebar/MainSidebar.js
-import React, { useState, useMemo, useCallback } from 'react';
+// components/common/Sidebar/MainSidebar.js - VERSÃO SIMPLIFICADA (SEM PERMISSÕES ASYNC)
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
     Box,
     List,
@@ -27,14 +27,18 @@ import {
     Logout as LogoutIcon,
     Person as PersonIcon,
     Lock as LockIcon,
-    MoreVert as MoreIcon
+    MoreVert as MoreIcon,
+    Home as HomeIcon,
+    Assignment as TaskIcon
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import { useAuth } from "../../../contexts/AuthContext";
-import { useRouteConfig } from '../../../hooks/useRouteConfig';
 import SidebarItem from './SidebarItem';
+import { usePermissionContext } from '../../../contexts/PermissionContext';
+import { useRouteConfig } from '../../../hooks/useRouteConfig'; // Corrigido para useRouteConfig
+import { useModal } from '../../../contexts/ModalContext';
 import TaskNotificationCenter from '../../../pages/Tasks/TaskNotificationCenter';
 import { notifySuccess } from "../../common/Toaster/ThemedToaster";
 import logo from "../../../assets/images/logo.png";
@@ -52,22 +56,41 @@ const MainSidebar = () => {
         isCompact
     } = useSidebar();
     const { user, logoutUser, toggleDarkMode, toggleVacationStatus } = useAuth();
-    const { getAccessibleSidebarItems } = useRouteConfig();
+    const { initialized: permissionsInitialized } = usePermissionContext(); // NOVO
+    const { openModal } = useModal();
 
     const [hoveredItem, setHoveredItem] = useState(null);
+    const [menuItems, setMenuItems] = useState([]);
     const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
+    const { getAccessibleSidebarItems } = useRouteConfig();
 
-    // Menu items
-    const menuItems = useMemo(() => getAccessibleSidebarItems(), [getAccessibleSidebarItems]);
+    // Carregar itens da sidebar DEPOIS que as permissões estiverem prontas
+    useEffect(() => {
+        const loadItems = () => {
+            // Só carrega se o utilizador existir E as permissões estiverem inicializadas
+            if (user && permissionsInitialized) {
+                const accessibleItems = getAccessibleSidebarItems();
+                setMenuItems(accessibleItems);
+            } else if (!user) { // Limpar se o utilizador fizer logout
+                setMenuItems([]);
+            }
+        };
+        loadItems();
+    }, [user, permissionsInitialized, getAccessibleSidebarItems]);
 
     // Agrupar por categoria
     const groupedItems = useMemo(() => {
         const groups = {};
-        menuItems.forEach(item => {
-            const category = item.category || 'Geral';
-            if (!groups[category]) groups[category] = [];
-            groups[category].push(item);
-        });
+
+        // Verificação segura se menuItems é array
+        if (Array.isArray(menuItems)) {
+            menuItems.forEach((item) => {
+                const category = item.category || 'Geral';
+                if (!groups[category]) groups[category] = [];
+                groups[category].push(item);
+            });
+        }
+
         return groups;
     }, [menuItems]);
 
@@ -79,7 +102,6 @@ const MainSidebar = () => {
     const handleToggleVacation = useCallback(async () => { await toggleVacationStatus(); }, [toggleVacationStatus]);
     const handleBackdropClick = useCallback(() => { if (isMobile) setSidebarMode('closed'); }, [isMobile, setSidebarMode]);
 
-    // Handler unificado para abrir menu do perfil (tanto avatar quanto botão)
     const handleProfileClick = useCallback((event) => {
         setProfileMenuAnchor(event.currentTarget);
     }, []);
@@ -100,8 +122,34 @@ const MainSidebar = () => {
         handleProfileMenuClose();
     }, [navigate, handleProfileMenuClose]);
 
+    const handleItemClick = useCallback((item) => {
+        // 1. Se for uma ação definida (como abrir um modal)
+        if (item.action) {
+            if (item.action === 'openModal' && item.actionPayload) {
+                openModal(item.actionPayload);
+            }
+            // Outras ações podem ser adicionadas aqui
+            return;
+        }
+        // 2. Se for uma função de clique personalizada
+        if (typeof item.onClick === 'function') {
+            item.onClick();
+        } else if (item.to) { // 3. Se for uma rota de navegação
+            navigate(item.to);
+        }
+    }, [navigate, openModal]);
+
     const isDarkMode = user?.dark_mode;
     const sidebarWidth = isCompact ? 72 : 300;
+
+    // 1. Verificar se os itens chegam ao MainSidebar
+    // console.log('menuItems no MainSidebar:', menuItems);
+
+    // 2. Verificar se os itens têm estrutura correcta
+    // console.log('Primeiro item:', menuItems[0]);
+
+    // 3. Verificar groupedItems
+    // console.log('groupedItems:', groupedItems);
 
     const sidebarBody = (
         <motion.div
@@ -139,7 +187,6 @@ const MainSidebar = () => {
                             exit={{ opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.2 }}
                         >
-                            {/* Apenas o símbolo do logo */}
                             <Box
                                 component="img"
                                 src={logo}
@@ -148,8 +195,8 @@ const MainSidebar = () => {
                                     height: 62,
                                     width: 142,
                                     objectFit: 'contain',
-                                    clipPath: 'inset(0 64% 0 0)', // Corta para mostrar só o símbolo esquerdo
-                                    transform: 'translateX(30%)', // Move para a direita
+                                    clipPath: 'inset(0 64% 0 0)',
+                                    transform: 'translateX(30%)',
                                 }}
                             />
                         </motion.div>
@@ -161,7 +208,6 @@ const MainSidebar = () => {
                             exit={{ opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.2 }}
                         >
-                            {/* Logo completo */}
                             <img
                                 src={logo}
                                 alt="Logo"
@@ -281,6 +327,7 @@ const MainSidebar = () => {
                                     onHover={handleItemHover}
                                     onLeave={handleItemLeave}
                                     isHovered={hoveredItem === item.id}
+                                    onItemClick={handleItemClick}
                                 />
                             ))}
                         </List>
@@ -322,7 +369,7 @@ const MainSidebar = () => {
                         >
                             <Box sx={{ pb: 1, px: 2, textAlign: 'center' }}>
                                 <Typography variant="caption" color="text.secondary">
-                                    v2.0 • Revolucionário
+                                    v2.0
                                 </Typography>
                             </Box>
                         </motion.div>
@@ -330,7 +377,7 @@ const MainSidebar = () => {
                 </AnimatePresence>
             </Box>
 
-            {/* Menu do perfil - Todas as configurações do utilizador */}
+            {/* Menu do perfil */}
             <Menu
                 anchorEl={profileMenuAnchor}
                 open={Boolean(profileMenuAnchor)}
@@ -341,7 +388,6 @@ const MainSidebar = () => {
                     sx: { minWidth: 250 }
                 }}
             >
-                {/* Perfil */}
                 <MenuItem onClick={() => handleNavigate('/user-info')}>
                     <PersonIcon sx={{ mr: 1 }} fontSize="small" />
                     Perfil
@@ -353,7 +399,6 @@ const MainSidebar = () => {
 
                 <Divider sx={{ my: 1 }} />
 
-                {/* Modo Escuro */}
                 <MenuItem onClick={handleToggleDarkMode} sx={{ justifyContent: 'space-between', py: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         {isDarkMode ? <DarkIcon sx={{ mr: 1 }} fontSize="small" color="primary" /> : <LightIcon sx={{ mr: 1 }} fontSize="small" />}
@@ -367,7 +412,6 @@ const MainSidebar = () => {
                     />
                 </MenuItem>
 
-                {/* Estado de Férias */}
                 <MenuItem onClick={handleToggleVacation} sx={{ justifyContent: 'space-between', py: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         {user?.vacation ?
@@ -387,7 +431,6 @@ const MainSidebar = () => {
 
                 <Divider sx={{ my: 1 }} />
 
-                {/* Logout */}
                 <MenuItem onClick={handleLogout}>
                     <LogoutIcon sx={{ mr: 1 }} fontSize="small" />
                     Logout
@@ -396,7 +439,6 @@ const MainSidebar = () => {
         </motion.div>
     );
 
-    // Mobile
     if (isMobile) {
         return (
             <>
@@ -438,7 +480,6 @@ const MainSidebar = () => {
         );
     }
 
-    // Desktop
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, zIndex: 1200 }}>
             {sidebarBody}

@@ -3,6 +3,8 @@
 ├── .env.production
 ├── app
 │   ├── blacklist.py
+│   ├── core
+│   │   └── permissions.py
 │   ├── models
 │   │   ├── document.py
 │   │   ├── entity.py
@@ -34,6 +36,7 @@
 │   │   ├── meta_data_routes.py
 │   │   ├── operations_routes.py
 │   │   ├── payment_routes.py
+│   │   ├── permissions_routes.py
 │   │   ├── tasks_routes.py
 │   │   ├── user_routes.py
 │   │   ├── webhook_routes.py
@@ -78,6 +81,7 @@
 │   │   │   ├── OficioLivre.docx
 │   │   │   └── OficioLivre.html
 │   │   ├── logo_aintar.png
+│   │   ├── permissions_decorator.py
 │   │   ├── serializers.py
 │   │   ├── utils.py
 │   │   ├── __init__.py
@@ -88,6 +92,7 @@
 │       ├── OF-2024.S.OFI.000060.pdf
 │       └── OF-2024.S.OFI.000061.pdf
 ├── flask-socketio.log
+├── json.json
 ├── requirements.txt
 ├── restart_server.bat
 ├── run_waitress.py

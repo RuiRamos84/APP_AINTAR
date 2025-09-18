@@ -18,6 +18,7 @@ import {
   DialogActions,
 } from "@mui/material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
+import { updateEntity } from "../../../services/entityService";
 import AddressForm from "../../../components/AddressForm/AddressForm";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import {
@@ -62,14 +63,17 @@ const EntityDetail = ({
   const [openContact, setOpenContact] = useState(true);
   const [openDescription, setOpenDescription] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [emailWarningShown, setEmailWarningShown] = useState(false);
+  const [showEmailWarning, setShowEmailWarning] = useState(false);
 
   useEffect(() => {
     if (initialEntity) {
       setEntity((prevEntity) => ({
-        ...initialEntityState, // Garante que todos os campos estão presentes
-        ...initialEntity, // Sobrescreve com os valores iniciais
+        ...initialEntityState,
+        ...initialEntity,
+        nipc: String(initialEntity.nipc || ''),
       }));
-      setIsDirty(false); // Reseta o estado de "sujo"
+      setIsDirty(false);
     }
   }, [initialEntity]);
 
@@ -111,9 +115,9 @@ const EntityDetail = ({
     setEntity(initialEntityState);
     setErrors(initialErrorState);
     setIsDirty(false);
+    setEmailWarningShown(false);
   };
 
-  // Adicione este objeto no escopo do componente, fora das funções
   const fieldLabels = {
     nut1: "Distrito",
     nut2: "Concelho",
@@ -131,7 +135,6 @@ const EntityDetail = ({
     const nutFields = ["nut1", "nut2", "nut3", "nut4"];
     const newErrors = {};
 
-    // Validação dos campos obrigatórios gerais
     requiredFields.forEach((field) => {
       if (
         !entity[field] ||
@@ -141,7 +144,6 @@ const EntityDetail = ({
       }
     });
 
-    // Validação específica para o código postal
     if (
       !entity.postal ||
       (typeof entity.postal === "string" && entity.postal.trim() === "")
@@ -151,7 +153,6 @@ const EntityDetail = ({
       newErrors.postal = "Indique um Código Postal válido (formato: 0000-000).";
     }
 
-    // Validação para campos NUT
     const isPostalValid =
       entity.postal && /^\d{4}-\d{3}$/.test(entity.postal.trim());
     if (isPostalValid) {
@@ -181,6 +182,16 @@ const EntityDetail = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const confirmSaveWithoutEmail = async () => {
+    setEmailWarningShown(true);
+    setShowEmailWarning(false);
+    await handleSave({ preventDefault: () => { } });
+  };
+
+  const cancelSaveWithoutEmail = () => {
+    setShowEmailWarning(false);
+  };
+
   const handleSave = async (event) => {
     event.preventDefault();
 
@@ -191,46 +202,41 @@ const EntityDetail = ({
       return;
     }
 
-    const updatedEntity = {
-      ...entity,
-      nipc: entity.nipc
-        ? typeof entity.nipc === "string"
-          ? entity.nipc.trim()
-          : entity.nipc
-        : "",
-      name: entity.name ? entity.name.trim() : "",
-      address: entity.address ? entity.address.trim() : "",
-      postal: entity.postal ? entity.postal.trim() : "",
-      door: entity.door ? entity.door.trim() : null,
-      floor: entity.floor ? entity.floor.trim() : null,
-      nut1: entity.nut1 ? entity.nut1.trim() : "",
-      nut2: entity.nut2 ? entity.nut2.trim() : "",
-      nut3: entity.nut3 ? entity.nut3.trim() : "",
-      nut4: entity.nut4 ? entity.nut4.trim() : "",
-      phone: entity.phone ? entity.phone.trim() : "",
-      email: entity.email ? entity.email.trim() : null,
-      ident_type: entity.ident_type || null,
-      ident_value: entity.ident_value ? entity.ident_value.trim() : null,
-      descr: entity.descr ? entity.descr.trim() : null,
-    };
+    const isEmailEmpty = !entity.email || entity.email.trim() === "";
+    if (isEmailEmpty && !emailWarningShown) {
+      setShowEmailWarning(true);
+      return;
+    }
+
+    const entityDataToSend = Object.entries(entity).reduce((acc, [key, value]) => {
+      if (typeof value === 'string') {
+        const trimmedValue = value.trim();
+        acc[key] = (trimmedValue === '' && !['name', 'nipc', 'address', 'postal', 'phone'].includes(key)) ? null : trimmedValue;
+      } else {
+        acc[key] = value === '' ? null : value;
+      }
+      return acc;
+    }, {});
+    entityDataToSend.nipc = parseInt(entityDataToSend.nipc, 10);
 
     try {
-      const result = await notifyLoading(
-        () => onSave(updatedEntity),
+      await notifyLoading(
+        () => updateEntity(entity.pk, entityDataToSend),
         "A guardar alterações...",
         "Entidade atualizada com sucesso.",
         "Erro ao atualizar entidade"
       );
 
-      if (result && updateList) {
-        resetForm();
-        onClose();
+      setIsDirty(false);
+
+      if (updateList) {
+        updateList();
       }
+
+      setEntity(entityDataToSend);
+
     } catch (error) {
-      notifyError(
-        "Erro ao atualizar entidade: " +
-          (error.message || "Ocorreu um erro desconhecido")
-      );
+      notifyError("Erro ao atualizar entidade: " + (error.message || "Ocorreu um erro desconhecido"));
       console.error("Erro ao atualizar entidade:", error);
     }
   };
@@ -279,7 +285,7 @@ const EntityDetail = ({
                   <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       required
-                      type="number"
+                      type="text"
                       label="NIF"
                       name="nipc"
                       value={entity.nipc || ""}
@@ -419,11 +425,12 @@ const EntityDetail = ({
             >
               Cancelar
             </Button>
-            <Button variant="contained" color="primary" onClick={handleSave}>
+            <Button variant="contained" color="primary" onClick={handleSave} disabled={!isDirty}>
               Guardar
             </Button>
           </Box>
         </Container>
+
         <Dialog
           open={confirmClose}
           onClose={cancelCloseModal}
@@ -445,6 +452,32 @@ const EntityDetail = ({
             </Button>
             <Button onClick={confirmCloseModal} color="primary" autoFocus>
               Sim
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={showEmailWarning}
+          onClose={cancelSaveWithoutEmail}
+          aria-labelledby="email-warning-dialog-title"
+          aria-describedby="email-warning-dialog-description"
+        >
+          <DialogTitle id="email-warning-dialog-title">
+            Email não preenchido
+          </DialogTitle>
+          <DialogContent>
+            <Typography>
+              O campo email não está preenchido. Recomendamos que seja fornecido um email
+              para facilitar futuras comunicações e melhorar o atendimento ao cliente.
+              Pretende continuar sem preencher o email?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={cancelSaveWithoutEmail} color="primary">
+              Voltar e preencher
+            </Button>
+            <Button onClick={confirmSaveWithoutEmail} color="secondary" autoFocus>
+              Continuar sem email
             </Button>
           </DialogActions>
         </Dialog>

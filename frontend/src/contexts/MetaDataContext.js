@@ -1,18 +1,11 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-} from "react";
-import api from "../services/api";
+import React, { createContext, useContext, useMemo } from "react";
+import { useQuery } from '@tanstack/react-query';
+import { fetchMetaData } from '../services/metaDataService'; // Corrigido para usar a função exportada correta
 import { useAuth } from "./AuthContext";
 
 const MetaDataContext = createContext();
 
 export const useMetaData = () => useContext(MetaDataContext);
-
 const COLUMNS = [
   { id: "regnumber", label: "Nº de Registo" },
   { id: "nipc", label: "Nº Fiscal" },
@@ -38,94 +31,42 @@ const COLUMNS = [
   { id: "floor", label: "Andar" },
 ];
 
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hora em milissegundos
-
 export const MetaDataProvider = ({ children }) => {
   const { user } = useAuth();
-  const [metaData, setMetaData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const cacheRef = useRef({}); // Cache na memória para manter os dados consistentes
-  const fetchingRef = useRef(false); // Controle para evitar requisições duplicadas
 
-  // Função para buscar os metadados da API
-  const fetchMetaData = useCallback(
-    async (force = false) => {
-      if (!user || fetchingRef.current) return null;
+  // Usar React Query para buscar e gerir o cache dos metadados
+  const { 
+    data: rawMetaData, 
+    isLoading: loading, 
+    error, 
+    refetch: refreshMetaData 
+  } = useQuery({
+      queryKey: ['metaData'], // Chave única para esta query
+      queryFn: fetchMetaData,   // Corrigido para usar a função importada
+      enabled: !!user,        // A query só é executada se houver um utilizador logado
+      staleTime: 1000 * 60 * 60, // Considerar os dados "frescos" por 1 hora
+      cacheTime: 1000 * 60 * 60 * 24, // Manter os dados em cache por 24 horas
+      refetchOnWindowFocus: false, // Não precisa re-buscar ao focar na janela
+  });
 
-      if (!force && cacheRef.current.metaData) {
-        const { data, timestamp } = cacheRef.current.metaData;
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setMetaData(data);
-          return data;
-        }
-      }
+  // Adicionar as colunas estáticas aos metadados recebidos da API
+  const metaData = useMemo(() => {
+    if (!rawMetaData) return null;
+    return {
+      ...rawMetaData,
+      columns: COLUMNS,
+    };
+  }, [rawMetaData]);
 
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await api.get("/metaData");
-        console.log("Metadados", response.data);
-        const newMetaData = {
-          ...response.data,
-          columns: COLUMNS,
-        };
-
-        // Atualizar o cache e o estado
-        cacheRef.current.metaData = {
-          data: newMetaData,
-          timestamp: Date.now(),
-        };
-
-        setMetaData(newMetaData);
-      } catch (err) {
-        if (err.response?.status === 429) {
-          console.error("Erro 429: Too Many Requests");
-          setError("Erro: Muitas requisições. Tente novamente mais tarde.");
-        } else {
-          console.error("Erro ao buscar metadados:", err);
-          setError(err.response?.data?.error || "Erro ao buscar metadados");
-        }
-      } finally {
-        setLoading(false);
-        fetchingRef.current = false;
-      }
-    },
-    [user]
-  );
-
-  // Carregar metadados ao montar ou quando o utilizador mudar
-  useEffect(() => {
-    if (user) {
-      fetchMetaData();
-    } else {
-      setMetaData(null);
-      setLoading(false);
-    }
-  }, [user, fetchMetaData]);
-
-  // Limpar os metadados do cache e do estado
-  const clearMetaData = useCallback(() => {
-    cacheRef.current.metaData = null;
-    setMetaData(null);
-  }, []);
-
-  // Forçar a atualização dos metadados
-  const refreshMetaData = useCallback(() => {
-    return fetchMetaData(true); // força bypass
-  }, [fetchMetaData]);
+  // O `useQuery` já tem uma função `refetch` que podemos usar para limpar e buscar novamente.
+  // Não precisamos de uma função `clearMetaData` separada.
 
   return (
     <MetaDataContext.Provider
       value={{
         metaData,
-        setMetaData,
         loading,
         error,
-        fetchMetaData,
-        clearMetaData,
         refreshMetaData,
       }}
     >

@@ -3,12 +3,32 @@ from sqlalchemy.sql import text
 from sqlalchemy.exc import ProgrammingError, OperationalError
 from flask import current_app
 from ..utils.utils import db_session_manager
+from app.utils.error_handler import api_error_handler
+from pydantic import BaseModel
+from typing import Optional
 
+# ===================================================================
+# MODELOS DE DADOS COM PYDANTIC
+# ===================================================================
 
+class InternalDocumentCreate(BaseModel):
+    pntype: int
+    pnts_associate: Optional[int] = None
+    pnmemo: str
+    pnpk_etar: Optional[int] = None
+    pnpk_ee: Optional[int] = None
+    pnaddress: Optional[str] = None
+    pnpostal: Optional[str] = None
+    pndoor: Optional[str] = None
+    pnfloor: Optional[str] = None
+    pnnut4: Optional[str] = None # Localidade
+    pnglat: Optional[float] = None
+    pnglong: Optional[float] = None
+
+@api_error_handler
 def get_operations_data(current_user):
     """
     Obtém dados de operações a partir de views específicas
-    (Esta função era anteriormente chamada get_dashboard_data)
     """
     views = {
         'vbr_document_fossa01': 'Limpezas de fossa global',
@@ -27,72 +47,40 @@ def get_operations_data(current_user):
 
     operations_data = {}
 
-    for view_name, friendly_name in views.items():
-        try:
-            with db_session_manager(current_user) as session:
+    with db_session_manager(current_user) as session:
+        for view_name, friendly_name in views.items():
+            try:
                 query = text(f"SELECT * FROM {view_name}")
                 result = session.execute(query)
- 
-                view_data = {
+                data = [dict(row) for row in result.mappings().all()]
+                operations_data[view_name] = {
                     'name': friendly_name,
-                    'total': 0,
-                    'data': [],
-                    'columns': []
+                    'total': len(data),
+                    'data': data,
+                    'columns': list(result.keys()) if result.returns_rows else []
                 }
-
-                if result.returns_rows:
-                    view_data['columns'] = list(result.keys())
-
-                for row in result:
-                    view_data['total'] += 1
-                    row_dict = {}
-                    for column in view_data['columns']:
-                        row_dict[column] = getattr(row, column, None)
-                    view_data['data'].append(row_dict)
-
-                operations_data[view_name] = view_data
-
-        except Exception as e:
-            current_app.logger.error(
-                f"Erro ao processar a view {friendly_name}: {str(e)}", exc_info=True)
-
+            except (ProgrammingError, OperationalError) as e:
+                current_app.logger.warning(f"A view {friendly_name} ({view_name}) não foi encontrada ou gerou um erro: {str(e)}")
+                # Não adiciona a view ao resultado se ela falhar
     return operations_data
 
 
-def create_internal_document(pntype, pnts_associate, pnmemo, pnpk_etar=None, pnpk_ee=None, current_user=None):
+@api_error_handler
+def create_internal_document(data: dict, current_user: str):
     """
-    Cria um documento interno utilizando a função fbo_document_createintern
-    
-    Parâmetros:
-    - pntype: Tipo de documento
-    - pnts_associate: Associado
-    - pnmemo: Descrição/memo do documento
-    - pnpk_etar: PK da ETAR (opcional)
-    - pnpk_ee: PK da EE (opcional)
-    - current_user: Utilizador atual
-    
-    Retorna:
-    - Tuple com resultado e código de status
+    Cria um documento interno genérico utilizando a função fbo_document_createintern.
+    Valida os dados de entrada com Pydantic.
     """
-    try:
-        with db_session_manager(current_user) as session:
-            query = text("""
-                SELECT fbo_document_createintern(
-                    :pntype, 
-                    :pnts_associate, 
-                    :pnmemo, 
-                    :pnpk_etar, 
-                    :pnpk_ee
-                )
-            """)
-            result = session.execute(query, {
-                'pntype': pntype,
-                'pnts_associate': pnts_associate,
-                'pnmemo': pnmemo,
-                'pnpk_etar': pnpk_etar,
-                'pnpk_ee': pnpk_ee
-            }).scalar()
-
-            return {'result': f'Documento interno criado com sucesso. ID: {result}'}, 201
-    except Exception as e:
-        return {'error': f"Erro ao criar documento interno: {str(e)}"}, 500
+    doc_data = InternalDocumentCreate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT fbo_document_createintern(
+                :pntype, :pnts_associate, :pnmemo, 
+                :pnpk_etar, :pnpk_ee,
+                :pnaddress, :pnpostal, :pndoor, :pnfloor,
+                NULL, NULL, NULL, :pnnut4, -- nut1, nut2, nut3 não são usados aqui
+                :pnglat, :pnglong
+            )
+        """)
+        result = session.execute(query, doc_data.model_dump()).scalar()
+        return {'message': f'Documento interno criado com sucesso.', 'document_id': result}, 201

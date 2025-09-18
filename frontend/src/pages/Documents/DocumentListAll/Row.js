@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   Collapse,
@@ -10,6 +10,7 @@ import {
   TableRow,
   Typography,
   useTheme,
+  CircularProgress,
   Tooltip,
   Divider,
   Button,
@@ -23,11 +24,13 @@ import {
   Mail as MailIcon,
   FileCopy as FileCopyIcon,
 } from "@mui/icons-material";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getDocumentStep,
   getDocumentAnnex,
   getDocumentTypeParams,
   updateDocumentParams,
+  updateDocumentNotification,
 } from "../../../services/documentService";
 import {
   notifySuccess,
@@ -67,20 +70,11 @@ function Row({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = isOpenControlled ? externalIsOpen : internalOpen;
   const [openDetails, setOpenDetails] = useState(false);
-  const [openSteps, setOpenSteps] = useState(false);
-  const [openAnexos, setOpenAnexos] = useState(false);
-  const [steps, setSteps] = useState([]);
-  const [anexos, setAnexos] = useState([]);
   const [annexModalOpen, setAnnexModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [stepModalOpen, setStepModalOpen] = useState(false);
   const [selectedStep, setSelectedStep] = useState(null);
   const [openLetterModal, setOpenLetterModal] = useState(false);
-  const [params, setParams] = useState([]);
-  const [paramsLoading, setParamsLoading] = useState(false);
-  const [hasParams, setHasParams] = useState(false);
-  const [hasAnexos, setHasAnexos] = useState(false);
-  const [hasSteps, setHasSteps] = useState(false);
   const [openParams, setOpenParams] = useState(false);
   const [openParamModal, setOpenParamModal] = useState(false);
   const [editableParams, setEditableParams] = useState([]);
@@ -88,22 +82,57 @@ function Row({
   const [etars, setEtars] = useState([]);
   const [openReplicateModal, setOpenReplicateModal] = useState(false);
 
+  // Sub-estados para os collapses
+  const queryClient = useQueryClient();
+  const [openSteps, setOpenSteps] = useState(false);
+  const [openAnexos, setOpenAnexos] = useState(false);
+
   // Usar o contexto de Socket para notificações
   const { markAsRead } = useSocket();
+
+  const theme = useTheme();
+
+  // ===================================================================
+  // DATA FETCHING COM REACT QUERY
+  // ===================================================================
+
+  const { data: steps = [], isLoading: isLoadingSteps } = useQuery({
+    queryKey: ['documentSteps', row.pk],
+    queryFn: () => getDocumentStep(row.pk),
+    enabled: open, // A query só é executada quando a linha está aberta!
+    staleTime: 1000 * 60 * 5, // 5 minutos
+  });
+
+  const { data: anexos = [], isLoading: isLoadingAnnexes } = useQuery({
+    queryKey: ['documentAnnexes', row.pk],
+    queryFn: () => getDocumentAnnex(row.pk),
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: paramsData, isLoading: isLoadingParams } = useQuery({
+    queryKey: ['documentParams', row.pk],
+    queryFn: () => getDocumentTypeParams(row.pk),
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const params = useMemo(() => paramsData?.params || [], [paramsData]);
+
+  const { mutate: markNotificationAsRead } = useMutation({
+    mutationFn: updateDocumentNotification,
+    onSuccess: () => {
+      setLocalRow(prev => ({ ...prev, notification: 0 }));
+      if (onUpdateRow) onUpdateRow({ ...localRow, notification: 0 });
+      markAsRead(row.pk); // Notifica o socket context
+    },
+    onError: () => notifyWarning("Erro ao atualizar o status de notificação."),
+  });
 
   const isBooleanParam = (name) =>
     name === "Gratuito" ||
     name === "Existência de sanemanto até 20 m" ||
     name === "Existência de rede de água";
-
-  const theme = useTheme();
-
-  useEffect(() => {
-    const localData = JSON.parse(localStorage.getItem("metaData"));
-    if (localData && localData.data.etar) {
-      setEtars(localData.data.etar); // Define a lista de ETARs
-    }
-  }, []);
 
   const findMetaValue = (metaArray, key, value) => {
     if (key === "tt_doctype_code") {
@@ -116,37 +145,6 @@ function Row({
     return meta ? meta.name || meta.step : value;
   };
 
-  const fetchSteps = async (documentId) => {
-    const response = await getDocumentStep(documentId);
-    setSteps(response);
-  };
-
-  const fetchAnexos = async () => {
-    try {
-      const responseAttachments = await getDocumentAnnex(row.pk);
-      setAnexos(responseAttachments);
-      setHasAnexos(responseAttachments.length > 0);
-    } catch (error) {
-      console.error("Erro ao buscar anexos:", error);
-      setHasAnexos(false);
-    }
-  };
-
-  const fetchParams = async () => {
-    try {
-      setParamsLoading(true);
-      const responseParams = await getDocumentTypeParams(row.pk);
-      const fetchedParams = responseParams.params || [];
-      setParams(fetchedParams);
-      setHasParams(fetchedParams.length > 0);
-    } catch (error) {
-      console.error("Erro ao buscar parâmetros:", error);
-      setHasParams(false);
-    } finally {
-      setParamsLoading(false);
-    }
-  };
-
   const handleReplicateSuccess = async (message) => {
     notifySuccess(message);
     if (onSave) {
@@ -155,14 +153,11 @@ function Row({
   };
 
   const handleParamsCollapseClick = async () => {
-    if (!openParams) {
-      await fetchParams(); // Carrega os parâmetros ao abrir
-    }
     setOpenParams(!openParams);
   };
 
   const handleParamChange = (paramPk, field, newValue) => {
-    setParams((prevParams) =>
+    setEditableParams((prevParams) =>
       prevParams.map((param) =>
         param.pk === paramPk ? { ...param, [field]: newValue } : param
       )
@@ -170,59 +165,17 @@ function Row({
   };
 
   const handleCollapseClick = async () => {
-    // Se controlado externamente, notifica o componente pai
-    if (isOpenControlled && onToggle) {
-      onToggle(row.pk, !open);
-    } else {
-      // Comportamento padrão - gerencia o estado internamente
-      setInternalOpen(!internalOpen);
-    }
-
     const newOpenState = !open;
 
-    if (newOpenState) {
-      // Carrega dados apenas se estiver abrindo
-      if (!hasAnexos && !hasParams && steps.length === 0) {
-        try {
-          const [responseAttachments, responseParams, responseSteps] = await Promise.all([
-            getDocumentAnnex(row.pk),
-            getDocumentTypeParams(row.pk),
-            getDocumentStep(row.pk),
-          ]);
+    if (isOpenControlled && onToggle) {
+      onToggle(row.pk, newOpenState);
+    } else {
+      setInternalOpen(newOpenState);
+    }
 
-          setAnexos(responseAttachments);
-          setHasAnexos(responseAttachments.length > 0);
-
-          const fetchedParams = responseParams.params || [];
-          setParams(fetchedParams);
-          setHasParams(fetchedParams.length > 0);
-
-          setSteps(responseSteps);
-          setHasSteps(responseSteps.length > 0);
-        } catch (error) {
-          console.error("Erro ao obter dados do documento:", error);
-          notifyError("Erro ao obter os dados do documento.");
-          setHasAnexos(false);
-          setHasParams(false);
-          setHasSteps(false);
-        }
-      }
-
-      // Atualiza status de notificação via socket, se necessário
-      if (localRow.notification === 1) {
-        try {
-          // Usar markAsRead do Socket Context em vez de updateNotificationStatus
-          markAsRead(localRow.pk);
-
-          // Atualizar a visualização local
-          const updatedRow = { ...localRow, notification: 0 };
-          setLocalRow(updatedRow);
-          if (onUpdateRow) onUpdateRow(updatedRow);
-        } catch (error) {
-          console.error("Erro ao atualizar status de notificação:", error);
-          notifyWarning("Erro ao atualizar o status de notificação.");
-        }
-      }
+    // Se estiver a abrir e houver uma notificação, marca como lida
+    if (newOpenState && localRow.notification === 1) {
+      markNotificationAsRead(localRow.pk);
     }
   };
 
@@ -239,8 +192,6 @@ function Row({
   };
 
   const handleOpenModal = async () => {
-    await fetchSteps(row.pk);
-    await fetchAnexos(row.pk);
     setModalOpen(true);
   };
 
@@ -271,7 +222,7 @@ function Row({
   const handleCloseAnnexModal = (success) => {
     setAnnexModalOpen(false);
     if (success) {
-      fetchAnexos(row.pk);
+      // A lista de anexos será atualizada automaticamente pelo React Query
     }
   };
 
@@ -420,14 +371,6 @@ function Row({
     setWasSaved(false); // Reset do estado para próxima vez que abrir o modal
   };
 
-  const handleEditableParamChange = (paramPk, field, newValue) => {
-    setEditableParams((prevParams) =>
-      prevParams.map((param) =>
-        param.pk === paramPk ? { ...param, [field]: newValue } : param
-      )
-    );
-  };
-
   const handleSaveAllParams = async () => {
     try {
       const updatedParams = editableParams.map(({ pk, value, memo }) => ({
@@ -436,11 +379,9 @@ function Row({
         memo,
       }));
       await updateDocumentParams(row.pk, updatedParams); // Envia ao backend
-      setParams(editableParams); // Atualiza o estado principal
+      queryClient.invalidateQueries({ queryKey: ['documentParams', row.pk] }); // Invalida a query para a atualizar
       setWasSaved(true); // Marca que houve um salvamento com sucesso
       notifySuccess("Parâmetros atualizados com sucesso!"); // Notificação de sucesso
-      // Recarregar os parâmetros atualizados
-      await fetchParams(); // Função que carrega os parâmetros e atualiza o estado `params` e `hasParams`
       handleCloseParamModal();
     } catch (error) {
       console.error("Erro ao salvar parâmetros:", error);
@@ -643,7 +584,7 @@ function Row({
                 </Table>
               </Collapse>
               {/* Colapso de Parâmetros - Apenas se existirem parâmetros */}
-              {hasParams && (
+              {params.length > 0 && (
                 <Box mt={2}>
                   {/* <Divider style={{ margin: " 0" }} /> */}
                   <Box
@@ -696,7 +637,7 @@ function Row({
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {paramsLoading ? (
+                        {isLoadingParams ? (
                           <TableRow>
                             <TableCell colSpan={3} align="center">
                               A carregar...
@@ -720,7 +661,7 @@ function Row({
                 </Box>
               )}
               {/* Colapso de Passos - Apenas se existirem passos */}
-              {steps.length > 0 && (
+              {steps.length > 0 && !isLoadingSteps && (
                 <Box mt={2}>
                   {/* <Divider style={{ margin: " 0" }} /> */}
                   <Box
@@ -778,7 +719,7 @@ function Row({
                 </Box>
               )}
               {/* Colapso de Anexos - Apenas se existirem anexos */}
-              {hasAnexos && (
+              {anexos.length > 0 && !isLoadingAnnexes && (
                 <Box mt={2}>
                   {/* <Divider style={{ margin: " 0" }} /> */}
                   <Box
@@ -860,7 +801,7 @@ function Row({
         onClose={handleCloseParamModal}
         params={editableParams}
         onSave={handleSaveAllParams}
-        onParamChange={handleEditableParamChange}
+        onParamChange={handleParamChange}
         isBooleanParam={isBooleanParam}
         metaData={metaData}
         tsAssociate={row.ts_associate}

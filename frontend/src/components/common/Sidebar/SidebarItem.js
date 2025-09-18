@@ -1,6 +1,6 @@
-// components/common/Sidebar/SidebarItem.js
+// components/common/Sidebar/SidebarItem.js - VERSÃO FINAL CORRIGIDA
 import React, { useState, useMemo, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     ListItemButton,
     ListItemIcon,
@@ -24,6 +24,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import { useAuth } from "../../../contexts/AuthContext";
 
+const iconStyle = {
+    fontSize: '24px',
+    color: 'inherit',
+    strokeWidth: 1.5
+};
+
 const SidebarItem = React.memo(({
     item,
     isActive,
@@ -31,10 +37,11 @@ const SidebarItem = React.memo(({
     onLeave,
     isHovered,
     notificationCount = 0,
-    onItemClick // Nova prop para gerir cliques
+    onItemClick
 }) => {
     const theme = useTheme();
     const location = useLocation();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const {
         sidebarMode,
@@ -46,12 +53,10 @@ const SidebarItem = React.memo(({
 
     const [anchorEl, setAnchorEl] = useState(null);
 
-    // Memoizar conversão de submenu para evitar re-cálculos
     const submenuArray = useMemo(() => {
         return item.submenu ? Object.values(item.submenu) : [];
     }, [item.submenu]);
 
-    // Memoizar estados derivados
     const isSubmenuActive = useMemo(() => {
         return submenuArray.length > 0 && submenuArray.some(
             subItem => subItem.to === location.pathname
@@ -60,57 +65,55 @@ const SidebarItem = React.memo(({
 
     const isItemActive = isActive || isSubmenuActive;
     const hasSubmenu = submenuArray.length > 0;
-
-    // Verificar se ESTE item específico está aberto
     const isOpen = openSubmenus[item.id] || false;
     const popperOpen = Boolean(anchorEl);
 
-    // Função de verificação de acesso memoizada
-    const hasAccess = useCallback((rolesAllowed, allowedUserIds = []) => {
-        const hasRoleAccess = rolesAllowed ? rolesAllowed.includes(user.profil) : true;
-        const hasUserIdAccess = !allowedUserIds || allowedUserIds.length === 0 || allowedUserIds.includes(user.user_id);
-        return hasRoleAccess && hasUserIdAccess;
-    }, [user.profil, user.user_id]);
+    const renderIcon = useCallback((IconComponent, props = {}) => {
+        if (!IconComponent) return null;
 
-    // Memoizar submenu acessível
-    const accessibleSubmenu = useMemo(() => {
-        return submenuArray.filter(subItem => {
-            if (subItem.permissions) {
-                if (subItem.permissions.rolesAllowed) {
-                    return hasAccess(subItem.permissions.rolesAllowed, subItem.permissions.allowedUserIds);
-                }
-                return true;
-            } else if (subItem.rolesAllowed) {
-                return hasAccess(subItem.rolesAllowed, subItem.allowedUserIds);
-            }
-            return true;
-        });
-    }, [submenuArray, hasAccess]);
+        if (IconComponent.$$typeof && IconComponent.type) {
+            const ActualIcon = IconComponent.type;
+            return <ActualIcon sx={{ ...iconStyle, ...props }} />;
+        }
 
-    // Handlers memoizados para evitar re-renders filhos
+        if (typeof IconComponent === 'function') {
+            return <IconComponent sx={{ ...iconStyle, ...props }} />;
+        }
+
+        return null;
+    }, []);
+
     const handleClick = useCallback((event) => {
+        // Se o item tem um submenu, a sua única função é abrir/fechar o submenu.
         if (hasSubmenu) {
+            event.preventDefault(); // Prevenir qualquer outra ação de clique
             if (isCompact) {
+                // No modo compacto, abre um popper.
                 setAnchorEl(prev => prev ? null : event.currentTarget);
             } else {
+                // No modo expandido, expande/recolhe o submenu.
                 toggleSubmenu(item.id);
             }
+        // Se não tem submenu, delega a ação para o handler global.
         } else {
-            onItemClick?.(item); // Usar o handler centralizado
+            onItemClick?.(item);
         }
-    }, [hasSubmenu, isCompact, item, toggleSubmenu, onItemClick]);
+    }, [item, hasSubmenu, isCompact, navigate, toggleSubmenu, onItemClick]);
+
+    const handleSubmenuItemClick = useCallback((subItem, event) => {
+        if (event) event.preventDefault();
+
+        // Ação principal: Chamar o handler global que sabe o que fazer com o item.
+        onItemClick?.(subItem);
+
+        closeAllSubmenus();
+        setAnchorEl(null);
+    }, [navigate, onItemClick, closeAllSubmenus]);
 
     const handleClose = useCallback(() => {
         setAnchorEl(null);
     }, []);
 
-    const handleSubmenuItemClick = useCallback((subItem) => {
-        onItemClick?.(subItem); // Usar o handler centralizado para sub-itens
-        closeAllSubmenus(); // Fechar todos os submenus após o clique
-        handleClose(); // Fechar o popper se estiver aberto
-    }, [onItemClick, handleClose, closeAllSubmenus]);
-
-    // Memoizar estilos para evitar re-cálculos
     const itemStyles = useMemo(() => ({
         borderRadius: 2,
         mx: 1,
@@ -132,8 +135,11 @@ const SidebarItem = React.memo(({
         },
         transition: 'all 0.2s ease-in-out',
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        cursor: 'pointer'
     }), [isItemActive, isCompact, theme]);
+
+    // console.log('Renderizando SidebarItem:', item.text, 'to:', item.to, 'hasSubmenu:', hasSubmenu);
 
     return (
         <>
@@ -155,15 +161,14 @@ const SidebarItem = React.memo(({
                     }
                 }}
             >
+                {/* SEMPRE usar div como component para ter controle total */}
                 <ListItemButton
-                    component={item.to && !hasSubmenu ? Link : "div"}
-                    to={item.to && !hasSubmenu ? item.to : undefined}
+                    component="div"
                     onClick={handleClick}
                     onMouseEnter={() => onHover?.(item.id)}
                     onMouseLeave={onLeave}
                     sx={itemStyles}
                 >
-                    {/* Active indicator bar */}
                     {isItemActive && (
                         <motion.div
                             initial={{ width: 0 }}
@@ -180,7 +185,6 @@ const SidebarItem = React.memo(({
                         />
                     )}
 
-                    {/* Halo effect for active items */}
                     {isItemActive && (
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -198,7 +202,6 @@ const SidebarItem = React.memo(({
                         />
                     )}
 
-                    {/* Icon with badge */}
                     <ListItemIcon
                         sx={{
                             minWidth: 0,
@@ -219,16 +222,13 @@ const SidebarItem = React.memo(({
                             }}
                             invisible={!item.isBadged && !item.badge}
                         >
-                            {React.cloneElement(item.icon, {
-                                sx: {
-                                    fontSize: isCompact ? 24 : 24,
-                                    filter: isItemActive ? 'drop-shadow(0 0 2px rgba(0,0,0,0.3))' : 'none'
-                                }
+                            {renderIcon(item.icon, {
+                                fontSize: isCompact ? 24 : 24,
+                                filter: isItemActive ? 'drop-shadow(0 0 2px rgba(0,0,0,0.3))' : 'none'
                             })}
                         </Badge>
                     </ListItemIcon>
 
-                    {/* Text with animation */}
                     {!isCompact && (
                         <ListItemText
                             primary={
@@ -250,7 +250,6 @@ const SidebarItem = React.memo(({
                         />
                     )}
 
-                    {/* Arrow for submenu */}
                     {hasSubmenu && !isCompact && (
                         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
                             <ArrowForwardIos sx={{
@@ -262,7 +261,6 @@ const SidebarItem = React.memo(({
                         </Box>
                     )}
 
-                    {/* Hover expansion effect for compact mode */}
                     {isCompact && isHovered && (
                         <motion.div
                             initial={{ opacity: 0, x: -10 }}
@@ -291,7 +289,7 @@ const SidebarItem = React.memo(({
                 </ListItemButton>
             </Tooltip>
 
-            {/* Submenu expandido - renderiza apenas se for ESTE item que está aberto */}
+            {/* Submenu expandido */}
             <AnimatePresence>
                 {hasSubmenu && !isCompact && isOpen && (
                     <motion.div
@@ -302,15 +300,14 @@ const SidebarItem = React.memo(({
                         style={{ overflow: 'hidden' }}
                     >
                         <List sx={{ pl: 1 }}>
-                            {accessibleSubmenu.map(subItem => {
+                            {submenuArray.map(subItem => {
                                 const isSubItemActive = subItem.to === location.pathname;
 
                                 return (
                                     <ListItemButton
                                         key={subItem.id}
-                                        component={subItem.to ? Link : "div"}
-                                        to={subItem.to}
-                                        onClick={() => handleSubmenuItemClick(subItem)}
+                                        component="div"
+                                        onClick={(event) => handleSubmenuItemClick(subItem, event)}
                                         sx={{
                                             borderRadius: '0 8px 8px 0',
                                             py: 1.2,
@@ -320,6 +317,7 @@ const SidebarItem = React.memo(({
                                             position: 'relative',
                                             bgcolor: isSubItemActive ? 'action.selected' : 'transparent',
                                             color: isSubItemActive ? 'primary.main' : 'text.primary',
+                                            cursor: 'pointer',
                                             '&:hover': {
                                                 bgcolor: 'action.hover',
                                             },
@@ -354,9 +352,9 @@ const SidebarItem = React.memo(({
                                                         }
                                                     }}
                                                 >
-                                                    {subItem.icon}
+                                                    {renderIcon(subItem.icon)}
                                                 </Badge>
-                                            ) : subItem.icon}
+                                            ) : renderIcon(subItem.icon)}
                                         </ListItemIcon>
 
                                         <ListItemText
@@ -435,15 +433,14 @@ const SidebarItem = React.memo(({
                                         >
                                             {item.text}
                                         </Typography>
-                                        {accessibleSubmenu.map((subItem) => {
+                                        {submenuArray.map((subItem) => {
                                             const isSubItemActive = subItem.to === location.pathname;
 
                                             return (
                                                 <MenuItem
                                                     key={subItem.id}
-                                                    component={subItem.to ? Link : 'div'}
-                                                    to={subItem.to}
-                                                    onClick={() => handleSubmenuItemClick(subItem)}
+                                                    component="div"
+                                                    onClick={(event) => handleSubmenuItemClick(subItem, event)}
                                                     sx={{
                                                         display: 'flex',
                                                         alignItems: 'center',
@@ -454,6 +451,7 @@ const SidebarItem = React.memo(({
                                                         bgcolor: isSubItemActive ? 'action.selected' : 'transparent',
                                                         color: isSubItemActive ? 'primary.main' : 'inherit',
                                                         fontWeight: isSubItemActive ? 600 : 400,
+                                                        cursor: 'pointer',
                                                         '&:hover': {
                                                             bgcolor: 'action.hover'
                                                         },
@@ -474,7 +472,7 @@ const SidebarItem = React.memo(({
                                                     <Box sx={{
                                                         color: isSubItemActive ? 'primary.main' : 'inherit'
                                                     }}>
-                                                        {subItem.icon}
+                                                        {renderIcon(subItem.icon)}
                                                     </Box>
                                                     <Typography
                                                         variant="body2"
@@ -506,7 +504,6 @@ const SidebarItem = React.memo(({
     );
 });
 
-// Adicionar displayName para debugging
 SidebarItem.displayName = 'SidebarItem';
 
 export default SidebarItem;
