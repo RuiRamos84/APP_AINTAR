@@ -9,6 +9,7 @@ import {
     useTheme,
     alpha,
 } from '@mui/material';
+import { Worker } from '@react-pdf-viewer/core';
 import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
 
 // Components
@@ -700,13 +701,16 @@ const DocumentManagerContent = () => {
 
 // App component with providers
 const DocumentManager = () => (
-    <UIProvider>
-        <DocumentsProvider>
-            <DocumentActionsProvider>
-                <DocumentManagerContent />
-            </DocumentActionsProvider>
-        </DocumentsProvider>
-    </UIProvider>
+    // Configurar o worker do pdf.js globalmente para a versão correta
+    <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.12.0/build/pdf.worker.min.js`}>
+        <UIProvider>
+            <DocumentsProvider>
+                <DocumentActionsProvider>
+                    <DocumentManagerContent />
+                </DocumentActionsProvider>
+            </DocumentsProvider>
+        </UIProvider>
+    </Worker>
 );
 
 export default DocumentManager;
