@@ -11,6 +11,11 @@ param(
     [switch]$SkipValidation
 )
 
+# Configurar encoding para UTF-8 para garantir a exibição correta de caracteres especiais.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+
 # ============================================================================
 # CONFIGURACAO INICIAL
 # ============================================================================
@@ -237,119 +242,64 @@ function Invoke-NonInteractiveMode {
 # ============================================================================  
 
 function Start-InteractiveMode {
-    Write-DeployInfo "Iniciando modo interativo" "MAIN"
-    
-    do {
-        Show-DeployMenu
-        $opcao = Get-UserChoice
-        
-        Write-DeployDebug "Usuario selecionou opcao: $opcao" "MAIN"
-        
-        switch ($opcao) {
-            "1" {
-                Write-DeployInfo "Iniciando deployment completo..." "MAIN"
-                Show-DeployStatus "Executando deployment completo (Frontend + Backend + Nginx)..." "Info"
-                $result = Invoke-FullDeployment -BuildFirst $true
-                if ($result) {
-                    Show-DeployStatus "Deployment completo realizado com sucesso!" "Success"
-                } else {
-                    Show-DeployStatus "Deployment completo falhou!" "Error"
-                }
-                $Global:UI.PauseForUser()
-            }
-            "2" {
-                Write-DeployInfo "Iniciando deployment do frontend com build..." "MAIN"
-                Show-DeployStatus "Executando deployment do frontend (com build)..." "Info"
-                $result = Deploy-Frontend -BuildFirst $true
-                if ($result) {
-                    Show-DeployStatus "Deployment do frontend realizado com sucesso!" "Success"
-                } else {
-                    Show-DeployStatus "Deployment do frontend falhou!" "Error"
-                }
-                $Global:UI.PauseForUser()
-            }
-            "3" {
-                Write-DeployInfo "Iniciando deployment do frontend sem build..." "MAIN"
-                Show-DeployStatus "Executando deployment do frontend (sem build)..." "Info"
+    Write-DeployInfo "Iniciando modo interativo" "MAIN"    
+
+    $menuActions = @{
+        "1" = @{ Name = "Deployment Completo (Frontend + Backend + Nginx)"; Action = { Invoke-FullDeployment -BuildFirst $true } }
+        "2" = @{ Name = "Deployment Frontend (com build)"; Action = { Deploy-Frontend -BuildFirst $true } }
+        "3" = @{ Name = "Deployment Frontend (sem build)"; Action = { 
                 if (-not (Test-FrontendBuild)) {
-                    Show-DeployStatus "Build nao encontrado ou invalido!" "Error"
+                    Show-DeployStatus "Build não encontrado ou inválido!" "Error"
                     if (Confirm-Action "Deseja fazer o build antes do deployment?") {
-                        $result = Deploy-Frontend -BuildFirst $true
-                    } else {
-                        Show-DeployStatus "Deployment cancelado pelo usuario" "Warning"
-                        $Global:UI.PauseForUser()
-                        continue
+                        return Deploy-Frontend -BuildFirst $true
                     }
-                } else {
-                    $result = Deploy-Frontend -BuildFirst $false
+                    Show-DeployStatus "Deployment cancelado pelo usuário" "Warning"
+                    return $null # Indica que nenhuma ação foi tomada
                 }
-                if ($result) {
-                    Show-DeployStatus "Deployment do frontend realizado com sucesso!" "Success"
-                } else {
-                    Show-DeployStatus "Deployment do frontend falhou!" "Error"
-                }
-                $Global:UI.PauseForUser()
-            }
-            "4" {
-                Write-DeployInfo "Iniciando deployment do backend..." "MAIN"
-                Show-DeployStatus "Executando deployment do backend..." "Info"
-                $result = Deploy-Backend
-                if ($result) {
-                    Show-DeployStatus "Deployment do backend realizado com sucesso!" "Success"
-                } else {
-                    Show-DeployStatus "Deployment do backend falhou!" "Error"
-                }
-                $Global:UI.PauseForUser()
-            }
-            "5" {
-                Write-DeployInfo "Iniciando deployment frontend + backend..." "MAIN"
-                Show-DeployStatus "Executando deployment do frontend e backend..." "Info"
-                $result = Invoke-FrontendBackendDeployment -BuildFirst $true
-                if ($result) {
-                    Show-DeployStatus "Deployment do frontend e backend realizado com sucesso!" "Success"
-                } else {
-                    Show-DeployStatus "Deployment do frontend e backend falhou!" "Error"
-                }
-                $Global:UI.PauseForUser()
-            }
-            "6" {
-                Write-DeployInfo "Iniciando deployment da configuracao Nginx..." "MAIN"
-                Show-DeployStatus "Executando deployment da configuracao Nginx..." "Info"
-                $result = Deploy-NginxConfig
-                if ($result) {
-                    Show-DeployStatus "Configuracao Nginx atualizada com sucesso!" "Success"
-                } else {
-                    Show-DeployStatus "Falha ao atualizar configuracao Nginx!" "Error"
-                }
-                $Global:UI.PauseForUser()
-            }
-            "7" {
-                Show-FileStatus
-            }
-            "8" {
-                Show-SystemInfo
-            }
-            "9" {
-                Show-ConnectivityTest
-            }
-            "10" {
-                Show-ServerStructure
-            }
-            "11" {
-                Show-AdvancedSettings
-            }
-            "0" {
-                Write-DeployInfo "Sistema finalizado pelo usuario" "MAIN"
-                Show-DeployStatus "Encerrando sistema..." "Info"
-                break
-            }
-            default {
-                Show-DeployStatus "Opcao invalida!" "Error"
-                Start-Sleep -Seconds 1
-            }
+                return Deploy-Frontend -BuildFirst $false
+            } }
+        "4" = @{ Name = "Deployment Backend"; Action = { Deploy-Backend } }
+        "5" = @{ Name = "Deployment Frontend + Backend (sem Nginx)"; Action = { Invoke-FrontendBackendDeployment -BuildFirst $true } }
+        "6" = @{ Name = "Deployment Configuração Nginx"; Action = { Deploy-NginxConfig } }
+        "7" = @{ Name = "Ver ficheiros em estado relevante"; Action = { Show-FileStatus; return $null } }
+        "8" = @{ Name = "Ver informações do sistema"; Action = { Show-SystemInfo; return $null } }
+        "9" = @{ Name = "Testar conectividade com o servidor"; Action = { Show-ConnectivityTest; return $null } }
+        "10" = @{ Name = "Mostrar estrutura do servidor"; Action = { Show-ServerStructure; return $null } }
+        "11" = @{ Name = "Configurações avançadas"; Action = { Show-AdvancedSettings; return $null } }
+    }
+
+    while ($true) {
+        Show-DeployMenu -MenuActions $menuActions
+        $opcao = Get-UserChoice
+
+        if ($opcao -eq "0") {
+            Write-DeployInfo "Sistema finalizado pelo usuário" "MAIN"
+            Show-DeployStatus "Encerrando sistema..." "Info"
+            break
         }
-        
-    } while ($opcao -ne "0")
+
+        $menuItem = $menuActions[$opcao]
+        if ($menuItem) {
+            Write-DeployInfo "Iniciando: $($menuItem.Name)" "MAIN"
+            Show-DeployStatus "Executando: $($menuItem.Name)..." "Info"
+            
+            $result = & $menuItem.Action
+            
+            # Apenas mostrar status de sucesso/falha para ações que retornam um booleano
+            if ($result -is [bool]) {
+                if ($result) {
+                    Show-DeployStatus "$($menuItem.Name) concluído com sucesso!" "Success"
+                } else {
+                    Show-DeployStatus "$($menuItem.Name) falhou!" "Error"
+                }
+            }
+            
+            $Global:UI.PauseForUser()
+        } else {
+            Show-DeployStatus "Opção inválida!" "Error"
+            Start-Sleep -Seconds 1
+        }
+    }
 }
 
 # ============================================================================  
@@ -357,23 +307,27 @@ function Start-InteractiveMode {
 # ============================================================================  
 
 function Show-DeployMenu {
+    param($MenuActions)
+
     Clear-Host
     Write-Host "===============================================" -ForegroundColor Cyan
     Write-Host "         SISTEMA DE DEPLOYMENT MODULAR         " -ForegroundColor Cyan
     Write-Host "===============================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host " 1. Deployment Completo (Frontend + Backend + Nginx)"
-    Write-Host " 2. Deployment Frontend (com build)"
-    Write-Host " 3. Deployment Frontend (sem build)"
-    Write-Host " 4. Deployment Backend"
-    Write-Host " 5. Deployment Frontend + Backend (sem Nginx)"
-    Write-Host " 6. Deployment Configuração Nginx"
-    Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
-    Write-Host " 7. Ver ficheiros em estado relevante"
-    Write-Host " 8. Ver informações do sistema"
-    Write-Host " 9. Testar conectividade com o servidor"
-    Write-Host "10. Mostrar estrutura do servidor"
-    Write-Host "11. Configurações avançadas"
+
+    # Obter e ordenar as chaves do menu
+    $menuKeys = $MenuActions.Keys | Sort-Object { [int]$_ }
+
+    foreach ($key in $menuKeys) {
+        # Adicionar a linha de separação
+        if ($key -eq "7") {
+            Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
+        }
+        
+        $padding = if ([int]$key -lt 10) { " " } else { "" }
+        Write-Host "$padding$key. $($MenuActions[$key].Name)"
+    }
+    
     Write-Host ""
     Write-Host " 0. Sair"
     Write-Host ""
@@ -386,11 +340,11 @@ function Show-DeployMenu {
 
 function Main {
     param(
-        [bool]$NonInteractive = $false,
+        [switch]$NonInteractive = $false,
         [string]$Operation = "",
-        [bool]$BuildFirst = $false,
-        [bool]$Verbose = $false,
-        [bool]$SkipValidation = $false
+        [switch]$BuildFirst = $false,
+        [switch]$Verbose = $false,
+        [switch]$SkipValidation = $false
     )
     
     try {

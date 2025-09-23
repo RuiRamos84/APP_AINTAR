@@ -6,7 +6,7 @@ import GenericTable from "../components/GenericTable";
 import RecordForm from "../components/RecordForm";
 import { useRecords } from "../hooks/useRecords";
 import { formatDate, formatCurrency } from "../utils/recordsFormatter";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { formatDateToString } from "../../../utils/dataUtils";
 
 const expenseColumns = [
     { id: "data", label: "Data", field: "data" },
@@ -44,7 +44,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
 
         if (await addRecord(payload)) {
             setNewRecord({
-                date: getCurrentDateTime(),
+                date: formatDateToString(new Date()),
                 expenseDest: "",
                 value: "",
                 memo: "",
@@ -65,7 +65,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     };
 
     const expenseFieldsConfig = [
-        { name: "date", label: "Data", type: "datetime-local", required: true, size: 3 },
+        { name: "date", label: "Data", type: "date", required: true, size: 3 },
         {
             name: "expenseDest",
             label: "Tipo da Despesa",

@@ -5,7 +5,7 @@ import GenericTable from "../components/GenericTable";
 import RecordForm from "../components/RecordForm";
 import { useRecords } from "../hooks/useRecords";
 import { formatDate, formatCurrency } from "../utils/recordsFormatter";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { formatDateToString } from "../../../utils/dataUtils";
 
 const expenseColumns = [
     { id: "data", label: "Data", field: "data" },
@@ -34,7 +34,7 @@ const EquipExpenseTable = ({ metaData }) => {
 
         if (await addRecord(payload)) {
             setNewRecord({
-                date: getCurrentDateTime(),
+                date: formatDateToString(new Date()),
                 expenseDest: "",
                 value: "",
                 memo: "",
@@ -44,7 +44,7 @@ const EquipExpenseTable = ({ metaData }) => {
     };
 
     const expenseFieldsConfig = [
-        { name: "date", label: "Data", type: "datetime-local", required: true, size: 3 },
+        { name: "date", label: "Data", type: "date", required: true, size: 1.5 },
         {
             name: "expenseDest",
             label: "Tipo da Despesa",
@@ -53,15 +53,15 @@ const EquipExpenseTable = ({ metaData }) => {
             required: true,
             size: 3
         },
-        { name: "value", label: "Valor (€)", type: "number", required: true, size: 2 },
-        { name: "memo", label: "Descrição", type: "text", required: true, size: 3 },
+        { name: "value", label: "Valor (€)", type: "number", required: true, size: 1 },
+        { name: "memo", label: "Descrição", type: "text", required: true, size: 2.5 },
         {
             name: "associate",
             label: "Associado",
             type: "select",
             options: metaData?.associates || [],
             required: false,
-            size: 3
+            size: 2.5
         }
     ];
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Paper,
   Table,
@@ -23,12 +23,7 @@ import {
   ExpandLess,
 } from "@mui/icons-material";
 import SearchBar from "../../../components/common/SearchBar/SearchBar";
-import {
-  getEntities,
-  getEntity,
-  addEntity,
-  updateEntity,
-} from "../../../services/entityService";
+import { getEntities, getEntity } from "../../../services/entityService";
 import "./EntityList.css";
 import EntityDetail from "../EntityDetail/EntityDetail";
 import CreateEntity from "../CreateEntity/CreateEntity";
@@ -38,14 +33,13 @@ const columns = [
   { id: "nipc", label: "NIPC", minWidth: 100 },
   { id: "email", label: "Email", minWidth: 170 },
   { id: "phone", label: "Telefone", minWidth: 100 },
-  // { id: "address", label: "Morada", minWidth: 170 },
 ];
 
 const EntityList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [entities, setEntities] = useState([]);
-  const [allEntities, setAllEntities] = useState([]);
+  const [filteredEntities, setFilteredEntities] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState("asc");
@@ -57,40 +51,42 @@ const EntityList = () => {
   const [expandedEntityId, setExpandedEntityId] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchEntities();
-  }, []);
-
-  const fetchEntities = async () => {
+  // Caregar entidades
+  const fetchEntities = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await getEntities();
       setEntities(data.entities);
-      setAllEntities(data.entities);
+      setFilteredEntities(data.entities);
     } catch (error) {
       console.error("Erro ao carregar entidades", error);
       setError("Erro ao carregar entidades. Por favor, tente novamente.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const results = allEntities.filter(
-      (entity) =>
-        entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entity.nipc.toString().includes(searchTerm.toLowerCase()) ||
-        (entity.email &&
-          entity.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entity.phone &&
-          entity.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entity.address &&
-          entity.address.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setEntities(results);
-    setPage(0); 
-  }, [searchTerm, allEntities]);
+    fetchEntities();
+  }, [fetchEntities]);
+
+  // Filtrar entidades
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredEntities(entities);
+    } else {
+      const results = entities.filter((entity) =>
+        entity.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entity.nipc?.toString().includes(searchTerm.toLowerCase()) ||
+        entity.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entity.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entity.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredEntities(results);
+    }
+    setPage(0);
+  }, [searchTerm, entities]);
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -107,24 +103,17 @@ const EntityList = () => {
     setPage(0);
   };
 
-  const handleOpenModal = async (entityId = null) => {
-    if (entityId) {
-      setModalLoading(true);
-      try {
-        const data = await getEntity(entityId);
-        setSelectedEntity(data.entity);
-        setModalLoading(false);
-        setModalOpen(true);
-      } catch (error) {
-        console.error("Erro ao buscar entidade", error);
-        setError(
-          "Erro ao carregar detalhes da entidade. Por favor, tente novamente."
-        );
-        setModalLoading(false);
-      }
-    } else {
-      setSelectedEntity(null);
+  const handleOpenModal = async (entityId) => {
+    setModalLoading(true);
+    try {
+      const data = await getEntity(entityId);
+      setSelectedEntity(data.entity);
+      setModalLoading(false);
       setModalOpen(true);
+    } catch (error) {
+      console.error("Erro ao buscar entidade", error);
+      setError("Erro ao carregar detalhes da entidade.");
+      setModalLoading(false);
     }
   };
 
@@ -133,49 +122,43 @@ const EntityList = () => {
     setSelectedEntity(null);
   };
 
-  const handleSaveEntity = async (entityData) => {
-    try {
-      if (selectedEntity) {
-        await updateEntity(entityData);
-      } else {
-        await addEntity(entityData);
-      }
-      handleCloseModal();
-      // Atualizar a lista de entidades
-      const updatedEntities = await getEntities();
-      setEntities(updatedEntities.entities);
-      setAllEntities(updatedEntities.entities);
-    } catch (error) {
-      console.error("Erro ao salvar entidade", error);
-    }
-  };
+  // CORRIGIDO: Actualizar entidade existente
+  const handleSaveEntity = useCallback((updatedEntity) => {
+    setEntities(prevEntities =>
+      prevEntities.map(entity =>
+        entity.pk === updatedEntity.pk
+          ? { ...entity, ...updatedEntity }
+          : entity
+      )
+    );
+  }, []);
+
+  // CORRIGIDO: Adicionar nova entidade
+  const handleCreateEntity = useCallback((newEntity) => {
+    setEntities(prevEntities => [newEntity, ...prevEntities]);
+    setCreateModalOpen(false);
+  }, []);
 
   const handleOpenCreateModal = () => {
     setCreateModalOpen(true);
   };
 
-  const handleCreateEntity = async () => {
-    await fetchEntities();
-    handleCloseCreateModal();
-  };
-
   const handleCloseCreateModal = () => {
     setCreateModalOpen(false);
-    getEntities().then((updatedEntities) => {
-      setEntities(updatedEntities.entities);
-      setAllEntities(updatedEntities.entities);
-    });
   };
 
   const handleExpandClick = (entityId) => {
     setExpandedEntityId(expandedEntityId === entityId ? null : entityId);
   };
 
-  const sortedEntities = entities.slice().sort((a, b) => {
-    if (b[orderBy] < a[orderBy]) {
+  const sortedEntities = filteredEntities.slice().sort((a, b) => {
+    const aValue = a[orderBy] ?? '';
+    const bValue = b[orderBy] ?? '';
+
+    if (bValue < aValue) {
       return order === "desc" ? -1 : 1;
     }
-    if (b[orderBy] > a[orderBy]) {
+    if (bValue > aValue) {
       return order === "desc" ? 1 : -1;
     }
     return 0;
@@ -202,7 +185,7 @@ const EntityList = () => {
       );
     }
 
-    if (entities.length === 0) {
+    if (filteredEntities.length === 0) {
       return (
         <TableRow>
           <TableCell colSpan={columns.length + 2} align="center">
@@ -223,12 +206,13 @@ const EntityList = () => {
                 <IconButton
                   onClick={() => handleExpandClick(entity.pk)}
                   color="primary"
+                  size="small"
                 >
                   {isExpanded ? <ExpandLess /> : <ExpandMore />}
                 </IconButton>
               </TableCell>
               {columns.map((column) => {
-                const value = entity[column.id];
+                const value = entity[column.id] ?? '';
                 return (
                   <TableCell key={column.id} align={column.align || "left"}>
                     {value}
@@ -239,6 +223,7 @@ const EntityList = () => {
                 <IconButton
                   onClick={() => handleOpenModal(entity.pk)}
                   color="primary"
+                  size="small"
                 >
                   <EditIcon />
                 </IconButton>
@@ -247,7 +232,6 @@ const EntityList = () => {
             {isExpanded && (
               <TableRow>
                 <TableCell colSpan={columns.length + 2}>
-                  {/* Detalhes adicionais apresentados de forma amigável */}
                   <Box margin={1}>
                     <Typography variant="h6" gutterBottom component="div">
                       Detalhes Adicionais
@@ -255,19 +239,17 @@ const EntityList = () => {
                     <Grid container spacing={2}>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
-                          <strong>Morada Completa :</strong> {entity.address},
-                          <Box component="span">
-                            {entity.door} {entity.floor}
-                          </Box>
+                          <strong>Morada Completa:</strong> {entity.address}
+                          {entity.door && `, ${entity.door}`}
+                          {entity.floor && `, ${entity.floor}`}
                           <br />
-                          <Box component="span" marginLeft={16}>
-                            {entity.postal} - {entity.nut4}
-                          </Box>
+                          {entity.postal && `${entity.postal} - `}
+                          {entity.nut4}
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="body2">
-                          <strong>Observações:</strong> {entity.descr}
+                          <strong>Observações:</strong> {entity.descr || 'N/A'}
                         </Typography>
                       </Grid>
                     </Grid>
@@ -286,10 +268,10 @@ const EntityList = () => {
         <Grid size={{ xs: 6 }}>
           <Typography variant="h4">Lista de Entidades</Typography>
         </Grid>
-        <Grid size={{ xs: 4 }} container justifyContent="flex-end">
+        <Grid size={{ xs: 4 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
           <SearchBar onSearch={setSearchTerm} />
         </Grid>
-        <Grid size={{ xs: 2 }} container justifyContent="center">
+        <Grid size={{ xs: 2 }} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Button
             variant="contained"
             color="primary"
@@ -300,6 +282,7 @@ const EntityList = () => {
           </Button>
         </Grid>
       </Grid>
+
       <TableContainer className="table-container_entity">
         <Table stickyHeader size="small" aria-label="sticky table">
           <TableHead>
@@ -327,11 +310,12 @@ const EntityList = () => {
           <TableBody>{renderTableContent()}</TableBody>
         </Table>
       </TableContainer>
+
       <TablePagination
         className="table-pagination_entity"
         rowsPerPageOptions={[10, 25, 100]}
         component="div"
-        count={entities.length}
+        count={filteredEntities.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
@@ -341,7 +325,8 @@ const EntityList = () => {
           `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
         }
       />
-      {modalOpen && (
+
+      {modalOpen && selectedEntity && (
         <EntityDetail
           entity={selectedEntity}
           onSave={handleSaveEntity}
@@ -349,6 +334,7 @@ const EntityList = () => {
           open={modalOpen}
         />
       )}
+
       {createModalOpen && (
         <CreateEntity
           onSave={handleCreateEntity}

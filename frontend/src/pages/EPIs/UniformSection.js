@@ -17,7 +17,7 @@ const UniformSection = ({ metaData, selectedEmployee }) => {
     const [editDelivery, setEditDelivery] = useState(null);
     const [returnDelivery, setReturnDelivery] = useState(null);
 
-    // Carrega as entregas do funcionário seleccionado
+    // Carrega as entregas do funcionário selecionado
     const fetchDeliveries = async () => {
         if (!selectedEmployee) {
             setEmployeeDeliveries([]);
@@ -48,7 +48,7 @@ const UniformSection = ({ metaData, selectedEmployee }) => {
         fetchDeliveries();
     }, [selectedEmployee, metaData]);
 
-    // Acções de editar/anular
+    // Ações de editar/anular
     const handleEditDelivery = (delivery) => {
         setEditDelivery(delivery);
     };
@@ -86,7 +86,7 @@ const UniformSection = ({ metaData, selectedEmployee }) => {
         { id: "memo", label: "Observações" },
         {
             id: "actions",
-            label: "Acções",
+            label: "Ações",
             render: (row) => (
                 <Box sx={{ display: "flex", gap: 1 }}>
                     <Tooltip

@@ -4,7 +4,7 @@ import { useInternalContext } from "../context/InternalContext";
 import GenericTable from "./GenericTable";
 import { useRecords } from "../hooks/useRecords";
 import { formatDate } from "../utils/recordsFormatter";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { formatDateToString } from "../../../utils/dataUtils";
 import { notifyError } from "../../../components/common/Toaster/ThemedToaster";
 
 const waterVolumeColumns = [
@@ -54,7 +54,7 @@ const WaterVolumeRecordsTable = ({ selectedEntity, selectedArea }) => {
 
         if (await addRecord(payload)) {
             setNewRecord({
-                date: getCurrentDateTime(),
+                date: formatDateToString(new Date()),
                 value: ""
             });
         }
@@ -89,8 +89,8 @@ const WaterVolumeRecordsTable = ({ selectedEntity, selectedArea }) => {
             <Grid container spacing={2} alignItems="end">
                 <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
-                        label="Data da Leitura"
-                        type="datetime-local"
+                        label="Data da Leitura" 
+                        type="date"
                         value={newRecord.date}
                         onChange={(e) => setNewRecord(prev => ({ ...prev, date: e.target.value }))}
                         fullWidth

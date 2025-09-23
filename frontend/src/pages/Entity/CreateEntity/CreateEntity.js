@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Container,
   TextField,
@@ -20,7 +20,6 @@ import {
 import { HelpOutline } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import { getEntityByNIF, addEntity, updateEntity } from "../../../services/entityService";
-import { getAddressByPostalCode } from "../../../services/postalCodeService";
 import AddressForm from "../../../components/AddressForm/AddressForm";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import {
@@ -29,10 +28,6 @@ import {
   notifyWarning,
   notifyInfo,
 } from "../../../components/common/Toaster/ThemedToaster";
-import { debounce } from "lodash";
-import { driver } from "driver.js";
-import "driver.js/dist/driver.css";
-import "./CreateEntity.css";
 
 const initialEntityState = {
   name: "",
@@ -55,13 +50,12 @@ const initialEntityState = {
 const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
   const { metaData, loading: metaLoading, error: metaError } = useMetaData();
   const [confirmClose, setConfirmClose] = useState(false);
-  const [errors, setErrors] = useState({});  
-  const [nifStatus, setNifStatus] = useState("default"); // 'default', 'available', 'exists', 'invalid'
+  const [errors, setErrors] = useState({});
+  const [nifStatus, setNifStatus] = useState("default");
   const [openIdentification, setOpenIdentification] = useState(true);
   const [openContact, setOpenContact] = useState(true);
   const [openDescription, setOpenDescription] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingEntityPk, setExistingEntityPk] = useState(null);
   const [emailWarningShown, setEmailWarningShown] = useState(false);
@@ -85,141 +79,9 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
     }
   }, [open]);
 
-  const startTutorial = () => {
-    const driverInstance = driver({
-      showProgress: true,
-      showButtons: ["next", "previous", "close"],
-      steps: [
-        {
-          element: "#nipc-input",
-          popover: {
-            title: "NIF",
-            description: "Digite o NIF da entidade aqui.",
-            side: "left",
-            align: "start",
-          },
-        },
-        {
-          element: "#name-input",
-          popover: {
-            title: "Nome",
-            description: "Digite o nome da entidade.",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#ident_type",
-          popover: {
-            title: "Tipo de Identificação",
-            description: "Selecione o tipo de identificação",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#ident_value",
-          popover: {
-            title: "Nº de Identificação",
-            description: "Digite o numero de Identificação",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#phone-input",
-          popover: {
-            title: "Telefone",
-            description: "Digite o número de telefone da entidade.",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#email-input",
-          popover: {
-            title: "Email",
-            description: "Digite o email da entidade.",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#postal-code-input",
-          popover: {
-            title: "Código Postal",
-            description: "Digite o código postal aqui.",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#address-input",
-          popover: {
-            title: "Endereço",
-            description:
-              "A lista de moradas e apresentada automaticamente com base no código postal. Caso não encontre a morada indicada, deve selecionar outra e introduzir manualmente",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#door-input",
-          popover: {
-            title: "Número da Porta",
-            description: "Digite o número da porta.",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#floor-input",
-          popover: {
-            title: "Andar",
-            description: "Digite o andar.",
-            position: "bottom",
-          },
-        },
-        {
-          element: "#grouped-info",
-          popover: {
-            title: "Informações Automáticas",
-            description:
-              "Os campos Localidade, Freguesia, Concelho e Distrito são preenchidos automaticamente com base no código postal.",
-            position: "top",
-          },
-        },
-        {
-          element: "#descr",
-          popover: {
-            title: "Observações",
-            description:
-              "Deve adicionar observaçoes relevantes a entidade.",
-            position: "top",
-          },
-        },
-        {
-          element: "#cancel-button",
-          popover: {
-            title: "Cancelar",
-            description: "Clique aqui para cancelar a operação.",
-            position: "top",
-          },
-        },
-        {
-          element: "#save-button",
-          popover: {
-            title: "Salvar",
-            description: "Clique aqui para salvar a entidade.",
-            position: "top",
-          },
-        },
-      ],
-    });
-
-    driverInstance.drive();
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setEntity((prev) => ({ ...prev, [name]: value }));
-    setIsDirty(true);
-  };
-
-  const handleAddressChange = (addressData) => {
-    setEntity((prev) => ({ ...prev, ...addressData }));
     setIsDirty(true);
   };
 
@@ -240,30 +102,17 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
     return parseInt(nif[8]) === expectedDigit;
   };
 
-  const checkNIF = async (nipc) => {
-    try {
-      const entity = await getEntityByNIF(nipc);
-      if (entity) {
-        notifyError("NIF já existe.");
-        return false;
-      }
-      return true;
-    } catch (error) {
-      notifyError("Erro ao verificar o NIF. Tente novamente.");
-      return false;
-    }
-  };
-
   const handleNIFChange = async (e) => {
     const { name, value } = e.target;
-    // Limpa o formulário, mantendo apenas o NIF que está a ser alterado.
+
     if (existingEntityPk) {
       setEntity({ ...initialEntityState, [name]: value });
     } else {
       setEntity((prev) => ({ ...prev, [name]: value }));
     }
+
     setErrors({});
-    setIsDirty(true);    
+    setIsDirty(true);
     setNifStatus("default");
     setExistingEntityPk(null);
 
@@ -272,32 +121,20 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
         try {
           const existingEntity = await getEntityByNIF(value);
 
-          // console.log("Resposta da API (getEntityByNIF):", existingEntity);
-
-          if (existingEntity && existingEntity.entity) {
+          if (existingEntity?.entity) {
             const entityData = existingEntity.entity;
             setExistingEntityPk(entityData.pk);
-            setEntity({
-              name: entityData.name || "",
-              nipc: String(entityData.nipc || value),
-              ident_type: entityData.ident_type || "",
-              ident_value: entityData.ident_value || "",
-              phone: entityData.phone || "",
-              email: entityData.email || "",
-              postal: entityData.postal || "",
-              address: entityData.address || "",
-              door: entityData.door || "",
-              floor: entityData.floor || "",
-              nut1: entityData.nut1 || "",
-              nut2: entityData.nut2 || "",
-              nut3: entityData.nut3 || "",
-              nut4: entityData.nut4 || "",
-              descr: entityData.descr || "",
-            });
-            notifyInfo("Entidade já existente. Dados carregados no formulário.");
+
+            const newEntityState = { ...initialEntityState };
+            for (const key in newEntityState) {
+              newEntityState[key] = entityData[key] || "";
+            }
+            newEntityState.nipc = String(entityData.nipc || value);
+
+            setEntity(newEntityState);
+            notifyInfo("Entidade já existente. Dados carregados.");
             setNifStatus("exists");
           } else {
-            // NIF não existe (resposta 204 da API)
             setEntity({ ...initialEntityState, nipc: value });
             notifySuccess("NIF válido e disponível.");
             setNifStatus("available");
@@ -335,38 +172,30 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
   const resetForm = () => {
     setEntity(initialEntityState);
     setErrors({});
-    setIsDirty(false);    
+    setIsDirty(false);
     setNifStatus("default");
     setExistingEntityPk(null);
     setEmailWarningShown(false);
   };
 
   const validateFields = () => {
-    const requiredFields = [
-      "name",
-      "nipc",
+    const fieldsToValidate = [
+      { name: "name", label: "Nome" },
+      { name: "nipc", label: "NIF" },
+      { name: "address", label: "Morada" },
+      { name: "postal", label: "Código Postal" },
+      { name: "nut4", label: "Localidade" },
+      { name: "nut3", label: "Freguesia" },
+      { name: "nut2", label: "Concelho" },
+      { name: "nut1", label: "Distrito" },
+      { name: "phone", label: "Telefone" },
     ];
-    const requiredAddressFields = ["address", "postal", "nut4", "nut3", "nut2", "nut1"];
-    const requiredContactFields = ["phone"];
+
     const newErrors = {};
 
-    requiredFields.forEach((field) => {
-      if (!entity[field] || String(entity[field]).trim() === "") {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-          } é obrigatório.`;
-      }
-    });
-
-    requiredAddressFields.forEach((field) => {
-      if (!entity[field] || String(entity[field]).trim() === "") {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-          } é obrigatório.`;
-      }
-    });
-
-    requiredContactFields.forEach((field) => {
-      if (!entity[field] || String(entity[field]).trim() === "") {
-        newErrors[field] = `Telefone é obrigatório.`;
+    fieldsToValidate.forEach(({ name, label }) => {
+      if (!entity[name] || String(entity[name]).trim() === "") {
+        newErrors[name] = `${label} é obrigatório.`;
       }
     });
 
@@ -374,20 +203,12 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
       entity.ident_type &&
       (!entity.ident_value || String(entity.ident_value).trim() === "")
     ) {
-      newErrors.ident_value =
-        "Nº de Identificação é obrigatório quando o Tipo de identificação está selecionado.";
+      newErrors.ident_value = "Nº de Identificação é obrigatório quando o Tipo está selecionado.";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  const clearForm = () => {
-    setEntity(initialEntityState);
-    setErrors({});
-  };
-
-  const submitTimeoutRef = useRef(null);
 
   const confirmSaveWithoutEmail = async () => {
     setEmailWarningShown(true);
@@ -399,13 +220,28 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
     setShowEmailWarning(false);
   };
 
-  const handleSave = async () => {
-    if (isSubmitting) {
-      return;
+  const prepareDataForSubmission = (data) => {
+    const requiredFields = ['name', 'nipc', 'address', 'postal', 'phone', 'nut1', 'nut2', 'nut3', 'nut4'];
+    const dataToSend = {};
+
+    for (const key in data) {
+      const value = data[key];
+      if (typeof value === 'string') {
+        const trimmedValue = value.trim();
+        dataToSend[key] = (trimmedValue === '' && !requiredFields.includes(key)) ? null : trimmedValue;
+      } else {
+        dataToSend[key] = value === '' ? null : value;
+      }
     }
+    dataToSend.nipc = parseInt(dataToSend.nipc, 10);
+    return dataToSend;
+  };
+
+  const handleSave = async () => {
+    if (isSubmitting) return;
 
     if (!validateFields()) {
-      notifyWarning("Por favor, preencha todos os campos obrigatórios.");
+      notifyWarning("Preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -416,71 +252,52 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
     }
 
     setIsSubmitting(true);
+    const entityDataToSend = prepareDataForSubmission(entity);
 
-    if (submitTimeoutRef.current) {
-      clearTimeout(submitTimeoutRef.current);
+    try {
+      let result;
+      if (existingEntityPk) {
+        result = await updateEntity(existingEntityPk, entityDataToSend);
+      } else {
+        result = await addEntity(entityDataToSend);
+      }
+
+      if (result.success) {
+        const message = existingEntityPk ? "Entidade atualizada." : "Entidade criada.";
+        notifySuccess(message);
+
+        // CORRIGIDO: Passa a entidade completa para o parent
+        if (typeof onSave === "function") {
+          const savedEntity = {
+            ...entityDataToSend,
+            pk: existingEntityPk || result.pk || result.data?.pk
+          };
+          onSave(savedEntity);
+        }
+
+        resetForm();
+        onClose();
+      } else {
+        notifyError(result.error || "Erro ao criar entidade.");
+      }
+    } catch (error) {
+      notifyError("Erro ao guardar entidade.");
+      console.error("Erro:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    submitTimeoutRef.current = setTimeout(async () => {
-      // Prepara os dados para envio, convertendo campos vazios para null
-      const entityDataToSend = Object.entries(entity).reduce((acc, [key, value]) => {
-        if (typeof value === 'string') {
-          const trimmedValue = value.trim();
-          // Converte para null se for um campo opcional e estiver vazio
-          acc[key] = (trimmedValue === '' && !['name', 'nipc', 'address', 'postal', 'phone', 'nut1', 'nut2', 'nut3', 'nut4'].includes(key)) ? null : trimmedValue;
-        } else {
-          acc[key] = value === '' ? null : value;
-        }
-        return acc;
-      }, {});
-      entityDataToSend.nipc = parseInt(entityDataToSend.nipc, 10);
-
-      try {
-        let result;
-        if (existingEntityPk) {
-          result = await updateEntity(existingEntityPk, entityDataToSend);
-        } else {
-          result = await addEntity(entityDataToSend);
-        }
-
-        if (result.success) {
-          notifySuccess(existingEntityPk ? "Entidade atualizada com sucesso." : "Entidade criada com sucesso.");
-          if (typeof onSave === "function") {
-            const savedEntity = { ...entity, pk: existingEntityPk || result.pk };
-            onSave(savedEntity);
-          }
-          resetForm();
-          onClose();
-        } else {
-          notifyError(result.error || "Erro ao criar entidade.");
-        }
-      } catch (error) {
-        notifyError("Ocorreu um erro ao salvar a entidade.");
-        console.error("Erro ao salvar entidade:", error);
-      } finally {
-        setIsSubmitting(false);
-      }
-    }, 300);
   };
-
-  useEffect(() => {
-    return () => {
-      if (submitTimeoutRef.current) {
-        clearTimeout(submitTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const getNifClass = () => {
     switch (nifStatus) {
       case "available":
-        return "nif-available";
+        return { '& .MuiOutlinedInput-notchedOutline': { borderColor: 'green', borderWidth: 2 } };
       case "exists":
-        return "nif-exists";
+        return { '& .MuiOutlinedInput-notchedOutline': { borderColor: 'orange', borderWidth: 2 } };
       case "invalid":
-        return "nif-invalid";
+        return { '& .MuiOutlinedInput-notchedOutline': { borderColor: 'red', borderWidth: 2 } };
       default:
-        return "";
+        return {};
     }
   };
 
@@ -489,33 +306,33 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
 
   return (
     <Modal open={open} onClose={handleClose}>
-      <Paper className="paper_entitycreate">
-        <Container className="entity-create-container">
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
+      <Paper sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '80%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        bgcolor: 'background.paper',
+        boxShadow: 24,
+        p: 4,
+      }}>
+        <Container sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h4" gutterBottom>
               Criar Entidade
             </Typography>
-            <IconButton onClick={startTutorial}>
-              <HelpOutline />
-            </IconButton>
           </Box>
-          <Box className="entity-create-box">
+
+          <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1 }}>
+            {/* Identificação */}
             <Box>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
+              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="h5" gutterBottom>
                   Identificação
                 </Typography>
-                <IconButton
-                  onClick={() => setOpenIdentification(!openIdentification)}
-                >
+                <IconButton onClick={() => setOpenIdentification(!openIdentification)}>
                   {openIdentification ? <ExpandLess /> : <ExpandMore />}
                 </IconButton>
               </Box>
@@ -527,16 +344,13 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       required
                       label="NIF"
                       name="nipc"
-                      id="nipc-input"
                       value={entity.nipc}
                       onChange={handleNIFChange}
                       fullWidth
                       margin="normal"
                       error={!!errors.nipc}
                       helperText={errors.nipc}
-                      InputProps={{
-                        classes: { notchedOutline: getNifClass() },
-                      }}
+                      sx={getNifClass()}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 5 }}>
@@ -544,7 +358,6 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       required
                       label="Nome"
                       name="name"
-                      id="name-input"
                       value={entity.name}
                       onChange={handleChange}
                       fullWidth
@@ -555,15 +368,13 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                   </Grid>
                   <Grid size={{ xs: 12, sm: 3 }}>
                     <TextField
-                      variant="outlined"
-                      margin="normal"
-                      fullWidth
                       select
-                      id="ident_type"
                       label="Tipo de Identificação"
                       name="ident_type"
                       value={entity.ident_type}
                       onChange={handleChange}
+                      fullWidth
+                      margin="normal"
                     >
                       <MenuItem value="">Sem identificação</MenuItem>
                       {identTypes.map((type) => (
@@ -578,7 +389,6 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       label="Nº de Identificação"
                       name="ident_value"
                       value={entity.ident_value}
-                      id="ident_value"
                       onChange={handleChange}
                       fullWidth
                       margin="normal"
@@ -589,12 +399,10 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                 </Grid>
               </Collapse>
             </Box>
+
+            {/* Dados de Contacto */}
             <Box mt={2}>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
+              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="h5" gutterBottom>
                   Dados de Facturação
                 </Typography>
@@ -609,7 +417,6 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                       required
                       label="Telefone"
                       name="phone"
-                      id="phone-input"
                       value={entity.phone}
                       onChange={handleChange}
                       fullWidth
@@ -622,7 +429,6 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                     <TextField
                       label="Email"
                       name="email"
-                      id="email-input"
                       value={entity.email}
                       onChange={handleChange}
                       fullWidth
@@ -639,22 +445,14 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                 </Grid>
               </Collapse>
             </Box>
+
+            {/* Outros */}
             <Box mb={2}>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  style={{ marginTop: "20px" }}
-                >
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                   Outros
                 </Typography>
-                <IconButton
-                  onClick={() => setOpenDescription(!openDescription)}
-                >
+                <IconButton onClick={() => setOpenDescription(!openDescription)}>
                   {openDescription ? <ExpandLess /> : <ExpandMore />}
                 </IconButton>
               </Box>
@@ -664,7 +462,6 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
                     <TextField
                       label="Observações"
                       name="descr"
-                      id="descr"
                       value={entity.descr || ""}
                       onChange={handleChange}
                       fullWidth
@@ -675,20 +472,15 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
               </Collapse>
             </Box>
           </Box>
-          <Box className="entity-create-actions">
-            <Button
-              variant="contained"
-              color="secondary"
-              id="cancel-button"
-              onClick={handleClose}
-              style={{ marginLeft: "20px" }}
-            >
+
+          {/* Botões */}
+          <Box sx={{ pt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+            <Button variant="contained" color="secondary" onClick={handleClose}>
               Cancelar
             </Button>
             <Button
               variant="contained"
               color="primary"
-              id="save-button"
               onClick={handleSave}
               disabled={isSubmitting}
             >
@@ -697,24 +489,17 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
           </Box>
         </Container>
 
-        <Dialog
-          open={confirmClose}
-          onClose={cancelCloseModal}
-          aria-labelledby="confirm-dialog-title"
-          aria-describedby="confirm-dialog-description"
-        >
-          <DialogTitle id="confirm-dialog-title">
-            Descartar Alterações?
-          </DialogTitle>
+        {/* Diálogos */}
+        <Dialog open={confirmClose} onClose={cancelCloseModal}>
+          <DialogTitle>Descartar Alterações?</DialogTitle>
           <DialogContent>
             <Typography>
-              Existem alterações não guardadas. Deseja realmente sair sem
-              guardar?
+              Existem alterações não guardadas. Sair sem guardar?
             </Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={cancelCloseModal} color="primary">
-              Não, continuar a editar
+              Não, continuar
             </Button>
             <Button onClick={confirmCloseModal} color="secondary">
               Sim, sair
@@ -722,20 +507,12 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
           </DialogActions>
         </Dialog>
 
-        <Dialog
-          open={showEmailWarning}
-          onClose={cancelSaveWithoutEmail}
-          aria-labelledby="email-warning-dialog-title"
-          aria-describedby="email-warning-dialog-description"
-        >
-          <DialogTitle id="email-warning-dialog-title">
-            Email não preenchido
-          </DialogTitle>
+        <Dialog open={showEmailWarning} onClose={cancelSaveWithoutEmail}>
+          <DialogTitle>Email não preenchido</DialogTitle>
           <DialogContent>
             <Typography>
-              O campo email não está preenchido. Recomendamos que seja fornecido um email
-              para facilitar futuras comunicações e melhorar o atendimento ao cliente.
-              Pretende continuar sem preencher o email?
+              Recomendamos fornecer um email para futuras comunicações.
+              Continuar sem email?
             </Typography>
           </DialogContent>
           <DialogActions>
@@ -752,4 +529,4 @@ const EntityCreate = ({ onSave, onClose, open, initialNipc }) => {
   );
 };
 
-export default EntityCreate
+export default EntityCreate;

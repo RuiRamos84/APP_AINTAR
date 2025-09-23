@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+
+    ],
+    "deny": [
+
+    ],
+    "ask": [
+      "Bash(npm run build:*)"      
+    ]
+  }
+}

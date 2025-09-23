@@ -20,7 +20,7 @@ import {
 } from '@mui/icons-material';
 
 // Drag and Drop
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 // Componentes
 import KanbanCard from '../components/cards/KanbanCard';

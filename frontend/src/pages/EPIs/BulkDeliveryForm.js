@@ -29,7 +29,7 @@ import {
 } from "../../components/common/Toaster/ThemedToaster";
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { getCurrentDateTime } from '../../utils/dataUtils';
+import { getCurrentDate } from './dataUtils';
 
 const BulkDeliveryForm = ({
     open,
@@ -97,7 +97,7 @@ const BulkDeliveryForm = ({
                     const delivery = {
                         pntb_epi: selectedEmployee,
                         pntt_epiwhat: item.pntt_epiwhat,
-                        pndata: getCurrentDateTime(),
+                        pndata: getCurrentDate(), // CORREÇÃO: Usar apenas a data
                         pnquantity: parseInt(item.pnquantity) || 1,
                         pndim: item.pndim || '',
                         pnmemo: item.pnmemo || '',
@@ -286,7 +286,9 @@ const BulkDeliveryForm = ({
                                                     }))
                                                 }
                                                 fullWidth
-                                                InputProps={{ inputProps: { min: 1 } }}
+                                                slotProps={{
+                                                    htmlInput: { min: 1 }
+                                                }}
                                             />
                                         </Grid>
                                         <Grid size={{ xs: 12, md: 3 }}>

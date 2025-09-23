@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Typography } from "@mui/material";
+import { getCurrentDate } from "./dataUtils";
 
 const ReturnDeliveryDialog = ({ open, onClose, delivery, onConfirm }) => {
     const [memo, setMemo] = useState("");
@@ -7,7 +8,7 @@ const ReturnDeliveryDialog = ({ open, onClose, delivery, onConfirm }) => {
     const handleConfirm = async () => {
         try {
             await onConfirm({
-                pndata: new Date().toISOString().split("T")[0],
+                pndata: getCurrentDate(),
                 pnmemo: memo,
             });
             onClose();

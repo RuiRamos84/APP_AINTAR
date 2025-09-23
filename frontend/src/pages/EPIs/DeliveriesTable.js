@@ -164,7 +164,9 @@ const DeliveriesTable = ({
 
             // Filtro de data
             if (filters.dateRange) {
-                const itemDate = new Date(item.data);
+                // Assuming item.data is a string like 'YYYY-MM-DD' or a full ISO string.
+                // Creating a date object from it might include timezone offsets.
+                const itemDate = new Date(new Date(item.data).toDateString()); // Normalize to midnight in local timezone
                 if (itemDate < filters.dateRange.start || itemDate > filters.dateRange.end) {
                     return false;
                 }
@@ -190,30 +192,26 @@ const DeliveriesTable = ({
     };
 
     const sortData = (data) => {
-        const sorted = [...data].sort((a, b) => {
-            switch (sortConfig.type) {
-                case 'date':
-                    return new Date(b.data) - new Date(a.data);
-                case 'type':
-                    return a.tt_epiwhat.localeCompare(b.tt_epiwhat);
-                case 'quantity':
-                    return b.quantity - a.quantity;
-                default:
-                    return 0;
+        const sortedData = [...data];
+    
+        sortedData.sort((a, b) => {
+            const dir = sortConfig.direction === 'asc' ? 1 : -1;
+            if (sortConfig.type === 'date') {
+                return (new Date(a.data) - new Date(b.data)) * dir;
             }
+            if (sortConfig.type === 'type') {
+                return a.tt_epiwhat.localeCompare(b.tt_epiwhat) * dir;
+            }
+            if (sortConfig.type === 'quantity') {
+                return (a.quantity - b.quantity) * dir;
+            }
+            return 0;
         });
 
         if (sortConfig.group) {
-            const grouped = {};
-            sorted.forEach(item => {
-                const key = item.tt_epiwhat;
-                if (!grouped[key]) grouped[key] = [];
-                grouped[key].push(item);
-            });
-            return Object.values(grouped).flat();
+            return sortedData.sort((a, b) => a.tt_epiwhat.localeCompare(b.tt_epiwhat));
         }
-
-        return sorted;
+        return sortedData;
     };
 
     const processedData = useMemo(() => {

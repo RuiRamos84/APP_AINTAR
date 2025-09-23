@@ -19,7 +19,7 @@ import {
     Chip,
     TableContainer,
 } from "@mui/material";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { formatDateToString } from "../../../utils/dataUtils";
 import { getIncumprimentoRecords, addIncumprimentoRecord } from "../../../services/InternalService";
 import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster";
 
@@ -28,7 +28,7 @@ const IncumprimentosTable = ({ selectedEntity, metaData }) => {
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [newRecord, setNewRecord] = useState({
-        data: getCurrentDateTime(),
+        data: formatDateToString(new Date()),
         tt_analiseparam: "",
         resultado: "",
         limite: "",
@@ -88,7 +88,7 @@ const IncumprimentosTable = ({ selectedEntity, metaData }) => {
 
             // Limpar formulário
             setNewRecord({
-                data: getCurrentDateTime(),
+                data: formatDateToString(new Date()),
                 tt_analiseparam: "",
                 resultado: "",
                 limite: "",
@@ -137,7 +137,7 @@ const IncumprimentosTable = ({ selectedEntity, metaData }) => {
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <TextField
-                            type="datetime-local"
+                            type="date"
                             label="Data"
                             value={newRecord.data}
                             onChange={(e) => handleInputChange("data", e.target.value)}
@@ -224,7 +224,7 @@ const IncumprimentosTable = ({ selectedEntity, metaData }) => {
                         </FormControl>
                     </Grid>
 
-                    <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
+                    <Grid size={{ xs: 12, sm: 12, md: 1.5 }} sx={{ display: 'flex', alignItems: 'center' }}>
                         <Button
                             variant="contained"
                             color="primary"
@@ -232,7 +232,7 @@ const IncumprimentosTable = ({ selectedEntity, metaData }) => {
                             disabled={submitting || !newRecord.data || !newRecord.tt_analiseparam || !newRecord.resultado || !newRecord.limite}
                             startIcon={submitting ? <CircularProgress size={20} /> : null}
                         >
-                            {submitting ? "A processar..." : "Registar Incumprimento"}
+                            {submitting ? "..." : "Registar"}
                         </Button>
                     </Grid>
                 </Grid>

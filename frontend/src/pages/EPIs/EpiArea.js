@@ -94,7 +94,7 @@ const EpiArea = () => {
     const renderContent = () => {
         const currentSection = getCurrentSection();
 
-        // Se precisa de funcionário mas não está seleccionado, não renderiza conteúdo
+        // Se precisa de funcionário mas não está selecionado, não renderiza conteúdo
         if (currentSection?.needsEmployee && !selectedEmployee) {
             return null;
         }

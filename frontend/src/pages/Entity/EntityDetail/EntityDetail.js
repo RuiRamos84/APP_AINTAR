@@ -25,6 +25,7 @@ import {
   notifyError,
   notifyLoading,
   notifyWarning,
+  notifySuccess,
 } from "../../../components/common/Toaster/ThemedToaster";
 import "./EntityDetail.css";
 
@@ -46,34 +47,34 @@ const initialEntityState = {
   nut4: "",
 };
 
-const initialErrorState = {};
-
 const EntityDetail = ({
   entity: initialEntity,
   onSave,
   onClose,
   open,
-  updateList,
 }) => {
   const { metaData, loading: metaLoading, error: metaError } = useMetaData();
   const [entity, setEntity] = useState(initialEntity || initialEntityState);
   const [confirmClose, setConfirmClose] = useState(false);
-  const [errors, setErrors] = useState(initialErrorState);
+  const [errors, setErrors] = useState({});
   const [openIdentification, setOpenIdentification] = useState(true);
   const [openContact, setOpenContact] = useState(true);
   const [openDescription, setOpenDescription] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [emailWarningShown, setEmailWarningShown] = useState(false);
   const [showEmailWarning, setShowEmailWarning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialEntity) {
-      setEntity((prevEntity) => ({
+      setEntity(() => ({
         ...initialEntityState,
         ...initialEntity,
         nipc: String(initialEntity.nipc || ''),
       }));
       setIsDirty(false);
+      setEmailWarningShown(false);
+      setErrors({});
     }
   }, [initialEntity]);
 
@@ -113,7 +114,7 @@ const EntityDetail = ({
 
   const resetForm = () => {
     setEntity(initialEntityState);
-    setErrors(initialErrorState);
+    setErrors({});
     setIsDirty(false);
     setEmailWarningShown(false);
   };
@@ -150,7 +151,7 @@ const EntityDetail = ({
     ) {
       newErrors.postal = "Código Postal é obrigatório.";
     } else if (!/^\d{4}-\d{3}$/.test(entity.postal.trim())) {
-      newErrors.postal = "Indique um Código Postal válido (formato: 0000-000).";
+      newErrors.postal = "Código Postal inválido (formato: 0000-000).";
     }
 
     const isPostalValid =
@@ -161,9 +162,8 @@ const EntityDetail = ({
           !entity[field] ||
           (typeof entity[field] === "string" && entity[field].trim() === "")
         ) {
-          newErrors[
-            field
-          ] = `${fieldLabels[field]} não foi preenchido automaticamente. Verifique o Código Postal.`;
+          newErrors[field] =
+            `${fieldLabels[field]} não foi preenchido. Verifique o Código Postal.`;
         }
       });
     }
@@ -175,7 +175,7 @@ const EntityDetail = ({
           entity.ident_value.trim() === ""))
     ) {
       newErrors.ident_value =
-        "Nº de Identificação é obrigatório quando o Tipo de identificação está selecionado.";
+        "Nº de Identificação é obrigatório quando o Tipo está selecionado.";
     }
 
     setErrors(newErrors);
@@ -195,10 +195,10 @@ const EntityDetail = ({
   const handleSave = async (event) => {
     event.preventDefault();
 
+    if (isSubmitting) return;
+
     if (!validateFields()) {
-      notifyWarning(
-        "Deve preencher todos os campos assinalados como obrigatórios."
-      );
+      notifyWarning("Preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -208,36 +208,43 @@ const EntityDetail = ({
       return;
     }
 
+    setIsSubmitting(true);
+
     const entityDataToSend = Object.entries(entity).reduce((acc, [key, value]) => {
       if (typeof value === 'string') {
         const trimmedValue = value.trim();
-        acc[key] = (trimmedValue === '' && !['name', 'nipc', 'address', 'postal', 'phone'].includes(key)) ? null : trimmedValue;
+        acc[key] = (trimmedValue === '' && !['name', 'nipc', 'address', 'postal', 'phone'].includes(key))
+          ? null
+          : trimmedValue;
       } else {
         acc[key] = value === '' ? null : value;
       }
       return acc;
     }, {});
+
     entityDataToSend.nipc = parseInt(entityDataToSend.nipc, 10);
 
     try {
-      await notifyLoading(
-        () => updateEntity(entity.pk, entityDataToSend),
-        "A guardar alterações...",
-        "Entidade atualizada com sucesso.",
-        "Erro ao atualizar entidade"
-      );
+      const result = await updateEntity(entity.pk, entityDataToSend);
 
-      setIsDirty(false);
+      if (result.success) {
+        notifySuccess("Entidade atualizada com sucesso.");
+        setIsDirty(false);
 
-      if (updateList) {
-        updateList();
+        // CORRIGIDO: Passa os dados atualizados para o parent
+        if (onSave) {
+          onSave({ ...entity, ...entityDataToSend });
+        }
+
+        onClose();
+      } else {
+        notifyError(result.error || "Erro ao atualizar entidade.");
       }
-
-      setEntity(entityDataToSend);
-
     } catch (error) {
-      notifyError("Erro ao atualizar entidade: " + (error.message || "Ocorreu um erro desconhecido"));
+      notifyError("Erro ao atualizar entidade: " + (error.message || "Erro desconhecido"));
       console.error("Erro ao atualizar entidade:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -251,19 +258,15 @@ const EntityDetail = ({
           <Typography variant="h4" gutterBottom>
             Detalhes da Entidade
           </Typography>
+
           <Box className="entity-detail-box">
+            {/* Identificação */}
             <Box>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
+              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="h5" gutterBottom>
                   Identificação
                 </Typography>
-                <IconButton
-                  onClick={() => setOpenIdentification(!openIdentification)}
-                >
+                <IconButton onClick={() => setOpenIdentification(!openIdentification)}>
                   {openIdentification ? <ExpandLess /> : <ExpandMore />}
                 </IconButton>
               </Box>
@@ -285,7 +288,6 @@ const EntityDetail = ({
                   <Grid size={{ xs: 12, sm: 2 }}>
                     <TextField
                       required
-                      type="text"
                       label="NIF"
                       name="nipc"
                       value={entity.nipc || ""}
@@ -299,15 +301,13 @@ const EntityDetail = ({
                   </Grid>
                   <Grid size={{ xs: 12, sm: 3 }}>
                     <TextField
-                      variant="outlined"
-                      margin="normal"
-                      fullWidth
                       select
-                      id="ident_type"
                       label="Tipo de Identificação"
                       name="ident_type"
                       value={entity.ident_type || ""}
                       onChange={handleChange}
+                      fullWidth
+                      margin="normal"
                     >
                       <MenuItem value="">Sem identificação</MenuItem>
                       {identTypes.map((type) => (
@@ -332,12 +332,10 @@ const EntityDetail = ({
                 </Grid>
               </Collapse>
             </Box>
+
+            {/* Contacto */}
             <Box mt={2}>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
+              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="h5" gutterBottom>
                   Contacto
                 </Typography>
@@ -381,22 +379,14 @@ const EntityDetail = ({
                 </Grid>
               </Collapse>
             </Box>
+
+            {/* Outros */}
             <Box mb={2}>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  style={{ marginTop: "20px" }}
-                >
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                   Outros
                 </Typography>
-                <IconButton
-                  onClick={() => setOpenDescription(!openDescription)}
-                >
+                <IconButton onClick={() => setOpenDescription(!openDescription)}>
                   {openDescription ? <ExpandLess /> : <ExpandMore />}
                 </IconButton>
               </Box>
@@ -416,34 +406,33 @@ const EntityDetail = ({
               </Collapse>
             </Box>
           </Box>
+
+          {/* Botões */}
           <Box className="entity-detail-actions">
             <Button
               variant="contained"
               color="secondary"
               onClick={handleClose}
-              style={{ marginLeft: "20px" }}
             >
               Cancelar
             </Button>
-            <Button variant="contained" color="primary" onClick={handleSave} disabled={!isDirty}>
-              Guardar
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSave}
+              disabled={!isDirty || isSubmitting}
+            >
+              {isSubmitting ? <CircularProgress size={24} /> : "Guardar"}
             </Button>
           </Box>
         </Container>
 
-        <Dialog
-          open={confirmClose}
-          onClose={cancelCloseModal}
-          aria-labelledby="confirm-dialog-title"
-          aria-describedby="confirm-dialog-description"
-        >
-          <DialogTitle id="confirm-dialog-title">
-            Descartar Alterações?
-          </DialogTitle>
+        {/* Diálogos */}
+        <Dialog open={confirmClose} onClose={cancelCloseModal}>
+          <DialogTitle>Descartar Alterações?</DialogTitle>
           <DialogContent>
             <Typography>
-              Existem alterações não guardadas. Deseja realmente sair sem
-              guardar?
+              Existem alterações não guardadas. Sair sem guardar?
             </Typography>
           </DialogContent>
           <DialogActions>
@@ -456,20 +445,12 @@ const EntityDetail = ({
           </DialogActions>
         </Dialog>
 
-        <Dialog
-          open={showEmailWarning}
-          onClose={cancelSaveWithoutEmail}
-          aria-labelledby="email-warning-dialog-title"
-          aria-describedby="email-warning-dialog-description"
-        >
-          <DialogTitle id="email-warning-dialog-title">
-            Email não preenchido
-          </DialogTitle>
+        <Dialog open={showEmailWarning} onClose={cancelSaveWithoutEmail}>
+          <DialogTitle>Email não preenchido</DialogTitle>
           <DialogContent>
             <Typography>
-              O campo email não está preenchido. Recomendamos que seja fornecido um email
-              para facilitar futuras comunicações e melhorar o atendimento ao cliente.
-              Pretende continuar sem preencher o email?
+              Recomendamos fornecer um email para futuras comunicações.
+              Continuar sem email?
             </Typography>
           </DialogContent>
           <DialogActions>

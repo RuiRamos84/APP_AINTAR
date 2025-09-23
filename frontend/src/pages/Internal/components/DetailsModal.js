@@ -187,7 +187,7 @@ const DetailsModal = ({
                             </Typography>
                             <Grid container spacing={2}>
                                 {fields.map(field => (
-                                    <Grid key={field} item xs={12} sm={6} md={4}>
+                                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={field}>
                                         {["ativa", "ener_transf"].includes(field) ? (
                                             <FormControlLabel
                                                 control={

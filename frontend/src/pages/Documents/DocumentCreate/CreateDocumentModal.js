@@ -45,9 +45,8 @@ import {
 } from "../../../services/documentService";
 import EntityDetail from "../../Entity/EntityDetail/EntityDetail";
 import AddressForm from "../../../components/AddressForm/AddressForm";
-import { getDocumentTypeParams } from "../../../services/documentService";
-import DeleteIcon from "@mui/icons-material/Delete";
-import * as pdfjsLib from "pdfjs-dist";
+import DeleteIcon from '@mui/icons-material/Delete';
+import * as pdfjsLib from 'pdfjs-dist';
 import { useLocation, useNavigate } from "react-router-dom";
 import "./CreateDocument.css";
 

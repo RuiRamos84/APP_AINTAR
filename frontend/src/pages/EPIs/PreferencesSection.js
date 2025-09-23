@@ -294,9 +294,6 @@ const PreferencesSection = ({ selectedEmployee }) => {
                             </Grid>
 
                             {/* Observações */}
-                            {/* <Grid size={{ xs: 12 }}>
-                                <Typography variant="subtitle1" gutterBottom>Informação Adicional</Typography>
-                            </Grid> */}
                             <Grid size={{ xs: 12 }}>
                                 <TextField
                                     fullWidth

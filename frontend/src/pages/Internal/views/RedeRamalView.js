@@ -193,13 +193,10 @@ const ExpenseTab = ({ areaId }) => {
     );
 };
 
-// Novo componente para formulários de manutenção com localização
-// Substituir apenas o componente MaintenanceFormTab no teu código existente
-
 const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
     const [loading, setLoading] = useState(false);
-    const [locationOpen, setLocationOpen] = useState(false); // NOVO
-    const [confirmDialog, setConfirmDialog] = useState(false); // NOVO
+    const [locationOpen, setLocationOpen] = useState(false);
+    const [confirmDialog, setConfirmDialog] = useState(false);
     const [formData, setFormData] = useState({
         pnts_associate: "",
         pnmemo: "",
@@ -220,14 +217,14 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    // NOVO: Verificar se há dados de localização
+    // Verificar se há dados de localização
     const hasLocationData = () => {
         return formData.pnaddress || formData.pnpostal || formData.pndoor ||
             formData.pnfloor || formData.pnnut1 || formData.pnnut2 ||
             formData.pnnut3 || formData.pnnut4 || formData.pnglat || formData.pnglong;
     };
 
-    // ALTERADO: Verificar localização antes de submeter
+    // Verificar localização antes de submeter
     const handleSubmit = async () => {
         if (!formData.pnts_associate || !formData.pnmemo) {
             notifyError("Preencha os campos obrigatórios");
@@ -243,7 +240,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
         await executeSubmit();
     };
 
-    // NOVO: Executar submissão
+    // Executar submissão
     const executeSubmit = async () => {
         setLoading(true);
         setConfirmDialog(false);
@@ -297,7 +294,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
 
             <Paper sx={{ p: 3 }}>
                 <Grid container spacing={3}>
-                    {/* Campos obrigatórios - MANTIDOS IGUAIS */}
+                    {/* Campos obrigatórios */}
                     <Grid size={{ xs: 12, md: 3 }}>
                         <FormControl fullWidth required>
                             <InputLabel>Associado</InputLabel>
@@ -326,7 +323,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
                         />
                     </Grid>
 
-                    {/* NOVO: Header clickável para collapse */}
+                    {/* Header clickável para collapse */}
                     <Grid size={{ xs: 12 }}>
                         <Box
                             display="flex"
@@ -344,7 +341,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
                         </Box>
                     </Grid>
 
-                    {/* ALTERADO: Toda a área de localização dentro do collapse */}
+                    {/* Área de localização dentro do collapse */}
                     <Grid size={{ xs: 12 }}>
                         <Collapse in={locationOpen}>
                             <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -396,7 +393,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
                                         onChange={(e) => handleInputChange("pnglat", e.target.value)}
                                         fullWidth
                                         placeholder="Ex: 38.736946"
-                                        inputProps={{ step: "any" }}
+                                        slotProps={{ htmlInput: { step: "any" } }}
                                     />
                                 </Grid>
 
@@ -408,7 +405,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
                                         onChange={(e) => handleInputChange("pnglong", e.target.value)}
                                         fullWidth
                                         placeholder="Ex: -9.142685"
-                                        inputProps={{ step: "any" }}
+                                        slotProps={{ htmlInput: { step: "any" } }}
                                     />
                                 </Grid>
 
@@ -455,7 +452,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
                         </Collapse>
                     </Grid>
 
-                    {/* Botão - MANTIDO IGUAL */}
+                    {/* Botão */}
                     <Grid size={{ xs: 12 }}>
                         <Box display="flex" justifyContent="flex-end" sx={{ mt: 2 }}>
                             <Button
@@ -472,7 +469,7 @@ const MaintenanceFormTab = ({ areaId, type, title, metaData }) => {
                 </Grid>
             </Paper>
 
-            {/* NOVO: Diálogo de confirmação */}
+            {/* Diálogo de confirmação */}
             <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)}>
                 <DialogTitle>Confirmar criação sem localização</DialogTitle>
                 <DialogContent>

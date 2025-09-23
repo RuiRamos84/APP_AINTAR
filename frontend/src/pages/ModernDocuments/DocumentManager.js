@@ -39,7 +39,6 @@ import { DocumentEventManager, DOCUMENT_EVENTS } from './utils/documentEventSyst
 // Importar funções existentes para utilizar
 import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtils';
 import { getStatusName, getStatusColor } from './utils/statusUtils';
-import { getDaysSinceSubmission } from '../../utils/dataUtils';
 
 const DocumentManagerContent = () => {
     const theme = useTheme();
@@ -702,7 +701,7 @@ const DocumentManagerContent = () => {
 // App component with providers
 const DocumentManager = () => (
     // Configurar o worker do pdf.js globalmente para a versão correta
-    <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.12.0/build/pdf.worker.min.js`}>
+    <Worker workerUrl="/pdf.worker.min.js">
         <UIProvider>
             <DocumentsProvider>
                 <DocumentActionsProvider>

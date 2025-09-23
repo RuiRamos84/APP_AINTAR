@@ -26,10 +26,21 @@ const DocumentPage = lazy(() => import("../../pages/DocumentPage/DocumentPage"))
 const CreateDocument = lazy(() => import("../../pages/Documents/DocumentCreate/CreateDocument"));
 const CreatedByMe = lazy(() => import("../../pages/Documents/DocumentOner/CreatedByMe"));
 const AssignedToMe = lazy(() => import("../../pages/Documents/DocumentSelf/AssignedToMe"));
-const { PendingPavimentations, ExecutedPavimentations, CompletedPavimentations } = lazy(() => import("../../features/Pavimentations"));
+
+// Correção para lazy loading de named exports
+const PendingPavimentations = lazy(() => import("../../features/Pavimentations").then(module => ({ default: module.PendingPavimentations })));
+const ExecutedPavimentations = lazy(() => import("../../features/Pavimentations").then(module => ({ default: module.ExecutedPavimentations })));
+const CompletedPavimentations = lazy(() => import("../../features/Pavimentations").then(module => ({ default: module.CompletedPavimentations })));
+
 const Dashboard = lazy(() => import("../../pages/Dashboard/Dashboard"));
 const LetterManagement = lazy(() => import("../../pages/Letters/LetterManagement"));
-const { AllTasks, CompletedTasks, CreatedTasks, MyTasks, TaskManagement } = lazy(() => import('../../pages/Tasks/index.js'));
+
+const AllTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.AllTasks })));
+const CompletedTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.CompletedTasks })));
+const CreatedTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.CreatedTasks })));
+const MyTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.MyTasks })));
+const TaskManagement = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.TaskManagement })));
+
 const InternalArea = lazy(() => import("../../pages/Internal/index"));
 const GlobalModule = lazy(() => import("../../pages/Global"));
 const EpiArea = lazy(() => import("../../pages/EPIs/EpiArea"));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Container, Typography, Paper, Box, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Button, Chip, IconButton,
@@ -13,7 +13,7 @@ import {
 import paymentService from '../services/paymentService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PAYMENT_STATUS_COLORS } from '../services/paymentTypes';
-import { useMetaData } from '../../../contexts/MetaDataContext'; 
+import { useMetaData } from '../../../contexts/MetaDataContext';
 
 const PaymentAdminPage = ({ userInfo }) => {
     const { metaData } = useMetaData();
@@ -24,7 +24,6 @@ const PaymentAdminPage = ({ userInfo }) => {
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
-    // Filtros e paginação para o histórico
     const [filters, setFilters] = useState({
         startDate: null,
         endDate: null,
@@ -41,27 +40,46 @@ const PaymentAdminPage = ({ userInfo }) => {
         if (!userPk || !metaData?.who) {
             return `Utilizador ${userPk}`;
         }
-
         const user = metaData.who.find(user => user.pk === userPk);
         return user?.name || `Utilizador ${userPk}`;
     }, [metaData]);
 
-    // Usar useQuery para buscar pagamentos pendentes
-    const { data: payments = [], isLoading: isLoadingPending, refetch: fetchPendingPayments } = useQuery({
+    // Query pagamentos pendentes
+    const { data: rawPayments, isLoading: isLoadingPending, refetch: fetchPendingPayments } = useQuery({
         queryKey: ['pendingPayments'],
         queryFn: async () => {
-            const result = await paymentService.getPendingPayments();
-            return result || []; // Garantir que é sempre um array
+            try {
+                const result = await paymentService.getPendingPayments();
+                console.log('API Response:', result);
+
+                if (result?.payments && Array.isArray(result.payments)) {
+                    return result.payments;
+                }
+                if (Array.isArray(result)) {
+                    return result;
+                }
+
+                console.warn('Unexpected API response structure:', result);
+                return [];
+            } catch (error) {
+                console.error('Error fetching payments:', error);
+                return [];
+            }
         },
         enabled: hasAccess && tab === 0,
     });
 
-    // Usar useMutation para aprovar pagamentos
+    // Garantir que payments é sempre array
+    const payments = useMemo(() => {
+        return Array.isArray(rawPayments) ? rawPayments : [];
+    }, [rawPayments]);
+
+    // Mutation aprovar pagamentos
     const { mutate: approvePayment, isLoading: isApproving } = useMutation({
         mutationFn: (paymentPk) => paymentService.approvePayment(paymentPk),
         onSuccess: () => {
-            // Invalida a query de pagamentos pendentes para a atualizar automaticamente
             queryClient.invalidateQueries({ queryKey: ['pendingPayments'] });
+            queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
             setConfirmOpen(false);
             setSelectedPayment(null);
         },
@@ -70,19 +88,26 @@ const PaymentAdminPage = ({ userInfo }) => {
         }
     });
 
-    // Usar useQuery para o histórico de pagamentos
-    const { data: historyData, isLoading: isLoadingHistory, isError: isErrorHistory, error: historyError } = useQuery({
+    // Query histórico pagamentos
+    const { data: historyData, isLoading: isLoadingHistory } = useQuery({
         queryKey: ['paymentHistory', page, filters],
-        queryFn: () => paymentService.getPaymentHistory({
+        queryFn: async () => {
+            const result = await paymentService.getPaymentHistory({
                 page,
                 page_size: pageSize,
                 ...filters,
                 start_date: filters.startDate || null,
                 end_date: filters.endDate || null,
                 exclude_pending: true
-        }),
+            });
+
+            if (result && Array.isArray(result.payments) && typeof result.total === 'number') {
+                return result;
+            }
+            return { payments: [], total: 0 };
+        },
         enabled: hasAccess && tab === 1,
-        keepPreviousData: true, // Melhora a experiência de paginação
+        keepPreviousData: true,
     });
 
     const totalPages = Math.ceil((historyData?.total || 0) / pageSize);
@@ -90,7 +115,6 @@ const PaymentAdminPage = ({ userInfo }) => {
     const handleTabChange = (_, newTab) => {
         setTab(newTab);
         setPage(1);
-        // A query de histórico será ativada automaticamente pelo 'enabled'
     };
 
     const handleFilterChange = (field, value) => {
@@ -134,7 +158,6 @@ const PaymentAdminPage = ({ userInfo }) => {
         }
     };
 
-    // ===== VERIFICAÇÃO DE ACESSO =====
     if (!hasAccess) {
         return (
             <Container>
@@ -436,7 +459,6 @@ const PaymentAdminPage = ({ userInfo }) => {
                 <DialogContent>
                     {selectedPayment && (
                         <Box>
-                            {/* DADOS DO PAGAMENTO */}
                             <Paper sx={{ p: 2, mb: 3, bgcolor: 'success.light', color: 'white' }}>
                                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Euro />
@@ -480,7 +502,6 @@ const PaymentAdminPage = ({ userInfo }) => {
                                 </Grid>
                             </Paper>
 
-                            {/* VALIDAÇÃO */}
                             {(selectedPayment.validated_by || selectedPayment.validated_at) && (
                                 <Paper sx={{ p: 2, mb: 3, bgcolor: 'info.light', color: 'white' }}>
                                     <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -498,7 +519,6 @@ const PaymentAdminPage = ({ userInfo }) => {
                                 </Paper>
                             )}
 
-                            {/* DETALHES ESPECÍFICOS */}
                             {selectedPayment.payment_reference && (
                                 <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
                                     <Typography variant="h6" gutterBottom>
@@ -555,7 +575,7 @@ const PaymentAdminPage = ({ userInfo }) => {
                         <Button
                             variant="contained"
                             color="success"
-                        onClick={() => { // Apenas abre o modal de confirmação
+                            onClick={() => {
                                 setDetailsOpen(false);
                                 setConfirmOpen(true);
                             }}

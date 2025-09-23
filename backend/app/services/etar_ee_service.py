@@ -5,6 +5,7 @@ from datetime import date
 from typing import Optional
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
 
+
 class EtarUpdate(BaseModel):
     nome: Optional[str] = None
     coord_m: Optional[float] = None
@@ -17,6 +18,7 @@ class EtarUpdate(BaseModel):
     ener_potencia: Optional[float] = None
     ener_val: Optional[int] = None
 
+
 class EeUpdate(BaseModel):
     nome: Optional[str] = None
     coord_m: Optional[float] = None
@@ -25,6 +27,7 @@ class EeUpdate(BaseModel):
     ener_cpe: Optional[str] = None
     ener_potencia: Optional[float] = None
     ener_val: Optional[int] = None
+
 
 class VolumeCreate(BaseModel):
     pndate: date
@@ -46,14 +49,14 @@ class EtarExpenseCreate(BaseModel):
     pndate: date
     pnval: float
     pntt_etar: int
-    pnts_associate: int
+    pnts_associate: Optional[int] = None
     pnmemo: Optional[str] = None
 
 class RedeExpenseCreate(BaseModel):
     pntt_expensedest: int
     pndate: date
     pnval: float
-    pnts_associate: int
+    pnts_associate: Optional[int] = None
     pnmemo: Optional[str] = None
 
 class EeExpenseCreate(BaseModel):
@@ -61,14 +64,14 @@ class EeExpenseCreate(BaseModel):
     pndate: date
     pnval: float
     pntt_ee: int
-    pnts_associate: int
+    pnts_associate: Optional[int] = None
     pnmemo: Optional[str] = None
 
 class GenericExpenseCreate(BaseModel):
     pntt_expensedest: int
     pndate: date
     pnval: float
-    pnts_associate: int
+    pnts_associate: Optional[int] = None
     pnmemo: Optional[str] = None
 
 @api_error_handler

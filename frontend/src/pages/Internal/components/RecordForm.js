@@ -12,7 +12,7 @@ import {
     Box,
     CircularProgress
 } from "@mui/material";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { getCurrentDate } from "../../../utils/dataUtils";
 
 const RecordForm = ({
     recordType,
@@ -70,7 +70,7 @@ const RecordForm = ({
                                 label={field.label}
                                 value={formData[field.name] || ""}
                                 onChange={(e) => handleInputChange(field.name, e.target.value)}
-                                InputLabelProps={field.type === "datetime-local" ? { shrink: true } : undefined}
+                                InputLabelProps={(field.type === "date" || field.type === "datetime-local") ? { shrink: true } : undefined}
                                 fullWidth
                                 multiline={field.multiline}
                                 rows={field.rows}
@@ -80,7 +80,7 @@ const RecordForm = ({
                         )}
                     </Grid>
                 ))}
-                <Grid size={{ xs: 12 }} md={3} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Grid size={{ xs: 12, md: 1.5 }} sx={{ display: 'flex', alignItems: 'center' }}>
                     <Button
                         variant="contained"
                         color="primary"

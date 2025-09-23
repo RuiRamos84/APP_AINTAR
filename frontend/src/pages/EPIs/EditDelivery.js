@@ -2,17 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Grid } from "@mui/material";
 
 const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
-    const [editData, setEditData] = useState({
-        pndata: delivery?.data || "",
-        pnquantity: delivery?.quantity || 1,
-        pndim: delivery?.dim || "",
-        pnmemo: delivery?.memo || "",
-    });
+    const [editData, setEditData] = useState({});
 
     useEffect(() => {
         if (delivery) {
+            const dateOnly = delivery.data ? delivery.data.split("T")[0] : "";
             setEditData({
-                pndata: delivery.data || "",
+                pndata: dateOnly,
                 pnquantity: delivery.quantity || 1,
                 pndim: delivery.dim || "",
                 pnmemo: delivery.memo || "",
@@ -46,14 +42,16 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             fullWidth
                             type="date"
                             label="Data"
-                            value={editData.pndata.split("T")[0]}
+                            value={editData.pndata || ""}
                             onChange={(e) =>
                                 setEditData((prev) => ({
                                     ...prev,
                                     pndata: e.target.value,
                                 }))
                             }
-                            InputLabelProps={{ shrink: true }}
+                            slotProps={{
+                                inputLabel: { shrink: true }
+                            }}
                         />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -61,7 +59,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             fullWidth
                             type="number"
                             label="Quantidade"
-                            value={editData.pnquantity}
+                            value={editData.pnquantity || ""}
                             onChange={(e) =>
                                 setEditData((prev) => ({
                                     ...prev,
@@ -74,7 +72,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                         <TextField
                             fullWidth
                             label="Tamanho"
-                            value={editData.pndim}
+                            value={editData.pndim || ""}
                             onChange={(e) => handleSizeChange(e.target.value)}
                         />
                     </Grid>
@@ -84,7 +82,7 @@ const EditDeliveryDialog = ({ open, onClose, delivery, onSave }) => {
                             multiline
                             rows={3}
                             label="Observações"
-                            value={editData.pnmemo}
+                            value={editData.pnmemo || ""}
                             onChange={(e) =>
                                 setEditData((prev) => ({
                                     ...prev,

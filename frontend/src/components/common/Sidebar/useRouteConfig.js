@@ -25,7 +25,7 @@ export const useRouteConfig = () => {
         return hasPermission(permissions.required);
     }, [hasPermission]);
 
-    const getAccessibleSidebarItems = useMemo(() => {
+    const getAccessibleSidebarItems = useMemo(() => { // This now correctly returns the array
         const sidebarItems = Object.entries(ROUTE_CONFIG)
             .filter(([_, config]) => config.showInSidebar);
 
@@ -51,21 +51,26 @@ export const useRouteConfig = () => {
 
                 // Otimização: Filtrar submenu apenas se existir
                 if (config.submenu && Object.keys(config.submenu).length > 0) {
-                    const submenuEntries = Object.entries(config.submenu);
+                    // CORREÇÃO: Lidar com submenus que podem ser arrays ou objetos
+                    const submenuItems = Array.isArray(config.submenu)
+                        ? config.submenu.map(item => [item.to || item.id, item]) // Se for array, cria pares [key, value]
+                        : Object.entries(config.submenu); // Se for objeto, usa Object.entries
 
-                    const accessibleSubmenu = submenuEntries.reduce((acc, [subPath, subConfig]) => {
+                    const accessibleSubmenu = submenuItems.reduce((acc, [subPath, subConfig]) => {
                         // CORREÇÃO: Chamar canAccessRoute para cada sub-item e verificar o resultado booleano.
                         // Passar as permissões do sub-item como configuração adicional.
                         const subPermissions = subConfig.permissions || {};
                         if (canAccessRoute(subPath, subPermissions)) {
-                            acc[subPath] = {
-                                ...subConfig
-                            };
-                            // CORREÇÃO: Apenas atribuir 'to' se não houver uma ação 'onClick'.
-                            // Isto previne que itens como "Adicionar Entidade" tenham uma rota e uma ação.
-                            if (!subConfig.onClick) {
-                                acc[subPath].to = subConfig.to || (subPath.startsWith('/') ? subPath : undefined);
-                            };
+                            // Garante que a chave do acumulador é o 'id' ou 'to' do sub-item
+                            const key = subConfig.id || subPath;
+                            const finalSubConfig = { ...subConfig };
+
+                            // Assegura que a propriedade 'to' está definida corretamente para navegação
+                            if (!finalSubConfig.onClick && !finalSubConfig.to && subPath.startsWith('/')) {
+                                finalSubConfig.to = subPath;
+                            }
+
+                            acc[key] = finalSubConfig;
                         }
                         return acc;
                     }, {});
@@ -83,7 +88,7 @@ export const useRouteConfig = () => {
         return accessibleItems;
     }, [canAccessRoute, hasAnyPermission]);
 
-    return {
+    return { // This returns the memoized array directly
         canAccessRoute,
         getAccessibleSidebarItems,
         routeConfig: ROUTE_CONFIG

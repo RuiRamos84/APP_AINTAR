@@ -5,7 +5,7 @@ import GenericTable from "../components/GenericTable";
 import RecordForm from "../components/RecordForm";
 import { useRecords } from "../hooks/useRecords";
 import { formatDate } from "../utils/recordsFormatter";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { formatDateToString } from "../../../utils/dataUtils";
 
 const volumeColumns = [
     { id: "data", label: "Data", field: "data" },
@@ -34,7 +34,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
 
         if (await addRecord(payload)) {
             setNewRecord({
-                date: getCurrentDateTime(),
+                date: formatDateToString(new Date()),
                 value: "",
                 spot: ""
             });
@@ -42,7 +42,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     };
 
     const volumeFieldsConfig = [
-        { name: "date", label: "Data", type: "datetime-local", required: true, size: 4 },
+        { name: "date", label: "Data", type: "date", required: true, size: 4 },
         {
             name: "spot",
             label: "Tipo",
