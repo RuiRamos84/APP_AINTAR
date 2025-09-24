@@ -46,7 +46,7 @@ from app.utils.permissions_decorator import require_permission
 @bp.route('/documents', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("docs.view.all")
+@require_permission(500)  # docs.view.all
 @set_session
 @api_error_handler
 def get_documents():
@@ -59,6 +59,7 @@ def get_documents():
 @bp.route('/document/<string:documentId>', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission(500)  # docs.view (usar docs.view.all como base) # Protege o acesso direto a um documento
 @set_session
 @api_error_handler
 def documentById_route(documentId):
@@ -71,6 +72,7 @@ def documentById_route(documentId):
 @bp.route('/document_self', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission(520)  # docs.view.assigned
 @set_session
 @api_error_handler
 def get_document_self():
@@ -95,6 +97,7 @@ def check_vacation_status_route(user_pk):
 @bp.route('/step_hierarchy/<int:dockty_id>', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission(500)  # docs.view (usar docs.view.all como base) # Acesso à estrutura de um tipo de pedido
 @set_session
 @api_error_handler
 def check_step_hierarchy(dockty_id):
@@ -107,6 +110,7 @@ def check_step_hierarchy(dockty_id):
 @bp.route('/create_document', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("docs.create") # Permissão dedicada para criar documentos
 @set_session
 @api_error_handler
 def create_new_document():
@@ -120,6 +124,7 @@ def create_new_document():
 @bp.route('/update_document_notification/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
+@require_permission(520)  # docs.view.assigned # Apenas quem pode tratar o pedido pode limpar a notificação
 @set_session
 @api_error_handler
 def update_document_notification_route(pk):
@@ -132,6 +137,7 @@ def update_document_notification_route(pk):
 @bp.route('/document_owner', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission(510)  # docs.view.owner
 @set_session
 @api_error_handler
 def get_document_owner():
@@ -144,6 +150,7 @@ def get_document_owner():
 @bp.route('/get_document_step/<int:pk>', methods=['GET'])
 @limiter.exempt
 @jwt_required()
+@require_permission(500)  # docs.view (usar docs.view.all como base) # Permissão genérica para ver detalhes de um pedido
 @token_required
 @set_session
 @api_error_handler
@@ -156,6 +163,7 @@ def get_document_step(pk):
 
 @bp.route('/document/<int:document_id>/params', methods=['GET'])
 @jwt_required()
+@require_permission(500)  # docs.view (usar docs.view.all como base)
 @token_required
 @set_session
 @api_error_handler
@@ -168,6 +176,7 @@ def get_document_params(document_id):
 
 @bp.route('/document/<int:document_id>/params', methods=['PUT'])
 @jwt_required()
+@require_permission("admin.docs.manage") # Apenas admins podem alterar parâmetros
 @token_required
 @set_session
 @api_error_handler
@@ -181,6 +190,7 @@ def update_document_params_route(document_id):
 @bp.route('/get_document_anex/<int:pk>', methods=['GET'])
 @limiter.exempt
 @jwt_required()
+@require_permission(500)  # docs.view (usar docs.view.all como base)
 @token_required
 @set_session
 @api_error_handler
@@ -193,6 +203,7 @@ def get_document_anex_step(pk):
 
 @bp.route('/add_document_step/<int:pk>', methods=['POST'])
 @jwt_required()
+@require_permission("admin.docs.manage") # Permissão para interagir com um pedido
 @token_required
 @set_session
 @api_error_handler
@@ -206,6 +217,7 @@ def add_document_steps(pk):
 
 @bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
 @jwt_required()
+@require_permission(500)  # docs.view (usar docs.view.all como base)
 @token_required
 @set_session
 @api_error_handler
@@ -218,6 +230,7 @@ def download_file_route(regnumber, filename):
 
 @bp.route('/add_document_annex', methods=['POST'])
 @jwt_required()
+@require_permission("admin.docs.manage")
 @token_required
 @set_session
 @api_error_handler
@@ -232,6 +245,7 @@ def add_document_annex_endpoint():
 
 @bp.route('/entity_count_types/<int:pk>', methods=['GET'])
 @jwt_required()
+@require_permission(500)  # docs.view (usar docs.view.all como base)
 @token_required
 @set_session
 @api_error_handler
@@ -244,6 +258,7 @@ def get_entity_count_types_route(pk):
 
 @bp.route('document/create_direct', methods=['POST'])
 @api_error_handler
+# Rota pública (webhook/formulário externo), não necessita de @jwt_required
 def create_document_extern():
     data = request.json
     result = create_document_direct(
@@ -260,6 +275,7 @@ def create_document_extern():
 
 @bp.route('/extrair_comprovativo/<int:pk>', methods=['GET'])
 @jwt_required()
+@require_permission(510)  # docs.view.owner # No mínimo, o dono pode extrair
 @token_required
 @set_session
 @api_error_handler
@@ -293,6 +309,7 @@ def extrair_comprovativo(pk):
 @bp.route('/create_etar_document/<int:etar_pk>', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("operation.access") # Apenas utilizadores da operação podem criar estes pedidos
 @set_session
 @api_error_handler
 def create_etar_document(etar_pk):
@@ -305,6 +322,7 @@ def create_etar_document(etar_pk):
 @bp.route('/create_ee_document/<int:ee_pk>', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("operation.access") # Apenas utilizadores da operação podem criar estes pedidos
 @set_session
 @api_error_handler
 def create_ee_document(ee_pk):
@@ -318,6 +336,7 @@ def create_ee_document(ee_pk):
 
 @bp.route('/document_ramais', methods=['GET'])
 @jwt_required()
+@require_permission("pav.view")
 @token_required
 @set_session
 @api_error_handler
@@ -330,6 +349,7 @@ def get_document_ramais_route():
 
 @bp.route('/document_ramais_executed', methods=['GET'])
 @jwt_required()
+@require_permission("pav.view")
 @token_required
 @set_session
 @api_error_handler
@@ -342,6 +362,7 @@ def get_document_ramais_executed_route():
 
 @bp.route('/document_ramais_concluded', methods=['GET'])
 @jwt_required()
+@require_permission("pav.view")
 @token_required
 @set_session
 @api_error_handler
@@ -354,6 +375,7 @@ def get_document_ramais_concluded_route():
 
 @bp.route('/document_pavenext/<int:pk>', methods=['PUT'])
 @jwt_required()
+@require_permission("operation.access") # Apenas operação pode avançar o estado
 @token_required
 @set_session
 @api_error_handler
@@ -366,6 +388,7 @@ def update_document_pavenext_route(pk):
 
 @bp.route('/document_pavpaid/<int:pk>', methods=['PUT'])
 @jwt_required()
+@require_permission("admin.payments") # Apenas admin de pagamentos pode marcar como pago
 @token_required
 @set_session
 @api_error_handler
@@ -380,6 +403,7 @@ def update_document_pavpaid_route(pk):
 
 @bp.route('/document/replicate/<int:pk>', methods=['POST'])
 @jwt_required()
+@require_permission("admin.docs.manage") # Replicar é uma ação administrativa
 @token_required
 @set_session
 @api_error_handler
@@ -428,8 +452,8 @@ def replicate_document(pk):
 @bp.route('/document/reopen', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("admin.docs.reopen") # Corrigido para a permissão correta
 @set_session
-@require_permission("docs.reopen")
 @api_error_handler
 def reopen_document_route():
     current_user = get_jwt_identity()
@@ -446,7 +470,7 @@ def reopen_document_route():
 @bp.route('/documents/late', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("docs.view.all")
+@require_permission(500)  # docs.view.all
 @set_session
 @api_error_handler
 def get_documents_late_route():

@@ -109,7 +109,8 @@ def login_user(username, password):
                 # Se o login teve sucesso mas não encontramos o user, é um erro de servidor
                 current_app.logger.error(f"Informações do utilizador não encontradas para {username} após login bem-sucedido.")
                 raise APIError('Erro ao obter informações do utilizador após o login.', 500)
-
+ 
+            # Obter as interfaces/permissões do utilizador. Esta é a única fonte de verdade.
             interfaces_query = text("""
                 SELECT COALESCE(interface, ARRAY[]::integer[]) as interfaces 
                 FROM ts_client 

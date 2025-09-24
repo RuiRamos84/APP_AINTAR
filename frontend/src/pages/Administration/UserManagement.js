@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Button, Dialog,
+  TableContainer, TableHead, TableRow, Button, Dialog, Accordion, AccordionSummary, AccordionDetails,
   DialogActions, DialogContent, DialogTitle, FormGroup,
   FormControlLabel, Checkbox, Grid, Chip, CircularProgress,
   Alert, Tabs, Tab, Card, CardContent, List, ListItem,
-  ListItemText, Divider, TextField, FormControl, InputLabel,
+  ListItemText, TextField, FormControl, InputLabel,
   Select, MenuItem, TableSortLabel
 } from '@mui/material';
 import {
@@ -13,16 +13,11 @@ import {
   Clear as ClearIcon,
   Edit as EditIcon,
   Security as SecurityIcon,
-  Payment as PaymentIcon
+  Payment as PaymentIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import api from '../../services/api';
 import { notifySuccess, notifyError } from '../../components/common/Toaster/ThemedToaster';
-import {
-  canManagePayments,
-  canProcessCashPayments,
-  canUsePaymentMethod,
-  PAYMENT_METHODS
-} from '../../features/Payment/services/paymentTypes';
 import { PROFILE_LABELS, getProfileColor } from '../../config/profileSystem';
 
 const UserManagement = () => {
@@ -36,6 +31,7 @@ const UserManagement = () => {
   const [profileFilter, setProfileFilter] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [tab, setTab] = useState(0);
+  const [modalSearch, setModalSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -60,6 +56,7 @@ const UserManagement = () => {
     setSelectedUser(user);
     setSelectedInterfaces(user.interface || []);
     setOpenDialog(true);
+    setModalSearch(''); // Limpar pesquisa ao abrir
   };
 
   const handleInterfaceChange = (interfaceId, checked) => {
@@ -83,7 +80,16 @@ const UserManagement = () => {
       ));
 
       notifySuccess('Permissões actualizadas');
-      setOpenDialog(false);
+
+      // Remove o foco de qualquer elemento focado antes de fechar o modal
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+
+      // Pequeno delay para garantir que o foco é removido antes de fechar
+      setTimeout(() => {
+        setOpenDialog(false);
+      }, 50);
     } catch (error) {
       notifyError('Erro ao actualizar');
     }
@@ -130,6 +136,37 @@ const UserManagement = () => {
 
     return filtered;
   }, [users, searchQuery, profileFilter, sortConfig]);
+
+  const groupedInterfaces = useMemo(() => {
+    if (!interfaces) return {};
+    const groups = interfaces.reduce((acc, item) => {
+      const category = item.name.split('.')[0] || 'outros';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(item);
+      return acc;
+    }, {});
+    // Ordenar categorias alfabeticamente
+    return Object.keys(groups).sort().reduce(
+      (obj, key) => {
+        // Ordenar items dentro de cada grupo
+        obj[key] = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+        return obj;
+      }, {}
+    );
+  }, [interfaces]);
+
+  const handleGroupChange = (groupItems, checked) => {
+    const groupIds = groupItems.map(item => item.pk);
+    if (checked) {
+      // Adicionar apenas os IDs que não estão já selecionados
+      const newInterfaces = [...new Set([...selectedInterfaces, ...groupIds])];
+      setSelectedInterfaces(newInterfaces);
+    } else {
+      setSelectedInterfaces(selectedInterfaces.filter(id => !groupIds.includes(id)));
+    }
+  };
 
   const renderGeneralPermissions = () => (
     <TableContainer component={Paper}>
@@ -227,10 +264,10 @@ const UserManagement = () => {
                 Gestão de Pagamentos
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Utilizadores que podem ver e aprovar todos os pagamentos manuais.
+                Utilizadores com permissão para ver e aprovar pagamentos manuais (admin.payments - ID 30).
               </Typography>
               <List dense>
-                {users.filter(u => canManagePayments(u)).map(user => (
+                {users.filter(u => u.interface?.includes(30)).map(user => (
                   <ListItem key={user.pk}>
                     <ListItemText
                       primary={user.name}
@@ -239,7 +276,7 @@ const UserManagement = () => {
                     <Chip label="Admin Pagamentos" color="primary" size="small" />
                   </ListItem>
                 ))}
-                {users.filter(u => canManagePayments(u)).length === 0 && (
+                {users.filter(u => u.interface?.includes(30)).length === 0 && (
                   <ListItem>
                     <ListItemText
                       primary="Nenhum utilizador configurado"
@@ -260,10 +297,10 @@ const UserManagement = () => {
                 Pagamentos Numerário
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Utilizadores que podem processar pagamentos em dinheiro.
+                Utilizadores com permissão para processar pagamentos em numerário (payments.cash.action - ID 730).
               </Typography>
               <List dense>
-                {users.filter(u => canProcessCashPayments(u)).map(user => (
+                {users.filter(u => u.interface?.includes(730)).map(user => (
                   <ListItem key={user.pk}>
                     <ListItemText
                       primary={user.name}
@@ -296,9 +333,11 @@ const UserManagement = () => {
                   </TableHead>
                   <TableBody>
                     {filteredAndSortedUsers.map(user => {
-                      const isPaymentAdmin = canManagePayments(user);
-                      const canProcessCash = canProcessCashPayments(user);
-
+                      const userInterfaces = user.interface || [];
+                      const isPaymentAdmin = userInterfaces.includes(30); // admin.payments
+                      const canProcessCash = userInterfaces.includes(730); // payments.cash.action
+                      const canUseMbway = userInterfaces.includes(700); // payments.mbway
+                      const canUseMunicipality = userInterfaces.includes(740); // payments.municipality
                       return (
                         <TableRow key={user.pk}>
                           <TableCell>
@@ -319,30 +358,28 @@ const UserManagement = () => {
                           <TableCell>
                             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                               {/* MB WAY, Multibanco, Transferência */}
-                              {canUsePaymentMethod(user.profil, PAYMENT_METHODS.MBWAY, user.pk) && (
+                              {canUseMbway && (
                                 <>
                                   <Chip label="MB WAY" size="small" variant="outlined" />
                                   <Chip label="Multibanco" size="small" variant="outlined" />
                                   <Chip label="Transferência" size="small" variant="outlined" />
                                 </>
                               )}
-
                               {/* Numerário */}
-                              {canUsePaymentMethod(user.profil, PAYMENT_METHODS.CASH, user.pk) && (
+                              {canProcessCash && (
                                 <Chip
                                   label="Numerário"
                                   size="small"
                                   variant="outlined"
-                                  color={canProcessCash ? 'success' : 'default'}
+                                  color="success"
                                 />
                               )}
-
                               {/* Municípios */}
-                              {canUsePaymentMethod(user.profil, PAYMENT_METHODS.MUNICIPALITY, user.pk) && (
+                              {canUseMunicipality && (
                                 <Chip label="Municípios" size="small" variant="outlined" />
                               )}
 
-                              {!['0', '1', '2', '3'].includes(user.profil) && (
+                              {!canUseMbway && !canProcessCash && !canUseMunicipality && (
                                 <Typography variant="caption" color="text.secondary">
                                   Sem métodos
                                 </Typography>
@@ -437,7 +474,13 @@ const UserManagement = () => {
       {tab === 1 && renderPaymentPermissions()}
 
       {/* Dialog Edição */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus
+      >
         <DialogTitle>
           Editar Interfaces - {selectedUser?.name}
         </DialogTitle>
@@ -445,22 +488,71 @@ const UserManagement = () => {
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
               Interfaces controlam acesso a funcionalidades específicas.
+              Agrupadas por categoria para facilitar a gestão.
             </Typography>
           </Alert>
-          <FormGroup>
-            {interfaces.map(item => (
-              <FormControlLabel
-                key={item.pk}
-                control={
-                  <Checkbox
-                    checked={selectedInterfaces.includes(item.pk)}
-                    onChange={(e) => handleInterfaceChange(item.pk, e.target.checked)}
-                  />
-                }
-                label={`${item.name} (ID: ${item.pk})`}
-              />
-            ))}
-          </FormGroup>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Pesquisar permissão..."
+            value={modalSearch}
+            onChange={(e) => setModalSearch(e.target.value)}
+            autoComplete="off"
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+            }}
+          />
+          <Box sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            {Object.entries(groupedInterfaces).map(([category, items]) => {
+              const filteredItems = items.filter(item =>
+                item.name.toLowerCase().includes(modalSearch.toLowerCase())
+              );
+
+              if (filteredItems.length === 0) return null;
+
+              const allSelected = filteredItems.every(item => selectedInterfaces.includes(item.pk));
+              const someSelected = filteredItems.some(item => selectedInterfaces.includes(item.pk));
+
+              return (
+                <Accordion key={category} defaultExpanded={!!modalSearch}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={allSelected}
+                          indeterminate={someSelected && !allSelected}
+                          onClick={(e) => e.stopPropagation()} // Evita que o clique no checkbox expanda/recolha o accordion
+                          onChange={(e) => handleGroupChange(filteredItems, e.target.checked)}
+                        />
+                      }
+                      label={<Typography sx={{ fontWeight: 500, textTransform: 'capitalize' }}>{category}</Typography>}
+                    />
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <FormGroup sx={{ pl: 2 }}>
+                      {filteredItems.map(item => (
+                        <FormControlLabel
+                          key={item.pk}
+                          control={
+                            <Checkbox
+                              checked={selectedInterfaces.includes(item.pk)}
+                              onChange={(e) => handleInterfaceChange(item.pk, e.target.checked)}
+                            />
+                          }
+                          label={
+                            <Typography variant="body2">
+                              {item.name} <Typography variant="caption" color="text.secondary">(ID: {item.pk})</Typography>
+                            </Typography>
+                          }
+                        />
+                      ))}
+                    </FormGroup>
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>

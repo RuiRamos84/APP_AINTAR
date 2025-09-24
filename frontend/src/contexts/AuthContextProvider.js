@@ -1,35 +1,42 @@
-import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { CircularProgress, Box } from "@mui/material";
-import { useAuth } from "../contexts/AuthContext";
-import { usePermissionContext } from "../contexts/PermissionContext"; // NOVO IMPORT
-import { notifyError } from "../components/common/Toaster/ThemedToaster";
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { usePermissionContext } from './PermissionContext';
+import { useRouteConfig } from '../components/common/Sidebar/useRouteConfig';
+import AccessDenied from './AccessDenied';
+import { useAuth } from './AuthContext';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
-const LoadingSpinner = () => (
-  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
-    <CircularProgress />
-  </Box>
-);
-
-const PrivateRoute = ({ children, requiredPermission, ...props }) => {
+const ProtectedRoute = ({ children, requiredPermission }) => {
   const { user, isLoading } = useAuth();
-  const { hasPermission, initialized } = usePermissionContext(); // NOVO HOOK
+  const { hasPermission, initialized } = usePermissionContext();
+  const { permissionIdToNameMap } = useRouteConfig();
   const location = useLocation();
 
-  // Loading states
-  if (isLoading || !initialized) return <LoadingSpinner />;
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-
-  // Verificar acesso diretamente
-  const hasAccess = requiredPermission ? hasPermission(requiredPermission) : true;
-
-  // Verificar acesso
-  if (requiredPermission && !hasAccess) {
-    notifyError("Não tem permissão para aceder a esta área.");
-    return <Navigate to="/" replace />;
+  if (isLoading || !initialized) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Se uma permissão é necessária e o utilizador não a tem
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    // Usar o mapa para uma busca O(1) instantânea
+    const permissionName = permissionIdToNameMap?.[requiredPermission];
+    const permissionToShow = permissionName || `ID ${requiredPermission}`; // Fallback para o ID se o nome não for encontrado
+
+    console.warn(`Acesso negado à rota. Permissão necessária: ${permissionToShow} (ID: ${requiredPermission})`);
+    return <AccessDenied requiredPermission={permissionToShow} />;
+  }
+
+  // Se tudo estiver OK, renderiza o componente filho
   return children;
 };
 
-export default PrivateRoute;
+export default ProtectedRoute;
+

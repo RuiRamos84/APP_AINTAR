@@ -3,6 +3,7 @@ from ..services.operations_service import get_operations_data, create_internal_d
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.utils import token_required, db_session_manager, set_session
 from app.utils.error_handler import api_error_handler
+from app.utils.permissions_decorator import require_permission
 from sqlalchemy.exc import SQLAlchemyError
 
 bp = Blueprint('operations', __name__)
@@ -11,6 +12,7 @@ bp = Blueprint('operations', __name__)
 @bp.route('/operations', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("operation.access")
 @set_session
 @api_error_handler
 def get_operations():
@@ -40,33 +42,19 @@ def get_operations():
 @bp.route('/internal_document', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("operation.access")
 @set_session
 @api_error_handler
 def add_internal_document():
     """Criar um documento interno utilizando fbo_document_createintern"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
-    pntype = data.get('pntype')
-    pnts_associate = data.get('pnts_associate')
-    pnmemo = data.get('pnmemo')
-    pnpk_etar = data.get('pnpk_etar')
-    pnpk_ee = data.get('pnpk_ee')
-
-    # Verificações obrigatórias
-    if not pntype:
-        return jsonify({'error': 'O tipo de documento é obrigatório'}), 400
-
-    if not pnmemo:
-        return jsonify({'error': 'A descrição do documento é obrigatória'}), 400
-
-    # Para o tipo 19 (requisição interna), pnts_associate será sempre 1 (AINTAR)
-    # conforme lógica na função fbo_document_createintern
-
-    result, status_code = create_internal_document(
-        pntype, pnts_associate, pnmemo, pnpk_etar, pnpk_ee, current_user
-    )
-
+    
+    # O serviço `create_internal_document` já usa Pydantic para validação,
+    # então podemos passar o dicionário `data` diretamente.
+    # A validação de campos obrigatórios como 'pntype' e 'pnmemo' será tratada lá.
+    result, status_code = create_internal_document(data, current_user)
+    
     return jsonify(result), status_code
 
 

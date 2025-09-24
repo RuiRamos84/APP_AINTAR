@@ -34,38 +34,38 @@ export const ROUTE_CONFIG = {
         id: 'settings',
         text: 'Administração',
         icon: AdminIcon, // COMPONENTE
-        permissions: { required: 1 }, // admin.dashboard
+        permissions: { required: 10 }, // admin.dashboard
         showInSidebar: true,
         submenu: {
             '/settings?tab=dashboard': {
                 id: 'admin_dashboard',
                 text: 'Dashboard Admin',
                 icon: SpeedIcon, // COMPONENTE
-                permissions: { required: 1 } // admin.dashboard
+                permissions: { required: 10 } // admin.dashboard
             },
             '/settings?tab=users': {
                 id: 'admin_users',
                 text: 'Gestão de Utilizadores',
                 icon: PeopleIcon, // COMPONENTE
-                permissions: { required: 2 } // admin.users
+                permissions: { required: 20 } // admin.users
             },
             '/settings?tab=permissions': {
                 id: 'admin_permissions',
                 text: 'Gestão de Permissões',
                 icon: SecurityIcon, // COMPONENTE
-                permissions: { required: 2 } // admin.users
+                permissions: { required: 20 } // admin.users
             },
             '/settings?tab=documents': {
                 id: 'admin_documents',
                 text: 'Gestão de Documentos',
                 icon: DocumentIcon, // COMPONENTE
-                permissions: { required: 10 } // docs.manage
+                permissions: { required: 50 } // admin.docs.manage
             },
             '/settings?tab=reopen': {
                 id: 'admin_reopen',
                 text: 'Reabertura de Pedidos',
                 icon: HistoryIcon, // COMPONENTE
-                permissions: { required: 11 } // docs.reopen
+                permissions: { required: 60 } // admin.docs.reopen
             }
         }
     },
@@ -74,7 +74,7 @@ export const ROUTE_CONFIG = {
         id: 'payments',
         text: 'Validar Pagamentos',
         icon: PaymentBalanceIcon, // COMPONENTE
-        permissions: { required: 3 }, // payments.validate
+        permissions: { required: 30 }, // admin.payments
         showInSidebar: true
     },
 
@@ -82,7 +82,7 @@ export const ROUTE_CONFIG = {
         id: 'modern_requests',
         text: 'Pedidos Modernos',
         icon: ViewModuleIcon, // COMPONENTE
-        permissions: { required: 20 }, // docs.modern
+        permissions: { required: 540 }, // docs.modern
         showInSidebar: true
     },
 
@@ -91,14 +91,14 @@ export const ROUTE_CONFIG = {
         id: 'entities',
         text: 'Entidades',
         icon: DomainIcon, // COMPONENTE
-        // permissions: { required: 'entities.view' },
+        permissions: { required: 800 }, // entities.view
         showInSidebar: true,
         submenu: {
             '/entities': {
                 id: 'all_entities',
                 text: 'Todas as Entidades',
-                icon: ListAltIcon // COMPONENTE
-                // permissions: { required: ??? }
+                icon: ListAltIcon, // COMPONENTE
+                permissions: { required: 800 } // entities.view
             },
             'add-entity-action': { // Chave alterada para não ser uma rota
                 id: 'add_entity',
@@ -106,7 +106,8 @@ export const ROUTE_CONFIG = {
                 icon: AddIcon, // COMPONENTE
                 action: 'openModal', // Ação genérica
                 actionPayload: 'CREATE_ENTITY', // Tipo de modal a abrir
-                to: null // Garantir que não há navegação
+                to: null, // Garantir que não há navegação
+                permissions: { required: 810 } // entities.create
             }
         }
     },
@@ -122,20 +123,20 @@ export const ROUTE_CONFIG = {
                 id: 'para_tratamento',
                 text: 'Para tratamento',
                 icon: AssignmentIndIcon, // COMPONENTE
-                permissions: { required: 19 }, // docs.view.assigned
+                permissions: { required: 520 }, // docs.view.assigned
                 isBadged: true
             },
             '/document_owner': {
                 id: 'criados_por_mim',
                 text: 'Criados por mim',
                 icon: PersonIcon, // COMPONENTE
-                permissions: { required: 21 } // docs.view.owner
+                permissions: { required: 510 }, // docs.view.owner
             },
             '/documents': {
                 id: 'todos_pedidos',
                 text: 'Todos os Pedidos',
                 icon: ListAltIcon, // COMPONENTE
-                permissions: { required: 18 } // docs.view.all
+                permissions: { required: 500 } // docs.view.all
             },
         }
     },
@@ -144,14 +145,14 @@ export const ROUTE_CONFIG = {
         id: 'tasks',
         text: 'Tarefas',
         icon: ListAltIcon, // COMPONENTE
-        permissions: { required: 5 }, // tasks.view.all
+        permissions: { required: 200 }, // tasks.all
         showInSidebar: true,
         submenu: {
             '/tasks': {
                 id: 'all_tasks',
                 text: 'Todas as Tarefas',
                 icon: ListAltIcon, // COMPONENTE
-                permissions: { required: 5 } // tasks.view.all
+                permissions: { required: 200 } // tasks.all
             }
         }
     },
@@ -160,7 +161,7 @@ export const ROUTE_CONFIG = {
         id: 'dashboard',
         text: 'Dashboard',
         icon: DashboardIcon, // COMPONENTE
-        permissions: { required: 17 }, // dashboard.view
+        permissions: { required: 400 }, // dashboard.view
         showInSidebar: true
     },
 
@@ -168,7 +169,7 @@ export const ROUTE_CONFIG = {
         id: 'operations',
         text: 'Operação',
         icon: WorkIcon, // COMPONENTE
-        permissions: { required: 16 }, // operation.access
+        permissions: { required: 310 }, // operation.access
         showInSidebar: true
     },
 
@@ -176,26 +177,26 @@ export const ROUTE_CONFIG = {
         id: 'ramais',
         text: 'Pavimentações',
         icon: CheckIcon, // COMPONENTE
-        permissions: { required: 23 }, // ID da nova interface para 'pavimentations.view'
+        permissions: { required: 600 }, // pav.view
         showInSidebar: true,
         submenu: {
             '/ramais': {
                 id: 'pending_pavimentations',
                 text: 'Pendentes',
                 icon: AssignmentIcon, // COMPONENTE
-                permissions: { required: 23 }
+                permissions: { required: 600 }
             },
             '/ramais/executed': {
                 id: 'executed_pavimentations',
                 text: 'Executadas',
                 icon: AssignmentIcon, // COMPONENTE
-                permissions: { required: 23 }
+                permissions: { required: 600 }
             },
             '/ramais/concluded': {
                 id: 'concluded_pavimentations',
                 text: 'Concluídas',
                 icon: AssignmentIcon, // COMPONENTE
-                permissions: { required: 23 }
+                permissions: { required: 600 }
             }
         }
     },
@@ -204,7 +205,7 @@ export const ROUTE_CONFIG = {
         id: 'letters',
         text: 'Gestão de Ofícios',
         icon: DraftsIcon, // COMPONENTE
-        permissions: { required: 7 }, // letters.manage
+        permissions: { required: 220 }, // letters.manage
         showInSidebar: true
     },
 
@@ -212,7 +213,7 @@ export const ROUTE_CONFIG = {
         id: 'epi',
         text: 'Gestão de EPIs',
         icon: SecurityOutlinedIcon, // COMPONENTE
-        permissions: { required: 6 }, // epi.manage
+        permissions: { required: 210 }, // epi.manage
         showInSidebar: true
     },
 
@@ -220,7 +221,7 @@ export const ROUTE_CONFIG = {
         id: 'internal',
         text: 'Internal Area',
         icon: AppsIcon, // COMPONENTE
-        permissions: { required: 8 }, // internal.access
+        permissions: { required: 300 }, // internal.access
         showInSidebar: true
     }
 };

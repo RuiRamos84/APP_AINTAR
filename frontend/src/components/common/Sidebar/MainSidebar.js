@@ -37,7 +37,7 @@ import { useSidebar } from '../../../contexts/SidebarContext';
 import { useAuth } from "../../../contexts/AuthContext";
 import SidebarItem from './SidebarItem';
 import { usePermissionContext } from '../../../contexts/PermissionContext';
-import { useRouteConfig } from '../../../hooks/useRouteConfig'; // Corrigido para useRouteConfig
+import { useRouteConfig } from './useRouteConfig';
 import { useModal } from '../../../contexts/ModalContext';
 import TaskNotificationCenter from '../../../pages/Tasks/TaskNotificationCenter';
 import { notifySuccess } from "../../common/Toaster/ThemedToaster";
@@ -56,7 +56,7 @@ const MainSidebar = () => {
         isCompact
     } = useSidebar();
     const { user, logoutUser, toggleDarkMode, toggleVacationStatus } = useAuth();
-    const { initialized: permissionsInitialized } = usePermissionContext(); // NOVO
+    const { initialized: permissionsInitialized, hasPermission } = usePermissionContext();
     const { openModal } = useModal();
 
     const [hoveredItem, setHoveredItem] = useState(null);
@@ -225,14 +225,16 @@ const MainSidebar = () => {
 
             {/* Perfil + Notificações */}
             <Box sx={{ p: isCompact ? 1 : 2 }}>
-                {/* Notificações */}
-                <Box sx={{
-                    display: 'flex',
-                    justifyContent: isCompact ? 'center' : 'flex-end',
-                    mb: 1
-                }}>
-                    <TaskNotificationCenter />
-                </Box>
+                {/* Notificações - apenas mostrar se tiver permissão para tarefas */}
+                {permissionsInitialized && hasPermission(200) && (
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: isCompact ? 'center' : 'flex-end',
+                        mb: 1
+                    }}>
+                        <TaskNotificationCenter />
+                    </Box>
+                )}
 
                 {/* Perfil */}
                 <Box

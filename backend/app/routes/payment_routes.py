@@ -62,8 +62,8 @@ def check_payment_method_permission(payment_method):
 
     # Mapeamento para novo sistema
     permission_map = {
-        'CASH': 'payments.cash',
-        'BANK_TRANSFER': 'payments.bank_transfer',
+        'CASH': 'payments.cash.action',
+        'BANK_TRANSFER': 'payments.bank_transfer', # Assumindo que esta permissão será adicionada à BD
         'MUNICIPALITY': 'payments.municipality',
         'MBWAY': 'payments.mbway',
         'MULTIBANCO': 'payments.multibanco'
@@ -75,7 +75,7 @@ def check_payment_method_permission(payment_method):
         return False, user_id, user_profile
 
     has_permission = permission_manager.check_permission(
-        required_permission, user_profile, user_interfaces or [], user_id
+        required_permission, str(user_profile), user_interfaces or []
     )
 
     logger.debug(
@@ -93,7 +93,7 @@ def check_payment_admin_permission():
         return False, user_id, user_profile
 
     has_permission = permission_manager.check_permission(
-        'payments.validate', user_profile, user_interfaces or [], user_id
+        'admin.payments', str(user_profile), user_interfaces or []
     )
 
     logger.debug(
@@ -216,7 +216,7 @@ def register_manual_payment():
 
 @bp.route("/payments/pending", methods=["GET"])
 @jwt_required()
-@require_permission("payments.validate")  # ✅ USAR DECORATOR
+@require_permission("admin.payments")  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler
@@ -229,7 +229,7 @@ def get_pending_payments():
 
 @bp.route("/payments/details/<int:payment_pk>", methods=["GET"])
 @jwt_required()
-@require_permission("payments.validate")  # ✅ USAR DECORATOR
+@require_permission("admin.payments")  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler
@@ -244,7 +244,7 @@ def get_payment_details(payment_pk):
 
 @bp.route("/payments/approve/<int:payment_pk>", methods=["PUT"])
 @jwt_required()
-@require_permission("payments.validate")  # ✅ USAR DECORATOR
+@require_permission("admin.payments")  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler
@@ -259,7 +259,7 @@ def approve_payment(payment_pk):
 
 @bp.route("/payments/history", methods=["GET"])
 @jwt_required()
-@require_permission("payments.validate")  # ✅ USAR DECORATOR
+@require_permission("admin.payments")  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler

@@ -14,6 +14,7 @@ import {
   Tooltip,
   Divider,
   Button,
+  useMediaQuery,
 } from "@mui/material";
 import {
   KeyboardArrowDown,
@@ -91,6 +92,7 @@ function Row({
   const { markAsRead } = useSocket();
 
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // ===================================================================
   // DATA FETCHING COM REACT QUERY
@@ -444,6 +446,13 @@ function Row({
             key={column.id}
             className="no-spacing-rows"
             style={customRowStyle}
+            sx={{
+              display: {
+                xs: ['regnumber', 'ts_entity'].includes(column.id) ? 'table-cell' : 'none',
+                sm: ['regnumber', 'ts_entity', 'tt_type'].includes(column.id) ? 'table-cell' : 'none',
+                md: 'table-cell'
+              }
+            }}
           >
             {row[column.id]}
           </TableCell>
@@ -451,9 +460,10 @@ function Row({
         <TableCell
           className="no-spacing-rows"
           align="center"
-          style={{
+          sx={{
             minWidth: '200px',
-            width: '200px'
+            width: '200px',
+            display: { xs: 'none', sm: 'table-cell' }
           }}
         >
           <Box
@@ -520,12 +530,63 @@ function Row({
         </TableCell>
       </TableRow>
       <TableRow className="collapse-cell-rows">
-        <TableCell colSpan={8} className="collapse-cell-rows">
+        <TableCell colSpan={metaData.columns ? metaData.columns.length + 2 : 8} className="collapse-cell-rows">
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box
               margin={1}
               style={{ backgroundColor: theme.palette.background.paper }}
             >
+              {/* Mobile Actions - Only shown on mobile when actions column is hidden */}
+              {isMobile && (
+                <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<VisibilityIcon />}
+                    onClick={handleOpenModal}
+                  >
+                    Detalhes
+                  </Button>
+                  {isAssignedToMe && (
+                    <>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<SendIcon />}
+                        onClick={() => handleOpenStepModal()}
+                        color="primary"
+                      >
+                        Enviar
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AttachmentIcon />}
+                        onClick={handleOpenAnnexModal}
+                        color="secondary"
+                      >
+                        Anexos
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<MailIcon />}
+                        onClick={() => setOpenLetterModal(true)}
+                      >
+                        Ofício
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<FileCopyIcon />}
+                        onClick={() => setOpenReplicateModal(true)}
+                      >
+                        Replicar
+                      </Button>
+                    </>
+                  )}
+                </Box>
+              )}
               {/* Colapso de Detalhes */}
               <Box
                 display="flex"

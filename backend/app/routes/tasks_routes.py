@@ -22,7 +22,7 @@ bp = Blueprint('tasks_routes', __name__)
 @bp.route('/tasks', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("tasks.view.all")
+@require_permission("tasks.all")
 @set_session
 @api_error_handler
 def get_tasks():
@@ -111,7 +111,7 @@ def update_task_status_route(task_id):
 @bp.route('/tasks/<int:task_id>/history', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("tasks.view.all")
+@require_permission("tasks.all")
 @set_session
 @api_error_handler
 def get_task_history_route(task_id):

@@ -67,6 +67,8 @@ def update_epi_preferences_route(user_pk):
 
 @bp.route('/epi/data', methods=['GET'])
 @jwt_required()
+@token_required
+@require_permission("epi.manage")
 @api_error_handler
 def get_epi_data():
     """Obtém dados de EPI"""
@@ -87,6 +89,8 @@ def get_epi_data():
 
 
 @bp.route('/epi/list', methods=['GET'])
+@jwt_required()
+@token_required
 @api_error_handler
 def get_epi_list():
     """Obtém apenas a lista de EPIs"""

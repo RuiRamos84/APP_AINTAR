@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { connectSocket, disconnectSocket } from '../services/socketService';
 import { useAuth } from './AuthContext';
+import { usePermissionContext } from './PermissionContext';
 import notificacaoService from "../services/NotificacaoService";
 import api from '../services/api';
 
@@ -9,6 +10,7 @@ const SocketContext = createContext();
 export const SocketProvider = ({ children }) => {
   // Estados do utilizador e conexão
   const { user, isLoggingOut } = useAuth();
+  const { hasPermission, initialized: permissionsInitialized } = usePermissionContext();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -156,18 +158,18 @@ export const SocketProvider = ({ children }) => {
 
   // Solicitar atualização das notificações de tarefas
   const refreshTaskNotifications = useCallback(() => {
-    if (socket && socket.connected && user) {
+    if (socket && socket.connected && user && permissionsInitialized && hasPermission(200)) {
       // console.log("Solicitando lista de notificações de tarefas...");
       socket.emit("get_task_notifications", {
         userId: user.user_id,
         sessionId: user.session_id
       });
     }
-  }, [socket, user]);
+  }, [socket, user, permissionsInitialized, hasPermission]);
 
   // Função para carregar notificações de tarefas iniciais
   const fetchInitialTaskNotifications = useCallback(async () => {
-    if (user) {
+    if (user && permissionsInitialized && hasPermission(200)) {
       try {
         const response = await api.get("/tasks");
 
@@ -194,7 +196,7 @@ export const SocketProvider = ({ children }) => {
         console.error('Erro ao carregar notificações de tarefas:', error);
       }
     }
-  }, [user]);
+  }, [user, permissionsInitialized, hasPermission]);
 
   // Marcar notificação de tarefa como lida
   const markTaskNotificationAsRead = useCallback(async (taskId, triggerRefresh = true) => {
@@ -443,10 +445,10 @@ export const SocketProvider = ({ children }) => {
 
   // Carregar notificações de tarefas iniciais
   useEffect(() => {
-    if (user) {
+    if (user && permissionsInitialized) {
       fetchInitialTaskNotifications();
     }
-  }, [user, fetchInitialTaskNotifications]);
+  }, [user, permissionsInitialized, fetchInitialTaskNotifications]);
 
   // Event listener para visibilidade da página
   useEffect(() => {
@@ -455,7 +457,7 @@ export const SocketProvider = ({ children }) => {
         notificacaoService.pararPiscar();
 
         // Atualizar notificações quando o utilizador volta à página
-        if (isConnected) {
+        if (isConnected && permissionsInitialized && hasPermission(200)) {
           refreshTaskNotifications();
         }
       }
@@ -466,7 +468,7 @@ export const SocketProvider = ({ children }) => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isConnected, refreshTaskNotifications]);
+  }, [isConnected, refreshTaskNotifications, permissionsInitialized, hasPermission]);
 
   // Retrocompatibilidade
   const fetchInitialNotifications = fetchInitialCount;

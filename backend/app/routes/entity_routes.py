@@ -8,6 +8,7 @@ from ..services.entity_service import (
     list_entities
 )
 from ..utils.utils import token_required, set_session, db_session_manager
+from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
 
 
@@ -16,6 +17,8 @@ bp = Blueprint('entity_routes', __name__)
 
 @bp.route('/entity/<int:pk>', methods=['GET'])
 @jwt_required()
+@token_required # Adicionado para consistência
+@require_permission("entities.view") # Protege a visualização de detalhes
 @api_error_handler
 def get_entity(pk):
     """Obter detalhes da entidade"""
@@ -26,6 +29,7 @@ def get_entity(pk):
 @bp.route('/entity/nipc/<int:nipc>', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("entities.view") # Protege a busca por NIPC
 @set_session
 @api_error_handler
 def get_entity_nipc(nipc):
@@ -39,6 +43,7 @@ def get_entity_nipc(nipc):
 @bp.route('/entity', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission("entities.create") # Permissão dedicada para criar entidades
 @set_session
 @api_error_handler
 def create_new_entity():
@@ -60,6 +65,7 @@ def create_new_entity():
 @bp.route('/entity/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
+@require_permission("entities.manage") # Permissão dedicada para editar entidades
 @set_session
 @api_error_handler
 def update_entity(pk):
@@ -73,6 +79,7 @@ def update_entity(pk):
 @bp.route('/entities', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission("entities.view") # Protege a listagem de entidades
 @set_session
 @api_error_handler
 def list_all_entities():

@@ -97,47 +97,6 @@ export const getAllProfiles = () => {
     }));
 };
 
-// ===== INTEGRAÇÃO COM SISTEMA DE PERMISSÕES =====
-
-/**
- * Mapeamento perfis → permissões de pagamento
- */
-export const PAYMENT_PERMISSIONS_BY_PROFILE = {
-    [USER_PROFILES.ADMIN]: {
-        methods: ['MBWAY', 'MULTIBANCO', 'BANK_TRANSFER', 'CASH', 'MUNICIPALITY'],
-        canManage: true,
-        description: 'Todos os métodos + gestão completa'
-    },
-    [USER_PROFILES.AINTAR]: {
-        methods: ['MBWAY', 'MULTIBANCO', 'BANK_TRANSFER', 'CASH'],
-        canManage: false,
-        description: 'Métodos digitais + numerário'
-    },
-    [USER_PROFILES.MUNICIPIOS]: {
-        methods: ['MBWAY', 'MULTIBANCO', 'BANK_TRANSFER', 'MUNICIPALITY'],
-        canManage: false,
-        description: 'Métodos digitais + municípios'
-    },
-    [USER_PROFILES.EXTERNOS]: {
-        methods: ['MBWAY', 'MULTIBANCO', 'BANK_TRANSFER'],
-        canManage: false,
-        description: 'Apenas métodos digitais'
-    },
-    [USER_PROFILES.JUNTAS]: {
-        methods: [],
-        canManage: false,
-        description: 'Sem métodos de pagamento'
-    }
-};
-
-/**
- * Obter métodos de pagamento por perfil
- */
-export const getPaymentMethodsByProfile = (profileId) => {
-    const profile = PAYMENT_PERMISSIONS_BY_PROFILE[String(profileId)];
-    return profile ? profile.methods : [];
-};
-
 // ===== EXPORTAÇÕES PARA COMPATIBILIDADE =====
 
 export default {
@@ -151,7 +110,5 @@ export default {
     isAdmin,
     isAintar,
     isMunicipality,
-    getAllProfiles,
-    PAYMENT_PERMISSIONS_BY_PROFILE,
-    getPaymentMethodsByProfile
+    getAllProfiles
 };

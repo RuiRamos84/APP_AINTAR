@@ -66,10 +66,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     };
 
     const getFilteredExpenseOptions = () => {
-        if (!metaData?.expense) return [];
-        return selectedArea === 5
-            ? metaData.expense.filter(e => e.type === 5)
-            : metaData.expense.filter(e => e.type !== 5);
+        return metaData?.expense || [];
     };
 
     const expenseFieldsConfig = [

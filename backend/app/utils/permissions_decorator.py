@@ -3,18 +3,40 @@
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt
-from app.core.permissions import permission_manager
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def require_permission(permission_id: str):
+def check_permission_by_id(permission_id: int, user_profile: str, user_interfaces: list) -> bool:
+    """
+    Verifica se o utilizador tem uma permissão, baseando-se no ID da interface.
+
+    Args:
+        permission_id: ID da permissão/interface (ex: 500, 520, 510)
+        user_profile: Perfil do utilizador
+        user_interfaces: Lista de interfaces do utilizador
+
+    Returns:
+        bool: True se tiver permissão, False caso contrário
+    """
+    # Super admin (perfil '0') sempre tem acesso
+    if user_profile == "0":
+        logger.debug(f"Super admin acesso autorizado para permissão {permission_id}")
+        return True
+
+    # Verificar se o ID da permissão está na lista de interfaces do utilizador
+    has_perm = permission_id in (user_interfaces or [])
+    logger.debug(f"Verificação para permissão {permission_id}: {has_perm} (interfaces: {user_interfaces})")
+    return has_perm
+
+
+def require_permission(permission_id):
     """
     Decorator para verificar permissões em rotas
-    
+
     Usage:
-        @require_permission("payments.validate")
+        @require_permission(500)  # ID direto da permissão
         def my_route():
             return "Success"
     """
@@ -50,12 +72,11 @@ def require_permission(permission_id: str):
                         "code": "INVALID_USER_DATA"
                     }), 401
 
-                # Verificar permissão
-                has_permission = permission_manager.check_permission(
+                # Verificar permissão diretamente com ID
+                has_permission = check_permission_by_id(
                     permission_id,
                     str(user_profile),
-                    user_interfaces or [],
-                    int(user_id)
+                    user_interfaces or []
                 )
 
                 if not has_permission:
@@ -128,8 +149,7 @@ def require_any_permission(*permission_ids):
                 # Verificar se tem pelo menos uma permissão
                 has_any_permission = any(
                     permission_manager.check_permission(
-                        perm_id, str(user_profile), user_interfaces or [
-                        ], int(user_id)
+                        perm_id, str(user_profile), user_interfaces or []
                     ) for perm_id in permission_ids
                 )
 
@@ -193,8 +213,7 @@ def require_all_permissions(*permission_ids):
                 # Verificar se tem todas as permissões
                 has_all_permissions = all(
                     permission_manager.check_permission(
-                        perm_id, str(user_profile), user_interfaces or [
-                        ], int(user_id)
+                        perm_id, str(user_profile), user_interfaces or []
                     ) for perm_id in permission_ids
                 )
 
@@ -244,10 +263,13 @@ def get_user_permissions_from_jwt():
 
         user_interfaces = jwt_data.get('interfaces', [])
 
+        # Esta função foi removida do PermissionManager, pois as permissões são agora implícitas
+        # pela lista de interfaces. Retornamos a lista de nomes de permissão para consistência.
+        permissions = [
+            perm_id for perm_id, interface_id in permission_manager._permission_map.items()
+            if interface_id in user_interfaces
+        ]
         if user_id:
-            permissions = permission_manager.get_user_permissions(
-                str(user_profile), user_interfaces or [], int(user_id)
-            )
             return int(user_id), str(user_profile), user_interfaces, permissions
 
         return None, None, None, []
@@ -271,7 +293,7 @@ def check_permission_direct(permission_id: str) -> bool:
             return False
 
         return permission_manager.check_permission(
-            permission_id, user_profile, user_interfaces, user_id
+            permission_id, user_profile, user_interfaces
         )
 
     except Exception as e:

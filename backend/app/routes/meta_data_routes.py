@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..services.meta_data_service import fetch_meta_data, clear_meta_data_cache
 from ..utils.utils import set_session, token_required, db_session_manager
 from sqlalchemy.exc import SQLAlchemyError
+from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
 
 bp = Blueprint('meta_data_routes', __name__)
@@ -10,8 +11,8 @@ bp = Blueprint('meta_data_routes', __name__)
 
 @bp.route('/metaData', methods=['GET'])
 @jwt_required()
-# @token_required
-# @set_session
+@token_required
+@set_session
 @api_error_handler
 def get_meta_data_route():
     """Obtém metadados"""
@@ -23,6 +24,8 @@ def get_meta_data_route():
 
 @bp.route('/clear-metadata-cache', methods=['POST'])
 @jwt_required()
+@token_required
+@require_permission("admin.cache.manage") # Apenas admins podem limpar o cache
 def clear_metadata_cache():
     clear_meta_data_cache()
     return jsonify({'message': 'Cache limpo com sucesso'}), 200

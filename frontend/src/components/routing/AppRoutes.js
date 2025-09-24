@@ -1,6 +1,7 @@
 // frontend/src/components/routing/AppRoutes.js - NOVO ARQUIVO
 
 import React, { lazy } from "react";
+import AccessDenied from "../../contexts/AccessDenied"; // Importar o novo componente
 import { Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "../../contexts/AuthContextProvider";
 
@@ -60,7 +61,19 @@ const RouteRenderer = ({ Component, user }) => {
 
 const AppRoutes = ({ user }) => (
     <Routes>
-        {/* === ROTAS PÚBLICAS === */}
+        {/* Rota de Acesso Negado */}
+        <Route 
+            path="/access-denied" 
+            element={
+                <PrivateRoute>
+                    <AccessDenied />
+                </PrivateRoute>
+            } 
+        />
+
+        {/* 
+            --- ROTAS PÚBLICAS ---
+        */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
         <Route path="/create-user" element={<CreateUser />} />
@@ -70,7 +83,7 @@ const AppRoutes = ({ user }) => (
 
         {/* === ROTAS ADMINISTRATIVAS === */}
         <Route path="/settings" element={
-            <PrivateRoute requiredPermission={1}>
+            <PrivateRoute requiredPermission={10}>
                 <AdminDashboard />
             </PrivateRoute>
         } />
@@ -80,40 +93,48 @@ const AppRoutes = ({ user }) => (
         <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
 
         {/* === ROTAS DE ENTIDADES === */}
-        <Route path="/entities" element={<PrivateRoute><EntityList /></PrivateRoute>} />
-        <Route path="/entities/:id" element={<PrivateRoute><EntityDetail /></PrivateRoute>} />
-        <Route path="/add-entity" element={<PrivateRoute><CreateEntity /></PrivateRoute>} />
+        <Route path="/entities" element={
+            <PrivateRoute requiredPermission={800}><EntityList /></PrivateRoute>
+        } />
+        <Route path="/entities/:id" element={
+            <PrivateRoute requiredPermission={800}><EntityDetail /></PrivateRoute>
+        } />
+        <Route path="/add-entity" element={
+            <PrivateRoute requiredPermission={810}><CreateEntity /></PrivateRoute>
+        } />
 
         {/* === ROTAS OPERACIONAIS === */}
         <Route path="/operation" element={
-            <PrivateRoute requiredPermission={16}>
+            <PrivateRoute requiredPermission={310}>
                 <Operation />
             </PrivateRoute>
         } />
 
         <Route path="/dashboard" element={
-            <PrivateRoute requiredPermission={17}>
+            <PrivateRoute requiredPermission={400}>
                 <Dashboard />
             </PrivateRoute>
         } />
 
         {/* === ROTAS DE DOCUMENTOS === */}
         <Route path="/pedidos-modernos" element={
-        <PrivateRoute requiredPermission={20}>
+        <PrivateRoute requiredPermission={540}>
                 <ModernDocuments />
             </PrivateRoute>
         } />
 
         <Route path="/documents" element={
-        <PrivateRoute requiredPermission={18}>
+        <PrivateRoute requiredPermission={500}>
                 <DocumentList />
             </PrivateRoute>
         } />
         <Route path="/documents/:id" element={<PrivateRoute><DocumentPage /></PrivateRoute>} />
-        <Route path="/create_document" element={<PrivateRoute><CreateDocument /></PrivateRoute>} />
-    <Route path="/document_owner" element={<PrivateRoute requiredPermission={21}><CreatedByMe /></PrivateRoute>} />
+        <Route path="/create_document" element={
+            <PrivateRoute requiredPermission={560}><CreateDocument /></PrivateRoute>
+        } />
+    <Route path="/document_owner" element={<PrivateRoute requiredPermission={510}><CreatedByMe /></PrivateRoute>} />
         <Route path="/document_self" element={
-        <PrivateRoute requiredPermission={19}>
+        <PrivateRoute requiredPermission={520}>
                 <AssignedToMe />
             </PrivateRoute>
         } />
@@ -125,32 +146,32 @@ const AppRoutes = ({ user }) => (
 
         {/* === ROTAS DE GESTÃO === */}
         <Route path="/letters" element={
-        <PrivateRoute requiredPermission={7}>
+        <PrivateRoute requiredPermission={220}>
                 <LetterManagement />
             </PrivateRoute>
         } />
 
         <Route path="/epi" element={
-        <PrivateRoute requiredPermission={6}>
+        <PrivateRoute requiredPermission={210}>
                 <EpiArea />
             </PrivateRoute>
         } />
 
         <Route path="/internal" element={
-        <PrivateRoute requiredPermission={8}>
+        <PrivateRoute requiredPermission={300}>
                 <InternalArea />
             </PrivateRoute>
         } />
 
         {/* === ROTAS DE TAREFAS === */}
         <Route path="/tasks" element={
-        <PrivateRoute requiredPermission={5}>
+        <PrivateRoute requiredPermission={200}>
                 <TaskManagement />
             </PrivateRoute>
         }>
             <Route index element={<Navigate to="all" replace />} />
             <Route path="all" element={
-                <PrivateRoute requiredPermission={5}>
+                <PrivateRoute requiredPermission={200}>
                     <AllTasks />
                 </PrivateRoute>
             } />
@@ -167,14 +188,14 @@ const AppRoutes = ({ user }) => (
         } />
 
         <Route path="/payment-admin" element={
-        <PrivateRoute requiredPermission={3}>
+        <PrivateRoute requiredPermission={30}>
                 <RouteRenderer Component={PaymentAdminPage} user={user} />
             </PrivateRoute>
         } />
 
         {/* === ROTAS ESPECIAIS === */}
         <Route path="/global" element={
-            <PrivateRoute requiredPermission={1}>
+            <PrivateRoute requiredPermission={10}>
                 <GlobalModule />
             </PrivateRoute>
         } />
