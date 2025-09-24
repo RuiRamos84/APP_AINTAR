@@ -83,7 +83,7 @@ const DetailsModal = ({
 }) => {
     const [errors, setErrors] = useState({});
 
-    console.log("DetailsModal props:", details);
+    // console.log("DetailsModal props:", details);
 
     // Definir tipos de campos
     const FIELD_TYPES = {
@@ -205,7 +205,12 @@ const DetailsModal = ({
                                         ) : (
                                                 <TextField
                                                     label={FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                                                    value={editableDetails[field] || ""}
+                                                    type={FIELD_TYPES[field] === 'date' ? 'date' : 'text'}
+                                                    value={
+                                                        FIELD_TYPES[field] === 'date' && editableDetails[field]
+                                                            ? String(editableDetails[field]).split('T')[0]
+                                                            : editableDetails[field] || ""
+                                                    }
                                                     onChange={(e) => isEditMode &&
                                                         EDITABLE_FIELDS.includes(field) &&
                                                         handleFieldChange(field, e.target.value)}

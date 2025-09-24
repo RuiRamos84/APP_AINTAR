@@ -59,9 +59,7 @@ const CreateDocument = () => {
   const onDrop = useCallback(
     async (acceptedFiles) => {
       if (acceptedFiles.length + document.files.length > 5) {
-        enqueueSnackbar("Você pode adicionar no máximo 5 arquivos.", {
-          variant: "error",
-        });
+        enqueueSnackbar("Máximo 5 arquivos.", { variant: "error" });
         return;
       }
 
@@ -91,24 +89,6 @@ const CreateDocument = () => {
     [document.files, enqueueSnackbar]
   );
 
-  const onPaste = useCallback(
-    (event) => {
-      const clipboardItems = event.clipboardData.items;
-      const files = [];
-      for (const item of clipboardItems) {
-        if (item.kind === "file") {
-          const file = item.getAsFile();
-          files.push(file);
-        }
-      }
-      if (files.length > 0) {
-        event.preventDefault(); // Previne a colagem padrão, caso haja arquivos na área de transferência
-        onDrop(files);
-      }
-    },
-    [onDrop]
-  );
-
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: "image/*, application/pdf",
@@ -135,25 +115,19 @@ const CreateDocument = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validação adicional para garantir que memo ou files estejam preenchidos
     let tempErrors = {};
     if (!document.memo && document.files.length === 0) {
-      tempErrors.memo =
-        "Por favor, preencha as Notas Adicionais ou anexe pelo menos um arquivo.";
-      tempErrors.files =
-        "Por favor, preencha as Notas Adicionais ou anexe pelo menos um arquivo.";
+      tempErrors.memo = "Notas ou ficheiros obrigatórios.";
+      tempErrors.files = "Notas ou ficheiros obrigatórios.";
     }
-    if (!document.nipc) tempErrors.nipc = "NIPC é obrigatório.";
-    if (!document.tt_type)
-      tempErrors.tt_type = "Tipo de Documento é obrigatório.";
-    if (!document.ts_associate)
-      tempErrors.ts_associate = "Associado é obrigatório.";
+    if (!document.nipc) tempErrors.nipc = "NIPC obrigatório.";
+    if (!document.tt_type) tempErrors.tt_type = "Tipo documento obrigatório.";
+    if (!document.ts_associate) tempErrors.ts_associate = "Associado obrigatório.";
+
     setErrors(tempErrors);
 
     if (Object.keys(tempErrors).length > 0) {
-      enqueueSnackbar("Por favor, preencha todos os campos obrigatórios.", {
-        variant: "error",
-      });
+      enqueueSnackbar("Campos obrigatórios em falta.", { variant: "error" });
       return;
     }
 
@@ -174,12 +148,11 @@ const CreateDocument = () => {
       enqueueSnackbar(response.message, { variant: "success" });
     } catch (error) {
       enqueueSnackbar(error.message, { variant: "error" });
-      enqueueSnackbar("Erro ao criar pedido", { variant: "error" });
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (loading) return <div>A carregar...</div>;
+  if (error) return <div>Erro: {error.message}</div>;
 
   return (
     <Paper className="paper-createdocument">
@@ -187,10 +160,10 @@ const CreateDocument = () => {
         <Typography variant="h4" gutterBottom>
           Criar Novo Pedido
         </Typography>
-        <Box className="create-document-box" onPaste={onPaste}>
+        <Box className="create-document-box">
           <form onSubmit={handleSubmit}>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={2}>
+              <Grid size={{ xs: 12, sm: 6, md: 2, lg: 2 }}>
                 <TextField
                   required
                   type="number"
@@ -204,7 +177,7 @@ const CreateDocument = () => {
                   helperText={errors.nipc}
                 />
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }}>
                 <TextField
                   select
                   required
@@ -224,7 +197,7 @@ const CreateDocument = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }}>
                 <TextField
                   select
                   required
@@ -244,7 +217,7 @@ const CreateDocument = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={12}>
+              <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
                 <TextField
                   label="Notas Adicionais"
                   name="memo"
@@ -258,68 +231,50 @@ const CreateDocument = () => {
                   helperText={errors.memo}
                 />
               </Grid>
-              <Grid item xs={12} sm={12}>
+              {/* Ficheiros */}
+              <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
                 <Grid container spacing={2}>
                   {document.files.map((fileObj, index) => (
-                    <React.Fragment key={index}>
-                      <Grid item xs={6} sm={6}>
-                        <Box display="flex" alignItems="center">
-                          <img
-                            src={fileObj.preview}
-                            alt={`preview ${index}`}
-                            style={{ width: 50, height: 50, marginRight: 20 }}
-                          />
-                          <TextField
-                            label={`Descrição do Arquivo ${index + 1}`}
-                            value={fileObj.description}
-                            onChange={(e) =>
-                              handleFileDescriptionChange(index, e)
-                            }
-                            fullWidth
-                            margin="normal"
-                          />
-                          <IconButton
-                            aria-label="delete"
-                            onClick={() => handleRemoveFile(index)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      </Grid>
-                      {(index + 1) % 2 === 0 && <Grid item xs={12}></Grid>}
-                    </React.Fragment>
+                    <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }} key={index}>
+                      <Box display="flex" alignItems="center">
+                        <img
+                          src={fileObj.preview}
+                          alt={`preview ${index}`}
+                          style={{ width: 50, height: 50, marginRight: 20 }}
+                        />
+                        <TextField
+                          label={`Descrição ${index + 1}`}
+                          value={fileObj.description}
+                          onChange={(e) => handleFileDescriptionChange(index, e)}
+                          fullWidth
+                          margin="normal"
+                        />
+                        <IconButton onClick={() => handleRemoveFile(index)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </Grid>
                   ))}
-                  {document.files.length < 5 ? (
-                    <Grid item xs={6} sm={6}>
+                  {document.files.length < 5 && (
+                    <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }}>
                       <Box
                         {...getRootProps()}
                         border="2px dashed gray"
                         padding="20px"
                         textAlign="center"
                         bgcolor={isDragActive ? "lightgreen" : "inherit"}
-                        color={isDragActive ? "black" : "inherit"}
                         mt={2}
                       >
                         <input {...getInputProps()} />
-                        {isDragActive ? (
-                          <Typography>Solte os arquivos aqui...</Typography>
-                        ) : (
-                          <Typography>
-                            Arraste e solte os arquivos aqui, cole ou clique
-                            para selecionar arquivos
-                          </Typography>
-                        )}
+                        <Typography>
+                          {isDragActive ? "Soltar ficheiros..." : "Arrastar ficheiros ou clicar"}
+                        </Typography>
                       </Box>
-                    </Grid>
-                  ) : (
-                    <Grid item xs={6} sm={6}>
-                      <Typography variant="subtitle1" color="error" mt={2}>
-                        Atingiu o número máximo de anexos por movimento.
-                      </Typography>
                     </Grid>
                   )}
                 </Grid>
-              </Grid>              <Grid item xs={12}>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
                 <Button variant="contained" color="primary" type="submit">
                   Submeter Pedido
                 </Button>

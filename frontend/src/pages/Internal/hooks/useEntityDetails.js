@@ -30,8 +30,14 @@ export function useEntityDetails() {
     };
 
     useEffect(() => {
-        fetchDetails();
-    }, [state.selectedEntity]);
+        if (state.selectedEntity?.pk && state.selectedArea) {
+            fetchDetails();
+        } else {
+            // Limpa os detalhes se não houver entidade selecionada
+            setDetails({});
+            setEditableDetails({});
+        }
+    }, [state.selectedEntity, state.selectedArea]);
 
     const saveDetails = async (data) => {
         if (!state.selectedEntity) return false;

@@ -15,7 +15,6 @@ import {
 import { getCurrentDate } from "../../../utils/dataUtils";
 
 const RecordForm = ({
-    recordType,
     formData,
     setFormData,
     onSubmit,

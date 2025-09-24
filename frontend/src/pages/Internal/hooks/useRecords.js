@@ -1,16 +1,15 @@
-// /hooks/useRecords.js
 import { useState, useEffect } from "react";
 import { useInternalContext } from "../context/InternalContext";
 import * as InternalService from "../../../services/InternalService";
 import { notifySuccess } from "../../../components/common/Toaster/ThemedToaster";
 import { handleApiError } from "../utils/errorHandler";
-import { getCurrentDateTime } from "../../../utils/dataUtils";
+import { formatDateToString } from "../../../utils/dataUtils";
 
 export function useRecords(recordType) {
     const { state, dispatch } = useInternalContext();
     const { selectedArea, selectedEntity } = state;
     const [newRecord, setNewRecord] = useState({
-        date: getCurrentDateTime()
+        date: formatDateToString(new Date())
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -24,25 +23,36 @@ export function useRecords(recordType) {
 
             switch (recordType) {
                 case "volume":
-                    response = await InternalService.getVolumeRecords(selectedArea, selectedEntity?.pk);
+                    response = await InternalService.getInstallationVolumeRecords(selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.volumes || [] });
                     break;
+
                 case "water_volume":
-                    response = await InternalService.getWaterVolumeRecords(selectedArea, selectedEntity?.pk);
+                    response = await InternalService.getInstallationWaterVolumeRecords(selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.water_volumes || [] });
                     break;
+
                 case "energy":
-                    response = await InternalService.getEnergyRecords(selectedArea, selectedEntity?.pk);
+                    response = await InternalService.getInstallationEnergyRecords(selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.energy || [] });
                     break;
+
                 case "expense":
-                    response = await InternalService.getExpenseRecords(areaType, selectedEntity?.pk);
+                    if (selectedArea === 1 || selectedArea === 2) {
+                        // Para instalações (ETAR/EE)
+                        response = await InternalService.getInstallationExpenseRecords(selectedEntity?.pk);
+                    } else {
+                        // Para outras áreas (rede, ramal, etc)
+                        response = await InternalService.getExpenseRecords(areaType);
+                    }
                     dispatch({ type: "FETCH_SUCCESS", payload: response.expenses || [] });
                     break;
-                case "incumprimentos": // NOVO
+
+                case "incumprimentos":
                     response = await InternalService.getIncumprimentoRecords(selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.incumprimentos || [] });
                     break;
+
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
@@ -52,46 +62,59 @@ export function useRecords(recordType) {
         }
     };
 
-    // Adicionar no addRecord também
     const addRecord = async (data) => {
         try {
             setSubmitting(true);
 
-            // Validar se há entidade selecionada para tipos que exigem
+            // Validar se há entidade seleccionada para tipos que exigem
             if (
                 (["volume", "water_volume", "energy", "incumprimentos"].includes(recordType) ||
                     (recordType === "expense" && ["etar", "ee"].includes(getTypeByArea(selectedArea))))
                 && !selectedEntity
             ) {
                 handleApiError(
-                    new Error("Entidade não selecionada"),
-                    `Selecione uma ${selectedArea === 1 ? "ETAR" : "EE"} primeiro`
+                    new Error("Entidade não seleccionada"),
+                    `Seleccione uma ${selectedArea === 1 ? "ETAR" : "EE"} primeiro`
                 );
                 return false;
             }
 
             const areaType = getTypeByArea(selectedArea);
 
-            // Preparar payload com base no tipo de registo
-            let finalPayload = { ...data };
+            // Chamar API adequada
+            switch (recordType) {
+                case "volume":
+                    await InternalService.addInstallationVolumeRecord(data);
+                    break;
 
-            // Para volume, water_volume e energia, usar selectedArea diretamente
-            if (recordType === "volume" || recordType === "energy") {
-                await InternalService[`add${capitalizeFirst(recordType)}Record`](selectedArea, finalPayload);
-            }
-            // Para water_volume, usar função específica
-            else if (recordType === "water_volume") {
-                await InternalService.addWaterVolumeRecord(selectedArea, finalPayload);
-            }
-            // Para incumprimentos
-            else if (recordType === "incumprimentos") {
-                await InternalService.addIncumprimentoRecord(finalPayload);
-            }
-            // Para despesas, usar areaType
-            else if (recordType === "expense") {
-                await InternalService.addExpenseRecord(areaType, finalPayload);
-            } else {
-                throw new Error(`Tipo de registo inválido: ${recordType}`);
+                case "water_volume":
+                    await InternalService.addInstallationWaterVolumeRecord(data);
+                    break;
+
+                case "energy":
+                    await InternalService.addInstallationEnergyRecord(data);
+                    break;
+
+                case "expense":
+                    if (selectedArea === 1 || selectedArea === 2) {
+                        // Para instalações - converter dados
+                        const installationData = {
+                            ...data,
+                            pntt_instalacao: selectedEntity.pk
+                        };
+                        await InternalService.addInstallationExpenseRecord(installationData);
+                    } else {
+                        // Para outras áreas
+                        await InternalService.addExpenseRecord(areaType, data);
+                    }
+                    break;
+
+                case "incumprimentos":
+                    await InternalService.addIncumprimentoRecord(data);
+                    break;
+
+                default:
+                    throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
 
             notifySuccess(`Registo de ${getRecordTypeName(recordType)} adicionado com sucesso`);
@@ -104,9 +127,6 @@ export function useRecords(recordType) {
             setSubmitting(false);
         }
     };
-
-    // Função auxiliar
-    const capitalizeFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
     const getTypeByArea = (area) => {
         switch (area) {

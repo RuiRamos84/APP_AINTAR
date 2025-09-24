@@ -51,6 +51,7 @@ import { getDocumentById } from '../../../../../services/documentService';
 import { getEntity } from '../../../../../services/entityService';
 import { useDocumentActions } from '../../../context/DocumentActionsContext';
 import { useDocumentsContext } from '../../../../ModernDocuments/context/DocumentsContext';
+import LocationMap from './/LocationMap';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import HistoryIcon from '@mui/icons-material/History';
 
@@ -81,7 +82,7 @@ const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
             </DialogTitle>
             <DialogContent dividers>
                 <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, sm: 6 }}>
+                    <Grid item xs={12} sm={6}>
                         <Card sx={{ mb: 2 }}>
                             <CardContent>
                                 <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -147,7 +148,7 @@ const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
                         </Card>
                     </Grid>
 
-                    <Grid size={{ xs: 12, sm: 6 }}>
+                    <Grid item xs={12} sm={6}>
                         <Card sx={{ mb: 2 }}>
                             <CardContent>
                                 <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -223,31 +224,43 @@ const DetailsTab = ({
     metaData,
     onClose,
     onUpdateDocument,
-    userProfile = null // Adicionar propriedade para o perfil do usuário manualmente
+    userProfile = null
 }) => {
     const theme = useTheme();
-    // Obter o contexto de ações de documentos
     const { handleViewOriginDetails, showNotification } = useDocumentActions();
     const { showNotification: showGlobalNotification } = useDocumentsContext();
-
-    // Obter usuário do AuthContext
     const { user } = useAuth();
-    // console.log('user:', user);
 
-    // Estado para carregamento
     const [loading, setLoading] = useState(false);
-    // Estado para dados do representante legal
     const [representativeData, setRepresentativeData] = useState(null);
     const [loadingRepresentative, setLoadingRepresentative] = useState(false);
-    // Estado para controlar o modal de detalhes do representante
     const [representativeModalOpen, setRepresentativeModalOpen] = useState(false);
 
-    // Verificar se o documento tem todos os campos necessários
     const isPartialDocument = !document?.pk || !document?.regnumber;
-
-    // Verificar se o usuário pode ver estatísticas (perfil 0 ou 1)
-    // Verificar a propriedade 'profile' diretamente do usuário autenticado
     const canViewStatistics = userProfile === 0 || userProfile === 1 || user?.profil === "0" || user?.profil === "1";
+
+    // Função para determinar a localização a mostrar
+    const getLocationInfo = () => {
+        // Se existir morada completa, usar essa
+        if (document.address && document.address.trim()) {
+            return {
+                icon: <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />,
+                text: document.address,
+                type: 'address'
+            };
+        }
+
+        // Se existir tb_instalacao, usar essa
+        if (document.tb_instalacao) {
+            return {
+                icon: <BusinessIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />,
+                text: `Instalação: ${document.tb_instalacao}`,
+                type: 'installation'
+            };
+        }
+
+        return null;
+    };
 
     // Função para obter o nome completo do criador a partir do username
     const getCreatorFullName = (username) => {
@@ -274,7 +287,6 @@ const DetailsTab = ({
                     const response = await getEntity(document.tb_representative);
                     if (response) {
                         setRepresentativeData(response.entity);
-                        // console.log("Dados do representante:", response);
                     }
                 } catch (error) {
                     console.error('Erro ao buscar dados do representante:', error);
@@ -288,15 +300,8 @@ const DetailsTab = ({
         fetchRepresentativeData();
     }, [document, showGlobalNotification]);
 
-    useEffect(() => {
-        // Log do perfil do usuário para debug
-        if (user) {
-            // console.log("Perfil do usuário:", user.profil);
-        }
-    }, [user]);
-
     if (!document) {
-        return <Typography>Nenhum documento selecionado</Typography>;
+        return <Typography>Nenhum documento seleccionado</Typography>;
     }
 
     // Manipuladores para o modal de detalhes do representante
@@ -353,7 +358,6 @@ const DetailsTab = ({
 
     // Renderizar uma visualização alternativa para documentos parciais
     if (isPartialDocument) {
-        // console.log("Documento parcial:", document);
         return (
             <Box sx={{ mt: 1 }}>
                 <Paper sx={{ p: 3, mb: 2, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
@@ -366,7 +370,7 @@ const DetailsTab = ({
 
                     <Grid container spacing={2} sx={{ mt: 2 }}>
                         {document.creator && (
-                            <Grid size={{ xs: 12, sm: 6 }}>
+                            <Grid item xs={12} sm={6}>
                                 <Box display="flex" alignItems="center">
                                     <PersonIcon fontSize="small" color="action" sx={{ mr: 1 }} />
                                     <Box>
@@ -378,7 +382,7 @@ const DetailsTab = ({
                         )}
 
                         {document.ts_entity && (
-                            <Grid size={{ xs: 12, sm: 6 }}>
+                            <Grid item xs={12} sm={6}>
                                 <Box display="flex" alignItems="center">
                                     <BusinessIcon fontSize="small" color="action" sx={{ mr: 1 }} />
                                     <Box>
@@ -390,7 +394,7 @@ const DetailsTab = ({
                         )}
 
                         {document.ts_associate && (
-                            <Grid size={{ xs: 12, sm: 6 }}>
+                            <Grid item xs={12} sm={6}>
                                 <Box display="flex" alignItems="center">
                                     <BusinessIcon fontSize="small" color="action" sx={{ mr: 1 }} />
                                     <Box>
@@ -401,20 +405,34 @@ const DetailsTab = ({
                             </Grid>
                         )}
 
-                        {document.address && (
-                            <Grid size={{ xs: 12 }}>
-                                <Box display="flex" alignItems="flex-start">
-                                    <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
-                                    <Box>
-                                        <Typography variant="caption" color="textSecondary">Morada</Typography>
-                                        <Typography variant="body2">{document.address}</Typography>
+                        {/* Localização: morada ou instalação */}
+                        {(() => {
+                            const locationInfo = getLocationInfo();
+                            return locationInfo ? (
+                                <Grid item xs={12}>
+                                    <Box display="flex" alignItems="flex-start">
+                                        {locationInfo.icon}
+                                        <Box>
+                                            <Typography variant="caption" color="textSecondary">
+                                                {locationInfo.type === 'installation' ? 'Instalação' : 'Morada'}
+                                            </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    fontWeight: locationInfo.type === 'installation' ? 'medium' : 'normal',
+                                                    color: locationInfo.type === 'installation' ? 'primary.main' : 'text.primary'
+                                                }}
+                                            >
+                                                {locationInfo.text}
+                                            </Typography>
+                                        </Box>
                                     </Box>
-                                </Box>
-                            </Grid>
-                        )}
+                                </Grid>
+                            ) : null;
+                        })()}
 
                         {document.memo && (
-                            <Grid size={{ xs: 12 }}>
+                            <Grid item xs={12}>
                                 <Box display="flex" alignItems="flex-start">
                                     <InfoIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                     <Box>
@@ -435,12 +453,11 @@ const DetailsTab = ({
     }
 
     // Renderização normal para documentos completos
-    // console.log('Documentos completos renderizados', document);
     return (
         <Box sx={{ mt: 1 }}>
             <Grid container spacing={3}>
                 {/* Coluna 1: Informações gerais e tipo de documento */}
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid item xs={12} sm={6}>
                     <Card sx={{ mb: 3, height: '100%' }}>
                         <CardContent>
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -529,7 +546,7 @@ const DetailsTab = ({
                 </Grid>
 
                 {/* Coluna 2: Informações de entidade */}
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid item xs={12} sm={6}>
                     <Card sx={{ mb: 3, height: '100%' }}>
                         <CardContent>
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -622,7 +639,7 @@ const DetailsTab = ({
                 </Grid>
 
                 {/* Coluna 3: Informações de localização */}
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                     <Card>
                         <CardContent>
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -631,31 +648,45 @@ const DetailsTab = ({
                             </Typography>
                             <Divider sx={{ my: 2 }} />
 
-                                    <Grid container spacing={2}>
-                                        {document.postal && (
-                                            <Grid size={{ xs: 12, md: 3 }}>
-                                                <Box display="flex" alignItems="flex-start">
-                                                    <HomeIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
-                                                    <Box>
-                                                        <Typography variant="body2" color="textSecondary">Código Postal</Typography>
-                                                        <Typography variant="body1">{document.postal}</Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Grid>
-                                        )}
-
-                                        {getFullAddress() && (
-                                            <Grid size={{ xs: 12, md: 9 }}>
-                                                <Box display="flex" alignItems="flex-start">
-                                                    <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
-                                                    <Box>
-                                                        <Typography variant="body2" color="textSecondary">Morada</Typography>
-                                                        <Typography variant="body1">{getFullAddress()}</Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Grid>
-                                        )}
+                            <Grid container spacing={2}>
+                                {document.postal && (
+                                    <Grid item xs={12} md={3}>
+                                        <Box display="flex" alignItems="flex-start">
+                                            <HomeIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
+                                            <Box>
+                                                <Typography variant="body2" color="textSecondary">Código Postal</Typography>
+                                                <Typography variant="body1">{document.postal}</Typography>
+                                            </Box>
+                                        </Box>
                                     </Grid>
+                                )}
+
+                                {/* Morada ou Instalação */}
+                                {(() => {
+                                    const locationInfo = getLocationInfo();
+                                    return locationInfo ? (
+                                        <Grid item xs={12} md={9}>
+                                            <Box display="flex" alignItems="flex-start">
+                                                {locationInfo.icon}
+                                                <Box>
+                                                    <Typography variant="body2" color="textSecondary">
+                                                        {locationInfo.type === 'installation' ? 'Instalação' : 'Morada'}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{
+                                                            fontWeight: locationInfo.type === 'installation' ? 'medium' : 'normal',
+                                                            color: locationInfo.type === 'installation' ? 'primary.main' : 'text.primary'
+                                                        }}
+                                                    >
+                                                        {locationInfo.text}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </Grid>
+                                    ) : null;
+                                })()}
+                            </Grid>
 
                             {(document.nut1 || document.nut2 || document.nut3 || document.nut4) && (
                                 <>
@@ -663,7 +694,7 @@ const DetailsTab = ({
 
                                     <Grid container spacing={2}>
                                         {document.nut4 && (
-                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                            <Grid item xs={12} sm={6} md={3}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Localidade
@@ -674,7 +705,7 @@ const DetailsTab = ({
                                         )}
 
                                         {document.nut3 && (
-                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                            <Grid item xs={12} sm={6} md={3}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Freguesia
@@ -685,7 +716,7 @@ const DetailsTab = ({
                                         )}
 
                                         {document.nut2 && (
-                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                            <Grid item xs={12} sm={6} md={3}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Concelho
@@ -697,7 +728,7 @@ const DetailsTab = ({
 
 
                                         {document.nut1 && (
-                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                            <Grid item xs={12} sm={6} md={3}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Distrito
@@ -709,13 +740,17 @@ const DetailsTab = ({
                                     </Grid>
                                 </>
                             )}
+
+                            {document.glat && document.glong && (
+                                <LocationMap lat={document.glat} lng={document.glong} />
+                            )}
                         </CardContent>
                     </Card>
                 </Grid>
 
                 {/* Estatísticas do pedido - apenas visível para usuários com perfil 0 ou 1 */}
                 {canViewStatistics && document.type_countyear !== undefined && document.type_countall !== undefined && (
-                    <Grid size={{ xs: 12, sm: 6 }}>
+                    <Grid item xs={12} sm={6}>
                         <Card sx={{ mb: 3 }}>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -725,7 +760,7 @@ const DetailsTab = ({
                                 <Divider sx={{ my: 2 }} />
                                 
                                 <Grid container spacing={2}>
-                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Grid item xs={12} sm={6}>
                                         <Box>
                                             <Typography variant="caption" color="textSecondary">
                                                 Total de pedidos do mesmo tipo este ano
@@ -736,7 +771,7 @@ const DetailsTab = ({
                                         </Box>
                                     </Grid>
 
-                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Grid item xs={12} sm={6}>
                                         <Box>
                                             <Typography variant="caption" color="textSecondary">
                                                 Total Global de pedidos do mesmo tipo

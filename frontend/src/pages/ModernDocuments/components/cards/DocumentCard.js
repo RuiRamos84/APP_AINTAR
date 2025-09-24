@@ -16,7 +16,8 @@ import {
     Description as DescriptionIcon,
     Event as EventIcon,
     AccessTime as AccessTimeIcon,
-    LocationOn as LocationIcon
+    LocationOn as LocationIcon,
+    Business as BusinessIcon
 } from '@mui/icons-material';
 import { formatDate } from '../../utils/documentUtils';
 import { notificationStyles } from '../../styles/documentStyles';
@@ -52,6 +53,29 @@ const DocumentCard = ({
             label: status?.step || 'Desconhecido',
             ...colorMap[document.what] || defaultStatus,
         };
+    };
+
+    // Função para determinar a localização a mostrar
+    const getLocationInfo = () => {
+        // Se existir morada completa, usar essa
+        if (document.address && document.address.trim()) {
+            return {
+                icon: <LocationIcon fontSize="small" color="action" />,
+                text: document.address,
+                type: 'address'
+            };
+        }
+
+        // Se existir tb_instalacao, usar essa
+        if (document.tb_instalacao) {
+            return {
+                icon: <BusinessIcon fontSize="small" color="action" />,
+                text: `Instalação: ${document.tb_instalacao}`,
+                type: 'installation'
+            };
+        }
+
+        return null;
     };
 
     const getStyleConfig = () => {
@@ -94,6 +118,7 @@ const DocumentCard = ({
 
     const statusInfo = getStatusInfo();
     const style = getStyleConfig();
+    const locationInfo = getLocationInfo();
 
     const getInitials = (text) => {
         if (!text) return '?';
@@ -261,12 +286,21 @@ const DocumentCard = ({
                             </Box>
                         </Grid>
 
-                        {document.address && (
+                        {/* Localização: morada ou instalação */}
+                        {locationInfo && (
                             <Grid size={12}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <LocationIcon fontSize="small" color="action" />
-                                    <Typography variant={style.fontSize.details} color="text.secondary" noWrap>
-                                        {document.address}
+                                    {locationInfo.icon}
+                                    <Typography
+                                        variant={style.fontSize.details}
+                                        color="text.secondary"
+                                        noWrap
+                                        sx={{
+                                            fontWeight: locationInfo.type === 'installation' ? 'medium' : 'normal',
+                                            color: locationInfo.type === 'installation' ? 'primary.main' : 'text.secondary'
+                                        }}
+                                    >
+                                        {locationInfo.text}
                                     </Typography>
                                 </Box>
                             </Grid>

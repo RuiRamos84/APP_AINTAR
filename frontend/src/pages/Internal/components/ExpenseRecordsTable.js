@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Box, Typography, Paper, Chip } from "@mui/material";
+import { Box, Typography, Paper } from "@mui/material";
 import { useInternalContext } from "../context/InternalContext";
 import GenericTable from "./GenericTable";
 import RecordForm from "./RecordForm";
@@ -31,7 +31,7 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
 
     const handleAddRecord = async () => {
         if ((selectedArea === 1 || selectedArea === 2) && !selectedEntity) {
-            notifyWarning("Por favor, selecione uma ETAR/EE.");
+            notifyWarning("Seleccione uma ETAR/EE.");
             return;
         }
 
@@ -42,13 +42,6 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
             pnmemo: newRecord.memo,
             pnts_associate: newRecord.associate ? parseInt(newRecord.associate, 10) : undefined
         };
-
-        // Adicionar PK específica conforme área
-        if (selectedArea === 1) {
-            payload.pntt_etar = selectedEntity.pk;
-        } else if (selectedArea === 2) {
-            payload.pntt_ee = selectedEntity.pk;
-        }
 
         if (await addRecord(payload)) {
             setNewRecord({
@@ -72,17 +65,15 @@ const ExpenseRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
         }
     };
 
-    // Filtra os tipos de despesa com base na área selecionada
     const getFilteredExpenseOptions = () => {
         if (!metaData?.expense) return [];
-        // Para a área de manutenção, filtramos por tipo 5. Para as outras, mostramos todas as que não são de manutenção.
         return selectedArea === 5
             ? metaData.expense.filter(e => e.type === 5)
             : metaData.expense.filter(e => e.type !== 5);
     };
 
     const expenseFieldsConfig = [
-        { name: "date", label: "Data", type: "date", required: true, size: 1.5},
+        { name: "date", label: "Data", type: "date", required: true, size: 1.5 },
         {
             name: "expenseDest",
             label: "Tipo da Despesa",

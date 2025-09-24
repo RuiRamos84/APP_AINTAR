@@ -18,10 +18,8 @@ import {
   Card,
   CardContent,
   IconButton,
-  Select,
-  InputLabel,
-  FormControl,
-  InputAdornment,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import { useDropzone } from "react-dropzone";
 import { useMetaData } from "../../../contexts/MetaDataContext";
@@ -48,12 +46,13 @@ import AddressForm from "../../../components/AddressForm/AddressForm";
 import DeleteIcon from '@mui/icons-material/Delete';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useLocation, useNavigate } from "react-router-dom";
-import "./CreateDocument.css";
 
 const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
-  const { metaData } = useMetaData();
+  const { metaData, loading, error } = useMetaData();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Estados
   const [createEntityModalOpen, setCreateEntityModalOpen] = useState(false);
   const [document, setDocument] = useState({
     nipc: initialNipc || "",
@@ -72,24 +71,10 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
   const [isDifferentAddress, setIsDifferentAddress] = useState(false);
   const [newEntityNipc, setNewEntityNipc] = useState("");
   const [billingAddress, setBillingAddress] = useState({
-    postal: "",
-    address: "",
-    door: "",
-    floor: "",
-    nut1: "",
-    nut2: "",
-    nut3: "",
-    nut4: "",
+    postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "",
   });
   const [shippingAddress, setShippingAddress] = useState({
-    postal: "",
-    address: "",
-    door: "",
-    floor: "",
-    nut1: "",
-    nut2: "",
-    nut3: "",
-    nut4: "",
+    postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "",
   });
   const [isUpdateNeeded, setIsUpdateNeeded] = useState(false);
   const [entityToUpdate, setEntityToUpdate] = useState(null);
@@ -105,133 +90,23 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
 
   const steps = ["Entidade e Morada", "Detalhes do Pedido", "Confirmação"];
 
+  // Hooks
   useEffect(() => {
     if (open) {
       const userProfile = JSON.parse(localStorage.getItem("user"));
-      if (userProfile && userProfile.profil === "1") {
-        setIsInterProfile(true);
-      } else {
-        setIsInterProfile(false);
-      }
+      setIsInterProfile(userProfile?.profil === "1");
     }
   }, [open]);
 
-  useEffect(() => {
-    const storedNIPC = localStorage.getItem("nipc");
-    if (storedNIPC) {
-      setDocument((prevDocument) => ({ ...prevDocument, nipc: storedNIPC }));
-      localStorage.removeItem("nipc");
-    }
-    const reOpenModal = localStorage.getItem("reOpenModal");
-    if (reOpenModal === "true") {
-      onClose(false);
-      setTimeout(() => onClose(true), 0);
-      localStorage.removeItem("reOpenModal");
-    }
-  }, [onClose]);
-
-  useEffect(() => {
-    if (location.state?.entityUpdated) {
-      notifySuccess("Entidade atualizada com sucesso.");
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    if (entityData) {
-      setDocument((prevDocument) => ({ ...prevDocument, ...billingAddress }));
-    }
-  }, [entityData, billingAddress]);
-
-  // useEffect(() => {
-  //   if (document.tt_type) {
-  //     fetchDocumentTypeParams(document.tt_type);
-  //   }
-  // }, [document.tt_type]);  
-
-  // const fetchDocumentTypeParams = async (typeId) => {
-  //   try {
-  //     const params = await getDocumentTypeParams(typeId);
-  //     const combinedParams = params.map((param) => {
-  //       const metaParam = metaData.param.find((p) => p.pk === param.tb_param);
-  //       return {
-  //         ...param,
-  //         ...metaParam,
-  //       };
-  //     });
-  //     setDocumentTypeParams(combinedParams);  
-  //     const initialParams = {};
-  //     combinedParams.forEach((param) => {
-  //       initialParams[`param_${param.tb_param}`] = param.value || "";
-  //       initialParams[`param_memo_${param.tb_param}`] = param.memo || "";
-  //     });
-  //     setAdditionalParams(initialParams);
-  //   } catch (error) {
-  //     console.error("Erro ao buscar parâmetros do tipo de documento:", error);
-  //     notifyError("Erro ao carregar parâmetros adicionais");
-  //   }
-  // };
-    
-  // const handleInternalSwitch = (event) => {
-  //   setIsInternal(event.target.checked); // Atualiza o estado do pedido para interno ou externo
-  //   setDocument((prevDocument) => ({ ...prevDocument, tt_type: "" })); // Limpa o tipo de documento ao mudar entre interno e externo
-  // };
-    
-  const handleAdditionalParamChange = (e) => {
-    const { name, value } = e.target;
-    setAdditionalParams((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleOpenEntityDetailModal = async (entityId) => {
-    try {
-      const response = await getEntity(entityId);
-      setEntityToUpdate(response.data);
-      setEntityDetailOpen(true);
-    } catch (error) {
-      console.error("Erro ao buscar entidade", error);
-      notifyError("Erro ao buscar detalhes da entidade");
-    }
-  };
-
-  const handleEntityUpdate = async (updatedEntity) => {
-    try {
-      await updateEntity(updatedEntity);
-      notifySuccess("Entidade atualizada com sucesso.");
-      setEntityData(updatedEntity);
-      const updatedBillingAddress = {
-        postal: updatedEntity.postal || "",
-        address: updatedEntity.address || "",
-        door: updatedEntity.door || "",
-        floor: updatedEntity.floor || "",
-        nut1: updatedEntity.nut1 || "",
-        nut2: updatedEntity.nut2 || "",
-        nut3: updatedEntity.nut3 || "",
-        nut4: updatedEntity.nut4 || "",
-      };
-      setBillingAddress(updatedBillingAddress);
-      setDocument((prevDocument) => ({
-        ...prevDocument,
-        ...updatedBillingAddress,
-        nipc: updatedEntity.nipc,
-      }));
-      if (!isDifferentAddress) {
-        setShippingAddress(updatedBillingAddress);
-      }
-      setEntityDetailOpen(false);
-      setIsUpdateNeeded(false);
-    } catch (error) {
-      notifyError("Erro ao atualizar entidade.");
-    }
-  };
-
-  const checkEntityData = async (nipc, isRepresentative = false) => {
+  const checkEntityData = useCallback(async (nipc, isRepresentative = false) => {
     try {
       const response = await getEntityByNIF(nipc);
-      if (!response || !response.entity) {
+      if (!response?.entity) {
         setNewEntityNipc(nipc);
         notifyCustom((t) => (
           <Box>
             <Typography variant="body1" gutterBottom>
-              Entidade não encontrada. Deseja criar uma nova?
+              Entidade não encontrada. Criar nova?
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
               <Button
@@ -240,17 +115,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                   toast.dismiss(t);
                 }}
                 variant="contained"
-                color="primary"
                 size="small"
                 sx={{ mr: 1 }}
               >
                 Criar Entidade
               </Button>
-              <Button
-                onClick={() => toast.dismiss(t)}
-                variant="outlined"
-                size="small"
-              >
+              <Button onClick={() => toast.dismiss(t)} variant="outlined" size="small">
                 Cancelar
               </Button>
             </Box>
@@ -260,18 +130,10 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
       }
 
       const entity = response.entity;
-      const isIncomplete =
-        !entity.nut1 ||
-        !entity.nut2 ||
-        !entity.nut3 ||
-        !entity.nut4 ||
-        !entity.address ||
-        !entity.postal;
+      const isIncomplete = !entity.nut1 || !entity.nut2 || !entity.nut3 || !entity.nut4 || !entity.address || !entity.postal;
 
       if (isIncomplete) {
-        notifyWarning(
-          "A entidade possui campos incompletos. Por favor, atualize os dados."
-        );
+        notifyWarning("Dados da entidade incompletos. Actualizar primeiro.");
         setEntityToUpdate(entity);
         setIsUpdateNeeded(true);
         return;
@@ -287,362 +149,210 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         nut3: entity.nut3 || "",
         nut4: entity.nut4 || "",
       };
-      // console.log(entity.pk);
+
       const countTypes = await getEntityCountTypes(entity.pk);
       if (countTypes > 0) {
-        notifyWarning(
-          "A entidade possui tipos de entidade. Por favor, atualize os dados"
-        );
+        notifyWarning("Entidade possui tipos. Actualizar dados.");
       }
       setEntityCountTypes(countTypes);
 
       if (isRepresentative) {
         setRepresentativeData(entity);
-        notifyInfo(
-          `NIF do representante inserido corresponde a - ${entity.name}`
-        );
+        notifyInfo(`Representante: ${entity.name}`);
       } else {
         setEntityData(entity);
         setBillingAddress(addressData);
-        setDocument((prevDocument) => ({
-          ...prevDocument,
-          ...addressData,
-          nipc: entity.nipc,
-        }));
+        setDocument(prev => ({ ...prev, ...addressData, nipc: entity.nipc }));
         if (!isDifferentAddress) {
           setShippingAddress(addressData);
         }
-        notifyInfo(`NIF inserido corresponde a - ${entity.name}`);
+        notifyInfo(`Entidade: ${entity.name}`);
       }
     } catch (error) {
-      notifyError("Erro ao verificar os dados da entidade.");
+      notifyError("Erro ao verificar entidade.");
     }
-  };
+  }, [isDifferentAddress]);
 
-  const handleCreateEntitySuccess = async (newEntity) => {
-    setCreateEntityModalOpen(false);
-    if (newEntity) {
-      try {
-        // Buscar os dados completos da entidade recém-criada
-        const response = await getEntityByNIF(newEntity.nipc);
-        if (response && response.entity) {
-          const entity = response.entity;
-          const newAddressData = {
-            postal: entity.postal || "",
-            address: entity.address || "",
-            door: entity.door || "",
-            floor: entity.floor || "",
-            nut1: entity.nut1 || "",
-            nut2: entity.nut2 || "",
-            nut3: entity.nut3 || "",
-            nut4: entity.nut4 || "",
-          };
-
-          if (isRepresentative) {
-            setRepresentativeData(entity);
-            setDocument((prev) => ({
-              ...prev,
-              tb_representative: entity.nipc,
-              ...newAddressData,
-            }));
-          } else {
-            setEntityData(entity);
-            setBillingAddress(newAddressData);
-            setDocument((prev) => ({
-              ...prev,
-              nipc: entity.nipc,
-              ...newAddressData,
-            }));
-            if (!isDifferentAddress) {
-              setShippingAddress(newAddressData);
-            }
-          }
-
-          notifySuccess("Entidade criada com sucesso!");
-        } else {
-          throw new Error("Falha ao obter os dados da entidade recém-criada");
-        }
-      } catch (error) {
-        console.error("Erro ao processar a entidade recém-criada:", error);
-        notifyError("Erro ao processar a entidade recém-criada");
-      }
-    }
-  };
-
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-    setDocument((prevDocument) => ({ ...prevDocument, [name]: value }));
-    setErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
+    setDocument(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: "" }));
 
     if (name === "tt_type") {
-      const selectedType = metaData.types.find(
-        (type) => type.tt_doctype_code === value
-      );
+      const selectedType = metaData?.types?.find(type => type.tt_doctype_code === value);
       const selectedText = selectedType ? selectedType.tt_doctype_value : "";
       setSelectedTypeText(selectedText);
 
-      const selectedCountType = entityCountTypes.find(
-        (type) => type.tt_type === selectedText
-      );
+      const selectedCountType = entityCountTypes.find(type => type.tt_type === selectedText);
       setSelectedCountType(selectedCountType || null);
 
       if (selectedCountType) {
-        notifyInfo(
-          `No ano corrente temos registo de ${selectedCountType.typecountyear} pedidos do tipo ${selectedText} recebidos por parte desta entidade, e no total global ${selectedCountType.typecountall}.`
-        );
+        notifyInfo(`Ano: ${selectedCountType.typecountyear}, Total: ${selectedCountType.typecountall} pedidos tipo ${selectedText}`);
       } else {
-        notifyWarning(
-          `Não temos registo de pedidos do tipo ${selectedText} por esta entidade.`
-        );
+        notifyWarning(`Sem registos tipo ${selectedText} para esta entidade.`);
       }
     }
 
-    const addressToUpdate = isDifferentAddress
-      ? setShippingAddress
-      : setBillingAddress;
-    addressToUpdate((prevAddress) => ({ ...prevAddress, [name]: value }));
+    // Actualizar endereços
+    const addressToUpdate = isDifferentAddress ? setShippingAddress : setBillingAddress;
+    addressToUpdate(prev => ({ ...prev, [name]: value }));
 
-    if (isDifferentAddress) {
-      setShippingAddress((prevAddress) => ({ ...prevAddress, [name]: value }));
-    } else {
-      setBillingAddress((prevAddress) => ({ ...prevAddress, [name]: value }));
-      setShippingAddress((prevAddress) => ({ ...prevAddress, [name]: value }));
+    if (!isDifferentAddress) {
+      setBillingAddress(prev => ({ ...prev, [name]: value }));
+      setShippingAddress(prev => ({ ...prev, [name]: value }));
     }
 
+    // Verificação de NIF
     if (name === "nipc" && value.length === 9) {
       checkEntityData(value);
     } else if (name === "nipc" && value === "") {
-      clearEntityData();
+      setEntityData(null);
+      setBillingAddress({
+        postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "",
+      });
+      setShippingAddress({
+        postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "",
+      });
     } else if (name === "tb_representative" && value.length === 9) {
       checkEntityData(value, true);
     }
-  };
+  }, [metaData?.types, entityCountTypes, isDifferentAddress, checkEntityData]);
 
-  const clearEntityData = () => {
-    setEntityData(null);
-    setBillingAddress({
-      postal: "",
-      address: "",
-      door: "",
-      floor: "",
-      nut1: "",
-      nut2: "",
-      nut3: "",
-      nut4: "",
-    });
-    setShippingAddress({
-      postal: "",
-      address: "",
-      door: "",
-      floor: "",
-      nut1: "",
-      nut2: "",
-      nut3: "",
-      nut4: "",
-    });
-  };
-
-  const clearFormData = () => {
-    setDocument({
-      nipc: initialNipc || "",
-      tt_type: "",
-      ts_associate: "",
-      tb_representative: "",
-      memo: "",
-      files: [],
-    });
-    clearEntityData();
-    setErrors({});
-    setEntityData(null);
-    setRepresentativeData(null);
-    setActiveStep(0);
-    setIsRepresentative(false);
-    setIsDifferentAddress(false);
-    setIsUpdateNeeded(false);
-    setEntityToUpdate(null);
-    setEntityDetailOpen(false);
-    setInterval(false);
-  };
-
-  const handleRepresentativeChange = (e) =>
-    setIsRepresentative(e.target.checked);
-
-  const handleDifferentAddressChange = (e) => {
-    const checked = e.target.checked;
-    setIsDifferentAddress(checked);
-    if (checked) {
-      // Limpar os dados da morada de envio para que o usuário insira novos dados
-      setShippingAddress({
-        postal: "",
-        address: "",
-        door: "",
-        floor: "",
-        nut1: "",
-        nut2: "",
-        nut3: "",
-        nut4: "",
-      });
-    } else {
-      // Se desmarcada, a morada de envio deve ser igual à de faturação
-      setShippingAddress(billingAddress);
-    }
-  };
-
-  const generatePDFThumbnail = async (file) => {
+  const generatePDFThumbnail = useCallback(async (file) => {
     const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
     const pdf = await loadingTask.promise;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 0.5 });
-    const canvas = window.document.createElement("canvas");
+    const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const context = canvas.getContext("2d");
-    await page.render({ canvasContext: context, viewport: viewport }).promise;
+    await page.render({ canvasContext: context, viewport }).promise;
     return canvas.toDataURL();
-  };
+  }, []);
 
-  const generateFilePreview = async (file) => {
-    if (file.type === "application/pdf") {
-      return await generatePDFThumbnail(file);
-    } else if (file.type.startsWith("image/")) {
-      return URL.createObjectURL(file);
-    } else {
-      return "url/to/generic/file/icon.png";
+  const onDrop = useCallback(async (acceptedFiles) => {
+    if (acceptedFiles.length + document.files.length > 5) {
+      notifyError("Máximo 5 ficheiros.");
+      return;
     }
-  };
 
-  const onDrop = useCallback(
-    async (acceptedFiles) => {
-      if (acceptedFiles.length + document.files.length > 5) {
-        notifyError("Máximo de 5 arquivos permitidos.");
-        return;
-      }
+    const newFiles = await Promise.all(
+      acceptedFiles.map(async (file) => ({
+        file,
+        preview: file.type === "application/pdf"
+          ? await generatePDFThumbnail(file)
+          : file.type.startsWith("image/")
+            ? URL.createObjectURL(file)
+            : "url/to/generic/file/icon.png",
+        description: "",
+      }))
+    );
 
-      const newFiles = await Promise.all(
-        acceptedFiles.map(async (file) => ({
-          file,
-          preview: await generateFilePreview(file),
-          description: "",
-        }))
-      );
-
-      setDocument((prevDocument) => ({
-        ...prevDocument,
-        files: [...prevDocument.files, ...newFiles],
-      }));
-      setErrors((prevErrors) => ({ ...prevErrors, files: "" }));
-    },
-    [document.files]
-  );
-
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop,
-    accept: "",
-  });
-
-  const handleFileDescriptionChange = (index, e) => {
-    const newFiles = [...document.files];
-    newFiles[index].description = e.target.value;
-    setDocument((prevDocument) => ({ ...prevDocument, files: newFiles }));
-  };
-
-  const handleRemoveFile = (index) => {
-    setDocument((prevDocument) => ({
-      ...prevDocument,
-      files: prevDocument.files.filter((_, i) => i !== index),
+    setDocument(prev => ({
+      ...prev,
+      files: [...prev.files, ...newFiles],
     }));
-  };
+    setErrors(prev => ({ ...prev, files: "" }));
+  }, [document.files, generatePDFThumbnail]);
 
-  const validateStep = () => {
+  const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: "" });
+
+  const validateStep = useCallback(() => {
     const tempErrors = {};
     switch (activeStep) {
       case 0:
-        if (!isInternal) { // Só checa se não for pedido interno
-          if (!document.nipc) tempErrors.nipc = "NIPC é obrigatório.";
+        if (!isInternal) {
+          if (!document.nipc) tempErrors.nipc = "NIPC obrigatório.";
           if (isRepresentative && !document.tb_representative) {
-            tempErrors.tb_representative = "NIF do representante é obrigatório.";
+            tempErrors.tb_representative = "NIF representante obrigatório.";
           }
-          if (!billingAddress.address)
-            tempErrors.address = "Morada é obrigatória.";
-          if (!billingAddress.postal)
-            tempErrors.postal = "Código Postal é obrigatório.";
+          if (!billingAddress.address) tempErrors.address = "Morada obrigatória.";
+          if (!billingAddress.postal) tempErrors.postal = "Código postal obrigatório.";
         }
         break;
       case 1:
-        if (!document.tt_type)
-          tempErrors.tt_type = "Tipo de Documento é obrigatório.";
-        if (!isInternal && !document.ts_associate)
-          tempErrors.ts_associate = "Associado é obrigatório.";
+        if (!document.tt_type) tempErrors.tt_type = "Tipo documento obrigatório.";
+        if (!isInternal && !document.ts_associate) tempErrors.ts_associate = "Associado obrigatório.";
         if (!document.memo && document.files.length === 0) {
-          tempErrors.memo = "Adicione notas ou anexe pelo menos um arquivo.";
+          tempErrors.memo = "Notas ou ficheiros obrigatórios.";
         }
-        // Verifica se todos os arquivos têm descrição
         document.files.forEach((file, index) => {
           if (!file.description.trim()) {
-            tempErrors[`file_${index}`] = "Descrição do arquivo é obrigatória.";
+            tempErrors[`file_${index}`] = "Descrição ficheiro obrigatória.";
           }
         });
-        break;
-      default:
         break;
     }
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
-  };
+  }, [activeStep, document, billingAddress, isRepresentative, isInternal]);
+
+  // Verificações condicionais após hooks
+  if (loading || !metaData) {
+    return (
+      <Dialog open={open} onClose={onClose}>
+        <DialogContent>
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress />
+          </Box>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (error) {
+    return (
+      <Dialog open={open} onClose={onClose}>
+        <DialogContent>
+          <Alert severity="error">Erro ao carregar metadados</Alert>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const handleNext = () => {
     if (validateStep()) {
-      setActiveStep((prevStep) => prevStep + 1);
+      setActiveStep(prev => prev + 1);
     }
   };
 
-  const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
-  };
+  const handleBack = () => setActiveStep(prev => prev - 1);
 
   const handleSubmit = async () => {
     if (!validateStep()) {
-      notifyError("Por favor, preencha todos os campos obrigatórios.");
+      notifyError("Campos obrigatórios em falta.");
       return;
     }
 
-    // Verificação adicional para garantir que todos os arquivos têm descrição
-    const allFilesHaveDescription = document.files.every(
-      (file) => file.description.trim() !== ""
-    );
+    const allFilesHaveDescription = document.files.every(file => file.description.trim() !== "");
     if (!allFilesHaveDescription) {
-      notifyError("Todos os arquivos anexados devem ter uma descrição.");
+      notifyError("Todos os ficheiros precisam de descrição.");
       return;
     }
 
     try {
       const formData = new FormData();
-      // Adicionar dados do documento
+
       Object.entries(document).forEach(([key, value]) => {
         if (key !== "files") {
           formData.append(key, value);
         }
       });
 
-      // Adicionar flag para indicar se está usando morada diferente
       formData.append("isDifferentAddress", isDifferentAddress);
-
-      // Adicionar ambas as moradas ao formData
       Object.entries(billingAddress).forEach(([key, value]) => {
         formData.append(`billing_${key}`, value);
       });
-
       Object.entries(shippingAddress).forEach(([key, value]) => {
         formData.append(`shipping_${key}`, value);
       });
 
-      // Adicionar parâmetros adicionais
       Object.entries(additionalParams).forEach(([key, value]) => {
         formData.append(key, value);
       });
 
-      // Anexar arquivos e suas descrições
-      document.files.forEach((fileObj, index) => {
+      document.files.forEach((fileObj) => {
         formData.append(`files`, fileObj.file);
         formData.append(`descr`, fileObj.description || "");
       });
@@ -654,123 +364,46 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
       if (representativeData) {
         formData.append("tb_representative", representativeData.nipc);
       }
-      // console.log(formData)
 
       const response = await createDocument(formData);
 
-      if (response && response.regnumber) {
-        notifySuccess(
-          `Pedido com o número: ${response.regnumber}, criado com sucesso!`
-        );
-        clearFormData(); // Limpar dados do formulário
+      if (response?.regnumber) {
+        notifySuccess(`Pedido ${response.regnumber} criado!`);
+        clearFormData();
         onClose();
       } else {
-        notifyError(
-          "Erro ao criar Pedido: " +
-            (response.erro || "Resposta inválida do servidor.")
-        );
+        notifyError("Erro: " + (response.erro || "Resposta inválida."));
       }
     } catch (error) {
-      console.error("Erro ao criar Pedido:", error);
-      notifyError(
-        "Erro ao criar Pedido: " +
-          (error.response?.data?.erro || error.message || "Erro desconhecido")
-      );
+      notifyError("Erro: " + (error.response?.data?.erro || error.message || "Desconhecido"));
     }
   };
 
-  const handleModalClose = () => setConfirmClose(true);
-
-  const confirmCloseModal = () => {
-    clearFormData();
-    setIsInternal(false);
-    setConfirmClose(false);
-    onClose();
+  const clearFormData = () => {
+    setDocument({
+      nipc: initialNipc || "",
+      tt_type: "", ts_associate: "", tb_representative: "", memo: "", files: [],
+    });
+    setEntityData(null);
+    setRepresentativeData(null);
+    setBillingAddress({
+      postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "",
+    });
+    setShippingAddress({
+      postal: "", address: "", door: "", floor: "", nut1: "", nut2: "", nut3: "", nut4: "",
+    });
+    setErrors({});
+    setActiveStep(0);
+    setIsRepresentative(false);
+    setIsDifferentAddress(false);
   };
-
-  const cancelCloseModal = () => setConfirmClose(false);
-
-  const getTypeDescription = (typeId) => {
-    const type = metaData.types.find((t) => t.tt_doctype_code === typeId);
-    return type ? type.tt_doctype_value : ""; 
-  };
-
-  const getAssociateDescription = (associateId) => {
-    const associate = metaData.associates.find((a) => a.pk === associateId);
-    return associate ? associate.name : "";
-  };
-
-  const renderEntityInfo = (entity, title) => (
-    <Card>
-      <CardContent>
-        <Typography variant="h6">{title}</Typography>
-        <Typography>Nome: {entity.name}</Typography>
-        <Typography>Morada: {entity.address}</Typography>
-      </CardContent>
-    </Card>
-  );
-
-  const renderAddressForm = () => (
-    <AddressForm
-      entity={isDifferentAddress ? shippingAddress : billingAddress}
-      setEntity={isDifferentAddress ? setShippingAddress : setBillingAddress}
-      errors={errors}
-    />
-  );
-
-  const renderFileUpload = () => (
-    <>
-      {document.files.map((file, index) => (
-        <Grid size={{ xs: 12, sm: 6 }} key={index}>
-          <Box display="flex" alignItems="center">
-            <img
-              src={file.preview}
-              alt={`preview ${index}`}
-              style={{ width: 100, marginRight: 10 }}
-            />
-            <TextField
-              required
-              fullWidth
-              label={`Descrição do ${index + 1}º Arquivo`}
-              value={file.description}
-              onChange={(e) => handleFileDescriptionChange(index, e)}
-              error={!!errors[`file_${index}`]}
-              helperText={errors[`file_${index}`]}
-            />
-            <IconButton onClick={() => handleRemoveFile(index)}>
-              <DeleteIcon />
-            </IconButton>
-          </Box>
-        </Grid>
-      ))}
-      <Grid size={{ xs: 12 }}>
-        <Box {...getRootProps()} style={dropzoneStyle}>
-          <input {...getInputProps()} />
-          <p>Arraste e solte arquivos aqui, ou clique para selecionar</p>
-        </Box>
-      </Grid>
-    </>
-  );
 
   const getStepContent = (step) => {
     switch (step) {
       case 0:
         return (
           <Grid container spacing={2}>
-            {/* {isInterProfile && (
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={isInternal}
-                      onChange={handleInternalSwitch}
-                    />
-                  }
-                  label="Pedido Interno"
-                />
-              </Grid>
-            )} */}
-            <Grid size={{ xs: 12, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 12, md: 3, lg: 3 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -783,26 +416,32 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
               />
             </Grid>
             {entityData && (
-              <Grid size={{ xs: 12, sm: 6 }}>
-                {renderEntityInfo(entityData, "Dados da Entidade Requerente:")}
+              <Grid size={{ xs: 12, sm: 12, md: 6, lg: 6 }}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6">Entidade Requerente:</Typography>
+                    <Typography>Nome: {entityData.name}</Typography>
+                    <Typography>Morada: {entityData.address}</Typography>
+                  </CardContent>
+                </Card>
               </Grid>
             )}
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox
                     checked={isRepresentative}
-                    onChange={handleRepresentativeChange}
+                    onChange={(e) => setIsRepresentative(e.target.checked)}
                   />
                 }
                 label="É Representante?"
               />
             </Grid>
             {isRepresentative && (
-              <Grid size={{ xs: 12, sm: 3 }}>
+              <Grid size={{ xs: 12, sm: 12, md: 3, lg: 3 }}>
                 <TextField
                   fullWidth
-                  label="NIF do Representante"
+                  label="NIF Representante"
                   name="tb_representative"
                   value={document.tb_representative}
                   onChange={handleChange}
@@ -811,38 +450,46 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 />
               </Grid>
             )}
-            {representativeData && isRepresentative && (
-              <Grid size={{ xs: 12, sm: 6 }}>
-                {renderEntityInfo(
-                  representativeData,
-                  "Dados do Representante:"
-                )}
+            {representativeData && (
+              <Grid size={{ xs: 12, sm: 12, md: 6, lg: 6 }}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6">Representante:</Typography>
+                    <Typography>Nome: {representativeData.name}</Typography>
+                    <Typography>Morada: {representativeData.address}</Typography>
+                  </CardContent>
+                </Card>
               </Grid>
             )}
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox
                     checked={isDifferentAddress}
-                    onChange={handleDifferentAddressChange}
+                    onChange={(e) => setIsDifferentAddress(e.target.checked)}
                   />
                 }
-                label="Morada do Pedido diferente da morada de faturação?"
+                label="Morada entrega diferente da facturação?"
               />
             </Grid>
-            <Grid size={{ xs: 12 }}>
-              {renderAddressForm()}
+            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
+              <AddressForm
+                entity={isDifferentAddress ? shippingAddress : billingAddress}
+                setEntity={isDifferentAddress ? setShippingAddress : setBillingAddress}
+                errors={errors}
+              />
             </Grid>
           </Grid>
         );
+
       case 1:
         return (
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }}>
               <TextField
                 select
                 fullWidth
-                label="Tipo de Documento"
+                label="Tipo Documento"
                 name="tt_type"
                 value={document.tt_type}
                 onChange={handleChange}
@@ -850,15 +497,15 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 helperText={errors.tt_type}
               >
                 {metaData?.types
-                  ?.filter((type) => (isInternal ? type.intern === 1 : type.intern === 0))
-                  .map((type) => (
+                  ?.filter(type => isInternal ? type.intern === 1 : type.intern === 0)
+                  .map(type => (
                     <MenuItem key={type.pk} value={type.tt_doctype_code}>
                       {type.tt_doctype_value}
                     </MenuItem>
                   ))}
               </TextField>
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }}>
               <TextField
                 select
                 fullWidth
@@ -869,53 +516,14 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 error={!!errors.ts_associate}
                 helperText={errors.ts_associate}
               >
-                {metaData?.associates?.map((associate) => (
+                {metaData?.associates?.map(associate => (
                   <MenuItem key={associate.pk} value={associate.pk}>
                     {associate.name}
                   </MenuItem>
                 ))}
               </TextField>
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                select
-                fullWidth
-                label="Forma de Apresentação"
-                name="tt_presentation"
-                value={document.tt_presentation}
-                onChange={handleChange}
-                error={!!errors.tt_presentation}
-                helperText={errors.tt_presentation}
-              >
-                {metaData?.presentation?.map((presentation) => (
-                  <MenuItem key={presentation.pk} value={presentation.pk}>
-                    {presentation.value}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              {renderAdditionalFields()}
-              {document.tt_type && (
-                <Grid size={{ xs: 12 }}>
-                  {selectedCountType ? (
-                    <Typography variant="body1" color="textSecondary">
-                      {" "}
-                      {selectedCountType.typecountyear}º registo de pedido do
-                      tipo {selectedTypeText} efesctuados no ano corrente por
-                      esta entidade, e {selectedCountType.typecountall} no total
-                      global.
-                    </Typography>
-                  ) : (
-                    <Typography variant="body1" color="textSecondary">
-                      Não dispomos de nenhum registo de pedidos do tipo{" "}
-                      {selectedTypeText} realizados por esta entidade .
-                    </Typography>
-                  )}
-                </Grid>
-              )}
-            </Grid>
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -928,153 +536,126 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
                 helperText={errors.memo}
               />
             </Grid>
-            {renderFileUpload()}
+            {document.files.map((file, index) => (
+              <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }} key={index}>
+                <Box display="flex" alignItems="center">
+                  <img
+                    src={file.preview}
+                    alt={`preview ${index}`}
+                    style={{ width: 100, marginRight: 10 }}
+                  />
+                  <TextField
+                    required
+                    fullWidth
+                    label={`Descrição ${index + 1}º ficheiro`}
+                    value={file.description}
+                    onChange={(e) => {
+                      const newFiles = [...document.files];
+                      newFiles[index].description = e.target.value;
+                      setDocument(prev => ({ ...prev, files: newFiles }));
+                    }}
+                    error={!!errors[`file_${index}`]}
+                    helperText={errors[`file_${index}`]}
+                  />
+                  <IconButton onClick={() => {
+                    setDocument(prev => ({
+                      ...prev,
+                      files: prev.files.filter((_, i) => i !== index)
+                    }));
+                  }}>
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              </Grid>
+            ))}
+            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
+              <Box {...getRootProps()} sx={{
+                border: '2px dashed',
+                borderColor: 'grey.400',
+                borderRadius: 1,
+                p: 3,
+                textAlign: 'center',
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' }
+              }}>
+                <input {...getInputProps()} />
+                <Typography>
+                  Arrastar ficheiros ou clicar para seleccionar
+                </Typography>
+              </Box>
+            </Grid>
           </Grid>
         );
+
       case 2:
-        const addressToUse = isDifferentAddress
-          ? shippingAddress
-          : billingAddress;
+        const addressToUse = isDifferentAddress ? shippingAddress : billingAddress;
         const addressLine1 = [
           addressToUse.address,
           addressToUse.door,
           addressToUse.floor,
-        ]
-          .filter(Boolean)
-          .join(", ");
+        ].filter(Boolean).join(", ");
         const addressLine2 = [addressToUse.postal, addressToUse.nut4]
-          .filter(Boolean)
-          .join(", ");
+          .filter(Boolean).join(", ");
+
         return (
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12 }}>
-              <Typography
-                variant="h5"
-                align="center"
-                style={{ fontWeight: "bold" }}
-              >
+            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
+              <Typography variant="h5" align="center" sx={{ fontWeight: 'bold' }}>
                 Resumo do Pedido
               </Typography>
             </Grid>
-            <Grid container item xs={12} spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h6" style={{ fontWeight: "bold" }}>
-                  Entidade e Morada
-                </Typography>
+            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                Entidade e Morada
+              </Typography>
+              <Typography><strong>Nome:</strong> {entityData?.name}</Typography>
+              <Typography><strong>NIF:</strong> {document.nipc}</Typography>
+              <Typography><strong>Morada:</strong> {addressLine1}</Typography>
+              <Typography sx={{ ml: 7 }}>{addressLine2}</Typography>
+              {isDifferentAddress && (
                 <Typography>
-                  <strong>Nome:</strong> {entityData?.name}
+                  <strong>Nota:</strong> Morada entrega diferente da facturação
                 </Typography>
-                <Typography>
-                  <strong>NIF:</strong> {document.nipc}
-                </Typography>
-                <Typography>
-                  <strong>Morada:</strong> {addressLine1}
-                </Typography>
-                <Typography style={{ marginLeft: "7ch" }}>
-                  {addressLine2}
-                </Typography>
-                {isDifferentAddress && (
+              )}
+              {representativeData && (
+                <>
                   <Typography>
-                    <strong>Nota:</strong> Morada de envio diferente da morada
-                    de faturação
+                    <strong>Representante:</strong> {representativeData.name}
                   </Typography>
-                )}
-                {representativeData && (
-                  <>
-                    <Typography>
-                      <strong>Nome do Representante:</strong>{" "}
-                      {representativeData.name}
-                    </Typography>
-                    <Typography>
-                      <strong>NIF do Representante:</strong>{" "}
-                      {document.tb_representative}
-                    </Typography>
-                  </>
-                )}
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <Typography variant="h6" style={{ fontWeight: "bold" }}>
-                  Detalhes do Pedido
-                </Typography>
-                <Typography>
-                  <strong>Tipo de Documento:</strong>{" "}
-                  {getTypeDescription(document.tt_type)}
-                </Typography>
-                <Typography>
-                  <strong>Associado:</strong>{" "}
-                  {getAssociateDescription(document.ts_associate)}
-                </Typography>
-                <Typography>
-                  <strong>Notas:</strong> {document.memo}
-                </Typography>
-                <Typography>
-                  <strong>Arquivos Anexados:</strong> {document.files.length}
-                </Typography>
-              </Grid>
+                  <Typography>
+                    <strong>NIF Representante:</strong> {document.tb_representative}
+                  </Typography>
+                </>
+              )}
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                Detalhes do Pedido
+              </Typography>
+              <Typography>
+                <strong>Tipo:</strong> {
+                  metaData?.types?.find(t => t.tt_doctype_code === document.tt_type)?.tt_doctype_value
+                }
+              </Typography>
+              <Typography>
+                <strong>Associado:</strong> {
+                  metaData?.associates?.find(a => a.pk === document.ts_associate)?.name
+                }
+              </Typography>
+              <Typography><strong>Notas:</strong> {document.memo}</Typography>
+              <Typography><strong>Ficheiros:</strong> {document.files.length}</Typography>
             </Grid>
           </Grid>
         );
+
       default:
         return "Passo desconhecido";
     }
   };
 
-  const renderAdditionalFields = () => {
-    return documentTypeParams.map((param) => (
-      <React.Fragment key={param.tb_param}>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          {param.type === "select" ? (
-            <FormControl fullWidth>
-              <InputLabel>{param.name}</InputLabel>
-              <Select
-                name={`param_${param.tb_param}`}
-                value={additionalParams[`param_${param.tb_param}`] || ""}
-                onChange={handleAdditionalParamChange}
-                required={param.mandatory}
-              >
-                {param.options &&
-                  param.options.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
-          ) : (
-            <TextField
-              fullWidth
-              label={param.name}
-              name={`param_${param.tb_param}`}
-              value={additionalParams[`param_${param.tb_param}`] || ""}
-              onChange={handleAdditionalParamChange}
-              required={param.mandatory}
-              type={param.type === "number" ? "number" : "text"}
-              InputProps={{
-                endAdornment: param.units ? (
-                  <InputAdornment position="end">{param.units}</InputAdornment>
-                ) : null,
-              }}
-            />
-          )}
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField
-            fullWidth
-            label={`Memo ${param.name}`}
-            name={`param_memo_${param.tb_param}`}
-            value={additionalParams[`param_memo_${param.tb_param}`] || ""}
-            onChange={handleAdditionalParamChange}
-            multiline
-            rows={2}
-          />
-        </Grid>
-      </React.Fragment>
-    ));
-  };
-
   return (
     <>
-      <Dialog open={open} onClose={handleModalClose} maxWidth="lg" fullWidth>
+      <Dialog open={open} onClose={() => setConfirmClose(true)} maxWidth="lg" fullWidth>
         <DialogTitle>Criar Novo Pedido</DialogTitle>
         <DialogContent>
           <Box mb={6}>
@@ -1089,7 +670,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
           {getStepContent(activeStep)}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleModalClose}>Cancelar</Button>
+          <Button onClick={() => setConfirmClose(true)}>Cancelar</Button>
           <Button disabled={activeStep === 0} onClick={handleBack}>
             Voltar
           </Button>
@@ -1104,74 +685,133 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
           )}
         </DialogActions>
       </Dialog>
+
       <Dialog open={isUpdateNeeded} onClose={() => setIsUpdateNeeded(false)}>
         <DialogTitle>Dados Incompletos</DialogTitle>
         <DialogContent>
           <Typography>
-            Os dados desta entidade estão incompletos. É necessário atualizá-los
-            para prosseguir.
+            Dados desta entidade estão incompletos. Actualizar para prosseguir.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsUpdateNeeded(false)} color="primary">
-            Cancelar
-          </Button>
+          <Button onClick={() => setIsUpdateNeeded(false)}>Cancelar</Button>
           <Button
             onClick={() => setEntityDetailOpen(true)}
-            color="primary"
+            variant="contained"
             autoFocus
           >
-            Atualizar Dados
+            Actualizar Dados
           </Button>
         </DialogActions>
       </Dialog>
-      {entityDetailOpen && entityToUpdate && (
-        <EntityDetail
-          entity={entityToUpdate}
-          onSave={handleEntityUpdate}
-          onClose={() => setEntityDetailOpen(false)}
-          open={entityDetailOpen}
-        />
-      )}
-      <Dialog
-        open={confirmClose}
-        onClose={cancelCloseModal}
-        aria-labelledby="confirm-close-dialog-title"
-        aria-describedby="confirm-close-dialog-description"
-      >
-        <DialogTitle id="confirm-close-dialog-title">
-          Descartar Alterações?
-        </DialogTitle>
+
+      <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
+        <DialogTitle>Descartar Alterações?</DialogTitle>
         <DialogContent>
           <Typography>
-            Existem alterações não guardadas. Deseja realmente sair sem guardar?
+            Existem alterações não guardadas. Sair sem guardar?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelCloseModal} color="primary">
-            Não
-          </Button>
-          <Button onClick={confirmCloseModal} color="primary" autoFocus>
+          <Button onClick={() => setConfirmClose(false)}>Não</Button>
+          <Button
+            onClick={() => {
+              clearFormData();
+              setConfirmClose(false);
+              onClose();
+            }}
+            variant="contained"
+            autoFocus
+          >
             Sim
           </Button>
         </DialogActions>
       </Dialog>
+
+      {entityDetailOpen && entityToUpdate && (
+        <EntityDetail
+          entity={entityToUpdate}
+          onSave={(updatedEntity) => {
+            setEntityData(updatedEntity);
+            const updatedAddress = {
+              postal: updatedEntity.postal || "",
+              address: updatedEntity.address || "",
+              door: updatedEntity.door || "",
+              floor: updatedEntity.floor || "",
+              nut1: updatedEntity.nut1 || "",
+              nut2: updatedEntity.nut2 || "",
+              nut3: updatedEntity.nut3 || "",
+              nut4: updatedEntity.nut4 || "",
+            };
+            setBillingAddress(updatedAddress);
+            setDocument(prev => ({
+              ...prev,
+              ...updatedAddress,
+              nipc: updatedEntity.nipc,
+            }));
+            if (!isDifferentAddress) {
+              setShippingAddress(updatedAddress);
+            }
+            setEntityDetailOpen(false);
+            setIsUpdateNeeded(false);
+            notifySuccess("Entidade actualizada.");
+          }}
+          onClose={() => setEntityDetailOpen(false)}
+          open={entityDetailOpen}
+        />
+      )}
+
       <CreateEntity
         open={createEntityModalOpen}
         onClose={() => setCreateEntityModalOpen(false)}
-        onSave={handleCreateEntitySuccess}
+        onSave={async (newEntity) => {
+          setCreateEntityModalOpen(false);
+          if (newEntity) {
+            try {
+              const response = await getEntityByNIF(newEntity.nipc);
+              if (response?.entity) {
+                const entity = response.entity;
+                const newAddressData = {
+                  postal: entity.postal || "",
+                  address: entity.address || "",
+                  door: entity.door || "",
+                  floor: entity.floor || "",
+                  nut1: entity.nut1 || "",
+                  nut2: entity.nut2 || "",
+                  nut3: entity.nut3 || "",
+                  nut4: entity.nut4 || "",
+                };
+
+                if (isRepresentative) {
+                  setRepresentativeData(entity);
+                  setDocument(prev => ({
+                    ...prev,
+                    tb_representative: entity.nipc,
+                    ...newAddressData,
+                  }));
+                } else {
+                  setEntityData(entity);
+                  setBillingAddress(newAddressData);
+                  setDocument(prev => ({
+                    ...prev,
+                    nipc: entity.nipc,
+                    ...newAddressData,
+                  }));
+                  if (!isDifferentAddress) {
+                    setShippingAddress(newAddressData);
+                  }
+                }
+                notifySuccess("Entidade criada!");
+              }
+            } catch (error) {
+              notifyError("Erro ao processar nova entidade");
+            }
+          }
+        }}
         initialNipc={newEntityNipc}
       />
     </>
   );
-};
-
-const dropzoneStyle = {
-  border: "2px dashed #cccccc",
-  borderRadius: "4px",
-  padding: "20px",
-  textAlign: "center",
-  cursor: "pointer",
 };
 
 export default CreateDocumentModal;

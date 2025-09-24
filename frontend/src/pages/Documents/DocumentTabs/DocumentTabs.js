@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, Tab, Badge, Box } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Tabs, Tab, Badge, Box, Chip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 const DocumentTabs = ({ documents, onFilterChange }) => {
     const [value, setValue] = useState(4);
     const theme = useTheme();
 
-    const states = {
+    const states = useMemo(() => ({
         '-1': 'ANULADO',
-        '0': 'CONCLUIDO',
+        '0': 'CONCLUÍDO',
         '1': 'ENTRADA',
         '4': 'PARA TRATAMENTO',
         '5': 'ANÁLISE EXTERNA',
@@ -21,11 +21,13 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
         '12': 'PARA COBRANÇA',
         '13': 'PARA ACEITAÇÃO DE ORÇAMENTO',
         '100': 'PARA PAGAMENTO DE PAVIMENTAÇÃO'
-    };
+    }), []);
 
-    const getDocumentCount = (stateId) => {
-        return documents.filter(doc => doc.what === parseInt(stateId)).length;
-    };
+    const getDocumentCount = useMemo(() => {
+        return (stateId) => {
+            return documents.filter(doc => doc.what === parseInt(stateId)).length;
+        };
+    }, [documents]);
 
     const handleChange = (event, newValue) => {
         setValue(newValue);
@@ -33,15 +35,21 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
     };
 
     useEffect(() => {
-        // Sempre selecionar o primeiro estado com documentos ao carregar
         const firstStateWithDocs = Object.keys(states).find(id => getDocumentCount(id) > 0);
         if (firstStateWithDocs) {
-            setValue(parseInt(firstStateWithDocs));
-            onFilterChange(parseInt(firstStateWithDocs));
+            const stateValue = parseInt(firstStateWithDocs);
+            setValue(stateValue);
+            onFilterChange(stateValue);
         }
-    }, [documents]);
+    }, [documents, states, getDocumentCount, onFilterChange]);
 
-    const activeStates = Object.entries(states).filter(([id]) => getDocumentCount(id) > 0);
+    const activeStates = useMemo(() => {
+        return Object.entries(states).filter(([id]) => getDocumentCount(id) > 0);
+    }, [states, getDocumentCount]);
+
+    if (activeStates.length === 0) {
+        return null;
+    }
 
     return (
         <Box sx={{
@@ -49,49 +57,84 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
             position: 'relative',
             zIndex: 1,
             overflow: 'hidden',
-            flexShrink: 0 // Previne que as tabs sejam comprimidas
+            flexShrink: 0,
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 2
         }}>
             <Tabs
                 value={value}
                 onChange={handleChange}
                 variant="scrollable"
                 scrollButtons="auto"
+                allowScrollButtonsMobile
                 sx={{
-                    minHeight: '48px',
+                    minHeight: 48,
                     '& .MuiTab-root': {
-                        minHeight: '48px',
+                        minHeight: 48,
                         textTransform: 'none',
                         minWidth: 'auto',
-                        padding: '12px 16px'
+                        px: 2,
+                        py: 1.5,
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        '&:hover': {
+                            bgcolor: 'action.hover',
+                        },
+                        '&.Mui-selected': {
+                            color: 'primary.main',
+                            fontWeight: 600,
+                        }
                     },
                     '& .MuiTabs-flexContainer': {
-                        width: 'auto', // Garante que as tabs não ultrapassem o contêiner
+                        minHeight: 48,
                     },
-                    position: 'relative' // Garante posicionamento correto
+                    '& .MuiTabs-indicator': {
+                        height: 3,
+                        borderRadius: '3px 3px 0 0',
+                    }
                 }}
             >
-                {activeStates.map(([id, label]) => (
-                    <Tab
-                        key={id}
-                        value={parseInt(id)}
-                        label={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {label}
-                                <Badge
-                                    badgeContent={getDocumentCount(id)}
-                                    color="primary"
-                                    max={999}
-                                    sx={{
-                                        '& .MuiBadge-badge': {
-                                            position: 'relative',
-                                            transform: 'none',
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
-                    />
-                ))}
+                {activeStates.map(([id, label]) => {
+                    const count = getDocumentCount(id);
+                    const stateId = parseInt(id);
+
+                    return (
+                        <Tab
+                            key={id}
+                            value={stateId}
+                            label={
+                                <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    <span>{label}</span>
+                                    <Chip
+                                        label={count}
+                                        size="small"
+                                        color={stateId === value ? "primary" : "default"}
+                                        variant={stateId === value ? "filled" : "outlined"}
+                                        sx={{
+                                            height: 20,
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            minWidth: 24,
+                                            '& .MuiChip-label': {
+                                                px: 1,
+                                            }
+                                        }}
+                                    />
+                                </Box>
+                            }
+                            sx={{
+                                opacity: count === 0 ? 0.5 : 1,
+                                pointerEvents: count === 0 ? 'none' : 'auto'
+                            }}
+                        />
+                    );
+                })}
             </Tabs>
         </Box>
     );

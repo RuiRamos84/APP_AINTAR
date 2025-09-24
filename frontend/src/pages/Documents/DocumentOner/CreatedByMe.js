@@ -1,19 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  Paper,
-  Grid,
-  Button,
-  TablePagination,
-  useTheme,
-  TableSortLabel,
-  CircularProgress,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Typography, Paper, Grid, Button, TablePagination, useTheme,
+  TableSortLabel, CircularProgress, Box, Alert,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
@@ -21,7 +10,7 @@ import SearchBar from "../../../components/common/SearchBar/SearchBar";
 import CreateDocumentModal from "../DocumentCreate/CreateDocumentModal";
 import { getDocumentsCreatedByMe } from "../../../services/documentService";
 import Row from "../DocumentListAll/Row";
-import "../DocumentOner/CreatedByMe.css";
+import "./CreatedByMe.css";
 
 const CreatedByMe = () => {
   const theme = useTheme();
@@ -35,10 +24,7 @@ const CreatedByMe = () => {
   const [openModal, setOpenModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // eslint-disable-next-line no-unused-vars
   const [initialNipc, setInitialNipc] = useState(null);
-
-  const hiddenFields = ["creator", "type_countall", "type_countyear"];
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
@@ -47,29 +33,18 @@ const CreatedByMe = () => {
       const fetchedDocuments = await getDocumentsCreatedByMe();
       setDocuments(fetchedDocuments);
     } catch (error) {
-      console.error("Erro ao buscar documentos:", error);
-      setError("Erro ao carregar documentos. Por favor, tente novamente.");
+      setError("Erro ao carregar documentos.");
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies here
+  }, []);
 
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  const handleReloadDocuments = useCallback(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
-
-  const handleSearch = (term) => {
-    setSearchTerm(term);
-  };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
+  const handleSearch = (term) => setSearchTerm(term);
+  const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(+event.target.value);
     setPage(0);
@@ -81,60 +56,51 @@ const CreatedByMe = () => {
     setOrderBy(property);
   };
 
-  const handleCreateNewDoc = () => {
-    setOpenModal(true);
-  };
-
+  const handleCreateNewDoc = () => setOpenModal(true);
   const handleModalClose = (success) => {
     setOpenModal(false);
-    if (success) {
-      fetchDocuments();
-    }
+    if (success) fetchDocuments();
   };
 
   if (metaLoading || loading) {
     return (
-      <div className="loading-container">
-        <CircularProgress />
-      </div>
+      <Box sx={{
+        height: 'calc(96vh - 64px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <CircularProgress size={48} />
+      </Box>
     );
   }
 
-  if (metaError || error) {
-    return <Typography color="error">{metaError || error}</Typography>;
+  if (metaError || error || !metaData?.columns) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          {metaError || error || "Metadados indisponíveis"}
+        </Alert>
+      </Box>
+    );
   }
-
-  if (!metaData || !metaData.columns) return null;
 
   const filteredDocuments = documents.filter((document) => {
     return metaData.columns.some((column) =>
-      document[column.id]
-        ?.toString()
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
+      document[column.id]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
   const sortedDocuments = filteredDocuments.sort((a, b) => {
     if (typeof a[orderBy] === "number") {
-      return order === "asc"
-        ? a[orderBy] - b[orderBy]
-        : b[orderBy] - a[orderBy];
+      return order === "asc" ? a[orderBy] - b[orderBy] : b[orderBy] - a[orderBy];
     }
     return order === "asc"
       ? a[orderBy].localeCompare(b[orderBy])
       : b[orderBy].localeCompare(a[orderBy]);
   });
 
-  const desiredColumns = [
-    "regnumber",
-    "nipc",
-    "ts_entity",
-    "ts_associate",
-    "tt_type",
-    "submission",
-  ];
-
+  const desiredColumns = ["regnumber", "nipc", "ts_entity", "ts_associate", "tt_type", "submission"];
   const columnsWithValues = metaData.columns.filter(
     (column) =>
       desiredColumns.includes(column.id) &&
@@ -146,85 +112,47 @@ const CreatedByMe = () => {
       )
   );
 
-  const renderTableContent = () => {
-    if (loading) {
-      return (
-        <TableRow>
-          <TableCell colSpan={columnsWithValues.length + 2} align="center">
-            <CircularProgress />
-          </TableCell>
-        </TableRow>
-      );
-    }
-
-    if (error) {
-      return (
-        <TableRow>
-          <TableCell colSpan={columnsWithValues.length + 2} align="center">
-            <Typography color="error">{error}</Typography>
-          </TableCell>
-        </TableRow>
-      );
-    }
-
-    if (sortedDocuments.length === 0) {
-      return (
-        <TableRow>
-          <TableCell colSpan={columnsWithValues.length + 2} align="center">
-            <Typography variant="subtitle1">
-              Nenhum documento encontrado.
-            </Typography>
-          </TableCell>
-        </TableRow>
-      );
-    }
-
-    return sortedDocuments
-      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-      .map((document) => (
-        <Row
-          key={document.pk}
-          row={document}
-          metaData={{ ...metaData, columns: columnsWithValues }}
-          isAssignedToMe={false}
-        />
-      ));
-  };
-
   return (
     <Paper
       className="paper-owner"
-      style={{
+      sx={{
         backgroundColor: theme.palette.background.paper,
         color: theme.palette.text.primary,
+        height: 'calc(96vh - 64px)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
-      <Grid container className="header-container-owner">
-        <Grid size={{ xs: 6 }}>
-          <Typography variant="h4">Os meus pedidos</Typography>
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 12, md: 6, lg: 6 }}>
+            <Typography variant="h4">Os meus pedidos</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 8, md: 4, lg: 4 }}>
+            <SearchBar onSearch={handleSearch} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4, md: 2, lg: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleCreateNewDoc}
+              fullWidth
+            >
+              Adicionar Pedido
+            </Button>
+          </Grid>
         </Grid>
-        <Grid size={{ xs: 4 }} container justifyContent="flex-end">
-          <SearchBar onSearch={handleSearch} />
-        </Grid>
-        <Grid size={{ xs: 2 }} container justifyContent="center">
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleCreateNewDoc}
-          >
-            Adicionar Pedido
-          </Button>
-        </Grid>
-      </Grid>
-      <TableContainer className="table-container-owner">
-        <Table size="small">
+      </Box>
+
+      <TableContainer sx={{ flexGrow: 1 }}>
+        <Table size="small" stickyHeader>
           <TableHead>
             <TableRow
-              className="table-header-owner"
-              style={{
-                backgroundColor: theme.palette.table.header.backgroundColor,
-                color: theme.palette.table.header.color,
+              sx={{
+                backgroundColor: theme.palette.table?.header?.backgroundColor || theme.palette.grey[100],
+                color: theme.palette.table?.header?.color || theme.palette.text.primary,
               }}
             >
               <TableCell />
@@ -282,48 +210,60 @@ const CreatedByMe = () => {
                   Submissão
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ cursor: "default" }}
-                  Ações
-
-                >
-                  
-                </TableSortLabel>
-              </TableCell>
+              <TableCell>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedDocuments
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((document) => (
-                <Row
-                  key={document.pk}
-                  row={document}
-                  metaData={{ ...metaData, columns: columnsWithValues }}
-                  isAssignedToMe={false}
-                  showComprovativo={true}
-                  onSave={handleReloadDocuments}
-                />
-              ))}
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Box sx={{ py: 5 }}>
+                    <CircularProgress />
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ) : sortedDocuments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <Typography variant="h6" color="text.secondary">
+                    Nenhum documento encontrado
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedDocuments
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((document) => (
+                  <Row
+                    key={document.pk}
+                    row={document}
+                    metaData={{ ...metaData, columns: columnsWithValues }}
+                    isAssignedToMe={false}
+                    showComprovativo={true}
+                    onSave={fetchDocuments}
+                  />
+                ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>
-      <TablePagination
-        className="table-pagination-owner"
-        rowsPerPageOptions={[10, 25, 100]}
-        component="div"
-        count={filteredDocuments.length}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        labelRowsPerPage="Pedidos por página:"
-        labelDisplayedRows={({ from, to, count }) =>
-          `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
-        }
-      />
+
+      {filteredDocuments.length > rowsPerPage && (
+        <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+          <TablePagination
+            rowsPerPageOptions={[10, 25, 100]}
+            component="div"
+            count={filteredDocuments.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            labelRowsPerPage="Pedidos por página:"
+            sx={{ px: 2 }}
+          />
+        </Box>
+      )}
+
       <CreateDocumentModal
         open={openModal}
         onClose={handleModalClose}

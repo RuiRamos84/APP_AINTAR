@@ -1,126 +1,114 @@
 import api from "./api";
 
+// ==================== FUNÇÕES UNIFICADAS ====================
+
 // Volume Records
-export const getVolumeRecords = async (areaId, pk) => {
+export const getInstallationVolumeRecords = async (tbInstalacao) => {
     try {
-        if (!areaId || !pk) {
-            throw new Error("Área ou PK inválida.");
-        }
-        const url = areaId === 1 ? `/etar_volumes/${pk}` : `/ee_volumes/${pk}`;
-        // console.log(`Fetching volume records from: ${url}`);
-        const response = await api.get(url);
-        // console.log(response.data)
+        if (!tbInstalacao) throw new Error("ID da instalação inválido.");
+        const response = await api.get(`/instalacao_volumes/${tbInstalacao}`);
         return response.data;
     } catch (error) {
-        console.error("Erro ao buscar registros de volume:", error);
+        console.error("Erro ao buscar volumes da instalação:", error);
         throw error;
     }
 };
 
-export const addVolumeRecord = async (areaId, data) => {
+export const addInstallationVolumeRecord = async (data) => {
     try {
-        if (!areaId || !data) {
-            throw new Error("Dados ou área inválidos.");
-        }
-        const url = areaId === 1 ? `/etar_volume` : `/ee_volume`;
-        // console.log(`Adding volume record to: ${url} with data:`, data);
-        const response = await api.post(url, data);
+        if (!data) throw new Error("Dados inválidos.");
+        const response = await api.post("/instalacao_volume", data);
         return response.data;
     } catch (error) {
-        console.error("Erro ao adicionar registro de volume:", error);
+        console.error("Erro ao adicionar volume da instalação:", error);
         throw error;
     }
 };
 
 // Water Volume Records
-export const getWaterVolumeRecords = async (areaId, pk) => {
+export const getInstallationWaterVolumeRecords = async (tbInstalacao) => {
     try {
-        if (!areaId || !pk) {
-            throw new Error("Área ou PK inválida.");
-        }
-        const url = areaId === 1 ? `/etar_water_volumes/${pk}` : `/ee_water_volumes/${pk}`;
-        // console.log(`Fetching water volume records from: ${url}`);
-        const response = await api.get(url);
-        // console.log(response.data)
+        if (!tbInstalacao) throw new Error("ID da instalação inválido.");
+        const response = await api.get(`/instalacao_water_volumes/${tbInstalacao}`);
         return response.data;
     } catch (error) {
-        console.error("Erro ao buscar registros de volume de água:", error);    
+        console.error("Erro ao buscar volumes de água da instalação:", error);
         throw error;
     }
 };
 
-export const addWaterVolumeRecord = async (areaId, data) => {
+export const addInstallationWaterVolumeRecord = async (data) => {
     try {
-        if (!areaId || !data) {
-            throw new Error("Dados ou área inválidos.");
-        }
-        const url = areaId === 1 ? `/etar_water_volume` : `/ee_water_volume`;
-        // console.log(`Adding water volume record to: ${url} with data:`, data);
-        const response = await api.post(url, data);
+        if (!data) throw new Error("Dados inválidos.");
+        const response = await api.post("/instalacao_water_volume", data);
         return response.data;
     } catch (error) {
-        console.error("Erro ao adicionar registro de volume de água:", error);
+        console.error("Erro ao adicionar volume de água da instalação:", error);
         throw error;
     }
 };
 
 // Energy Records
-export const getEnergyRecords = async (areaId, pk) => {
+export const getInstallationEnergyRecords = async (tbInstalacao) => {
     try {
-        const url = areaId === 1
-            ? `/etar_energy/${pk}`
-            : `/ee_energy/${pk}`;
-        const response = await api.get(url);
+        if (!tbInstalacao) throw new Error("ID da instalação inválido.");
+        const response = await api.get(`/instalacao_energy/${tbInstalacao}`);
         return response.data;
     } catch (error) {
-        console.error("Erro ao buscar registros de energia:", error);
+        console.error("Erro ao buscar energia da instalação:", error);
         throw error;
     }
 };
 
-export const addEnergyRecord = async (areaId, data) => {
+export const addInstallationEnergyRecord = async (data) => {
     try {
-        const url = areaId === 1
-            ? `/etar_energy`
-            : `/ee_energy`;
-        const response = await api.post(url, data);
+        if (!data) throw new Error("Dados inválidos.");
+        const response = await api.post("/instalacao_energy", data);
         return response.data;
     } catch (error) {
-        console.error("Erro ao adicionar registro de energia:", error);
+        console.error("Erro ao adicionar energia da instalação:", error);
         throw error;
     }
 };
 
-// Expense Records
-export const getExpenseRecords = async (type, pk) => {
+// Expense Records - Unificado
+export const getInstallationExpenseRecords = async (tbInstalacao) => {
+    try {
+        if (!tbInstalacao) throw new Error("ID da instalação inválido.");
+        const response = await api.get(`/instalacao_expenses/${tbInstalacao}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar despesas da instalação:", error);
+        throw error;
+    }
+};
+
+export const addInstallationExpenseRecord = async (data) => {
+    try {
+        if (!data) throw new Error("Dados inválidos.");
+        const response = await api.post("/instalacao_expense", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao adicionar despesa da instalação:", error);
+        throw error;
+    }
+};
+
+// Expense Records - Outras áreas (rede, ramais, etc)
+export const getExpenseRecords = async (type) => {
     try {
         let url;
         switch (type) {
-            case "etar":
-                url = `/etar_expenses/${pk}`;
-                break;
-            case "ee":
-                url = `/ee_expenses/${pk}`;
-                break;
-            case "rede":
-                url = `/rede_expenses`;
-                break;
-            case "ramal":
-                url = `/ramal_expenses`;
-                break;
-            case "manutencao":    // <-- Este também estava como "manut"
-                url = `/manut_expenses`;  // <-- O endpoint continua o mesmo
-                break;
-            case "equip":
-                url = "/equip_expenses";
-                break;
-            default:
-                throw new Error("Invalid expense type");
+            case "rede": url = `/rede_expenses`; break;
+            case "ramal": url = `/ramal_expenses`; break;
+            case "manutencao": url = `/manut_expenses`; break;
+            case "equip": url = "/equip_expenses"; break;
+            default: throw new Error("Tipo de despesa inválido");
         }
         const response = await api.get(url);
         return response.data;
     } catch (error) {
-        console.error("Erro ao buscar registros de despesas:", error);
+        console.error("Erro ao buscar despesas:", error);
         throw error;
     }
 };
@@ -128,44 +116,82 @@ export const getExpenseRecords = async (type, pk) => {
 export const addExpenseRecord = async (type, data) => {
     try {
         let url;
-
         switch (type) {
-            case "etar":
-                url = "/etar_expense";
-                break;
-            case "ee":
-                url = "/ee_expense";
-                break;
-            case "rede":
-                url = "/rede_expense";
-                break;
-            case "ramal":
-                url = "/ramal_expense";
-                break;
-            case "manutencao":     // <-- Este estava como "manut"
-                url = "/manut_expense";  // <-- O endpoint continua o mesmo
-                break;
-            case "equip":
-                url = "/equip_expense";
-                break;
-            default:
-                throw new Error("Invalid expense type");
+            case "rede": url = "/rede_expense"; break;
+            case "ramal": url = "/ramal_expense"; break;
+            case "manutencao": url = "/manut_expense"; break;
+            case "equip": url = "/equip_expense"; break;
+            default: throw new Error("Tipo de despesa inválido");
         }
-
         const response = await api.post(url, data);
         return response.data;
     } catch (error) {
-        console.error("Erro ao adicionar registro de despesas:", error);
+        console.error("Erro ao adicionar despesa:", error);
         throw error;
     }
 };
 
+// Documentos Unificados
+export const createInstallationDocument = async (data, documentType) => {
+    try {
+        let url;
+        switch (documentType) {
+            case "desmatacao": url = "/instalacao/desmatacao"; break;
+            case "retirada_lamas": url = "/instalacao/retirada_lamas"; break;
+            case "reparacao": url = "/instalacao/reparacao"; break;
+            case "vedacao": url = "/instalacao/vedacao"; break;
+            case "qualidade_ambiental": url = "/instalacao/qualidade_ambiental"; break;
+            default: throw new Error(`Tipo de documento inválido: ${documentType}`);
+        }
+
+        const payload = {
+            pnts_associate: data.pnts_associate || null,
+            pnmemo: data.pnmemo,
+            pnpk_instalacao: data.pnpk_instalacao
+        };
+
+        const response = await api.post(url, payload);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar documento para instalação:", error);
+        throw error;
+    }
+};
+
+// ==================== FUNÇÕES COMPATIBILIDADE - WRAPPER ====================
+
+// Volume Records - Wrapper para compatibilidade
+export const getVolumeRecords = async (areaId, pk) => {
+    return await getInstallationVolumeRecords(pk);
+};
+
+export const addVolumeRecord = async (areaId, data) => {
+    return await addInstallationVolumeRecord(data);
+};
+
+// Water Volume Records - Wrapper
+export const getWaterVolumeRecords = async (areaId, pk) => {
+    return await getInstallationWaterVolumeRecords(pk);
+};
+
+export const addWaterVolumeRecord = async (areaId, data) => {
+    return await addInstallationWaterVolumeRecord(data);
+};
+
+// Energy Records - Wrapper
+export const getEnergyRecords = async (areaId, pk) => {
+    return await getInstallationEnergyRecords(pk);
+};
+
+export const addEnergyRecord = async (areaId, data) => {
+    return await addInstallationEnergyRecord(data);
+};
+
+// ==================== OUTRAS FUNÇÕES ====================
 
 export const getEntityDetails = async (areaId, pk) => {
     try {
-        if (!areaId || !pk) {
-            throw new Error("Área ou PK inválida.");
-        }
+        if (!areaId || !pk) throw new Error("Área ou PK inválida.");
         const url = areaId === 1 ? `/etar_details/${pk}` : `/ee_details/${pk}`;
         const response = await api.get(url);
         return response.data;
@@ -175,21 +201,26 @@ export const getEntityDetails = async (areaId, pk) => {
     }
 };
 
+export const updateEntityDetails = async (areaId, pk, data) => {
+    try {
+        const url = areaId === 1 ? `/etar_update/${pk}` : `/ee_update/${pk}`;
+        const response = await api.put(url, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao actualizar detalhes da entidade:", error);
+        throw error;
+    }
+};
+
 export const addMaintenance = async (type, pk) => {
     try {
         let url;
         switch (type) {
-            case "etar":
-                url = `/etar_maintenance/${pk}`;
-                break;
-            case "ee":
-                url = `/ee_maintenance/${pk}`;
-                break;
-            default:
-                throw new Error("Tipo de manutenção inválido");
+            case "etar": url = `/etar_maintenance/${pk}`; break;
+            case "ee": url = `/ee_maintenance/${pk}`; break;
+            default: throw new Error("Tipo de manutenção inválido");
         }
         const response = await api.post(url);
-        console.log(response.data)
         return response.data;
     } catch (error) {
         console.error("Erro ao adicionar manutenção:", error);
@@ -197,157 +228,73 @@ export const addMaintenance = async (type, pk) => {
     }
 };
 
-// Adicionar ao InternalService.js
-export const getInterventionRecords = async (type, pk) => {
-    try {
-        let url = type === "etar" ? `/etar_intervention/${pk}` :
-            type === "ee" ? `/ee_intervention/${pk}` : null;
-        if (!url) throw new Error("Invalid type");
-        return await api.get(url);
-    } catch (error) {
-        console.error("Erro ao buscar registros de intervenção:", error);
-        throw error;
-    }
-};
-
-export const addInterventionRecord = async (type, data) => {
-    try {
-        let url = type === "etar" ? "/etar_intervention" :
-            type === "ee" ? "/ee_intervention" : null;
-        if (!url) throw new Error("Invalid type");
-        return await api.post(url, data);
-    } catch (error) {
-        console.error("Erro ao adicionar registro de intervenção:", error);
-        throw error;
-    }
-};
-
-export const getUnblockingRecords = async (type, pk) => {
-    try {
-        let url = type === "rede" ? `/rede_unblocking/${pk}` :
-            type === "ramal" ? `/ramal_unblocking/${pk}` : null;
-        if (!url) throw new Error("Invalid type");
-        return await api.get(url);
-    } catch (error) {
-        console.error("Erro ao buscar registros de desbloqueio:", error);
-        throw error;
-    }
-};
-
-export const addUnblockingRecord = async (type, data) => {
-    try {
-        let url = type === "rede" ? "/rede_unblocking" :
-            type === "ramal" ? "/ramal_unblocking" : null;
-        if (!url) throw new Error("Invalid type");
-        return await api.post(url, data);
-    } catch (error) {
-        console.error("Erro ao adicionar registro de desbloqueio:", error);
-        throw error;
-    }
-};
-
-// Função para atualizar detalhes da entidade
-export const updateEntityDetails = async (areaId, pk, data) => {
-    try {
-        const url = areaId === 1
-            ? `/etar_update/${pk}`
-            : `/ee_update/${pk}`;
-
-        const response = await api.put(url, data);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao atualizar detalhes da entidade:", error);
-        throw error;
-    }
-  };
-
-// Função melhorada para criar pedidos internos com localização
 export const createInternalRequest = async (data, requestType) => {
     try {
         let url;
 
         switch (requestType) {
-            // ETAR
+            // Instalações - NOVO FORMATO
+            case "instalacao_desmatacao": url = "/instalacao/desmatacao"; break;
+            case "instalacao_retirada_lamas": url = "/instalacao/retirada_lamas"; break;
+            case "instalacao_reparacao": url = "/instalacao/reparacao"; break;
+            case "instalacao_vedacao": url = "/instalacao/vedacao"; break;
+            case "instalacao_qualidade_ambiental": url = "/instalacao/qualidade_ambiental"; break;
+
+            // ETAR/EE - COMPATIBILIDADE (converter para instalacao)
             case "etar_desmatacao":
-                url = "/etar/desmatacao";
+            case "ee_desmatacao":
+                url = "/instalacao/desmatacao";
                 break;
             case "etar_retirada_lamas":
-                url = "/etar/retirada_lamas";
+            case "ee_retirada_lamas":
+                url = "/instalacao/retirada_lamas";
                 break;
             case "etar_reparacao":
-                url = "/etar/reparacao";
+            case "ee_reparacao":
+                url = "/instalacao/reparacao";
                 break;
             case "etar_vedacao":
-                url = "/etar/vedacao";
+            case "ee_vedacao":
+                url = "/instalacao/vedacao";
                 break;
             case "etar_qualidade_ambiental":
-                url = "/etar/qualidade_ambiental";
-                break;
-
-            // EE
-            case "ee_desmatacao":
-                url = "/ee/desmatacao";
-                break;
-            case "ee_retirada_lamas":
-                url = "/ee/retirada_lamas";
-                break;
-            case "ee_reparacao":
-                url = "/ee/reparacao";
-                break;
-            case "ee_vedacao":
-                url = "/ee/vedacao";
-                break;
             case "ee_qualidade_ambiental":
-                url = "/ee/qualidade_ambiental";
+                url = "/instalacao/qualidade_ambiental";
                 break;
 
-            // Rede - ACTUALIZADOS para suportar localização
-            case "rede_desobstrucao":
-                url = "/rede/desobstrucao";
-                break;
-            case "rede_reparacao_colapso":
-                url = "/rede/reparacao_colapso";
-                break;
+            // Rede
+            case "rede_desobstrucao": url = "/rede/desobstrucao"; break;
+            case "rede_reparacao_colapso": url = "/rede/reparacao_colapso"; break;
 
-            // Caixas - ACTUALIZADOS para suportar localização
-            case "caixa_desobstrucao":
-                url = "/caixas/desobstrucao";
-                break;
-            case "caixa_reparacao":
-                url = "/caixas/reparacao";
-                break;
-            case "caixa_reparacao_tampa":
-                url = "/caixas/reparacao_tampa";
-                break;
+            // Caixas
+            case "caixa_desobstrucao": url = "/caixas/desobstrucao"; break;
+            case "caixa_reparacao": url = "/caixas/reparacao"; break;
+            case "caixa_reparacao_tampa": url = "/caixas/reparacao_tampa"; break;
 
-            // Ramais - ACTUALIZADOS para suportar localização
-            case "ramal_desobstrucao":
-                url = "/ramais/desobstrucao";
-                break;
-            case "ramal_reparacao":
-                url = "/ramais/reparacao";
-                break;
+            // Ramais
+            case "ramal_desobstrucao": url = "/ramais/desobstrucao"; break;
+            case "ramal_reparacao": url = "/ramais/reparacao"; break;
 
             // Requisição Interna
-            case "requisicao_interna":
-                url = "/requisicao_interna";
-                break;
+            case "requisicao_interna": url = "/requisicao_interna"; break;
 
-            default:
-                throw new Error(`Tipo de pedido inválido: ${requestType}`);
+            default: throw new Error(`Tipo de pedido inválido: ${requestType}`);
         }
 
-        // Validar e preparar payload
+        // Preparar payload
         const payload = {
             pnts_associate: data.pnts_associate || null,
             pnmemo: data.pnmemo
         };
 
-        // Adicionar campos ETAR/EE se existirem
-        if (data.pnpk_etar) payload.pnpk_etar = data.pnpk_etar;
-        if (data.pnpk_ee) payload.pnpk_ee = data.pnpk_ee;
+        // Converter campos antigos para novo formato
+        if (data.pnpk_etar || data.pnpk_ee) {
+            payload.pnpk_instalacao = data.pnpk_etar || data.pnpk_ee;
+        } else if (data.pnpk_instalacao) {
+            payload.pnpk_instalacao = data.pnpk_instalacao;
+        }
 
-        // Adicionar campos de localização apenas se fornecidos
+        // Campos de localização (para rede/caixas/ramais)
         if (data.pnaddress) payload.pnaddress = data.pnaddress;
         if (data.pnpostal) payload.pnpostal = data.pnpostal;
         if (data.pndoor) payload.pndoor = data.pndoor;
@@ -363,8 +310,6 @@ export const createInternalRequest = async (data, requestType) => {
             payload.pnglong = parseFloat(data.pnglong);
         }
 
-        console.log(`Enviando pedido para ${url} com payload:`, payload);
-
         const response = await api.post(url, payload);
         return response.data;
     } catch (error) {
@@ -373,16 +318,14 @@ export const createInternalRequest = async (data, requestType) => {
     }
 };
 
-// Incumprimentos Records
+// Incumprimentos
 export const getIncumprimentoRecords = async (pk) => {
     try {
-        if (!pk) {
-            throw new Error("PK inválida.");
-        }
+        if (!pk) throw new Error("PK inválida.");
         const response = await api.get(`/etar_incumprimentos/${pk}`);
         return response.data;
     } catch (error) {
-        console.error("Erro ao buscar registos de incumprimentos:", error);
+        console.error("Erro ao buscar incumprimentos:", error);
         throw error;
     }
 };
@@ -392,7 +335,7 @@ export const addIncumprimentoRecord = async (data) => {
         const response = await api.post("/etar_incumprimento", data);
         return response.data;
     } catch (error) {
-        console.error("Erro ao adicionar registo de incumprimento:", error);
+        console.error("Erro ao adicionar incumprimento:", error);
         throw error;
     }
 };

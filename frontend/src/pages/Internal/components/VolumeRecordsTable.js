@@ -14,7 +14,7 @@ const volumeColumns = [
     { id: "cliente", label: "Cliente", field: "ts_client" }
 ];
 
-const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
+const VolumeRecordsTable = ({ selectedEntity, metaData }) => {
     const { dispatch } = useInternalContext();
     const { records, loading, newRecord, setNewRecord, addRecord } = useRecords("volume");
 
@@ -27,6 +27,7 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
     const handleAddRecord = async () => {
         const payload = {
             pnpk: selectedEntity.pk,
+            area: selectedEntity.area,
             pndate: newRecord.date,
             pnval: parseFloat(newRecord.value),
             pnspot: parseInt(newRecord.spot, 10)
@@ -69,12 +70,11 @@ const VolumeRecordsTable = ({ selectedEntity, selectedArea, metaData }) => {
                 formatters={{ data: formatDate }}
                 renderForm={() => (
                     <RecordForm
-                        recordType="volume"
                         formData={newRecord}
                         setFormData={setNewRecord}
                         onSubmit={handleAddRecord}
-                        metaData={metaData}
                         fieldsConfig={volumeFieldsConfig}
+                        loading={loading}
                     />
                 )}
             />
