@@ -191,10 +191,12 @@ const AssignedToMe = () => {
     refreshNotifications();
   }, [fetchDocuments, refreshNotifications]);
 
-  const handleStateChange = (newState) => {
+  const handleStateChange = useCallback((newState) => {
+    console.log('Estado alterado para:', newState); // Debug
     setSelectedState(newState);
     setPage(0);
-  };
+    setOpenRowId(null); // Fechar linhas abertas ao mudar tab
+  }, []);
 
   const handleRowToggle = (rowId, isOpen) => {
     setOpenRowId(isOpen ? rowId : null);
@@ -321,6 +323,7 @@ const AssignedToMe = () => {
       <DocumentTabs
         documents={documents}
         onFilterChange={handleStateChange}
+        selectedState={selectedState} // Passar estado actual
       />
 
       <TableContainer sx={{ flexGrow: 1, overflow: 'auto' }}>

@@ -29,19 +29,18 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
         };
     }, [documents]);
 
+    // CORRIGIR: Forçar chamada do onFilterChange quando tab muda
     const handleChange = (event, newValue) => {
+        console.log('Tab changed to:', newValue); // Debug
         setValue(newValue);
-        onFilterChange(newValue);
+        onFilterChange(newValue); // Garantir que sempre chama
     };
 
+    // CORRIGIR: Não auto-seleccionar primeira tab
     useEffect(() => {
-        const firstStateWithDocs = Object.keys(states).find(id => getDocumentCount(id) > 0);
-        if (firstStateWithDocs) {
-            const stateValue = parseInt(firstStateWithDocs);
-            setValue(stateValue);
-            onFilterChange(stateValue);
-        }
-    }, [documents, states, getDocumentCount, onFilterChange]);
+        // Remover auto-selecção - deixar o valor inicial (4)
+        onFilterChange(4);
+    }, [onFilterChange]);
 
     const activeStates = useMemo(() => {
         return Object.entries(states).filter(([id]) => getDocumentCount(id) > 0);
@@ -128,10 +127,6 @@ const DocumentTabs = ({ documents, onFilterChange }) => {
                                     />
                                 </Box>
                             }
-                            sx={{
-                                opacity: count === 0 ? 0.5 : 1,
-                                pointerEvents: count === 0 ? 'none' : 'auto'
-                            }}
                         />
                     );
                 })}

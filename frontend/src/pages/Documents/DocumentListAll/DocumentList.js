@@ -16,7 +16,6 @@ import {
     useTheme,
     TableSortLabel,
     Grid,
-    useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { useMetaData } from '../../../contexts/MetaDataContext';
@@ -28,7 +27,6 @@ import { notifySuccess, notifyError } from '../../../components/common/Toaster/T
 
 const DocumentList = () => {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { metaData, loading: metaLoading, error: metaError } = useMetaData();
 
     const [documents, setDocuments] = useState([]);
@@ -42,13 +40,15 @@ const DocumentList = () => {
     const [error, setError] = useState(null);
     const [openRowId, setOpenRowId] = useState(null);
 
-    const fetchDocuments = useCallback(async () => {
+    const fetchDocuments = useCallback(async (showNotification = false) => {
         setLoading(true);
         setError(null);
         try {
             const fetchedDocuments = await getDocuments();
             setDocuments(fetchedDocuments);
-            notifySuccess('Documentos carregados com sucesso');
+            if (showNotification) {
+                notifySuccess('Documentos carregados com sucesso');
+            }
         } catch (error) {
             console.error('Erro ao carregar documentos:', error);
             setError('Erro ao carregar documentos.');
@@ -76,207 +76,218 @@ const DocumentList = () => {
     };
 
     const handleRefresh = () => {
-        fetchDocuments();
+        fetchDocuments(true);
     };
 
-    const getStatusColor = (status) => {
-        const statusLower = status?.toLowerCase();
-        if (statusLower?.includes('concluído')) return 'success';
-        if (statusLower?.includes('pendente')) return 'warning';
-        if (statusLower?.includes('anulado')) return 'error';
-        return 'default';
-    };
-
-    const filteredDocuments = documents.filter((doc) => {
-        if (!searchTerm) return true;
-        const searchLower = searchTerm.toLowerCase();
+    if (metaLoading || loading) {
         return (
-            doc.regnumber?.toLowerCase().includes(searchLower) ||
-            doc.ts_entity?.toLowerCase().includes(searchLower) ||
-            doc.tt_type?.toLowerCase().includes(searchLower)
+            <Box sx={{
+                height: 'calc(96vh - 64px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                <CircularProgress size={48} />
+            </Box>
+        );
+    }
+
+    if (metaError || error || !metaData?.columns) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="error">
+                    {metaError || error || "Metadados indisponíveis"}
+                </Alert>
+            </Box>
+        );
+    }
+
+    const filteredDocuments = documents.filter((document) => {
+        return metaData.columns.some((column) =>
+            document[column.id]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
         );
     });
 
     const sortedDocuments = filteredDocuments.sort((a, b) => {
-        const aValue = a[orderBy] || '';
-        const bValue = b[orderBy] || '';
-
-        if (order === 'asc') {
-            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-        } else {
-            return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+        if (typeof a[orderBy] === "number") {
+            return order === "asc" ? a[orderBy] - b[orderBy] : b[orderBy] - a[orderBy];
         }
+        return order === "asc"
+            ? a[orderBy].localeCompare(b[orderBy])
+            : b[orderBy].localeCompare(a[orderBy]);
     });
 
-    const paginatedDocuments = sortedDocuments.slice(
-        page * rowsPerPage,
-        page * rowsPerPage + rowsPerPage
+    const desiredColumns = ["regnumber", "nipc", "ts_entity", "ts_associate", "tt_type", "submission"];
+    const columnsWithValues = metaData.columns.filter(
+        (column) =>
+            desiredColumns.includes(column.id) &&
+            documents.some(
+                (doc) =>
+                    doc[column.id] !== null &&
+                    doc[column.id] !== undefined &&
+                    doc[column.id] !== ""
+            )
     );
 
-    if (error) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Alert severity="error">
-                    {error}
-                </Alert>
-            </Box>
-        );
-    }
-
-    if (metaError) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Alert severity="error">
-                    Erro ao carregar metadados: {metaError.message}
-                </Alert>
-            </Box>
-        );
-    }
-
     return (
-        <Box sx={{
-            p: { xs: 1, sm: 2, md: 3 },
-            height: 'calc(100vh - 64px)',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
-            <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
-                <Grid size={{ xs: 12, sm: 12, md: 6 }}>
-                    <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
-                        Todos os Pedidos ({filteredDocuments.length})
-                    </Typography>
+        <Paper
+            sx={{
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
+                height: 'calc(96vh - 64px)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+            }}
+        >
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Grid container spacing={2} alignItems="center">
+                    <Grid size={{ xs: 12, sm: 12, md: 6, lg: 6 }}>
+                        <Typography variant="h4">Todos os Pedidos</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 8, md: 4, lg: 4 }}>
+                        <SearchBar onSearch={handleSearch} />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4, md: 2, lg: 2 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<AddIcon />}
+                            onClick={() => setOpenModal(true)}
+                            fullWidth
+                        >
+                            Novo Pedido
+                        </Button>
+                    </Grid>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <SearchBar onSearch={handleSearch} />
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3, md: 1 }}>
-                    <Button
-                        fullWidth
-                        variant="outlined"
-                        onClick={handleRefresh}
-                        disabled={loading}
-                        startIcon={<RefreshIcon />}
-                        sx={{ minHeight: '40px' }}
-                    >
-                        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Atualizar</Box>
-                    </Button>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3, md: 1 }}>
-                    <Button
-                        fullWidth
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => setOpenModal(true)}
-                        sx={{ minHeight: '40px' }}
-                    >
-                        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Novo</Box>
-                    </Button>
-                </Grid>
-            </Grid>
+            </Box>
 
-            <Paper elevation={2} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <TableContainer sx={{
-                    flexGrow: 1,
-                    overflowX: 'auto',
-                    '&::-webkit-scrollbar': {
-                        height: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                        backgroundColor: theme.palette.grey[100],
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: theme.palette.grey[400],
-                        borderRadius: '4px',
-                    },
-                }}>
-                    <Table stickyHeader size="small" sx={{ tableLayout: 'fixed' }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell padding="checkbox" sx={{ width: '48px', minWidth: '48px' }} />
-                                {metaData.columns && metaData.columns.map((column) => (
-                                    <TableCell
-                                        key={column.id}
-                                        sortDirection={orderBy === column.id ? order : false}
-                                        sx={{
-                                            minWidth: column.id === 'regnumber' ? '120px' :
-                                                     column.id === 'ts_entity' ? '150px' :
-                                                     column.id === 'tt_type' ? '120px' :
-                                                     column.id === 'what' ? '120px' :
-                                                     column.id === 'submission' ? '140px' : '100px',
-                                            display: {
-                                                xs: ['regnumber', 'ts_entity'].includes(column.id) ? 'table-cell' : 'none',
-                                                sm: ['regnumber', 'ts_entity', 'tt_type'].includes(column.id) ? 'table-cell' : 'none',
-                                                md: 'table-cell'
-                                            }
-                                        }}
-                                    >
-                                        <TableSortLabel
-                                            active={orderBy === column.id}
-                                            direction={orderBy === column.id ? order : 'asc'}
-                                            onClick={() => handleRequestSort(column.id)}
-                                        >
-                                            {column.label || column.name}
-                                        </TableSortLabel>
-                                    </TableCell>
-                                ))}
-                                <TableCell
-                                    align="center"
-                                    sx={{
-                                        minWidth: '200px',
-                                        width: '200px',
-                                        display: { xs: 'none', sm: 'table-cell' }
-                                    }}
+            <TableContainer sx={{ flexGrow: 1 }}>
+                <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow
+                            sx={{
+                                backgroundColor: theme.palette.table?.header?.backgroundColor || theme.palette.grey[100],
+                                color: theme.palette.table?.header?.color || theme.palette.text.primary,
+                            }}
+                        >
+                            <TableCell />
+                            <TableCell>
+                                <TableSortLabel
+                                    active={orderBy === "regnumber"}
+                                    direction={orderBy === "regnumber" ? order : "asc"}
+                                    onClick={() => handleRequestSort("regnumber")}
                                 >
-                                    Ações
+                                    Nº de Registo
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell>
+                                <TableSortLabel
+                                    active={orderBy === "nipc"}
+                                    direction={orderBy === "nipc" ? order : "asc"}
+                                    onClick={() => handleRequestSort("nipc")}
+                                >
+                                    Nº Fiscal
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell>
+                                <TableSortLabel
+                                    active={orderBy === "ts_entity"}
+                                    direction={orderBy === "ts_entity" ? order : "asc"}
+                                    onClick={() => handleRequestSort("ts_entity")}
+                                >
+                                    Entidade
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell>
+                                <TableSortLabel
+                                    active={orderBy === "ts_associate"}
+                                    direction={orderBy === "ts_associate" ? order : "asc"}
+                                    onClick={() => handleRequestSort("ts_associate")}
+                                >
+                                    Associado
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell>
+                                <TableSortLabel
+                                    active={orderBy === "tt_type"}
+                                    direction={orderBy === "tt_type" ? order : "asc"}
+                                    onClick={() => handleRequestSort("tt_type")}
+                                >
+                                    Tipo
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell>
+                                <TableSortLabel
+                                    active={orderBy === "submission"}
+                                    direction={orderBy === "submission" ? order : "asc"}
+                                    onClick={() => handleRequestSort("submission")}
+                                >
+                                    Submissão
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell>Ações</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {loading ? (
+                            <TableRow>
+                                <TableCell colSpan={8} align="center">
+                                    <Box sx={{ py: 5 }}>
+                                        <CircularProgress />
+                                    </Box>
                                 </TableCell>
                             </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {loading || metaLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={metaData.columns ? metaData.columns.length + 2 : 7} align="center" sx={{ py: 5 }}>
-                                        <CircularProgress />
-                                    </TableCell>
-                                </TableRow>
-                            ) : paginatedDocuments.length > 0 ? (
-                                paginatedDocuments.map((doc) => (
+                        ) : sortedDocuments.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                                    <Typography variant="h6" color="text.secondary">
+                                        Nenhum documento encontrado
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            sortedDocuments
+                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                .map((document) => (
                                     <Row
-                                        key={doc.pk}
-                                        row={doc}
-                                        metaData={metaData}
-                                        isOpen={openRowId === doc.pk}
-                                        onToggle={() => setOpenRowId(openRowId === doc.pk ? null : doc.pk)}
+                                        key={document.pk}
+                                        row={document}
+                                        metaData={{ ...metaData, columns: columnsWithValues }}
+                                        isAssignedToMe={false}
+                                        showComprovativo={false}
+                                        onSave={fetchDocuments}
                                         isOpenControlled={true}
+                                        isOpen={openRowId === document.pk}
+                                        onToggle={(rowId, isOpen) => setOpenRowId(isOpen ? rowId : null)}
                                     />
                                 ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={metaData.columns ? metaData.columns.length + 2 : 7} align="center" sx={{ py: 4 }}>
-                                        <Typography color="text.secondary">
-                                            {searchTerm ? 'Nenhum documento encontrado para a pesquisa.' : 'Nenhum documento encontrado.'}
-                                        </Typography>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
-                <TablePagination
-                    rowsPerPageOptions={[10, 25, 50, 100]}
-                    component="div"
-                    count={filteredDocuments.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    labelRowsPerPage="Linhas por página:"
-                    labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-                />
-            </Paper>
+            {filteredDocuments.length > rowsPerPage && (
+                <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+                    <TablePagination
+                        rowsPerPageOptions={[10, 25, 100]}
+                        component="div"
+                        count={filteredDocuments.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        labelRowsPerPage="Pedidos por página:"
+                        sx={{ px: 2 }}
+                    />
+                </Box>
+            )}
 
-            <CreateDocumentModal open={openModal} onClose={() => setOpenModal(false)} />
-        </Box>
+            <CreateDocumentModal
+                open={openModal}
+                onClose={() => setOpenModal(false)}
+            />
+        </Paper>
     );
 };
 
