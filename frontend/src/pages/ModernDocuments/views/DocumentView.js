@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Box, CircularProgress, Alert, Button, Paper } from '@mui/material';
 import { Refresh as RefreshIcon } from '@mui/icons-material';
+import { normalizeText } from '../../../utils/textUtils';
 
 // Componentes de visualização
 import GridView from './GridView';
@@ -64,13 +65,13 @@ const DocumentView = () => {
         // Aplicar filtragem textual
         let filtered = documents;
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
+            const normalizedTerm = normalizeText(searchTerm);
             filtered = documents.filter(doc => {
                 return (
-                    (doc.regnumber?.toLowerCase().includes(term)) ||
-                    (doc.ts_entity?.toLowerCase().includes(term)) ||
-                    (doc.tt_type?.toLowerCase().includes(term)) ||
-                    (doc.nipc && String(doc.nipc).includes(term))
+                    (doc.regnumber && normalizeText(doc.regnumber).includes(normalizedTerm)) ||
+                    (doc.ts_entity && normalizeText(doc.ts_entity).includes(normalizedTerm)) ||
+                    (doc.tt_type && normalizeText(doc.tt_type).includes(normalizedTerm)) ||
+                    (doc.nipc && normalizeText(String(doc.nipc)).includes(normalizedTerm))
                 );
             });
         }

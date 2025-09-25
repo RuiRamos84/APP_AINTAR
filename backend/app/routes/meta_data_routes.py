@@ -25,7 +25,7 @@ def get_meta_data_route():
 @bp.route('/clear-metadata-cache', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("admin.cache.manage") # Apenas admins podem limpar o cache
+@require_permission(110)  # admin.cache.manage # Apenas admins podem limpar o cache
 def clear_metadata_cache():
     clear_meta_data_cache()
     return jsonify({'message': 'Cache limpo com sucesso'}), 200

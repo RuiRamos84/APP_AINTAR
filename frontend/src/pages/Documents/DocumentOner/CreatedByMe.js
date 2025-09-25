@@ -7,6 +7,7 @@ import {
 import { Add as AddIcon } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import SearchBar from "../../../components/common/SearchBar/SearchBar";
+import { normalizeText } from "../../../utils/textUtils";
 import CreateDocumentModal from "../DocumentCreate/CreateDocumentModal";
 import { getDocumentsCreatedByMe } from "../../../services/documentService";
 import Row from "../DocumentListAll/Row";
@@ -86,9 +87,11 @@ const CreatedByMe = () => {
   }
 
   const filteredDocuments = documents.filter((document) => {
-    return metaData.columns.some((column) =>
-      document[column.id]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return metaData.columns.some((column) => {
+      const value = document[column.id]?.toString();
+      if (!value) return false;
+      return normalizeText(value).includes(normalizeText(searchTerm));
+    });
   });
 
   const sortedDocuments = filteredDocuments.sort((a, b) => {

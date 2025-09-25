@@ -13,6 +13,12 @@ const COLUMNS = [
 export const exportToExcel = (filteredData, selectedView) => {
     if (!filteredData[selectedView]?.data) return;
 
+    // Verificar se document está disponível
+    if (typeof document === 'undefined' || !document.createElement) {
+        console.error("document.createElement não está disponível para download");
+        return;
+    }
+
     const workbook = XLSX.utils.book_new();
     const data = filteredData[selectedView].data;
 

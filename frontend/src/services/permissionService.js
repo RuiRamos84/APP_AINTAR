@@ -27,7 +27,7 @@ class PermissionService {
 
     /**
      * Verifica se o utilizador tem uma permissão (ID de interface).
-     * A verificação é agora puramente local e síncrona.
+     * Agora usa apenas IDs numéricos para máxima eficiência.
      */
     hasPermission(requiredInterfaceId) {
         if (!this.user) return false;
@@ -35,20 +35,13 @@ class PermissionService {
         // Super admin sempre tem acesso
         if (this.user.profil === '0') return true;
 
-        // Lógica para permissões especiais baseadas em string
-        if (typeof requiredInterfaceId === 'string') {
-            // Esta lógica pode ser removida ou mantida para outros casos futuros,
-            // mas o caso 'pavimentations.view' já não é necessário.
-            console.warn(`A permissão "${requiredInterfaceId}" não é um ID numérico. A verificação falhará.`);
-            return false;
-        }
-
-        // Se não for uma permissão numérica (após a verificação de string), retorna falso.
+        // Apenas IDs numéricos são suportados
         if (typeof requiredInterfaceId !== 'number') {
+            console.warn(`Permissão deve ser ID numérico, recebido: ${typeof requiredInterfaceId}`);
             return false;
         }
 
-        // Verifica se o ID da interface está na lista de interfaces do utilizador.
+        // Verifica se o ID da interface está na lista de interfaces do utilizador
         const userInterfaces = this.user.interfaces || [];
         return userInterfaces.includes(requiredInterfaceId);
     }

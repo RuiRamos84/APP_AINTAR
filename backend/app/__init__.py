@@ -199,5 +199,7 @@ def create_app(config_class):
         # Log de todas as rotas registradas
         # for rule in app.url_map.iter_rules():
         #     logger.info(f"Registered route: {rule}")
-    
+
+    # Sistema de permissões agora usa apenas IDs numéricos (não precisa de inicialização)
+
     return app

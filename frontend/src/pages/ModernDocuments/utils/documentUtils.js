@@ -1,4 +1,5 @@
 import { getStatusColor, getStatusName } from './statusUtils';
+import { normalizeText } from '../../../utils/textUtils';
 
 /**
  * Processa a resposta da API normalizando a estrutura dos documentos
@@ -140,9 +141,10 @@ export const filterDocuments = (documents, searchTerm = '') => {
 
     return documents.filter(doc => {
         // Pesquisar em TODOS os campos do objecto
+        const normalizedTerm = normalizeText(term);
         return Object.values(doc).some(value => {
             if (value == null) return false;
-            return String(value).toLowerCase().includes(term);
+            return normalizeText(String(value)).includes(normalizedTerm);
         });
     });
 };

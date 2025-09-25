@@ -125,6 +125,11 @@ export const viewLetter = async (letterstoreId) => {
 
 export const downloadLetter = async (letterstoreId) => {
   try {
+    // Verificar se document está disponível
+    if (typeof document === 'undefined' || !document.createElement || !document.body) {
+      throw new Error("document.createElement não está disponível para download");
+    }
+
     const response = await api.get(`/letters/download/${letterstoreId}`, {
       responseType: "blob",
       headers: {

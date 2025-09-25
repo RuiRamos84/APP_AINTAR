@@ -110,7 +110,7 @@ def check_step_hierarchy(dockty_id):
 @bp.route('/create_document', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("docs.create") # Permissão dedicada para criar documentos
+@require_permission(560)  # docs.create # Permissão dedicada para criar documentos
 @set_session
 @api_error_handler
 def create_new_document():
@@ -176,7 +176,7 @@ def get_document_params(document_id):
 
 @bp.route('/document/<int:document_id>/params', methods=['PUT'])
 @jwt_required()
-@require_permission("admin.docs.manage") # Apenas admins podem alterar parâmetros
+@require_permission(50)  # admin.docs.manage # Apenas admins podem alterar parâmetros
 @token_required
 @set_session
 @api_error_handler
@@ -203,7 +203,7 @@ def get_document_anex_step(pk):
 
 @bp.route('/add_document_step/<int:pk>', methods=['POST'])
 @jwt_required()
-@require_permission("admin.docs.manage") # Permissão para interagir com um pedido
+@require_permission(560)  # tasks.manage # Permissão para interagir com um pedido
 @token_required
 @set_session
 @api_error_handler
@@ -230,7 +230,7 @@ def download_file_route(regnumber, filename):
 
 @bp.route('/add_document_annex', methods=['POST'])
 @jwt_required()
-@require_permission("admin.docs.manage")
+@require_permission(750)  # tasks.manage
 @token_required
 @set_session
 @api_error_handler
@@ -309,7 +309,7 @@ def extrair_comprovativo(pk):
 @bp.route('/create_etar_document/<int:etar_pk>', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access") # Apenas utilizadores da operação podem criar estes pedidos
+@require_permission(310)  # operation.access # Apenas utilizadores da operação podem criar estes pedidos
 @set_session
 @api_error_handler
 def create_etar_document(etar_pk):
@@ -322,7 +322,7 @@ def create_etar_document(etar_pk):
 @bp.route('/create_ee_document/<int:ee_pk>', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access") # Apenas utilizadores da operação podem criar estes pedidos
+@require_permission(310)  # operation.access # Apenas utilizadores da operação podem criar estes pedidos
 @set_session
 @api_error_handler
 def create_ee_document(ee_pk):
@@ -336,7 +336,7 @@ def create_ee_document(ee_pk):
 
 @bp.route('/document_ramais', methods=['GET'])
 @jwt_required()
-@require_permission("pav.view")
+@require_permission(600)  # pav.view
 @token_required
 @set_session
 @api_error_handler
@@ -349,7 +349,7 @@ def get_document_ramais_route():
 
 @bp.route('/document_ramais_executed', methods=['GET'])
 @jwt_required()
-@require_permission("pav.view")
+@require_permission(600)  # pav.view
 @token_required
 @set_session
 @api_error_handler
@@ -362,7 +362,7 @@ def get_document_ramais_executed_route():
 
 @bp.route('/document_ramais_concluded', methods=['GET'])
 @jwt_required()
-@require_permission("pav.view")
+@require_permission(600)  # pav.view
 @token_required
 @set_session
 @api_error_handler
@@ -375,7 +375,7 @@ def get_document_ramais_concluded_route():
 
 @bp.route('/document_pavenext/<int:pk>', methods=['PUT'])
 @jwt_required()
-@require_permission("operation.access") # Apenas operação pode avançar o estado
+@require_permission(310)  # operation.access # Apenas operação pode avançar o estado
 @token_required
 @set_session
 @api_error_handler
@@ -388,7 +388,7 @@ def update_document_pavenext_route(pk):
 
 @bp.route('/document_pavpaid/<int:pk>', methods=['PUT'])
 @jwt_required()
-@require_permission("admin.payments") # Apenas admin de pagamentos pode marcar como pago
+@require_permission(30)  # admin.payments # Apenas admin de pagamentos pode marcar como pago
 @token_required
 @set_session
 @api_error_handler
@@ -403,7 +403,7 @@ def update_document_pavpaid_route(pk):
 
 @bp.route('/document/replicate/<int:pk>', methods=['POST'])
 @jwt_required()
-@require_permission("admin.docs.manage") # Replicar é uma ação administrativa
+@require_permission(50)  # admin.docs.manage # Replicar é uma ação administrativa
 @token_required
 @set_session
 @api_error_handler
@@ -452,7 +452,7 @@ def replicate_document(pk):
 @bp.route('/document/reopen', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("admin.docs.reopen") # Corrigido para a permissão correta
+@require_permission(60)  # admin.docs.reopen # Corrigido para a permissão correta
 @set_session
 @api_error_handler
 def reopen_document_route():

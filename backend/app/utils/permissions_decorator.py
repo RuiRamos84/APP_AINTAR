@@ -36,7 +36,7 @@ def require_permission(permission_id):
     Decorator para verificar permissões em rotas
 
     Usage:
-        @require_permission(500)  # ID direto da permissão
+        @require_permission(500)  # ID numérico da permissão
         def my_route():
             return "Success"
     """
@@ -72,7 +72,7 @@ def require_permission(permission_id):
                         "code": "INVALID_USER_DATA"
                     }), 401
 
-                # Verificar permissão diretamente com ID
+                # Verificar permissão usando apenas IDs numéricos
                 has_permission = check_permission_by_id(
                     permission_id,
                     str(user_profile),

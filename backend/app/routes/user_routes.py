@@ -115,7 +115,7 @@ def vacation_status():
 
 @bp.route('/users', methods=['GET'])
 @jwt_required()
-@require_permission("admin.users")
+@require_permission(20)  # admin.users
 @set_session
 @api_error_handler
 def get_users():
@@ -125,7 +125,7 @@ def get_users():
 
 @bp.route('/interfaces', methods=['GET'])
 @jwt_required()
-@require_permission("admin.users")
+@require_permission(20)  # admin.users
 @set_session
 @api_error_handler
 def get_interfaces():
@@ -135,7 +135,7 @@ def get_interfaces():
 
 @bp.route('/users/<int:user_id>/interfaces', methods=['PUT'])
 @jwt_required()
-@require_permission("admin.users")
+@require_permission(20)  # admin.users
 @set_session
 @api_error_handler
 def update_user_interfaces(user_id):

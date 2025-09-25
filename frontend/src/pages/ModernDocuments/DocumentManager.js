@@ -39,11 +39,22 @@ import { DocumentEventManager, DOCUMENT_EVENTS } from './utils/documentEventSyst
 // Importar funções existentes para utilizar
 import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtils';
 import { getStatusName, getStatusColor } from './utils/statusUtils';
+import { useTabPermissions } from './hooks/useTabPermissions';
 
 const DocumentManagerContent = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [currentDocument, setCurrentDocument] = useState(null);
+
+    // Hook de permissões para tabs
+    const {
+        tabPermissions,
+        getVisibleTabs,
+        getDefaultActiveTab,
+        mapVisibleIndexToRealIndex,
+        mapRealIndexToVisibleIndex,
+        hasAnyPermission
+    } = useTabPermissions();
 
     // Get document context data
     const {
@@ -258,6 +269,12 @@ const DocumentManagerContent = () => {
             }
         });
     }, []);
+
+    // Handler para mudança de tabs com verificação de permissões
+    const handleTabChange = useCallback((event, newVisibleIndex) => {
+        const realIndex = mapVisibleIndexToRealIndex(newVisibleIndex);
+        setActiveTab(realIndex);
+    }, [mapVisibleIndexToRealIndex, setActiveTab]);
 
     // ===== FUNÇÃO PRINCIPAL PARA OBTER DOCUMENTOS ATIVOS =====
     const getActiveDocuments = useCallback(() => {
@@ -477,6 +494,18 @@ const DocumentManagerContent = () => {
         };
     }, [allDocuments, assignedDocuments, createdDocuments, lateDocuments, searchTerm]);
 
+    // Verificação de permissões - se não tem acesso a nenhuma tab, mostrar aviso
+    if (!hasAnyPermission) {
+        return (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Alert severity="warning">
+                    Não tem permissões para aceder a nenhuma secção de documentos.
+                    Contacte o administrador do sistema.
+                </Alert>
+            </Box>
+        );
+    }
+
     return (
         <Box sx={{ p: 2 }}>
             {/* Header with title and buttons */}
@@ -526,125 +555,142 @@ const DocumentManagerContent = () => {
 
             {/* Tabs with counts */}
             <Tabs
-                value={activeTab}
-                onChange={(e, newValue) => setActiveTab(newValue)}
+                value={mapRealIndexToVisibleIndex(activeTab)}
+                onChange={handleTabChange}
                 variant="fullWidth"
             >
-                <Tab label={`Todos (${documentCounts.all})`} />
-                <Tab label={`A meu cargo (${documentCounts.assigned})`} />
-                <Tab label={`Por mim criados (${documentCounts.created})`} />
-                <Tab
-                    icon={documentCounts.late > 0 ? <AccessTimeIcon color="error" fontSize="small" /> : null}
-                    label={`Prazo excedido (${documentCounts.late})`}
-                    sx={{
-                        color: documentCounts.late > 0 ? 'error.main' : 'inherit',
-                        fontWeight: documentCounts.late > 0 ? 'bold' : 'normal',
-                        animation: documentCounts.late > 50 ? 'tabPulseCritical 1.5s ease-in-out infinite' :
-                            documentCounts.late > 10 ? 'tabPulseHigh 2s ease-in-out infinite' :
-                                documentCounts.late > 0 ? 'tabPulse 3s ease-in-out infinite' : 'none',
-                        position: 'relative',
-                        overflow: 'visible',
-                        '& .MuiTab-iconWrapper': {
-                            marginBottom: 0,
-                            marginRight: 0.5,
-                            animation: documentCounts.late > 0 ? 'iconSpin 3s ease-in-out infinite' : 'none',
-                        },
-                        '@keyframes tabPulse': {
-                            '0%': {
-                                backgroundColor: 'transparent',
-                                transform: 'scale(1)',
-                                boxShadow: 'none'
-                            },
-                            '50%': {
-                                backgroundColor: alpha(theme.palette.warning.main, 0.08),
-                                transform: 'scale(1.01)',
-                                boxShadow: `0 0 8px ${alpha(theme.palette.warning.main, 0.3)}`
-                            },
-                            '100%': {
-                                backgroundColor: 'transparent',
-                                transform: 'scale(1)',
-                                boxShadow: 'none'
-                            }
-                        },
-                        '@keyframes tabPulseHigh': {
-                            '0%': {
-                                backgroundColor: 'transparent',
-                                transform: 'scale(1)',
-                                boxShadow: 'none'
-                            },
-                            '50%': {
-                                backgroundColor: alpha(theme.palette.error.main, 0.1),
-                                transform: 'scale(1.02)',
-                                boxShadow: `0 0 12px ${alpha(theme.palette.error.main, 0.4)}`
-                            },
-                            '100%': {
-                                backgroundColor: 'transparent',
-                                transform: 'scale(1)',
-                                boxShadow: 'none'
-                            }
-                        },
-                        '@keyframes tabPulseCritical': {
-                            '0%': {
-                                backgroundColor: 'transparent',
-                                transform: 'scale(1)',
-                                boxShadow: 'none'
-                            },
-                            '50%': {
-                                backgroundColor: alpha(theme.palette.error.main, 0.15),
-                                transform: 'scale(1.03)',
-                                boxShadow: `0 0 16px ${alpha(theme.palette.error.main, 0.6)}`
-                            },
-                            '100%': {
-                                backgroundColor: 'transparent',
-                                transform: 'scale(1)',
-                                boxShadow: 'none'
-                            }
-                        },
-                        '@keyframes iconSpin': {
-                            '0%': { transform: 'rotate(0deg)' },
-                            '25%': { transform: 'rotate(-10deg)' },
-                            '75%': { transform: 'rotate(10deg)' },
-                            '100%': { transform: 'rotate(0deg)' }
-                        },
-                        '&::before': documentCounts.late > 0 ? {
-                            content: '""',
-                            position: 'absolute',
-                            top: -2,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: documentCounts.late > 50 ? '80%' :
-                                documentCounts.late > 10 ? '60%' : '40%',
-                            height: '3px',
-                            background: documentCounts.late > 50 ? theme.palette.error.dark :
-                                documentCounts.late > 10 ? theme.palette.error.main :
-                                    theme.palette.warning.main,
-                            borderRadius: '2px',
-                            animation: 'indicatorPulse 2s ease-in-out infinite'
-                        } : {},
-                        '@keyframes indicatorPulse': {
-                            '0%': { opacity: 0.7 },
-                            '50%': { opacity: 1 },
-                            '100%': { opacity: 0.7 }
-                        },
-                        '&::after': documentCounts.late > 0 ? {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.error.main, 0.1)}, transparent)`,
-                            backgroundSize: '200% 100%',
-                            animation: 'shimmerTab 4s ease-in-out infinite',
-                            zIndex: -1,
-                            borderRadius: 'inherit'
-                        } : {},
-                        '@keyframes shimmerTab': {
-                            '0%': { backgroundPosition: '200% 0' },
-                            '100%': { backgroundPosition: '-200% 0' }
-                        }
-                    }}
-                />
+                {getVisibleTabs.map((tab, index) => {
+                    const count = tab.key === 'all' ? documentCounts.all :
+                                  tab.key === 'assigned' ? documentCounts.assigned :
+                                  tab.key === 'created' ? documentCounts.created :
+                                  tab.key === 'late' ? documentCounts.late : 0;
+
+                    // Tab especial para documentos em atraso com animação
+                    if (tab.key === 'late') {
+                        return (
+                            <Tab
+                                key={tab.key}
+                                icon={count > 0 ? <AccessTimeIcon color="error" fontSize="small" /> : null}
+                                label={`${tab.label} (${count})`}
+                                sx={{
+                                    color: count > 0 ? 'error.main' : 'inherit',
+                                    fontWeight: count > 0 ? 'bold' : 'normal',
+                                    animation: count > 50 ? 'tabPulseCritical 1.5s ease-in-out infinite' :
+                                               count > 10 ? 'tabPulseHigh 2s ease-in-out infinite' :
+                                               count > 0 ? 'tabPulse 3s ease-in-out infinite' : 'none',
+                                    position: 'relative',
+                                    overflow: 'visible',
+                                    '& .MuiTab-iconWrapper': {
+                                        marginBottom: 0,
+                                        marginRight: 0.5,
+                                        animation: count > 0 ? 'iconSpin 3s ease-in-out infinite' : 'none',
+                                    },
+                                    '@keyframes tabPulse': {
+                                        '0%': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'scale(1)',
+                                            boxShadow: 'none'
+                                        },
+                                        '50%': {
+                                            backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                                            transform: 'scale(1.01)',
+                                            boxShadow: `0 0 8px ${alpha(theme.palette.warning.main, 0.3)}`
+                                        },
+                                        '100%': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'scale(1)',
+                                            boxShadow: 'none'
+                                        }
+                                    },
+                                    '@keyframes tabPulseHigh': {
+                                        '0%': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'scale(1)',
+                                            boxShadow: 'none'
+                                        },
+                                        '50%': {
+                                            backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                            transform: 'scale(1.02)',
+                                            boxShadow: `0 0 12px ${alpha(theme.palette.error.main, 0.4)}`
+                                        },
+                                        '100%': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'scale(1)',
+                                            boxShadow: 'none'
+                                        }
+                                    },
+                                    '@keyframes tabPulseCritical': {
+                                        '0%': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'scale(1)',
+                                            boxShadow: 'none'
+                                        },
+                                        '50%': {
+                                            backgroundColor: alpha(theme.palette.error.main, 0.15),
+                                            transform: 'scale(1.03)',
+                                            boxShadow: `0 0 16px ${alpha(theme.palette.error.main, 0.6)}`
+                                        },
+                                        '100%': {
+                                            backgroundColor: 'transparent',
+                                            transform: 'scale(1)',
+                                            boxShadow: 'none'
+                                        }
+                                    },
+                                    '@keyframes iconSpin': {
+                                        '0%': { transform: 'rotate(0deg)' },
+                                        '25%': { transform: 'rotate(-10deg)' },
+                                        '75%': { transform: 'rotate(10deg)' },
+                                        '100%': { transform: 'rotate(0deg)' }
+                                    },
+                                    '&::before': count > 0 ? {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: -2,
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        width: count > 50 ? '80%' : count > 10 ? '60%' : '40%',
+                                        height: '3px',
+                                        background: count > 50 ? theme.palette.error.dark :
+                                                   count > 10 ? theme.palette.error.main :
+                                                   theme.palette.warning.main,
+                                        borderRadius: '2px',
+                                        animation: 'indicatorPulse 2s ease-in-out infinite'
+                                    } : {},
+                                    '@keyframes indicatorPulse': {
+                                        '0%': { opacity: 0.7 },
+                                        '50%': { opacity: 1 },
+                                        '100%': { opacity: 0.7 }
+                                    },
+                                    '&::after': count > 0 ? {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.error.main, 0.1)}, transparent)`,
+                                        backgroundSize: '200% 100%',
+                                        animation: 'shimmerTab 4s ease-in-out infinite',
+                                        zIndex: -1,
+                                        borderRadius: 'inherit'
+                                    } : {},
+                                    '@keyframes shimmerTab': {
+                                        '0%': { backgroundPosition: '200% 0' },
+                                        '100%': { backgroundPosition: '-200% 0' }
+                                    }
+                                }}
+                            />
+                        );
+                    }
+
+                    // Tabs normais
+                    return (
+                        <Tab
+                            key={tab.key}
+                            label={`${tab.label} (${count})`}
+                        />
+                    );
+                })}
             </Tabs>
 
             {/* Content area */}

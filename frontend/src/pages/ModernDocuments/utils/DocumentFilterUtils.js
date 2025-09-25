@@ -3,6 +3,7 @@
  * Combinando as funções existentes com melhorias de desempenho
  */
 import { extractDateParts, isDateBefore, isDateAfter, isDateInRange } from './DateUtils';
+import { normalizeText } from '../../../utils/textUtils';
 
 /**
  * Filtra documentos por intervalo de datas com melhor desempenho
@@ -134,16 +135,18 @@ export const filterDocumentsBySearchTerm = (documents, searchTerm = '') => {
     if (search === '') return documents;
 
     return documents.filter(doc => {
+        const normalizedSearch = normalizeText(search);
+
         // Verificação rápida dos campos mais comuns primeiro
-        if (doc.regnumber && doc.regnumber.toLowerCase().includes(search)) return true;
-        if (doc.ts_entity && doc.ts_entity.toLowerCase().includes(search)) return true;
+        if (doc.regnumber && normalizeText(doc.regnumber).includes(normalizedSearch)) return true;
+        if (doc.ts_entity && normalizeText(doc.ts_entity).includes(normalizedSearch)) return true;
 
         // Verificar outros campos apenas se necessário
         return (
-            (doc.tt_type && doc.tt_type.toLowerCase().includes(search)) ||
-            (doc.ts_associate && doc.ts_associate.toLowerCase().includes(search)) ||
-            (doc.nipc && String(doc.nipc).toLowerCase().includes(search)) ||
-            (doc.creator && doc.creator.toLowerCase().includes(search))
+            (doc.tt_type && normalizeText(doc.tt_type).includes(normalizedSearch)) ||
+            (doc.ts_associate && normalizeText(doc.ts_associate).includes(normalizedSearch)) ||
+            (doc.nipc && normalizeText(String(doc.nipc)).includes(normalizedSearch)) ||
+            (doc.creator && normalizeText(doc.creator).includes(normalizedSearch))
         );
     });
 };

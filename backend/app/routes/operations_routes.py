@@ -12,7 +12,7 @@ bp = Blueprint('operations', __name__)
 @bp.route('/operations', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_operations():
@@ -42,7 +42,7 @@ def get_operations():
 @bp.route('/internal_document', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_internal_document():

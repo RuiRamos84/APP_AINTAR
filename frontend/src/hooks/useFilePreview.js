@@ -147,16 +147,23 @@ const useFilePreview = () => {
    */
   const downloadCurrentFile = useCallback(() => {
     if (!previewState.currentFile) return;
-    
+
+    // Verificar se document está disponível
+    if (typeof document === 'undefined' || !document.createElement || !document.body) {
+      console.error("document.createElement não está disponível para download");
+      notifyError("Não foi possível fazer o download do arquivo");
+      return;
+    }
+
     const { file } = previewState.currentFile;
     const url = URL.createObjectURL(file);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = file.name;
     document.body.appendChild(link);
     link.click();
-    
+
     // Limpeza
     setTimeout(() => {
       URL.revokeObjectURL(url);

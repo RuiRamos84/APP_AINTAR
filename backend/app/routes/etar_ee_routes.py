@@ -81,7 +81,7 @@ bp = Blueprint('etar_ee_routes', __name__)
 @bp.route('/instalacao_volume', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_volume():
@@ -94,7 +94,7 @@ def add_instalacao_volume():
 @bp.route('/instalacao_volumes/<int:tb_instalacao>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_instalacao_volumes(tb_instalacao):
@@ -107,7 +107,7 @@ def get_instalacao_volumes(tb_instalacao):
 @bp.route('/instalacao_water_volume', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_water_volume():
@@ -120,7 +120,7 @@ def add_instalacao_water_volume():
 @bp.route('/instalacao_water_volumes/<int:tb_instalacao>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_instalacao_water_volumes(tb_instalacao):
@@ -134,7 +134,7 @@ def get_instalacao_water_volumes(tb_instalacao):
 @bp.route('/instalacao_energy', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_energy():
@@ -147,7 +147,7 @@ def add_instalacao_energy():
 @bp.route('/instalacao_energy/<int:tb_instalacao>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_instalacao_energy(tb_instalacao):
@@ -160,7 +160,7 @@ def get_instalacao_energy(tb_instalacao):
 @bp.route('/instalacao_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_expense():
@@ -173,7 +173,7 @@ def add_instalacao_expense():
 @bp.route('/instalacao_expenses/<int:tb_instalacao>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_instalacao_expenses(tb_instalacao):
@@ -187,7 +187,7 @@ def get_instalacao_expenses(tb_instalacao):
 @bp.route('/instalacao/desmatacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_desmatacao():
@@ -209,7 +209,7 @@ def add_instalacao_desmatacao():
 @bp.route('/instalacao/retirada_lamas', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_retirada_lamas():
@@ -231,7 +231,7 @@ def add_instalacao_retirada_lamas():
 @bp.route('/instalacao/reparacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_reparacao():
@@ -253,7 +253,7 @@ def add_instalacao_reparacao():
 @bp.route('/instalacao/vedacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_vedacao():
@@ -275,7 +275,7 @@ def add_instalacao_vedacao():
 @bp.route('/instalacao/qualidade_ambiental', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_instalacao_qualidade_ambiental():
@@ -299,7 +299,7 @@ def add_instalacao_qualidade_ambiental():
 @bp.route('/etar_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def update_etar(pk):
@@ -313,7 +313,7 @@ def update_etar(pk):
 @bp.route('/ee_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def update_ee(pk):
@@ -327,7 +327,7 @@ def update_ee(pk):
 @bp.route('/etar_maintenance/<int:pk>', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def create_etar(pk):
@@ -340,7 +340,7 @@ def create_etar(pk):
 @bp.route('/ee_maintenance/<int:pk>', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def create_ee(pk):
@@ -353,7 +353,7 @@ def create_ee(pk):
 @bp.route('/etar_volume', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_volume():
@@ -366,7 +366,7 @@ def add_etar_volume():
 @bp.route('/ee_volume', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_volume():
@@ -379,7 +379,7 @@ def add_ee_volume():
 @bp.route('/etar_volumes/<int:tb_etar>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_etar_volumes(tb_etar):
@@ -392,7 +392,7 @@ def get_etar_volumes(tb_etar):
 @bp.route('/ee_volumes/<int:tb_ee>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_ee_volumes(tb_ee):
@@ -405,7 +405,7 @@ def get_ee_volumes(tb_ee):
 @bp.route('/etar_water_volume', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_water_etar_volume():
@@ -418,7 +418,7 @@ def add_water_etar_volume():
 @bp.route('/ee_water_volume', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_water_ee_volume():
@@ -431,7 +431,7 @@ def add_water_ee_volume():
 @bp.route('/etar_water_volumes/<int:tb_etar>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_water_etar_volumes(tb_etar):
@@ -444,7 +444,7 @@ def get_water_etar_volumes(tb_etar):
 @bp.route('/ee_water_volumes/<int:tb_ee>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_water_ee_volumes(tb_ee):
@@ -457,7 +457,7 @@ def get_water_ee_volumes(tb_ee):
 @bp.route('/etar_energy', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_energy():
@@ -470,7 +470,7 @@ def add_etar_energy():
 @bp.route('/ee_energy', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_energy():
@@ -483,7 +483,7 @@ def add_ee_energy():
 @bp.route('/etar_energy/<int:tb_etar>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_etar_energy(tb_etar):
@@ -496,7 +496,7 @@ def get_etar_energy(tb_etar):
 @bp.route('/ee_energy/<int:tb_ee>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_ee_energy(tb_ee):
@@ -509,7 +509,7 @@ def get_ee_energy(tb_ee):
 @bp.route('/etar_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_expense():
@@ -545,7 +545,7 @@ def add_etar_expense():
 @bp.route('/ee_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_expense():
@@ -558,7 +558,7 @@ def add_ee_expense():
 @bp.route('/rede_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_rede_expense():
@@ -571,7 +571,7 @@ def add_rede_expense():
 @bp.route('/ramal_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ramal_expense():
@@ -584,7 +584,7 @@ def add_ramal_expense():
 @bp.route('/etar_expenses/<int:tb_etar>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_etar_expenses(tb_etar):
@@ -597,7 +597,7 @@ def get_etar_expenses(tb_etar):
 @bp.route('/ee_expenses/<int:tb_ee>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_ee_expenses(tb_ee):
@@ -610,7 +610,7 @@ def get_ee_expenses(tb_ee):
 @bp.route('/rede_expenses', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_rede_expenses():
@@ -623,7 +623,7 @@ def get_rede_expenses():
 @bp.route('/ramal_expenses', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_ramal_expenses():
@@ -636,7 +636,7 @@ def get_ramal_expenses():
 @bp.route('/manut_expenses', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_manut_expenses():
@@ -649,7 +649,7 @@ def get_manut_expenses():
 @bp.route('/manut_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def created_manut_expense():
@@ -662,7 +662,7 @@ def created_manut_expense():
 @bp.route('/etar_details/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_etar_details(pk):
@@ -675,7 +675,7 @@ def get_etar_details(pk):
 @bp.route('/ee_details/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_ee_details(pk):
@@ -688,7 +688,7 @@ def get_ee_details(pk):
 @bp.route('/equip_expense', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_equip_expense():
@@ -701,7 +701,7 @@ def add_equip_expense():
 @bp.route('/equip_expenses', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_equip_expenses():
@@ -716,7 +716,7 @@ def get_equip_expenses():
 @bp.route('/etar/desmatacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_desmatacao():
@@ -738,7 +738,7 @@ def add_etar_desmatacao():
 @bp.route('/etar/retirada_lamas', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_retirada_lamas():
@@ -760,7 +760,7 @@ def add_etar_retirada_lamas():
 @bp.route('/etar/reparacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_reparacao():
@@ -782,7 +782,7 @@ def add_etar_reparacao():
 @bp.route('/etar/vedacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_vedacao():
@@ -804,7 +804,7 @@ def add_etar_vedacao():
 @bp.route('/etar/qualidade_ambiental', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_qualidade_ambiental():
@@ -828,7 +828,7 @@ def add_etar_qualidade_ambiental():
 @bp.route('/ee/desmatacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_desmatacao():
@@ -850,7 +850,7 @@ def add_ee_desmatacao():
 @bp.route('/ee/retirada_lamas', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_retirada_lamas():
@@ -872,7 +872,7 @@ def add_ee_retirada_lamas():
 @bp.route('/ee/reparacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_reparacao():
@@ -894,7 +894,7 @@ def add_ee_reparacao():
 @bp.route('/ee/vedacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_vedacao():
@@ -916,7 +916,7 @@ def add_ee_vedacao():
 @bp.route('/ee/qualidade_ambiental', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ee_qualidade_ambiental():
@@ -940,7 +940,7 @@ def add_ee_qualidade_ambiental():
 @bp.route('/rede/desobstrucao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_rede_desobstrucao():
@@ -970,7 +970,7 @@ def add_rede_desobstrucao():
 @bp.route('/rede/reparacao_colapso', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_rede_reparacao_colapso():
@@ -1000,7 +1000,7 @@ def add_rede_reparacao_colapso():
 @bp.route('/caixas/desobstrucao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_caixa_desobstrucao():
@@ -1030,7 +1030,7 @@ def add_caixa_desobstrucao():
 @bp.route('/caixas/reparacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_caixa_reparacao():
@@ -1060,7 +1060,7 @@ def add_caixa_reparacao():
 @bp.route('/caixas/reparacao_tampa', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_caixa_reparacao_tampa():
@@ -1090,7 +1090,7 @@ def add_caixa_reparacao_tampa():
 @bp.route('/ramais/desobstrucao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ramal_desobstrucao():
@@ -1120,7 +1120,7 @@ def add_ramal_desobstrucao():
 @bp.route('/ramais/reparacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_ramal_reparacao():
@@ -1152,7 +1152,7 @@ def add_ramal_reparacao():
 @bp.route('/requisicao_interna', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_requisicao_interna():
@@ -1171,7 +1171,7 @@ def add_requisicao_interna():
 @bp.route('/etar_incumprimento', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def add_etar_incumprimento():
@@ -1188,7 +1188,7 @@ def add_etar_incumprimento():
 @bp.route('/etar_incumprimentos/<int:tb_etar>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def get_etar_incumprimentos(tb_etar):
@@ -1204,7 +1204,7 @@ def get_etar_incumprimentos(tb_etar):
 @bp.route('/internal_request', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("operation.access")
+@require_permission(310)  # operation.access
 @set_session
 @api_error_handler
 def create_internal_request_route():

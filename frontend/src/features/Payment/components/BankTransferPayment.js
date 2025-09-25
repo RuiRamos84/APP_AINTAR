@@ -284,7 +284,7 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
                                     borderRadius: 1
                                 }}>
                                     <Box sx={{ flexShrink: 0 }}>
-                                        {fileItem.preview && fileItem.preview !== "url/to/generic/file/icon.png" ? (
+                                        {fileItem.preview ? (
                                             <img
                                                 src={fileItem.preview}
                                                 alt="preview"

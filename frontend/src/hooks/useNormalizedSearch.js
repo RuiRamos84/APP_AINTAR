@@ -1,10 +1,6 @@
 // hooks/useNormalizedSearch.js
 import { useMemo } from 'react';
-
-const normalizeText = (text) => {
-    if (!text) return '';
-    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-};
+import { normalizeText } from '../utils/textUtils';
 
 export const useNormalizedSearch = (items, searchTerm, searchFields) => {
     return useMemo(() => {

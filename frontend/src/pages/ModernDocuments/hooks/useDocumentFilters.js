@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useUI } from '../context/UIStateContext';
 import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
+import { normalizeText } from '../../../utils/textUtils';
 
 /**
  * Hook para gerenciar filtros de documentos
@@ -31,14 +32,14 @@ const useDocumentFilters = () => {
         // Filtrar por termo de busca
         let filteredDocs = documents;
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
+            const normalizedTerm = normalizeText(searchTerm);
             filteredDocs = documents.filter(doc => {
                 return (
-                    (doc.regnumber?.toLowerCase().includes(term)) ||
-                    (doc.ts_entity?.toLowerCase().includes(term)) ||
-                    (doc.tt_type?.toLowerCase().includes(term)) ||
-                    (doc.nipc && String(doc.nipc).includes(term)) ||
-                    (doc.memo?.toLowerCase().includes(term))
+                    (doc.regnumber && normalizeText(doc.regnumber).includes(normalizedTerm)) ||
+                    (doc.ts_entity && normalizeText(doc.ts_entity).includes(normalizedTerm)) ||
+                    (doc.tt_type && normalizeText(doc.tt_type).includes(normalizedTerm)) ||
+                    (doc.nipc && normalizeText(String(doc.nipc)).includes(normalizedTerm)) ||
+                    (doc.memo && normalizeText(doc.memo).includes(normalizedTerm))
                 );
             });
         }

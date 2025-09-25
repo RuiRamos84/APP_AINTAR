@@ -167,7 +167,7 @@ def create_checkout():
 @jwt_required()
 @token_required
 @set_session
-@require_permission("payments.mbway")
+@require_permission(700)  # payments.mbway
 @api_error_handler
 def process_mbway():
     """Processar MBWay com verificação de permissão"""
@@ -182,7 +182,7 @@ def process_mbway():
 @jwt_required()
 @token_required
 @set_session
-@require_permission("payments.multibanco")
+@require_permission(710)  # payments.multibanco
 @api_error_handler
 def process_multibanco():
     """Processar Multibanco com verificação de permissão"""
@@ -216,7 +216,7 @@ def register_manual_payment():
 
 @bp.route("/payments/pending", methods=["GET"])
 @jwt_required()
-@require_permission("admin.payments")  # ✅ USAR DECORATOR
+@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler
@@ -229,7 +229,7 @@ def get_pending_payments():
 
 @bp.route("/payments/details/<int:payment_pk>", methods=["GET"])
 @jwt_required()
-@require_permission("admin.payments")  # ✅ USAR DECORATOR
+@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler
@@ -244,7 +244,7 @@ def get_payment_details(payment_pk):
 
 @bp.route("/payments/approve/<int:payment_pk>", methods=["PUT"])
 @jwt_required()
-@require_permission("admin.payments")  # ✅ USAR DECORATOR
+@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler
@@ -259,7 +259,7 @@ def approve_payment(payment_pk):
 
 @bp.route("/payments/history", methods=["GET"])
 @jwt_required()
-@require_permission("admin.payments")  # ✅ USAR DECORATOR
+@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
 @token_required
 @set_session
 @api_error_handler

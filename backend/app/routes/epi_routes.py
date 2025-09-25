@@ -19,7 +19,7 @@ bp = Blueprint('epi_routes', __name__)
 @bp.route('/deliveries', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @set_session
 @api_error_handler
 def get_epi_deliveries_route():
@@ -40,7 +40,7 @@ def get_epi_deliveries_route():
 @bp.route('/delivery', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @set_session
 @api_error_handler
 def create_epi_delivery_route():
@@ -54,7 +54,7 @@ def create_epi_delivery_route():
 @bp.route('/preferences/<int:user_pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @set_session
 @api_error_handler
 def update_epi_preferences_route(user_pk):
@@ -68,7 +68,7 @@ def update_epi_preferences_route(user_pk):
 @bp.route('/epi/data', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @api_error_handler
 def get_epi_data():
     """Obtém dados de EPI"""
@@ -104,7 +104,7 @@ def get_epi_list():
 @bp.route('/delivery/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @set_session
 @api_error_handler
 def update_epi_delivery_route(pk):
@@ -118,7 +118,7 @@ def update_epi_delivery_route(pk):
 @bp.route('/delivery/<int:pk>/return', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @set_session
 @api_error_handler
 def return_epi_delivery_route(pk):
@@ -132,7 +132,7 @@ def return_epi_delivery_route(pk):
 @bp.route('/epi', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("epi.manage")
+@require_permission(210)  # epi.manage
 @set_session
 @api_error_handler
 def create_epi_route():

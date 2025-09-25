@@ -219,16 +219,30 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
   }, [metaData?.types, entityCountTypes, isDifferentAddress, checkEntityData]);
 
   const generatePDFThumbnail = useCallback(async (file) => {
-    const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 0.5 });
-    const canvas = document.createElement("canvas");
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const context = canvas.getContext("2d");
-    await page.render({ canvasContext: context, viewport }).promise;
-    return canvas.toDataURL();
+    try {
+      // Aguardar um pequeno delay para garantir que DOM está disponível
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verificar se document está disponível
+      if (typeof document === 'undefined' || !document.createElement) {
+        console.warn("document.createElement não está disponível após aguardar DOM");
+        return null;
+      }
+
+      const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 0.5 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext("2d");
+      await page.render({ canvasContext: context, viewport }).promise;
+      return canvas.toDataURL();
+    } catch (error) {
+      console.error("Erro ao gerar thumbnail do PDF:", error);
+      return null;
+    }
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles) => {
@@ -244,7 +258,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
           ? await generatePDFThumbnail(file)
           : file.type.startsWith("image/")
             ? URL.createObjectURL(file)
-            : "url/to/generic/file/icon.png",
+            : null,
         description: "",
       }))
     );
@@ -332,24 +346,43 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
     }
 
     try {
+      // Validate required fields
+      if (!entityData) {
+        notifyError("Dados da entidade são obrigatórios");
+        return;
+      }
+
       const formData = new FormData();
 
+      // Add document fields (excluding files)
       Object.entries(document).forEach(([key, value]) => {
-        if (key !== "files") {
+        if (key !== "files" && value) { // Only add non-empty values
           formData.append(key, value);
         }
       });
 
+      // Add required fields
+      formData.append("ts_entity", entityData.pk);
       formData.append("isDifferentAddress", isDifferentAddress);
+
+      // Send billing address fields directly (no prefix)
       Object.entries(billingAddress).forEach(([key, value]) => {
-        formData.append(`billing_${key}`, value);
+        if (value) { // Only add non-empty values
+          formData.append(key, value);
+        }
       });
+
+      // Send shipping address fields with shipping_ prefix
       Object.entries(shippingAddress).forEach(([key, value]) => {
-        formData.append(`shipping_${key}`, value);
+        if (value) { // Only add non-empty values
+          formData.append(`shipping_${key}`, value);
+        }
       });
 
       Object.entries(additionalParams).forEach(([key, value]) => {
-        formData.append(key, value);
+        if (value) { // Only add non-empty values
+          formData.append(key, value);
+        }
       });
 
       document.files.forEach((fileObj) => {
@@ -357,12 +390,14 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         formData.append(`descr`, fileObj.description || "");
       });
 
-      if (entityData) {
-        formData.append("nipc", entityData.nipc);
-        formData.append("ts_entity", entityData.pk);
-      }
       if (representativeData) {
         formData.append("tb_representative", representativeData.nipc);
+      }
+
+      // Debug: Log formData contents
+      console.log("FormData contents:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
       }
 
       const response = await createDocument(formData);
@@ -375,7 +410,21 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
         notifyError("Erro: " + (response.erro || "Resposta inválida."));
       }
     } catch (error) {
-      notifyError("Erro: " + (error.response?.data?.erro || error.message || "Desconhecido"));
+      console.error("Erro detalhado:", error);
+      console.error("Response data:", error.response?.data);
+
+      let errorMessage = "Erro desconhecido";
+      if (error.response?.data?.erro) {
+        errorMessage = error.response.data.erro;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError("Erro ao criar documento: " + errorMessage);
     }
   };
 
@@ -539,11 +588,31 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             {document.files.map((file, index) => (
               <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }} key={index}>
                 <Box display="flex" alignItems="center">
-                  <img
-                    src={file.preview}
-                    alt={`preview ${index}`}
-                    style={{ width: 100, marginRight: 10 }}
-                  />
+                  {file.preview ? (
+                    <img
+                      src={file.preview}
+                      alt={`preview ${index}`}
+                      style={{ width: 100, marginRight: 10 }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 100,
+                        height: 100,
+                        marginRight: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid #ddd',
+                        borderRadius: 1,
+                        backgroundColor: '#f5f5f5'
+                      }}
+                    >
+                      <Typography variant="caption" color="textSecondary">
+                        {file.file.type.includes('pdf') ? 'PDF' : 'Arquivo'}
+                      </Typography>
+                    </Box>
+                  )}
                   <TextField
                     required
                     fullWidth

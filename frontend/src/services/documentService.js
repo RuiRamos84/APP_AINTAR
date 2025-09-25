@@ -413,6 +413,11 @@ export const getDocumentsLate = async () => {
 };
 
 export const downloadFile = async (regnumber, filename, displayName = null) => {
+  // Verificar se document está disponível
+  if (typeof document === 'undefined' || !document.createElement || !document.body) {
+    throw new Error("document.createElement não está disponível para download");
+  }
+
   const response = await api.get(`/files/${regnumber}/${filename}`, {
     responseType: 'blob',
     headers: { 'Accept': '*/*' }

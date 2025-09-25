@@ -22,7 +22,7 @@ bp = Blueprint('tasks_routes', __name__)
 @bp.route('/tasks', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("tasks.all")
+@require_permission(200)  # tasks.all
 @set_session
 @api_error_handler
 def get_tasks():
@@ -35,7 +35,7 @@ def get_tasks():
 @bp.route('/tasks', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("tasks.manage")
+@require_permission(750)  # tasks.manage
 @set_session
 @api_error_handler
 def new_task():
@@ -49,7 +49,7 @@ def new_task():
 @bp.route('/tasks/<int:task_id>/notes', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("tasks.manage")
+@require_permission(750)  # tasks.manage
 @set_session
 @api_error_handler
 def add_note(task_id):
@@ -64,7 +64,7 @@ def add_note(task_id):
 @bp.route('/tasks/<int:task_id>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("tasks.manage")
+@require_permission(750)  # tasks.manage
 @set_session
 @api_error_handler
 def update_task_route(task_id):
@@ -78,7 +78,7 @@ def update_task_route(task_id):
 @bp.route('/tasks/<int:task_id>/close', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission("tasks.manage")
+@require_permission(750)  # tasks.manage
 @set_session
 @api_error_handler
 def close_task_route(task_id):
@@ -91,7 +91,7 @@ def close_task_route(task_id):
 @bp.route('/tasks/<int:task_id>/status', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("tasks.manage")
+@require_permission(750)  # tasks.manage
 @set_session
 @api_error_handler
 def update_task_status_route(task_id):
@@ -111,7 +111,7 @@ def update_task_status_route(task_id):
 @bp.route('/tasks/<int:task_id>/history', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission("tasks.all")
+@require_permission(200)  # tasks.all
 @set_session
 @api_error_handler
 def get_task_history_route(task_id):
@@ -124,7 +124,7 @@ def get_task_history_route(task_id):
 @bp.route('/tasks/<int:task_id>/notification', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission("tasks.manage")
+@require_permission(750)  # tasks.manage
 @set_session
 @api_error_handler
 def update_task_notification(task_id):

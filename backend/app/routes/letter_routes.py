@@ -15,7 +15,7 @@ bp = Blueprint('oficios', __name__)
 
 @bp.route('/letters', methods=['POST'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def create_letter_route():
     data = request.json
@@ -26,7 +26,7 @@ def create_letter_route():
 
 @bp.route('/letters/<int:letter_id>', methods=['GET'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def get_letter_route(letter_id):
     current_user = get_jwt_identity()
@@ -36,7 +36,7 @@ def get_letter_route(letter_id):
 
 @bp.route('/letters/<int:letter_id>', methods=['PUT'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def update_letter_route(letter_id):
     data = request.json
@@ -47,7 +47,7 @@ def update_letter_route(letter_id):
 
 @bp.route('/letters/<int:letter_id>', methods=['DELETE'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def delete_letter_route(letter_id):
     current_user = get_jwt_identity()
@@ -57,7 +57,7 @@ def delete_letter_route(letter_id):
 
 @bp.route('/letters', methods=['GET'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def list_letters_route():
     # Tenta obter filtros do query string
@@ -84,7 +84,7 @@ def list_letters_route():
 
 @bp.route('/letterstores', methods=['POST'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def create_letterstore_route():
     data = request.json
@@ -95,7 +95,7 @@ def create_letterstore_route():
 
 @bp.route('/letterstores/<int:letterstore_id>', methods=['GET'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def get_letterstore_route(letterstore_id):
     current_user = get_jwt_identity()
@@ -105,7 +105,7 @@ def get_letterstore_route(letterstore_id):
 
 @bp.route('/letterstores', methods=['GET'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def list_letterstores_route():
     current_user = get_jwt_identity()
@@ -117,7 +117,7 @@ def list_letterstores_route():
 
 @bp.route('/letters/<int:letter_id>/generate', methods=['POST'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def generate_letter_document_route(letter_id):
     document_data = request.json
@@ -150,7 +150,7 @@ def generate_letter_document_route(letter_id):
 
 @bp.route('/letters/view/<int:letterstore_id>', methods=['GET'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def view_letter(letterstore_id):
     current_user = get_jwt_identity()
@@ -186,7 +186,7 @@ def view_letter(letterstore_id):
 
 @bp.route('/letters/download/<int:letterstore_id>', methods=['GET'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def download_letter(letterstore_id):
     current_user = get_jwt_identity()
@@ -209,7 +209,7 @@ def download_letter(letterstore_id):
 
 @bp.route('/letters/generate-free', methods=['POST'])
 @jwt_required()
-@require_permission("letters.manage")
+@require_permission(220)  # letters.manage
 @api_error_handler
 def generate_free_letter_document_route():
     document_data = request.json

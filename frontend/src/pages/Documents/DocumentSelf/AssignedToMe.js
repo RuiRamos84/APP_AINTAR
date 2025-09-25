@@ -20,6 +20,7 @@ import {
 import { Add as AddIcon, Refresh as RefreshIcon } from "@mui/icons-material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import { getDocumentsAssignedToMe } from "../../../services/documentService";
+import { normalizeText } from "../../../utils/textUtils";
 import Row from "../DocumentListAll/Row";
 import SearchBar from "../../../components/common/SearchBar/SearchBar";
 import CreateDocumentModal from "../DocumentCreate/CreateDocumentModal";
@@ -203,9 +204,11 @@ const AssignedToMe = () => {
   };
 
   const filteredDocuments = documents.filter(document => {
-    const matchesSearch = metaData?.columns?.some(column =>
-      document[column.id]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-    ) || false;
+    const matchesSearch = metaData?.columns?.some(column => {
+      const value = document[column.id]?.toString();
+      if (!value) return false;
+      return normalizeText(value).includes(normalizeText(searchTerm));
+    }) || false;
     const matchesState = document.what === selectedState;
     return matchesSearch && matchesState;
   });

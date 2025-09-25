@@ -208,6 +208,12 @@ export const FileTypeChip = ({ filename, fileType }) => {
  */
 export const generatePDFThumbnail = async (file) => {
     try {
+        // Verificar se document está disponível
+        if (typeof document === 'undefined' || !document.createElement) {
+            console.warn("document.createElement não está disponível");
+            return null;
+        }
+
         // Configurar worker para PDF.js se ainda não configurado
         if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
             pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -217,7 +223,7 @@ export const generatePDFThumbnail = async (file) => {
         const pdf = await loadingTask.promise;
         const page = await pdf.getPage(1);
         const viewport = page.getViewport({ scale: 0.5 });
-        const canvas = window.document.createElement("canvas");
+        const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const context = canvas.getContext("2d");
@@ -225,7 +231,7 @@ export const generatePDFThumbnail = async (file) => {
         return canvas.toDataURL();
     } catch (error) {
         console.error("Erro ao gerar thumbnail do PDF:", error);
-        return "url/to/generic/file/icon.png";
+        return null;
     }
 };
 
@@ -244,8 +250,8 @@ export const generateFilePreview = async (file) => {
     } else if (file.type.startsWith("image/")) {
         return URL.createObjectURL(file);
     } else {
-        // Retornar um ícone genérico para outros tipos
-        return "url/to/generic/file/icon.png";
+        // Retornar null para outros tipos - será usado o ícone padrão
+        return null;
     }
 };
 
@@ -291,7 +297,7 @@ export const FilePreviewItem = ({ file, description, onDescriptionChange, onRemo
             }}
         >
             <ListItemIcon sx={{ minWidth: 'auto', mr: 2 }}>
-                {previewUrl && previewUrl !== "url/to/generic/file/icon.png" ? (
+                {previewUrl ? (
                     <img
                         src={previewUrl}
                         alt="preview"
@@ -351,6 +357,11 @@ export const downloadFile = async (regnumber, filename, displayName = null) => {
 
     if (!baseUrl || !token) {
         throw new Error("Configuração inválida");
+    }
+
+    // Verificar se document está disponível
+    if (typeof document === 'undefined' || !document.createElement || !document.body) {
+        throw new Error("document.createElement não está disponível para download");
     }
 
     const response = await fetch(`${baseUrl}/files/${regnumber}/${filename}`, {

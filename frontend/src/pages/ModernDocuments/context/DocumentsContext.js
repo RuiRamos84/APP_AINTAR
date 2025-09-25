@@ -8,6 +8,7 @@ import {
     getDocumentsLate,
 } from '../../../services/documentService';
 import { useMetaData } from '../../../contexts/MetaDataContext';
+import permissionService from '../../../services/permissionService';
 
 // Criar contexto
 const DocumentsContext = createContext();
@@ -29,7 +30,16 @@ export const DocumentsProvider = ({ children }) => {
     const [loadingCreated, setLoadingCreated] = useState(true);
     const [error, setError] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [activeTab, setActiveTab] = useState(0);
+    // Função para determinar a tab inicial baseada nas permissões
+    const getInitialActiveTab = useCallback(() => {
+        // Verificar permissões na ordem de preferência
+        if (permissionService.hasPermission(500)) return 0;  // docs.view.all - Todos
+        if (permissionService.hasPermission(520)) return 1;  // docs.view.assigned - A meu cargo
+        if (permissionService.hasPermission(510)) return 2;  // docs.view.owner - Por mim criados
+        return 0; // fallback
+    }, []);
+
+    const [activeTab, setActiveTab] = useState(getInitialActiveTab);
     const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list', ou 'kanban'
     const [lateDocuments, setLateDocuments] = useState([]);
     const [loadingLate, setLoadingLate] = useState(true);
@@ -37,6 +47,13 @@ export const DocumentsProvider = ({ children }) => {
 
     // Funções para buscar documentos
     const fetchAllDocuments = useCallback(async () => {
+        // Verificar permissão antes de fazer a chamada
+        if (!permissionService.hasPermission(500)) {
+            setAllDocuments([]);
+            setLoadingAll(false);
+            return;
+        }
+
         setLoadingAll(true);
         setError(null);
         try {
@@ -53,6 +70,13 @@ export const DocumentsProvider = ({ children }) => {
     }, []);
 
     const fetchAssignedDocuments = useCallback(async () => {
+        // Verificar permissão antes de fazer a chamada
+        if (!permissionService.hasPermission(520)) {
+            setAssignedDocuments([]);
+            setLoadingAssigned(false);
+            return;
+        }
+
         setLoadingAssigned(true);
         setError(null);
         try {
@@ -69,6 +93,13 @@ export const DocumentsProvider = ({ children }) => {
     }, []);
 
     const fetchCreatedDocuments = useCallback(async () => {
+        // Verificar permissão antes de fazer a chamada
+        if (!permissionService.hasPermission(510)) {
+            setCreatedDocuments([]);
+            setLoadingCreated(false);
+            return;
+        }
+
         setLoadingCreated(true);
         setError(null);
         try {
@@ -85,6 +116,13 @@ export const DocumentsProvider = ({ children }) => {
     }, []);
 
     const fetchLateDocuments = useCallback(async () => {
+        // Verificar permissão antes de fazer a chamada (usa mesma permissão que "Todos")
+        if (!permissionService.hasPermission(500)) {
+            setLateDocuments([]);
+            setLoadingLate(false);
+            return;
+        }
+
         setLoadingLate(true);
         setError(null);
         try {

@@ -12,7 +12,7 @@ bp = Blueprint('dashboard_routes', __name__)
 
 @bp.route('/dashboard/<view_name>', methods=['GET'])
 @jwt_required()
-@require_permission("dashboard.view")
+@require_permission(400)  # dashboard.view
 @api_error_handler
 def get_dashboard_data(view_name):
     """Obtém dados para o dashboard a partir de uma view específica"""

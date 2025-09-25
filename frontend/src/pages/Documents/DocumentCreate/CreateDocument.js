@@ -44,16 +44,27 @@ const CreateDocument = () => {
   };
 
   const generatePDFThumbnail = async (file) => {
-    const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 0.5 });
-    const canvas = window.document.createElement("canvas");
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const context = canvas.getContext("2d");
-    await page.render({ canvasContext: context, viewport: viewport }).promise;
-    return canvas.toDataURL();
+    try {
+      // Verificar se document está disponível
+      if (typeof document === 'undefined' || !document.createElement) {
+        console.warn("document.createElement não está disponível");
+        return null;
+      }
+
+      const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 0.5 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext("2d");
+      await page.render({ canvasContext: context, viewport: viewport }).promise;
+      return canvas.toDataURL();
+    } catch (error) {
+      console.error("Erro ao gerar thumbnail do PDF:", error);
+      return null;
+    }
   };
 
   const onDrop = useCallback(
