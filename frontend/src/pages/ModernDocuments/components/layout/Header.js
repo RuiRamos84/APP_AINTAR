@@ -198,6 +198,7 @@ const Header = ({
                                 </Badge>
                             </Tooltip>
 
+
                             {/* Novo botão para ordenação separada */}
                             <Tooltip title={showSorting ? "Ocultar ordenação" : "Mostrar ordenação"} arrow>
                                 <IconButton

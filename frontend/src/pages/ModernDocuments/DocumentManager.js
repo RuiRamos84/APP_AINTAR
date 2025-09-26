@@ -33,6 +33,7 @@ import { UIProvider, useUI } from './context/UIStateContext';
 import { DocumentsProvider, useDocumentsContext } from './context/DocumentsContext';
 import { DocumentActionsProvider, useDocumentActions } from './context/DocumentActionsContext';
 import { AdvancedDocumentsProvider, useAdvancedDocuments } from './context/AdvancedDocumentsContext';
+import { DocumentNotificationProvider } from './contexts/DocumentNotificationContext';
 
 // Utils
 import DocumentFilters from './components/filters/DocumentFilters';
@@ -865,9 +866,11 @@ const DocumentManager = () => (
         <UIProvider>
             <DocumentsProvider>
                 <AdvancedDocumentsProvider>
-                    <DocumentActionsProvider>
-                        <DocumentManagerContent />
-                    </DocumentActionsProvider>
+                    <DocumentNotificationProvider>
+                        <DocumentActionsProvider>
+                            <DocumentManagerContent />
+                        </DocumentActionsProvider>
+                    </DocumentNotificationProvider>
                 </AdvancedDocumentsProvider>
             </DocumentsProvider>
         </UIProvider>

@@ -39,7 +39,7 @@ import SidebarItem from './SidebarItem';
 import { usePermissionContext } from '../../../contexts/PermissionContext';
 import { useRouteConfig } from './useRouteConfig';
 import { useModal } from '../../../contexts/ModalContext';
-import TaskNotificationCenter from '../../../pages/Tasks/TaskNotificationCenter';
+import UnifiedNotificationCenter from './UnifiedNotificationCenter';
 import { notifySuccess } from "../../common/Toaster/ThemedToaster";
 import logo from "../../../assets/images/logo.png";
 
@@ -232,7 +232,7 @@ const MainSidebar = () => {
                         justifyContent: isCompact ? 'center' : 'flex-end',
                         mb: 1
                     }}>
-                        <TaskNotificationCenter />
+                        <UnifiedNotificationCenter />
                     </Box>
                 )}
 

@@ -46,6 +46,7 @@ import { notifySuccess, notifyError, notifyWarning } from "../../../components/c
 import { FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
 import { getValidTransitions, getAvailableSteps, getAvailableUsersForStep, canStayInSameStep, getUsersForTransfer } from '../utils/workflowUtils';
 import { DocumentEventManager, DOCUMENT_EVENTS } from '../utils/documentEventSystem';
+import { useDocumentNotifications } from '../contexts/DocumentNotificationContext';
 
 // ===== FUNÇÃO AUXILIAR PARA PK = 0 =====
 const isValidValue = (value) => {
@@ -56,6 +57,7 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
     const { emit, isConnected, refreshNotifications } = useSocket();
     const { smartUpdateDocument } = useDocumentsContext();
     const { enhancedUpdateDocument, trackOperation } = useAdvancedDocuments();
+    const { notifyDocumentTransfer } = useDocumentNotifications();
 
     // Estados
     const [stepData, setStepData] = useState({
@@ -368,15 +370,42 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
             const stepPromise = addDocumentStep(document.pk, stepDataObj);
             const stepResponse = await enhancedUpdateDocument(document.pk, optimisticDoc, stepPromise);
 
-            // Socket & eventos
+            // Socket & eventos - Sistema de notificações melhorado
             setSubmitProgress(90);
 
+            // Obter informações do utilizador receptor
+            const toUser = metaData?.who?.find(user => user.pk.toString() === stepData.who.toString());
+            const toUserName = toUser ? `${toUser.name} (${toUser.username})` : 'Utilizador';
+
+            // Obter informações do status/passo
+            const stepInfo = metaData?.what?.find(step => step.pk.toString() === stepData.what.toString());
+            const stepName = stepInfo ? stepInfo.name : 'Passo';
+
             if (isConnected) {
+                // Evento original (manter para compatibilidade)
                 emit("new_step_added", {
                     orderId: document.regnumber,
                     userId: stepData.who,
                     documentId: document.pk
                 });
+
+                // NOVO: Notificação de transferência de documento via sistema avançado
+                notifyDocumentTransfer({
+                    documentId: document.pk,
+                    documentNumber: document.regnumber || document.pk,
+                    toUser: parseInt(stepData.who),
+                    toUserName: toUserName,
+                    stepName: stepName,
+                    stepType: stepData.what,
+                    currentStatus: stepName,
+                    metadata: {
+                        memo: stepData.memo,
+                        hasAttachments: files.length > 0,
+                        attachmentCount: files.length,
+                        originalDocument: document
+                    }
+                });
+
                 refreshNotifications();
             }
 

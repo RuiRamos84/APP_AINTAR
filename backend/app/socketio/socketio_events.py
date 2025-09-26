@@ -141,6 +141,50 @@ class SocketIOEvents(Namespace):
                 current_app.logger.error(
                     f"Erro ao obter notificações: {str(e)}")
 
+    # =========================================================================
+    # DOCUMENT NOTIFICATION HANDLERS
+    # =========================================================================
+
+    def emit_document_transfer(self, document_data, to_user_id):
+        """Emite notificação quando documento é transferido"""
+        try:
+            room_id = f'user_{to_user_id}'
+            current_app.logger.info(f"Verificando se utilizador {to_user_id} está conectado...")
+            current_app.logger.info(f"Utilizadores conectados: {list(self.connected_users.keys())}")
+
+            if str(to_user_id) in self.connected_users:
+                emit('document_transferred', document_data, room=room_id)
+                current_app.logger.info(f"✅ Notificação de transferência emitida para utilizador {to_user_id} na room {room_id}")
+            else:
+                current_app.logger.warning(f"❌ Utilizador {to_user_id} não está conectado. Room esperada: {room_id}")
+                current_app.logger.warning(f"Utilizadores actualmente conectados: {list(self.connected_users.keys())}")
+        except Exception as e:
+            current_app.logger.error(f"Erro ao emitir transferência de documento: {str(e)}")
+
+    def emit_document_status_update(self, document_data, user_id):
+        """Emite notificação quando status do documento é atualizado"""
+        try:
+            room_id = f'user_{user_id}'
+            if str(user_id) in self.connected_users:
+                emit('document_status_updated', document_data, room=room_id)
+                current_app.logger.info(f"Notificação de status emitida para utilizador {user_id}")
+            else:
+                current_app.logger.info(f"Utilizador {user_id} não está conectado para receber atualização de status")
+        except Exception as e:
+            current_app.logger.error(f"Erro ao emitir atualização de status: {str(e)}")
+
+    def emit_document_rejected(self, document_data, user_id):
+        """Emite notificação quando documento é rejeitado"""
+        try:
+            room_id = f'user_{user_id}'
+            if str(user_id) in self.connected_users:
+                emit('document_rejected', document_data, room=room_id)
+                current_app.logger.info(f"Notificação de rejeição emitida para utilizador {user_id}")
+            else:
+                current_app.logger.info(f"Utilizador {user_id} não está conectado para receber notificação de rejeição")
+        except Exception as e:
+            current_app.logger.error(f"Erro ao emitir rejeição de documento: {str(e)}")
+
 
 def register_socket_events(socketio):
     # Criamos uma instância da classe e a registramos no socketio

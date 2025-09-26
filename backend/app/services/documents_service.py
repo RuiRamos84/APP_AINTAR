@@ -322,15 +322,48 @@ def add_document_step(data: dict, pk: int, current_user: str):
             )
             session.execute(update_query, {'pk': pk, **step_data.model_dump()})
 
-        # Emitir notificação via Socket.IO
+        # Emitir notificação de transferência de documento via Socket.IO
         try:
-            socket_io.emit('new_notification', {
-                "document_id": step_data.tb_document,
-                "message": f"Novo passo adicionado ao pedido {step_data.tb_document}"
-            }, room=f"user_{step_data.who}")
-            current_app.logger.info(f"Notificação enviada para o usuário {step_data.who}")
+            # Buscar dados do documento e utilizador
+            document_query = text("SELECT regnumber FROM vbf_document WHERE pk = :document_id")
+            document_number = session.execute(document_query, {'document_id': step_data.tb_document}).scalar()
+
+            user_query = text("SELECT name FROM vbf_user WHERE user_id = :user_id")
+            to_user_name = session.execute(user_query, {'user_id': step_data.who}).scalar()
+
+            # Buscar nome do utilizador actual
+            from_user_name = session.execute(user_query, {'user_id': current_user}).scalar()
+
+            # Preparar dados da notificação
+            notification_data = {
+                "documentId": step_data.tb_document,
+                "documentNumber": document_number or f"DOC-{step_data.tb_document}",
+                "fromUser": current_user,
+                "fromUserName": from_user_name or "Sistema",
+                "toUser": step_data.who,
+                "toUserName": to_user_name or "Utilizador",
+                "stepName": step_data.what or "Novo Passo",
+                "stepType": "transfer",
+                "currentStatus": "Transferido",
+                "timestamp": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "memo": step_data.memo,
+                    "isReceiver": True
+                }
+            }
+
+            # Emitir através dos handlers específicos
+            socket_events = current_app.extensions.get('socketio_events')
+            if socket_events:
+                current_app.logger.info(f"Tentando emitir notificação para utilizador: {step_data.who}")
+                current_app.logger.info(f"Dados da notificação: {notification_data}")
+                socket_events.emit_document_transfer(notification_data, step_data.who)
+                current_app.logger.info(f"Notificação emitida com sucesso para utilizador {step_data.who}")
+            else:
+                current_app.logger.warning("SocketIO events handler não encontrado")
+
         except Exception as e:
-            current_app.logger.error(f"Erro ao enviar notificação via socket: {str(e)}")
+            current_app.logger.error(f"Erro ao enviar notificação de documento via socket: {str(e)}")
 
         return {'sucesso': 'Passo do pedido criado ou atualizado com sucesso'}, 201
 
