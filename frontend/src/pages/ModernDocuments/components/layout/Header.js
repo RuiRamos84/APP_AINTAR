@@ -34,7 +34,9 @@ import {
     FilterAltOff as FilterOffIcon,
     SortByAlpha as SortingIcon, // Nova importação
     FileDownload as ExportIcon,
-    DateRange as DateRangeIcon
+    DateRange as DateRangeIcon,
+    Keyboard as KeyboardIcon,
+    Settings as AdvancedIcon
 } from '@mui/icons-material';
 
 import SearchBar from '../../../../components/common/SearchBar/SearchBar';
@@ -59,6 +61,11 @@ const Header = ({
     showSorting, // Novo prop
     toggleSorting, // Nova função
     handleExportToExcel, // Nova função para exportação
+    // Advanced features
+    advancedMode,
+    keyboardMode,
+    toggleAdvancedMode,
+    toggleKeyboardMode,
 }) => {
     const { searchTerm, setSearchTerm, filters } = useUI();
     const theme = useTheme();
@@ -218,6 +225,37 @@ const Header = ({
                                     <ExportIcon />
                                 </IconButton>
                             </Tooltip>
+
+                            {/* Advanced features */}
+                            {toggleAdvancedMode && (
+                                <Tooltip title={advancedMode ? "Desativar modo avançado" : "Ativar modo avançado"} arrow>
+                                    <IconButton
+                                        onClick={toggleAdvancedMode}
+                                        color={advancedMode ? "primary" : "default"}
+                                        aria-label="Modo avançado"
+                                        sx={{
+                                            bgcolor: advancedMode ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                                        }}
+                                    >
+                                        <AdvancedIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+
+                            {toggleKeyboardMode && (
+                                <Tooltip title={keyboardMode ? "Desativar atalhos de teclado" : "Ativar atalhos de teclado"} arrow>
+                                    <IconButton
+                                        onClick={toggleKeyboardMode}
+                                        color={keyboardMode ? "primary" : "default"}
+                                        aria-label="Atalhos de teclado"
+                                        sx={{
+                                            bgcolor: keyboardMode ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                                        }}
+                                    >
+                                        <KeyboardIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
                         </Box>
 
                         <Divider orientation="vertical" flexItem />
@@ -308,6 +346,25 @@ const Header = ({
                         </ListItemIcon>
                         <ListItemText>Exportar para Excel</ListItemText>
                     </MenuItem>
+
+                    {/* Advanced features menu items */}
+                    {toggleAdvancedMode && (
+                        <MenuItem onClick={() => { toggleAdvancedMode(); handleCloseActionsMenu(); }}>
+                            <ListItemIcon>
+                                <AdvancedIcon fontSize="small" color={advancedMode ? "primary" : "inherit"} />
+                            </ListItemIcon>
+                            <ListItemText>{advancedMode ? "Desativar modo avançado" : "Ativar modo avançado"}</ListItemText>
+                        </MenuItem>
+                    )}
+
+                    {toggleKeyboardMode && (
+                        <MenuItem onClick={() => { toggleKeyboardMode(); handleCloseActionsMenu(); }}>
+                            <ListItemIcon>
+                                <KeyboardIcon fontSize="small" color={keyboardMode ? "primary" : "inherit"} />
+                            </ListItemIcon>
+                            <ListItemText>{keyboardMode ? "Desativar atalhos" : "Ativar atalhos"}</ListItemText>
+                        </MenuItem>
+                    )}
                     
                     <MenuItem onClick={() => { handleSortChange(sortBy); handleCloseActionsMenu(); }}>
                         <ListItemIcon>
@@ -429,6 +486,11 @@ Header.propTypes = {
     showSorting: PropTypes.bool, // Nova prop
     toggleSorting: PropTypes.func.isRequired, // Nova função
     handleExportToExcel: PropTypes.func.isRequired, // Nova função
+    // Advanced features
+    advancedMode: PropTypes.bool,
+    keyboardMode: PropTypes.bool,
+    toggleAdvancedMode: PropTypes.func,
+    toggleKeyboardMode: PropTypes.func,
 };
 
 ViewModeToggle.propTypes = {

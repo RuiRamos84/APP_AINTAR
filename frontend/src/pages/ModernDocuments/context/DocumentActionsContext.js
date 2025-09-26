@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
 import { isFeatureAvailable } from '../utils/featureUtils';
 import { updateDocumentNotification } from '../../../services/documentService';
+import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
 
 // Criar o contexto
 const DocumentActionsContext = createContext();
@@ -18,7 +19,7 @@ export const DocumentActionsProvider = ({ children }) => {
     const [modalInstanceKey, setModalInstanceKey] = useState(Date.now());
 
     // Acessar contexto principal de documentos
-    const { refreshDocuments, handleDownloadComprovativo, showNotification, activeTab } = useDocumentsContext();
+    const { refreshDocuments, handleDownloadComprovativo, activeTab, smartUpdateDocument } = useDocumentsContext();
 
     // Lista de documentos abertos em modais em cascata
     const [openDocuments, setOpenDocuments] = useState([]);
@@ -105,23 +106,22 @@ export const DocumentActionsProvider = ({ children }) => {
         if (!document) return;
 
         try {
-            // Verificar se o documento tem notificação E se estamos na tab "Para tratamento" (activeTab === 1)
+            // MELHORADO: Smart update para notificações
             if (document.notification === 1 && activeTab === 1) {
                 try {
-                    await updateDocumentNotification(document.pk);
+                    // Dados otimistas
+                    const optimisticDoc = { ...document, notification: 0, _optimistic: true };
 
-                    // Atualizar o documento em todos os contextos relevantes
-                    const updatedDocument = { ...document, notification: 0 };
+                    // Promise de atualização
+                    const updatePromise = updateDocumentNotification(document.pk);
 
-                    // Usar a função de atualização do documento no contexto de documentos
-                    if (typeof refreshDocuments === 'function') {
-                        refreshDocuments();
-                    }
+                    // Smart update com feedback imediato
+                    await smartUpdateDocument(document.pk, optimisticDoc, updatePromise);
 
-                    document = updatedDocument; // Usar a versão atualizada para o modal
+                    document = optimisticDoc; // Usar a versão otimizada para o modal
                 } catch (error) {
                     console.error('Erro ao atualizar notificação:', error);
-                    // Continuar mesmo se houver erro na atualização da notificação
+                    // Continuar mesmo se houver erro
                 }
             }
 
@@ -138,33 +138,31 @@ export const DocumentActionsProvider = ({ children }) => {
             openModal('document');
         } catch (error) {
             console.error('Erro ao abrir detalhes do documento:', error);
-            showNotification('Erro ao abrir detalhes do documento', 'error');
+            notifyError('Erro ao abrir detalhes do documento');
         }
-    }, [openModal, refreshDocuments, showNotification, updateDocumentNotification, activeTab]);
+    }, [openModal, refreshDocuments, updateDocumentNotification, activeTab]);
 
     // Ver detalhes em cascata (para documentos de origem)
     const handleViewOriginDetails = useCallback(async (originDocument) => {
         if (!originDocument) return;
 
         try {
-            // Atualizar notificação apenas se estiver na tab "Para tratamento"
+            // MELHORADO: Smart update para notificações
             if (originDocument.notification === 1 && activeTab === 1) {
                 try {
-                    await updateDocumentNotification(originDocument.pk);
+                    // Dados otimistas
+                    const optimisticDoc = { ...originDocument, notification: 0, _optimistic: true };
 
-                    // Atualizar o documento em todos os contextos relevantes
-                    if (typeof refreshDocuments === 'function') {
-                        refreshDocuments();
-                    }
+                    // Promise de atualização
+                    const updatePromise = updateDocumentNotification(originDocument.pk);
 
-                    // Atualizar a versão local
-                    originDocument = {
-                        ...originDocument,
-                        notification: 0
-                    };
+                    // Smart update com feedback imediato
+                    await smartUpdateDocument(originDocument.pk, optimisticDoc, updatePromise);
+
+                    originDocument = optimisticDoc; // Usar a versão otimizada
                 } catch (error) {
                     console.error('Erro ao atualizar notificação:', error);
-                    // Continuar mesmo se houver erro na atualização da notificação
+                    // Continuar mesmo se houver erro
                 }
             }
 
@@ -184,63 +182,63 @@ export const DocumentActionsProvider = ({ children }) => {
             ]);
         } catch (error) {
             console.error('Erro ao abrir detalhes do documento de origem:', error);
-            showNotification('Erro ao abrir detalhes do documento', 'error');
+            notifyError('Erro ao abrir detalhes do documento');
         }
-    }, [refreshDocuments, showNotification, updateDocumentNotification, activeTab]);
+    }, [refreshDocuments, updateDocumentNotification, activeTab]);
 
     // Adicionar passo
     const handleAddStep = useCallback((document) => {
         const targetDoc = document || selectedDocument;
 
         if (!targetDoc) {
-            showNotification('Selecione um documento primeiro', 'warning');
+            notifyWarning('Selecione um documento primeiro');
             return;
         }
 
         if (!checkFeatureAvailability('addStep')) {
-            showNotification('Sem permissão para adicionar passos', 'error');
+            notifyError('Sem permissão para adicionar passos');
             return;
         }
 
         setSelectedDocument(targetDoc);
         openModal('step');
-    }, [selectedDocument, openModal, showNotification, checkFeatureAvailability]);
+    }, [selectedDocument, openModal, checkFeatureAvailability]);
 
     // Adicionar anexo
     const handleAddAnnex = useCallback((document) => {
         const targetDoc = document || selectedDocument;
 
         if (!targetDoc) {
-            showNotification('Selecione um documento primeiro', 'warning');
+            notifyWarning('Selecione um documento primeiro');
             return;
         }
 
         if (!checkFeatureAvailability('addAnnex')) {
-            showNotification('Sem permissão para adicionar anexos', 'error');
+            notifyError('Sem permissão para adicionar anexos');
             return;
         }
 
         setSelectedDocument(targetDoc);
         openModal('annex');
-    }, [selectedDocument, openModal, showNotification, checkFeatureAvailability]);
+    }, [selectedDocument, openModal, checkFeatureAvailability]);
 
     // Replicar documento
     const handleReplicate = useCallback((document) => {
         const targetDoc = document || selectedDocument;
 
         if (!targetDoc) {
-            showNotification('Selecione um documento primeiro', 'warning');
+            notifyWarning('Selecione um documento primeiro');
             return;
         }
 
         if (!checkFeatureAvailability('replicate')) {
-            showNotification('Sem permissão para replicar este documento', 'error');
+            notifyError('Sem permissão para replicar este documento');
             return;
         }
 
         setSelectedDocument(targetDoc);
         openModal('replicate');
-    }, [selectedDocument, openModal, showNotification, checkFeatureAvailability]);
+    }, [selectedDocument, openModal, checkFeatureAvailability]);
 
     // Download de comprovativo
     const handleDownloadCompr = useCallback(async (document, event) => {
@@ -251,23 +249,23 @@ export const DocumentActionsProvider = ({ children }) => {
         const targetDoc = document || selectedDocument;
 
         if (!targetDoc) {
-            showNotification('Selecione um documento primeiro', 'warning');
+            notifyWarning('Selecione um documento primeiro');
             return;
         }
 
         if (!checkFeatureAvailability('downloadComprovativo')) {
-            showNotification('Sem permissão para baixar comprovativo', 'error');
+            notifyError('Sem permissão para baixar comprovativo');
             return;
         }
 
         try {
             await handleDownloadComprovativo(targetDoc);
-            showNotification('Download iniciado', 'success');
+            notifySuccess('Download iniciado');
         } catch (error) {
             console.error('Erro ao baixar comprovativo:', error);
-            showNotification('Erro ao baixar comprovativo', 'error');
+            notifyError('Erro ao baixar comprovativo');
         }
-    }, [selectedDocument, handleDownloadComprovativo, showNotification, checkFeatureAvailability]);
+    }, [selectedDocument, handleDownloadComprovativo, checkFeatureAvailability]);
 
     // Criar documento
     const handleOpenCreateModal = useCallback(() => {
@@ -284,30 +282,30 @@ export const DocumentActionsProvider = ({ children }) => {
     const handleCloseStepModal = useCallback((success) => {
         const result = closeModal('step', success);
         if (result) {
-            showNotification('Passo adicionado com sucesso', 'success');
+            notifySuccess('Passo adicionado com sucesso');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal]);
 
     const handleCloseAnnexModal = useCallback((success) => {
         const result = closeModal('annex', success);
         if (result) {
-            showNotification('Anexo adicionado com sucesso', 'success');
+            notifySuccess('Anexo adicionado com sucesso');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal]);
 
     const handleCloseReplicateModal = useCallback((success) => {
         const result = closeModal('replicate', success);
         if (result) {
-            showNotification('Documento replicado com sucesso', 'success');
+            notifySuccess('Documento replicado com sucesso');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal]);
 
     const handleCloseCreateModal = useCallback((success) => {
         const result = closeModal('create', success);
         if (result) {
-            showNotification('Pedido criado com sucesso', 'success');
+            notifySuccess('Pedido criado com sucesso');
         }
-    }, [closeModal, showNotification]);
+    }, [closeModal]);
 
     // Verificação de disponibilidade de features
     const canAddStep = checkFeatureAvailability('addStep');

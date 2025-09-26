@@ -9,6 +9,8 @@ import {
 } from '../../../services/documentService';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import permissionService from '../../../services/permissionService';
+import { documentsCache, metadataCache, cacheUtils } from '../utils/advancedCache';
+import { notifySuccess, notifyError, notifyWarning, notifyInfo } from "../../../components/common/Toaster/ThemedToaster.js";
 
 // Criar contexto
 const DocumentsContext = createContext();
@@ -45,7 +47,7 @@ export const DocumentsProvider = ({ children }) => {
     const [loadingLate, setLoadingLate] = useState(true);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
-    // Funções para buscar documentos
+    // Funções para buscar documentos com cache
     const fetchAllDocuments = useCallback(async () => {
         // Verificar permissão antes de fazer a chamada
         if (!permissionService.hasPermission(500)) {
@@ -56,14 +58,24 @@ export const DocumentsProvider = ({ children }) => {
 
         setLoadingAll(true);
         setError(null);
+
         try {
-            const docs = await getDocuments();
-            // console.log('Todos os documentos:', docs);
+            // Tentar obter do cache primeiro
+            const cacheKey = 'all_documents';
+            let docs = documentsCache.get(cacheKey);
+
+            if (!docs) {
+                // Se não estiver em cache, fazer requisição
+                docs = await getDocuments();
+                // Armazenar em cache por 3 minutos
+                documentsCache.set(cacheKey, docs);
+            }
+
             setAllDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar todos os documentos:', err);
             setError('Erro ao carregar documentos. Por favor, tente novamente.');
-            showNotification('Erro ao carregar documentos', 'error');
+            notifyError('Erro ao carregar documentos');
         } finally {
             setLoadingAll(false);
         }
@@ -86,7 +98,7 @@ export const DocumentsProvider = ({ children }) => {
         } catch (err) {
             console.error('Erro ao buscar documentos assignados:', err);
             setError('Erro ao carregar documentos. Por favor, tente novamente.');
-            showNotification('Erro ao carregar documentos assignados', 'error');
+            notifyError('Erro ao carregar documentos atribuídos');
         } finally {
             setLoadingAssigned(false);
         }
@@ -109,7 +121,7 @@ export const DocumentsProvider = ({ children }) => {
         } catch (err) {
             console.error('Erro ao buscar documentos criados:', err);
             setError('Erro ao carregar documentos. Por favor, tente novamente.');
-            showNotification('Erro ao carregar documentos criados', 'error');
+            notifyError('Erro ao carregar documentos criados');
         } finally {
             setLoadingCreated(false);
         }
@@ -132,10 +144,36 @@ export const DocumentsProvider = ({ children }) => {
         } catch (err) {
             console.error('Erro ao buscar documentos em atraso:', err);
             setError('Erro ao carregar documentos em atraso.');
-            showNotification('Erro ao carregar documentos em atraso', 'error');
+            notifyError('Erro ao carregar documentos em atraso');
         } finally {
             setLoadingLate(false);
         }
+    }, []);
+
+    // Listener para documentos transferidos
+    useEffect(() => {
+        const handleDocumentTransferred = (event) => {
+            if (event.detail && event.detail.documentId) {
+                const documentId = event.detail.documentId;
+
+                // Remover documento das listas (pois foi transferido)
+                setAllDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setAssignedDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setCreatedDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setLateDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+
+                // Limpar cache
+                cacheUtils.invalidateDocumentCache(documentId);
+
+                console.log(`Documento ${documentId} removido das listas após transferência`);
+            }
+        };
+
+        window.addEventListener('document-transferred', handleDocumentTransferred);
+
+        return () => {
+            window.removeEventListener('document-transferred', handleDocumentTransferred);
+        };
     }, []);
 
     useEffect(() => {
@@ -153,18 +191,131 @@ export const DocumentsProvider = ({ children }) => {
 
     // Função para forçar atualização
     const refreshDocuments = () => {
+        // Invalidar cache ao fazer refresh manual
+        cacheUtils.invalidateDocumentCache();
         setRefreshTrigger(prev => prev + 1);
-        showNotification('Atualizando dados...', 'info');
+        notifySuccess('A actualizar dados...');
     };
 
-    // Função para mostrar notificação
+    // DEPRECATED: Função mantida para compatibilidade (use ThemedToaster)
     const showNotification = (message, severity = 'info') => {
-        setNotification({
-            open: true,
-            message,
-            severity
-        });
+        // Redirecionar para ThemedToaster
+        if (severity === 'error') notifyError(message);
+        else if (severity === 'warning') notifyWarning(message);
+        else if (severity === 'success') notifySuccess(message);
+        else notifyInfo(message);
     };
+
+    // Utilitários para manipulação de documentos - MOVED UP
+    const updateDocumentInList = useCallback((document) => {
+        if (document) {
+            // Atualizar em todas as listas para manter consistência
+            setAllDocuments(prev => prev.map(doc => doc.pk === document.pk ? document : doc));
+            setAssignedDocuments(prev => prev.map(doc => doc.pk === document.pk ? document : doc));
+            setCreatedDocuments(prev => prev.map(doc => doc.pk === document.pk ? document : doc));
+        }
+    }, []);
+
+    const refreshDocumentSelective = useCallback(async (documentId, updateTypes = []) => {
+        if (!documentId) return;
+
+        try {
+            const response = await getDocumentById(documentId);
+            if (response?.document) {
+                updateDocumentInList(response.document);
+
+                // Disparar evento para atualizar componentes específicos
+                window.dispatchEvent(new CustomEvent('document-refreshed', {
+                    detail: {
+                        documentId,
+                        document: response.document,
+                        updateTypes
+                    }
+                }));
+
+                return response.document;
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar documento:', error);
+
+            // Se for erro 404, documento foi removido - remover das listas
+            if (error.response?.status === 404) {
+                console.warn(`Documento ${documentId} não encontrado - remover das listas`);
+
+                // Remover documento das listas locais
+                setAllDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setAssignedDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setCreatedDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setLateDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+
+                // Invalidar cache
+                cacheUtils.invalidateDocumentCache(documentId);
+
+                notifyWarning('Documento não encontrado - removido da lista');
+                return null;
+            }
+
+            // Para outros erros, mostrar notificação genérica
+            if (error.response?.status >= 500) {
+                notifyError('Erro do servidor ao atualizar documento');
+            } else if (error.response?.status === 403) {
+                notifyWarning('Sem permissão para aceder a este documento');
+            }
+        }
+        return null;
+    }, [updateDocumentInList]);
+
+    // MELHORADO: Smart update com feedback visual e cache
+    const smartUpdateDocument = useCallback(async (documentId, optimisticData, updatePromise) => {
+        try {
+            // 1. UPDATE IMEDIATO (Optimistic)
+            if (optimisticData) {
+                updateDocumentInList({ ...optimisticData, _optimistic: true });
+                notifyInfo('A processar...');
+            }
+
+            // 2. REQUEST REAL
+            const result = await updatePromise;
+
+            // 3. CONFIRMAÇÃO com dados reais
+            if (result?.document) {
+                updateDocumentInList({ ...result.document, _optimistic: false });
+
+                // Invalidar cache relacionado ao documento
+                cacheUtils.invalidateDocumentCache(documentId);
+
+                notifySuccess('Documento atualizado!');
+            } else {
+                // Fallback: refresh seletivo
+                await refreshDocumentSelective(documentId);
+                notifySuccess('Atualizado!');
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error('Erro no smart update:', error);
+
+            // Handling específico para diferentes tipos de erro
+            if (error.response?.status === 404) {
+                // Documento não existe mais - remover das listas
+                setAllDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setAssignedDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setCreatedDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+                setLateDocuments(prev => prev.filter(doc => doc.pk !== documentId));
+
+                cacheUtils.invalidateDocumentCache(documentId);
+                notifyWarning('❌ Documento não encontrado - removido da lista.');
+            } else {
+                // 4. ROLLBACK - Reverter para outros tipos de erro
+                await refreshDocumentSelective(documentId);
+                cacheUtils.invalidateDocumentCache(documentId);
+                notifyError('❌ Erro ao atualizar. Dados revertidos.');
+            }
+
+            throw error;
+        }
+    }, [updateDocumentInList, refreshDocumentSelective]);
 
     
 
@@ -178,7 +329,7 @@ export const DocumentsProvider = ({ children }) => {
     // Função para baixar comprovativo
     const handleDownloadComprovativo = async (doc) => {
         try {
-            showNotification('Preparando download...', 'info');
+            notifyInfo('A preparar download...');
             const pdfData = await downloadComprovativo(doc.pk);
 
             // Criar blob e link para download
@@ -191,10 +342,10 @@ export const DocumentsProvider = ({ children }) => {
             link.click();
             link.remove();
 
-            showNotification('Comprovativo baixado com sucesso', 'success');
+            notifySuccess('Comprovativo baixado com sucesso');
         } catch (error) {
             console.error('Erro ao baixar comprovativo:', error);
-            showNotification('Erro ao baixar comprovativo', 'error');
+            notifyError('Erro ao baixar comprovativo');
         }
     };
 
@@ -219,40 +370,6 @@ export const DocumentsProvider = ({ children }) => {
         }
     };
 
-    // Utilitários para manipulação de documentos
-    const updateDocumentInList = (document) => {
-        if (document) {
-            // Atualizar em todas as listas para manter consistência
-            setAllDocuments(prev => prev.map(doc => doc.pk === document.pk ? document : doc));
-            setAssignedDocuments(prev => prev.map(doc => doc.pk === document.pk ? document : doc));
-            setCreatedDocuments(prev => prev.map(doc => doc.pk === document.pk ? document : doc));
-        }
-    };
-
-    const refreshDocumentSelective = useCallback(async (documentId, updateTypes = []) => {
-        if (!documentId) return;
-
-        try {
-            const response = await getDocumentById(documentId);
-            if (response?.document) {
-                updateDocumentInList(response.document);
-
-                // Disparar evento para atualizar componentes específicos
-                window.dispatchEvent(new CustomEvent('document-refreshed', {
-                    detail: {
-                        documentId,
-                        document: response.document,
-                        updateTypes
-                    }
-                }));
-
-                return response.document;
-            }
-        } catch (error) {
-            console.error('Erro ao atualizar documento:', error);
-        }
-        return null;
-    }, [updateDocumentInList]);
 
     const addDocumentToList = (document) => {
         if (document) {
@@ -304,9 +421,10 @@ export const DocumentsProvider = ({ children }) => {
         updateDocumentInList,
         addDocumentToList,
         handleDownloadComprovativo,
+        smartUpdateDocument, // NOVO: Smart updates
 
-        // Métodos para notificações
-        showNotification,
+        // Métodos para notificações (DEPRECATED: use ThemedToaster)
+        showNotification, // Mantido para compatibilidade
         handleCloseNotification,
 
         // Métodos para contagem

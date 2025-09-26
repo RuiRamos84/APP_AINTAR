@@ -4,7 +4,7 @@ import { Box, CircularProgress, Typography, Fade, Skeleton, Paper, useTheme } fr
 
 const LoadingState = ({
     type = 'circular',
-    message = 'Carregando dados...',
+    message = 'A carregar dados...',
     fullPage = false,
     height = 400,
     width = '100%',

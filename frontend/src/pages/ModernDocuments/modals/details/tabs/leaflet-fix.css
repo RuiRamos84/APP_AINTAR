@@ -1,0 +1,35 @@
+/* Fix para Leaflet CSS */
+.leaflet-container {
+    height: 100%;
+    width: 100%;
+}
+
+.leaflet-div-icon {
+    background: transparent;
+    border: none;
+}
+
+.leaflet-marker-icon {
+    margin-left: -12px;
+    margin-top: -41px;
+}
+
+.leaflet-marker-shadow {
+    margin-left: -12px;
+    margin-top: -41px;
+}
+
+/* Garantir que os tiles carregam */
+.leaflet-tile-container {
+    pointer-events: auto;
+}
+
+.leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
+}
+
+/* Fix para problemas de renderização */
+.leaflet-container .leaflet-control-attribution {
+    font-size: 10px;
+}

@@ -29,16 +29,17 @@ export class OperationLockManager {
 
 // Modificar DocumentModal.js - adicionar ao início
 import { OperationLockManager } from '../utils/operationLockSystem';
+import { notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
 
 // No DocumentModal, actualizar os handlers:
 const handleAddStepClick = () => {
     if (OperationLockManager.isLocked(document.pk, 'step')) {
-        showGlobalNotification('Operação já em curso...', 'warning');
+        notifyWarning('Operação já em curso...');
         return;
     }
 
     if (!OperationLockManager.lock(document.pk, 'step')) {
-        showGlobalNotification('Não é possível adicionar passo neste momento', 'warning');
+        notifyWarning('Não é possível adicionar passo neste momento');
         return;
     }
 
@@ -54,12 +55,12 @@ const handleAddStepClick = () => {
 
 const handleAddAnnexClick = () => {
     if (OperationLockManager.isLocked(document.pk, 'annex')) {
-        showGlobalNotification('Operação já em curso...', 'warning');
+        notifyWarning('Operação já em curso...');
         return;
     }
 
     if (!OperationLockManager.lock(document.pk, 'annex')) {
-        showGlobalNotification('Não é possível adicionar anexo neste momento', 'warning');
+        notifyWarning('Não é possível adicionar anexo neste momento');
         return;
     }
 

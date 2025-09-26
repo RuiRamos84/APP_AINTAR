@@ -62,7 +62,7 @@ const isBooleanParam = (name) => {
 
 const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
     const theme = useTheme();
-    const { showNotification } = useDocumentsContext();
+    const { } = useDocumentsContext();
     const { updateDocumentParams: updateContextParams, documentParams } = useDocumentActions();
 
     // States

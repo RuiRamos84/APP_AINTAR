@@ -19,7 +19,9 @@ import {
     Chip,
     Stack,
     List,
-    DialogContentText
+    DialogContentText,
+    LinearProgress,
+    Fade
 } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -31,11 +33,15 @@ import {
     Image as ImageIcon,
     TableChart as TableIcon,
     Email as EmailIcon,
-    Warning as WarningIcon
+    Warning as WarningIcon,
+    CheckCircle as CheckIcon
 } from '@mui/icons-material';
 
 import { addDocumentStep, addDocumentAnnex, checkVacationStatus } from '../../../services/documentService';
 import { useSocket } from '../../../contexts/SocketContext';
+import { useDocumentsContext } from '../context/DocumentsContext';
+import { useAdvancedDocuments } from '../context/AdvancedDocumentsContext';
+import { uxAnalytics } from '../utils/uxAnalytics';
 import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
 import { FilePreviewItem, generateFilePreview } from '../utils/fileUtils';
 import { getValidTransitions, getAvailableSteps, getAvailableUsersForStep, canStayInSameStep, getUsersForTransfer } from '../utils/workflowUtils';
@@ -48,6 +54,8 @@ const isValidValue = (value) => {
 
 const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => {
     const { emit, isConnected, refreshNotifications } = useSocket();
+    const { smartUpdateDocument } = useDocumentsContext();
+    const { enhancedUpdateDocument, trackOperation } = useAdvancedDocuments();
 
     // Estados
     const [stepData, setStepData] = useState({
@@ -63,6 +71,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
     const [errors, setErrors] = useState({});
     const [vacationAlert, setVacationAlert] = useState(false);
     const [confirmClose, setConfirmClose] = useState(false);
+
+    // NOVO: Estados de UX melhorada
+    const [submitProgress, setSubmitProgress] = useState(0);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     // Validações workflow avançadas
     const [workflowValidation, setWorkflowValidation] = useState({
@@ -308,14 +320,18 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         return Object.keys(newErrors).length === 0;
     };
 
-    // ===== SUBMIT (CORRIGIDO) =====
+    // ===== SUBMIT MELHORADO com UX otimizada =====
     const handleSubmit = async () => {
         if (!validateForm()) return;
         setLoading(true);
+        setSubmitProgress(10);
+
+        const startTime = Date.now();
 
         try {
-            // Anexos primeiro
+            // Progresso: Anexos
             if (files.length > 0) {
+                setSubmitProgress(25);
                 const formData = new FormData();
                 formData.append('tb_document', document.pk);
                 files.forEach((fileItem) => {
@@ -325,7 +341,20 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 await addDocumentAnnex(formData);
             }
 
-            // Passo - Mantém valor original (incluindo 0)
+            // Progresso: Preparando passo
+            setSubmitProgress(50);
+
+            // Dados otimistas para update imediato
+            const optimisticDoc = {
+                ...document,
+                what: stepData.what,
+                who: stepData.who,
+                memo: stepData.memo,
+                last_update: new Date().toISOString(),
+                _optimistic: true
+            };
+
+            // Passo com smart update
             const stepDataObj = {
                 tb_document: document.pk,
                 what: stepData.what,
@@ -333,9 +362,15 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 memo: stepData.memo
             };
 
-            const stepResponse = await addDocumentStep(document.pk, stepDataObj);
+            setSubmitProgress(75);
 
-            // Socket
+            // USAR ENHANCED UPDATE para melhor tracking de performance
+            const stepPromise = addDocumentStep(document.pk, stepDataObj);
+            const stepResponse = await enhancedUpdateDocument(document.pk, optimisticDoc, stepPromise);
+
+            // Socket & eventos
+            setSubmitProgress(90);
+
             if (isConnected) {
                 emit("new_step_added", {
                     orderId: document.regnumber,
@@ -345,15 +380,12 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 refreshNotifications();
             }
 
-            if (typeof fetchDocuments === "function") {
-                await fetchDocuments();
-            }
-
-            // Eventos
+            // Eventos para outros componentes - melhorado para workflow
             const eventData = {
                 type: 'step-added',
                 newStep: stepDataObj,
-                originalDocumentId: document.pk
+                originalDocumentId: document.pk,
+                transferredDocument: true // Indica que documento foi transferido
             };
 
             if (stepResponse?.document?.pk && stepResponse.document.pk !== document.pk) {
@@ -361,24 +393,76 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 eventData.newDocumentId = stepResponse.document.pk;
             }
 
-            DocumentEventManager.emit(DOCUMENT_EVENTS.STEP_ADDED, document.pk, eventData);
-
-            window.dispatchEvent(new CustomEvent('document-updated', {
-                detail: { documentId: document.pk, type: 'step-added', ...eventData }
+            // Disparar APENAS o evento de transferência para evitar conflitos
+            window.dispatchEvent(new CustomEvent('document-transferred', {
+                detail: {
+                    documentId: document.pk,
+                    type: 'step-added',
+                    message: 'Documento transferido com sucesso',
+                    ...eventData
+                }
             }));
 
-            notifySuccess("Passo adicionado");
-            onClose(true);
+            // Não disparar o evento document-updated para evitar tentativas de refresh
+            console.log('📤 Evento document-transferred disparado - evitando document-updated');
+
+            // Progresso completo e animação de sucesso
+            setSubmitProgress(100);
+            setShowSuccess(true);
+
+            // Performance tracking
+            const duration = Date.now() - startTime;
+            trackOperation('add_step', duration, true);
+
+            // UX Analytics tracking
+            uxAnalytics.trackAction('add_step', 'document_management', {
+                documentId: document.pk,
+                stepType: stepData.what,
+                assignedTo: stepData.who,
+                hasFiles: files.length > 0,
+                fileCount: files.length,
+                duration
+            })(true, { success: true });
+
+            // Fechar após mostrar sucesso
+            setTimeout(() => {
+                notifySuccess("✅ Passo adicionado! Lista atualizada.");
+                onClose(true);
+            }, 1200);
+
         } catch (error) {
             console.error('Erro:', error);
+
+            // Performance tracking para erros
+            const duration = Date.now() - startTime;
+            trackOperation('add_step', duration, false);
+
+            // UX Analytics tracking para erro
+            uxAnalytics.trackAction('add_step', 'document_management', {
+                documentId: document.pk,
+                stepType: stepData.what,
+                assignedTo: stepData.who,
+                hasFiles: files.length > 0,
+                fileCount: files.length,
+                duration
+            })(false, { error: error.message, status: error.response?.status });
+
+            uxAnalytics.trackError(error, 'add_step_error', {
+                documentId: document.pk,
+                stepType: stepData.what
+            });
+
             let errorMessage = "Erro ao adicionar passo";
             if (error.response?.data?.error) {
                 errorMessage = error.response.data.error;
             }
             notifyError(errorMessage);
             setErrors(prev => ({ ...prev, submit: errorMessage }));
+            setSubmitProgress(0);
         } finally {
-            setLoading(false);
+            if (!showSuccess) {
+                setLoading(false);
+            }
         }
     };
 
@@ -397,15 +481,35 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                 <DialogTitle>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
                         <Box display="flex" alignItems="center">
-                            <SendIcon sx={{ mr: 1 }} />
+                            {showSuccess ? (
+                                <Fade in={true}>
+                                    <CheckIcon sx={{ mr: 1, color: 'success.main' }} />
+                                </Fade>
+                            ) : (
+                                <SendIcon sx={{ mr: 1 }} />
+                            )}
                             <Typography variant="h6">
-                                Novo movimento: {document?.regnumber}
+                                {showSuccess ? 'Passo adicionado com sucesso!' : `Novo movimento: ${document?.regnumber}`}
                             </Typography>
                         </Box>
                         <IconButton onClick={handleModalClose} disabled={loading}>
                             <CloseIcon />
                         </IconButton>
                     </Box>
+
+                    {/* Progress bar durante submit */}
+                    {loading && (
+                        <LinearProgress
+                            variant="determinate"
+                            value={submitProgress}
+                            sx={{
+                                mt: 1,
+                                '& .MuiLinearProgress-bar': {
+                                    backgroundColor: showSuccess ? 'success.main' : 'primary.main'
+                                }
+                            }}
+                        />
+                    )}
                 </DialogTitle>
 
                 <DialogContent dividers>
@@ -636,10 +740,10 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                     <Button onClick={handleModalClose} disabled={loading}>
                         Cancelar
                     </Button>
-                    {/* ===== BOTÃO SUBMIT (CORRIGIDO) ===== */}
+                    {/* ===== BOTÃO SUBMIT MELHORADO ===== */}
                     <Button
                         variant="contained"
-                        color="primary"
+                        color={showSuccess ? "success" : "primary"}
                         onClick={handleSubmit}
                         disabled={
                             loading ||
@@ -647,9 +751,20 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
                             !isValidValue(stepData.who) ||
                             !workflowValidation.isValid
                         }
-                        startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
+                        startIcon={
+                            loading ?
+                                <CircularProgress size={20} color="inherit" /> :
+                                (showSuccess ? <CheckIcon /> : <SendIcon />)
+                        }
+                        sx={{
+                            minWidth: 160,
+                            transition: 'all 0.3s ease'
+                        }}
                     >
-                        {loading ? 'A enviar...' : 'Guardar e Enviar'}
+                        {loading ?
+                            `Processando... ${submitProgress}%` :
+                            (showSuccess ? '✅ Concluído!' : 'Guardar e Enviar')
+                        }
                     </Button>
                 </DialogActions>
             </Dialog>

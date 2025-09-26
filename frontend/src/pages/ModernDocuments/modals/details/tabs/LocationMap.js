@@ -1,60 +1,119 @@
-/* global google */
-import React, { useEffect, useRef, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
-import { Box, Typography, Skeleton, Alert } from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { Box, Alert, CircularProgress, Typography } from '@mui/material';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import './leaflet-fix.css';
+
+// Fix ícones do Leaflet - fora do componente
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 const LocationMap = ({ lat, lng }) => {
-    const mapRef = useRef(null);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const mapRef = useRef();
 
     useEffect(() => {
-        const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-        if (!apiKey) {
-            setError("A chave da API do Google Maps não está configurada.");
+        // Simular carregamento
+        const timer = setTimeout(() => {
             setLoading(false);
-            return;
-        }
+        }, 500);
 
-        const loader = new Loader({
-            apiKey: apiKey,
-            version: "weekly",
-        });
+        return () => clearTimeout(timer);
+    }, []);
 
-        loader.load().then(async () => {
-            const { Map } = await google.maps.importLibrary("maps");
-            const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    // Validar coordenadas
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
 
-            const position = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    // Debug
+    console.log('LocationMap - Coordenadas:', { lat, lng, latitude, longitude });
 
-            if (mapRef.current) {
-                const map = new Map(mapRef.current, {
-                    center: position,
-                    zoom: 16,
-                    mapId: 'AINTAR_DOCUMENT_MAP',
-                    disableDefaultUI: true,
-                    zoomControl: true,
-                });
-
-                new AdvancedMarkerElement({ map, position, title: 'Localização do Pedido' });
-            }
-            setLoading(false);
-        }).catch(e => {
-            console.error("Erro ao carregar o mapa:", e);
-            setError("Não foi possível carregar o mapa.");
-            setLoading(false);
-        });
-
-    }, [lat, lng]);
+    if (isNaN(latitude) || isNaN(longitude)) {
+        return <Alert severity="warning">Coordenadas inválidas: lat={lat}, lng={lng}</Alert>;
+    }
 
     if (error) return <Alert severity="warning">{error}</Alert>;
 
-    return (
-        <Box sx={{ position: 'relative', width: '100%', height: '250px', borderRadius: 1, overflow: 'hidden', mt: 2 }}>
-            {loading && <Skeleton variant="rectangular" width="100%" height="100%" />}
-            <div ref={mapRef} style={{ width: '100%', height: '100%', display: loading ? 'none' : 'block' }} />
-        </Box>
-    );
+    if (loading) {
+        return (
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                height: '250px',
+                borderRadius: 1,
+                border: '1px solid #ddd',
+                mt: 2,
+            }}>
+                <CircularProgress size={24} sx={{ mb: 1 }} />
+                <Typography variant="body2" color="textSecondary">
+                    A carregar mapa...
+                </Typography>
+            </Box>
+        );
+    }
+
+    try {
+        return (
+            <Box sx={{
+                position: 'relative',
+                width: '100%',
+                height: '250px',
+                borderRadius: 1,
+                overflow: 'hidden',
+                mt: 2,
+                border: '1px solid #ddd',
+                backgroundColor: '#f5f5f5',
+                '& .leaflet-container': {
+                    height: '100% !important',
+                    width: '100% !important',
+                    borderRadius: 1,
+                },
+                '& .leaflet-tile': {
+                    maxWidth: 'none !important',
+                    maxHeight: 'none !important',
+                }
+            }}>
+                <MapContainer
+                    ref={mapRef}
+                    center={[latitude, longitude]}
+                    zoom={15}
+                    style={{
+                        height: '100%',
+                        width: '100%',
+                        zIndex: 1
+                    }}
+                    zoomControl={true}
+                    scrollWheelZoom={false}
+                    key={`${latitude}-${longitude}`} // Force re-render when coordinates change
+                >
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        maxZoom={18}
+                        subdomains={['a', 'b', 'c']}
+                    />
+                    <Marker position={[latitude, longitude]}>
+                        <Popup>
+                            Localização do Pedido<br />
+                            Coordenadas: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                        </Popup>
+                    </Marker>
+                </MapContainer>
+            </Box>
+        );
+    } catch (error) {
+        console.error('Erro ao renderizar mapa:', error);
+        return <Alert severity="error">Erro ao carregar o mapa: {error.message}</Alert>;
+    }
 };
 
 export default LocationMap;

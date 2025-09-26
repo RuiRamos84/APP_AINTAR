@@ -17,6 +17,9 @@ import Header from './components/layout/Header';
 import GridView from './views/GridView';
 import ListView from './views/ListView';
 import KanbanView from './views/KanbanView';
+import PerformanceMonitor from './components/performance/PerformanceMonitor';
+import AdvancedErrorBoundary from './components/errors/AdvancedErrorBoundary';
+import KeyboardShortcuts from './components/keyboard/KeyboardShortcuts';
 
 // Modals
 import CreateDocumentModal from './modals/create/CreateDocumentModal';
@@ -29,12 +32,15 @@ import ReplicateDocumentModal from './modals/ReplicateDocumentModal';
 import { UIProvider, useUI } from './context/UIStateContext';
 import { DocumentsProvider, useDocumentsContext } from './context/DocumentsContext';
 import { DocumentActionsProvider, useDocumentActions } from './context/DocumentActionsContext';
+import { AdvancedDocumentsProvider, useAdvancedDocuments } from './context/AdvancedDocumentsContext';
 
 // Utils
 import DocumentFilters from './components/filters/DocumentFilters';
 import DocumentSorting from './components/filters/DocumentSorting';
 import * as XLSX from 'xlsx';
 import { DocumentEventManager, DOCUMENT_EVENTS } from './utils/documentEventSystem';
+import { uxAnalytics, trackingUtils } from './utils/uxAnalytics';
+import { notifySuccess, notifyError, notifyWarning } from "../../components/common/Toaster/ThemedToaster.js";
 
 // Importar funções existentes para utilizar
 import { filterDocuments, sortDocuments, formatDate } from './utils/documentUtils';
@@ -45,6 +51,9 @@ const DocumentManagerContent = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [currentDocument, setCurrentDocument] = useState(null);
+
+    // UX Analytics tracking
+    const { trackAction, trackError, trackFlow } = trackingUtils.useTracking('DocumentManager');
 
     // Hook de permissões para tabs
     const {
@@ -68,8 +77,7 @@ const DocumentManagerContent = () => {
         refreshDocuments,
         metaData,
         notification,
-        handleCloseNotification,
-        showNotification
+        handleCloseNotification
     } = useDocumentsContext();
 
     // Get UI context data
@@ -114,6 +122,15 @@ const DocumentManagerContent = () => {
         modalInstanceKey,
     } = useDocumentActions();
 
+    // Get advanced features context data
+    const {
+        advancedMode,
+        keyboardMode,
+        toggleAdvancedMode,
+        toggleKeyboardMode,
+        isFeatureEnabled
+    } = useAdvancedDocuments();
+
     // Handler simples
     const handleUpdateDocument = useCallback((newDocument) => {
         setCurrentDocument(newDocument);
@@ -129,11 +146,21 @@ const DocumentManagerContent = () => {
         setDateRange(newDateRange);
     }, [setDateRange]);
 
+    // Handler para os filtros
+    const handleFilterChange = useCallback((e) => {
+        setFilter(e.target.name, e.target.value);
+    }, [setFilter]);
+
     // Reset de filtros
     const resetAllFilters = useCallback(() => {
+        // Criar um novo objeto de data aqui não afeta as dependências
         resetFilters();
         setDateRange({ startDate: null, endDate: null });
-    }, [resetFilters, setDateRange]);
+    }, [resetFilters, setDateRange]); // Removido o objeto da dependência
+
+    // Handlers para o Header (movidos para o local correto)
+    const handleSetDensity = useCallback((newDensity) => setDensity(newDensity), []);
+    const handleSetViewMode = useCallback((newViewMode) => setViewMode(newViewMode), []);
 
     // ===== HANDLERS CORRIGIDOS COM SISTEMA DE EVENTOS =====
 
@@ -154,6 +181,11 @@ const DocumentManagerContent = () => {
             console.log('✅ Anexo adicionado - modal principal será actualizado');
         }
     }, [closeAnnexModal]);
+
+    // Memoize o estado de loading para evitar recálculos e re-renderizações desnecessárias
+    const isLoading = useMemo(() => {
+        return getActiveLoading();
+    }, [getActiveLoading, activeTab, allDocuments, assignedDocuments, createdDocuments, lateDocuments]);
 
     // ===== FUNÇÕES DE FILTRO =====
 
@@ -205,8 +237,8 @@ const DocumentManagerContent = () => {
 
     // Função para filtrar por notificação
     const filterDocumentsByNotification = useCallback((docs, notificationFilter) => {
-        if (!notificationFilter || notificationFilter === '') return docs;
-
+        // Check specifically for null/undefined/empty string to avoid issues with filter value 0
+        if (notificationFilter === null || notificationFilter === undefined || notificationFilter === '') return docs;
         const notificationValue = Number(notificationFilter);
         return docs.filter(doc => {
             const docNotification = typeof doc.notification === 'number' ?
@@ -273,8 +305,16 @@ const DocumentManagerContent = () => {
     // Handler para mudança de tabs com verificação de permissões
     const handleTabChange = useCallback((event, newVisibleIndex) => {
         const realIndex = mapVisibleIndexToRealIndex(newVisibleIndex);
+        const tabNames = ['all', 'assigned', 'created', 'late'];
+
+        // Analytics de mudança de tab
+        trackFlow('tab_change', {
+            fromTab: tabNames[activeTab] || 'unknown',
+            toTab: tabNames[realIndex] || 'unknown'
+        });
+
         setActiveTab(realIndex);
-    }, [mapVisibleIndexToRealIndex, setActiveTab]);
+    }, [mapVisibleIndexToRealIndex, setActiveTab, activeTab, trackFlow]);
 
     // ===== FUNÇÃO PRINCIPAL PARA OBTER DOCUMENTOS ATIVOS =====
     const getActiveDocuments = useCallback(() => {
@@ -339,16 +379,45 @@ const DocumentManagerContent = () => {
     ]);
 
     // Function to export filtered data to Excel
-    const handleExportToExcel = useCallback(() => {
-        try {
-            // Obter documentos filtrados atuais
-            const documents = getActiveDocuments();
+    const handleExportToExcel = useCallback(async () => {
+        const actionTracker = trackAction('export_excel', { documentCount: 0 });
 
-            if (documents.length === 0) {
-                showNotification('Não existem documentos para exportar', 'warning');
-                return;
+        try {
+            // Recriar a lógica de obtenção de documentos aqui para quebrar o ciclo de dependência
+            let docs;
+            switch (activeTab) {
+                case 0: docs = allDocuments; break;
+                case 1: docs = assignedDocuments; break;
+                case 2: docs = createdDocuments; break;
+                case 3: docs = lateDocuments; break;
+                default: docs = allDocuments;
             }
 
+            // Aplicar filtros
+            if (filters.status) {
+                docs = filterDocumentsByStatus(docs, filters.status);
+            }
+            if (filters.associate) {
+                docs = filterDocumentsByAssociate(docs, filters.associate, metaData);
+            }
+            if (filters.type) {
+                docs = filterDocumentsByType(docs, filters.type, metaData);
+            }
+            if (filters.notification !== undefined && filters.notification !== '') {
+                docs = filterDocumentsByNotification(docs, filters.notification);
+            }
+            docs = filterDocumentsByDateRange(docs, dateRange);
+            if (searchTerm) {
+                docs = filterDocuments(docs, searchTerm);
+            }
+
+            // Aplicar ordenação
+            const documents = sortDocuments(docs, sortBy, sortDirection);
+
+            if (documents.length === 0) {
+                notifyWarning('Não existem documentos para exportar');
+                return;
+            }
             // Formatar documentos para Excel
             const excelData = documents.map(doc => ({
                 'Número': doc.regnumber || '',
@@ -383,16 +452,40 @@ const DocumentManagerContent = () => {
 
             // Exportar ficheiro
             XLSX.writeFile(workbook, filename);
-            showNotification('Exportação para Excel concluída com sucesso', 'success');
+            notifySuccess('Exportação para Excel concluída com sucesso');
+
+            // Analytics de sucesso
+            actionTracker(true, { documentCount: documents.length, filename });
+
         } catch (error) {
             console.error('Erro ao exportar para Excel:', error);
-            showNotification('Erro ao exportar dados para Excel', 'error');
+            notifyError('Erro ao exportar dados para Excel');
+
+            // Analytics de erro
+            actionTracker(false);
+            trackError(error, { action: 'export_excel' });
         }
-    }, [activeTab, getActiveDocuments, metaData, showNotification]);
+    }, [
+        activeTab,
+        allDocuments,
+        assignedDocuments,
+        createdDocuments,
+        lateDocuments,
+        filters,
+        dateRange,
+        searchTerm,
+        sortBy,
+        sortDirection,
+        metaData,
+        // As funções de filtro são estáveis e podem ser incluídas
+        filterDocumentsByStatus, filterDocumentsByAssociate, filterDocumentsByType,
+        filterDocumentsByNotification, filterDocumentsByDateRange,
+        trackAction, trackError
+    ]);
 
     const renderContent = useCallback(() => {
         const documents = getActiveDocuments();
-        const isLoading = getActiveLoading();
+        // Usar a variável isLoading memoizada
         const isAssignedTab = activeTab === 1;
         const isCreatedTab = activeTab === 2;
         const isLateTab = activeTab === 3;
@@ -424,7 +517,7 @@ const DocumentManagerContent = () => {
         }
     }, [
         getActiveDocuments,
-        getActiveLoading,
+        isLoading, // Depender da variável memoizada
         activeTab,
         viewMode,
         sortBy,
@@ -507,34 +600,53 @@ const DocumentManagerContent = () => {
     }
 
     return (
-        <Box sx={{ p: 2 }}>
-            {/* Header with title and buttons */}
-            <Header
-                title="Gestão de Pedidos"
-                isMobileView={isMobile}
-                refreshDocuments={refreshDocuments}
-                isLoading={getActiveLoading()}
-                showFilters={showFilters}
-                toggleFilters={toggleFilters}
-                showSorting={showSorting}
-                toggleSorting={toggleSorting}
-                handleExportToExcel={handleExportToExcel}
-                density={density}
-                setDensity={setDensity}
-                sortBy={sortBy}
-                sortDirection={sortDirection}
-                handleSortChange={handleSortChange}
-                viewMode={viewMode}
-                setViewMode={setViewMode}
-                handleOpenCreateModal={handleOpenCreateModal}
-            />
+        <AdvancedErrorBoundary context="DocumentManager">
+            <KeyboardShortcuts
+                onCreateDocument={handleOpenCreateModal}
+                onRefresh={refreshDocuments}
+                onToggleFilters={toggleFilters}
+                onToggleSort={toggleSorting}
+                onViewModeChange={handleSetViewMode}
+                onSearch={() => {}} // SearchBar is handled internally
+            >
+                <Box sx={{ p: 2 }}>
+                {/* Performance Monitor */}
+                {isFeatureEnabled('performanceMonitoring') && advancedMode && (
+                    <PerformanceMonitor compact={!isMobile} showRecommendations={true} />
+                )}
+
+                {/* Header with title and buttons */}
+                <Header
+                    title="Gestão de Pedidos"
+                    isMobileView={isMobile}
+                    refreshDocuments={refreshDocuments}
+                    isLoading={isLoading}
+                    showFilters={showFilters}
+                    toggleFilters={toggleFilters}
+                    showSorting={showSorting}
+                    toggleSorting={toggleSorting}
+                    handleExportToExcel={handleExportToExcel}
+                    density={density}
+                    setDensity={handleSetDensity}
+                    sortBy={sortBy}
+                    sortDirection={sortDirection}
+                    handleSortChange={handleSortChange}
+                    viewMode={viewMode}
+                    setViewMode={handleSetViewMode}
+                    handleOpenCreateModal={handleOpenCreateModal}
+                    // Advanced features
+                    advancedMode={advancedMode}
+                    keyboardMode={keyboardMode}
+                    toggleAdvancedMode={toggleAdvancedMode}
+                    toggleKeyboardMode={toggleKeyboardMode}
+                />
 
             <Box sx={{ mt: 2 }}>
                 <DocumentFilters
                     open={showFilters}
                     filters={filters}
                     metaData={metaData}
-                    onFilterChange={(e) => setFilter(e.target.name, e.target.value)}
+                    onFilterChange={handleFilterChange}
                     onResetFilters={resetAllFilters}
                     onExportExcel={handleExportToExcel}
                     dateRange={dateRange}
@@ -548,7 +660,7 @@ const DocumentManagerContent = () => {
                     open={showSorting}
                     sortBy={sortBy}
                     sortDirection={sortDirection}
-                    onSortChange={(field) => setSort(field)}
+                    onSortChange={handleSortChange}
                     density={density}
                 />
             </Box>
@@ -740,7 +852,9 @@ const DocumentManagerContent = () => {
                     {notification.message}
                 </Alert>
             </Snackbar>
-        </Box>
+                </Box>
+            </KeyboardShortcuts>
+        </AdvancedErrorBoundary>
     );
 };
 
@@ -750,9 +864,11 @@ const DocumentManager = () => (
     <Worker workerUrl="/pdf.worker.min.js">
         <UIProvider>
             <DocumentsProvider>
-                <DocumentActionsProvider>
-                    <DocumentManagerContent />
-                </DocumentActionsProvider>
+                <AdvancedDocumentsProvider>
+                    <DocumentActionsProvider>
+                        <DocumentManagerContent />
+                    </DocumentActionsProvider>
+                </AdvancedDocumentsProvider>
             </DocumentsProvider>
         </UIProvider>
     </Worker>

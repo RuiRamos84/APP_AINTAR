@@ -22,6 +22,7 @@ import {
 import { formatDate } from '../../utils/documentUtils';
 import { notificationStyles } from '../../styles/documentStyles';
 import { getDaysSinceSubmission } from '../../../../utils/dataUtils';
+import DocumentUpdateIndicator from '../feedback/DocumentUpdateIndicator';
 
 const DocumentCard = ({
     document,
@@ -246,6 +247,14 @@ const DocumentCard = ({
                     {document.notification === 1 && (
                         <NotificationsActiveIcon sx={notificationStyles.bellIcon(true)} />
                     )}
+
+                    {/* NOVO: Indicador de atualizações */}
+                    <DocumentUpdateIndicator
+                        documentId={document.pk}
+                        isOptimistic={document._optimistic}
+                        isProcessing={document._updating}
+                        lastUpdate={document.last_update}
+                    />
                 </Box>
             </Box>
 

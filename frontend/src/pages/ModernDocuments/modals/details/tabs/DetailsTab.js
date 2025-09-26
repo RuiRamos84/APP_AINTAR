@@ -54,6 +54,7 @@ import { useDocumentsContext } from '../../../../ModernDocuments/context/Documen
 import LocationMap from './/LocationMap';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import HistoryIcon from '@mui/icons-material/History';
+import { notifyError } from "../../../../../components/common/Toaster/ThemedToaster.js";
 
 // Componente para o modal de detalhes do representante
 const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
@@ -82,7 +83,7 @@ const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
             </DialogTitle>
             <DialogContent dividers>
                 <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <Card sx={{ mb: 2 }}>
                             <CardContent>
                                 <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -148,7 +149,7 @@ const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <Card sx={{ mb: 2 }}>
                             <CardContent>
                                 <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -227,8 +228,8 @@ const DetailsTab = ({
     userProfile = null
 }) => {
     const theme = useTheme();
-    const { handleViewOriginDetails, showNotification } = useDocumentActions();
-    const { showNotification: showGlobalNotification } = useDocumentsContext();
+    const { handleViewOriginDetails } = useDocumentActions();
+    const { } = useDocumentsContext();
     const { user } = useAuth();
 
     const [loading, setLoading] = useState(false);
@@ -290,7 +291,7 @@ const DetailsTab = ({
                     }
                 } catch (error) {
                     console.error('Erro ao buscar dados do representante:', error);
-                    showGlobalNotification?.('Erro ao carregar dados do representante', 'error');
+                    notifyError('Erro ao carregar dados do representante');
                 } finally {
                     setLoadingRepresentative(false);
                 }
@@ -298,7 +299,7 @@ const DetailsTab = ({
         };
 
         fetchRepresentativeData();
-    }, [document, showGlobalNotification]);
+    }, [document]);
 
     if (!document) {
         return <Typography>Nenhum documento seleccionado</Typography>;
@@ -370,7 +371,7 @@ const DetailsTab = ({
 
                     <Grid container spacing={2} sx={{ mt: 2 }}>
                         {document.creator && (
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Box display="flex" alignItems="center">
                                     <PersonIcon fontSize="small" color="action" sx={{ mr: 1 }} />
                                     <Box>
@@ -382,7 +383,7 @@ const DetailsTab = ({
                         )}
 
                         {document.ts_entity && (
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Box display="flex" alignItems="center">
                                     <BusinessIcon fontSize="small" color="action" sx={{ mr: 1 }} />
                                     <Box>
@@ -394,7 +395,7 @@ const DetailsTab = ({
                         )}
 
                         {document.ts_associate && (
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Box display="flex" alignItems="center">
                                     <BusinessIcon fontSize="small" color="action" sx={{ mr: 1 }} />
                                     <Box>
@@ -409,7 +410,7 @@ const DetailsTab = ({
                         {(() => {
                             const locationInfo = getLocationInfo();
                             return locationInfo ? (
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <Box display="flex" alignItems="flex-start">
                                         {locationInfo.icon}
                                         <Box>
@@ -432,7 +433,7 @@ const DetailsTab = ({
                         })()}
 
                         {document.memo && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Box display="flex" alignItems="flex-start">
                                     <InfoIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                     <Box>
@@ -457,7 +458,7 @@ const DetailsTab = ({
         <Box sx={{ mt: 1 }}>
             <Grid container spacing={3}>
                 {/* Coluna 1: Informações gerais e tipo de documento */}
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                     <Card sx={{ mb: 3, height: '100%' }}>
                         <CardContent>
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -546,7 +547,7 @@ const DetailsTab = ({
                 </Grid>
 
                 {/* Coluna 2: Informações de entidade */}
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                     <Card sx={{ mb: 3, height: '100%' }}>
                         <CardContent>
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -604,7 +605,7 @@ const DetailsTab = ({
                                         {loadingRepresentative ? (
                                             <Box display="flex" alignItems="center">
                                                 <CircularProgress size={20} sx={{ mr: 1 }} />
-                                                <Typography variant="body2">Carregando representante...</Typography>
+                                                <Typography variant="body2">A carregar representante...</Typography>
                                             </Box>
                                         ) : (
                                             <ListItemText
@@ -639,7 +640,7 @@ const DetailsTab = ({
                 </Grid>
 
                 {/* Coluna 3: Informações de localização */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Card>
                         <CardContent>
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -650,7 +651,7 @@ const DetailsTab = ({
 
                             <Grid container spacing={2}>
                                 {document.postal && (
-                                    <Grid item xs={12} md={3}>
+                                    <Grid size={{ xs: 12, md: 3 }}>
                                         <Box display="flex" alignItems="flex-start">
                                             <HomeIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                             <Box>
@@ -665,7 +666,7 @@ const DetailsTab = ({
                                 {(() => {
                                     const locationInfo = getLocationInfo();
                                     return locationInfo ? (
-                                        <Grid item xs={12} md={9}>
+                                        <Grid size={{ xs: 12, md: 9 }}>
                                             <Box display="flex" alignItems="flex-start">
                                                 {locationInfo.icon}
                                                 <Box>
@@ -694,7 +695,7 @@ const DetailsTab = ({
 
                                     <Grid container spacing={2}>
                                         {document.nut4 && (
-                                            <Grid item xs={12} sm={6} md={3}>
+                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Localidade
@@ -705,7 +706,7 @@ const DetailsTab = ({
                                         )}
 
                                         {document.nut3 && (
-                                            <Grid item xs={12} sm={6} md={3}>
+                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Freguesia
@@ -716,7 +717,7 @@ const DetailsTab = ({
                                         )}
 
                                         {document.nut2 && (
-                                            <Grid item xs={12} sm={6} md={3}>
+                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Concelho
@@ -728,7 +729,7 @@ const DetailsTab = ({
 
 
                                         {document.nut1 && (
-                                            <Grid item xs={12} sm={6} md={3}>
+                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                                 <Box>
                                                     <Typography variant="caption" color="textSecondary">
                                                         Distrito
@@ -750,7 +751,7 @@ const DetailsTab = ({
 
                 {/* Estatísticas do pedido - apenas visível para usuários com perfil 0 ou 1 */}
                 {canViewStatistics && document.type_countyear !== undefined && document.type_countall !== undefined && (
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <Card sx={{ mb: 3 }}>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -760,7 +761,7 @@ const DetailsTab = ({
                                 <Divider sx={{ my: 2 }} />
                                 
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box>
                                             <Typography variant="caption" color="textSecondary">
                                                 Total de pedidos do mesmo tipo este ano
@@ -771,7 +772,7 @@ const DetailsTab = ({
                                         </Box>
                                     </Grid>
 
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box>
                                             <Typography variant="caption" color="textSecondary">
                                                 Total Global de pedidos do mesmo tipo

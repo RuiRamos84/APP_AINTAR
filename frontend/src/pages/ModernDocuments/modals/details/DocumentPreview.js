@@ -36,6 +36,7 @@ import {
     OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { downloadFile, previewFile } from '../../../../services/documentService'; // Ajuste o caminho conforme necessário
+import { notifySuccess, notifyError, notifyWarning, notifyInfo } from "../../../../components/common/Toaster/ThemedToaster.js";
 
 const DocumentPreview = ({
     open,

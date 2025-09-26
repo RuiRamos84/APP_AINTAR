@@ -17,26 +17,28 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
 import React, { useEffect, useState, useCallback } from "react";
 import BusinessIcon from "@mui/icons-material/Business";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
 import EditIcon from "@mui/icons-material/Edit";
 import InfoIcon from "@mui/icons-material/Info";
 import NotesIcon from "@mui/icons-material/Notes";
 import PersonIcon from "@mui/icons-material/Person";
 import SaveIcon from "@mui/icons-material/Save";
-import Timeline from '@mui/lab/Timeline';
-import TimelineConnector from '@mui/lab/TimelineConnector';
-import TimelineContent from '@mui/lab/TimelineContent';
-import TimelineDot from '@mui/lab/TimelineDot';
-import TimelineItem from '@mui/lab/TimelineItem';
-import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
-import TimelineSeparator from '@mui/lab/TimelineSeparator';
+import {
+  Timeline,
+  TimelineConnector,
+  TimelineContent,
+  TimelineDot,
+  TimelineItem,
+  TimelineOppositeContent,
+  TimelineSeparator
+} from '@mui/lab';
 import { notifyError, notifySuccess } from "../../components/common/Toaster/ThemedToaster";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMetaData } from "../../contexts/MetaDataContext";

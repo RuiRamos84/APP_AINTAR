@@ -3,20 +3,21 @@
  */
 import * as XLSX from 'xlsx';
 import { getStatusName } from './statusUtils';
+import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
 
 /**
  * Exporta documentos filtrados para Excel com melhor desempenho e robustez
  * @param {Array} documents - Lista de documentos a exportar
  * @param {Object} metaData - Metadados para mapeamento de valores
  * @param {String} tabName - Nome da tab atual (para o nome do ficheiro)
- * @param {Function} showNotification - Função para mostrar notificações
+ * @param {Function} showNotification - (Deprecated) Use ThemedToaster notifications instead
  * @param {Object} options - Opções adicionais de exportação
  * @returns {Boolean} - true se a exportação foi bem-sucedida, false caso contrário
  */
 export const exportDocumentsToExcel = (documents, metaData, tabName, showNotification, options = {}) => {
     try {
         if (!Array.isArray(documents) || documents.length === 0) {
-            showNotification?.('Não existem documentos para exportar', 'warning');
+            notifyWarning('Não existem documentos para exportar');
             return false;
         }
 
@@ -79,11 +80,11 @@ export const exportDocumentsToExcel = (documents, metaData, tabName, showNotific
         XLSX.writeFile(workbook, filename);
 
         // Notificar sucesso
-        showNotification?.('Exportação para Excel concluída com sucesso', 'success');
+        notifySuccess('Exportação para Excel concluída com sucesso');
         return true;
     } catch (error) {
         console.error('Erro ao exportar para Excel:', error);
-        showNotification?.('Erro ao exportar dados para Excel', 'error');
+        notifyError('Erro ao exportar dados para Excel');
         return false;
     }
 };

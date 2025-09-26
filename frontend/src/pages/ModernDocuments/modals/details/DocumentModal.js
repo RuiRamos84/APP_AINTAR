@@ -48,6 +48,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import { useDocumentsContext } from '../../../ModernDocuments/context/DocumentsContext';
 import { useDocumentActions } from '../../context/DocumentActionsContext';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { notifySuccess, notifyError, notifyWarning, notifyInfo } from "../../../../components/common/Toaster/ThemedToaster.js";
 
 // Serviços
 import {
@@ -95,8 +96,8 @@ const DocumentModal = ({
 }) => {
     const theme = useTheme();
     const { user } = useAuth();
-    const { handleViewOriginDetails, showNotification } = useDocumentActions();
-    const { showNotification: showGlobalNotification } = useDocumentsContext();
+    const { handleViewOriginDetails } = useDocumentActions();
+    const { } = useDocumentsContext();
 
     // Estado do documento - pode ser actualizado
     const [document, setDocument] = useState(initialDocument);
@@ -115,6 +116,9 @@ const DocumentModal = ({
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [paymentData, setPaymentData] = useState(null);
     const isPaid = ['SUCCESS', 'PAID'].includes(invoiceAmount?.invoice_data?.payment_status);
+
+    // Estado para controlar se o documento foi transferido (evitar múltiplos refreshes)
+    const [documentTransferred, setDocumentTransferred] = useState(false);
 
     // Verificar permissões dinâmicas
     const canManageDocument = useMemo(() => {
@@ -139,23 +143,51 @@ const DocumentModal = ({
     }, [document, user, metaData]);
 
 
-    // Função para refrescar dados do documento
+    // Função para refrescar dados do documento com melhor error handling
     const refreshDocument = useCallback(async () => {
         if (!document?.pk) return;
+
+        // Se documento foi transferido, não tentar refrescar
+        if (documentTransferred) {
+            console.log('🚫 Não refrescando documento - já foi transferido');
+            return null;
+        }
 
         try {
             const response = await getDocumentById(document.pk);
             if (response?.document) {
                 setDocument(response.document);
+                return response.document;
             }
         } catch (error) {
             console.error('Erro ao actualizar documento:', error);
+
+            // Se for erro 404, documento foi removido
+            if (error.response?.status === 404) {
+                console.warn(`Documento ${document.pk} não encontrado - fechando modal`);
+                setDocumentTransferred(true); // Marcar como transferido para evitar futuros refreshes
+
+                // Mostrar notificação e fechar modal
+                notifyWarning('Documento não encontrado - removido da lista');
+                setTimeout(() => onClose?.(), 500);
+
+                return null;
+            }
+
+            // Para outros erros, apenas log sem fechar o modal
+            if (error.response?.status >= 500) {
+                notifyError('Erro do servidor ao atualizar documento');
+            } else if (error.response?.status === 403) {
+                notifyWarning('Sem permissão para aceder a este documento');
+            }
         }
-    }, [document?.pk]);
+    }, [document?.pk, documentTransferred, onClose]);
 
     // Actualizar documento inicial quando props mudam
     useEffect(() => {
         setDocument(initialDocument);
+        // Reset do estado de transferência quando modal abrir com novo documento
+        setDocumentTransferred(false);
     }, [initialDocument]);
 
     // Carregamento inicial dos dados
@@ -172,19 +204,52 @@ const DocumentModal = ({
         fetchDocumentDetails();
     }, [open, document?.pk]);
 
-    // Sistema de eventos para actualização de documentos (compatibilidade)
+    // Sistema de eventos para actualização de documentos (com proteção contra múltiplos refreshes)
     useEffect(() => {
-        const handleDocumentUpdate = (event) => {
+        const handleDocumentUpdate = async (event) => {
             if (event.detail && event.detail.documentId === document?.pk) {
-                refreshData();
+                // Se documento já foi marcado como transferido, ignorar todos os updates
+                if (documentTransferred) {
+                    console.log('🚫 Ignorando document-updated - documento já foi transferido');
+                    return;
+                }
+
+                // Se o documento foi transferido neste evento, não tentar refrescar
+                if (event.detail.transferredDocument) {
+                    console.log('✅ Documento transferido - fechando modal sem tentar refrescar');
+                    setDocumentTransferred(true); // Marcar como transferido
+                    notifySuccess('Documento transferido com sucesso!');
+                    setTimeout(() => onClose?.(), 1500);
+                    return;
+                }
+
+                // Para outros tipos de update, tentar atualizar documento apenas se não foi transferido
+                if (!documentTransferred) {
+                    const updatedDoc = await refreshDocument();
+                    if (updatedDoc) {
+                        await refreshData();
+                    }
+                }
+            }
+        };
+
+        const handleDocumentTransferred = (event) => {
+            if (event.detail && event.detail.documentId === document?.pk && !documentTransferred) {
+                console.log('📤 Documento transferido - fechando modal automaticamente');
+                setDocumentTransferred(true); // Marcar como transferido para evitar futuros refreshes
+                notifySuccess(event.detail.message || 'Documento transferido!');
+                setTimeout(() => onClose?.(), 1500);
             }
         };
 
         window.addEventListener('document-updated', handleDocumentUpdate);
+        window.addEventListener('document-transferred', handleDocumentTransferred);
+
         return () => {
             window.removeEventListener('document-updated', handleDocumentUpdate);
+            window.removeEventListener('document-transferred', handleDocumentTransferred);
         };
-    }, [document?.pk]);
+    }, [document?.pk, documentTransferred, onClose]);
 
     // Ajuste automático de tabs quando muda o estado do pagamento
     useEffect(() => {
@@ -341,7 +406,7 @@ const DocumentModal = ({
             fetchSteps(),
             fetchAnnexes()
         ]);
-        showGlobalNotification('Dados actualizados com sucesso', 'success');
+        notifySuccess('Dados actualizados com sucesso');
     };
 
     // Verificação de permissões
@@ -452,7 +517,7 @@ const DocumentModal = ({
     const handleOpenPreview = async (annex) => {
         try {
             if (!document?.regnumber) {
-                showGlobalNotification('Número do documento não disponível', 'error');
+                notifyError('Número do documento não disponível');
                 return;
             }
 
@@ -467,7 +532,7 @@ const DocumentModal = ({
 
         } catch (error) {
             console.error('Erro preview:', error);
-            showGlobalNotification('Erro ao visualizar ficheiro', 'error');
+            notifyError('Erro ao visualizar ficheiro');
         }
     };
 
@@ -482,7 +547,7 @@ const DocumentModal = ({
             });
             setPaymentDialogOpen(true);
         } catch (error) {
-            showGlobalNotification('Erro ao iniciar pagamento', 'error');
+            notifyError('Erro ao iniciar pagamento');
         }
     };
 
@@ -491,23 +556,23 @@ const DocumentModal = ({
 
         try {
             setLoading(true);
-            showGlobalNotification('A carregar documento de origem...', 'info');
+            notifyInfo('A carregar documento de origem...');
             const response = await getDocumentById(originId);
 
             if (response?.document) {
                 if (!response.document.pk || !response.document.regnumber) {
-                    showGlobalNotification('Dados do documento de origem inválidos', 'error');
+                    notifyError('Dados do documento de origem inválidos');
                     return;
                 }
 
                 handleViewOriginDetails(response.document);
-                showGlobalNotification('Documento de origem carregado', 'success');
+                notifySuccess('Documento de origem carregado');
             } else {
-                showGlobalNotification('Documento de origem não encontrado', 'error');
+                notifyError('Documento de origem não encontrado');
             }
         } catch (error) {
             console.error('Erro ao buscar documento de origem:', error);
-            showGlobalNotification('Erro ao buscar documento de origem', 'error');
+            notifyError('Erro ao buscar documento de origem');
         } finally {
             setLoading(false);
         }
@@ -558,12 +623,12 @@ const DocumentModal = ({
 
     const handleDownloadComprovativoLocal = async (document) => {
         try {
-            showGlobalNotification('A gerar comprovativo...', 'info');
+            notifyInfo('A gerar comprovativo...');
             await generatePDF(document, steps, annexes, metaData);
-            showGlobalNotification('Comprovativo gerado com sucesso', 'success');
+            notifySuccess('Comprovativo gerado com sucesso');
         } catch (error) {
             console.error('Erro ao gerar comprovativo:', error);
-            showGlobalNotification('Erro ao gerar comprovativo', 'error');
+            notifyError('Erro ao gerar comprovativo');
         }
     };
 
@@ -715,6 +780,9 @@ const DocumentModal = ({
                 aria-labelledby="document-details-title"
                 TransitionComponent={Fade}
                 transitionDuration={300}
+                disableEnforceFocus={false}
+                disableAutoFocus={false}
+                disableRestoreFocus={false}
                 PaperProps={{
                     sx: {
                         borderRadius: { xs: 0, sm: 1 },
@@ -969,7 +1037,7 @@ const DocumentModal = ({
                     onClose={(success, result) => {
                         setPaymentDialogOpen(false);
                         if (success) {
-                            showGlobalNotification('Pagamento processado!', 'success');
+                            notifySuccess('Pagamento processado!');
                             // REFRESH COMPLETO DOS DADOS
                             fetchInvoiceAmount();
                             refreshData();
