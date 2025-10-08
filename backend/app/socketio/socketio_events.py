@@ -12,13 +12,20 @@ class SocketIOEvents(Namespace):
 
     def on_connect(self):
         token = request.args.get('token')
+        user_id_param = request.args.get('userId')
+
         try:
+            if not token:
+                current_app.logger.warning("Token não fornecido na conexão Socket.IO")
+                return False
+
             decoded_token = jwt.decode(
                 token, current_app.config['JWT_SECRET_KEY'], algorithms=["HS256"])
             user_id = decoded_token.get('user_id')
             session_id = decoded_token.get('session_id')
 
             if not user_id or not session_id:
+                current_app.logger.warning(f"Dados inválidos na conexão - UserID: {user_id}, SessionID: {session_id}")
                 return False
 
             room = f'user_{user_id}'
@@ -33,6 +40,7 @@ class SocketIOEvents(Namespace):
             })
 
             return True
+
         except Exception as e:
             current_app.logger.error(f'Erro na conexão Socket.IO: {str(e)}')
             return False
@@ -149,15 +157,9 @@ class SocketIOEvents(Namespace):
         """Emite notificação quando documento é transferido"""
         try:
             room_id = f'user_{to_user_id}'
-            current_app.logger.info(f"Verificando se utilizador {to_user_id} está conectado...")
-            current_app.logger.info(f"Utilizadores conectados: {list(self.connected_users.keys())}")
-
             if str(to_user_id) in self.connected_users:
                 emit('document_transferred', document_data, room=room_id)
-                current_app.logger.info(f"✅ Notificação de transferência emitida para utilizador {to_user_id} na room {room_id}")
-            else:
-                current_app.logger.warning(f"❌ Utilizador {to_user_id} não está conectado. Room esperada: {room_id}")
-                current_app.logger.warning(f"Utilizadores actualmente conectados: {list(self.connected_users.keys())}")
+            # Log removido para reduzir verbosidade
         except Exception as e:
             current_app.logger.error(f"Erro ao emitir transferência de documento: {str(e)}")
 
@@ -167,9 +169,6 @@ class SocketIOEvents(Namespace):
             room_id = f'user_{user_id}'
             if str(user_id) in self.connected_users:
                 emit('document_status_updated', document_data, room=room_id)
-                current_app.logger.info(f"Notificação de status emitida para utilizador {user_id}")
-            else:
-                current_app.logger.info(f"Utilizador {user_id} não está conectado para receber atualização de status")
         except Exception as e:
             current_app.logger.error(f"Erro ao emitir atualização de status: {str(e)}")
 
@@ -179,9 +178,6 @@ class SocketIOEvents(Namespace):
             room_id = f'user_{user_id}'
             if str(user_id) in self.connected_users:
                 emit('document_rejected', document_data, room=room_id)
-                current_app.logger.info(f"Notificação de rejeição emitida para utilizador {user_id}")
-            else:
-                current_app.logger.info(f"Utilizador {user_id} não está conectado para receber notificação de rejeição")
         except Exception as e:
             current_app.logger.error(f"Erro ao emitir rejeição de documento: {str(e)}")
 

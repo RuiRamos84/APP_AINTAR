@@ -38,10 +38,17 @@ class EntityUpdateModel(EntityModel):
 
 @api_error_handler
 def get_entity_detail(pk: int, current_user: str):
-    entity = EntityRepository.get_by_id(pk)
-    if not entity:
-        raise ResourceNotFoundError('Entidade', pk)
-    return {'entity': model_to_dict(entity)}, 200
+    with db_session_manager(current_user) as session:
+        entity_query = text("SELECT * FROM vbf_entity WHERE pk = :pk")
+        entity_result = session.execute(entity_query, {'pk': pk}).fetchone()
+
+        if not entity_result:
+            return {'error': 'Entidade não encontrada'}, 404
+
+        # Converter para dict
+        entity_dict = dict(entity_result._mapping)
+
+        return {'entity': entity_dict}, 200
 
 
 @api_error_handler

@@ -2,9 +2,9 @@ from flask import current_app
 from sqlalchemy.sql import text
 from ..utils.utils import format_message, db_session_manager
 from datetime import datetime, date
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from app.utils.error_handler import api_error_handler, DuplicateResourceError
-from typing import Optional
+from typing import Optional, Union
 
 class EpiDeliveryFilter(BaseModel):
     start_date: Optional[date] = None
@@ -19,11 +19,27 @@ class EpiDeliveryCreate(BaseModel):
     pndim: Optional[str] = None
     pnmemo: str = ""
 
+    @field_validator('pndim', mode='before')
+    @classmethod
+    def convert_pndim_to_string(cls, v):
+        """Converter pndim para string se vier como int"""
+        if v is None:
+            return None
+        return str(v)
+
 class EpiDeliveryUpdate(BaseModel):
     pndata: date
     pnquantity: int = 1
     pndim: Optional[str] = None
     pnmemo: str = ""
+
+    @field_validator('pndim', mode='before')
+    @classmethod
+    def convert_pndim_to_string(cls, v):
+        """Converter pndim para string se vier como int"""
+        if v is None:
+            return None
+        return str(v)
 
 class EpiDeliveryReturn(BaseModel):
     pndata: date
@@ -40,14 +56,14 @@ class EpiPreferencesUpdate(BaseModel):
     sweatshirt: Optional[str] = None
     jacket: Optional[str] = None
     pants: Optional[str] = None
-    apron: Optional[int] = None
-    gown: Optional[int] = None
-    welderboot: Optional[int] = None
-    waterproof: Optional[int] = None
-    reflectivevest: Optional[int] = None
-    galoshes: Optional[int] = None
-    gloves: Optional[int] = None
-    mask: Optional[int] = None
+    apron: Optional[str] = None
+    gown: Optional[str] = None
+    welderboot: Optional[str] = None
+    waterproof: Optional[str] = None
+    reflectivevest: Optional[str] = None
+    galoshes: Optional[str] = None
+    gloves: Optional[str] = None
+    mask: Optional[str] = None
     memo: Optional[str] = None
 
 class EpiUserCreate(EpiPreferencesUpdate):

@@ -289,12 +289,106 @@ def create_document(data, files, current_user):
                         f"Erro ao registrar anexo {filename}: {str(ae)}")
                     continue
 
-            # Emitir notificação via socket
-            notification_data = {
-                "document_id": pk_result,
-                "regnumber": reg_result,
-                "message": f"Novo pedido criado: {reg_result}"
-            }
+            # Emitir notificação via socket com dados completos
+            import time
+
+            # Buscar dados completos do documento recém-criado
+            doc_details_query = text("""
+                SELECT d.pk, d.regnumber, d.memo as descr, d.tt_type, d.creator,
+                       d.ts_entity, d.ts_associate, d.tb_representative, d.tt_presentation
+                FROM vbf_document d
+                WHERE d.pk = :document_id
+            """)
+            doc_details = session.execute(doc_details_query, {
+                'document_id': pk_result
+            }).fetchone()
+
+            if doc_details:
+                notification_data = {
+                    "document_id": pk_result,
+                    "document_number": doc_details.regnumber or f"Pedido #{pk_result}",
+                    "document_description": doc_details.descr or memo or "",
+                    "document_type": doc_details.tt_type or "Documento",
+                    "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,
+                    "from_user_name": doc_details.creator or 'Utilizador',
+                    "to_user": who,
+                    "to_user_name": "Utilizador",
+                    "step_name": "Documento criado",
+                    "step_type": "document_creation",
+                    "current_status": "Criado",
+                    "message": f"Novo pedido criado: {doc_details.regnumber or f'#{pk_result}'}",
+                    "timestamp": time.time(),
+                    "notification_id": f"document_{pk_result}_{int(time.time() * 1000)}",
+                    "metadata": {
+                        "memo": memo or "",
+                        "entity_id": ts_entity,
+                        "document_type": tt_type,
+                        "document_pk": pk_result,
+                        "document_regnumber": doc_details.regnumber,
+                        "document_creator": doc_details.creator,
+                        "workflow_action": "create_document",
+                        "associate_id": ts_associate,
+                        "representative_id": tb_representative,
+                        "notification_source": "document_creation",
+                        "recipient_type": "assigned_user",
+                        "creation_context": "new_document",
+                        # IDs para mapeamento no frontend
+                        "entity_mapping_id": doc_details.ts_entity if doc_details else ts_entity,  # Para metadata.ee
+                        "associate_mapping_id": doc_details.ts_associate if doc_details else ts_associate,  # Para metadata.associates
+                        "representative_mapping_id": doc_details.tb_representative if doc_details else tb_representative,  # Para metadata.who
+                        "document_type_mapping_id": doc_details.tt_type if doc_details else tt_type,  # Para metadata.param_doctype
+                        "presentation_mapping_id": doc_details.tt_presentation if doc_details else None,  # Para metadata.presentation
+                        # Flags para o frontend saber que dados mapear
+                        "requires_mapping": {
+                            "entity": True,
+                            "associate": True if (doc_details.ts_associate if doc_details else ts_associate) else False,
+                            "representative": True if (doc_details.tb_representative if doc_details else tb_representative) else False,
+                            "document_type": True,
+                            "presentation": True if (doc_details.tt_presentation if doc_details else None) else False
+                        }
+                    }
+                }
+            else:
+                # Fallback se não conseguir buscar detalhes
+                notification_data = {
+                    "document_id": pk_result,
+                    "document_number": reg_result or f"Pedido #{pk_result}",
+                    "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,
+                    "from_user_name": 'Utilizador',
+                    "to_user": who,
+                    "to_user_name": "Utilizador",
+                    "message": f"Novo pedido criado: {reg_result or f'#{pk_result}'}",
+                    "timestamp": time.time(),
+                    "notification_id": f"document_{pk_result}_{int(time.time() * 1000)}",
+                    "metadata": {
+                        "memo": memo or "",
+                        "entity_id": ts_entity,
+                        "document_type": tt_type,
+                        "document_pk": pk_result,
+                        "workflow_action": "create_document",
+                        "associate_id": ts_associate,
+                        "representative_id": tb_representative,
+                        "notification_source": "document_creation",
+                        "recipient_type": "assigned_user",
+                        "creation_context": "new_document",
+                        # IDs para mapeamento no frontend (fallback)
+                        "entity_mapping_id": ts_entity,  # Para metadata.ee
+                        "associate_mapping_id": ts_associate,  # Para metadata.associates
+                        "representative_mapping_id": tb_representative,  # Para metadata.who
+                        "document_type_mapping_id": tt_type,  # Para metadata.param_doctype
+                        # Flags para o frontend saber que dados mapear
+                        "requires_mapping": {
+                            "entity": True,
+                            "associate": True if ts_associate else False,
+                            "representative": True if tb_representative else False,
+                            "document_type": True
+                        }
+                    }
+                }
+
+            debug_msg = f"🔥 BACKEND DEBUG: core.py - Preparando notificação {notification_data['notification_id']}"
+            print(debug_msg)
+            current_app.logger.info(debug_msg)
             emit_socket_notification(notification_data, f"user_{who}")
 
             # Buscar e atualizar parâmetros

@@ -199,14 +199,104 @@ def create_document(data: dict, files, current_user: str):
                 'filename': filename
             })
 
-        # Emitir notificação via socket
+        # Emitir notificação via socket com dados completos
         try:
+            import time
             socketio = current_app.extensions['socketio']
-            socketio.emit('new_notification', {
-                "document_id": pk_result,
-                "regnumber": reg_result,
-                "message": f"Novo pedido criado: {reg_result}"
-            }, room=f"user_{who}")
+
+            # Buscar dados completos do documento recém-criado
+            doc_details_query = text("""
+                SELECT d.pk, d.regnumber, d.memo as descr, d.tt_type, d.creator,
+                       d.ts_entity, d.ts_associate, d.tb_representative, d.tt_presentation
+                FROM vbf_document d
+                WHERE d.pk = :document_id
+            """)
+            doc_details = session.execute(doc_details_query, {
+                'document_id': pk_result
+            }).fetchone()
+
+            if doc_details:
+                notification_data = {
+                    "document_id": pk_result,
+                    "document_number": doc_details.regnumber or f"Pedido #{pk_result}",
+                    "document_description": doc_details.descr or doc_data.memo or "",
+                    "document_type": doc_details.tt_type or "Documento",
+                    "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,
+                    "from_user_name": doc_details.creator or 'Utilizador',
+                    "to_user": who,
+                    "to_user_name": "Utilizador",
+                    "step_name": "Documento criado",
+                    "step_type": "document_creation",
+                    "current_status": "Criado",
+                    "message": f"Novo pedido criado: {doc_details.regnumber or f'#{pk_result}'}",
+                    "timestamp": time.time(),
+                    "notification_id": f"document_{pk_result}_{int(time.time() * 1000)}",
+                    "metadata": {
+                        "memo": doc_data.memo or "",
+                        "entity_id": doc_data.ts_entity,
+                        "document_type": doc_data.tt_type,
+                        "document_pk": pk_result,
+                        "document_regnumber": doc_details.regnumber,
+                        "document_creator": doc_details.creator,
+                        "workflow_action": "create_document",
+                        "associate_id": doc_data.ts_associate,
+                        "representative_id": doc_data.tb_representative if hasattr(doc_data, 'tb_representative') else None,
+                        "notification_source": "document_creation",
+                        "recipient_type": "assigned_user",
+                        "creation_context": "documents_service",
+                        # IDs para mapeamento no frontend
+                        "entity_mapping_id": doc_details.ts_entity if doc_details else doc_data.ts_entity,  # Para metadata.ee
+                        "associate_mapping_id": doc_details.ts_associate if doc_details else doc_data.ts_associate,  # Para metadata.associates
+                        "representative_mapping_id": doc_details.tb_representative if doc_details else (doc_data.tb_representative if hasattr(doc_data, 'tb_representative') else None),  # Para metadata.who
+                        "document_type_mapping_id": doc_details.tt_type if doc_details else doc_data.tt_type,  # Para metadata.param_doctype
+                        "presentation_mapping_id": doc_details.tt_presentation if doc_details else None,  # Para metadata.presentation
+                        # Flags para o frontend saber que dados mapear
+                        "requires_mapping": {
+                            "entity": True,
+                            "associate": True if (doc_details.ts_associate if doc_details else doc_data.ts_associate) else False,
+                            "representative": True if (doc_details.tb_representative if doc_details else (doc_data.tb_representative if hasattr(doc_data, 'tb_representative') else None)) else False,
+                            "document_type": True,
+                            "presentation": True if (doc_details.tt_presentation if doc_details else None) else False
+                        }
+                    }
+                }
+            else:
+                # Fallback se não conseguir buscar detalhes
+                notification_data = {
+                    "document_id": pk_result,
+                    "document_number": reg_result or f"Pedido #{pk_result}",
+                    "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,
+                    "from_user_name": 'Utilizador',
+                    "to_user": who,
+                    "to_user_name": "Utilizador",
+                    "message": f"Novo pedido criado: {reg_result or f'#{pk_result}'}",
+                    "timestamp": time.time(),
+                    "notification_id": f"document_{pk_result}_{int(time.time() * 1000)}",
+                    "metadata": {
+                        "memo": doc_data.memo or "",
+                        "entity_id": doc_data.ts_entity,
+                        "document_type": doc_data.tt_type,
+                        "document_pk": pk_result,
+                        "workflow_action": "create_document",
+                        "associate_id": doc_data.ts_associate,
+                        "notification_source": "document_creation",
+                        "recipient_type": "assigned_user",
+                        "creation_context": "documents_service",
+                        # IDs para mapeamento no frontend (fallback)
+                        "entity_mapping_id": doc_data.ts_entity,  # Para metadata.ee
+                        "associate_mapping_id": doc_data.ts_associate,  # Para metadata.associates
+                        "document_type_mapping_id": doc_data.tt_type,  # Para metadata.param_doctype
+                        # Flags para o frontend saber que dados mapear
+                        "requires_mapping": {
+                            "entity": True,
+                            "associate": True if doc_data.ts_associate else False,
+                            "document_type": True
+                        }
+                    }
+                }
+
+            print(f"🔥 BACKEND DEBUG: documents_service - Emitindo para user_{who} - {notification_data['notification_id']}")
+            socketio.emit('new_notification', notification_data, room=f"user_{who}")
             current_app.logger.info(f"Notificação enviada para o usuário {who}")
         except Exception as e:
             current_app.logger.error(f"Erro ao enviar notificação via socket: {str(e)}")
@@ -328,27 +418,67 @@ def add_document_step(data: dict, pk: int, current_user: str):
             document_query = text("SELECT regnumber FROM vbf_document WHERE pk = :document_id")
             document_number = session.execute(document_query, {'document_id': step_data.tb_document}).scalar()
 
-            user_query = text("SELECT name FROM vbf_user WHERE user_id = :user_id")
-            to_user_name = session.execute(user_query, {'user_id': step_data.who}).scalar()
+            # Usar nomes padrão para utilizadores (tabela de utilizadores não existe)
+            to_user_name = "Utilizador"
+            from_user_name = "Sistema"
 
-            # Buscar nome do utilizador actual
-            from_user_name = session.execute(user_query, {'user_id': current_user}).scalar()
+            # Preparar dados da notificação com formato completo e consistente
+            import time
 
-            # Preparar dados da notificação
+            # Buscar dados completos do documento
+            doc_details_query = text("""
+                SELECT d.pk, d.regnumber, d.memo as descr, d.tt_type, d.creator,
+                       d.ts_entity, d.ts_associate, d.tb_representative
+                FROM vbf_document d
+                WHERE d.pk = :document_id
+            """)
+            doc_details = session.execute(doc_details_query, {
+                'document_id': step_data.tb_document
+            }).fetchone()
+
             notification_data = {
-                "documentId": step_data.tb_document,
-                "documentNumber": document_number or f"DOC-{step_data.tb_document}",
-                "fromUser": current_user,
-                "fromUserName": from_user_name or "Sistema",
-                "toUser": step_data.who,
-                "toUserName": to_user_name or "Utilizador",
-                "stepName": step_data.what or "Novo Passo",
-                "stepType": "transfer",
-                "currentStatus": "Transferido",
-                "timestamp": datetime.utcnow().isoformat(),
+                "document_id": step_data.tb_document,
+                "document_number": document_number or f"Pedido #{step_data.tb_document}",
+                "document_description": doc_details.descr if doc_details else "",
+                "document_type": doc_details.tt_type if doc_details else "Documento",
+                "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,
+                "from_user_name": doc_details.creator if doc_details else from_user_name or "Sistema",
+                "to_user": step_data.who,
+                "to_user_name": to_user_name or "Utilizador",
+                "step_name": step_data.what or "Novo passo adicionado",
+                "step_type": "workflow_step",
+                "current_status": "Em processamento",
+                "message": f"Novo passo adicionado ao {document_number or f'pedido #{step_data.tb_document}'}",
+                "timestamp": time.time(),
+                "notification_id": f"workflow_{step_data.tb_document}_{int(time.time() * 1000)}",
                 "metadata": {
-                    "memo": step_data.memo,
-                    "isReceiver": True
+                    "memo": step_data.memo or "",
+                    "step_what": step_data.what,
+                    "step_who": step_data.who,
+                    "document_pk": step_data.tb_document,
+                    "document_regnumber": document_number,
+                    "document_creator": doc_details.creator if doc_details else None,
+                    "workflow_action": "add_step",
+                    "notification_source": "workflow_step",
+                    "recipient_type": "assigned_user",
+                    "step_context": "documents_service",
+                    "isReceiver": True,
+                    # IDs para mapeamento no frontend
+                    "step_what_id": step_data.what,  # ID para mapeamento em metadata.what
+                    "step_who_id": step_data.who,    # ID para mapeamento em metadata.who
+                    "entity_mapping_id": doc_details.ts_entity if doc_details else None,  # Para metadata.ee
+                    "associate_mapping_id": doc_details.ts_associate if doc_details else None,  # Para metadata.associates
+                    "representative_mapping_id": doc_details.tb_representative if doc_details else None,  # Para metadata.who
+                    "document_type_mapping_id": doc_details.tt_type if doc_details else None,  # Para metadata.param_doctype
+                    # Flags para o frontend saber que dados mapear
+                    "requires_mapping": {
+                        "step_what": True,
+                        "step_who": True,
+                        "entity": True if (doc_details.ts_entity if doc_details else None) else False,
+                        "associate": True if (doc_details.ts_associate if doc_details else None) else False,
+                        "representative": True if (doc_details.tb_representative if doc_details else None) else False,
+                        "document_type": True if (doc_details.tt_type if doc_details else None) else False
+                    }
                 }
             }
 

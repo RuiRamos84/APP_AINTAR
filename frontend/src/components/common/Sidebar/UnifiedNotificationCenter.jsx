@@ -29,16 +29,51 @@ import { useSocket } from '../../../contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../contexts/AuthContext';
-// Hook condicional para documentos que funciona fora do contexto
+import { useDocumentNotifications } from '../../../pages/ModernDocuments/contexts/DocumentNotificationContext';
+import { useMetaData } from '../../../contexts/MetaDataContext';
+
+// Hook para documentos agora usa o contexto real (global)
 const useDocumentNotificationsSafe = () => {
-  // Valores padrão quando o contexto não está disponível
-  return React.useMemo(() => ({
+  // Sempre criar o fallback primeiro (hooks sempre na mesma ordem)
+  const fallbackContext = React.useMemo(() => ({
     documentNotifications: [],
     unreadCount: 0,
     markNotificationAsRead: () => {},
     markAllAsRead: () => {},
     handleViewDocument: () => {}
   }), []);
+
+  // Sempre chamar o hook real (pode dar erro mas não é condicional)
+  const realContext = useDocumentNotifications();
+
+  // Verificar se o contexto é válido
+  const isValidContext = realContext &&
+    typeof realContext === 'object' &&
+    Array.isArray(realContext.documentNotifications);
+
+  console.log('🔥 DEBUG: useDocumentNotificationsSafe - isValidContext:', isValidContext);
+  console.log('🔥 DEBUG: useDocumentNotificationsSafe - realContext exists:', !!realContext);
+  if (realContext) {
+    console.log('🔥 DEBUG: useDocumentNotificationsSafe - documentNotifications length:', realContext.documentNotifications?.length);
+    console.log('🔥 DEBUG: useDocumentNotificationsSafe - unreadCount:', realContext.unreadCount);
+  }
+
+  // Log apenas em caso de erro (opcional)
+  // React.useEffect(() => {
+  //   if (!isValidContext) {
+  //     console.warn('UnifiedNotificationCenter: usando fallback, contexto inválido');
+  //   }
+  // }, [isValidContext]);
+
+  // Debug final antes de retornar
+  const contextToReturn = isValidContext ? realContext : fallbackContext;
+  console.log('🔥 DEBUG: useDocumentNotificationsSafe RETORNANDO:');
+  console.log('  - usando contexto real:', isValidContext);
+  console.log('  - documentNotifications.length:', contextToReturn.documentNotifications?.length || 0);
+  console.log('  - unreadCount:', contextToReturn.unreadCount);
+
+  // Retornar contexto real se válido, senão fallback
+  return contextToReturn;
 };
 
 const UnifiedNotificationCenter = () => {
@@ -56,10 +91,89 @@ const UnifiedNotificationCenter = () => {
     handleViewDocument
   } = useDocumentNotificationsSafe();
 
+  // Debug logs para UnifiedNotificationCenter
+  React.useEffect(() => {
+    console.log('🔥 DEBUG: UnifiedNotificationCenter - documentNotifications:', documentNotifications?.length || 0);
+    console.log('🔥 DEBUG: UnifiedNotificationCenter - documentUnreadCount:', documentUnreadCount);
+    console.log('🔥 DEBUG: UnifiedNotificationCenter - documentNotifications array:', documentNotifications);
+  }, [documentNotifications, documentUnreadCount]);
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [tabValue, setTabValue] = useState(0); // 0: Tarefas, 1: Documentos
   const { user } = useAuth();
   const isDarkMode = user?.dark_mode || false;
+  const { metaData } = useMetaData();
+
+  // Função para mapear metadados das notificações
+  const getNotificationMappings = React.useCallback((notification) => {
+    if (!metaData || !notification.metadata) {
+      console.log('🔍 DEBUG: getNotificationMappings - sem metaData ou metadata:', { metaData: !!metaData, metadata: !!notification.metadata });
+      return {};
+    }
+
+    console.log('🔍 DEBUG: getNotificationMappings - notification.metadata:', notification.metadata);
+    console.log('🔍 DEBUG: getNotificationMappings - metaData keys:', Object.keys(metaData));
+
+    const mappings = {};
+    const flags = notification.metadata.requires_mapping || {};
+
+    // Mapear tipo de documento usando document_type_id
+    if (flags.document_type && notification.metadata.document_type_id) {
+      mappings.documentType = metaData.param_doctype?.find(dt =>
+        dt.pk === notification.metadata.document_type_id
+      );
+      console.log('🔍 DEBUG: Mapeando document_type_id:', notification.metadata.document_type_id, 'resultado:', mappings.documentType);
+    }
+
+    // Mapear ação/passo usando step_what_id
+    if (flags.step_what && notification.metadata.step_what_id) {
+      mappings.stepAction = metaData.what?.find(w =>
+        w.pk === notification.metadata.step_what_id
+      );
+      console.log('🔍 DEBUG: Mapeando step_what_id:', notification.metadata.step_what_id, 'resultado:', mappings.stepAction);
+    }
+
+    // Mapear responsável usando step_who_id
+    if (flags.step_who && notification.metadata.step_who_id) {
+      mappings.stepResponsible = metaData.who?.find(w =>
+        w.pk === notification.metadata.step_who_id
+      );
+      console.log('🔍 DEBUG: Mapeando step_who_id:', notification.metadata.step_who_id, 'resultado:', mappings.stepResponsible);
+    }
+
+    // Mapear entidade (se houver entity_mapping_id)
+    if (flags.entity && notification.metadata.entity_mapping_id) {
+      mappings.entity = metaData.ee?.find(e =>
+        e.pk === notification.metadata.entity_mapping_id
+      );
+      console.log('🔍 DEBUG: Mapeando entity_mapping_id:', notification.metadata.entity_mapping_id, 'resultado:', mappings.entity);
+    }
+
+    // Mapear associado (se houver associate_mapping_id)
+    if (flags.associate && notification.metadata.associate_mapping_id) {
+      mappings.associate = metaData.associates?.find(a =>
+        a.pk === notification.metadata.associate_mapping_id
+      );
+      console.log('🔍 DEBUG: Mapeando associate_mapping_id:', notification.metadata.associate_mapping_id, 'resultado:', mappings.associate);
+    }
+
+    // Mapear representante (se houver representative_mapping_id)
+    if (flags.representative && notification.metadata.representative_mapping_id) {
+      mappings.representative = metaData.who?.find(w =>
+        w.pk === notification.metadata.representative_mapping_id
+      );
+    }
+
+    // Mapear apresentação (se houver presentation_mapping_id)
+    if (flags.presentation && notification.metadata.presentation_mapping_id) {
+      mappings.presentation = metaData.presentation?.find(p =>
+        p.pk === notification.metadata.presentation_mapping_id
+      );
+    }
+
+    console.log('🔍 DEBUG: getNotificationMappings - resultado final:', mappings);
+    return mappings;
+  }, [metaData]);
   const theme = useTheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -449,17 +563,59 @@ const UnifiedNotificationCenter = () => {
                         >
                           {getNotificationText(notification, 'document')}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+
+                        {/* Chips com informações mapeadas */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
                           <Chip
                             size="small"
                             label={`Doc. ${notification.documentNumber}`}
                             variant="outlined"
+                            color="primary"
                             sx={{ height: 20, fontSize: '0.75rem' }}
                           />
+
+                          {(() => {
+                            const mappings = getNotificationMappings(notification);
+                            return (
+                              <>
+                                {mappings.documentType && (
+                                  <Chip
+                                    size="small"
+                                    label={mappings.documentType.name}
+                                    variant="outlined"
+                                    color="default"
+                                    sx={{ height: 20, fontSize: '0.75rem' }}
+                                  />
+                                )}
+
+                                {mappings.stepAction && (
+                                  <Chip
+                                    size="small"
+                                    label={mappings.stepAction.name}
+                                    variant="outlined"
+                                    color="secondary"
+                                    sx={{ height: 20, fontSize: '0.75rem' }}
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
                         </Box>
-                        <Typography variant="caption" color="textSecondary">
-                          {formatTimestamp(notification.timestamp)}
-                        </Typography>
+
+                        {/* Linha com entidade e timestamp */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          {(() => {
+                            const mappings = getNotificationMappings(notification);
+                            return mappings.entity ? (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                                🏢 {mappings.entity.name}
+                              </Typography>
+                            ) : null;
+                          })()}
+                          <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                            {formatTimestamp(notification.timestamp)}
+                          </Typography>
+                        </Box>
                       </Box>
                       <IconButton
                         size="small"

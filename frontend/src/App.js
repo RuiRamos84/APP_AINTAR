@@ -29,6 +29,10 @@ import AppModals from './components/modals/AppModals'; // NOVO
 // ===== HOOKS =====
 import { useAppEffects } from './hooks/useAppEffects'; // NOVO
 
+import { SWRConfig } from 'swr';
+import { swrConfig } from './pages/Operation/services/cacheService';
+
+
 // Componente de fallback para o Suspense
 const PageLoader = () => (
   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 128px)' }}>
@@ -95,6 +99,7 @@ const AppContent = () => {
 const App = () => (
   <Router>
     <ErrorBoundary>
+      <SWRConfig value={swrConfig}>
       <AuthProvider>
         <ModalProvider>
           <PermissionProvider>
@@ -109,7 +114,8 @@ const App = () => (
             </SidebarProvider>
           </PermissionProvider>
         </ModalProvider>
-      </AuthProvider>
+        </AuthProvider>
+        </SWRConfig>
     </ErrorBoundary>
   </Router>
 );

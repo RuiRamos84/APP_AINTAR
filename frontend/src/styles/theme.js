@@ -1,4 +1,5 @@
 import { createTheme, alpha } from "@mui/material/styles";
+import { applyResponsiveTypography } from "../theme/responsiveTypography";
 
 // Configurações comuns para ambos os temas
 const commonComponents = {
@@ -145,7 +146,8 @@ const commonComponents = {
   },
 };
 
-const lightTheme = createTheme({
+// Criar tema base (será aplicado o responsive typography depois)
+let lightTheme = createTheme({
   palette: {
     mode: "light",
     primary: {
@@ -367,7 +369,11 @@ const lightTheme = createTheme({
   },
 });
 
-const darkTheme = createTheme({
+// Aplicar responsive typography ao lightTheme
+lightTheme = applyResponsiveTypography(lightTheme);
+
+// Criar tema dark base (será aplicado o responsive typography depois)
+let darkTheme = createTheme({
   palette: {
     mode: "dark",
     primary: {
@@ -590,5 +596,8 @@ const darkTheme = createTheme({
     },
   },
 });
+
+// Aplicar responsive typography ao darkTheme
+darkTheme = applyResponsiveTypography(darkTheme);
 
 export { lightTheme, darkTheme };

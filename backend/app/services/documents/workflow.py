@@ -127,11 +127,100 @@ def add_document_step(data, pk, current_user):
                 # Limpar cache de passos
                 cache.delete_memoized(get_document_steps)
 
-                # Emitir notificação
-                notification_data = {
-                    "document_id": tb_document,
-                    "message": f"Novo passo adicionado ao pedido {tb_document}"
-                }
+                # Emitir notificação com dados completos
+                import time
+
+                # Buscar dados completos do documento
+                doc_details_query = text("""
+                    SELECT d.pk, d.regnumber, d.memo as descr, d.tt_type, d.creator,
+                           d.ts_entity, d.ts_associate, d.tb_representative, d.tt_presentation
+                    FROM vbf_document d
+                    WHERE d.pk = :document_id
+                """)
+                doc_details = session.execute(doc_details_query, {
+                    'document_id': tb_document
+                }).fetchone()
+
+                if doc_details:
+                    notification_data = {
+                        "document_id": tb_document,
+                        "document_number": doc_details.regnumber or f"Pedido #{tb_document}",
+                        "document_description": doc_details.descr or "",
+                        "document_type": doc_details.tt_type or "Documento",
+                        "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,  # Quem criou o passo
+                        "from_user_name": doc_details.creator or 'Utilizador',
+                        "to_user": who,  # Para quem foi atribuído
+                        "to_user_name": "Utilizador",
+                        "step_name": "Novo passo adicionado",
+                        "step_type": "workflow_step",
+                        "current_status": "Em processamento",
+                        "message": f"Novo passo adicionado ao {doc_details.regnumber or f'pedido #{tb_document}'}",
+                        "timestamp": time.time(),
+                        "notification_id": f"workflow_{tb_document}_{int(time.time() * 1000)}",
+                        "metadata": {
+                            "memo": memo or "",
+                            "step_what": what,
+                            "step_who": who,
+                            "document_pk": tb_document,
+                            "document_regnumber": doc_details.regnumber,
+                            "document_creator": doc_details.creator,
+                            "workflow_action": "add_step",
+                            "notification_source": "workflow_step",
+                            "recipient_type": "assigned_user",
+                            # IDs para mapeamento no frontend
+                            "step_what_id": what,  # ID para mapeamento em metadata.what
+                            "step_who_id": who,    # ID para mapeamento em metadata.who
+                            "document_type_id": doc_details.tt_type if doc_details else None,  # Para metadata.param_doctype
+                            "entity_mapping_id": doc_details.ts_entity if doc_details else None,  # Para metadata.ee
+                            "associate_mapping_id": doc_details.ts_associate if doc_details else None,  # Para metadata.associates
+                            "representative_mapping_id": doc_details.tb_representative if doc_details else None,  # Para metadata.who
+                            "presentation_mapping_id": doc_details.tt_presentation if doc_details else None,  # Para metadata.presentation
+                            # Flags para o frontend saber que dados mapear
+                            "requires_mapping": {
+                                "step_what": True,
+                                "step_who": True,
+                                "document_type": True if doc_details else False,
+                                "entity": True if (doc_details and doc_details.ts_entity) else False,
+                                "associate": True if (doc_details and doc_details.ts_associate) else False,
+                                "representative": True if (doc_details and doc_details.tb_representative) else False,
+                                "presentation": True if (doc_details and doc_details.tt_presentation) else False
+                            }
+                        }
+                    }
+                else:
+                    # Fallback se não conseguir buscar detalhes
+                    notification_data = {
+                        "document_id": tb_document,
+                        "document_number": f"Pedido #{tb_document}",
+                        "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,
+                        "from_user_name": 'Utilizador',
+                        "to_user": who,
+                        "to_user_name": "Utilizador",
+                        "message": f"Novo passo adicionado ao pedido #{tb_document}",
+                        "timestamp": time.time(),
+                        "notification_id": f"workflow_{tb_document}_{int(time.time() * 1000)}",
+                        "metadata": {
+                            "memo": memo or "",
+                            "step_what": what,
+                            "step_who": who,
+                            "document_pk": tb_document,
+                            "workflow_action": "add_step",
+                            "notification_source": "workflow_step",
+                            "recipient_type": "assigned_user",
+                            # IDs para mapeamento no frontend
+                            "step_what_id": what,  # ID para mapeamento em metadata.what
+                            "step_who_id": who,    # ID para mapeamento em metadata.who
+                            # Flags para o frontend saber que dados mapear
+                            "requires_mapping": {
+                                "step_what": True,
+                                "step_who": True
+                            }
+                        }
+                    }
+
+                debug_msg = f"🔥 BACKEND DEBUG: workflow.py - Preparando notificação {notification_data['notification_id']}"
+                print(debug_msg)
+                current_app.logger.info(debug_msg)
                 emit_socket_notification(notification_data, f"user_{who}")
 
                 return {'sucesso': 'Passo do pedido criado ou atualizado com sucesso'}, 201

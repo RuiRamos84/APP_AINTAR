@@ -33,7 +33,8 @@ import { UIProvider, useUI } from './context/UIStateContext';
 import { DocumentsProvider, useDocumentsContext } from './context/DocumentsContext';
 import { DocumentActionsProvider, useDocumentActions } from './context/DocumentActionsContext';
 import { AdvancedDocumentsProvider, useAdvancedDocuments } from './context/AdvancedDocumentsContext';
-import { DocumentNotificationProvider } from './contexts/DocumentNotificationContext';
+// DocumentNotificationProvider agora está no App.js (global)
+import TestNotificationButton from './components/notifications/TestNotificationButton';
 
 // Utils
 import DocumentFilters from './components/filters/DocumentFilters';
@@ -642,6 +643,21 @@ const DocumentManagerContent = () => {
                     toggleKeyboardMode={toggleKeyboardMode}
                 />
 
+            {/* Botão flutuante de notificações - teste simples */}
+            <Box
+                sx={{
+                    position: 'fixed',
+                    top: 80,
+                    right: 20,
+                    zIndex: 1000,
+                    bgcolor: 'background.paper',
+                    borderRadius: '50%',
+                    boxShadow: 3
+                }}
+            >
+                <TestNotificationButton />
+            </Box>
+
             <Box sx={{ mt: 2 }}>
                 <DocumentFilters
                     open={showFilters}
@@ -866,11 +882,9 @@ const DocumentManager = () => (
         <UIProvider>
             <DocumentsProvider>
                 <AdvancedDocumentsProvider>
-                    <DocumentNotificationProvider>
-                        <DocumentActionsProvider>
-                            <DocumentManagerContent />
-                        </DocumentActionsProvider>
-                    </DocumentNotificationProvider>
+                    <DocumentActionsProvider>
+                        <DocumentManagerContent />
+                    </DocumentActionsProvider>
                 </AdvancedDocumentsProvider>
             </DocumentsProvider>
         </UIProvider>

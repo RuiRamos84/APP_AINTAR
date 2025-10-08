@@ -9,6 +9,7 @@ export const fetchMetaData = async () => {
     try {
         const response = await api.get('/metaData');
         // Assumindo que a API retorna os dados diretamente no corpo da resposta
+        console.log(response.data);
         return response.data;
     } catch (error) {
         console.error("Erro ao buscar metadados:", error);

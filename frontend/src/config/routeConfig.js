@@ -23,7 +23,8 @@ import {
     History as HistoryIcon,
     Notifications as NotificationIcon,
     ViewModule as ViewModuleIcon,
-    Security as SecurityIcon
+    Security as SecurityIcon,
+    Science as ScienceIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import { AccountBalance as PaymentBalanceIcon } from '@mui/icons-material';
@@ -168,9 +169,41 @@ export const ROUTE_CONFIG = {
     '/operation': {
         id: 'operations',
         text: 'Operação',
-        icon: WorkIcon, // COMPONENTE
-        permissions: { required: 310 }, // operation.access
-        showInSidebar: true
+        icon: WorkIcon,
+        permissions: { required: 310 }, // operation.access - acesso básico
+        showInSidebar: true,
+        submenu: {
+            '/operation': {
+                id: 'operations_main',
+                text: 'Minhas Tarefas',
+                icon: AssignmentIcon,
+                permissions: { required: 311 } // operation.execute - executar tarefas
+            },
+            '/operation/control': {
+                id: 'operations_control',
+                text: 'Controlo de Equipa',
+                icon: PeopleIcon,
+                permissions: { required: 312 } // operation.supervise - supervisão
+            },
+            '/operation/analysis': {
+                id: 'operations_analysis',
+                text: 'Análises',
+                icon: ScienceIcon,
+                permissions: { required: 310 } // operation.access - todos
+            },
+            '/operation/metadata': {
+                id: 'operation_metadata',
+                text: 'Gestão de Voltas',
+                icon: SettingsIcon,
+                permissions: { required: 313 } // operation.manage - gestores
+            },
+            '/operation-legacy': {
+                id: 'operations_legacy',
+                text: 'Visualização por Tipos',
+                icon: ViewModuleIcon,
+                permissions: { required: 310 } // operation.access - acesso básico
+            }
+        }
     },
 
     '/ramais': { // Assumindo que 'pavimentations.view' não tem ID, removemos a restrição

@@ -66,9 +66,10 @@ export { default as DocumentNotificationButton } from './DocumentNotificationBut
  * ✅ Integração perfeita com sistema existente
  */
 
-export default {
-    DocumentNotificationProvider,
-    useDocumentNotifications,
-    DocumentNotificationCenter,
-    DocumentNotificationButton
-};
+// Default export não é necessário pois já exportamos tudo individualmente
+// export default {
+//     DocumentNotificationProvider,
+//     useDocumentNotifications,
+//     DocumentNotificationCenter,
+//     DocumentNotificationButton
+// };

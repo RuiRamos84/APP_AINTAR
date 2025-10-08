@@ -4,7 +4,30 @@ import useOperationsStore from '../store/operationsStore';
 import { notification } from '../services/notificationService';
 import { Logger } from '../utils/logger';
 
+/**
+ * @deprecated Este hook está deprecado e será removido em breve.
+ * Use `useOperationsUnifiedV2` em vez deste.
+ *
+ * Exemplo:
+ * ```js
+ * import { useOperationsUnifiedV2 } from '../hooks/useOperationsUnifiedV2';
+ *
+ * const MyComponent = () => {
+ *   const { userTasks, loading, refresh } = useOperationsUnifiedV2({
+ *     autoLoad: true,
+ *     includeUserTasks: true
+ *   });
+ *   // ...
+ * }
+ * ```
+ */
 export const useOperationsData = () => {
+    // Warning de deprecação (apenas em desenvolvimento)
+    if (process.env.NODE_ENV === 'development') {
+        console.warn(
+            '⚠️ DEPRECADO: useOperationsData será removido. Use useOperationsUnifiedV2 em vez deste hook.'
+        );
+    }
     const {
         operations, loading, error,
         setOperations, setLoading, setError, clearError

@@ -1,514 +1,725 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { connectSocket, disconnectSocket } from '../services/socketService';
 import { useAuth } from './AuthContext';
 import { usePermissionContext } from './PermissionContext';
-import notificacaoService from "../services/NotificacaoService";
+import { notifySuccess, notifyInfo, notifyWarning } from '../components/common/Toaster/ThemedToaster';
 import api from '../services/api';
 
 const SocketContext = createContext();
 
+/**
+ * Contexto unificado para Socket.IO e notificações em tempo real
+ * - Gestão de conexão Socket.IO
+ * - Sistema avançado de notificações (documentos, tarefas, sistema)
+ * - Armazenamento persistente resistente a localStorage.clear()
+ * - Sons e feedback visual unificados
+ */
 export const SocketProvider = ({ children }) => {
-  // Estados do utilizador e conexão
-  const { user, isLoggingOut } = useAuth();
-  const { hasPermission, initialized: permissionsInitialized } = usePermissionContext();
-  const [socket, setSocket] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
+    const { user, isLoggingOut } = useAuth();
+    const { hasPermission, initialized: permissionsInitialized } = usePermissionContext();
 
-  // Estados de notificações
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [taskNotifications, setTaskNotifications] = useState([]);
-  const [unreadTaskCount, setUnreadTaskCount] = useState(0);
-  const [taskNotificationCount, setTaskNotificationCount] = useState(0);
+    // Estados da conexão socket
+    const [socket, setSocket] = useState(null);
+    const [isConnected, setIsConnected] = useState(false);
 
-  // Para compatibilidade com componentes legados
-  const [globalNotificationCount, setGlobalNotificationCount] = useState(0);
-  const [notifications, setNotifications] = useState([]);
+    // Estados unificados de notificações
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [lastNotificationId, setLastNotificationId] = useState(null);
 
-  // Carregar a contagem inicial de notificações via REST API
-  const fetchInitialCount = useCallback(async () => {
-    if (user) {
-      try {
-        const response = await api.get("/notifications");
-        const count = response.data.count || 0;
+    // Estados de compatibilidade (para componentes legados)
+    const [globalNotificationCount, setGlobalNotificationCount] = useState(0);
+    const [taskNotifications, setTaskNotifications] = useState([]);
+    const [unreadTaskCount, setUnreadTaskCount] = useState(0);
+    const [taskNotificationCount, setTaskNotificationCount] = useState(0);
 
-        setNotificationCount(count);
-        setGlobalNotificationCount(count);
-      } catch (error) {
-        console.error("Erro ao buscar contagem inicial de notificações:", error);
-      }
-    }
-  }, [user]);
+    // Referências para controlo
+    const audioRef = useRef(null);
+    const listenersRegisteredRef = useRef(false);
+    const isInitializedRef = useRef(false);
 
-  // =========================================================================
-  // HANDLERS PARA EVENTOS DE NOTIFICAÇÃO
-  // =========================================================================
+    // =========================================================================
+    // ARMAZENAMENTO PERSISTENTE E RESISTENTE
+    // =========================================================================
 
-  // Handler para notification_update socket event
-  const handleNotificationUpdate = useCallback((data) => {
-    const novoContador = data.count || 0;
+    // Carregar estado inicial do localStorage com múltiplas chaves de backup
+    const loadFromStorage = useCallback(() => {
+        const userId = user?.user_id || 'anonymous';
+        const keys = [
+            `notifications_${userId}`,
+            `notifications_backup_${userId}`,
+            `app_notifications_${userId}`,
+            // Fallback para chaves antigas
+            'documentNotifications',
+            'notifications'
+        ];
 
-    setNotificationCount(novoContador);
-    setGlobalNotificationCount(novoContador);
+        for (const key of keys) {
+            try {
+                const stored = localStorage.getItem(key);
 
-    // Se o servidor enviar dados de notificação, atualiza
-    if (data.notifications) {
-      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
-    }
+                if (stored && stored !== 'null') {
+                    const parsed = JSON.parse(stored);
+                    if (parsed && (parsed.notifications?.length > 0 || parsed.unreadCount > 0)) {
+                        console.log(`✅ Notificações carregadas de ${key}:`, parsed.notifications?.length || 0, 'notificações,', parsed.unreadCount || 0, 'não lidas');
+                        return {
+                            notifications: parsed.notifications || [],
+                            unreadCount: parsed.unreadCount || 0,
+                            lastNotificationId: parsed.lastNotificationId || null
+                        };
+                    }
+                }
+            } catch (error) {
+                console.warn(`Erro ao carregar de ${key}:`, error);
+            }
+        }
+        return { notifications: [], unreadCount: 0, lastNotificationId: null };
+    }, [user?.user_id]);
 
-    // Adicionar notificação na aba e som quando receber uma atualização
-    if (novoContador > notificationCount) {
-      notificacaoService.notificar(novoContador);
-    }
-  }, [notificationCount]);
+    // Salvar no localStorage com múltiplas chaves de backup
+    const saveToStorage = useCallback((notifications, count, lastId) => {
+        const userId = user?.user_id || 'anonymous';
+        const data = {
+            notifications,
+            unreadCount: count,
+            lastNotificationId: lastId,
+            userId,
+            timestamp: Date.now()
+        };
 
-  // Handler específico para notificações de tarefas
-  const handleTaskNotification = useCallback((data) => {
-    // console.log("NOTIFICAÇÃO DE TAREFA RECEBIDA:", data);
+        const keys = [
+            `notifications_${userId}`,
+            `notifications_backup_${userId}`,
+            `app_notifications_${userId}`
+        ];
 
-    // Criar objeto de notificação completo
-    const newNotification = {
-      id: data.task_id || Date.now(),
-      taskId: data.taskId || data.task_id,
-      taskName: data.taskName || data.task_name,
-      type: data.type || data.notification_type || 'update',
-      timestamp: data.timestamp || new Date().toISOString(),
-      status: data.status,
-      statusId: data.statusId || data.status_id,
-      senderName: data.senderName || data.sender_name,
-      content: data.content || "Nova atualização",
-      read: false
-    };
+        const dataString = JSON.stringify(data);
 
-    // console.log("Nova notificação formatada:", newNotification);
+        keys.forEach(key => {
+            try {
+                localStorage.setItem(key, dataString);
+            } catch (error) {
+                console.warn(`Erro ao salvar em ${key}:`, error);
+            }
+        });
 
-    // Adicionar à lista de notificações (evitar duplicados)
-    setTaskNotifications(prev => {
-      // Verificar se já existe esta notificação
-      const existingIndex = prev.findIndex(n => parseInt(n.taskId) === parseInt(newNotification.taskId));
+        console.log('💾 Notificações salvas:', notifications.length, 'total,', count, 'não lidas');
+    }, [user?.user_id]);
 
-      if (existingIndex >= 0) {
-        // console.log("Atualizando notificação existente");
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], ...newNotification, read: false };
-        return updated;
-      }
+    // Carregar estado inicial
+    const initialState = loadFromStorage();
 
-      // console.log("Adicionando nova notificação");
-      return [newNotification, ...prev];
-    });
+    // Inicializar estados com dados carregados
+    useEffect(() => {
+        if (initialState.notifications.length > 0 || initialState.unreadCount > 0) {
+            setNotifications(initialState.notifications);
+            setUnreadCount(initialState.unreadCount);
+            setLastNotificationId(initialState.lastNotificationId);
+            setGlobalNotificationCount(initialState.unreadCount);
+        }
+    }, []);
 
-    // Incrementar contador
-    setUnreadTaskCount(prev => prev + 1);
-    setTaskNotificationCount(prev => prev + 1);
+    // Efeito para sincronizar localStorage automaticamente quando o estado mudar
+    useEffect(() => {
+        // Marcar como inicializado após o primeiro render
+        if (!isInitializedRef.current) {
+            isInitializedRef.current = true;
+            return; // Não salvar na primeira inicialização
+        }
 
-    // CRÍTICO: Garantir notificação visual e sonora
-    notificacaoService.notificar(unreadTaskCount + 1);
+        // Só salvar se há dados para salvar ou se explicitamente mudou algo
+        if (notifications.length > 0 || unreadCount > 0 || lastNotificationId) {
+            saveToStorage(notifications, unreadCount, lastNotificationId);
+        }
+    }, [notifications, unreadCount, lastNotificationId, saveToStorage]);
 
-    // Disparar evento para atualizar a lista de tarefas
-    window.dispatchEvent(new CustomEvent('task-refresh'));
-  }, [unreadTaskCount]);
+    // =========================================================================
+    // UTILITÁRIOS DE NOTIFICAÇÃO
+    // =========================================================================
 
-  // Handler para contagem de notificações de tarefas
-  const handleTaskNotificationCount = useCallback((data) => {
-    // console.log("Contagem de notificações de tarefas recebida:", data);
-    setTaskNotificationCount(data.count || 0);
-    setUnreadTaskCount(data.count || 0);
-  }, []);
+    /**
+     * Reproduzir som de notificação
+     */
+    const playNotificationSound = useCallback(() => {
+        try {
+            if (!audioRef.current) {
+                audioRef.current = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhC1mf4PK3aRgCJn/K8duILgUke8v25ooxB2Kw5uGpXxIC");
+                audioRef.current.volume = 0.3;
+            }
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch(() => {
+                // Ignorar erros de reprodução
+            });
+        } catch (error) {
+            console.debug('Não foi possível reproduzir som de notificação:', error);
+        }
+    }, []);
 
-  // Handler para lista de notificações de tarefas
-  const handleTaskNotifications = useCallback((data) => {
-    // console.log("Lista de notificações de tarefas recebida:", data);
+    /**
+     * Gerar ID único para notificação
+     */
+    const generateNotificationId = useCallback(() => {
+        return `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }, []);
 
-    if (Array.isArray(data.notifications)) {
-      // Mapear cada notificação para garantir que tem todos os campos
-      const mappedNotifications = data.notifications.map(notif => ({
-        ...notif,
-        id: notif.id || notif.taskId || Date.now(),
-        taskId: notif.taskId || notif.id,
-        taskName: notif.taskName || notif.task_name || "Tarefa",
-        type: notif.type || 'update',
-        timestamp: notif.timestamp || new Date().toISOString(),
-        read: false
-      }));
+    /**
+     * Formatar timestamp legível
+     */
+    const formatTimestamp = useCallback((timestamp) => {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
 
-      setTaskNotifications(mappedNotifications);
-      setTaskNotificationCount(data.count || data.notifications.length);
-      setUnreadTaskCount(data.count || data.notifications.length);
+        if (diffMins < 1) return 'Agora';
+        if (diffMins < 60) return `há ${diffMins}m`;
+        if (diffMins < 1440) return `há ${Math.floor(diffMins / 60)}h`;
+        return date.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }, []);
 
-      // Se houver notificações novas, também notificar
-      if (mappedNotifications.length > 0) {
-        notificacaoService.notificar(mappedNotifications.length);
-      }
-    }
-  }, []);
+    // =========================================================================
+    // HANDLERS DE EVENTOS SOCKET.IO
+    // =========================================================================
 
-  // Handler para notificações individuais
-  const handleNewNotification = useCallback((data) => {
-    const novoContador = notificationCount + 1;
-    setNotificationCount(novoContador);
-    setGlobalNotificationCount(novoContador);
+    /**
+     * Handler unificado para novas notificações
+     */
+    const handleNewNotification = useCallback((data) => {
+        const currentUserId = user?.user_id;
+        const notificationId = data.notification_id || generateNotificationId();
 
-    // Notificar sempre
-    notificacaoService.notificar(novoContador);
-  }, [notificationCount]);
+        // Verificar se já processamos esta notificação
+        if (notificationId) {
+            setNotifications(prev => {
+                const exists = prev.some(n => n.originalId === notificationId);
+                if (exists) {
+                    return prev;
+                }
 
-  // =========================================================================
-  // FUNÇÕES DE SOLICITAÇÃO E ATUALIZAÇÃO
-  // =========================================================================
+                // Determinar tipo de notificação
+                let notificationType = 'system';
+                let notification = {};
 
-  // Solicitar atualização das notificações de tarefas
-  const refreshTaskNotifications = useCallback(() => {
-    if (socket && socket.connected && user && permissionsInitialized && hasPermission(200)) {
-      // console.log("Solicitando lista de notificações de tarefas...");
-      socket.emit("get_task_notifications", {
-        userId: user.user_id,
-        sessionId: user.session_id
-      });
-    }
-  }, [socket, user, permissionsInitialized, hasPermission]);
+                if (data.document_id || data.documentId) {
+                    // Notificação de documento
+                    notificationType = 'document';
+                    notification = {
+                        id: generateNotificationId(),
+                        originalId: notificationId,
+                        type: 'document_transfer',
+                        documentId: data.document_id || data.documentId,
+                        documentNumber: data.document_number || data.documentNumber || `Doc ${data.document_id || data.documentId}`,
+                        fromUser: data.from_user || data.fromUser || 17,
+                        fromUserName: data.from_user_name || data.fromUserName || 'Utilizador',
+                        toUser: data.to_user || data.toUser || currentUserId,
+                        toUserName: data.to_user_name || data.toUserName || user?.name || 'Utilizador',
+                        stepName: data.step_name || data.stepName || 'Novo passo',
+                        stepType: data.step_type || data.stepType || 'transfer',
+                        currentStatus: data.current_status || data.currentStatus || 'Em processamento',
+                        timestamp: data.timestamp || new Date().toISOString(),
+                        isReceiver: (data.to_user || data.toUser || currentUserId) === currentUserId,
+                        isSender: (data.from_user || data.fromUser) === currentUserId,
+                        read: false,
+                        metadata: data.metadata || {},
+                        title: (data.to_user || data.toUser || currentUserId) === currentUserId ? 'Novo documento atribuído' : 'Documento transferido',
+                        message: (data.to_user || data.toUser || currentUserId) === currentUserId
+                            ? `Recebeu o documento ${data.document_number || data.documentNumber || `Doc ${data.document_id || data.documentId}`} de ${data.from_user_name || data.fromUserName || 'Utilizador'}`
+                            : `Documento ${data.document_number || data.documentNumber || `Doc ${data.document_id || data.documentId}`} transferido para ${data.to_user_name || data.toUserName || 'Utilizador'}`,
+                        priority: (data.to_user || data.toUser || currentUserId) === currentUserId ? 'high' : 'medium',
+                        icon: (data.to_user || data.toUser || currentUserId) === currentUserId ? '📬' : '📤'
+                    };
+                } else if (data.task_id || data.taskId) {
+                    // Notificação de tarefa
+                    notificationType = 'task';
+                    notification = {
+                        id: generateNotificationId(),
+                        originalId: notificationId,
+                        type: 'task_notification',
+                        taskId: data.task_id || data.taskId,
+                        taskName: data.task_name || data.taskName || 'Tarefa',
+                        status: data.status,
+                        statusId: data.statusId || data.status_id,
+                        senderName: data.senderName || data.sender_name || 'Utilizador',
+                        content: data.content || data.message || 'Nova atualização',
+                        timestamp: data.timestamp || new Date().toISOString(),
+                        read: false,
+                        title: 'Tarefa atualizada',
+                        message: `${data.task_name || 'Tarefa'}: ${data.content || data.message || 'Nova atualização'}`,
+                        priority: 'medium',
+                        icon: '📋'
+                    };
+                } else {
+                    // Notificação genérica/sistema
+                    notification = {
+                        id: generateNotificationId(),
+                        originalId: notificationId,
+                        type: 'system',
+                        content: data.message || data.content || 'Nova notificação',
+                        timestamp: data.timestamp || new Date().toISOString(),
+                        read: false,
+                        title: 'Notificação do sistema',
+                        message: data.message || data.content || 'Nova notificação',
+                        priority: 'low',
+                        icon: '🔔'
+                    };
+                }
 
-  // Função para carregar notificações de tarefas iniciais
-  const fetchInitialTaskNotifications = useCallback(async () => {
-    if (user && permissionsInitialized && hasPermission(200)) {
-      try {
-        const response = await api.get("/tasks");
+                const newList = [notification, ...prev.slice(0, 99)];
 
-        // Filtrar tarefas com notificações não lidas
-        const tasksWithNotifications = response.data.tasks?.filter(task =>
-          (task.owner === user.user_id && task.notification_owner === 1) ||
-          (task.ts_client === user.user_id && task.notification_client === 1)
-        ) || [];
+                // Atualizar contadores para receivers
+                const isReceiver = notification.isReceiver !== false; // Para documentos, usar o campo específico; para outros, assumir que é receiver
+                if (isReceiver) {
+                    setUnreadCount(prevCount => prevCount + 1);
+                    setGlobalNotificationCount(prevCount => prevCount + 1);
+                    setLastNotificationId(notification.id);
 
-        // Converter tarefas para objetos de notificação
-        const initialNotifications = tasksWithNotifications.map(task => ({
-          id: task.pk,
-          taskId: task.pk,
-          taskName: task.name,
-          type: 'unread_update',
-          timestamp: task.when_start,
-          read: false
+                    // Som e feedback
+                    console.log('🔔 Nova notificação recebida:', notification.message);
+                    playNotificationSound();
+
+                    // Feedback visual específico por tipo
+                    if (notificationType === 'document') {
+                        if (notification.isReceiver) {
+                            notifyInfo(`📬 ${notification.message}`, {
+                                duration: 6000,
+                                action: {
+                                    label: 'Ver',
+                                    onClick: () => handleViewDocument(notification.documentId)
+                                }
+                            });
+                        } else if (notification.isSender) {
+                            notifySuccess(`📤 ${notification.message}`, { duration: 4000 });
+                        }
+                    } else if (notificationType === 'task') {
+                        notifyInfo(`📋 ${notification.message}`, { duration: 4000 });
+                    } else {
+                        notifyInfo(`🔔 ${notification.message}`, { duration: 3000 });
+                    }
+
+                    // Atualizar contador de tarefas se for notificação de tarefa (compatibilidade)
+                    if (notificationType === 'task') {
+                        setTaskNotifications(prevTasks => {
+                            const existingIndex = prevTasks.findIndex(n => parseInt(n.taskId) === parseInt(notification.taskId));
+                            if (existingIndex >= 0) {
+                                const updated = [...prevTasks];
+                                updated[existingIndex] = { ...updated[existingIndex], ...notification, read: false };
+                                return updated;
+                            }
+                            return [notification, ...prevTasks];
+                        });
+                        setUnreadTaskCount(prev => prev + 1);
+                        setTaskNotificationCount(prev => prev + 1);
+                    }
+                }
+
+                return newList;
+            });
+        }
+    }, [user?.user_id, generateNotificationId, playNotificationSound]);
+
+    /**
+     * Visualizar documento específico
+     */
+    const handleViewDocument = useCallback((documentId) => {
+        // Disparar evento para abrir modal de documento
+        window.dispatchEvent(new CustomEvent('open-document-modal', {
+            detail: { documentId }
         }));
+    }, []);
 
-        setTaskNotifications(initialNotifications);
-        setUnreadTaskCount(initialNotifications.length);
-        setTaskNotificationCount(initialNotifications.length);
-      } catch (error) {
-        console.error('Erro ao carregar notificações de tarefas:', error);
-      }
-    }
-  }, [user, permissionsInitialized, hasPermission]);
+    // =========================================================================
+    // AÇÕES E UTILITÁRIOS
+    // =========================================================================
 
-  // Marcar notificação de tarefa como lida
-  const markTaskNotificationAsRead = useCallback(async (taskId, triggerRefresh = true) => {
-    // console.log("Marcando notificação como lida:", taskId);
-    try {
-      if (socket && socket.connected && user) {
-        socket.emit("mark_task_notification_read", {
-          taskId,
-          userId: user.user_id,
-          sessionId: user.session_id
-        });
-      }
+    /**
+     * Marcar notificação como lida
+     */
+    const markNotificationAsRead = useCallback((notificationId) => {
+        setNotifications(prev =>
+            prev.map(notif =>
+                notif.id === notificationId ? { ...notif, read: true } : notif
+            )
+        );
 
-      // Atualizar estado local
-      setTaskNotifications(prev =>
-        prev.map(notif =>
-          parseInt(notif.taskId) === parseInt(taskId) ? { ...notif, read: true } : notif
-        )
-      );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        setGlobalNotificationCount(prev => Math.max(0, prev - 1));
 
-      // Atualizar contador
-      setUnreadTaskCount(prev => Math.max(0, prev - 1));
-      setTaskNotificationCount(prev => Math.max(0, prev - 1));
-
-      // Parar de piscar o título se todas as notificações foram lidas
-      const remainingUnread = taskNotifications.filter(n =>
-        !n.read && parseInt(n.taskId) !== parseInt(taskId)
-      ).length;
-
-      if (remainingUnread === 0) {
-        notificacaoService.pararPiscar();
-      }
-
-      // Disparar evento
-      if (triggerRefresh) {
-        window.dispatchEvent(new CustomEvent('task-refresh'));
-      }
-
-      setTimeout(() => {
-        if (socket && socket.connected && user) {
-          refreshTaskNotifications();
+        // Emitir evento para servidor se necessário
+        if (socket && isConnected) {
+            emit('mark_notification_read', {
+                notificationId,
+                userId: user?.user_id
+            });
         }
-      }, 500);
-    } catch (error) {
-      console.error("Erro ao marcar notificação como lida:", error);
-    }
-  }, [socket, user, refreshTaskNotifications, taskNotifications]);
+    }, [socket, isConnected, user?.user_id]);
 
-  // Marcar todas as notificações de tarefas como lidas
-  const markAllTaskNotificationsAsRead = useCallback(async () => {
-    if (taskNotifications.length === 0) return;
+    /**
+     * Marcar todas como lidas
+     */
+    const markAllAsRead = useCallback(() => {
+        const unreadIds = notifications
+            .filter(notif => !notif.read)
+            .map(notif => notif.id);
 
-    try {
-      const promises = taskNotifications
-        .filter(n => !n.read)
-        .map(n => api.put(`/tasks/${n.taskId}/notification`));
+        setNotifications(prev =>
+            prev.map(notif => ({ ...notif, read: true }))
+        );
 
-      await Promise.all(promises);
+        setUnreadCount(0);
+        setGlobalNotificationCount(0);
 
-      setTaskNotifications(prev =>
-        prev.map(notification => ({ ...notification, read: true }))
-      );
-      setUnreadTaskCount(0);
-      setTaskNotificationCount(0);
+        // Emitir para servidor
+        if (socket && isConnected && unreadIds.length > 0) {
+            emit('mark_all_notifications_read', {
+                notificationIds: unreadIds,
+                userId: user?.user_id
+            });
+        }
 
-      // Parar de piscar o título
-      notificacaoService.pararPiscar();
+        notifySuccess(`✅ ${unreadIds.length} notificações marcadas como lidas`);
+    }, [notifications, socket, isConnected, user?.user_id]);
 
-      window.dispatchEvent(new CustomEvent('task-refresh'));
-    } catch (error) {
-      console.error("Erro ao marcar todas notificações como lidas:", error);
-    }
-  }, [taskNotifications]);
+    /**
+     * Limpar notificações antigas (mais de 7 dias)
+     */
+    const clearOldNotifications = useCallback(() => {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
 
-  // Marcar documento como lido
-  const markAsRead = useCallback((documentId) => {
-    if (socket && socket.connected && user) {
-      socket.emit("mark_notification_read", {
-        documentId,
-        userId: user.user_id,
-        sessionId: user.session_id
-      });
-    }
-  }, [socket, user]);
+        setNotifications(prev =>
+            prev.filter(notif => new Date(notif.timestamp) > weekAgo)
+        );
+    }, []);
 
-  // Marcar documento como não lido
-  const markAsUnread = useCallback((documentId) => {
-    if (socket && socket.connected && user) {
-      socket.emit("mark_notification_unread", {
-        documentId,
-        userId: user.user_id,
-        sessionId: user.session_id
-      });
-    }
-  }, [socket, user]);
+    /**
+     * Emitir evento personalizado
+     */
+    const emit = useCallback((eventName, data) => {
+        if (socket && socket.connected) {
+            const enhancedData = {
+                ...data,
+                sessionId: data.sessionId || user?.session_id,
+                userId: data.userId || user?.user_id
+            };
+            socket.emit(eventName, enhancedData);
+        } else {
+            console.warn("Tentativa de emitir evento sem socket conectado:", eventName);
+        }
+    }, [socket, user]);
 
-  // Solicitar atualização da contagem
-  const refreshNotifications = useCallback(() => {
-    if (socket && socket.connected && user) {
-      socket.emit("get_notifications", {
-        userId: user.user_id,
-        sessionId: user.session_id
-      });
-    }
-  }, [socket, user]);
+    /**
+     * Emitir evento de transferência de documento
+     */
+    const notifyDocumentTransfer = useCallback((transferData) => {
+        if (socket && isConnected) {
+            emit('document_transferred', {
+                ...transferData,
+                fromUser: user?.user_id,
+                fromUserName: user?.name || user?.username,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }, [socket, isConnected, emit, user]);
 
-  // Emitir evento personalizado
-  const emit = useCallback((eventName, data) => {
-    if (socket && socket.connected) {
-      const enhancedData = {
-        ...data,
-        sessionId: data.sessionId || user?.session_id,
-        userId: data.userId || user?.user_id
-      };
-      socket.emit(eventName, enhancedData);
-    } else {
-      console.warn("Tentativa de emitir evento sem socket conectado:", eventName);
-    }
-  }, [socket, user]);
+    // =========================================================================
+    // COMPATIBILIDADE COM CÓDIGO LEGACY
+    // =========================================================================
 
-  // =========================================================================
-  // EFEITOS PARA GESTÃO DE ESTADO
-  // =========================================================================
+    // Carregar a contagem inicial de notificações via REST API
+    const fetchInitialCount = useCallback(async () => {
+        if (user) {
+            try {
+                const response = await api.get("/notifications");
+                const count = response.data.count || 0;
+                setGlobalNotificationCount(count);
+            } catch (error) {
+                console.error("Erro ao buscar contagem inicial de notificações:", error);
+            }
+        }
+    }, [user]);
 
-  // Carregar contagem inicial assim que o contexto for montado
-  useEffect(() => {
-    if (user) {
-      fetchInitialCount();
-    }
-  }, [user, fetchInitialCount]);
+    // Marcar documento como lido (legacy)
+    const markAsRead = useCallback((documentId) => {
+        if (socket && isConnected && user) {
+            socket.emit("mark_notification_read", {
+                documentId,
+                userId: user.user_id,
+                sessionId: user.session_id
+            });
+        }
+    }, [socket, isConnected, user]);
 
-  // Solicitar notificações quando conectado
-  useEffect(() => {
-    if (user && isConnected) {
-      refreshTaskNotifications();
-    }
-  }, [user, isConnected, refreshTaskNotifications]);
+    // Marcar documento como não lido (legacy)
+    const markAsUnread = useCallback((documentId) => {
+        if (socket && isConnected && user) {
+            socket.emit("mark_notification_unread", {
+                documentId,
+                userId: user.user_id,
+                sessionId: user.session_id
+            });
+        }
+    }, [socket, isConnected, user]);
 
-  // Registrar event handlers para notificações de tarefas
-  useEffect(() => {
-    if (socket) {
-      // Registrar explicitamente todos os handlers
-      socket.on("task_notification", handleTaskNotification);
-      socket.on("task_notifications", handleTaskNotifications);
-      socket.on("task_notification_count", handleTaskNotificationCount);
+    // Solicitar atualização da contagem (legacy)
+    const refreshNotifications = useCallback(() => {
+        if (socket && isConnected && user) {
+            socket.emit("get_notifications", {
+                userId: user.user_id,
+                sessionId: user.session_id
+            });
+        }
+    }, [socket, isConnected, user]);
 
-      // console.log("Event handlers registrados para notificações de tarefas");
+    // Funções para tarefas (legacy)
+    const markTaskNotificationAsRead = useCallback(async (taskId) => {
+        try {
+            if (socket && isConnected && user) {
+                socket.emit("mark_task_notification_read", {
+                    taskId,
+                    userId: user.user_id,
+                    sessionId: user.session_id
+                });
+            }
 
-      return () => {
-        socket.off("task_notification");
-        socket.off("task_notifications");
-        socket.off("task_notification_count");
-      };
-    }
-  }, [socket, handleTaskNotification, handleTaskNotifications, handleTaskNotificationCount]);
+            // Atualizar estado local
+            setTaskNotifications(prev =>
+                prev.map(notif =>
+                    parseInt(notif.taskId) === parseInt(taskId) ? { ...notif, read: true } : notif
+                )
+            );
 
-  // Configuração da conexão socket
-  useEffect(() => {
-    let socketInstance = null;
-    let isConnecting = false;
+            setUnreadTaskCount(prev => Math.max(0, prev - 1));
+            setTaskNotificationCount(prev => Math.max(0, prev - 1));
+        } catch (error) {
+            console.error("Erro ao marcar notificação de tarefa como lida:", error);
+        }
+    }, [socket, isConnected, user]);
 
-    const setupSocket = async () => {
-      if (!user?.user_id || isLoggingOut || isConnecting) return;
+    const markAllTaskNotificationsAsRead = useCallback(async () => {
+        if (taskNotifications.length === 0) return;
 
-      isConnecting = true;
-      try {
-        socketInstance = await connectSocket(user.user_id);
-        setSocket(socketInstance);
-        setIsConnected(true);
+        try {
+            const promises = taskNotifications
+                .filter(n => !n.read)
+                .map(n => api.put(`/tasks/${n.taskId}/notification`));
 
-        // Socket event handlers
-        socketInstance.on("connect", () => {
-          // console.log("Socket conectado:", socketInstance.id);
-          // console.log("Sala do utilizador:", `user_${user.user_id}`);
-          setIsConnected(true);
+            await Promise.all(promises);
 
-          // Após conectar, juntar-se à sala
-          socketInstance.emit("join", {
-            userId: user.user_id,
-            sessionId: user.session_id
-          });
+            setTaskNotifications(prev =>
+                prev.map(notification => ({ ...notification, read: true }))
+            );
+            setUnreadTaskCount(0);
+            setTaskNotificationCount(0);
+        } catch (error) {
+            console.error("Erro ao marcar todas notificações de tarefas como lidas:", error);
+        }
+    }, [taskNotifications]);
 
-          // Solicitar lista de notificações imediatamente após a conexão
-          setTimeout(() => {
+    const fetchInitialTaskNotifications = useCallback(async () => {
+        if (user && permissionsInitialized && hasPermission(200)) {
+            try {
+                const response = await api.get("/tasks");
+
+                const tasksWithNotifications = response.data.tasks?.filter(task =>
+                    (task.owner === user.user_id && task.notification_owner === 1) ||
+                    (task.ts_client === user.user_id && task.notification_client === 1)
+                ) || [];
+
+                const initialNotifications = tasksWithNotifications.map(task => ({
+                    id: task.pk,
+                    taskId: task.pk,
+                    taskName: task.name,
+                    type: 'unread_update',
+                    timestamp: task.when_start,
+                    read: false
+                }));
+
+                setTaskNotifications(initialNotifications);
+                setUnreadTaskCount(initialNotifications.length);
+                setTaskNotificationCount(initialNotifications.length);
+            } catch (error) {
+                console.error('Erro ao carregar notificações de tarefas:', error);
+            }
+        }
+    }, [user, permissionsInitialized, hasPermission]);
+
+    const refreshTaskNotifications = useCallback(() => {
+        if (socket && socket.connected && user && permissionsInitialized && hasPermission(200)) {
+            socket.emit("get_task_notifications", {
+                userId: user.user_id,
+                sessionId: user.session_id
+            });
+        }
+    }, [socket, user, permissionsInitialized, hasPermission]);
+
+    // =========================================================================
+    // GESTÃO DE CONEXÃO SOCKET
+    // =========================================================================
+
+    // Configuração da conexão socket
+    useEffect(() => {
+        let socketInstance = null;
+        let isConnecting = false;
+
+        const setupSocket = async () => {
+            if (!user?.user_id || isLoggingOut || isConnecting) return;
+
+            isConnecting = true;
+            try {
+                socketInstance = await connectSocket(user.user_id);
+                setSocket(socketInstance);
+                setIsConnected(true);
+
+                // Socket event handlers
+                socketInstance.on("connect", () => {
+                    setIsConnected(true);
+
+                    // Após conectar, juntar-se à sala
+                    socketInstance.emit("join", {
+                        userId: user.user_id,
+                        sessionId: user.session_id
+                    });
+
+                    // Solicitar notificações iniciais
+                    setTimeout(() => {
+                        refreshTaskNotifications();
+                    }, 500);
+                });
+
+                socketInstance.on("disconnect", () => {
+                    setIsConnected(false);
+                });
+
+                // Registar event handlers unificados
+                socketInstance.on("new_notification", handleNewNotification);
+                socketInstance.on("document_transferred", handleNewNotification);
+                socketInstance.on("task_notification", handleNewNotification);
+
+                // Legacy event handlers
+                socketInstance.on("notification_update", (data) => {
+                    const novoContador = data.count || 0;
+                    setGlobalNotificationCount(novoContador);
+                    if (data.notifications) {
+                        // Processar notificações do servidor se necessário
+                    }
+                });
+
+                socketInstance.on("notification_count", (data) => {
+                    setGlobalNotificationCount(data.count || 0);
+                });
+
+                socketInstance.on("notifications_cleared", () => {
+                    setGlobalNotificationCount(0);
+                });
+
+            } catch (error) {
+                console.error("Erro ao configurar socket:", error);
+            } finally {
+                isConnecting = false;
+            }
+        };
+
+        if (user?.user_id && !socketInstance) {
+            setupSocket();
+        }
+
+        return () => {
+            if (socketInstance) {
+                socketInstance.off("new_notification");
+                socketInstance.off("document_transferred");
+                socketInstance.off("task_notification");
+                socketInstance.off("notification_update");
+                socketInstance.off("notification_count");
+                socketInstance.off("notifications_cleared");
+            }
+        };
+    }, [user, isLoggingOut, handleNewNotification, refreshTaskNotifications]);
+
+    // Outros efeitos
+    useEffect(() => {
+        if (user) {
+            fetchInitialCount();
+        }
+    }, [user, fetchInitialCount]);
+
+    useEffect(() => {
+        if (user && isConnected) {
             refreshTaskNotifications();
-          }, 500);
-        });
-
-        socketInstance.on("disconnect", () => {
-          // console.log("Socket desconectado");
-          setIsConnected(false);
-        });
-
-        // EVENTO CENTRAL - todas as atualizações vêm por aqui
-        socketInstance.on("notification_update", handleNotificationUpdate);
-
-        // Registrar event handlers para notificações
-        socketInstance.on("new_notification", handleNewNotification);
-        socketInstance.on("new_step_added", handleNewNotification);
-        socketInstance.on("order_assigned", handleNewNotification);
-        socketInstance.on("new_order_created", handleNewNotification);
-
-        // Legacy event handlers para compatibilidade
-        socketInstance.on("notification_count", (data) => {
-          setNotificationCount(data.count || 0);
-          setGlobalNotificationCount(data.count || 0);
-
-          // Também notificar aqui se houver novas notificações
-          if (data.count > notificationCount) {
-            notificacaoService.notificar(data.count);
-          }
-        });
-
-        socketInstance.on("notifications_cleared", () => {
-          setNotificationCount(0);
-          setGlobalNotificationCount(0);
-          setNotifications([]);
-        });
-
-      } catch (error) {
-        console.error("Erro ao configurar socket:", error);
-      } finally {
-        isConnecting = false;
-      }
-    };
-
-    if (user?.user_id && !socketInstance) {
-      setupSocket();
-    }
-
-    return () => {
-      if (socketInstance) {
-        // Remover apenas os listeners sem desconectar
-        socketInstance.off("notification_update");
-        socketInstance.off("new_notification");
-        socketInstance.off("new_step_added");
-        socketInstance.off("order_assigned");
-        socketInstance.off("new_order_created");
-        socketInstance.off("notification_count");
-        socketInstance.off("notifications_cleared");
-      }
-    };
-  }, [user, isLoggingOut, handleNotificationUpdate,
-    handleNewNotification, notificationCount,
-    refreshTaskNotifications]);
-
-  // Carregar notificações de tarefas iniciais
-  useEffect(() => {
-    if (user && permissionsInitialized) {
-      fetchInitialTaskNotifications();
-    }
-  }, [user, permissionsInitialized, fetchInitialTaskNotifications]);
-
-  // Event listener para visibilidade da página
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        notificacaoService.pararPiscar();
-
-        // Atualizar notificações quando o utilizador volta à página
-        if (isConnected && permissionsInitialized && hasPermission(200)) {
-          refreshTaskNotifications();
         }
-      }
+    }, [user, isConnected, refreshTaskNotifications]);
+
+    useEffect(() => {
+        if (user && permissionsInitialized) {
+            fetchInitialTaskNotifications();
+        }
+    }, [user, permissionsInitialized, fetchInitialTaskNotifications]);
+
+    // Limpeza automática de notificações antigas
+    useEffect(() => {
+        const interval = setInterval(clearOldNotifications, 1000 * 60 * 60); // A cada hora
+        return () => clearInterval(interval);
+    }, [clearOldNotifications]);
+
+    // =========================================================================
+    // CONTEXTO PARA COMPONENTES FILHOS
+    // =========================================================================
+
+    const value = {
+        // Conexão socket
+        socket,
+        isConnected,
+        emit,
+
+        // Notificações unificadas (novo sistema)
+        notifications,
+        unreadCount,
+        lastNotificationId,
+        markNotificationAsRead,
+        markAllAsRead,
+        clearOldNotifications,
+        handleViewDocument,
+        formatTimestamp,
+        notifyDocumentTransfer,
+
+        // Sistema de documentos (compatibilidade)
+        documentNotifications: notifications.filter(n => n.type === 'document_transfer'),
+        documentNotificationsLength: notifications.filter(n => n.type === 'document_transfer').length,
+
+        // Legacy/compatibilidade
+        notificationCount: globalNotificationCount,
+        globalNotificationCount,
+        setGlobalNotificationCount,
+        markAsRead,
+        markAsUnread,
+        refreshNotifications,
+        fetchInitialNotifications: fetchInitialCount,
+
+        // Tarefas (legacy)
+        taskNotifications,
+        unreadTaskCount,
+        taskNotificationCount,
+        markTaskNotificationAsRead,
+        markAllTaskNotificationsAsRead,
+        fetchInitialTaskNotifications,
+        refreshTaskNotifications
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isConnected, refreshTaskNotifications, permissionsInitialized, hasPermission]);
-
-  // Retrocompatibilidade
-  const fetchInitialNotifications = fetchInitialCount;
-
-  // =========================================================================
-  // CONTEXTO PARA COMPONENTES FILHOS
-  // =========================================================================
-
-  const value = {
-    socket,
-    isConnected,
-    notificationCount,
-    markAsRead,
-    markAsUnread,
-    refreshNotifications,
-    emit,
-    globalNotificationCount,
-    setGlobalNotificationCount,
-    notifications,
-    fetchInitialNotifications,
-    taskNotifications,
-    unreadTaskCount,
-    markTaskNotificationAsRead,
-    markAllTaskNotificationsAsRead,
-    fetchInitialTaskNotifications,
-    taskNotificationCount,
-    refreshTaskNotifications
-  };
-
-  return (
-    <SocketContext.Provider value={value}>
-      {children}
-    </SocketContext.Provider>
-  );
+    return (
+        <SocketContext.Provider value={value}>
+            {children}
+        </SocketContext.Provider>
+    );
 };
 
+/**
+ * Hook para utilizar o contexto de socket
+ */
 export const useSocket = () => {
-  const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error("useSocket deve ser usado dentro de um SocketProvider");
-  }
-  return context;
+    const context = useContext(SocketContext);
+    if (!context) {
+        throw new Error("useSocket deve ser usado dentro de um SocketProvider");
+    }
+    return context;
 };
+
+export default SocketContext;

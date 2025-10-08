@@ -20,7 +20,10 @@ const ChangePassword = lazy(() => import("../../pages/ChangePassword/ChangePassw
 const EntityList = lazy(() => import("../../pages/Entity/EntityList/EntityList"));
 const EntityDetail = lazy(() => import("../../pages/Entity/EntityDetail/EntityDetail"));
 const CreateEntity = lazy(() => import("../../pages/Entity/CreateEntity/CreateEntity"));
-const Operation = lazy(() => import("../../pages/Operation"));
+const OperatorView = lazy(() => import("../../pages/Operation/OperatorView")); // Vista de operador (mobile + desktop)
+const SupervisorView = lazy(() => import("../../pages/Operation/SupervisorView")); // Vista de supervisor (mobile + desktop)
+const Analysis = lazy(() => import("../../pages/Analysis")); // Análises (desktop)
+const OperationMetadata = lazy(() => import("../../pages/OperationMetadata")); // Gestão de voltas (desktop)
 const ModernDocuments = lazy(() => import("../../pages/ModernDocuments"));
 const DocumentList = lazy(() => import("../../pages/Documents/DocumentListAll/DocumentList"));
 const DocumentPage = lazy(() => import("../../pages/DocumentPage/DocumentPage"));
@@ -47,6 +50,7 @@ const GlobalModule = lazy(() => import("../../pages/Global"));
 const EpiArea = lazy(() => import("../../pages/EPIs/EpiArea"));
 const DocumentPaymentFlow = lazy(() => import('../../features/Payment/modals/DocumentPaymentFlow'));
 const PaymentAdminPage = lazy(() => import('../../features/Payment/components/PaymentAdminPage'));
+const OldOperations = lazy(() => import("../../pages/Operação/Operations"));
 
 // === CONFIGURAÇÃO DE ROTAS ===
 const PUBLIC_ROUTES = ["/", "/login", "/create-user", "/activation", "/password-recovery", "/reset-password"];
@@ -104,9 +108,40 @@ const AppRoutes = ({ user }) => (
         } />
 
         {/* === ROTAS OPERACIONAIS === */}
+        {/* Rota principal unificada - Mobile First */}
+        {/* ROTAS DE OPERAÇÕES */}
+
+        {/* Vista de Operador - Mobile + Desktop */}
         <Route path="/operation" element={
+            <PrivateRoute requiredPermission={311}>
+                <OperatorView />
+            </PrivateRoute>
+        } />
+
+        {/* Vista de Supervisor - Mobile + Desktop */}
+        <Route path="/operation/control" element={
+            <PrivateRoute requiredPermission={312}>
+                <SupervisorView />
+            </PrivateRoute>
+        } />
+
+        {/* Análises - Desktop only */}
+        <Route path="/operation/analysis" element={
+            <PrivateRoute requiredPermission={314}>
+                <Analysis />
+            </PrivateRoute>
+        } />
+
+        {/* Gestão de Voltas/Tarefas - Desktop only */}
+        <Route path="/operation/metadata" element={
+            <PrivateRoute requiredPermission={313}>
+                <OperationMetadata />
+            </PrivateRoute>
+        } />
+
+        <Route path="/operation-legacy" element={
             <PrivateRoute requiredPermission={310}>
-                <Operation />
+                <OldOperations />
             </PrivateRoute>
         } />
 

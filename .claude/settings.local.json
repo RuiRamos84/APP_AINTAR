@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(python:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(grep:*)",
+      "Bash(tree:*)",
+      "Bash(npm start)",
+      "Bash(pip install:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(Stop-Process -Id 10172 -Force)",
+      "Bash(dir:*)",
+      "Bash(for file in AssociateFilter OperationCard OperationsTable ViewCards)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(ls:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": [

@@ -257,7 +257,7 @@ export const useEntityData = (formData, setFormData) => {
     // ✅ ACTUALIZAR ENTIDADE
     const handleEntityUpdate = async (updatedEntity) => {
         try {
-            await updateEntity(updatedEntity);
+            await updateEntity(updatedEntity.pk, updatedEntity);
 
             const validation = validateEntityCompleteness(updatedEntity);
             if (validation.isIncomplete) {

@@ -33,6 +33,8 @@ const DocumentNotificationButton = ({
         setIsVisible
     } = useDocumentNotifications();
 
+    // Debug logs removidos para produção
+
     const [isOpen, setIsOpen] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const [lastSeenNotificationId, setLastSeenNotificationId] = useState(null);

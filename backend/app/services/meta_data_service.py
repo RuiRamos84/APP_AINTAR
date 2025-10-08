@@ -41,7 +41,13 @@ def fetch_meta_data(current_user):
         'task_status': "SELECT * FROM vbl_notestatus ORDER BY pk",
         'payment_method': "SELECT * FROM vbl_metodopagamento ORDER BY pk",
         'step_transitions': "SELECT * FROM vbl_step_transition ORDER BY doctype, from_step, to_step",
-        'analiseParams': "SELECT * FROM vbl_analiseparam"
+        'analiseParams': "SELECT * FROM vbl_analiseparam",
+        'operacaodia': "SELECT * FROM vbl_operacaodia ORDER BY pk",
+        'operacaoaccao': "SELECT * FROM vbl_operacaoaccao ORDER BY pk",
+        'operacamodo': "SELECT * FROM vbl_operacaomodo ORDER BY pk",
+        'analise_forma': "SELECT * FROM vbl_analiseforma ORDER BY pk",
+        'analise_param': "SELECT * FROM vbl_analiseparam ORDER BY pk",
+        'analise_ponto': "SELECT * FROM vbl_analiseponto ORDER BY pk",
     }
 
     response_data = {}

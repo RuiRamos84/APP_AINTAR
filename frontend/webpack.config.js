@@ -26,6 +26,10 @@ module.exports = {
       crypto: require.resolve("crypto-browserify"),
     },
     alias: {
+      // Adicionar alias para simplificar os imports
+      // Agora pode importar de '@/components/MyComponent' em vez de '../../components/MyComponent'
+      '@': path.resolve(__dirname, 'src/'),
+
       "pdfjs-dist/build/pdf.worker.entry": path.join(
         __dirname,
         "node_modules/pdfjs-dist/build/pdf.worker.min.js"

@@ -10,6 +10,7 @@ import { useOperationsData, useOperationsFilters, useScrollCompact } from '../ho
 import { useAuth } from '../../../contexts/AuthContext';
 import { useMetaData } from '../../../contexts/MetaDataContext';
 import useOperationsStore from '../store/operationsStore';
+import { textIncludes } from '../utils/textUtils';
 
 // Offline
 import { useOffline } from '../hooks/useOffline';
@@ -122,13 +123,13 @@ const TabletView = () => {
         console.log('displayData recalculado:', data.length, 'sortBy:', filtersStore.sortBy);
 
         // Aplicar apenas filtros locais (search + activeFilters)
+        // Pesquisa com suporte a acentos e caracteres especiais
         if (ui.searchTerm) {
-            const term = ui.searchTerm.toLowerCase();
             data = data.filter(item =>
-                item.regnumber?.toLowerCase().includes(term) ||
-                item.ts_entity?.toLowerCase().includes(term) ||
-                item.phone?.includes(ui.searchTerm) ||
-                item.address?.toLowerCase().includes(term)
+                textIncludes(item.regnumber, ui.searchTerm) ||
+                textIncludes(item.ts_entity, ui.searchTerm) ||
+                textIncludes(item.phone, ui.searchTerm) ||
+                textIncludes(item.address, ui.searchTerm)
             );
         }
 

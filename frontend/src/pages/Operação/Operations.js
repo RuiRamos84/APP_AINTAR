@@ -1,15 +1,16 @@
 import { Box, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useMetaData } from '../../contexts/MetaDataContext';
 import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
-import { getColumnsForView, getRemainingDaysColor } from "./operationsHelpers";
+import { getColumnsForView, getRemainingDaysColor } from "./utils/operationsHelpers";
 import { exportToExcel } from "./services/exportService";
 
 // Componentes existentes
-import AssociateFilter from "./AssociateFilter";
-import OperationsTable from "./OperationsTable";
-import TabletOperations from "./TabletOperations";
-import ViewCards from "./ViewCards";
-import ExportButton from "./components/ExportButton";
+import AssociateFilter from "./components/AssociateFilter/AssociateFilter";
+import OperationsTable from "./components/OperationsTable/OperationsTable";
+import TabletOperations from "./containers/TabletOperationsContainer";
+import ViewCards from "./components/ViewCards/ViewCards";
+import { Button } from "@mui/material";
+import { GetApp } from "@mui/icons-material";
 
 const Operations = () => {
     const theme = useTheme();

@@ -154,6 +154,10 @@ def parse_xml_response(response):
 def fs_setsession(session_id):
     from app import db
     try:
+        # Garantir que session_id é um inteiro
+        if isinstance(session_id, str):
+            session_id = int(session_id)
+
         query = text("SELECT fs_setsession(:session_id)")
         result = db.session.execute(query, {"session_id": session_id})
         first_row = result.fetchone()

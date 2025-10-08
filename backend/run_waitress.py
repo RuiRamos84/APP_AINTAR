@@ -2,18 +2,16 @@
 import eventlet
 eventlet.monkey_patch()
 import logging
-# Configuração AGGRESSIVA de logging - DEVE VIR ANTES DE QUALQUER OUTRA IMPORTAÇÃO
-logging.basicConfig(level=logging.CRITICAL)  # Nível mais alto possível
-logging.getLogger('socketio').setLevel(logging.CRITICAL)
-logging.getLogger('engineio').setLevel(logging.CRITICAL)
-logging.getLogger('werkzeug').setLevel(logging.CRITICAL)
-logging.getLogger('flask-socketio').setLevel(logging.CRITICAL)
-# Seu logger personalizado
-logging.getLogger('custom-socketio').setLevel(logging.INFO)
+# Configuração de logging para produção
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger('socketio').setLevel(logging.WARNING)
+logging.getLogger('engineio').setLevel(logging.WARNING)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
+logging.getLogger('flask-socketio').setLevel(logging.WARNING)
 
-# Desativar completamente logs específicos
+# Desativar logs verbosos
 logging.getLogger('socketio.server').disabled = True
-logging.getLogger('engineio.server').disabled = False
+logging.getLogger('engineio.server').disabled = True
 
 # Agora importe os outros módulos
 from config import get_config
@@ -81,14 +79,17 @@ def run_server():
 
     threading.Thread(target=watchdog_thread, daemon=True).start()
 
-    # Configuração final do Socket.IO
-    socketio.init_app(app, logger=False, engineio_logger=False)
+    # Socket.IO JÁ foi inicializado em app/__init__.py - NÃO inicializar novamente!
+    print("Iniciando servidor Socket.IO...")
+    print(f"URL: http://0.0.0.0:5000")
+    print(f"Socket.IO ativo: {socketio is not None}")
+
     socketio.run(app,
                  host='0.0.0.0',
                  port=5000,
-                 debug=False,
+                 debug=False,  # Debug desabilitado para produção
                  use_reloader=False,
-                 log_output=False)
+                 log_output=False)  # Logs reduzidos
 
 
 if __name__ == '__main__':

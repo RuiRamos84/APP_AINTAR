@@ -91,3 +91,145 @@ export const sanitizeInput = (input) => {
     if (typeof input !== 'string') return input;
     return input.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 };
+
+// Mapeamento de PKs de análise para descrições
+export const getAnaliseParamName = (pk, metaData) => {
+    if (!pk || !metaData?.analise_param) return null;
+    const param = metaData.analise_param.find(p => p.pk === Number(pk));
+    return param ? param.value : `Parâmetro #${pk}`;
+};
+
+export const getAnalisePontoName = (pk, metaData) => {
+    if (!pk || !metaData?.analise_ponto) return null;
+    const ponto = metaData.analise_ponto.find(p => p.pk === Number(pk));
+    return ponto ? ponto.value : `Ponto #${pk}`;
+};
+
+export const getAnaliseFormaName = (pk, metaData) => {
+    if (!pk || !metaData?.analise_forma) return null;
+    const forma = metaData.analise_forma.find(f => f.pk === Number(pk));
+    return forma ? forma.value : `Forma #${pk}`;
+};
+
+// Helper para obter cor baseada no status de licenciamento
+// 1/null = Sem licença (cinza)
+// 2 = A aguardar licenciamento (laranja)
+// 3 = Licença ativa (verde)
+export const getInstallationLicenseColor = (licenseStatus) => {
+    switch (licenseStatus) {
+        case 3:
+            return '#4caf50'; // Verde - Licença ativa
+        case 2:
+            return '#ff9800'; // Laranja - A aguardar licenciamento
+        case 1:
+        case null:
+        case undefined:
+        default:
+            return '#9e9e9e'; // Cinza - Sem licença
+    }
+};
+
+// Helper para obter texto do status de licenciamento
+export const getInstallationLicenseText = (licenseStatus) => {
+    switch (licenseStatus) {
+        case 3:
+            return 'Licença ativa';
+        case 2:
+            return 'A aguardar licenciamento';
+        case 1:
+        case null:
+        case undefined:
+        default:
+            return 'Sem licença';
+    }
+};
+
+// Helper para obter nome da instalação (ETAR ou EE)
+export const getInstallationName = (pk, metaData) => {
+    if (!pk || !metaData) return null;
+
+    // Procurar em ETAR
+    const etar = metaData.etar?.find(item => item.pk === Number(pk));
+    if (etar) return etar.nome;
+
+    // Procurar em EE
+    const ee = metaData.ee?.find(item => item.pk === Number(pk));
+    if (ee) return ee.nome;
+
+    return null;
+};
+
+// Helper para obter nome da ação
+export const getOperationActionName = (pk, metaData) => {
+    if (!pk || !metaData?.operacaoaccao) return null;
+    const item = metaData.operacaoaccao.find(i => i.pk === Number(pk));
+    return item ? item.value : null;
+};
+
+// Helper para obter nome do modo
+export const getOperationModeName = (pk, metaData) => {
+    if (!pk || !metaData?.operacamodo) return null;
+    const item = metaData.operacamodo.find(i => i.pk === Number(pk));
+    return item ? item.value : null;
+};
+
+// Helper para obter nome do dia
+export const getOperationDayName = (pk, metaData) => {
+    if (!pk || !metaData?.operacaodia) return null;
+    const item = metaData.operacaodia.find(i => i.pk === Number(pk));
+    return item ? item.value : null;
+};
+
+// Helper para enriquecer tarefa com nomes de análise mapeados
+export const enrichTaskWithAnalysisNames = (task, metaData) => {
+    if (!task) return task;
+
+    return {
+        ...task,
+        analise_param_nome: getAnaliseParamName(task.tt_operacaoaccao_analiseparam, metaData),
+        analise_ponto_nome: getAnalisePontoName(task.tt_operacaoaccao_analiseponto, metaData),
+        analise_forma_nome: getAnaliseFormaName(task.tt_operacaoaccao_analiseforma, metaData),
+    };
+};
+
+// Helper para enriquecer tarefa de operação com todos os nomes
+// NOTA: Para tarefas do operador (operacao_self), os nomes já vêm do backend!
+// Este helper é para voltas programadas (operacao_meta) que vêm com PKs
+export const enrichOperationTask = (task, metaData) => {
+    if (!task) return task;
+
+    // Se já tem instalacao_nome, não precisa mapear (já vem do backend)
+    if (task.instalacao_nome && task.acao_operacao && task.modo_operacao) {
+        console.log('✅ Tarefa já vem com nomes do backend:', task.pk);
+        return task;
+    }
+
+    // Caso contrário, mapear os PKs
+    const instalacao_name = getInstallationName(task.tb_instalacao, metaData);
+    const accao_name = getOperationActionName(task.tt_operacaoaccao, metaData);
+    const modo_name = getOperationModeName(task.tt_operacaomodo, metaData);
+    const dia_name = getOperationDayName(task.tt_operacaodia, metaData);
+
+    console.log('🔧 Mapeando PKs para nomes:', {
+        task_pk: task.pk,
+        tb_instalacao: task.tb_instalacao,
+        instalacao_name,
+        tt_operacaoaccao: task.tt_operacaoaccao,
+        accao_name,
+        tt_operacaomodo: task.tt_operacaomodo,
+        modo_name,
+        tt_operacaodia: task.tt_operacaodia,
+        dia_name
+    });
+
+    return {
+        ...task,
+        instalacao_name,
+        accao_name,
+        modo_name,
+        dia_name,
+        analise_param_nome: getAnaliseParamName(task.tt_operacaoaccao_analiseparam, metaData),
+        analise_ponto_nome: getAnalisePontoName(task.tt_operacaoaccao_analiseponto, metaData),
+        analise_forma_nome: getAnaliseFormaName(task.tt_operacaoaccao_analiseforma, metaData),
+    };
+};

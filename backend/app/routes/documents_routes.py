@@ -203,7 +203,8 @@ def get_document_anex_step(pk):
 
 @bp.route('/add_document_step/<int:pk>', methods=['POST'])
 @jwt_required()
-@require_permission(560)  # tasks.manage # Permissão para interagir com um pedido
+# docs.create # Permissão para interagir com um pedido
+@require_permission(560)
 @token_required
 @set_session
 @api_error_handler
@@ -230,7 +231,7 @@ def download_file_route(regnumber, filename):
 
 @bp.route('/add_document_annex', methods=['POST'])
 @jwt_required()
-@require_permission(750)  # tasks.manage
+@require_permission(560)  # docs.create
 @token_required
 @set_session
 @api_error_handler

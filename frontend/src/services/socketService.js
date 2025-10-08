@@ -25,16 +25,33 @@ export const connectSocket = (userId) => {
     });
 
     socket.on("connect", () => {
-      // console.log("Conectado ao servidor Socket.IO com ID:", socket.id, socket.io.engine.opts.query.userId);
+      console.group("✅ Socket.IO CONECTADO COM SUCESSO");
+      console.log("🔗 Socket ID:", socket.id);
+      console.log("🌐 URL:", socketUrl);
+      console.log("🚀 Transport usado:", socket.io.engine.transport.name);
+      console.log("👤 User ID:", userId);
+      console.log("🎯 Query params:", socket.io.engine.opts.query);
+      console.log("🔄 Reconexão ativa:", socket.io.reconnection());
+      console.groupEnd();
       resolve(socket);
     });
 
     socket.on("connect_error", (error) => {
-      console.error("Erro de conexão Socket.IO:", error);
+      console.group("❌ ERRO DE CONEXÃO Socket.IO");
+      console.error("📍 URL tentada:", socketUrl);
+      console.error("🔍 Erro completo:", error);
+      console.error("📋 Mensagem:", error.message);
+      console.error("🧰 Tipo:", error.type);
+      console.error("📊 Código:", error.code);
+      console.groupEnd();
+      reject(error);
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("Desconectado do Socket.IO. Razão:", reason);
+      console.group("🔌 Socket.IO DESCONECTADO");
+      console.warn("📍 Razão:", reason);
+      console.warn("🔄 Vai tentar reconectar:", socket.io.reconnection());
+      console.groupEnd();
     });
   });
 };

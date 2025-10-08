@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 import {
     FormControl, Box, Typography, TextField, InputAdornment, Chip,
     SwipeableDrawer, List, ListItemButton, ListItemText, Divider,
-    IconButton, InputLabel, Select, MenuItem, useMediaQuery, useTheme
+    IconButton, InputLabel, MenuItem, useMediaQuery, useTheme
 } from '@mui/material';
 import { Search, Check, KeyboardArrowDown, FilterList } from '@mui/icons-material';
+import { textIncludes, removeDuplicatesIgnoringAccents, sortIgnoringAccents } from '../../utils/textUtils';
+import AccessibleSelect from '../../../../components/common/AccessibleSelect';
 
 const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange }) => {
     const theme = useTheme();
@@ -14,7 +16,7 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
 
     // Filtrar e limpar dados dos associados
     const cleanedAssociates = useMemo(() => {
-        return associates
+        const filtered = associates
             .filter(associate => {
                 // Filtrar apenas strings válidas
                 if (typeof associate !== 'string') return false;
@@ -25,13 +27,16 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                 if (!associate.trim()) return false;
                 return true;
             })
-            .map(associate => associate.trim()) // Limpar espaços
-            .filter((associate, index, array) => array.indexOf(associate) === index); // Remover duplicados
+            .map(associate => associate.trim()); // Limpar espaços
+
+        // Remover duplicados ignorando acentos e ordenar
+        const unique = removeDuplicatesIgnoringAccents(filtered);
+        return sortIgnoringAccents(unique, true); // Ordenar A-Z
     }, [associates]);
 
+    // Pesquisa com suporte a acentos e caracteres especiais
     const filteredAssociates = searchTerm
-        ? cleanedAssociates.filter(associate =>
-            associate.toLowerCase().includes(searchTerm.toLowerCase()))
+        ? cleanedAssociates.filter(associate => textIncludes(associate, searchTerm))
         : cleanedAssociates;
 
     if (isTablet) {
@@ -203,7 +208,7 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
             <InputLabel id="associate-select-label">
                 Filtrar por Associado
             </InputLabel>
-            <Select
+            <AccessibleSelect
                 labelId="associate-select-label"
                 value={selectedAssociate || ''}
                 onChange={(e) => onAssociateChange(e.target.value)}
@@ -236,7 +241,7 @@ const AssociateFilter = ({ associates = [], selectedAssociate, onAssociateChange
                         {associate}
                     </MenuItem>
                 ))}
-            </Select>
+            </AccessibleSelect>
         </FormControl>
     );
 };

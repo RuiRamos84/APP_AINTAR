@@ -33,6 +33,7 @@ import {
     DoneAll as DoneAllIcon
 } from '@mui/icons-material';
 import { useDocumentNotifications } from '../../contexts/DocumentNotificationContext';
+import { useMetaData } from '../../../../contexts/MetaDataContext';
 
 /**
  * Centro de notificações para documentos - Design elegante e funcional
@@ -52,8 +53,92 @@ const DocumentNotificationCenter = ({
         formatTimestamp
     } = useDocumentNotifications();
 
+    const { metaData } = useMetaData();
+
+    // DEBUG: Log do contexto quando central abre
+    React.useEffect(() => {
+        if (open) {
+            console.group('🗂️ CENTRAL DE NOTIFICAÇÕES ABERTA - DEBUG');
+            console.log('📊 Total de notificações do contexto:', documentNotifications?.length || 0);
+            console.log('🔢 Não lidas do contexto:', unreadCount || 0);
+            console.log('📋 Lista completa do contexto:', documentNotifications);
+            console.log('🏷️ Primeira notificação:', documentNotifications?.[0]);
+            console.log('🔍 Tipo da primeira notificação:', typeof documentNotifications?.[0]);
+            console.groupEnd();
+        }
+    }, [open, documentNotifications, unreadCount]);
+
+    // Log quando o drawer abre (apenas para debugging se necessário)
+    // React.useEffect(() => {
+    //     if (open) {
+    //         console.log('Notification center opened:', { total: documentNotifications.length, unread: unreadCount });
+    //     }
+    // }, [open, documentNotifications, unreadCount]);
+
     const [filter, setFilter] = useState('all'); // 'all', 'unread', 'transfers', 'updates'
     const [expandedItem, setExpandedItem] = useState(null);
+
+    // =========================================================================
+    // METADATA MAPPING HELPERS
+    // =========================================================================
+
+    const getNotificationMappings = useCallback((notification) => {
+        if (!metaData || !notification.metadata) return {};
+
+        const mappings = {};
+        const flags = notification.metadata.requires_mapping || {};
+
+        // Mapear entidade
+        if (flags.entity && notification.metadata.entity_mapping_id) {
+            mappings.entity = metaData.ee?.find(e =>
+                e.pk === notification.metadata.entity_mapping_id
+            );
+        }
+
+        // Mapear associado
+        if (flags.associate && notification.metadata.associate_mapping_id) {
+            mappings.associate = metaData.associates?.find(a =>
+                a.pk === notification.metadata.associate_mapping_id
+            );
+        }
+
+        // Mapear tipo de documento
+        if (flags.document_type && notification.metadata.document_type_mapping_id) {
+            mappings.documentType = metaData.param_doctype?.find(dt =>
+                dt.pk === notification.metadata.document_type_mapping_id
+            );
+        }
+
+        // Mapear ação/passo
+        if (flags.step_what && notification.metadata.step_what_id) {
+            mappings.stepAction = metaData.what?.find(w =>
+                w.pk === notification.metadata.step_what_id
+            );
+        }
+
+        // Mapear responsável
+        if (flags.step_who && notification.metadata.step_who_id) {
+            mappings.stepResponsible = metaData.who?.find(w =>
+                w.pk === notification.metadata.step_who_id
+            );
+        }
+
+        // Mapear representante
+        if (flags.representative && notification.metadata.representative_mapping_id) {
+            mappings.representative = metaData.who?.find(w =>
+                w.pk === notification.metadata.representative_mapping_id
+            );
+        }
+
+        // Mapear apresentação
+        if (flags.presentation && notification.metadata.presentation_mapping_id) {
+            mappings.presentation = metaData.presentation?.find(p =>
+                p.pk === notification.metadata.presentation_mapping_id
+            );
+        }
+
+        return mappings;
+    }, [metaData]);
 
     // =========================================================================
     // FILTERING E SORTING
@@ -130,19 +215,117 @@ const DocumentNotificationCenter = ({
 
     const renderNotificationDetails = useCallback((notification) => {
         const isExpanded = expandedItem === notification.id;
+        const mappings = getNotificationMappings(notification);
 
         return (
             <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                 <Box sx={{ mt: 1, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Stack spacing={1}>
+                    <Stack spacing={2}>
+                        {/* Informações da Entidade/Empresa */}
+                        {mappings.entity && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    🏢 Entidade:
+                                </Typography>
+                                <Typography variant="body2" sx={{ ml: 1 }}>
+                                    {mappings.entity.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Tipo de Documento */}
+                        {mappings.documentType && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    📋 Tipo de Documento:
+                                </Typography>
+                                <Typography variant="body2" sx={{ ml: 1 }}>
+                                    {mappings.documentType.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Ação/Passo */}
+                        {mappings.stepAction && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    ⚡ Ação:
+                                </Typography>
+                                <Typography variant="body2" sx={{ ml: 1 }}>
+                                    {mappings.stepAction.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Responsável */}
+                        {mappings.stepResponsible && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    👤 Responsável:
+                                </Typography>
+                                <Typography variant="body2" sx={{ ml: 1 }}>
+                                    {mappings.stepResponsible.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Associado */}
+                        {mappings.associate && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    🤝 Associado:
+                                </Typography>
+                                <Typography variant="body2" sx={{ ml: 1 }}>
+                                    {mappings.associate.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Representante */}
+                        {mappings.representative && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    👨‍💼 Representante:
+                                </Typography>
+                                <Typography variant="body2" sx={{ ml: 1 }}>
+                                    {mappings.representative.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Observações */}
                         {notification.metadata?.memo && (
                             <Box>
-                                <Typography variant="caption" color="text.secondary">
-                                    Observações:
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                    💬 Observações:
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                                <Typography variant="body2" sx={{ fontStyle: 'italic', ml: 1 }}>
                                     "{notification.metadata.memo}"
                                 </Typography>
+                            </Box>
+                        )}
+
+                        {/* Informações Técnicas */}
+                        {notification.metadata && (
+                            <Box sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                                <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 'bold' }}>
+                                    ℹ️ Detalhes Técnicos:
+                                </Typography>
+                                <Box sx={{ ml: 1, mt: 0.5 }}>
+                                    <Typography variant="caption" color="text.disabled" display="block">
+                                        • ID do Documento: {notification.metadata.document_pk}
+                                    </Typography>
+                                    {notification.metadata.workflow_action && (
+                                        <Typography variant="caption" color="text.disabled" display="block">
+                                            • Tipo de Ação: {notification.metadata.workflow_action}
+                                        </Typography>
+                                    )}
+                                    {notification.metadata.notification_source && (
+                                        <Typography variant="caption" color="text.disabled" display="block">
+                                            • Origem: {notification.metadata.notification_source}
+                                        </Typography>
+                                    )}
+                                </Box>
                             </Box>
                         )}
 
@@ -156,7 +339,7 @@ const DocumentNotificationCenter = ({
                             />
                         )}
 
-                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                             <Button
                                 size="small"
                                 variant="contained"
@@ -165,6 +348,19 @@ const DocumentNotificationCenter = ({
                             >
                                 Ver Documento
                             </Button>
+
+                            {mappings.entity && (
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => {
+                                        // Navegar para a entidade (implementar conforme necessário)
+                                        console.log('Navegar para entidade:', mappings.entity);
+                                    }}
+                                >
+                                    Ver Entidade
+                                </Button>
+                            )}
 
                             {!notification.read && (
                                 <Button
@@ -181,10 +377,11 @@ const DocumentNotificationCenter = ({
                 </Box>
             </Collapse>
         );
-    }, [expandedItem, handleViewDocument, markNotificationAsRead]);
+    }, [expandedItem, handleViewDocument, markNotificationAsRead, getNotificationMappings]);
 
     const renderNotificationItem = useCallback((notification, index) => {
         const isExpanded = expandedItem === notification.id;
+        const mappings = getNotificationMappings(notification);
 
         return (
             <Fade in key={notification.id} timeout={300 + index * 100}>
@@ -249,12 +446,42 @@ const DocumentNotificationCenter = ({
                                     >
                                         {notification.message}
                                     </Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+
+                                    {/* Chips com informações mapeadas */}
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
                                         <Chip
                                             size="small"
                                             label={`Doc. ${notification.documentNumber}`}
                                             variant="outlined"
+                                            color="primary"
                                         />
+
+                                        {mappings.documentType && (
+                                            <Chip
+                                                size="small"
+                                                label={mappings.documentType.name}
+                                                variant="outlined"
+                                                color="default"
+                                            />
+                                        )}
+
+                                        {mappings.stepAction && (
+                                            <Chip
+                                                size="small"
+                                                label={mappings.stepAction.name}
+                                                variant="outlined"
+                                                color="secondary"
+                                            />
+                                        )}
+                                    </Box>
+
+                                    {/* Linha com entidade e timestamp */}
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        {mappings.entity && (
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                                                🏢 {mappings.entity.name}
+                                            </Typography>
+                                        )}
                                         <Typography variant="caption" color="text.disabled">
                                             {formatTimestamp(notification.timestamp)}
                                         </Typography>
@@ -281,7 +508,7 @@ const DocumentNotificationCenter = ({
                 </Paper>
             </Fade>
         );
-    }, [expandedItem, handleNotificationClick, getNotificationColor, getNotificationIcon, formatTimestamp, renderNotificationDetails]);
+    }, [expandedItem, handleNotificationClick, getNotificationColor, getNotificationIcon, formatTimestamp, renderNotificationDetails, getNotificationMappings]);
 
     // =========================================================================
     // RENDER FILTERS
