@@ -19,7 +19,12 @@
       "Bash(for file in AssociateFilter OperationCard OperationsTable ViewCards)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(ls:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(./venv/Scripts/pip install pyhanko==0.20.1 cryptography==46.0.2)",
+      "Bash(./venv/Scripts/pip show pyhanko)",
+      "Bash(./venv/Scripts/pip show cryptography)",
+      "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''✅ DigitalSignatureService importado com sucesso'')\")",
+      "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''Servico importado com sucesso'')\")"
     ],
     "deny": [],
     "ask": [

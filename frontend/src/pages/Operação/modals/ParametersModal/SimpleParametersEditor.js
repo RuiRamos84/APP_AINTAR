@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { updateDocumentParams, getDocumentTypeParams } from '../../../../services/documentService';
 import { useMetaData } from '../../../../contexts/MetaDataContext';
+import { notification } from '../../../../components/common/Toaster/ThemedToaster';
 
 const SimpleParametersEditor = ({ document, metaData, onSave }) => {
     const [params, setParams] = useState([]);
@@ -36,6 +37,15 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
             }
         } catch (error) {
             console.error("Erro ao buscar valores existentes:", error);
+
+            // Notificar utilizador apenas em erros críticos
+            if (error.response?.status === 403) {
+                notification.warning('⚠️ Sem permissão para visualizar parâmetros.');
+            } else if (error.response?.status !== 404) {
+                // 404 é normal quando não há params ainda
+                notification.warning('⚠️ Erro ao carregar parâmetros existentes.');
+            }
+
             setParams(metaData.params);
         }
     };
@@ -58,9 +68,20 @@ const SimpleParametersEditor = ({ document, metaData, onSave }) => {
             }));
 
             await updateDocumentParams(document.pk, formattedParams);
+            notification.success('✅ Parâmetros atualizados com sucesso!');
             if (onSave) onSave();
         } catch (error) {
             console.error("Erro ao atualizar parâmetros:", error);
+
+            // Tratamento específico de erros (403, 404, 500 já são tratados globalmente no interceptor)
+            // Apenas tratamos erros de validação ou específicos da API aqui
+            if (error.response?.data?.erro) {
+                notification.error(`❌ ${error.response.data.erro}`);
+            } else if (!error.response) {
+                // Erro de rede
+                notification.error('❌ Erro de conexão. Verifique a sua internet.');
+            }
+            // Outros erros HTTP (403, 404, 500) já foram tratados pelo interceptor global
         } finally {
             setLoading(false);
         }

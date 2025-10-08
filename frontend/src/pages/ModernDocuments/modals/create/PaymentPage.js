@@ -20,7 +20,6 @@ import { useAuth } from '../../../../contexts/AuthContext';
 const PaymentPage = ({ regnumber, documentData, onBack, onComplete }) => {
     const [loading, setLoading] = useState(false);
     const { user } = useAuth();
-    console.log("PaymentPage - user:", user);
 
 
 

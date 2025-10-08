@@ -152,12 +152,7 @@ const DetailsStep = ({
         // console.log('📊 Resultado busca contagem:', countData);
         setCurrentTypeCount(countData || null);
 
-        // ✅ Notificar apenas se há contagem significativa
-        if (countData && countData.typecountall > 3) {
-            notifyWarning(
-                `Esta entidade já submeteu ${countData.typecountyear} pedido(s) do tipo "${selectedTypeName}" este ano (Total: ${countData.typecountall}).`
-            );
-        }
+        // ✅ Notificação removida - já existe em useDocumentParams.js para evitar duplicação
     }, [formData.tt_type, entityCountTypes, metaData?.types]);
 
     // ✅ DEBUG: Logs para verificar fluxo de dados

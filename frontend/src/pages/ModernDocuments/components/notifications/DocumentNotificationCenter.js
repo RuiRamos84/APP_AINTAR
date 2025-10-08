@@ -55,25 +55,6 @@ const DocumentNotificationCenter = ({
 
     const { metaData } = useMetaData();
 
-    // DEBUG: Log do contexto quando central abre
-    React.useEffect(() => {
-        if (open) {
-            console.group('🗂️ CENTRAL DE NOTIFICAÇÕES ABERTA - DEBUG');
-            console.log('📊 Total de notificações do contexto:', documentNotifications?.length || 0);
-            console.log('🔢 Não lidas do contexto:', unreadCount || 0);
-            console.log('📋 Lista completa do contexto:', documentNotifications);
-            console.log('🏷️ Primeira notificação:', documentNotifications?.[0]);
-            console.log('🔍 Tipo da primeira notificação:', typeof documentNotifications?.[0]);
-            console.groupEnd();
-        }
-    }, [open, documentNotifications, unreadCount]);
-
-    // Log quando o drawer abre (apenas para debugging se necessário)
-    // React.useEffect(() => {
-    //     if (open) {
-    //         console.log('Notification center opened:', { total: documentNotifications.length, unread: unreadCount });
-    //     }
-    // }, [open, documentNotifications, unreadCount]);
 
     const [filter, setFilter] = useState('all'); // 'all', 'unread', 'transfers', 'updates'
     const [expandedItem, setExpandedItem] = useState(null);
@@ -355,7 +336,6 @@ const DocumentNotificationCenter = ({
                                     variant="outlined"
                                     onClick={() => {
                                         // Navegar para a entidade (implementar conforme necessário)
-                                        console.log('Navegar para entidade:', mappings.entity);
                                     }}
                                 >
                                     Ver Entidade

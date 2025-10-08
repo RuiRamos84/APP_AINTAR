@@ -52,27 +52,9 @@ const OperatorMobileView = ({ user, deviceInfo }) => {
         includeMetas: false // Operadores não precisam ver todas as metas
     });
 
-    console.log('🔍 MOBILE - userTasks:', userTasks);
-    console.log('🔍 MOBILE - isLoading:', isLoading);
-    console.log('🔍 MOBILE - error:', error);
-
     // Tarefas já vêm com nomes do backend (instalacao_nome, acao_operacao, modo_operacao)
     // Não precisamos enriquecer!
     const enrichedTasks = useMemo(() => {
-        console.log('✅✅✅ OPERATOR - Tarefas recebidas:', userTasks?.length || 0);
-
-        if (userTasks && userTasks.length > 0) {
-            console.log('✅✅✅ OPERATOR - Primeira tarefa:', {
-                pk: userTasks[0].pk,
-                instalacao_nome: userTasks[0].instalacao_nome,
-                acao_operacao: userTasks[0].acao_operacao,
-                modo_operacao: userTasks[0].modo_operacao,
-                completed: userTasks[0].completed,
-                dia_operacao: userTasks[0].dia_operacao,
-                description: userTasks[0].description
-            });
-        }
-
         // Retornar tarefas diretamente - já vêm com nomes do backend!
         return userTasks || [];
     }, [userTasks]);

@@ -107,6 +107,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             resetForm();
             entityDataHook.setEntityData(null);
             entityDataHook.setRepresentativeData(null);
+            entityDataHook.clearCache(); // ✅ Limpar cache ao abrir modal
 
             if (initialNipc) {
                 setFormData(prev => ({ ...prev, nipc: initialNipc }));

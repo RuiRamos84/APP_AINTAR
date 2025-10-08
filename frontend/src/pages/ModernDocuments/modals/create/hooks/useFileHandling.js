@@ -80,16 +80,13 @@ export const useFileHandling = (formData, setFormData) => {
 
     // ✅ CORRECÇÃO: Adicionar ficheiros com preview
     const onAddFiles = useCallback(async (newFiles) => {
-        console.log('📁 Adicionando ficheiros:', newFiles.length);
-
         if (newFiles.length + formData.files.length > 5) {
             notifyError("Máximo de 5 arquivos permitidos.");
             return;
         }
 
         const filesWithPreview = await Promise.all(
-            newFiles.map(async (file, index) => {
-                console.log(`📄 Processando ficheiro ${index + 1}:`, file.name);
+            newFiles.map(async (file) => {
                 return {
                     file,
                     preview: await generateFilePreview(file),
@@ -97,8 +94,6 @@ export const useFileHandling = (formData, setFormData) => {
                 };
             })
         );
-
-        console.log('📁 Ficheiros processados:', filesWithPreview);
 
         setFormData(prev => ({
             ...prev,
@@ -111,8 +106,6 @@ export const useFileHandling = (formData, setFormData) => {
 
     // ✅ CORRECÇÃO: Remover ficheiro
     const onRemoveFile = useCallback((index) => {
-        console.log('🗑️ Removendo ficheiro no índice:', index);
-
         setFormData(prev => {
             const updatedFiles = [...prev.files];
 
@@ -123,22 +116,18 @@ export const useFileHandling = (formData, setFormData) => {
 
             updatedFiles.splice(index, 1);
 
-            console.log('📁 Ficheiros após remoção:', updatedFiles.length);
-
             return { ...prev, files: updatedFiles };
         });
     }, [setFormData]);
 
     // ✅ CORRECÇÃO CRÍTICA: Actualizar descrição
     const onUpdateDescription = useCallback((index, description) => {
-        console.log(`📝 Actualizando descrição índice ${index}:`, description);
-
         setFormData(prev => {
             const updatedFiles = [...prev.files];
             if (updatedFiles[index]) {
                 updatedFiles[index] = {
                     ...updatedFiles[index],
-                    description: description // ✅ Verificar se isto está correcto
+                    description: description
                 };
             }
             return { ...prev, files: updatedFiles };

@@ -1,7 +1,7 @@
 // useEntityData.js - CORRIGIDO E ORGANIZADO
 
 import { Box, Button, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { notifyCustom, notifyError, notifyInfo, notifySuccess, notifyWarning, toast } from '../../../../../components/common/Toaster/ThemedToaster';
 import { getDocuments, getEntityCountTypes } from '../../../../../services/documentService';
 import { getEntityByNIF, updateEntity } from '../../../../../services/entityService';
@@ -10,6 +10,11 @@ export const useEntityData = (formData, setFormData) => {
     // ✅ ENTIDADES SEPARADAS
     const [entityData, setEntityData] = useState(null);
     const [representativeData, setRepresentativeData] = useState(null);
+
+    // ✅ CACHE PARA EVITAR CHAMADAS DUPLICADAS
+    const lastCheckedNipc = useRef(null);
+    const lastCheckedRepNipc = useRef(null);
+    const checkInProgress = useRef(false);
 
     // ✅ CONFIGURAÇÃO
     const [isRepresentative, setIsRepresentative] = useState(false);
@@ -112,16 +117,29 @@ export const useEntityData = (formData, setFormData) => {
         setRequestAddress(emptyAddress);
     };
 
-    // ✅ VERIFICAR ENTIDADE PRINCIPAL
-    const checkEntityData = async (nipc) => {
-        // console.log("🏢 Verificando entidade PRINCIPAL:", nipc);
+    // ✅ VERIFICAR ENTIDADE PRINCIPAL (com cache para evitar duplicações)
+    const checkEntityData = async (nipc, force = false) => {
+        // Evitar chamadas duplicadas
+        if (!force && lastCheckedNipc.current === nipc) {
+            // console.log("⚠️ NIF já verificado recentemente, ignorando chamada duplicada");
+            return entityData;
+        }
+
+        if (checkInProgress.current) {
+            // console.log("⚠️ Verificação já em andamento, ignorando chamada duplicada");
+            return null;
+        }
 
         if (!isValidNIF(nipc)) {
             notifyError("NIF inválido.");
             setEntityData(null);
             resetAddresses();
+            lastCheckedNipc.current = null;
             return null;
         }
+
+        checkInProgress.current = true;
+        lastCheckedNipc.current = nipc;
 
         try {
             const response = await getEntityByNIF(nipc);
@@ -147,19 +165,28 @@ export const useEntityData = (formData, setFormData) => {
             console.error("❌ Erro ao verificar entidade:", error);
             notifyError("Erro ao verificar entidade.");
             return null;
+        } finally {
+            checkInProgress.current = false;
         }
     };
 
-    // ✅ VERIFICAR REPRESENTANTE
-    const checkRepresentativeData = async (nipc) => {
-        // console.log("👤 Verificando REPRESENTANTE:", nipc);
+    // ✅ VERIFICAR REPRESENTANTE (com cache para evitar duplicações)
+    const checkRepresentativeData = async (nipc, force = false) => {
+        // Evitar chamadas duplicadas
+        if (!force && lastCheckedRepNipc.current === nipc) {
+            // console.log("⚠️ NIF representante já verificado recentemente, ignorando");
+            return representativeData;
+        }
 
         if (!isValidNIF(nipc)) {
             notifyError("NIF do representante inválido.");
             setRepresentativeData(null);
             setFormData(prev => ({ ...prev, tb_representative: '' }));
+            lastCheckedRepNipc.current = null;
             return null;
         }
+
+        lastCheckedRepNipc.current = nipc;
 
         try {
             const response = await getEntityByNIF(nipc);
@@ -396,6 +423,13 @@ export const useEntityData = (formData, setFormData) => {
         }
     };
 
+    // ✅ LIMPAR CACHE (útil ao resetar formulário)
+    const clearCache = () => {
+        lastCheckedNipc.current = null;
+        lastCheckedRepNipc.current = null;
+        checkInProgress.current = false;
+    };
+
     return {
         // Estados principais
         entityData,
@@ -437,6 +471,7 @@ export const useEntityData = (formData, setFormData) => {
         handleEntityUpdate,
         handleCreateEntitySuccess,
         validateEntityCompleteness,
-        setEntityToUpdate
+        setEntityToUpdate,
+        clearCache
     };
 };

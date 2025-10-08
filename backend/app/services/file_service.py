@@ -60,7 +60,15 @@ class BaseLetterTemplate(BaseDocTemplate):
         # Remove o 'v' da versão se existir
         self.version = data.get('VS_M', version).replace('v', '') if data.get(
             'VS_M', version).startswith('v') else data.get('VS_M', version)
+
+        # Inicializar contador de páginas
+        self._pageCount = 0
+
         self.build(story)
+
+    def afterFlowable(self, flowable):
+        """Hook chamado após cada flowable - atualiza contagem de páginas"""
+        self._pageCount = self.page
 
     def _draw_header(self, canvas, doc):
         """Desenha o logo no cabeçalho de todas as páginas preservando a transparência"""
@@ -161,7 +169,10 @@ class BaseLetterTemplate(BaseDocTemplate):
         # Versão e página em linha separada, alinhada à direita
         version = self.version.replace(
             'v', '') if self.version.startswith('v') else self.version
-        page_info = f"Página {doc.page} de {self._pageCount}  |  {version}"
+
+        # Usar getattr para evitar erro se _pageCount não existir ainda
+        total_pages = getattr(self, '_pageCount', doc.page)
+        page_info = f"Página {doc.page} de {total_pages}  |  {version}"
         canvas.drawRightString(doc.pagesize[0]-2*cm, 0.7*cm, page_info)
 
         canvas.restoreState()

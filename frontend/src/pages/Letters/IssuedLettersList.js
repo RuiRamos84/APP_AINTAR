@@ -18,12 +18,14 @@ import {
 import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
+  Draw as DrawIcon,
 } from "@mui/icons-material";
 import {
   listLetterStores,
   downloadLetter,
   viewLetter,
 } from "../../services/letter_service";
+import SignatureModal from "../../components/Letters/SignatureModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -36,6 +38,8 @@ const IssuedLettersList = () => {
   const [orderBy, setOrderBy] = useState("data");
   const [order, setOrder] = useState("desc");
   const [actionError, setActionError] = useState(null);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [selectedLetter, setSelectedLetter] = useState(null);
 
   useEffect(() => {
     fetchLetters();
@@ -183,16 +187,26 @@ const IssuedLettersList = () => {
           <TableCell>{letter.descr}</TableCell>
           <TableCell align="center">
             <IconButton
+              onClick={() => handleView(letter.pk)}
+              title="Visualizar"
+            >
+              <VisibilityIcon />
+            </IconButton>
+            <IconButton
               onClick={() => handleDownload(letter.pk)}
               title="Baixar PDF"
             >
               <DownloadIcon />
             </IconButton>
             <IconButton
-              onClick={() => handleView(letter.pk)}
-              title="Visualizar"
+              onClick={() => {
+                setSelectedLetter(letter.pk);
+                setSignatureOpen(true);
+              }}
+              title="Assinar"
+              color="primary"
             >
-              <VisibilityIcon />
+              <DrawIcon />
             </IconButton>
           </TableCell>
         </TableRow>
@@ -276,6 +290,16 @@ const IssuedLettersList = () => {
           {actionError}
         </Alert>
       </Snackbar>
+
+      <SignatureModal
+        open={signatureOpen}
+        onClose={() => setSignatureOpen(false)}
+        letterstoreId={selectedLetter}
+        onSigned={(data) => {
+          console.log('Assinatura concluída:', data);
+          fetchLetters();
+        }}
+      />
     </>
   );
 };

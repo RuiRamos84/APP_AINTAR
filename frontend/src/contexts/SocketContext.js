@@ -61,7 +61,6 @@ export const SocketProvider = ({ children }) => {
                 if (stored && stored !== 'null') {
                     const parsed = JSON.parse(stored);
                     if (parsed && (parsed.notifications?.length > 0 || parsed.unreadCount > 0)) {
-                        console.log(`✅ Notificações carregadas de ${key}:`, parsed.notifications?.length || 0, 'notificações,', parsed.unreadCount || 0, 'não lidas');
                         return {
                             notifications: parsed.notifications || [],
                             unreadCount: parsed.unreadCount || 0,
@@ -102,8 +101,6 @@ export const SocketProvider = ({ children }) => {
                 console.warn(`Erro ao salvar em ${key}:`, error);
             }
         });
-
-        console.log('💾 Notificações salvas:', notifications.length, 'total,', count, 'não lidas');
     }, [user?.user_id]);
 
     // Carregar estado inicial
@@ -274,7 +271,6 @@ export const SocketProvider = ({ children }) => {
                     setLastNotificationId(notification.id);
 
                     // Som e feedback
-                    console.log('🔔 Nova notificação recebida:', notification.message);
                     playNotificationSound();
 
                     // Feedback visual específico por tipo

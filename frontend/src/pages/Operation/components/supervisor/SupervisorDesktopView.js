@@ -416,10 +416,6 @@ const OperationTaskForm = ({ task, operationsData, onSave, onCancel }) => {
                 ts_operador2: task.ts_operador2 || ''
             };
 
-            console.log('📝 EDIT - Task original:', task);
-            console.log('📝 EDIT - Preloaded data:', preloadedData);
-            console.log('📝 EDIT - Ações disponíveis:', metaData.operacaoaccao?.slice(0, 3));
-
             setFormData(preloadedData);
 
             // Para tarefas existentes, mostrar todos os passos

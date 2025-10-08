@@ -1,10 +1,13 @@
 from ..utils.utils import db_session_manager
 from .file_service import FileService
+from .template_service import TemplateService
+from .letter_numbering_service import LetterNumberingService
+from .letter_audit_service import LetterAuditService
 from sqlalchemy.sql import text
 import os
 import logging
 from datetime import datetime
-from flask import current_app
+from flask import current_app, request
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
@@ -43,6 +46,19 @@ def create_letter(data: dict, current_user: str):
             RETURNING pk
         """)
         letter_id = session.execute(query, letter_data.model_dump()).scalar()
+
+        # Registar auditoria
+        try:
+            LetterAuditService.log_action(
+                user=current_user,
+                action='TEMPLATE_CREATE',
+                letter_id=letter_id,
+                details={'name': letter_data.name, 'version': letter_data.version},
+                ip_address=request.remote_addr if request else None
+            )
+        except Exception as e:
+            logging.warning(f"Erro ao registar auditoria: {str(e)}")
+
         return {'id': letter_id, 'message': 'Modelo de ofício criado com sucesso'}, 201
 
 @api_error_handler
@@ -151,75 +167,81 @@ def get_next_document_number(current_user: str):
 @api_error_handler
 def generate_letter_document(letter_id: int, document_data: dict, current_user: str):
     """
-    Gera um documento de ofício.
+    Gera um documento de ofício usando template com Jinja2.
     """
     with db_session_manager(current_user) as session:
-        letter, _ = get_letter(letter_id, current_user) # Reutiliza a função já refatorada
+        letter, _ = get_letter(letter_id, current_user)
         if not letter:
             raise ResourceNotFoundError('Modelo de ofício', letter_id)
 
-            # Adicionar a versão do modelo ao document_data
-            document_data['VS_M'] = f'v{letter.get("version", "1.0")}'  # Garante formato 'v1.0'
+        # Adicionar a versão do modelo ao document_data
+        document_data['VS_M'] = f'v{letter.get("version", "1.0")}'
 
-            # Gerar número do ofício
-            document_number = session.execute(
-                text("SELECT fs_letternumber()")).scalar()
-            document_data['NUMERO_OFICIO'] = document_number
+        # Gerar número do ofício usando o novo serviço
+        document_number = LetterNumberingService.generate_number(current_user=current_user)
+        document_data['NUMERO_OFICIO'] = document_number
 
-            # Obter regnumber do pedido associado
-            tb_document = document_data.get('tb_document')
-            regnumber = None
-            if tb_document:
-                query = text(
-                    "SELECT regnumber FROM vbf_document WHERE pk = :pk"
-                )
-                regnumber = session.execute(query, {'pk': tb_document}).scalar()
+        # Obter regnumber do pedido associado
+        tb_document = document_data.get('tb_document')
+        regnumber = None
+        if tb_document:
+            query = text(
+                "SELECT regnumber FROM vbf_document WHERE pk = :pk"
+            )
+            regnumber = session.execute(query, {'pk': tb_document}).scalar()
 
-            # Adicionar corpo do ofício ao contexto
-            body_content = letter.get('body', '')
+        # Renderizar corpo do ofício com Jinja2
+        body_template = letter.get('body', '')
+        try:
+            body_content = TemplateService.render_template(body_template, document_data)
+        except Exception as e:
+            logging.error(f"Erro ao renderizar template: {str(e)}")
+            # Fallback para substituição simples (compatibilidade)
+            body_content = body_template
             for key, value in document_data.items():
                 placeholder = f"${{{key}}}"
                 body_content = body_content.replace(placeholder, str(value))
-            document_data['BODY'] = body_content
 
-            # Gerar o PDF com a versão correta
-            file_service = FileService()
-            file_path, filename = file_service.generate_letter(
-                context=document_data,
-                regnumber=regnumber,
-                document_number=document_number,
-                is_free_letter=False
-            )
+        document_data['BODY'] = body_content
 
-            # Registrar no banco de dados
-            pk_query = text("SELECT fs_nextcode()")
-            new_pk = session.execute(pk_query).scalar()
+        # Gerar o PDF com a versão correta
+        file_service = FileService()
+        file_path, filename = file_service.generate_letter(
+            context=document_data,
+            regnumber=regnumber,
+            document_number=document_number,
+            is_free_letter=False
+        )
 
-            insert_query = text("""
-                INSERT INTO tb_letterstore (pk, tb_document, data, descr, regnumber, filename)
-                VALUES (:pk, :tb_document, :data, :descr, :regnumber, :filename)
-            """)
+        # Registrar no banco de dados
+        pk_query = text("SELECT fs_nextcode()")
+        new_pk = session.execute(pk_query).scalar()
 
-            session.execute(insert_query, {
-                'pk': new_pk,
-                'tb_document': tb_document,
-                'data': datetime.now(),
-                'descr': f"Ofício gerado para {document_data['NOME']}",
-                'regnumber': document_number,
-                'filename': filename
-            })
+        insert_query = text("""
+            INSERT INTO tb_letterstore (pk, tb_document, data, descr, regnumber, filename)
+            VALUES (:pk, :tb_document, :data, :descr, :regnumber, :filename)
+        """)
 
-            session.commit()
+        session.execute(insert_query, {
+            'pk': new_pk,
+            'tb_document': tb_document,
+            'data': datetime.now(),
+            'descr': f"Ofício gerado para {document_data['NOME']}",
+            'regnumber': document_number,
+            'filename': filename
+        })
 
-            return {
-                'success': True,
-                'file_path': file_path,
-                'filename': filename,
-                'document_number': document_number,
-                'letterstore_id': new_pk,
-                'data': datetime.now().isoformat(),
-                'message': 'Documento do ofício gerado com sucesso'
-            }
+        session.commit()
+
+        return {
+            'success': True,
+            'file_path': file_path,
+            'filename': filename,
+            'document_number': document_number,
+            'letterstore_id': new_pk,
+            'data': datetime.now().isoformat(),
+            'message': 'Documento do ofício gerado com sucesso'
+        }
 
 @api_error_handler
 def generate_free_letter_document(document_data: dict, current_user: str):
@@ -227,9 +249,8 @@ def generate_free_letter_document(document_data: dict, current_user: str):
     Gera um ofício livre.
     """
     with db_session_manager(current_user) as session:
-        # Gerar número do ofício
-        document_number = session.execute(
-            text("SELECT fs_letternumber()")).scalar()
+        # Gerar número do ofício usando o novo serviço
+        document_number = LetterNumberingService.generate_number(current_user=current_user)
         document_data['NUMERO_OFICIO'] = document_number
 
         # Garantir que existe uma versão definida

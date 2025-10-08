@@ -12,8 +12,12 @@ import {
   MenuItem,
   Switch,
   FormControlLabel,
+  Box,
+  Typography,
+  Alert
 } from "@mui/material";
 import { useMetaData } from "../../contexts/MetaDataContext";
+import RichTextEditor from "../../components/Letters/RichTextEditor";
 
 const LetterTemplateModal = ({ open, onClose, onSave, initialData }) => {
   const { metaData } = useMetaData();
@@ -111,17 +115,20 @@ const LetterTemplateModal = ({ open, onClose, onSave, initialData }) => {
           onChange={handleChange}
           required
         />
-        <TextField
-          fullWidth
-          margin="normal"
-          name="body"
-          label="Corpo do Modelo"
-          multiline
-          rows={6}
-          value={letterData.body}
-          onChange={handleChange}
-          required
-        />
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Corpo do Modelo
+          </Typography>
+          <Alert severity="info" sx={{ mb: 2, fontSize: '0.85rem' }}>
+            Use o botão <strong>"Inserir Variável"</strong> para adicionar campos dinâmicos.
+            As variáveis aparecerão no formato <code>{'{{ VARIAVEL }}'}</code>
+          </Alert>
+          <RichTextEditor
+            content={letterData.body}
+            onChange={(html) => setLetterData(prev => ({ ...prev, body: html }))}
+            placeholder="Digite o conteúdo do ofício aqui..."
+          />
+        </Box>
         <TextField
           fullWidth
           margin="normal"

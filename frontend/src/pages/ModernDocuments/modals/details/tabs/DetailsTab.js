@@ -55,6 +55,7 @@ import LocationMap from './/LocationMap';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import HistoryIcon from '@mui/icons-material/History';
 import { notifyError } from "../../../../../components/common/Toaster/ThemedToaster.js";
+import { formatAddress } from '../../../utils/documentUtils';
 
 // Componente para o modal de detalhes do representante
 const RepresentativeDetailsModal = ({ open, onClose, representativeData }) => {
@@ -242,7 +243,7 @@ const DetailsTab = ({
 
     // Função para determinar a localização a mostrar
     const getLocationInfo = () => {
-        // Se existir morada completa, usar essa
+        // Se existir morada, apenas retornar a rua (outros campos mostrados separadamente)
         if (document.address && document.address.trim()) {
             return {
                 icon: <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />,
@@ -346,15 +347,16 @@ const DetailsTab = ({
         return dateString;
     };
 
-    // Obter endereço completo
+    // Obter endereço completo usando formatAddress
     const getFullAddress = () => {
-        const parts = [];
-
-        if (document.address) parts.push(document.address);
-        if (document.floor) parts.push(document.floor);
-        if (document.door) parts.push(`Nº ${document.door}`);
-
-        return parts.length > 0 ? parts.join(', ') : null;
+        return formatAddress({
+            street: document.address,
+            door: document.door,
+            floor: document.floor,
+            postal: document.postal,
+            nut4: document.nut4,
+            nut3: document.nut3
+        }) || null;
     };
 
     // Renderizar uma visualização alternativa para documentos parciais
@@ -650,10 +652,11 @@ const DetailsTab = ({
                             <Divider sx={{ my: 2 }} />
 
                             <Grid container spacing={2}>
+                                {/* Código Postal - Primeiro */}
                                 {document.postal && (
-                                    <Grid size={{ xs: 12, md: 3 }}>
+                                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                                         <Box display="flex" alignItems="flex-start">
-                                            <HomeIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
+                                            <LocationIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
                                             <Box>
                                                 <Typography variant="body2" color="textSecondary">Código Postal</Typography>
                                                 <Typography variant="body1">{document.postal}</Typography>
@@ -666,12 +669,12 @@ const DetailsTab = ({
                                 {(() => {
                                     const locationInfo = getLocationInfo();
                                     return locationInfo ? (
-                                        <Grid size={{ xs: 12, md: 9 }}>
+                                        <Grid size={{ xs: 12, md: document.door || document.floor ? 4 : 6 }}>
                                             <Box display="flex" alignItems="flex-start">
                                                 {locationInfo.icon}
                                                 <Box>
                                                     <Typography variant="body2" color="textSecondary">
-                                                        {locationInfo.type === 'installation' ? 'Instalação' : 'Morada'}
+                                                        {locationInfo.type === 'installation' ? 'Instalação' : 'Rua/Avenida'}
                                                     </Typography>
                                                     <Typography
                                                         variant="body1"
@@ -687,6 +690,32 @@ const DetailsTab = ({
                                         </Grid>
                                     ) : null;
                                 })()}
+
+                                {/* Nº Porta - apenas se existir */}
+                                {document.door && (
+                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                        <Box display="flex" alignItems="flex-start">
+                                            <HomeIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
+                                            <Box>
+                                                <Typography variant="body2" color="textSecondary">Nº Porta</Typography>
+                                                <Typography variant="body1">{document.door}</Typography>
+                                            </Box>
+                                        </Box>
+                                    </Grid>
+                                )}
+
+                                {/* Andar - apenas se existir */}
+                                {document.floor && (
+                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                        <Box display="flex" alignItems="flex-start">
+                                            <ApartmentIcon fontSize="small" color="action" sx={{ mt: 0.5, mr: 1 }} />
+                                            <Box>
+                                                <Typography variant="body2" color="textSecondary">Andar</Typography>
+                                                <Typography variant="body1">{document.floor}</Typography>
+                                            </Box>
+                                        </Box>
+                                    </Grid>
+                                )}
                             </Grid>
 
                             {(document.nut1 || document.nut2 || document.nut3 || document.nut4) && (

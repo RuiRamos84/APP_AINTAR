@@ -51,29 +51,7 @@ const useDocumentNotificationsSafe = () => {
     typeof realContext === 'object' &&
     Array.isArray(realContext.documentNotifications);
 
-  console.log('🔥 DEBUG: useDocumentNotificationsSafe - isValidContext:', isValidContext);
-  console.log('🔥 DEBUG: useDocumentNotificationsSafe - realContext exists:', !!realContext);
-  if (realContext) {
-    console.log('🔥 DEBUG: useDocumentNotificationsSafe - documentNotifications length:', realContext.documentNotifications?.length);
-    console.log('🔥 DEBUG: useDocumentNotificationsSafe - unreadCount:', realContext.unreadCount);
-  }
-
-  // Log apenas em caso de erro (opcional)
-  // React.useEffect(() => {
-  //   if (!isValidContext) {
-  //     console.warn('UnifiedNotificationCenter: usando fallback, contexto inválido');
-  //   }
-  // }, [isValidContext]);
-
-  // Debug final antes de retornar
-  const contextToReturn = isValidContext ? realContext : fallbackContext;
-  console.log('🔥 DEBUG: useDocumentNotificationsSafe RETORNANDO:');
-  console.log('  - usando contexto real:', isValidContext);
-  console.log('  - documentNotifications.length:', contextToReturn.documentNotifications?.length || 0);
-  console.log('  - unreadCount:', contextToReturn.unreadCount);
-
-  // Retornar contexto real se válido, senão fallback
-  return contextToReturn;
+  return isValidContext ? realContext : fallbackContext;
 };
 
 const UnifiedNotificationCenter = () => {

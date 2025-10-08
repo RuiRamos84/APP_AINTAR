@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { notifyInfo, notifyWarning, notifyError } from '../../../../../components/common/Toaster/ThemedToaster';
 import { getDocumentTypeParams, getEntityCountTypes } from '../../../../../services/documentService';
 
@@ -8,6 +8,9 @@ export const useDocumentParams = (formData, entityData, metaData) => {
     const [selectedCountType, setSelectedCountType] = useState(null);
     const [selectedTypeText, setSelectedTypeText] = useState("");
     const [entityCountTypes, setEntityCountTypes] = useState([]);
+
+    // Cache para evitar notificações duplicadas
+    const lastNotifiedType = useRef(null);
 
     // Função segura para converter para string
     const safeToString = (value) => {
@@ -53,29 +56,37 @@ export const useDocumentParams = (formData, entityData, metaData) => {
 
     // Substituir useEffect que depende de entityData?.entityCountTypes
     useEffect(() => {
-        if (formData.tt_type && entityCountTypes.length > 0) {
-            const selectedType = metaData?.types?.find(
-                type => type.tt_doctype_code === formData.tt_type
-            );
-
-            if (selectedType) {
-                const typeText = selectedType.tt_doctype_value;
-                setSelectedTypeText(typeText);
-
-                const countType = entityCountTypes.find(
-                    ct => ct.tt_type === typeText
-                );
-
-                setSelectedCountType(countType || null);
-
-                if (countType && countType.typecountall > 0) {
-                    notifyInfo(
-                        `Esta entidade já submeteu ${countType.typecountyear} pedido(s) do tipo "${typeText}" este ano. Total: ${countType.typecountall}.`
-                    );
-                }
-            }
+        if (!formData.tt_type || entityCountTypes.length === 0 || !metaData?.types) {
+            return;
         }
-    }, [formData.tt_type, entityCountTypes, metaData?.types]);
+
+        const selectedType = metaData.types.find(
+            type => type.tt_doctype_code === formData.tt_type
+        );
+
+        if (!selectedType) {
+            return;
+        }
+
+        const typeText = selectedType.tt_doctype_value;
+        setSelectedTypeText(typeText);
+
+        const countType = entityCountTypes.find(
+            ct => ct.tt_type === typeText
+        );
+
+        setSelectedCountType(countType || null);
+
+        // Evitar notificação duplicada para o mesmo tipo
+        const notificationKey = `${formData.tt_type}_${entityData?.pk || 'new'}_${countType?.typecountall || 0}`;
+
+        if (countType && countType.typecountall > 0 && lastNotifiedType.current !== notificationKey) {
+            lastNotifiedType.current = notificationKey;
+            notifyInfo(
+                `Esta entidade já submeteu ${countType.typecountyear} pedido(s) do tipo "${typeText}" este ano. Total: ${countType.typecountall}.`
+            );
+        }
+    }, [formData.tt_type, entityCountTypes.length, entityData?.pk]);
 
     // ✅ BUSCAR PARÂMETROS - FUNCIONALIDADE CRÍTICA EM FALTA
     useEffect(() => {
@@ -112,15 +123,10 @@ export const useDocumentParams = (formData, entityData, metaData) => {
                     return;
                 }
 
-                // 3. Tentar obter da API
+                // 3. Não buscar da API durante criação (documento ainda não existe)
+                // A API getDocumentTypeParams precisa de um PK de documento existente
+                // Durante criação, apenas usamos metadados
                 let apiParams = [];
-                try {
-                    const apiResponse = await getDocumentTypeParams(formData.tt_type);
-                    apiParams = Array.isArray(apiResponse) ? apiResponse : [];
-                    // console.log("🌐 Parâmetros da API:", apiParams.length);
-                } catch (apiError) {
-                    console.warn("⚠️ API não disponível, usando só metadados:", apiError);
-                }
 
                 // 4. Combinar dados
                 const combinedParams = relevantParams.map(metaParam => {

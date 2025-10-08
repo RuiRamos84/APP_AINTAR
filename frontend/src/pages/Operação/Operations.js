@@ -3,6 +3,7 @@ import { useMetaData } from '../../contexts/MetaDataContext';
 import { useOperationsData, useOperationsFiltering, useOperationsTable } from "../../hooks/useOperations";
 import { getColumnsForView, getRemainingDaysColor } from "./utils/operationsHelpers";
 import { exportToExcel } from "./services/exportService";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Componentes existentes
 import AssociateFilter from "./components/AssociateFilter/AssociateFilter";
@@ -15,6 +16,7 @@ import { GetApp } from "@mui/icons-material";
 const Operations = () => {
     const theme = useTheme();
     const isTablet = useMediaQuery(theme.breakpoints.down('xl')); // 1536px
+    const queryClient = useQueryClient();
 
     const { metaData } = useMetaData();
 
@@ -48,6 +50,12 @@ const Operations = () => {
         if (selectedView && filteredData[selectedView]) {
             exportToExcel(filteredData, selectedView);
         }
+    };
+
+    // Callback quando tarefa é concluída - invalida cache para refetch
+    const handleTaskCompleted = (documentId) => {
+        console.log('Tarefa concluída, a invalidar cache...', documentId);
+        queryClient.invalidateQueries({ queryKey: ['operationsData'] });
     };
 
     // Render helper para células da tabela
@@ -95,6 +103,7 @@ const Operations = () => {
             handleRequestSort={handleRequestSort}
             toggleRowExpand={toggleRowExpand}
             getAddressString={getAddressString}
+            onTaskCompleted={handleTaskCompleted}
         />
     ) : (
         <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>

@@ -15,6 +15,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
+import { Preview as PreviewIcon } from "@mui/icons-material";
 import { getEntityByNIF } from "../../services/entityService";
 import {
   getLetters,
@@ -22,6 +23,7 @@ import {
   generateFreeLetter,
 } from "../../services/letter_service";
 import { useMetaData } from "../../contexts/MetaDataContext";
+import PreviewModal from "../../components/Letters/PreviewModal";
 
 const formatDateToString = (date) => {
   const d = new Date(date);
@@ -48,6 +50,7 @@ const LetterEmission = () => {
   const [emitting, setEmitting] = useState(false);
   const [letterTemplates, setLetterTemplates] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     fetchLetterTemplates();
@@ -387,21 +390,35 @@ const LetterEmission = () => {
         </Grid>
       )}
 
-      {/* Botão de Submissão */}
-      <Grid size={{ xs: 12 }}>
-        <Button
-          onClick={handleEmitLetter}
-          variant="contained"
-          color="primary"
-          fullWidth
-          disabled={emitting}
-        >
-          {emitting ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : (
-            "Emitir Ofício"
-          )}
-        </Button>
+      {/* Botões de Ação */}
+      <Grid size={{ xs: 12 }} container spacing={2}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Button
+            onClick={() => setPreviewOpen(true)}
+            variant="outlined"
+            color="secondary"
+            fullWidth
+            disabled={!formData.selectedTemplate || emitting}
+            startIcon={<PreviewIcon />}
+          >
+            Pré-visualizar
+          </Button>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Button
+            onClick={handleEmitLetter}
+            variant="contained"
+            color="primary"
+            fullWidth
+            disabled={emitting}
+          >
+            {emitting ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Emitir Ofício"
+            )}
+          </Button>
+        </Grid>
       </Grid>
 
       {/* Snackbar de Sucesso */}
@@ -419,6 +436,23 @@ const LetterEmission = () => {
           {successMessage}
         </Alert>
       </Snackbar>
+
+      {/* Modal de Preview */}
+      <PreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        letterId={formData.selectedTemplate}
+        formData={{
+          NOME: formData.recipientName,
+          MORADA: formData.recipientAddress,
+          PORTA: formData.door,
+          CODIGO_POSTAL: formData.postalCode,
+          LOCALIDADE: formData.locality,
+          DATA: formatDateToString(new Date()),
+          NIF: formData.nif,
+          ASSUNTO: isFreeLetter ? formData.letterSubject : undefined
+        }}
+      />
     </Grid>
   );
 };

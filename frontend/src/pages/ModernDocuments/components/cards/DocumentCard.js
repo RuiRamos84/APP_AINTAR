@@ -19,7 +19,7 @@ import {
     LocationOn as LocationIcon,
     Business as BusinessIcon
 } from '@mui/icons-material';
-import { formatDate } from '../../utils/documentUtils';
+import { formatDate, formatAddress } from '../../utils/documentUtils';
 import { notificationStyles } from '../../styles/documentStyles';
 import { getDaysSinceSubmission } from '../../../../utils/dataUtils';
 import DocumentUpdateIndicator from '../feedback/DocumentUpdateIndicator';
@@ -58,11 +58,20 @@ const DocumentCard = ({
 
     // Função para determinar a localização a mostrar
     const getLocationInfo = () => {
-        // Se existir morada completa, usar essa
+        // Se existir morada, formatar com todos os campos (rua, porta, andar, postal, etc)
         if (document.address && document.address.trim()) {
+            const formattedAddress = formatAddress({
+                street: document.address,
+                door: document.door,
+                floor: document.floor,
+                postal: document.postal,
+                nut4: document.nut4,
+                nut3: document.nut3
+            });
+
             return {
                 icon: <LocationIcon fontSize="small" color="action" />,
-                text: document.address,
+                text: formattedAddress,
                 type: 'address'
             };
         }

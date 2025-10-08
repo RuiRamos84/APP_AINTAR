@@ -201,3 +201,22 @@ class TaskService:
 notification_service = NotificationService()
 task_notification_service = TaskNotificationService()
 task_service = TaskService()
+
+def create_notification(user: str, title: str, message: str, type: str = 'info', data: dict = None):
+    """Criar notificação genérica para sistema de ofícios"""
+    try:
+        with db_session_manager(user) as session:
+            query = text("""
+                INSERT INTO tb_notifications (pk, user_id, title, message, type, data, read, created_at)
+                VALUES (fs_nextcode(), :user, :title, :message, :type, :data, false, NOW())
+            """)
+            session.execute(query, {
+                'user': user,
+                'title': title,
+                'message': message,
+                'type': type,
+                'data': str(data) if data else None
+            })
+            session.commit()
+    except Exception as e:
+        current_app.logger.warning(f"Notification error: {e}")

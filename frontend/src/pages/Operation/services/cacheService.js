@@ -76,9 +76,6 @@ export const cacheKeys = {
  * Para revalidar manualmente: mutate()
  */
 export const useUserTasksSWR = (options = {}) => {
-  console.log('🔍 useUserTasksSWR - options:', options);
-  console.log('🔍 useUserTasksSWR - isPaused?:', options.isPaused?.());
-
   const {
     data,
     error,
@@ -88,12 +85,7 @@ export const useUserTasksSWR = (options = {}) => {
   } = useSWR(
     cacheKeys.USER_TASKS,
     () => operationsApi.getOperacaoSelf().then(res => {
-      console.log('🌐 API Response - getOperacaoSelf:', res);
-      console.log('🌐 API Response - res.data:', res.data);
-      console.log('🌐 API Response - res.data.data:', res.data?.data);
-
       const rawTasks = res.data?.data || [];
-      console.log('🌐 Tarefas extraídas:', rawTasks.length);
 
       // MAPEAMENTO CORRETO: View retorna nomes em tb_instalacao, tt_operacaoaccao, tt_operacaomodo
       // Criar aliases para compatibilidade com componentes

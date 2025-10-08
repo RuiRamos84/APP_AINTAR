@@ -29,7 +29,6 @@ const OperationTaskManager = ({ operationsData, onCreateTask, onEditTask, onDele
 
     // Funções para ações
     const handleViewDetails = (task) => {
-        console.log('🔍 Viewing task details:', task);
         setSelectedTask(task);
         setShowDetailsModal(true);
     };

@@ -111,10 +111,10 @@ export const useOperationsFiltering = (operationsData) => {
         [filteredData]
     );
 
-    // Adicionar este useEffect
+    // Auto-selecionar primeira view disponível
     useEffect(() => {
-        // Se vista atual não existe nos dados filtrados, selecionar primeira disponível
-        if (selectedView && !filteredData[selectedView]) {
+        // Se não há view selecionada OU a view atual não existe nos dados filtrados
+        if (!selectedView || !filteredData[selectedView]) {
             if (sortedViews.length > 0) {
                 setSelectedView(sortedViews[0][0]);
             } else {
