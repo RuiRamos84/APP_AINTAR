@@ -52,6 +52,16 @@ const GridView = (props) => {
     } = useUI();
     const [selectedGroupId, setSelectedGroupId] = useState(null);
 
+    // Opções de paginação válidas
+    const validRowsPerPageOptions = [5, 10, 25, 50, 100];
+
+    // Garantir que o valor de itemsPerPage é sempre válido
+    const safeItemsPerPage = useMemo(() => {
+        return validRowsPerPageOptions.includes(itemsPerPage)
+            ? itemsPerPage
+            : validRowsPerPageOptions[1]; // Default para 10 se o valor for inválido
+    }, [itemsPerPage]);
+
     const getStyleConfig = () => {
         switch (density) {
             case 'compact':
@@ -118,11 +128,11 @@ const GridView = (props) => {
             return;
         }
 
-        const maxPage = Math.max(0, Math.ceil(documents.length / itemsPerPage) - 1);
+        const maxPage = Math.max(0, Math.ceil(documents.length / safeItemsPerPage) - 1);
         if (currentPage > maxPage) {
             setPage(maxPage);
         }
-    }, [documents.length, itemsPerPage, currentPage, setPage]);
+    }, [documents.length, safeItemsPerPage, currentPage, setPage]);
 
     // Effect para resetar página quando a pesquisa muda
     useEffect(() => {
@@ -134,14 +144,14 @@ const GridView = (props) => {
     // Adicionar verificação de segurança para evitar páginas negativas ou inválidas
     const safePage = useMemo(() => {
         if (documents.length === 0) return 0;
-        const maxPage = Math.ceil(documents.length / itemsPerPage) - 1;
+        const maxPage = Math.ceil(documents.length / safeItemsPerPage) - 1;
         return Math.max(0, Math.min(currentPage, maxPage));
-    }, [currentPage, documents.length, itemsPerPage]);
+    }, [currentPage, documents.length, safeItemsPerPage]);
 
     const paginatedDocuments = useMemo(() => {
-        const start = safePage * itemsPerPage; // Usar página segura
-        return documents.slice(start, start + itemsPerPage);
-    }, [documents, safePage, itemsPerPage]);
+        const start = safePage * safeItemsPerPage; // Usar página e items seguros
+        return documents.slice(start, start + safeItemsPerPage);
+    }, [documents, safePage, safeItemsPerPage]);
 
     const groupedDocuments = useMemo(() => {
         if (!isAssignedToMe || !metaData?.what || !Array.isArray(metaData.what)) {
@@ -189,7 +199,7 @@ const GridView = (props) => {
 
     const handlePageChange = (event, newPage) => {
         // Validação adicional para garantir que a página é válida
-        const maxPage = Math.max(0, Math.ceil(documents.length / itemsPerPage) - 1);
+        const maxPage = Math.max(0, Math.ceil(documents.length / safeItemsPerPage) - 1);
         const validPage = Math.max(0, Math.min(newPage, maxPage));
 
         // Só atualizar se a página realmente mudou
@@ -203,7 +213,7 @@ const GridView = (props) => {
         setItemsPerPage(newItemsPerPage);
 
         // Calcular a nova página mantendo o contexto do primeiro item visível
-        const currentFirstItem = currentPage * itemsPerPage;
+        const currentFirstItem = currentPage * safeItemsPerPage;
         const newPage = Math.floor(currentFirstItem / newItemsPerPage);
         const maxPage = Math.max(0, Math.ceil(documents.length / newItemsPerPage) - 1);
 
@@ -328,9 +338,9 @@ const GridView = (props) => {
                         count={documents.length}
                         page={safePage}
                         onPageChange={handlePageChange}
-                        rowsPerPage={itemsPerPage}
+                        rowsPerPage={safeItemsPerPage}
                         onRowsPerPageChange={handleItemsPerPageChange}
-                        rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                        rowsPerPageOptions={validRowsPerPageOptions}
                         labelRowsPerPage="Itens por página:"
                         labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
                     />
@@ -409,9 +419,9 @@ const GridView = (props) => {
                         count={lateDocumentsWithDays.length}
                         page={safePage}
                         onPageChange={handlePageChange}
-                        rowsPerPage={itemsPerPage}
+                        rowsPerPage={safeItemsPerPage}
                         onRowsPerPageChange={handleItemsPerPageChange}
-                        rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                        rowsPerPageOptions={validRowsPerPageOptions}
                         labelRowsPerPage="Itens por página:"
                         labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
                     />

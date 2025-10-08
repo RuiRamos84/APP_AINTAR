@@ -69,12 +69,12 @@ const UnifiedNotificationCenter = () => {
     handleViewDocument
   } = useDocumentNotificationsSafe();
 
-  // Debug logs para UnifiedNotificationCenter
-  React.useEffect(() => {
-    console.log('🔥 DEBUG: UnifiedNotificationCenter - documentNotifications:', documentNotifications?.length || 0);
-    console.log('🔥 DEBUG: UnifiedNotificationCenter - documentUnreadCount:', documentUnreadCount);
-    console.log('🔥 DEBUG: UnifiedNotificationCenter - documentNotifications array:', documentNotifications);
-  }, [documentNotifications, documentUnreadCount]);
+  // // Debug logs para UnifiedNotificationCenter (desativados)
+  // React.useEffect(() => {
+  //   console.log('🔥 DEBUG: UnifiedNotificationCenter - documentNotifications:', documentNotifications?.length || 0);
+  //   console.log('🔥 DEBUG: UnifiedNotificationCenter - documentUnreadCount:', documentUnreadCount);
+  //   console.log('🔥 DEBUG: UnifiedNotificationCenter - documentNotifications array:', documentNotifications);
+  // }, [documentNotifications, documentUnreadCount]);
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [tabValue, setTabValue] = useState(0); // 0: Tarefas, 1: Documentos
