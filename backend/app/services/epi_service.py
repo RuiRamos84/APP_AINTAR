@@ -50,11 +50,13 @@ class EpiCreate(BaseModel):
     name: str
 
 class EpiPreferencesUpdate(BaseModel):
-    tt_epishoetype: Optional[int] = None
-    shoenumber: Optional[int] = None
+    shoe: Optional[int] = None
+    boot: Optional[int] = None
     tshirt: Optional[str] = None
     sweatshirt: Optional[str] = None
-    jacket: Optional[str] = None
+    reflectivejacket: Optional[str] = None
+    polarjacket: Optional[str] = None
+    monkeysuit: Optional[str] = None
     pants: Optional[str] = None
     apron: Optional[str] = None
     gown: Optional[str] = None
@@ -66,10 +68,17 @@ class EpiPreferencesUpdate(BaseModel):
     mask: Optional[str] = None
     memo: Optional[str] = None
 
+    @field_validator('shoe', 'boot', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Converte strings vazias para None para campos inteiros opcionais."""
+        if v == '':
+            return None
+        return v
+
 class EpiUserCreate(EpiPreferencesUpdate):
     pk: int
     name: str
-
 
 
 @api_error_handler
@@ -150,9 +159,9 @@ def update_epi_preferences(user_pk: int, data: dict, current_user: str):
     with db_session_manager(current_user) as session:
         query = text("""
             SELECT fbo_epi_update(
-                :pk, :tt_epishoetype, :shoenumber, :tshirt, :sweatshirt, 
-                :jacket, :pants, :apron, :gown, :welderboot, :waterproof,
-                :reflectivevest, :galoshes, :gloves, :mask, :memo
+                :pk, :shoe, :boot, :tshirt, :sweatshirt, :reflectivejacket,
+                :polarjacket, :monkeysuit, :pants, :apron, :gown, :welderboot,
+                :waterproof, :reflectivevest, :galoshes, :gloves, :mask, :memo
             )
         """)
         params = preferences_data.model_dump(exclude_unset=True)
@@ -217,9 +226,9 @@ def create_epi(data: dict, current_user: str):
     with db_session_manager(current_user) as session:
         query = text("""
             SELECT fbo_epi_insert(
-                :pk, :name, :tt_epishoetype, :shoenumber, :tshirt, :sweatshirt, 
-                :jacket, :pants, :apron, :gown, :welderboot, :waterproof,
-                :reflectivevest, :galoshes, :gloves, :mask, :memo
+                :pk, :name, :shoe, :boot, :tshirt, :sweatshirt, :reflectivejacket,
+                :polarjacket, :monkeysuit, :pants, :apron, :gown, :welderboot,
+                :waterproof, :reflectivevest, :galoshes, :gloves, :mask, :memo
             ) AS result
         """)
         result = session.execute(query, epi_user_data.model_dump()).scalar()

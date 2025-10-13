@@ -257,19 +257,16 @@ const OperationTaskManager = ({ operationsData, onCreateTask, onEditTask, onDele
                                                                 <Edit fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                        <Tooltip title="Eliminar">
-                                                            <IconButton
-                                                                size="small"
-                                                                color="error"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    console.log('🖱️ Delete button clicked for task:', task.pk);
-                                                                    handleDeleteClick(task);
-                                                                }}
-                                                            >
-                                                                <Delete fontSize="small" />
-                                                            </IconButton>
+                                                        <Tooltip title="Para eliminar esta tarefa, contacte o administrador do sistema">
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    color="error"
+                                                                    disabled
+                                                                >
+                                                                    <Delete fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
                                                         </Tooltip>
                                                     </>
                                                 )}

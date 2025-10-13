@@ -76,14 +76,11 @@ def get_epi_data():
     with db_session_manager(current_user) as session:
         epi_list = session.execute(
             text("SELECT * FROM vbl_epi ORDER BY name")).mappings().all()
-        shoe_types = session.execute(
-            text("SELECT * FROM vbl_epishoetype ORDER BY pk")).mappings().all()
         what_types = session.execute(
             text("SELECT * FROM vbl_epiwhat ORDER BY pk")).mappings().all()
 
         return jsonify({
             'epi_list': [dict(row) for row in epi_list],
-            'epi_shoe_types': [dict(row) for row in shoe_types],
             'epi_what_types': [dict(row) for row in what_types]
         }), 200
 

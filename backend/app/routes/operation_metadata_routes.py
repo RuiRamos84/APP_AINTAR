@@ -86,14 +86,14 @@ def update_metadata():
 @set_session
 def delete_metadata(pk):
     """
-    Eliminar metadata de operação
+    Eliminar metadata de operação - DESABILITADO POR SEGURANÇA
 
     URL: /operation_metadata/delete/{pk}
     """
-    current_user = get_jwt_identity()
-
-    result, status_code = operation_metadata_service.delete_operation_metadata(pk, current_user)
-    return jsonify(result), status_code
+    return jsonify({
+        'success': False,
+        'error': 'Para eliminar esta tarefa, contacte o administrador do sistema'
+    }), 403
 
 
 @bp.route('/<int:pk>', methods=['GET'])

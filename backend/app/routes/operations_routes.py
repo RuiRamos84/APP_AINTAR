@@ -14,7 +14,10 @@ from ..services.operations_service import (
     delete_operacao_meta,
     get_operacao_meta_by_id,
     complete_task_operation,
-    get_analysis_parameters
+    get_analysis_parameters,
+    # Funções para criar/atualizar operações (execuções reais)
+    create_operacao,
+    update_operacao
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..utils.utils import token_required, db_session_manager, set_session
@@ -307,3 +310,60 @@ def get_operation_reference_options(ref_obj):
     except SQLAlchemyError as e:
         current_app.logger.error(f"Erro ao buscar opções de referência para {ref_obj}: {str(e)}")
         return jsonify({"error": "Erro ao buscar opções de referência"}), 500
+
+
+# ===================================================================
+# ROTAS PARA CRIAR/ATUALIZAR OPERAÇÕES (EXECUÇÕES REAIS)
+# ===================================================================
+
+@bp.route('/operacao', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(310)  # operation.access
+@set_session
+@api_error_handler
+def create_operacao_route():
+    """
+    Criar nova operação (execução real) via vbf_operacao
+
+    Body:
+    {
+        "data": "2025-10-09",
+        "descr": "Descrição opcional",
+        "tt_operacaomodo": 1,
+        "tb_instalacao": 123,
+        "ts_operador1": 456,
+        "ts_operador2": 789,  // opcional
+        "tt_operacaoaccao": 101
+    }
+    """
+    current_user = get_jwt_identity()
+    data = request.get_json()
+
+    result, status_code = create_operacao(data, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/operacao/<int:operacao_id>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission(310)  # operation.access
+@set_session
+@api_error_handler
+def update_operacao_route(operacao_id):
+    """
+    Atualizar operação (execução real) via vbf_operacao
+
+    APENAS permite atualizar valuetext e valuememo
+
+    Body:
+    {
+        "valuetext": "Resultado da operação",
+        "valuememo": "Observações adicionais"  // opcional
+    }
+    """
+    current_user = get_jwt_identity()
+    data = request.get_json()
+
+    result, status_code = update_operacao(operacao_id, data, current_user)
+    return jsonify(result), status_code

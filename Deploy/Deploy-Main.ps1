@@ -31,7 +31,8 @@ $ModulesToLoad = @(
     "DeployFrontend.ps1",
     "DeployBackend.ps1",
     "DeployNginx.ps1",
-    "DeployUI.ps1"
+    "DeployUI.ps1",
+    "DeployServerManager.ps1" # <-- Adicionar o novo módulo
 )
 
 Write-Host "Inicializando Sistema de Deployment Modular..." -ForegroundColor Cyan
@@ -101,6 +102,49 @@ function Initialize-DeploymentSystem {
 # OPERACOES DE DEPLOYMENT
 # ============================================================================
 
+function Invoke-WithMaintenance {
+    param(
+        [Parameter(Mandatory=$true)]
+        [ScriptBlock]$Action,
+        [string]$OperationName = "Operação de Deployment",
+        [array]$ArgumentList = @()
+    )
+
+    Write-DeployInfo "=== INICIANDO '$OperationName' COM GESTÃO DE MANUTENÇÃO ===" "MAIN"
+
+    # O bloco finally garante que a manutenção é desativada e o backend reiniciado,
+    # mesmo que o deployment falhe a meio.
+    try {
+        # 1. Ativar modo de manutenção
+        if (-not (Enable-MaintenanceMode)) { throw "Falha ao ativar modo de manutenção." }
+
+        # 2. Parar o processo do backend
+        if (-not (Stop-BackendProcess)) { throw "Falha ao parar o backend." }
+        Write-DeployInfo "Aguardando 5 segundos para o processo terminar..." "MAIN"
+        Start-Sleep -Seconds 5
+
+        # Executar a ação de deployment principal
+        $result = & $Action @ArgumentList
+        if (-not $result) {
+            throw "A operação de deployment '$OperationName' falhou durante a execução."
+        }
+        
+        Write-DeployInfo "=== '$OperationName' FINALIZADO COM SUCESSO ===" "MAIN"
+        return $true
+    }
+    catch {
+        Write-DeployError "Ocorreu um erro durante '$OperationName': $($_.Exception.Message)" "MAIN"
+        Write-DeployException $_.Exception $OperationName "MAIN"
+        return $false
+    }
+    finally {
+        # 3. Iniciar o backend
+        Write-DeployInfo "Iniciando o backend..." "MAIN"; Start-BackendProcess; Start-Sleep -Seconds 5
+        # 4. Desativar modo de manutenção
+        Write-DeployInfo "Desativando o modo de manutenção..." "MAIN"; Disable-MaintenanceMode
+    }
+}
+
 function Invoke-FullDeployment {
     param([bool]$BuildFirst = $true)
     
@@ -112,41 +156,20 @@ function Invoke-FullDeployment {
         Nginx = $false
     }
     
-    try {
-        # Frontend
-        Write-DeployInfo "Iniciando deployment do frontend..." "MAIN"
-        $results.Frontend = Deploy-Frontend -BuildFirst $BuildFirst
-        
-        if (-not $results.Frontend) {
-            Write-DeployError "Falha no deployment do frontend" "MAIN"
-            return $false
-        }
-        
-        # Backend
-        Write-DeployInfo "Iniciando deployment do backend..." "MAIN"
-        $results.Backend = Deploy-Backend
-        
-        if (-not $results.Backend) {
-            Write-DeployError "Falha no deployment do backend" "MAIN"
-            return $false
-        }
-        
-        # Nginx
-        Write-DeployInfo "Iniciando deployment da configuracao Nginx..." "MAIN"
-        $results.Nginx = Deploy-NginxConfig
-        
-        if (-not $results.Nginx) {
-            Write-DeployError "Falha no deployment da configuracao Nginx" "MAIN"
-            return $false
-        }
-        
-        Write-DeployInfo "=== DEPLOYMENT COMPLETO FINALIZADO COM SUCESSO ===" "MAIN"
-        return $true
-    }
-    catch {
-        Write-DeployException $_.Exception "Deployment completo" "MAIN"
-        return $false
-    }
+    # Usar o novo wrapper para executar a ação
+    return Invoke-WithMaintenance -OperationName "Deployment Completo" -Action {
+        param($BuildFirstParam)
+
+        $frontendOk = Deploy-Frontend -BuildFirst $BuildFirstParam
+        if (-not $frontendOk) { return $false }
+
+        $backendOk = Deploy-Backend
+        if (-not $backendOk) { return $false }
+
+        $nginxOk = Deploy-NginxConfig
+        return $nginxOk
+
+    } -ArgumentList @($BuildFirst)
 }
 
 function Invoke-FrontendBackendDeployment {
@@ -154,26 +177,35 @@ function Invoke-FrontendBackendDeployment {
     
     Write-DeployInfo "=== DEPLOYMENT FRONTEND + BACKEND ===" "MAIN"
     
-    try {
-        # Frontend
-        $frontendResult = Deploy-Frontend -BuildFirst $BuildFirst
-        
-        # Backend
-        $backendResult = Deploy-Backend
-        
-        $success = $frontendResult -and $backendResult
-        
-        if ($success) {
-            Write-DeployInfo "=== DEPLOYMENT FRONTEND + BACKEND FINALIZADO COM SUCESSO ===" "MAIN"
-        } else {
-            Write-DeployError "=== DEPLOYMENT FRONTEND + BACKEND FINALIZADO COM ERROS ===" "MAIN"
-        }
-        
-        return $success
+    return Invoke-WithMaintenance -OperationName "Deployment Frontend + Backend" -Action {
+        param($BuildFirstParam)
+
+        $frontendOk = Deploy-Frontend -BuildFirst $BuildFirstParam
+        if (-not $frontendOk) { return $false }
+
+        $backendOk = Deploy-Backend
+        return $backendOk
+
+    } -ArgumentList @($BuildFirst)
+}
+
+function Invoke-FrontendDeployment {
+    param([bool]$BuildFirst = $true)
+    return Invoke-WithMaintenance -OperationName "Deployment Frontend" -Action {
+        param($BuildFirstParam)
+        return Deploy-Frontend -BuildFirst $BuildFirstParam
+    } -ArgumentList @($BuildFirst)
+}
+
+function Invoke-BackendDeployment {
+    return Invoke-WithMaintenance -OperationName "Deployment Backend" -Action {
+        return Deploy-Backend
     }
-    catch {
-        Write-DeployException $_.Exception "Deployment Frontend + Backend" "MAIN"
-        return $false
+}
+
+function Invoke-NginxDeployment {
+    return Invoke-WithMaintenance -OperationName "Deployment Configuração Nginx" -Action {
+        return Deploy-NginxConfig
     }
 }
 
@@ -197,19 +229,19 @@ function Invoke-NonInteractiveMode {
             $result = Invoke-FullDeployment -BuildFirst $BuildFirst
         }
         "frontend" {
-            $result = Deploy-Frontend -BuildFirst $BuildFirst
+            $result = Invoke-FrontendDeployment -BuildFirst $BuildFirst
         }
         "frontend-nobuild" {
-            $result = Deploy-Frontend -BuildFirst $false
+            $result = Invoke-FrontendDeployment -BuildFirst $false
         }
         "backend" {
-            $result = Deploy-Backend
+            $result = Invoke-BackendDeployment
         }
         "frontend-backend" {
             $result = Invoke-FrontendBackendDeployment -BuildFirst $BuildFirst
         }
         "nginx" {
-            $result = Deploy-NginxConfig
+            $result = Invoke-NginxDeployment
         }
         "test-connection" {
             $testResult = Test-ServerConnectivity
@@ -246,25 +278,26 @@ function Start-InteractiveMode {
 
     $menuActions = @{
         "1" = @{ Name = "Deployment Completo (Frontend + Backend + Nginx)"; Action = { Invoke-FullDeployment -BuildFirst $true } }
-        "2" = @{ Name = "Deployment Frontend (com build)"; Action = { Deploy-Frontend -BuildFirst $true } }
+        "2" = @{ Name = "Deployment Frontend (com build)"; Action = { Invoke-FrontendDeployment -BuildFirst $true } }
         "3" = @{ Name = "Deployment Frontend (sem build)"; Action = { 
                 if (-not (Test-FrontendBuild)) {
                     Show-DeployStatus "Build não encontrado ou inválido!" "Error"
                     if (Confirm-Action "Deseja fazer o build antes do deployment?") {
-                        return Deploy-Frontend -BuildFirst $true
+                        return Invoke-FrontendDeployment -BuildFirst $true
                     }
                     Show-DeployStatus "Deployment cancelado pelo usuário" "Warning"
                     return $null # Indica que nenhuma ação foi tomada
                 }
-                return Deploy-Frontend -BuildFirst $false
+                return Invoke-FrontendDeployment -BuildFirst $false
             } }
-        "4" = @{ Name = "Deployment Backend"; Action = { Deploy-Backend } }
+        "4" = @{ Name = "Deployment Backend"; Action = { Invoke-BackendDeployment } }
         "5" = @{ Name = "Deployment Frontend + Backend (sem Nginx)"; Action = { Invoke-FrontendBackendDeployment -BuildFirst $true } }
-        "6" = @{ Name = "Deployment Configuração Nginx"; Action = { Deploy-NginxConfig } }
+        "6" = @{ Name = "Deployment Configuração Nginx"; Action = { Invoke-NginxDeployment } }
         "7" = @{ Name = "Ver ficheiros em estado relevante"; Action = { Show-FileStatus; return $null } }
         "8" = @{ Name = "Ver informações do sistema"; Action = { Show-SystemInfo; return $null } }
         "9" = @{ Name = "Testar conectividade com o servidor"; Action = { Show-ConnectivityTest; return $null } }
         "10" = @{ Name = "Mostrar estrutura do servidor"; Action = { Show-ServerStructure; return $null } }
+        "12" = @{ Name = "DIAGNOSTICO - Verificar permissoes WinRM (CredSSP)"; Action = { Show-RemoteExecutionTest; return $null } }
         "11" = @{ Name = "Configurações avançadas"; Action = { Show-AdvancedSettings; return $null } }
     }
 
@@ -316,7 +349,7 @@ function Show-DeployMenu {
     Write-Host ""
 
     # Obter e ordenar as chaves do menu
-    $menuKeys = $MenuActions.Keys | Sort-Object { [int]$_ }
+    $menuKeys = $MenuActions.Keys | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } else { 999 } }
 
     foreach ($key in $menuKeys) {
         # Adicionar a linha de separação

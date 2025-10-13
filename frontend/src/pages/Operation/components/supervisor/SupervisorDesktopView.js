@@ -17,6 +17,7 @@ import SupervisorDashboard from './SupervisorDashboard';
 import OperationTaskManager from './OperationTaskManager';
 import OperatorMonitoring from './OperatorMonitoring';
 import AnalyticsPanel from './AnalyticsPanel';
+import ProgressiveTaskFormV2 from '../forms/ProgressiveTaskFormV2';
 
 // Componentes comuns
 import LoadingContainer from '../common/LoadingContainer';
@@ -32,6 +33,7 @@ import { useMetaData } from '../../../../contexts/MetaDataContext';
 
 // Utils
 import { normalizeText, textIncludes } from '../../utils/textUtils';
+import operationsApi from '../../services/operationsApi';
 
 /**
  * VIEW SUPERVISOR DESKTOP OTIMIZADA
@@ -68,6 +70,7 @@ const SupervisorDesktopView = ({
     // Estados locais - com valores padrão para dia atual
     const [activeTab, setActiveTab] = useState(0);
     const [createTaskOpen, setCreateTaskOpen] = useState(false);
+    const [createOperationOpen, setCreateOperationOpen] = useState(false); // NOVO: Modal para criar operações
     const [editingTask, setEditingTask] = useState(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [weekFilter, setWeekFilter] = useState(getCurrentWeek()); // Semana atual
@@ -95,13 +98,8 @@ const SupervisorDesktopView = ({
     };
 
     const handleDeleteTask = async (taskId) => {
-        if (window.confirm('Tem certeza que deseja eliminar esta tarefa?')) {
-            try {
-                await supervisorData.deleteMeta(taskId);
-            } catch (error) {
-                console.error('Erro ao eliminar tarefa:', error);
-            }
-        }
+        // OPERAÇÃO DESABILITADA POR SEGURANÇA
+        alert('Para eliminar esta tarefa, contacte o administrador do sistema.');
     };
 
     const handleSaveTask = async (taskData) => {
@@ -114,6 +112,24 @@ const SupervisorDesktopView = ({
             setCreateTaskOpen(false);
         } catch (error) {
             console.error('Erro ao guardar tarefa:', error);
+        }
+    };
+
+    // NOVO: Handler para criar operação (execução real)
+    const handleCreateOperation = () => {
+        setCreateOperationOpen(true);
+    };
+
+    const handleSaveOperation = async (operationData) => {
+        try {
+            await operationsApi.createOperacao(operationData);
+            setCreateOperationOpen(false);
+            // Refresh dos dados
+            await supervisorData.refresh();
+            alert('Operação criada com sucesso!');
+        } catch (error) {
+            console.error('Erro ao criar operação:', error);
+            alert(`Erro ao criar operação: ${error.response?.data?.error || error.message}`);
         }
     };
 
@@ -217,6 +233,16 @@ const SupervisorDesktopView = ({
                             startIcon={<Download />}
                         >
                             Exportar
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            startIcon={<Add />}
+                            onClick={handleCreateOperation}
+                        >
+                            Nova Operação
                         </Button>
 
                         <Button
@@ -337,6 +363,27 @@ const SupervisorDesktopView = ({
                     onClose={() => setFiltersOpen(false)}
                 />
             </Drawer>
+
+            {/* NOVO: Dialog para criar Operação (execução real) */}
+            <Dialog
+                open={createOperationOpen}
+                onClose={() => setCreateOperationOpen(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    Criar Nova Operação
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Registe uma execução pontual de operação com data específica
+                    </Typography>
+                    <ProgressiveTaskFormV2
+                        onSubmit={handleSaveOperation}
+                        onCancel={() => setCreateOperationOpen(false)}
+                    />
+                </DialogContent>
+            </Dialog>
         </Box>
     );
 };

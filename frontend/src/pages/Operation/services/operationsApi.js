@@ -17,9 +17,11 @@ export const operationsApi = {
     updateOperacaoMeta: (id, data) => apiClient.put(`/operacao_meta/${id}`, data),
     deleteOperacaoMeta: (id) => apiClient.delete(`/operacao_meta/${id}`),
 
-    // Operações
+    // Operações (execuções reais)
     getOperacao: () => apiClient.get('/operacao'),
     getOperacaoSelf: () => apiClient.get('/operacao_self'),
+    createOperacao: (data) => apiClient.post('/operacao', data),
+    updateOperacao: (operacaoId, data) => apiClient.put(`/operacao/${operacaoId}`, data),
     completeTask: (taskId, completionData) => apiClient.post(`/operacao_complete/${taskId}`, completionData),
     getAnalysisParameters: (operationId) => apiClient.get(`/operacao_analysis/${operationId}`),
     getReferenceOptions: (refObj) => apiClient.get(`/operacao_reference/${refObj}`),

@@ -118,29 +118,10 @@ export const useOperationsUnifiedV2 = (options = {}) => {
   }, [invalidate]);
 
   const deleteMetaAction = useCallback(async (metaId) => {
-    const store = useOperationsStore.getState();
-    try {
-      store.setLoading('action', true);
-      const previousMeta = store.metas.find(m => m.pk === metaId);
-      store.deleteMeta(metaId);
-
-      try {
-        await operationsApi.deleteOperacaoMeta(metaId);
-        invalidate('operation-metas');
-        notification.success('Meta eliminada com sucesso!');
-      } catch (error) {
-        if (previousMeta) {
-          store.addMeta(previousMeta);
-        }
-        throw error;
-      }
-    } catch (error) {
-      notification.error('Erro ao eliminar meta: ' + error.message);
-      throw error;
-    } finally {
-      store.setLoading('action', false);
-    }
-  }, [invalidate]);
+    // OPERAÇÃO DESABILITADA POR SEGURANÇA
+    notification.error('Para eliminar esta tarefa, contacte o administrador do sistema');
+    throw new Error('Para eliminar esta tarefa, contacte o administrador do sistema');
+  }, []);
 
   // ============================================================
   // ACTIONS - TAREFAS

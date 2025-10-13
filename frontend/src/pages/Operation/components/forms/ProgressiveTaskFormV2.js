@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Stepper, Step, StepLabel, Button, Paper,
   TextField, FormControl, InputLabel, Select, MenuItem,
@@ -61,6 +61,8 @@ const ProgressiveTaskFormV2 = ({
 
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
+    data: initialTask?.data || new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    descr: initialTask?.descr || '',
     tb_instalacao: initialTask?.tb_instalacao || '',
     tt_operacaoaccao: initialTask?.tt_operacaoaccao || '',
     tt_operacaomodo: initialTask?.tt_operacaomodo || 1,
@@ -110,6 +112,14 @@ const ProgressiveTaskFormV2 = ({
     const newErrors = { ...errors };
 
     switch (fieldName) {
+      case 'data':
+        if (!value) {
+          newErrors.data = 'Data é obrigatória';
+        } else {
+          delete newErrors.data;
+        }
+        break;
+
       case 'tb_instalacao':
         if (!value) {
           newErrors.tb_instalacao = 'Instalação é obrigatória';
@@ -155,7 +165,8 @@ const ProgressiveTaskFormV2 = ({
       case 0: // Instalação
         return validateField('tb_instalacao', formData.tb_instalacao);
       case 1: // Operação
-        return validateField('tt_operacaoaccao', formData.tt_operacaoaccao);
+        return validateField('data', formData.data) &&
+               validateField('tt_operacaoaccao', formData.tt_operacaoaccao);
       case 2: // Operadores
         return validateField('ts_operador1', formData.ts_operador1) &&
           (!formData.ts_operador2 || validateField('ts_operador2', formData.ts_operador2));
@@ -230,15 +241,33 @@ const ProgressiveTaskFormV2 = ({
   // PREPARAR DADOS PARA SELECTS
   // ============================================================
 
-  const installations = [
+  const installations = useMemo(() => [
     ...(metaData?.etar || []).map(e => ({ id: e.pk, name: e.nome, type: 'ETAR' })),
     ...(metaData?.ee || []).map(e => ({ id: e.pk, name: e.nome, type: 'EE' }))
-  ];
+  ], [metaData]);
 
-  const operators = metaData?.operators || [];
-  const actions = metaData?.operacaoaccao || [];
-  const modes = metaData?.operacamodo || [];
-  const days = metaData?.operacaodia || [];
+  const operators = useMemo(() => metaData?.who || [], [metaData]);
+  const actions = useMemo(() => metaData?.operacaoaccao || [], [metaData]);
+  const modes = useMemo(() => metaData?.operacamodo || [], [metaData]);
+  const days = useMemo(() => metaData?.operacaodia || [], [metaData]);
+
+  // Validação do step atual (memoizado para evitar loops)
+  const isCurrentStepValid = useMemo(() => {
+    switch (currentStep) {
+      case 0: // Instalação
+        return !!formData.tb_instalacao && !errors.tb_instalacao;
+      case 1: // Operação
+        return !!formData.data && !!formData.tt_operacaoaccao &&
+               !errors.data && !errors.tt_operacaoaccao;
+      case 2: // Operadores
+        return !!formData.ts_operador1 && !errors.ts_operador1 &&
+               (!formData.ts_operador2 || !errors.ts_operador2);
+      case 3: // Revisão
+        return Object.keys(errors).length === 0;
+      default:
+        return true;
+    }
+  }, [currentStep, formData, errors]);
 
   // ============================================================
   // RENDER STEP CONTENT
@@ -280,6 +309,21 @@ const ProgressiveTaskFormV2 = ({
       case 1: // Operação
         return (
           <Box>
+            {/* Data */}
+            <TextField
+              fullWidth
+              type="date"
+              label="Data da Operação *"
+              value={formData.data}
+              onChange={handleChange('data')}
+              onBlur={handleBlur('data')}
+              error={touched.data && !!errors.data}
+              helperText={touched.data && errors.data}
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 3 }}
+            />
+
+            {/* Ação */}
             <FormControl
               fullWidth
               error={touched.tt_operacaoaccao && !!errors.tt_operacaoaccao}
@@ -302,6 +346,17 @@ const ProgressiveTaskFormV2 = ({
                 <FormHelperText>{errors.tt_operacaoaccao}</FormHelperText>
               )}
             </FormControl>
+
+            {/* Descrição (opcional) */}
+            <TextField
+              fullWidth
+              label="Descrição (opcional)"
+              value={formData.descr}
+              onChange={handleChange('descr')}
+              multiline
+              rows={2}
+              sx={{ mb: 3 }}
+            />
 
             {/* Opções avançadas (colapsável) */}
             <Box mb={2}>
@@ -413,15 +468,29 @@ const ProgressiveTaskFormV2 = ({
           ? operators.find(o => o.pk === parseInt(formData.ts_operador2))
           : null;
 
+        // Formatar data para exibição
+        const formattedDate = formData.data
+          ? new Date(formData.data + 'T00:00:00').toLocaleDateString('pt-PT')
+          : '';
+
         return (
           <Box>
             <Alert severity="info" sx={{ mb: 3 }}>
-              Reveja as informações antes de criar a meta
+              Reveja as informações antes de criar a operação
             </Alert>
 
             <Card variant="outlined">
               <CardContent>
                 <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Data
+                    </Typography>
+                    <Typography variant="body1">
+                      {formattedDate}
+                    </Typography>
+                  </Box>
+
                   <Box>
                     <Typography variant="caption" color="text.secondary">
                       Instalação
@@ -439,6 +508,17 @@ const ProgressiveTaskFormV2 = ({
                       {selectedAction?.name}
                     </Typography>
                   </Box>
+
+                  {formData.descr && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Descrição
+                      </Typography>
+                      <Typography variant="body1">
+                        {formData.descr}
+                      </Typography>
+                    </Box>
+                  )}
 
                   <Box>
                     <Typography variant="caption" color="text.secondary">
@@ -516,14 +596,14 @@ const ProgressiveTaskFormV2 = ({
               disabled={saving || Object.keys(errors).length > 0}
               startIcon={<Check />}
             >
-              {saving ? 'A guardar...' : initialTask ? 'Atualizar' : 'Criar Meta'}
+              {saving ? 'A guardar...' : initialTask ? 'Atualizar' : 'Criar Operação'}
             </Button>
           ) : (
             <Button
               variant="contained"
               onClick={handleNext}
               endIcon={<NavigateNext />}
-              disabled={!validateStep(currentStep)}
+              disabled={!isCurrentStepValid}
             >
               Próximo
             </Button>

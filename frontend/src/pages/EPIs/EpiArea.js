@@ -114,7 +114,7 @@ const EpiArea = () => {
                         {sections.map((section, index) => {
                             const IconComponent = section.icon;
                             return (
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }} key={section.id}>
+                                <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }} key={section.id}>
                                     <Grow
                                         in={true}
                                         timeout={600 + index * 200}
@@ -222,57 +222,76 @@ const EpiArea = () => {
 
     return (
         <Box sx={{ padding: 4 }}>
-            {/* Header com título, select e botão voltar */}
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h4">
+            {/* Cabeçalho Responsivo */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', md: 'center' },
+                    flexDirection: { xs: 'column', md: 'row' },
+                    gap: 2,
+                    mb: 4
+                }}
+            >
+                <Typography variant={{ xs: 'h4', md: 'h3' }} sx={{ flexGrow: 1, width: '100%', fontWeight: 'medium' }}>
                     {getPageDescription()}
                 </Typography>
 
-                {/* Select no header para funcionário */}
-                {selectedSection && getCurrentSection()?.needsEmployee && selectedEmployee && (
-                    <Box sx={{ mx: 2, minWidth: '300px' }}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Funcionário</InputLabel>
-                            <Select
-                                value={selectedEmployee}
-                                onChange={(e) => setSelectedEmployee(e.target.value)}
-                                label="Funcionário"
-                            >
-                                {metaData?.epi_list?.map((emp) => (
-                                    <MenuItem key={emp.pk} value={emp.pk}>
-                                        {emp.pk} - {emp.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Box>
-                )}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: 2,
+                        alignItems: 'center',
+                        width: { xs: '100%', md: 'auto' },
+                        justifyContent: 'flex-end'
+                    }}
+                >
+                    {/* Select no header para funcionário */}
+                    {selectedSection && getCurrentSection()?.needsEmployee && selectedEmployee && (
+                        <Box sx={{ flexGrow: { xs: 1, md: 0 }, minWidth: { xs: 150, md: 300 } }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Funcionário</InputLabel>
+                                <Select
+                                    value={selectedEmployee}
+                                    onChange={(e) => setSelectedEmployee(e.target.value)}
+                                    label="Funcionário"
+                                >
+                                    {metaData?.epi_list?.map((emp) => (
+                                        <MenuItem key={emp.pk} value={emp.pk}>
+                                            {emp.pk} - {emp.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Box>
+                    )}
 
-                {/* Select no header para ano (apenas no resumo) */}
-                {selectedSection === 'summary' && (
-                    <Box sx={{ mx: 2, minWidth: '150px' }}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Ano</InputLabel>
-                            <Select
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(e.target.value)}
-                                label="Ano"
-                            >
-                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                                    <MenuItem key={year} value={year}>
-                                        {year}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Box>
-                )}
+                    {/* Select no header para ano (apenas no resumo) */}
+                    {selectedSection === 'summary' && (
+                        <Box sx={{ flexGrow: { xs: 1, md: 0 }, minWidth: 150 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Ano</InputLabel>
+                                <Select
+                                    value={selectedYear}
+                                    onChange={(e) => setSelectedYear(e.target.value)}
+                                    label="Ano"
+                                >
+                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                                        <MenuItem key={year} value={year}>
+                                            {year}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Box>
+                    )}
 
-                {selectedSection && (
-                    <Button variant="outlined" onClick={handleBack}>
-                        Voltar
-                    </Button>
-                )}
+                    {selectedSection && (
+                        <Button variant="outlined" onClick={handleBack}>
+                            Voltar
+                        </Button>
+                    )}
+                </Box>
             </Box>
 
             {/* Select centralizado apenas quando não há funcionário */}
@@ -281,7 +300,6 @@ const EpiArea = () => {
                     employees={metaData?.epi_list || []}
                     selectedEmployee={selectedEmployee}
                     onChange={setSelectedEmployee}
-                    shoeTypes={metaData?.epi_shoe_types || []}
                     refreshMetaData={refreshMetaData}
                 />
             )}

@@ -22,7 +22,8 @@ import {
     Stack,
     Alert,
     CircularProgress,
-    IconButton
+    IconButton,
+    Tooltip
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -332,14 +333,18 @@ const OperationMetadataPage = () => {
                                             >
                                                 <EditIcon fontSize="small" />
                                             </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                onClick={() => handleDelete(metadata.pk)}
-                                                title="Eliminar"
-                                            >
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
+                                            {/* Botão de eliminar desabilitado por segurança */}
+                                            <Tooltip title="Para eliminar esta tarefa, contacte o administrador do sistema">
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        disabled
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
                                         </TableCell>
                                     </TableRow>
                                 ))}

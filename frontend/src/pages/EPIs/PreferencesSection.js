@@ -8,11 +8,13 @@ import { useEpi } from "../../contexts/EpiContext";
 
 const PreferencesSection = ({ selectedEmployee }) => {
     const [preferences, setPreferences] = useState({
-        tt_epishoetype: "",
-        shoenumber: "",
+        shoe: "",
+        boot: "",
         tshirt: "",
         sweatshirt: "",
-        jacket: "",
+        reflectivejacket: "",
+        polarjacket: "",
+        monkeysuit: "",
         pants: "",
         apron: "",
         gown: "",
@@ -39,16 +41,14 @@ const PreferencesSection = ({ selectedEmployee }) => {
         if (selectedEmployee) {
             const employee = epiData?.epi_list?.find(emp => emp.pk === selectedEmployee);
             if (employee) {
-                const shoeType = epiData?.epi_shoe_types?.find(
-                    type => type.value.toLowerCase() === employee.tt_epishoetype?.toLowerCase()
-                );
-
                 const currentPrefs = {
-                    tt_epishoetype: shoeType?.pk || "",
-                    shoenumber: employee.shoenumber || "",
+                    shoe: employee.shoe || "",
+                    boot: employee.boot || "",
                     tshirt: employee.tshirt || "",
                     sweatshirt: employee.sweatshirt || "",
-                    jacket: employee.jacket || "",
+                    reflectivejacket: employee.reflectivejacket || "",
+                    polarjacket: employee.polarjacket || "",
+                    monkeysuit: employee.monkeysuit || "",
                     pants: employee.pants || "",
                     apron: employee.apron || "",
                     gown: employee.gown || "",
@@ -72,11 +72,13 @@ const PreferencesSection = ({ selectedEmployee }) => {
 
     const handleReset = () => {
         setPreferences({
-            tt_epishoetype: "",
-            shoenumber: "",
+            shoe: "",
+            boot: "",
             tshirt: "",
             sweatshirt: "",
-            jacket: "",
+            reflectivejacket: "",
+            polarjacket: "",
+            monkeysuit: "",
             pants: "",
             apron: "",
             gown: "",
@@ -93,9 +95,9 @@ const PreferencesSection = ({ selectedEmployee }) => {
     const handleInputChange = (field, value) => {
         // Campos que devem ter todas as letras maiúsculas
         const upperCaseFields = [
-            'shoenumber', 'tshirt', 'sweatshirt', 'jacket', 'pants',
-            'apron', 'gown', 'welderboot', 'waterproof', 'reflectivevest',
-            'galoshes', 'gloves', 'mask'
+            'tshirt', 'sweatshirt', 'reflectivejacket', 'polarjacket',
+            'monkeysuit', 'pants', 'apron', 'gown', 'welderboot',
+            'waterproof', 'reflectivevest', 'galoshes', 'gloves', 'mask'
         ];
 
         let processedValue = value;
@@ -162,31 +164,23 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                 <Typography variant="subtitle1" gutterBottom>Calçado</Typography>
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 3 }}>
-                                <FormControl fullWidth>
-                                    <InputLabel>Tipo de Calçado Standard</InputLabel>
-                                    <Select
-                                        label="Tipo de Calçado Standard"
-                                        value={preferences.tt_epishoetype}
-                                        onChange={(e) => handleInputChange("tt_epishoetype", e.target.value)}
-                                    >
-                                        {epiData?.epi_shoe_types?.map((type) => (
-                                            <MenuItem key={type.pk} value={type.pk}>
-                                                {type.value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
-                                    label="Tamanho do Calçado"
-                                    value={preferences.shoenumber}
-                                    onChange={(e) => handleInputChange("shoenumber", e.target.value)}
+                                    label="Nº Sapato"
+                                    value={preferences.shoe}
+                                    onChange={(e) => handleInputChange("shoe", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Nº Bota"
+                                    value={preferences.boot}
+                                    onChange={(e) => handleInputChange("boot", e.target.value)}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Galochas"
@@ -194,7 +188,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("galoshes", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Botas de Soldador"
@@ -202,12 +196,20 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("welderboot", e.target.value)}
                                 />
                             </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Luvas"
+                                    value={preferences.gloves}
+                                    onChange={(e) => handleInputChange("gloves", e.target.value)}
+                                />
+                            </Grid>
 
                             {/* Fardamento */}
                             <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle1" gutterBottom>Fardamento</Typography>
                             </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                 <TextField
                                     fullWidth
                                     label="T-Shirt"
@@ -215,7 +217,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("tshirt", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                 <TextField
                                     fullWidth
                                     label="Sweatshirt"
@@ -223,15 +225,31 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("sweatshirt", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                 <TextField
                                     fullWidth
-                                    label="Casaco"
-                                    value={preferences.jacket}
-                                    onChange={(e) => handleInputChange("jacket", e.target.value)}
+                                    label="Casaco Refletor"
+                                    value={preferences.reflectivejacket}
+                                    onChange={(e) => handleInputChange("reflectivejacket", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 3 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Casaco Polar"
+                                    value={preferences.polarjacket}
+                                    onChange={(e) => handleInputChange("polarjacket", e.target.value)}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Fato Macaco"
+                                    value={preferences.monkeysuit}
+                                    onChange={(e) => handleInputChange("monkeysuit", e.target.value)}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                 <TextField
                                     fullWidth
                                     label="Calças"
@@ -244,7 +262,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                             <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle1" gutterBottom>EPI's</Typography>
                             </Grid>
-                            <Grid size={{ xs: 12, md: 2 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Avental"
@@ -252,7 +270,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("apron", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 2 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Bata"
@@ -260,7 +278,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("gown", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 2 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Capa Impermeável"
@@ -268,7 +286,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("waterproof", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 2 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Colete Refletor"
@@ -276,15 +294,7 @@ const PreferencesSection = ({ selectedEmployee }) => {
                                     onChange={(e) => handleInputChange("reflectivevest", e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 2 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Luvas"
-                                    value={preferences.gloves}
-                                    onChange={(e) => handleInputChange("gloves", e.target.value)}
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 2 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                                 <TextField
                                     fullWidth
                                     label="Máscara"

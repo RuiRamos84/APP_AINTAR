@@ -440,6 +440,14 @@ function Show-AdvancedSettings {
     $Global:UI.ShowAdvancedSettings()
 }
 
+function Show-RemoteExecutionTest {
+    $Global:UI.ShowHeader()
+    $Global:UI.WriteColorLine("TESTE DE PRÉ-REQUISITOS WINRM", "Cyan")
+    $Global:UI.WriteColorLine("=" * 50, "Cyan")
+    Write-Host ""
+    Test-RemoteExecutionPrerequisites
+}
+
 function Get-UserChoice {
     return $Global:UI.GetUserChoice()
 }

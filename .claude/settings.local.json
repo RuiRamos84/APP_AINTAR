@@ -24,7 +24,14 @@
       "Bash(./venv/Scripts/pip show pyhanko)",
       "Bash(./venv/Scripts/pip show cryptography)",
       "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''✅ DigitalSignatureService importado com sucesso'')\")",
-      "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''Servico importado com sucesso'')\")"
+      "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''Servico importado com sucesso'')\")",
+      "Bash(powershell:*)",
+      "Bash(Get-Content \"C:\\Users\\rui.ramos\\Desktop\\APP\\deployment.log\" -Tail 100)",
+      "Read(//c/172.16.2.35/app/NewAPP/nginx/**)",
+      "Bash(move README.md README-OLD.md)",
+      "Bash(move Setup-CredSSP.ps1 legacy )",
+      "Bash(move TROUBLESHOOTING-WINRM.md legacy )",
+      "Bash(move README-OLD.md legacy)"
     ],
     "deny": [],
     "ask": [

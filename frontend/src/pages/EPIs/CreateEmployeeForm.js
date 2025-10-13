@@ -15,15 +15,17 @@ import {
 import { createEpi } from '../../services/episervice';
 import { notifySuccess, notifyError } from "../../components/common/Toaster/ThemedToaster";
 
-const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
+const CreateEmployeeForm = ({ open, onClose, afterSuccess }) => {
     const [employee, setEmployee] = useState({
         pk: '',
         name: '',
-        tt_epishoetype: '',
-        shoenumber: '',
+        shoe: '',
+        boot: '',
         tshirt: '',
         sweatshirt: '',
-        jacket: '',
+        reflectivejacket: '',
+        polarjacket: '',
+        monkeysuit: '',
         pants: '',
         apron: '',
         gown: '',
@@ -39,9 +41,9 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
 
     const handleInputChange = (field, value) => {
         const upperCaseFields = [
-            'tshirt', 'sweatshirt', 'jacket', 'pants',
-            'apron', 'gown', 'welderboot', 'waterproof',
-            'reflectivevest', 'galoshes', 'gloves', 'mask'
+            'tshirt', 'sweatshirt', 'reflectivejacket', 'polarjacket',
+            'monkeysuit', 'pants', 'apron', 'gown', 'welderboot',
+            'waterproof', 'reflectivevest', 'galoshes', 'gloves', 'mask'
         ];
 
         let processedValue = value;
@@ -52,7 +54,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
         }
 
         // Apenas números para PK e shoenumber
-        if (['pk', 'shoenumber'].includes(field) && value && !/^\d+$/.test(value)) {
+        if (['pk', 'shoe', 'boot'].includes(field) && value && !/^\d+$/.test(value)) {
             return; // Bloquear input inválido
         }
 
@@ -60,8 +62,8 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
     };
 
     const handleSubmit = async () => {
-        if (!employee.name.trim() || !employee.pk || !employee.tt_epishoetype || !employee.shoenumber) {
-            notifyError("Nome, número, tipo de calçado e tamanho são obrigatórios");
+        if (!employee.name.trim() || !employee.pk) {
+            notifyError("Nome e número são obrigatórios");
             return;
         }
 
@@ -82,11 +84,13 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
         setEmployee({
             pk: '',
             name: '',
-            tt_epishoetype: '',
-            shoenumber: '',
+            shoe: '',
+            boot: '',
             tshirt: '',
             sweatshirt: '',
-            jacket: '',
+            reflectivejacket: '',
+            polarjacket: '',
+            monkeysuit: '',
             pants: '',
             apron: '',
             gown: '',
@@ -106,8 +110,8 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
             <DialogTitle>Criar Novo Colaborador</DialogTitle>
             <DialogContent>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                    {/* ID */}
-                    <Grid size={{ xs: 12, md: 1.5 }}>
+                    {/* ID e Nome */}
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
                         <TextField
                             fullWidth
                             type="number"
@@ -117,8 +121,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             required
                         />
                     </Grid>
-                    {/* Nome */}
-                    <Grid size={{ xs: 12, md: 5.5 }}>
+                    <Grid size={{ xs: 12, sm: 8, md: 10 }}>
                         <TextField
                             fullWidth
                             label="Nome"
@@ -128,37 +131,26 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                         />
                     </Grid>
 
-                    {/* Tipo de Calçado */}
-                    <Grid size={{ xs: 12, md: 2.5 }}>
-                        <FormControl fullWidth>
-                            <InputLabel>Tipo de Calçado *</InputLabel>
-                            <Select
-                                value={employee.tt_epishoetype}
-                                onChange={(e) => handleInputChange("tt_epishoetype", e.target.value)}
-                                label="Tipo de Calçado"
-                                required
-                            >
-                                {shoeTypes?.map((type) => (
-                                    <MenuItem key={type.pk} value={type.pk}>
-                                        {type.value}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
-
                     {/* Calçado */}
-                    <Grid size={{ xs: 12, md: 2.5 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <TextField
                             fullWidth
-                            label="Tamanho Calçado"
-                            value={employee.shoenumber}
-                            onChange={(e) => handleInputChange("shoenumber", e.target.value)}
-                            required
+                            label="Nº Sapato"
+                            value={employee.shoe}
+                            onChange={(e) => handleInputChange("shoe", e.target.value)}
                         />
                     </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                        <TextField
+                            fullWidth
+                            label="Nº Bota"
+                            value={employee.boot}
+                            onChange={(e) => handleInputChange("boot", e.target.value)}
+                        />
+                    </Grid>
+
                     {/* Calçado Especial */}
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <TextField
                             fullWidth
                             label="Galochas"
@@ -166,7 +158,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("galoshes", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <TextField
                             fullWidth
                             label="Botas Soldador"
@@ -176,7 +168,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                     </Grid>
 
                     {/* Fardamento */}
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
                         <TextField
                             fullWidth
                             label="T-Shirt"
@@ -184,7 +176,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("tshirt", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
                         <TextField
                             fullWidth
                             label="Sweatshirt"
@@ -192,15 +184,31 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("sweatshirt", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
                         <TextField
                             fullWidth
-                            label="Casaco"
-                            value={employee.jacket}
-                            onChange={(e) => handleInputChange("jacket", e.target.value)}
+                            label="Casaco Refletor"
+                            value={employee.reflectivejacket}
+                            onChange={(e) => handleInputChange("reflectivejacket", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Casaco Polar"
+                            value={employee.polarjacket}
+                            onChange={(e) => handleInputChange("polarjacket", e.target.value)}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Fato Macaco"
+                            value={employee.monkeysuit}
+                            onChange={(e) => handleInputChange("monkeysuit", e.target.value)}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}>
                         <TextField
                             fullWidth
                             label="Calças"
@@ -210,7 +218,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                     </Grid>
 
                     {/* EPIs */}
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
                         <TextField
                             fullWidth
                             label="Avental"
@@ -218,7 +226,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("apron", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
                         <TextField
                             fullWidth
                             label="Bata"
@@ -226,7 +234,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("gown", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
                         <TextField
                             fullWidth
                             label="Impermeável"
@@ -234,7 +242,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("waterproof", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
                         <TextField
                             fullWidth
                             label="Colete Refletor"
@@ -242,20 +250,12 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                             onChange={(e) => handleInputChange("reflectivevest", e.target.value)}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 2.4 }}>
                         <TextField
                             fullWidth
                             label="Luvas"
                             value={employee.gloves}
                             onChange={(e) => handleInputChange("gloves", e.target.value)}
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 2 }}>
-                        <TextField
-                            fullWidth
-                            label="Máscara"
-                            value={employee.mask}
-                            onChange={(e) => handleInputChange("mask", e.target.value)}
                         />
                     </Grid>
 
@@ -277,7 +277,7 @@ const CreateEmployeeForm = ({ open, onClose, shoeTypes, afterSuccess }) => {
                 <Button
                     onClick={handleSubmit}
                     variant="contained"
-                    disabled={loading || !employee.name.trim() || !employee.pk || !employee.tt_epishoetype || !employee.shoenumber}
+                    disabled={loading || !employee.name.trim() || !employee.pk}
                 >
                     {loading ? 'A criar...' : 'Criar Colaborador'}
                 </Button>

@@ -149,7 +149,9 @@ const UniformSection = ({ metaData, selectedEmployee }) => {
         const sizes = [];
         if (employee?.tshirt) sizes.push(`T-Shirt: ${employee.tshirt}`);
         if (employee?.sweatshirt) sizes.push(`Sweatshirt: ${employee.sweatshirt}`);
-        if (employee?.jacket) sizes.push(`Casaco: ${employee.jacket}`);
+        if (employee?.reflectivejacket) sizes.push(`Casaco Refletor: ${employee.reflectivejacket}`);
+        if (employee?.polarjacket) sizes.push(`Casaco Polar: ${employee.polarjacket}`);
+        if (employee?.monkeysuit) sizes.push(`Fato Macaco: ${employee.monkeysuit}`);
         if (employee?.pants) sizes.push(`Calças: ${employee.pants}`);
         return sizes.join(" | ");
     };
@@ -196,9 +198,7 @@ const UniformSection = ({ metaData, selectedEmployee }) => {
                 onClose={() => setBulkDeliveryOpen(false)}
                 onSubmit={handleBulkSubmit}
                 employees={metaData?.epi_list || []}
-                equipmentTypes={
-                    metaData?.epi_what_types?.filter((type) => type.what === 2) || []
-                }
+                equipmentTypes={metaData?.epi_what_types?.filter(type => type.what === 2) || []}
                 isEpi={false}
                 selectedEmployee={selectedEmployee}
                 afterSubmitSuccess={fetchDeliveries}

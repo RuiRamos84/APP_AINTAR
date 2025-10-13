@@ -1,313 +1,429 @@
-# Sistema de Deployment Modular
+# Sistema de Deployment Modular v2.0
 
-Sistema modular e robusto para deployment de aplicações web, desenvolvido em PowerShell para facilitar a manutenção, depuração e extensibilidade.
+Sistema automatizado de deployment para aplicações web com frontend React e backend Python, utilizando Task Scheduler para gestão remota de serviços.
 
-## 📋 Características Principais
+## Características
 
-- **Arquitetura Modular**: Cada funcionalidade em módulos separados
-- **Sistema de Logging Avançado**: Logs detalhados com níveis configuráveis
-- **Gestão Inteligente de Conexões**: Reconexão automática e tratamento de erros
-- **Interface Amigável**: Modo interativo com menus coloridos
-- **Modo Não-Interativo**: Para automação e CI/CD
-- **Validações Robustas**: Verificações em cada etapa do processo
-- **Sistema de Backup**: Backup automático antes de cada deployment
-- **Diagnósticos Integrados**: Ferramentas para troubleshooting
+- **Deployment automatizado** de frontend (React) e backend (Python)
+- **Modo de manutenção** automático durante deployment
+- **Gestão remota de serviços** (nginx, backend) via Task Scheduler
+- **Sistema de backups** automático com rotação
+- **Logging detalhado** de todas as operações
+- **Validação de integridade** de arquivos e serviços
+- **Configuração centralizada** em DeployConfig.ps1
+- **Execução interativa ou não-interativa** (menu ou linha de comando)
 
-## 📁 Estrutura do Sistema
+## Novidades v2.0
+
+- **Task Scheduler em vez de WinRM** - Não requer configuração complexa de WinRM/CredSSP
+- **Gestão de processos melhorada** - Controle direto de nginx e Python via PowerShell
+- **Modo debug/produção** - Configuração ShowBackendWindow para visibilidade do backend
+- **Execução mais confiável** - Scripts em PowerShell puro, sem dependência de .bat externos
+- **Logs mais detalhados** - Informação de PID, Session ID, e status de processos
+
+## Arquitetura
 
 ```
-deployment-system/
-├── Deploy-Main.ps1          # Script principal
-├── DeployConfig.ps1         # Configurações centralizadas
-├── DeployLogger.ps1         # Sistema de logging
-├── DeployConnection.ps1     # Gestão de conexões
-├── DeployFrontend.ps1       # Módulo de deploy frontend
-├── DeployBackend.ps1        # Módulo de deploy backend
-├── DeployNginx.ps1         # Módulo de configuração Nginx
-├── DeployUI.ps1            # Interface de usuário
-└── README.md               # Esta documentação
+┌─────────────────────────────────────────────────────────────────┐
+│                     CLIENTE (Workstation)                       │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │ Deploy-Main  │→ │ DeployConfig │ ← │ DeployUI     │         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+│         ↓                                                       │
+│  ┌──────────────────────────────────────────────────┐          │
+│  │         DeployServerManager.ps1                  │          │
+│  │  • Invoke-RemoteServerCommand-TaskScheduler      │          │
+│  │  • Enable/Disable-MaintenanceMode                │          │
+│  │  • Start/Stop-BackendProcess                     │          │
+│  └──────────────────────────────────────────────────┘          │
+│         ↓                                                       │
+└─────────│───────────────────────────────────────────────────────┘
+          │ SMB (porta 445)
+          │ schtasks.exe (Task Scheduler)
+          ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   SERVIDOR (172.16.2.35)                        │
+│                                                                 │
+│  \\172.16.2.35\app\NewAPP\                                      │
+│  ├── nginx\                                                     │
+│  │   ├── nginx.exe                                             │
+│  │   ├── conf\nginx.conf                                       │
+│  │   ├── html\react-app\build\ (frontend)                      │
+│  │   └── maintenance.flag (controle de manutenção)             │
+│  │                                                              │
+│  └── backend\                                                   │
+│      ├── start.bat                                              │
+│      ├── app\                                                   │
+│      └── venv\                                                  │
+│                                                                 │
+│  D:\APP\NewAPP\deploy_log_*.txt (logs de execução)             │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## 🚀 Instalação e Configuração
+## Fluxo de Deployment
 
-### 1. Preparação do Ambiente
+```
+1. ATIVAR MANUTENÇÃO
+   ├─ Criar maintenance.flag
+   ├─ Parar nginx
+   └─ Reiniciar nginx (mostra página de manutenção)
+
+2. PARAR BACKEND
+   ├─ Enumerar processos Python
+   ├─ Terminar processos
+   └─ Verificar que pararam
+
+3. DEPLOYMENT
+   ├─ Fazer backup (opcional)
+   ├─ Copiar arquivos frontend
+   ├─ Copiar arquivos backend
+   └─ Verificar integridade
+
+4. REINICIAR BACKEND
+   ├─ Executar start.bat
+   ├─ Aguardar inicialização
+   └─ Verificar processo ativo
+
+5. DESATIVAR MANUTENÇÃO
+   ├─ Remover maintenance.flag
+   ├─ Parar nginx
+   └─ Reiniciar nginx (volta ao normal)
+```
+
+## Pré-requisitos
+
+### No Cliente (Workstation)
+- Windows com PowerShell 5.1 ou superior
+- Acesso de rede ao servidor via SMB (porta 445)
+- Credenciais com permissões para:
+  - Aceder ao compartilhamento \\172.16.2.35\app
+  - Criar/executar/remover Scheduled Tasks no servidor
+
+### No Servidor (172.16.2.35)
+- Windows Server com Task Scheduler ativo
+- Compartilhamento SMB configurado: \\172.16.2.35\app
+- Nginx instalado em D:\APP\NewAPP\nginx\
+- Backend Python em D:\APP\NewAPP\backend\
+- Arquivo start.bat configurado para iniciar o backend
+
+## Instalação
+
+### 1. Configurar arquivo de senha
 
 ```powershell
-# Verificar política de execução
-Get-ExecutionPolicy
-
-# Se necessário, alterar para permitir scripts locais
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+# Criar arquivo de senha encriptado
+$password = Read-Host -AsSecureString "Digite a senha"
+$password | ConvertFrom-SecureString | Out-File "C:\Users\rui.ramos\Desktop\APP\PServ.txt"
 ```
 
-### 2. Configuração Inicial
+### 2. Editar DeployConfig.ps1
 
-Edite o arquivo `DeployConfig.ps1` com suas configurações:
+Ajuste as configurações conforme necessário:
 
 ```powershell
-# Configurações de servidor
-Usuario = "seu_dominio\seu_usuario"
-PasswordFile = "C:\caminho\para\arquivo_senha.txt"
-ServerIP = "192.168.1.100"
-CompartilhamentoNome = "nome_compartilhamento"
+$Global:DeployConfig = @{
+    Usuario = "aintar\rui.ramos"
+    PasswordFile = "C:\Users\rui.ramos\Desktop\APP\PServ.txt"
+    ServerIP = "172.16.2.35"
 
-# Caminhos locais
-CaminhoLocalFrontend = "C:\seu_projeto\frontend\build"
-CaminhoLocalBackend = "C:\seu_projeto\backend"
-CaminhoProjetoFrontend = "C:\seu_projeto\frontend"
+    # Caminhos locais (onde estão os arquivos a enviar)
+    CaminhoLocalFrontend = "C:\Users\rui.ramos\Desktop\APP\frontend\build"
+    CaminhoLocalBackend = "C:\Users\rui.ramos\Desktop\APP\backend"
+    CaminhoProjetoFrontend = "C:\Users\rui.ramos\Desktop\APP\frontend"
+
+    # Opções de backup
+    CriarBackup = $true
+    ManterBackups = 5
+
+    # Debug
+    VerboseLogging = $true
+}
+
+# Gestão remota
+$Global:DeployConfig.RemoteManagement = @{
+    BackendProcessName = "python"
+    BackendStartScriptPath = "D:\APP\NewAPP\backend\start.bat"
+
+    # $true = janela visível (DEBUG)
+    # $false = background (PRODUÇÃO)
+    ShowBackendWindow = $true
+}
 ```
 
-### 3. Criar Arquivo de Senha
+### 3. Validar configuração
 
 ```powershell
-# Criar arquivo de senha seguro
-"sua_senha" | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Out-File "C:\caminho\senha.txt"
+cd C:\Users\rui.ramos\Desktop\APP\Deploy
+.\Deploy-Main.ps1 -ValidateOnly
 ```
 
-## 💻 Uso do Sistema
+## Uso
 
-### Modo Interativo (Recomendado)
+### Modo Interativo (Menu)
 
 ```powershell
 .\Deploy-Main.ps1
 ```
 
-![Menu Principal](menu_example.png)
+Opções do menu:
+- **1** - Deploy Frontend e Backend (completo)
+- **2** - Deploy apenas Frontend
+- **3** - Deploy apenas Backend
+- **4** - Ativar modo de manutenção
+- **5** - Desativar modo de manutenção
+- **6** - Parar Backend
+- **7** - Iniciar Backend
+- **8** - Reiniciar Nginx
+- **9** - Criar backup manual
+- **10** - Validar configuração
+- **11** - Testar conectividade
+- **0** - Sair
 
-### Modo Não-Interativo (Automação)
+### Modo Não-Interativo (Linha de Comando)
 
 ```powershell
-# Deployment completo
-.\Deploy-Main.ps1 -NonInteractive -Operation "full" -BuildFirst -Verbose
+# Deploy completo
+.\Deploy-Main.ps1 -DeployAll
 
-# Apenas frontend
-.\Deploy-Main.ps1 -NonInteractive -Operation "frontend" -BuildFirst
+# Deploy apenas frontend
+.\Deploy-Main.ps1 -DeployFrontend
 
-# Apenas backend
-.\Deploy-Main.ps1 -NonInteractive -Operation "backend"
+# Deploy apenas backend
+.\Deploy-Main.ps1 -DeployBackend
 
-# Testar conectividade
-.\Deploy-Main.ps1 -NonInteractive -Operation "test-connection"
+# Ativar manutenção
+.\Deploy-Main.ps1 -EnableMaintenance
+
+# Desativar manutenção
+.\Deploy-Main.ps1 -DisableMaintenance
+
+# Validar sem executar
+.\Deploy-Main.ps1 -ValidateOnly
 ```
 
-## 📝 Operações Disponíveis
+### Exemplo de Output
 
-### Modo Interativo
+```
+================================================================
+                   SISTEMA DE DEPLOYMENT
+================================================================
 
-| Opção | Descrição |
-|-------|-----------|
-| 1 | Deployment Completo (Frontend + Backend + Nginx) |
-| 2 | Deployment Frontend (com build) |
-| 3 | Deployment Frontend SEM BUILD |
-| 4 | Deployment apenas do Backend |
-| 5 | Deployment Frontend + Backend (sem Nginx) |
-| 6 | Criar/Atualizar configuração Nginx |
-| 7 | Ver estado dos arquivos |
-| 8 | Informações do sistema |
-| 9 | Diagnóstico - Testar conectividade |
-| 10 | Diagnóstico - Ver estrutura do servidor |
-| 11 | Configurações avançadas |
+[14:30:15] [CONFIG] Configurações validadas com sucesso
+[14:30:15] [CONNECTION] Conectando ao servidor 172.16.2.35...
+[14:30:17] [CONNECTION] Conexão estabelecida: \\172.16.2.35\app
 
-### Modo Não-Interativo
+[14:30:18] [MAINTENANCE] Ativando modo de manutenção...
+[14:30:20] [MAINTENANCE] Flag de manutenção criada
+[14:30:22] [MAINTENANCE] Nginx reiniciado (5 processos)
 
-| Operação | Descrição |
-|----------|-----------|
-| `full` | Deployment completo |
-| `frontend` | Deployment do frontend (com build) |
-| `frontend-nobuild` | Deployment do frontend (sem build) |
-| `backend` | Deployment do backend |
-| `frontend-backend` | Frontend + Backend |
-| `nginx` | Apenas configuração Nginx |
-| `test-connection` | Teste de conectividade |
-| `build-only` | Apenas build do frontend |
-| `validate-build` | Validar build existente |
+[14:30:23] [BACKEND] Parando processos Python...
+[14:30:25] [BACKEND] 3 processos terminados
 
-## 🔧 Configurações Avançadas
+[14:30:26] [DEPLOY] Iniciando deployment de frontend...
+[14:30:45] [DEPLOY] Frontend copiado: 1523 arquivos
 
-### Sistema de Logging
+[14:30:46] [DEPLOY] Iniciando deployment de backend...
+[14:31:05] [DEPLOY] Backend copiado: 245 arquivos
+
+[14:31:06] [BACKEND] Iniciando backend...
+[14:31:12] [BACKEND] Backend iniciado - PID: 8432, Session: 2
+
+[14:31:13] [MAINTENANCE] Desativando modo de manutenção...
+[14:31:15] [MAINTENANCE] Nginx reiniciado (5 processos)
+
+================================================================
+                 DEPLOYMENT CONCLUÍDO COM SUCESSO
+================================================================
+```
+
+## Configuração Avançada
+
+### Timeouts e Tentativas
 
 ```powershell
-# Configurar nível de log
+$Global:DeployConfig.MaxTentativasConexao = 3
+$Global:DeployConfig.TimeoutConexao = 5
+$Global:DeployConfig.TimeoutOperacao = 30
+```
+
+### Gestão de Backups
+
+```powershell
+$Global:DeployConfig.CriarBackup = $true    # Criar backup antes do deploy
+$Global:DeployConfig.ManterBackups = 5      # Manter últimos 5 backups
+```
+
+### Logging
+
+```powershell
 $Global:DeployConfig.VerboseLogging = $true
-
-# Localização do arquivo de log
-$Global:DeployConfig.LogFile = "C:\logs\deployment.log"
+$Global:DeployConfig.LogFile = "C:\Users\rui.ramos\Desktop\APP\deployment.log"
 ```
 
-### Configurações de Backup
+Os logs incluem:
+- Timestamp de cada operação
+- Categoria da operação (CONFIG, CONNECTION, DEPLOY, BACKEND, etc.)
+- Detalhes de erros e exceções
+- PIDs e Session IDs de processos
 
+## Troubleshooting
+
+### Erro: "Falha ao conectar ao servidor"
+
+**Causa:** Servidor não acessível ou credenciais inválidas
+
+**Solução:**
 ```powershell
-# Habilitar/desabilitar backups
-$Global:DeployConfig.CriarBackup = $true
+# Testar conectividade básica
+Test-NetConnection -ComputerName 172.16.2.35 -Port 445
 
-# Número de backups a manter
-$Global:DeployConfig.ManterBackups = 5
+# Verificar compartilhamento
+Test-Path "\\172.16.2.35\app"
+
+# Testar credenciais
+$cred = Get-DeployCredential
 ```
 
-### Exclusões do Backend
+### Erro: "Backend não iniciou"
 
-O sistema automaticamente exclui:
+**Causa:** Script start.bat com problemas ou dependências em falta
 
-**Pastas:**
-- `venv`, `__pycache__`, `.git`, `node_modules`
-- `.pytest_cache`, `.coverage`, `htmlcov`
-- `instance`, `logs`
+**Solução:**
+1. Verificar D:\APP\NewAPP\backend\start.bat no servidor
+2. Verificar logs em D:\APP\NewAPP\deploy_log_*.txt
+3. Testar manualmente:
+   ```powershell
+   .\Deploy-Main.ps1
+   # Escolher opção 7 (Iniciar Backend)
+   ```
+4. Configurar `ShowBackendWindow = $true` para ver erros na janela
 
-**Arquivos:**
-- `*.pyc`, `*.pyo`, `*.pyd`
-- `.DS_Store`, `Thumbs.db`
-- `*.log`, `.env.local`, `.env.development`
-- `*.swp`, `*.tmp`
+### Erro: "Nginx não responde"
 
-## 🛠 Solução de Problemas
+**Causa:** Configuração nginx inválida ou porta 80 ocupada
 
-### Problemas de Conexão
-
+**Solução:**
 ```powershell
-# Testar conectividade
-.\Deploy-Main.ps1 -NonInteractive -Operation "test-connection"
+# Verificar processos nginx
+Get-Process -Name nginx -ErrorAction SilentlyContinue
 
-# Ver diagnóstico detalhado (modo interativo)
-# Opção 9 - Diagnóstico - Testar conectividade
+# Testar porta 80
+Test-NetConnection -ComputerName 172.16.2.35 -Port 80
+
+# Ver configuração
+Get-Content "\\172.16.2.35\app\NewAPP\nginx\conf\nginx.conf"
 ```
 
-### Problemas de Build
+### Site preso em modo de manutenção
 
+**Causa:** Flag de manutenção não foi removida
+
+**Solução:**
 ```powershell
-# Validar build existente
-.\Deploy-Main.ps1 -NonInteractive -Operation "validate-build"
+# Via deployment system
+.\Deploy-Main.ps1 -DisableMaintenance
 
-# Fazer apenas o build
-.\Deploy-Main.ps1 -NonInteractive -Operation "build-only"
+# Manual
+Remove-Item "\\172.16.2.35\app\NewAPP\nginx\maintenance.flag" -Force
 ```
 
-### Logs e Depuração
+### Mais informações
 
-```powershell
-# Executar com logging verbose
-.\Deploy-Main.ps1 -Verbose
+Ver documentação adicional:
+- [TROUBLESHOOTING-EXECUCAO-REMOTA.md](TROUBLESHOOTING-EXECUCAO-REMOTA.md) - Problemas de execução remota
+- [TROUBLESHOOTING-WINRM.md](TROUBLESHOOTING-WINRM.md) - Problemas de WinRM (apenas informativo, v2.0 não usa WinRM)
 
-# Ver logs pelo menu interativo
-# Opção 11 - Configurações avançadas -> Opção 5 - Ver logs
+## Estrutura de Arquivos
+
+```
+Deploy/
+├── Deploy-Main.ps1                      # Script principal e menu interativo
+├── DeployConfig.ps1                     # Configurações centralizadas
+├── DeployConnection.ps1                 # Gestão de conexões SMB
+├── DeployServerManager.ps1              # Gestão remota via Task Scheduler
+├── DeployFrontend.ps1                   # Lógica de deployment frontend
+├── DeployBackend.ps1                    # Lógica de deployment backend
+├── DeployNginx.ps1                      # Gestão de nginx
+├── DeployUI.ps1                         # Interface de usuário (menu)
+├── DeployLogging.ps1                    # Sistema de logging
+├── DeployValidation.ps1                 # Validações
+├── Test-RemoteExecution.ps1             # Teste de execução remota
+├── Test-RemoteCommands.ps1              # Teste de comandos específicos
+├── Setup-CredSSP.ps1                    # Configuração CredSSP (legacy)
+├── README.md                            # Esta documentação
+├── README-EXECUCAO-REMOTA.md            # Doc execução remota
+├── TROUBLESHOOTING-EXECUCAO-REMOTA.md   # Troubleshooting
+└── TROUBLESHOOTING-WINRM.md             # Troubleshooting WinRM (legacy)
 ```
 
-### Problemas Comuns
+## Segurança
 
-#### 1. Erro de Credenciais
-- Verificar arquivo de senha
-- Confirmar usuário e domínio
-- Testar acesso manual ao compartilhamento
+### Armazenamento de Credenciais
 
-#### 2. Build Não Encontrado
-- Verificar caminho do projeto frontend
-- Executar `npm install` no projeto
-- Verificar se `npm run build` funciona manualmente
+As credenciais são armazenadas usando `ConvertFrom-SecureString`, que:
+- Encripta a senha usando DPAPI (Data Protection API) do Windows
+- A senha só pode ser desencriptada pelo mesmo utilizador no mesmo computador
+- O arquivo PServ.txt não pode ser usado em outro computador ou por outro utilizador
 
-#### 3. Problemas de Nginx
-- Verificar sintaxe da configuração (Opção 11 -> 4)
-- Confirmar caminhos SSL
-- Verificar permissões no servidor
+### Task Scheduler vs WinRM
 
-## 🔍 Estrutura dos Módulos
+| Aspecto | Task Scheduler (v2.0) | WinRM (v1.0) |
+|---------|----------------------|--------------|
+| Configuração | Simples | Complexa (GPO) |
+| Porta necessária | 445 (SMB) | 5985/5986 |
+| Segurança | Alta | Alta |
+| Delegação | Não necessária | CredSSP requerido |
+| Logs | D:\APP\NewAPP\deploy_log_*.txt | Event Viewer |
 
-### DeployConfig.ps1
-- Configurações centralizadas
-- Validação de configurações
-- Funções de utilidade
+### Boas Práticas
 
-### DeployLogger.ps1
-- Sistema de logging com níveis
-- Output colorido no console
-- Logging em arquivo
+1. **Limitar permissões** - O utilizador deve ter apenas as permissões necessárias
+2. **Proteger PServ.txt** - Manter o arquivo de senha seguro
+3. **Usar HTTPS** - Configurar nginx com SSL/TLS em produção
+4. **Logs de auditoria** - Revisar deployment.log regularmente
+5. **Backups regulares** - Manter `CriarBackup = $true`
 
-### DeployConnection.ps1
-- Gestão de conexões PSLevel
-- Reconexão automática
-- Diagnósticos de conectividade
+## Comparação: v1.0 vs v2.0
 
-### DeployFrontend.ps1
-- Build do projeto React/Frontend
-- Validação de build
-- Deployment com backup
+| Característica | v1.0 (WinRM) | v2.0 (Task Scheduler) |
+|----------------|--------------|----------------------|
+| Configuração inicial | Complexa (WinRM, CredSSP, GPO) | Simples (apenas SMB) |
+| Requisitos | WinRM habilitado, GPO configurada | Task Scheduler (padrão Windows) |
+| Confiabilidade | Dependente de WinRM | Mais confiável (menos dependências) |
+| Debug | Difícil (Event Viewer) | Fácil (logs em arquivo) |
+| Janela do backend | Sempre Session 0 | Configurável (ShowBackendWindow) |
+| Gestão de manutenção | Scripts .bat externos | PowerShell puro integrado |
+| Verificação de processos | Básica | Detalhada (PID, Session ID) |
 
-### DeployBackend.ps1
-- Deployment inteligente de arquivos
-- Exclusões configuráveis
-- Validação de estrutura
+## Changelog
 
-### DeployNginx.ps1
-- Geração de configuração
-- Validação de sintaxe
-- Deployment seguro
+Ver [CHANGELOG.md](CHANGELOG.md) para histórico completo de versões.
 
-### DeployUI.ps1
-- Interface interativa
-- Menus coloridos
-- Diagnósticos visuais
+**v2.0** (2025-10-13)
+- Migração de WinRM para Task Scheduler
+- Reescrita de Enable/Disable-MaintenanceMode em PowerShell puro
+- Adição de ShowBackendWindow para controle de visibilidade
+- Logs melhorados com PID e Session ID
+- Remoção de dependências de scripts .bat externos
 
-## 📈 Integração CI/CD
+**v1.0** (2025-10-09)
+- Versão inicial com WinRM e CredSSP
+- Uso de scripts .bat para manutenção
+- Sistema modular básico
 
-### GitHub Actions Example
+## Suporte
 
-```yaml
-name: Deploy Application
+Para problemas ou dúvidas:
 
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  deploy:
-    runs-on: windows-latest
-    
-    steps:
-    - uses: actions/checkout@v2
-    
-    - name: Deploy Application
-      run: |
-        .\Deploy-Main.ps1 -NonInteractive -Operation "full" -BuildFirst -Verbose
-      shell: powershell
-```
-
-### Azure DevOps Example
-
-```yaml
-trigger:
-- main
-
-pool:
-  vmImage: 'windows-latest'
-
-steps:
-- task: PowerShell@2
-  displayName: 'Deploy Application'
-  inputs:
-    targetType: 'filePath'
-    filePath: 'Deploy-Main.ps1'
-    arguments: '-NonInteractive -Operation "full" -BuildFirst -Verbose'
-```
-
-## 🤝 Contribuições
-
-Para contribuir com melhorias:
-
-1. Fork do repositório
-2. Criar branch para feature (`git checkout -b feature/nova-funcionalidade`)
-3. Commit das mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
-4. Push para branch (`git push origin feature/nova-funcionalidade`)
-5. Criar Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo LICENSE para detalhes.
-
-## 📞 Suporte
-
-Para suporte e dúvidas:
-- Criar issue no repositório
-- Consultar logs de deployment
-- Usar ferramentas de diagnóstico integradas
+1. Verificar logs em: `C:\Users\rui.ramos\Desktop\APP\deployment.log`
+2. Executar diagnóstico: `.\Deploy-Main.ps1` → Opção 11
+3. Consultar troubleshooting guides
+4. Verificar logs no servidor: `D:\APP\NewAPP\deploy_log_*.txt`
 
 ---
 
-**Desenvolvido com ❤️ para facilitar deployments confiáveis e eficientes**
+**Versão:** 2.0
+**Data:** 2025-10-13
+**Autor:** Sistema Modular
+**Manutenção:** Rui Ramos

@@ -76,6 +76,29 @@ class OperationResponse(BaseModel):
     error: Optional[str] = None
     total: Optional[int] = None
 
+
+class OperacaoCreate(BaseModel):
+    """Dados para criar operação (execução real) via vbf_operacao"""
+    data: date = Field(..., description="Data da operação")
+    descr: Optional[str] = Field(None, description="Descrição (facultativo)")
+    tt_operacaomodo: int = Field(..., gt=0, description="ID do modo de operação")
+    tb_instalacao: int = Field(..., gt=0, description="ID da instalação")
+    ts_operador1: int = Field(..., gt=0, description="ID do operador principal")
+    ts_operador2: Optional[int] = Field(None, description="ID do operador secundário (opcional)")
+    tt_operacaoaccao: int = Field(..., gt=0, description="ID da ação")
+
+    @validator('ts_operador2')
+    def validate_operator2_different(cls, v, values):
+        if v is not None and 'ts_operador1' in values and v == values['ts_operador1']:
+            raise ValueError('Operador secundário deve ser diferente do principal')
+        return v
+
+
+class OperacaoUpdate(BaseModel):
+    """Dados para atualizar operação - APENAS valuetext e valuememo permitidos"""
+    valuetext: Optional[str] = Field(None, description="Texto de resposta/resultado")
+    valuememo: Optional[str] = Field(None, description="Observações adicionais (facultativo)")
+
 @api_error_handler
 def get_operations_data(current_user):
     """
@@ -445,3 +468,126 @@ def get_operations_by_operator(operator_id: int, current_user: str):
     except Exception as e:
         current_app.logger.error(f"Erro ao buscar operações por operador: {str(e)}")
         return {'error': 'Erro ao buscar operações'}, 500
+
+
+# ===================================================================
+# FUNÇÕES PARA CRIAR/ATUALIZAR OPERAÇÕES (EXECUÇÕES REAIS)
+# ===================================================================
+
+@api_error_handler
+def create_operacao(data: dict, current_user: str):
+    """
+    Criar nova operação (execução real) via vbf_operacao
+
+    Campos obrigatórios:
+    - data: Data da operação
+    - tt_operacaomodo: Modo de operação
+    - tb_instalacao: Instalação
+    - ts_operador1: Operador principal
+    - tt_operacaoaccao: Ação
+
+    Campos opcionais:
+    - descr: Descrição
+    - ts_operador2: Operador secundário
+    """
+    try:
+        # Validar dados com Pydantic
+        operacao_data = OperacaoCreate.model_validate(data)
+
+        with db_session_manager(current_user) as session:
+            # INSERT via view vbf_operacao
+            # NOTA: A função fbf_operacao precisa de ser corrigida no PostgreSQL
+            #       para não duplicar a coluna tb_instalacao
+            query = text("""
+                INSERT INTO vbf_operacao
+                    (data, descr, tt_operacaomodo, tb_instalacao,
+                     ts_operador1, ts_operador2, tt_operacaoaccao)
+                VALUES
+                    (:data, :descr, :tt_operacaomodo, :tb_instalacao,
+                     :ts_operador1, :ts_operador2, :tt_operacaoaccao)
+            """)
+
+            session.execute(query, operacao_data.model_dump())
+            session.commit()
+
+            current_app.logger.info(f"Operação criada com sucesso")
+
+            return {
+                'success': True,
+                'message': 'Operação criada com sucesso'
+            }, 201
+
+    except ValueError as e:
+        current_app.logger.error(f"Erro de validação ao criar operação: {str(e)}")
+        return {'success': False, 'error': f'Dados inválidos: {str(e)}'}, 400
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Erro de BD ao criar operação: {str(e)}")
+        return {'success': False, 'error': 'Erro ao criar operação'}, 500
+    except Exception as e:
+        current_app.logger.error(f"Erro inesperado ao criar operação: {str(e)}")
+        return {'success': False, 'error': 'Erro interno do servidor'}, 500
+
+
+@api_error_handler
+def update_operacao(operacao_id: int, data: dict, current_user: str):
+    """
+    Atualizar operação (execução real) via vbf_operacao
+
+    APENAS permite atualizar:
+    - valuetext: Texto de resposta/resultado
+    - valuememo: Observações adicionais
+
+    Todos os outros campos são IMUTÁVEIS após criação
+    """
+    try:
+        # Validar dados com Pydantic - apenas valuetext e valuememo
+        update_data = OperacaoUpdate.model_validate(data)
+
+        # Filtrar campos None
+        clean_data = {k: v for k, v in update_data.model_dump().items() if v is not None}
+
+        if not clean_data:
+            return {
+                'success': True,
+                'message': 'Nenhum campo para atualizar'
+            }, 200
+
+        with db_session_manager(current_user) as session:
+            # Verificar se operação existe
+            check_query = text("SELECT pk FROM vbf_operacao WHERE pk = :pk")
+            exists = session.execute(check_query, {'pk': operacao_id}).fetchone()
+
+            if not exists:
+                return {
+                    'success': False,
+                    'error': 'Operação não encontrada'
+                }, 404
+
+            # Montar UPDATE apenas com campos permitidos
+            set_clause = ", ".join([f"{key} = :{key}" for key in clean_data.keys()])
+            update_query = text(f"""
+                UPDATE vbf_operacao
+                SET {set_clause}
+                WHERE pk = :pk
+            """)
+
+            session.execute(update_query, {**clean_data, 'pk': operacao_id})
+            session.commit()
+
+            current_app.logger.info(f"Operação {operacao_id} atualizada: {list(clean_data.keys())}")
+
+            return {
+                'success': True,
+                'message': 'Operação atualizada com sucesso',
+                'updated_fields': list(clean_data.keys())
+            }, 200
+
+    except ValueError as e:
+        current_app.logger.error(f"Erro de validação ao atualizar operação {operacao_id}: {str(e)}")
+        return {'success': False, 'error': f'Dados inválidos: {str(e)}'}, 400
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Erro de BD ao atualizar operação {operacao_id}: {str(e)}")
+        return {'success': False, 'error': 'Erro ao atualizar operação'}, 500
+    except Exception as e:
+        current_app.logger.error(f"Erro inesperado ao atualizar operação {operacao_id}: {str(e)}")
+        return {'success': False, 'error': 'Erro interno do servidor'}, 500

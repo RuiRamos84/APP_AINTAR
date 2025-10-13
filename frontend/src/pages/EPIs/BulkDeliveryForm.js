@@ -137,16 +137,20 @@ const BulkDeliveryForm = ({
         const employee = employees.find(emp => emp.pk === employeeId);
         if (!employee) return '';
 
+        // Mapa de nomes de equipamentos para os campos correspondentes no objeto do funcionário
         const sizeMap = {
-            'Botas': 'shoenumber',
-            'Bota': 'shoenumber',
-            'Sapatos': 'shoenumber',
-            'Galochas': 'shoenumber',
-            'Calçado de Segurança': 'shoenumber',
-            'T-Shirt': 'tshirt',
-            'Sweat': 'sweatshirt',
-            'Casaco Refletor': 'jacket',
-            'Calças': 'pants'
+            'BOTA': 'boot',
+            'SAPATO': 'shoe',
+            'GALOCHAS': 'galoshes',
+            'BOTA SOLDA': 'welderboot',
+            'T-SHIRT': 'tshirt',
+            'SWEAT': 'sweatshirt',
+            'CAS REFLET': 'reflectivejacket',
+            'CAS POLAR': 'polarjacket',
+            'FATO MACACO': 'monkeysuit',
+            'CALÇAS': 'pants',
+            'AVENTAL': 'apron',
+            'BATA': 'gown'
         };
 
         const itemTypeName = equipmentTypes.find(t => t.pk === itemType)?.value;
@@ -244,7 +248,7 @@ const BulkDeliveryForm = ({
                             <Grid size={{ xs: 12 }}>
                                 <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
                                     <Grid container spacing={2} alignItems="center">
-                                        <Grid size={{ xs: 12, md: 4 }}>
+                                        <Grid size={{ xs: 12, sm: 6, md: 3.5 }}>
                                             <FormControl fullWidth>
                                                 <InputLabel>
                                                     {isEpi ? 'Tipo de EPI' : 'Tipo de Fardamento'}
@@ -266,7 +270,7 @@ const BulkDeliveryForm = ({
                                                 </Select>
                                             </FormControl>
                                         </Grid>
-                                        <Grid size={{ xs: 12, md: 2 }}>
+                                        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                                             <TextField
                                                 label="Tamanho"
                                                 value={currentItem.pndim}
@@ -274,7 +278,7 @@ const BulkDeliveryForm = ({
                                                 fullWidth
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12, md: 2 }}>
+                                        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                                             <TextField
                                                 type="number"
                                                 label="Quantidade"
@@ -291,7 +295,7 @@ const BulkDeliveryForm = ({
                                                 }}
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12, md: 3 }}>
+                                        <Grid size={{ xs: 12, sm: 6, md: 3.5 }}>
                                             <TextField
                                                 label="Observações"
                                                 value={currentItem.pnmemo}
@@ -304,7 +308,7 @@ const BulkDeliveryForm = ({
                                                 fullWidth
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12, md: 1 }}>
+                                        <Grid size={{ xs: 12, sm: 12, md: 1 }} sx={{ textAlign: 'center' }}>
                                             <IconButton
                                                 color="primary"
                                                 onClick={handleAddItem}

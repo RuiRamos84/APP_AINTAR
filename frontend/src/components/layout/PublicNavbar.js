@@ -28,9 +28,9 @@ const PublicNavbar = () => {
                     }}
                 >
                     <img src={logo} alt="Logo" style={{ height: 32, marginRight: 16 }} />
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {/* <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         SISTEMA
-                    </Typography>
+                    </Typography> */}
                 </Box>
 
                 <Button
