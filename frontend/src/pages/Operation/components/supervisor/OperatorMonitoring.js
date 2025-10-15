@@ -11,6 +11,7 @@ import {
     Person, CheckCircle, Schedule, TrendingUp, FactCheck, Close
 } from '@mui/icons-material';
 import operationsApi from '../../services/operationsApi';
+import { useMetaData } from '../../../../contexts/MetaDataContext';
 
 const OperatorMonitoring = ({ operationsData }) => {
     // Usar dados do hook unificado com fallbacks seguros
@@ -19,18 +20,22 @@ const OperatorMonitoring = ({ operationsData }) => {
     const operatorStats = operationsData?.operatorStats || [];
     const recentActivity = operationsData?.recentActivity || [];
 
+    // Buscar metadados para opções de classificação de controlo
+    const { metaData } = useMetaData();
+    const opcontroloOptions = metaData?.opcontrolo || [];
+
     // Estados para modal de validação
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [validationData, setValidationData] = useState({
-        control_check: 1,
+        control_tt_operacaocontrolo: 1,
         control_memo: ''
     });
     const [validating, setValidating] = useState(false);
 
     const handleValidateClick = (task) => {
         setSelectedTask(task);
-        setValidationData({ control_check: 1, control_memo: '' });
+        setValidationData({ control_tt_operacaocontrolo: 1, control_memo: '' });
         setValidationDialogOpen(true);
     };
 
@@ -41,7 +46,7 @@ const OperatorMonitoring = ({ operationsData }) => {
         try {
             await operationsApi.updateOperationControl({
                 pk: selectedTask.id,
-                control_check: validationData.control_check,
+                control_tt_operacaocontrolo: validationData.control_tt_operacaocontrolo,
                 control_memo: validationData.control_memo
             });
 
@@ -288,14 +293,26 @@ const OperatorMonitoring = ({ operationsData }) => {
                             </Typography>
 
                             <FormControl fullWidth sx={{ mt: 3 }}>
-                                <InputLabel>Estado</InputLabel>
+                                <InputLabel>Classificação da Validação</InputLabel>
                                 <Select
-                                    value={validationData.control_check}
-                                    onChange={(e) => setValidationData({ ...validationData, control_check: e.target.value })}
-                                    label="Estado"
+                                    value={validationData.control_tt_operacaocontrolo}
+                                    onChange={(e) => setValidationData({ ...validationData, control_tt_operacaocontrolo: e.target.value })}
+                                    label="Classificação da Validação"
                                 >
-                                    <MenuItem value={1}>✅ Validado / Correto</MenuItem>
-                                    <MenuItem value={0}>❌ Requer Correção</MenuItem>
+                                    {opcontroloOptions.length > 0 ? (
+                                        opcontroloOptions.map((option) => (
+                                            <MenuItem key={option.pk} value={option.pk}>
+                                                {option.value}
+                                            </MenuItem>
+                                        ))
+                                    ) : (
+                                        // Fallback caso metadados não estejam carregados
+                                        <>
+                                            <MenuItem value={1}>✅ Conforme</MenuItem>
+                                            <MenuItem value={2}>⚠️ Com Observações</MenuItem>
+                                            <MenuItem value={3}>❌ Não Conforme</MenuItem>
+                                        </>
+                                    )}
                                 </Select>
                             </FormControl>
 

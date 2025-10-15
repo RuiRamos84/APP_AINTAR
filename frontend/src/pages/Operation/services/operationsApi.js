@@ -22,7 +22,26 @@ export const operationsApi = {
     getOperacaoSelf: () => apiClient.get('/operacao_self'),
     createOperacao: (data) => apiClient.post('/operacao', data),
     updateOperacao: (operacaoId, data) => apiClient.put(`/operacao/${operacaoId}`, data),
-    completeTask: (taskId, completionData) => apiClient.post(`/operacao_complete/${taskId}`, completionData),
+    completeTask: (taskId, completionData) => {
+        // Se há foto, enviar como FormData
+        if (completionData.photo) {
+            const formData = new FormData();
+            formData.append('valuetext', completionData.valuetext || '');
+            if (completionData.valuememo) {
+                formData.append('valuememo', completionData.valuememo);
+            }
+            formData.append('photo', completionData.photo);
+
+            return apiClient.post(`/operacao_complete/${taskId}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        }
+
+        // Sem foto, enviar como JSON normal
+        return apiClient.post(`/operacao_complete/${taskId}`, completionData);
+    },
     getAnalysisParameters: (operationId) => apiClient.get(`/operacao_analysis/${operationId}`),
     getReferenceOptions: (refObj) => apiClient.get(`/operacao_reference/${refObj}`),
 
@@ -37,6 +56,19 @@ export const operationsApi = {
     getMunicipalities: () => apiClient.get('/operation_control/municipalities'),
     getInstallationTypes: () => apiClient.get('/operation_control/installation_types'),
     getInstallations: (municipioId, tipoId) => apiClient.get(`/operation_control/installations?municipio_pk=${municipioId}&tipo_pk=${tipoId}`),
+
+    // Fotos de operações
+    getOperationPhotoUrl: (photoPath) => {
+        // Normalizar path: trocar \ por /
+        const normalizedPath = photoPath.replace(/\\/g, '/');
+        return `/operacao_photo/${normalizedPath}`;
+    },
+    downloadOperationPhoto: (photoPath) => {
+        const normalizedPath = photoPath.replace(/\\/g, '/');
+        return apiClient.get(`/operacao_photo/${normalizedPath}`, {
+            responseType: 'blob'
+        });
+    },
 
     // Operações legadas (mantidas para compatibilidade)
     getOperations: () => apiClient.get('/operations'),

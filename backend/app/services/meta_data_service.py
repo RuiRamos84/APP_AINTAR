@@ -48,6 +48,7 @@ def fetch_meta_data(current_user):
         'analise_forma': "SELECT * FROM vbl_analiseforma ORDER BY pk",
         'analise_param': "SELECT * FROM vbl_analiseparam ORDER BY pk",
         'analise_ponto': "SELECT * FROM vbl_analiseponto ORDER BY pk",
+        'opcontrolo': "SELECT * FROM tt_operacaocontrolo",
     }
 
     response_data = {}

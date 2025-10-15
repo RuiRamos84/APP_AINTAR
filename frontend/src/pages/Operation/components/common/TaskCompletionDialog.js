@@ -23,9 +23,10 @@ import {
   Slide,
   IconButton,
   AppBar,
-  Toolbar
+  Toolbar,
+  Paper
 } from '@mui/material';
-import { CheckCircle, Close, ArrowBack } from '@mui/icons-material';
+import { CheckCircle, Close, ArrowBack, PhotoCamera, AttachFile } from '@mui/icons-material';
 import { getAnalysisParameters, getReferenceOptions } from '../../services/operationsApi';
 import {
   OPERATION_TYPES,
@@ -69,9 +70,26 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [photo, setPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [comment, setComment] = useState('');
 
   // Determinar o tipo de input baseado na ação
-  const actionType = task?.operacao_tipo || task?.tt_operacaotipo || 1; // Default to type 1 if not specified
+  const actionType = task?.operacao_tipo || task?.tt_operacaoaccao_type || 1; // Default to type 1 if not specified
+
+  // Debug: Verificar se o tipo está correto
+  useEffect(() => {
+    if (task && open) {
+      console.log('📋 TaskCompletionDialog - Tarefa:', {
+        pk: task.pk,
+        acao: task.acao_operacao || task.tt_operacaoaccao,
+        tipo_campo1: task.operacao_tipo,
+        tipo_campo2: task.tt_operacaoaccao_type,
+        tipo_final: actionType,
+        task_completa: task
+      });
+    }
+  }, [task, open, actionType]);
 
   // Carregar parâmetros de análise para type 5
   useEffect(() => {
@@ -286,6 +304,14 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
           return;
       }
 
+      // Adicionar foto e comentário aos dados
+      if (photo) {
+        completionData.photo = photo;
+      }
+      if (comment.trim()) {
+        completionData.valuememo = comment.trim();
+      }
+
       await onComplete(task.pk, completionData);
       handleClose();
     } catch (err) {
@@ -296,6 +322,37 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
     }
   };
 
+  const handlePhotoChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Verificar tamanho (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('A foto não pode exceder 5MB');
+        return;
+      }
+
+      // Verificar tipo
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor, selecione apenas ficheiros de imagem');
+        return;
+      }
+
+      setPhoto(file);
+
+      // Criar preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhoto(null);
+    setPhotoPreview(null);
+  };
+
   const handleClose = () => {
     setValuetext('');
     setBooleanValue(false);
@@ -303,6 +360,9 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
     setAnalysisValues({});
     setReferenceOptions([]);
     setSelectedReference(null);
+    setPhoto(null);
+    setPhotoPreview(null);
+    setComment('');
     setError(null);
     onClose();
   };
@@ -560,15 +620,104 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
           </Box>
         )}
 
-        <Box sx={{ mt: isMobile ? 0 : 2 }}>
+        <Stack spacing={3} sx={{ mt: isMobile ? 0 : 2 }}>
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }} role="alert">
+            <Alert severity="error" role="alert">
               {error}
             </Alert>
           )}
 
           {renderInputField()}
-        </Box>
+
+          <Divider />
+
+          {/* Campo de Comentário */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom color="text.secondary">
+              💬 Comentário Adicional (Opcional)
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Adicione observações ou notas sobre esta tarefa..."
+              size={isMobile ? 'medium' : 'small'}
+            />
+          </Box>
+
+          {/* Upload de Foto */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom color="text.secondary">
+              📷 Anexar Foto (Opcional)
+            </Typography>
+
+            {!photoPreview ? (
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<PhotoCamera />}
+                fullWidth={isMobile}
+                size={isMobile ? 'large' : 'medium'}
+              >
+                Selecionar Foto
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  capture="environment"
+                />
+              </Button>
+            ) : (
+              <Paper
+                sx={{
+                  p: 2,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 2
+                }}
+              >
+                <Box sx={{ position: 'relative' }}>
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
+                    style={{
+                      width: '100%',
+                      maxHeight: 300,
+                      objectFit: 'contain',
+                      borderRadius: 8
+                    }}
+                  />
+                  <IconButton
+                    onClick={handleRemovePhoto}
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      bgcolor: 'error.main',
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'error.dark'
+                      }
+                    }}
+                    size="small"
+                  >
+                    <Close />
+                  </IconButton>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  {photo?.name} ({(photo?.size / 1024).toFixed(0)} KB)
+                </Typography>
+              </Paper>
+            )}
+
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+              Formatos aceites: JPG, PNG. Tamanho máximo: 5MB
+            </Typography>
+          </Box>
+        </Stack>
       </DialogContent>
 
       <DialogActions sx={{

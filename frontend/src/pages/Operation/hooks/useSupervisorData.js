@@ -34,13 +34,17 @@ export const useSupervisorData = (options = {}) => {
 
     // Dados de execuções reais (tb_operacao) - quando operadores completam tarefas
     const {
-        operations: executedOperations,
+        operations: allExecutedOperations,
         isLoading: executionsLoading,
         error: executionsError,
         refresh: refreshExecutions
     } = useOperationsSWR(null, {
         isPaused: () => false // Sempre carregar execuções para supervisor
     });
+
+    // NÃO FILTRAR por data aqui - deixar todos os registos disponíveis
+    // Os filtros (dia/semana) serão aplicados depois
+    const executedOperations = allExecutedOperations;
 
     // Helper global: tt_operacaodia pode vir como PK (número) ou nome (string)
     const getDiaNome = useCallback((valor) => {
@@ -53,14 +57,51 @@ export const useSupervisorData = (options = {}) => {
     const completedExecutions = useMemo(() => {
         const allMetas = operationsData.metas || [];
 
+        console.log('🔍 === COMPLETED EXECUTIONS DEBUG ===');
+        console.log('🔍 executedOperations total:', executedOperations.length);
+        console.log('🔍 allMetas total:', allMetas.length);
+
+        if (executedOperations.length > 0) {
+            console.log('🔍 Primeira execution:', {
+                pk: executedOperations[0].pk,
+                tb_instalacao: executedOperations[0].tb_instalacao,
+                tt_operacaoaccao: executedOperations[0].tt_operacaoaccao,
+                ts_operador1: executedOperations[0].ts_operador1,
+                pk_operador1: executedOperations[0].pk_operador1
+            });
+        }
+
+        if (allMetas.length > 0) {
+            console.log('🔍 Primeira meta:', {
+                pk: allMetas[0].pk,
+                tb_instalacao: allMetas[0].tb_instalacao,
+                tt_operacaoaccao: allMetas[0].tt_operacaoaccao,
+                ts_operador1: allMetas[0].ts_operador1,
+                pk_operador1: allMetas[0].pk_operador1
+            });
+        }
+
         const completed = executedOperations.filter(exec => {
             // Verificar se está realmente concluída (tem valores preenchidos)
-            const isCompleted = !!(exec.valuetext && exec.valuetext.trim()) || exec.valuenumb !== null && exec.valuenumb !== undefined;
+            const hasValuetext = exec.valuetext && exec.valuetext.trim();
+            const hasValuenumb = exec.valuenumb !== null && exec.valuenumb !== undefined;
+            const hasValuememo = exec.valuememo && exec.valuememo.trim();
+            const isCompleted = hasValuetext || hasValuenumb || hasValuememo;
             return isCompleted;
         });
 
+        console.log('🔍 Execuções concluídas (antes filtros):', completed.length);
+        if (completed.length > 0) {
+            console.log('🔍 Primeira execução concluída:', {
+                pk: completed[0].pk,
+                valuetext: completed[0].valuetext,
+                valuenumb: completed[0].valuenumb,
+                valuememo: completed[0].valuememo
+            });
+        }
+
         // Enriquecer cada execução com tt_operacaodia da meta correspondente
-        const enrichedExecutions = completed.map(exec => {
+        const enrichedExecutions = completed.map((exec, index) => {
             // Obter dia da semana da execução
             const execDate = exec.data ? new Date(exec.data) : new Date();
             const dayOfWeek = execDate.getDay(); // 0=Domingo, 1=Segunda, 2=Terça, etc
@@ -91,31 +132,62 @@ export const useSupervisorData = (options = {}) => {
                 return diaCompleto.toLowerCase().includes(execDayName.toLowerCase());
             }) || matchingMetas[0]; // Fallback: primeira meta se não encontrar pelo dia
 
+            // Log das primeiras 3 execuções
+            if (index < 3) {
+                console.log(`🔍 Enriquecimento exec ${exec.pk}:`, {
+                    execDayName,
+                    matchingMetasCount: matchingMetas.length,
+                    matchingMeta: matchingMeta ? {
+                        pk: matchingMeta.pk,
+                        tt_operacaodia: matchingMeta.tt_operacaodia,
+                        diaCompleto: getDiaNome(matchingMeta.tt_operacaodia)
+                    } : null,
+                    finalTtOperacaodia: matchingMeta?.tt_operacaodia || ''
+                });
+            }
+
             return {
                 ...exec,
                 tt_operacaodia: matchingMeta?.tt_operacaodia || ''
             };
         });
 
-        // Aplicar filtros de semana/dia
+        // FILTROS NAS EXECUÇÕES (hierárquicos):
+        // 1. "all" + "all" → TODAS as execuções
+        // 2. "W1" + "all" → todas as execuções da semana 1
+        // 3. "W1" + "Segunda" → segundas-feiras da semana 1
+        // 4. "all" + "Segunda" → todas as segundas-feiras (qualquer semana)
+
         let filtered = enrichedExecutions;
 
-        // Filtro por Semana (W1, W2, W3, W4)
+        // Primeiro, calcular a semana do mês para cada execução
+        filtered = filtered.map(exec => {
+            const execDate = exec.data ? new Date(exec.data) : new Date();
+            const dayOfMonth = execDate.getDate();
+            const weekOfMonth = Math.ceil(dayOfMonth / 7); // 1-5
+            return {
+                ...exec,
+                weekOfMonth: `W${weekOfMonth}`
+            };
+        });
+
+        // Filtro por Semana (W1, W2, W3, W4) - baseado na data real
         if (weekFilter !== 'all') {
-            filtered = filtered.filter(exec => {
-                const dia = getDiaNome(exec.tt_operacaodia);
-                return dia.toUpperCase().startsWith(weekFilter.toUpperCase());
-            });
+            filtered = filtered.filter(exec => exec.weekOfMonth === weekFilter);
         }
 
-        // Filtro por Dia da Semana (Segunda, Terça, etc)
+        // Filtro por Dia da Semana - baseado na data real
         if (dayFilter !== 'all') {
             filtered = filtered.filter(exec => {
-                const dia = getDiaNome(exec.tt_operacaodia);
-                return dia.toLowerCase().includes(dayFilter.toLowerCase());
+                const execDate = exec.data ? new Date(exec.data) : new Date();
+                const dayOfWeek = execDate.getDay();
+                const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                const execDayName = dayNames[dayOfWeek];
+                return execDayName.toLowerCase() === dayFilter.toLowerCase();
             });
         }
 
+        console.log('🔍 Execuções após filtros (semana + dia):', filtered.length);
         return filtered;
     }, [executedOperations, operationsData.metas, weekFilter, dayFilter, getDiaNome]);
 
@@ -186,13 +258,23 @@ export const useSupervisorData = (options = {}) => {
 
     // Analytics COM FILTROS (semana/dia) aplicados
     const analytics = useMemo(() => {
+        console.log('📊 === ANALYTICS DEBUG ===');
+        console.log('📊 executedOperations (todas):', executedOperations.length);
+        console.log('📊 completedExecutions (filtradas):', completedExecutions.length);
+        console.log('📊 filteredMetas (programadas):', filteredMetas.length);
+
         // USAR filteredMetas (já filtradas por semana/dia), não allMetas
         const totalOperations = filteredMetas.length; // Voltas programadas FILTRADAS
-        const completedTasks = completedExecutions.length; // Execuções REAIS (TODAS)
-        const pendingTasks = totalOperations - completedTasks;
+        const completedTasks = completedExecutions.length; // Execuções REAIS concluídas
+        const pendingTasks = Math.max(0, totalOperations - completedTasks); // Não pode ser negativo
         const completionRate = totalOperations > 0
             ? Math.round((completedTasks / totalOperations) * 100)
             : 0;
+
+        console.log('📊 totalOperations:', totalOperations);
+        console.log('📊 completedTasks:', completedTasks);
+        console.log('📊 pendingTasks:', pendingTasks);
+        console.log('📊 completionRate:', completionRate);
 
         // Operadores únicos ativos (que têm execuções)
         const activeOperatorsSet = new Set();

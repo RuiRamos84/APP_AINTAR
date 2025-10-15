@@ -15,7 +15,7 @@ import TaskCompletionDialog from '../common/TaskCompletionDialog';
 import MESSAGES from '../../constants/messages';
 import { useOperationsUnifiedV2 } from '../../hooks/useOperationsUnifiedV2';
 import { useUserRole } from '../../hooks/useUserRole';
-import { getInstallationLicenseColor } from '../../utils/formatters';
+import { getInstallationLicenseColor, formatCompletedTaskValue } from '../../utils/formatters';
 
 /**
  * VISTA DESKTOP PARA OPERADORES - SIMPLIFICADA
@@ -370,13 +370,15 @@ const OperatorDesktopView = ({ user, deviceInfo }) => {
                                                             <Divider />
 
                                                             <Stack spacing={1}>
-                                                                <Typography variant="body2" color="text.secondary">
-                                                                    <strong>Modo:</strong> {task.modo_operacao || '-'}
-                                                                </Typography>
-
                                                                 {task.dia_operacao && (
                                                                     <Typography variant="body2" color="text.secondary">
-                                                                        <strong>Dia:</strong> {task.dia_operacao}
+                                                                        <strong>Data:</strong> {new Date(task.dia_operacao).toLocaleDateString('pt-PT')}
+                                                                    </Typography>
+                                                                )}
+
+                                                                {task.descr && (
+                                                                    <Typography variant="body2" color="text.secondary">
+                                                                        <strong>Descrição:</strong> {task.descr}
                                                                     </Typography>
                                                                 )}
                                                             </Stack>
@@ -494,13 +496,74 @@ const OperatorDesktopView = ({ user, deviceInfo }) => {
                                                                 <Divider />
 
                                                                 <Stack spacing={1}>
-                                                                    <Typography variant="body2" color="text.secondary">
-                                                                        <strong>Modo:</strong> {task.modo_operacao || '-'}
-                                                                    </Typography>
-
                                                                     {task.dia_operacao && (
                                                                         <Typography variant="body2" color="text.secondary">
-                                                                            <strong>Dia:</strong> {task.dia_operacao}
+                                                                            <strong>Data:</strong> {new Date(task.dia_operacao).toLocaleDateString('pt-PT')}
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    {task.descr && (
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            <strong>Descrição:</strong> {task.descr}
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    <Divider sx={{ my: 1 }} />
+
+                                                                    <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                                                        📋 Detalhes da Tarefa:
+                                                                    </Typography>
+
+                                                                    {task.operador1_nome && (
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            <strong>Operador 1:</strong> {task.operador1_nome}
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    {task.operador2_nome && (
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            <strong>Operador 2:</strong> {task.operador2_nome}
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    {(() => {
+                                                                        const formattedValue = formatCompletedTaskValue(task);
+                                                                        return formattedValue && (
+                                                                            <Typography variant="body2" color="text.secondary">
+                                                                                <strong>{formattedValue.label}:</strong> {formattedValue.value}
+                                                                            </Typography>
+                                                                        );
+                                                                    })()}
+
+                                                                    {task.valuememo && (
+                                                                        <Typography variant="body2" color="text.secondary" sx={{
+                                                                            whiteSpace: 'pre-wrap',
+                                                                            bgcolor: 'action.hover',
+                                                                            p: 1,
+                                                                            borderRadius: 1
+                                                                        }}>
+                                                                            <strong>Observações:</strong><br />
+                                                                            {task.valuememo}
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    {task.caminho_foto && (
+                                                                        <Typography variant="body2" color="info.main" sx={{ fontWeight: 500 }}>
+                                                                            📷 Foto anexada
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    <Divider sx={{ my: 1 }} />
+
+                                                                    {task.updt_time && (
+                                                                        <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                                                                            <strong>✓ Concluída em:</strong> {new Date(task.updt_time).toLocaleString('pt-PT')}
+                                                                        </Typography>
+                                                                    )}
+
+                                                                    {task.updt_client && (
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            Registado por: {task.updt_client}
                                                                         </Typography>
                                                                     )}
                                                                 </Stack>

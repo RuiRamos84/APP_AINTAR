@@ -224,13 +224,39 @@ def get_operacao_self():
 @set_session
 @api_error_handler
 def complete_task(task_id):
-    """Marcar uma tarefa como concluída"""
+    """
+    Marcar uma tarefa como concluída
+
+    Suporta:
+    - Form data: valuetext, valuememo
+    - File: photo (imagem)
+    """
     current_user = get_jwt_identity()  # Session ID (para db_session_manager)
     user_id = get_jwt()["user_id"]     # PK do utilizador (para verificação de permissões)
 
     with db_session_manager(current_user):
         try:
-            completion_data = request.get_json() or {}
+            # Obter dados do form (não JSON quando há ficheiros)
+            completion_data = {}
+
+            # Dados de texto do form
+            if request.form.get('valuetext'):
+                completion_data['valuetext'] = request.form.get('valuetext')
+            if request.form.get('valuememo'):
+                completion_data['valuememo'] = request.form.get('valuememo')
+
+            # Foto (ficheiro)
+            if 'photo' in request.files:
+                photo_file = request.files['photo']
+                if photo_file and photo_file.filename:
+                    completion_data['photo'] = photo_file
+
+            # Se não há ficheiros, tentar obter dados como JSON
+            if not request.files and request.is_json:
+                completion_data = request.get_json() or {}
+
+            current_app.logger.info(f"Completando tarefa {task_id} com dados: {list(completion_data.keys())}")
+
             result = complete_task_operation(task_id, user_id, current_user, completion_data)
 
             if result['success']:
@@ -367,3 +393,36 @@ def update_operacao_route(operacao_id):
 
     result, status_code = update_operacao(operacao_id, data, current_user)
     return jsonify(result), status_code
+
+
+@bp.route('/operacao_photo/<path:photo_path>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission(310)  # operation.access
+@api_error_handler
+def download_operation_photo_route(photo_path):
+    """
+    Download/visualização de foto de operação
+
+    photo_path: TarefasOperação/<instalação>/<ano>/<mes>/<filename>
+    Exemplo: TarefasOperação/Albergaria (ETAR)/2025/10/operacao_138869_20251014_093634.jpg
+    """
+    from ..services.operations.attachments import download_operation_photo
+
+    try:
+        # Extrair componentes do path
+        parts = photo_path.split('/')
+
+        if len(parts) < 5 or parts[0] != 'TarefasOperação':
+            return jsonify({'error': 'Caminho inválido'}), 400
+
+        instalacao_nome = parts[1]
+        ano = parts[2]
+        mes = parts[3]
+        filename = '/'.join(parts[4:])  # Juntar resto (caso tenha / no nome)
+
+        return download_operation_photo(instalacao_nome, ano, mes, filename)
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao fazer download da foto: {str(e)}")
+        return jsonify({"error": "Erro ao fazer download da foto"}), 500

@@ -15,10 +15,19 @@ class OperationControlQuery(BaseModel):
 
 
 class OperationControlUpdate(BaseModel):
-    """Dados para atualizar controlo de operação"""
+    """Dados para atualizar controlo de operação
+
+    Nova lógica (v2):
+    - control_tt_operacaocontrolo: PK da classificação (1=Conforme, 2=Com Observações, 3=Não Conforme)
+    - control_tt_operacaocontrolo IS NULL = Aguarda Validação
+    - control_tt_operacaocontrolo NOT NULL = Validado
+
+    Campos obsoletos (manter por compatibilidade):
+    - control_check: INTEGER (0 ou 1) - DEPRECADO, usar control_tt_operacaocontrolo
+    """
     pk: int
-    control_check: int  # 0 ou 1
-    control_tt_operacaocontrolo: Optional[int] = None
+    control_check: Optional[int] = None  # DEPRECADO - manter por compatibilidade
+    control_tt_operacaocontrolo: Optional[int] = None  # NOVO - usar este campo
     control_memo: Optional[str] = None
     control_foto: Optional[str] = None
 
@@ -103,14 +112,24 @@ def update_operation_control(data: dict, current_user: str):
     try:
         # Extrair dados do formulário
         pk = int(data.get('pk'))
-        control_check = int(data.get('control_check', 0))
 
-        # Converter string vazia para None (NULL no banco)
+        # NOVA LÓGICA (v2): Priorizar control_tt_operacaocontrolo
         control_tt_operacaocontrolo = data.get('control_tt_operacaocontrolo')
         if control_tt_operacaocontrolo == '' or control_tt_operacaocontrolo == 'null':
             control_tt_operacaocontrolo = None
         elif control_tt_operacaocontrolo is not None:
             control_tt_operacaocontrolo = int(control_tt_operacaocontrolo)
+
+        # DEPRECADO: Manter control_check por compatibilidade com código antigo
+        # Se control_tt_operacaocontrolo não for fornecido, usar control_check
+        control_check = data.get('control_check')
+        if control_check is not None:
+            control_check = int(control_check)
+        elif control_tt_operacaocontrolo is not None:
+            # Mapear control_tt_operacaocontrolo para control_check (compatibilidade)
+            control_check = 1  # Se tem classificação, considera como validado
+        else:
+            control_check = 0  # Default
 
         control_memo = data.get('control_memo', '')
         control_foto = data.get('control_foto', '')
@@ -144,10 +163,11 @@ def update_operation_control(data: dict, current_user: str):
                 control_foto = ','.join(file_paths)
 
         with db_session_manager(current_user) as session:
+            # A função fbo_operacao$controlupdate aceita 4 parâmetros (sem control_check)
+            # Assinatura: (pnpk, pncontrol_tt_operacaocontrolo, pncontrol_memo, pncontrol_foto)
             query = text("""
                 SELECT fbo_operacao$controlupdate(
                     :pk,
-                    :control_check,
                     :control_tt_operacaocontrolo,
                     :control_memo,
                     :control_foto
@@ -156,7 +176,6 @@ def update_operation_control(data: dict, current_user: str):
 
             result = session.execute(query, {
                 'pk': pk,
-                'control_check': control_check,
                 'control_tt_operacaocontrolo': control_tt_operacaocontrolo,
                 'control_memo': control_memo,
                 'control_foto': control_foto

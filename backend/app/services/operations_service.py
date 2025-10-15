@@ -368,31 +368,88 @@ def get_analysis_parameters(operation_id: int, current_user: str):
 
 @api_error_handler
 def complete_task_operation(task_id: int, user_id: int, current_user: str, completion_data: dict):
-    """Marca tarefa como concluída - USA vbf_operacao$self"""
+    """
+    Marca tarefa como concluída - USA vbf_operacao$self
+
+    Suporta:
+    - valuetext: Resultado principal
+    - valuememo: Comentário adicional
+    - photo: Foto anexada (Flask FileStorage)
+    """
     try:
         from datetime import datetime
+        from .operations.attachments import save_operation_photo
 
         valuetext = completion_data.get('valuetext', '')
+        valuememo = completion_data.get('valuememo', '')
+        photo = completion_data.get('photo', None)
 
         with db_session_manager(current_user) as session:
-            # Verificar permissão
-            check_query = text("SELECT pk FROM vbl_operacao$self WHERE pk = :task_id")
-            if not session.execute(check_query, {'task_id': task_id}).fetchone():
+            # 1. Verificar permissão e obter dados da tarefa
+            check_query = text("""
+                SELECT pk, tb_instalacao
+                FROM vbl_operacao$self
+                WHERE pk = :task_id
+            """)
+            task = session.execute(check_query, {'task_id': task_id}).fetchone()
+
+            if not task:
                 return {'success': False, 'error': 'Tarefa não encontrada ou sem permissão'}
 
-            # Atualizar
-            update_query = text("UPDATE vbf_operacao$self SET valuetext = :valuetext WHERE pk = :task_id")
-            session.execute(update_query, {'valuetext': valuetext, 'task_id': task_id})
+            instalacao_nome = task.tb_instalacao
+            photo_path = None
+
+            # 2. Guardar foto se fornecida
+            if photo:
+                try:
+                    photo_path = save_operation_photo(
+                        photo_file=photo,
+                        operation_pk=task_id,
+                        instalacao_nome=instalacao_nome,
+                        current_user=current_user
+                    )
+                    current_app.logger.info(f"Foto guardada para operação {task_id}: {photo_path}")
+                except Exception as photo_error:
+                    current_app.logger.error(f"Erro ao guardar foto: {str(photo_error)}")
+                    # Continuar sem a foto - não deve bloquear a conclusão
+                    photo_path = None
+
+            # 3. Atualizar tarefa com resultado, comentário e caminho da foto
+            update_fields = ['valuetext = :valuetext']
+            params = {'valuetext': valuetext, 'task_id': task_id}
+
+            if valuememo:
+                update_fields.append('valuememo = :valuememo')
+                params['valuememo'] = valuememo
+
+            if photo_path:
+                update_fields.append('photo_path = :photo_path')
+                params['photo_path'] = photo_path
+
+            update_query = text(f"""
+                UPDATE vbf_operacao$self
+                SET {', '.join(update_fields)}
+                WHERE pk = :task_id
+            """)
+
+            session.execute(update_query, params)
             session.commit()
+
+            response_data = {
+                'task_id': task_id,
+                'completed_at': datetime.now().isoformat(),
+                'valuetext': valuetext
+            }
+
+            if valuememo:
+                response_data['valuememo'] = valuememo
+            if photo_path:
+                response_data['photo_path'] = photo_path
 
             return {
                 'success': True,
                 'message': 'Tarefa concluída com sucesso',
-                'data': {
-                    'task_id': task_id,
-                    'completed_at': datetime.now().isoformat(),
-                    'valuetext': valuetext
-                }
+                'data': response_data
             }
 
     except Exception as e:

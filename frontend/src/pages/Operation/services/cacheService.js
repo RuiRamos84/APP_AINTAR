@@ -87,24 +87,45 @@ export const useUserTasksSWR = (options = {}) => {
     () => operationsApi.getOperacaoSelf().then(res => {
       const rawTasks = res.data?.data || [];
 
-      // MAPEAMENTO CORRETO: View retorna nomes em tb_instalacao, tt_operacaoaccao, tt_operacaomodo
-      // Criar aliases para compatibilidade com componentes
+      // ============================================================
+      // MAPEAMENTO baseado na view vbl_operacao$self
+      // ============================================================
+      // A view retorna NOMES (não PKs) em:
+      // - tb_instalacao (nome + tipo ETAR/EE)
+      // - ts_operador1, ts_operador2 (nomes dos operadores)
+      // - tt_operacaoaccao (nome da ação)
+      // - updt_client (nome do cliente que atualizou)
+      // ============================================================
       const tasks = rawTasks.map(task => ({
         ...task,
-        // Aliases baseados nos campos REAIS da view
-        instalacao_nome: task.tb_instalacao,      // View retorna NOME aqui
-        acao_operacao: task.tt_operacaoaccao,     // View retorna NOME aqui
-        modo_operacao: task.tt_operacaomodo,      // View retorna NOME aqui
-        dia_operacao: task.data,
-        // Computed fields
-        completed: !!(task.valuetext?.trim()) || task.valuenumb != null,
+        // Aliases para compatibilidade com componentes
+        instalacao_nome: task.tb_instalacao,           // NOME da instalação (já com ETAR/EE)
+        acao_operacao: task.tt_operacaoaccao,          // NOME da ação
+        operador1_nome: task.ts_operador1,             // NOME do operador 1
+        operador2_nome: task.ts_operador2,             // NOME do operador 2 (pode ser null)
+        dia_operacao: task.data,                       // Data da operação
+        operacao_tipo: task.tt_operacaoaccao_type,     // Tipo (1-5) - ESSENCIAL!
+        requer_foto: task.photo,                       // Boolean: requer foto?
+        caminho_foto: task.photo_path,                 // Caminho da foto armazenada
+        // Computed fields - DEVE SER IGUAL AO useSupervisorData.js
+        completed: !!(task.valuetext?.trim()) || (task.valuenumb !== null && task.valuenumb !== undefined) || !!(task.valuememo?.trim()),
         description: `${task.tt_operacaoaccao || 'Operação'} - ${task.tb_instalacao || 'Instalação'}`
       }));
 
       if (tasks.length > 0) {
-        console.log('🌐 Primeira tarefa MAPEADA:', tasks[0]);
+        console.log('🌐 ========================================');
+        console.log('🌐 Primeira tarefa MAPEADA (view vbl_operacao$self):');
+        console.log('🌐 ========================================');
+        console.log('🌐 pk:', tasks[0].pk);
         console.log('🌐 instalacao_nome:', tasks[0].instalacao_nome);
         console.log('🌐 acao_operacao:', tasks[0].acao_operacao);
+        console.log('🌐 operacao_tipo:', tasks[0].operacao_tipo);
+        console.log('🌐 operador1_nome:', tasks[0].operador1_nome);
+        console.log('🌐 operador2_nome:', tasks[0].operador2_nome);
+        console.log('🌐 requer_foto:', tasks[0].requer_foto);
+        console.log('🌐 caminho_foto:', tasks[0].caminho_foto);
+        console.log('🌐 completed:', tasks[0].completed);
+        console.log('🌐 ========================================');
       }
 
       return tasks;

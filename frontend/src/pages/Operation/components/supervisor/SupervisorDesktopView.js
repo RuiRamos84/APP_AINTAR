@@ -33,6 +33,7 @@ import { useMetaData } from '../../../../contexts/MetaDataContext';
 
 // Utils
 import { normalizeText, textIncludes } from '../../utils/textUtils';
+import { formatCompletedTaskValue } from '../../utils/formatters';
 import operationsApi from '../../services/operationsApi';
 
 /**
@@ -982,7 +983,7 @@ const HistoricoValidacoes = ({ supervisorData }) => {
     });
     const [selectedExecution, setSelectedExecution] = useState(null);
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
-    const [validationData, setValidationData] = useState({ control_check: 1, control_memo: '' });
+    const [validationData, setValidationData] = useState({ control_tt_operacaocontrolo: 1, control_memo: '' });
     const [validating, setValidating] = useState(false);
 
     const buscarHistorico = async () => {
@@ -1016,17 +1017,27 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                         filtered = filtered.filter(e => new Date(e.data) <= new Date(filtros.dataFim));
                     }
 
-                    // Filtrar por status de validação
+                    // Filtrar por status: Não Concluída / Aguarda Validação / Validada
                     if (filtros.statusValidacao !== 'all') {
-                        if (filtros.statusValidacao === 'validado') {
-                            filtered = filtered.filter(e => e.control_check === 1);
-                        } else if (filtros.statusValidacao === 'rejeitado') {
-                            filtered = filtered.filter(e => e.control_check === 0);
-                        } else if (filtros.statusValidacao === 'pendente') {
-                            filtered = filtered.filter(e => e.control_check === null || e.control_check === undefined);
+                        if (filtros.statusValidacao === 'nao_concluida') {
+                            // Tarefa não concluída: updt_client OU updt_time é NULL
+                            filtered = filtered.filter(e => !e.updt_client && !e.updt_time);
+                        } else if (filtros.statusValidacao === 'aguarda_validacao') {
+                            // Tarefa concluída mas não validada: tem updt_client E control_tt_operacaocontrolo é NULL
+                            filtered = filtered.filter(e =>
+                                (e.updt_client || e.updt_time) &&
+                                (e.control_tt_operacaocontrolo === null || e.control_tt_operacaocontrolo === undefined)
+                            );
+                        } else if (filtros.statusValidacao === 'validado') {
+                            // Tarefa validada: control_tt_operacaocontrolo não é NULL
+                            filtered = filtered.filter(e => e.control_tt_operacaocontrolo !== null && e.control_tt_operacaocontrolo !== undefined);
                         }
                     }
 
+                    console.log('📋 Histórico - Execuções filtradas:', filtered.length);
+                    if (filtered.length > 0) {
+                        console.log('📋 Primeira execução:', filtered[0]);
+                    }
                     setExecucoes(filtered);
                 } else {
                     // Buscar de todas as instalações não é suportado (evita rate limiting)
@@ -1045,12 +1056,15 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                 let filtered = response.data?.data || [];
 
                 if (filtros.statusValidacao !== 'all') {
-                    if (filtros.statusValidacao === 'validado') {
-                        filtered = filtered.filter(e => e.control_check === 1);
-                    } else if (filtros.statusValidacao === 'rejeitado') {
-                        filtered = filtered.filter(e => e.control_check === 0);
-                    } else if (filtros.statusValidacao === 'pendente') {
-                        filtered = filtered.filter(e => e.control_check === null || e.control_check === undefined);
+                    if (filtros.statusValidacao === 'nao_concluida') {
+                        filtered = filtered.filter(e => !e.updt_client && !e.updt_time);
+                    } else if (filtros.statusValidacao === 'aguarda_validacao') {
+                        filtered = filtered.filter(e =>
+                            (e.updt_client || e.updt_time) &&
+                            (e.control_tt_operacaocontrolo === null || e.control_tt_operacaocontrolo === undefined)
+                        );
+                    } else if (filtros.statusValidacao === 'validado') {
+                        filtered = filtered.filter(e => e.control_tt_operacaocontrolo !== null && e.control_tt_operacaocontrolo !== undefined);
                     }
                 }
 
@@ -1060,12 +1074,15 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                 let filtered = supervisorData?.executedOperations || [];
 
                 if (filtros.statusValidacao !== 'all') {
-                    if (filtros.statusValidacao === 'validado') {
-                        filtered = filtered.filter(e => e.control_check === 1);
-                    } else if (filtros.statusValidacao === 'rejeitado') {
-                        filtered = filtered.filter(e => e.control_check === 0);
-                    } else if (filtros.statusValidacao === 'pendente') {
-                        filtered = filtered.filter(e => e.control_check === null || e.control_check === undefined);
+                    if (filtros.statusValidacao === 'nao_concluida') {
+                        filtered = filtered.filter(e => !e.updt_client && !e.updt_time);
+                    } else if (filtros.statusValidacao === 'aguarda_validacao') {
+                        filtered = filtered.filter(e =>
+                            (e.updt_client || e.updt_time) &&
+                            (e.control_tt_operacaocontrolo === null || e.control_tt_operacaocontrolo === undefined)
+                        );
+                    } else if (filtros.statusValidacao === 'validado') {
+                        filtered = filtered.filter(e => e.control_tt_operacaocontrolo !== null && e.control_tt_operacaocontrolo !== undefined);
                     }
                 }
 
@@ -1082,7 +1099,7 @@ const HistoricoValidacoes = ({ supervisorData }) => {
     const handleValidateClick = (execution) => {
         setSelectedExecution(execution);
         setValidationData({
-            control_check: execution.control_check ?? 1,
+            control_tt_operacaocontrolo: execution.control_tt_operacaocontrolo ?? 1,
             control_memo: execution.control_memo || ''
         });
         setValidationDialogOpen(true);
@@ -1096,12 +1113,14 @@ const HistoricoValidacoes = ({ supervisorData }) => {
             const operationsApi = (await import('../../services/operationsApi')).default;
             await operationsApi.updateOperationControl({
                 pk: selectedExecution.pk,
-                control_check: validationData.control_check,
+                control_tt_operacaocontrolo: validationData.control_tt_operacaocontrolo,
                 control_memo: validationData.control_memo
             });
 
             setValidationDialogOpen(false);
             buscarHistorico();
+            // Refresh dos dados do supervisor para atualizar a Gestão de Tarefas
+            supervisorData.refresh();
         } catch (error) {
             console.error('Erro ao validar:', error);
             alert('Erro ao validar execução');
@@ -1163,17 +1182,17 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                                 ))}
                             </AccessibleSelect>
                         </FormControl>
-                        <FormControl sx={{ minWidth: 180 }}>
-                            <InputLabel>Estado Validação</InputLabel>
+                        <FormControl sx={{ minWidth: 220 }}>
+                            <InputLabel>Estado</InputLabel>
                             <AccessibleSelect
                                 value={filtros.statusValidacao}
                                 onChange={(e) => setFiltros({ ...filtros, statusValidacao: e.target.value })}
-                                label="Estado Validação"
+                                label="Estado"
                             >
-                                <MenuItem value="all">Todos</MenuItem>
-                                <MenuItem value="validado">✅ Validado</MenuItem>
-                                <MenuItem value="rejeitado">❌ Rejeitado</MenuItem>
-                                <MenuItem value="pendente">⏳ Pendente</MenuItem>
+                                <MenuItem value="all">Todos os Estados</MenuItem>
+                                <MenuItem value="nao_concluida">🔴 Não Concluídas</MenuItem>
+                                <MenuItem value="aguarda_validacao">🟡 Aguarda Validação</MenuItem>
+                                <MenuItem value="validado">🟢 Validadas</MenuItem>
                             </AccessibleSelect>
                         </FormControl>
                         <Button
@@ -1200,9 +1219,10 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Data</TableCell>
-                                    <TableCell>Instalação</TableCell>
-                                    <TableCell>Ação</TableCell>
+                                    {/* <TableCell>Instalação</TableCell> */}
+                                    <TableCell>Tarefa</TableCell>
                                     <TableCell>Operador</TableCell>
+                                    <TableCell>Resultado</TableCell>
                                     <TableCell>Validação</TableCell>
                                     <TableCell align="center">Ações</TableCell>
                                 </TableRow>
@@ -1211,25 +1231,49 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                                 {execucoes.map((exec) => (
                                     <TableRow key={exec.pk}>
                                         <TableCell>
-                                            {new Date(exec.data).toLocaleDateString('pt-PT')}
+                                            {exec.updt_time
+                                                ? new Date(exec.updt_time).toLocaleString('pt-PT')
+                                                : new Date(exec.data).toLocaleDateString('pt-PT')
+                                            }
                                         </TableCell>
-                                        <TableCell>
+                                        {/* <TableCell>
                                             <Chip
-                                                label={exec.tb_instalacao_nome || exec.tb_instalacao}
+                                                label={exec.tb_instalacao || 'N/A'}
                                                 size="small"
                                                 variant="outlined"
                                             />
-                                        </TableCell>
-                                        <TableCell>{exec.tt_operacaoaccao_nome || exec.tt_operacaoaccao}</TableCell>
-                                        <TableCell>{exec.ts_operador1_nome || exec.ts_operador1}</TableCell>
+                                        </TableCell> */}
+                                        <TableCell>{exec.tt_operacaoaccao || '-'}</TableCell>
+                                        <TableCell>{exec.updt_client || exec.ts_operador1 || '-'}</TableCell>
                                         <TableCell>
-                                            {exec.control_check === 1 ? (
-                                                <Chip label="✅ Validado" color="success" size="small" />
-                                            ) : exec.control_check === 0 ? (
-                                                <Chip label="❌ Rejeitado" color="error" size="small" />
-                                            ) : (
-                                                <Chip label="⏳ Pendente" color="warning" size="small" />
-                                            )}
+                                            {(() => {
+                                                const formatted = formatCompletedTaskValue(exec);
+                                                return formatted ? (
+                                                    <Typography variant="body2">
+                                                        <strong>{formatted.label}:</strong> {formatted.value}
+                                                    </Typography>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">-</Typography>
+                                                );
+                                            })()}
+                                        </TableCell>
+                                        <TableCell>
+                                            {(() => {
+                                                // 3 Estados: Não Concluída / Aguarda Validação / Validada
+                                                const temExecucao = exec.updt_client || exec.updt_time;
+                                                const temValidacao = exec.control_tt_operacaocontrolo !== null && exec.control_tt_operacaocontrolo !== undefined;
+
+                                                if (!temExecucao) {
+                                                    // 🔴 Não Concluída
+                                                    return <Chip label="🔴 Não Concluída" color="error" size="small" variant="outlined" />;
+                                                } else if (temExecucao && !temValidacao) {
+                                                    // 🟡 Aguarda Validação
+                                                    return <Chip label="🟡 Aguarda Validação" color="warning" size="small" />;
+                                                } else {
+                                                    // 🟢 Validada
+                                                    return <Chip label="🟢 Validada" color="success" size="small" />;
+                                                }
+                                            })()}
                                         </TableCell>
                                         <TableCell align="center">
                                             <IconButton
@@ -1238,7 +1282,7 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                                                 onClick={() => handleValidateClick(exec)}
                                                 title="Validar/Ver Detalhes"
                                             >
-                                                {exec.control_check != null ? <Visibility /> : <Add />}
+                                                {exec.control_tt_operacaocontrolo != null ? <Visibility /> : <FactCheck />}
                                             </IconButton>
                                         </TableCell>
                                     </TableRow>
@@ -1265,21 +1309,54 @@ const HistoricoValidacoes = ({ supervisorData }) => {
                                 <strong>Data:</strong> {new Date(selectedExecution.data).toLocaleString('pt-PT')}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
-                                <strong>Instalação:</strong> {selectedExecution.tb_instalacao_nome || selectedExecution.tb_instalacao}
+                                <strong>Instalação:</strong> {selectedExecution.tb_instalacao}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
-                                <strong>Ação:</strong> {selectedExecution.tt_operacaoaccao_nome || selectedExecution.tt_operacaoaccao}
+                                <strong>Ação:</strong> {selectedExecution.tt_operacaoaccao}
                             </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                <strong>Operador:</strong> {selectedExecution.ts_operador1}
+                            </Typography>
+                            {(() => {
+                                const formatted = formatCompletedTaskValue(selectedExecution);
+                                return formatted && (
+                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                        <strong>{formatted.label}:</strong> {formatted.value}
+                                    </Typography>
+                                );
+                            })()}
+                            {selectedExecution.descr && (
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    <strong>Descrição:</strong> {selectedExecution.descr}
+                                </Typography>
+                            )}
+                            {selectedExecution.photo_path && (
+                                <Typography variant="body2" color="info.main" gutterBottom>
+                                    📷 Foto anexada: {selectedExecution.photo_path}
+                                </Typography>
+                            )}
 
                             <FormControl fullWidth sx={{ mt: 3 }}>
-                                <InputLabel>Estado</InputLabel>
+                                <InputLabel>Classificação da Validação (tt_operacaocontrolo)</InputLabel>
                                 <AccessibleSelect
-                                    value={validationData.control_check}
-                                    onChange={(e) => setValidationData({ ...validationData, control_check: e.target.value })}
-                                    label="Estado"
+                                    value={validationData.control_tt_operacaocontrolo}
+                                    onChange={(e) => setValidationData({ ...validationData, control_tt_operacaocontrolo: e.target.value })}
+                                    label="Classificação da Validação (tt_operacaocontrolo)"
                                 >
-                                    <MenuItem value={1}>✅ Validado / Correto</MenuItem>
-                                    <MenuItem value={0}>❌ Requer Correção</MenuItem>
+                                    {(metaData?.opcontrolo || []).length > 0 ? (
+                                        metaData.opcontrolo.map((option) => (
+                                            <MenuItem key={option.pk} value={option.pk}>
+                                                {option.value}
+                                            </MenuItem>
+                                        ))
+                                    ) : (
+                                        // Fallback caso metadados não estejam carregados
+                                        <>
+                                            <MenuItem value={1}>✅ Conforme</MenuItem>
+                                            <MenuItem value={2}>⚠️ Com Observações</MenuItem>
+                                            <MenuItem value={3}>❌ Não Conforme</MenuItem>
+                                        </>
+                                    )}
                                 </AccessibleSelect>
                             </FormControl>
 

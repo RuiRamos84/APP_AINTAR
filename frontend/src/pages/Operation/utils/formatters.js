@@ -233,3 +233,51 @@ export const enrichOperationTask = (task, metaData) => {
         analise_forma_nome: getAnaliseFormaName(task.tt_operacaoaccao_analiseforma, metaData),
     };
 };
+
+/**
+ * Formatar o valor de conclusão da tarefa baseado no tipo de operação
+ * @param {Object} task - Tarefa concluída
+ * @returns {Object} { label: string, value: string } - Label e valor formatado
+ */
+export const formatCompletedTaskValue = (task) => {
+    if (!task) return null;
+
+    const tipo = task.operacao_tipo || task.tt_operacaoaccao_type;
+    const valuetext = task.valuetext;
+    const valuenumb = task.valuenumb;
+
+    // Se não tem tipo definido, tentar mostrar o que existir
+    if (!tipo) {
+        if (valuetext) return { label: 'Resultado', value: valuetext };
+        if (valuenumb != null) return { label: 'Valor', value: valuenumb.toString() };
+        return null;
+    }
+
+    switch (parseInt(tipo)) {
+        case 1: // Numérico
+            const numValue = valuenumb != null ? valuenumb : valuetext;
+            return numValue != null ? { label: 'Valor Numérico', value: numValue.toString() } : null;
+
+        case 2: // Texto/Observações
+            return valuetext ? { label: 'Observações', value: valuetext } : null;
+
+        case 3: // Referência (dropdown)
+            return valuetext ? { label: 'Opção Selecionada', value: valuetext } : null;
+
+        case 4: // Boolean
+            const boolText = valuetext === '1' || valuetext === 'true' ? 'Sim' : 'Não';
+            return { label: 'Confirmação', value: boolText };
+
+        case 5: // Análise
+            // Para análise, mostrar resumo ou confirmação de recolha
+            if (valuetext === '1') {
+                return { label: 'Análise', value: 'Recolha realizada' };
+            } else if (valuetext) {
+                return { label: 'Análise', value: valuetext };
+            }
+            return null;
+
+        default:
+            return valuetext ? { label: 'Resultado', value: valuetext } : null;
+    }
+};
