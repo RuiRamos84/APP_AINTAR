@@ -19,6 +19,10 @@ from ..services.user_service import (
 )
 from ..utils.utils import set_session, token_required, db_session_manager
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 bp = Blueprint('user', __name__)
 

@@ -42,6 +42,10 @@ from app.utils.error_handler import api_error_handler
 bp = Blueprint('documents_routes', __name__)
 
 from app.utils.permissions_decorator import require_permission
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 @bp.route('/documents', methods=['GET'])
 @jwt_required()
@@ -282,21 +286,21 @@ def create_document_extern():
 @api_error_handler
 def extrair_comprovativo(pk):
     current_user = get_jwt_identity()
-    current_app.logger.info(f"Iniciando extração de comprovativo para o pedido {pk}")
+    logger.info(f"Iniciando extração de comprovativo para o pedido {pk}")
 
     dados_pedido = buscar_dados_pedido(pk, current_user)
 
     if dados_pedido is None:
-        current_app.logger.warning(f"Pedido {pk} não encontrado")
+        logger.warning(f"Pedido {pk} não encontrado")
         return jsonify({"erro": "Pedido não encontrado"}), 404
 
-    current_app.logger.info(f"Dados do pedido {pk} recuperados com sucesso")
+    logger.info(f"Dados do pedido {pk} recuperados com sucesso")
 
     # Preencher o PDF com os dados do pedido
-    current_app.logger.info(f"Iniciando preenchimento do PDF para o pedido {pk}")
+    logger.info(f"Iniciando preenchimento do PDF para o pedido {pk}")
     pdf_buffer = preencher_pdf(dados_pedido)
 
-    current_app.logger.info(f"PDF para o pedido {pk} gerado com sucesso")
+    logger.info(f"PDF para o pedido {pk} gerado com sucesso")
 
     # Retornar o PDF gerado para o utilizador
     return send_file(
@@ -488,7 +492,7 @@ def cleanup_session(response):
         delattr(g, 'current_user')
     if hasattr(g, 'current_session_id'):
         delattr(g, 'current_session_id')
-    # current_app.logger.debug("Sessão limpa após requisição documents")
+    # logger.debug("Sessão limpa após requisição documents")
     return response
 
 

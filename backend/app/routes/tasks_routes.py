@@ -14,6 +14,10 @@ from ..services.tasks_service import (
 )
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 
 bp = Blueprint('tasks_routes', __name__)

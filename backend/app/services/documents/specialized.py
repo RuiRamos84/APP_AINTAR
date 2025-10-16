@@ -6,6 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from functools import wraps
 from app import cache
 from .utils import sanitize_input
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def cache_result(timeout=300):
@@ -16,7 +21,7 @@ def cache_result(timeout=300):
             cache_key = f"{f.__name__}_{args}_{kwargs}"
             result = cache.get(cache_key)
             if result:
-                current_app.logger.debug(
+                logger.debug(
                     f"Resultado encontrado em cache para {f.__name__}")
                 return result
 
@@ -64,10 +69,10 @@ def create_etar_document_direct(etar_pk, current_user):
     except APIError as e:
         return {"error": str(e), "code": e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao criar pedido ETAR: {str(e)}")
+        logger.error(f"Erro de BD ao criar pedido ETAR: {str(e)}")
         return {"error": "Erro ao processar pedido ETAR", "code": "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao criar pedido ETAR: {str(e)}")
         return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
 
@@ -109,10 +114,10 @@ def create_ee_document_direct(ee_pk, current_user):
     except APIError as e:
         return {"error": str(e), "code": e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao criar pedido EE: {str(e)}")
+        logger.error(f"Erro de BD ao criar pedido EE: {str(e)}")
         return {"error": "Erro ao processar pedido EE", "code": "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao criar pedido EE: {str(e)}")
         return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
 
@@ -130,11 +135,11 @@ def get_document_ramais(current_user):
             return {'ramais': [], 'message': 'Nenhum ramal para pavimentar encontrado'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao obter ramais para pavimentar: {str(e)}")
         return {'error': "Erro ao consultar ramais para pavimentar", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao obter ramais para pavimentar: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
@@ -152,11 +157,11 @@ def get_document_ramais_executed(current_user):
             return {'ramais': [], 'message': 'Nenhum ramal executado encontrado'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao obter ramais executados: {str(e)}")
         return {'error': "Erro ao consultar ramais executados", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao obter ramais executados: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
@@ -174,11 +179,11 @@ def get_document_ramais_concluded(current_user):
             return {'ramais': [], 'message': 'Nenhum ramal concluído encontrado'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao obter ramais concluídos: {str(e)}")
         return {'error': "Erro ao consultar ramais concluídos", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao obter ramais concluídos: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
@@ -210,10 +215,10 @@ def update_document_pavenext(pk, current_user):
     except APIError as e:
         return {"error": str(e), "code": e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao atualizar ramal: {str(e)}")
+        logger.error(f"Erro de BD ao atualizar ramal: {str(e)}")
         return {"error": "Erro ao atualizar ramal", "code": "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao atualizar ramal: {str(e)}")
         return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
 
@@ -246,11 +251,11 @@ def update_document_pavpaid(pk, current_user):
     except APIError as e:
         return {"error": str(e), "code": e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao marcar ramal como pago: {str(e)}")
         return {"error": "Erro ao marcar ramal como pago", "code": "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao marcar ramal como pago: {str(e)}")
         return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
 
@@ -275,7 +280,7 @@ def get_entity_count_types(pk, current_user):
 
             if result:
                 count_types_list = [dict(row) for row in result]
-                # current_app.logger.debug(f"Contagens de tipos obtidas com sucesso: {count_types_list}")
+                # logger.debug(f"Contagens de tipos obtidas com sucesso: {count_types_list}")
                 return {'count_types': count_types_list}, 200
             else:
                 return {'mensagem': 'Nenhum tipo de pedido encontrado para esta entidade.'}, 200
@@ -283,10 +288,10 @@ def get_entity_count_types(pk, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao obter tipos de pedidos: {str(e)}")
         return {'error': "Erro ao consultar tipos de pedidos", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao obter tipos de pedidos: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500

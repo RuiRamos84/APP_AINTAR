@@ -7,11 +7,12 @@ from sqlalchemy.sql import text
 from datetime import datetime
 from typing import Dict, List, Optional
 import json
-import logging
 from app.utils.error_handler import api_error_handler
 from ..utils.utils import db_session_manager
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class LetterAuditService:

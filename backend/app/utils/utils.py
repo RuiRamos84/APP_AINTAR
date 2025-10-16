@@ -13,6 +13,11 @@ from contextlib import contextmanager
 from app import blacklist
 from flask_caching import Cache
 from datetime import datetime, timezone
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 cache = Cache(config={'CACHE_TYPE': 'simple'})
@@ -109,7 +114,7 @@ def fetch_meta_data(tipo, current_user):
                 result = [row._asdict() for row in result]
                 return {tipo: result}
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar metadados do tipo {tipo}: {str(e)}")
+        logger.error(f"Erro ao buscar metadados do tipo {tipo}: {str(e)}")
         raise
 
 
@@ -166,15 +171,15 @@ def fs_setsession(session_id):
             root = ET.fromstring(parsed_result)
             success_element = root.find('sucess')
             if success_element is not None and success_element.text == str(session_id):
-                # current_app.logger.info(f"Sessão configurada com sucesso para: {session_id}")
+                # logger.info(f"Sessão configurada com sucesso para: {session_id}")
                 return True
             else:
-                current_app.logger.warning(f"Falha ao configurar sessão. Esperado: {session_id}, Recebido: {parsed_result}")
+                logger.warning(f"Falha ao configurar sessão. Esperado: {session_id}, Recebido: {parsed_result}")
         else:
-            current_app.logger.warning(f"Nenhum resultado retornado para fs_setsession com session_id: {session_id}")
+            logger.warning(f"Nenhum resultado retornado para fs_setsession com session_id: {session_id}")
         return False
     except Exception as e:
-        current_app.logger.error(f"Erro ao definir a sessão: {str(e)}")
+        logger.error(f"Erro ao definir a sessão: {str(e)}")
         return False
 
 
@@ -193,7 +198,7 @@ def db_session_manager(session_id):
     session = db.session()
     try:
         if session_id:
-            # current_app.logger.debug(f"Configurando sessão no banco de dados para session_id: {session_id}")
+            # logger.debug(f"Configurando sessão no banco de dados para session_id: {session_id}")
             result = fs_setsession(session_id)
             if not result:
                 raise InvalidSessionError(f"Sessão inválida ou expirada para session_id: {session_id}")
@@ -201,11 +206,11 @@ def db_session_manager(session_id):
         session.commit()
     except SQLAlchemyError as e:
         session.rollback()
-        current_app.logger.error(f"Erro na transação do banco de dados: {str(e)}")
+        logger.error(f"Erro na transação do banco de dados: {str(e)}")
         raise
     finally:
         session.close()
-        # current_app.logger.debug(f"Sessão de banco de dados fechada para session_id: {session_id}")
+        # logger.debug(f"Sessão de banco de dados fechada para session_id: {session_id}")
 
 
 def token_required(f):
@@ -229,13 +234,13 @@ def token_required(f):
             return f(*args, **kwargs)
 
         except ExpiredSignatureError:
-            current_app.logger.warning("Token expirado")
+            logger.warning("Token expirado")
             return jsonify({'error': 'Token expirado'}), 419
         except InvalidTokenError:
-            current_app.logger.warning("Token inválido")
+            logger.warning("Token inválido")
             return jsonify({'error': 'Token inválido'}), 419
         except Exception as e:
-            current_app.logger.error(f"Erro ao verificar o token: {str(e)}")
+            logger.error(f"Erro ao verificar o token: {str(e)}")
             return jsonify({'error': 'Erro de autenticação'}), 419
 
     return decorated
@@ -272,7 +277,7 @@ def get_current_user():
 
 def cleanup_session(response):
     if hasattr(g, 'current_session'):
-        current_app.logger.debug(f"Limpando sessão: {g.current_session}")
+        logger.debug(f"Limpando sessão: {g.current_session}")
         delattr(g, 'current_session')
     return response
 

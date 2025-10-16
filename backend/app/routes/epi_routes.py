@@ -12,6 +12,10 @@ from ..services.epi_service import (
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
 from sqlalchemy import text
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 bp = Blueprint('epi_routes', __name__)
 

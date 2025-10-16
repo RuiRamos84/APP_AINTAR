@@ -4,6 +4,11 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import date
 from typing import Optional
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 class EtarUpdate(BaseModel):

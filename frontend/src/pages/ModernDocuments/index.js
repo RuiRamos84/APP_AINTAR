@@ -19,18 +19,15 @@ import {
 
 // Importar os contextos
 import { DocumentsProvider } from './context/DocumentsContext';
-import { MetaDataProvider } from '../../contexts/MetaDataContext';
 import DocumentManager from './DocumentManager';
 
 // Componente principal do módulo
+// NOTA: MetaDataProvider já está no App.js (global) - não duplicar aqui
 const ModernDocuments = () => {
-    // Componente envolvido pelos providers necessários
     return (
-        <MetaDataProvider>
-            <DocumentsProvider>
-                <DocumentManager />
-            </DocumentsProvider>
-        </MetaDataProvider>
+        <DocumentsProvider>
+            <DocumentManager />
+        </DocumentsProvider>
     );
 };
 

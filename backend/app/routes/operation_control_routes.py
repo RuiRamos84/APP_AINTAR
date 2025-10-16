@@ -4,6 +4,11 @@ from ..utils.permissions_decorator import require_permission
 from ..utils.utils import set_session, token_required
 from ..services import operation_control_service
 import os
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 bp = Blueprint('operation_control', __name__, url_prefix='/api/v1/operation_control')
 
@@ -123,9 +128,9 @@ def download_attachment(pk):
     URL: /operation_control/download/{pk}?filename={filename}
     """
     try:
-        current_app.logger.info(f"Download solicitado para pk={pk}")
+        logger.info(f"Download solicitado para pk={pk}")
         filename = request.args.get('filename')
-        current_app.logger.info(f"Filename: {filename}")
+        logger.info(f"Filename: {filename}")
 
         if not filename:
             return jsonify({'error': 'Parâmetro filename obrigatório'}), 400
@@ -134,21 +139,21 @@ def download_attachment(pk):
         operation_folder = os.path.join(base_path, f'Operação_{pk}')
         file_path = os.path.join(operation_folder, filename)
 
-        current_app.logger.info(f"Tentando acessar arquivo: {file_path}")
+        logger.info(f"Tentando acessar arquivo: {file_path}")
 
         # Verificar se o arquivo existe
         if not os.path.exists(file_path):
-            current_app.logger.error(f"Arquivo não encontrado: {file_path}")
+            logger.error(f"Arquivo não encontrado: {file_path}")
             return jsonify({'error': 'Arquivo não encontrado'}), 404
 
         # Verificar se o path está dentro da pasta permitida (segurança)
         if not os.path.abspath(file_path).startswith(os.path.abspath(operation_folder)):
-            current_app.logger.error(f"Tentativa de acesso não autorizado: {file_path}")
+            logger.error(f"Tentativa de acesso não autorizado: {file_path}")
             return jsonify({'error': 'Acesso negado'}), 403
 
-        current_app.logger.info(f"Servindo arquivo: {file_path}")
+        logger.info(f"Servindo arquivo: {file_path}")
         return send_file(file_path, as_attachment=True, download_name=filename)
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao baixar anexo: {str(e)}")
+        logger.error(f"Erro ao baixar anexo: {str(e)}")
         return jsonify({'error': 'Erro ao baixar arquivo'}), 500

@@ -5,6 +5,11 @@ from pdfrw import PdfReader, PdfWriter, PdfDict, PdfName
 from sqlalchemy.sql import text
 from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # Caminho para o template do formulário PDF
 FORMULARIO_PATH = os.path.join(os.path.dirname(
@@ -89,7 +94,7 @@ def _fill_pdf_template(dados_estruturados: dict) -> BytesIO:
     (Função anteriormente chamada 'preencher_pdf')
     """
     if not os.path.exists(FORMULARIO_PATH):
-        current_app.logger.error(f"Ficheiro de template PDF não encontrado: {FORMULARIO_PATH}")
+        logger.error(f"Ficheiro de template PDF não encontrado: {FORMULARIO_PATH}")
         raise FileNotFoundError(f"Ficheiro de template PDF não encontrado: {FORMULARIO_PATH}")
 
     template_pdf = PdfReader(FORMULARIO_PATH)
@@ -119,7 +124,7 @@ def _fill_pdf_template(dados_estruturados: dict) -> BytesIO:
     PdfWriter().write(buffer, template_pdf)
     buffer.seek(0)
     
-    current_app.logger.info("PDF preenchido com sucesso e retornado como buffer.")
+    logger.info("PDF preenchido com sucesso e retornado como buffer.")
     return buffer
 
 
@@ -135,5 +140,5 @@ def debug_pdf_fields(pdf_path: str):
                 if field:
                     field_name = field[1:-1]
                     field_type = annotation.get('/FT')
-                    current_app.logger.debug(
+                    logger.debug(
                         f"Campo encontrado no PDF - Página {i+1}, Campo {j+1}: Nome: {field_name}, Tipo: {field_type}")

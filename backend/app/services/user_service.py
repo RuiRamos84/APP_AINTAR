@@ -10,6 +10,11 @@ from ..services.auth_service import fs_login
 from pydantic import BaseModel, EmailStr, constr
 from typing import List, Optional
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError, APIError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def send_email(email, subject, message):
@@ -18,7 +23,7 @@ def send_email(email, subject, message):
         msg.body = message
         mail.send(msg)
     except Exception as e:
-        current_app.logger.error(f"Erro ao enviar o e-mail para {email}: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao enviar o e-mail para {email}: {str(e)}", exc_info=True)
         raise APIError("Falha no serviço de envio de e-mail.", 502, "ERR_EMAIL_SERVICE")
 
 
@@ -30,7 +35,7 @@ def send_activation_email(name, email, id, activation_code):
         msg.body = body
         mail.send(msg)
     except Exception as e:
-        current_app.logger.error(f"Erro ao enviar o e-mail de ativação para {email}: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao enviar o e-mail de ativação para {email}: {str(e)}", exc_info=True)
         raise APIError("Falha ao enviar o e-mail de ativação.", 502, "ERR_EMAIL_SERVICE")
 
 
@@ -42,9 +47,9 @@ def send_courtesy_email(name, email):
         msg.body = body
         mail.send(msg)
     except Exception as e:
-        current_app.logger.error(f"Erro ao enviar o e-mail de cortesia para {email}: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao enviar o e-mail de cortesia para {email}: {str(e)}", exc_info=True)
         # Neste caso, o processo principal já teve sucesso, então apenas registamos o erro sem parar a execução.
-        current_app.logger.warning(f"Falha ao enviar e-mail de cortesia para {email}, mas a ativação foi bem-sucedida.")
+        logger.warning(f"Falha ao enviar e-mail de cortesia para {email}, mas a ativação foi bem-sucedida.")
 
 
 def send_password_recovery_email(email, temp_token):
@@ -57,7 +62,7 @@ def send_password_recovery_email(email, temp_token):
         msg.body = body
         mail.send(msg)
     except Exception as e:
-        current_app.logger.error(f"Erro ao enviar o e-mail de recuperação para {email}: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao enviar o e-mail de recuperação para {email}: {str(e)}", exc_info=True)
         raise APIError("Falha ao enviar o e-mail de recuperação.", 502, "ERR_EMAIL_SERVICE")
 
 
@@ -165,7 +170,7 @@ def update_user_info(data: dict, current_user: str):
             WHERE pk = :user_id
         """)
         session.execute(update_query, {**user_data.model_dump(), "user_id": user_id})
-        current_app.logger.info(f"Informações do utilizador {user_id} atualizadas com sucesso.")
+        logger.info(f"Informações do utilizador {user_id} atualizadas com sucesso.")
         return {'message': 'Informações atualizadas com sucesso'}, 200
 
 

@@ -139,15 +139,17 @@ export const getAvailableUsersForStep = (stepId, document, metaData) => {
 
     const stepTransitions = validTransitions.filter(t => t.to_step_pk === stepId);
 
+    // CORRIGIDO: Aceitar pk=0 explicitamente - não usar filter(Boolean)
     const userIds = [...new Set(
         stepTransitions.flatMap(t => Array.isArray(t.client) ? t.client : [t.client])
-    )].filter(Boolean);
+    )].filter(id => id !== null && id !== undefined); // Aceitar 0 explicitamente
 
     // console.log('👥 Debug utilizadores:', { stepId, userIds, stepTransitions });
 
+    // CORRIGIDO: Não usar filter(Boolean) pois remove pk=0
     return userIds.map(userId =>
         metaData.who?.find(user => user.pk === userId)
-    ).filter(Boolean);
+    ).filter(user => user !== null && user !== undefined);
 };
 
 /**

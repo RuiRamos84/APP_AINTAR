@@ -9,6 +9,11 @@ from reportlab.pdfgen import canvas
 from pdfrw import PdfReader, PdfWriter, PdfDict, PdfName
 import os
 from .utils import debug_pdf_fields, sanitize_input
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # Caminho do formulário PDF com tratamento de exceção
 
@@ -23,7 +28,7 @@ def get_formulario_path():
                 f"Formulário não encontrado: {formulario_path}", 500, "ERR_TEMPLATE_MISSING")
         return formulario_path
     except Exception as e:
-        current_app.logger.error(f"Erro ao localizar formulário: {str(e)}")
+        logger.error(f"Erro ao localizar formulário: {str(e)}")
         raise APIError("Erro ao localizar template de PDF",
                        500, "ERR_TEMPLATE_ACCESS")
 
@@ -112,7 +117,7 @@ def gerar_comprovativo_pdf(dados_pedido):
         buffer.seek(0)
         return buffer
     except Exception as e:
-        current_app.logger.error(f"Erro ao gerar PDF: {str(e)}")
+        logger.error(f"Erro ao gerar PDF: {str(e)}")
         raise APIError(
             f"Erro ao gerar PDF: {str(e)}", 500, "ERR_PDF_GENERATION")
 
@@ -121,7 +126,7 @@ def preencher_pdf(dados_estruturados):
     """Preenche um formulário PDF com os dados do pedido"""
     try:
         formulario_path = get_formulario_path()
-        current_app.logger.debug("Iniciando preenchimento do PDF")
+        logger.debug("Iniciando preenchimento do PDF")
 
         # Ler template
         template_pdf = PdfReader(formulario_path)
@@ -133,7 +138,7 @@ def preencher_pdf(dados_estruturados):
 
         # Processar campos
         for i, page in enumerate(template_pdf.pages):
-            current_app.logger.debug(f"Processando página {i+1}")
+            logger.debug(f"Processando página {i+1}")
             if '/Annots' in page:
                 for annotation in page['/Annots']:
                     if annotation.get('/Subtype') == '/Widget':
@@ -169,13 +174,13 @@ def preencher_pdf(dados_estruturados):
                                                 annotation.update(
                                                     PdfDict(AS=PdfName('Off'), V=PdfName('Off')))
                                     else:
-                                        current_app.logger.debug(
+                                        logger.debug(
                                             f"Campo {pdf_field_name}: valor nulo")
                                 else:
-                                    current_app.logger.debug(
+                                    logger.debug(
                                         f"Campo {campo_mapping[pdf_field_name]} não encontrado nos dados")
                             else:
-                                current_app.logger.debug(
+                                logger.debug(
                                     f"Campo {pdf_field_name} não encontrado no mapeamento")
 
         # Escrever para buffer
@@ -183,13 +188,13 @@ def preencher_pdf(dados_estruturados):
         output_pdf.write(buffer)
         buffer.seek(0)
 
-        current_app.logger.info("PDF preenchido com sucesso")
+        logger.info("PDF preenchido com sucesso")
         return buffer
 
     except APIError:
         raise
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro ao preencher o PDF: {str(e)}", exc_info=True)
         raise APIError(
             f"Erro ao preencher o PDF: {str(e)}", 500, "ERR_PDF_FILLING")
@@ -201,7 +206,7 @@ def buscar_dados_pedido(pk, current_user):
         with db_session_manager(current_user) as session:
             pk = sanitize_input(pk, 'int')
 
-            current_app.logger.debug(
+            logger.debug(
                 f"Iniciando busca de dados para o pedido {pk}")
 
             # Buscar dados do pedido
@@ -219,7 +224,7 @@ def buscar_dados_pedido(pk, current_user):
                 query_entidade, {'nipc': result_pedido.nipc}).fetchone()
 
             if not result_entidade:
-                current_app.logger.warning(
+                logger.warning(
                     f"Entidade com NIPC {result_pedido.nipc} não encontrada")
                 raise APIError(
                     f"Entidade com NIPC {result_pedido.nipc} não encontrada", 404, "ERR_ENTITY_NOT_FOUND")
@@ -231,7 +236,7 @@ def buscar_dados_pedido(pk, current_user):
                     "SELECT * FROM vbf_entity WHERE pk = :pk")
                 result_requerente = session.execute(
                     query_requerente, {'pk': result_pedido.tb_representative}).fetchone()
-                current_app.logger.debug(
+                logger.debug(
                     f"Representante encontrado: {result_requerente.name if result_requerente else 'Não encontrado'}")
 
             # Converter resultado SQL para dicionário
@@ -249,16 +254,16 @@ def buscar_dados_pedido(pk, current_user):
             return dados_estruturados
 
     except ResourceNotFoundError as e:
-        current_app.logger.warning(f"Recurso não encontrado: {str(e)}")
+        logger.warning(f"Recurso não encontrado: {str(e)}")
         raise
     except APIError:
         raise
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao buscar dados do pedido {pk}: {str(e)}")
         raise APIError(
             f"Erro ao consultar dados do pedido: {str(e)}", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao buscar dados do pedido {pk}: {str(e)}")
         raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")

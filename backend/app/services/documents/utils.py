@@ -3,8 +3,12 @@ from sqlalchemy.sql import text
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
-import logging
 from app.utils.error_handler import APIError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def ensure_directories(regnumber):
@@ -23,7 +27,7 @@ def ensure_directories(regnumber):
 
         return request_path, anexos_path, oficios_path
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro ao criar diretórios para {regnumber}: {str(e)}")
         raise APIError(f"Erro ao criar diretórios: {str(e)}", 500)
 
@@ -44,11 +48,11 @@ def debug_pdf_fields(pdf_path):
                             field_name = annotation['/T'][1:-1]
                             field_type = annotation['/FT'] if '/FT' in annotation else 'Unknown'
                             fields.append((field_name, field_type))
-                            current_app.logger.debug(
+                            logger.debug(
                                 f"Campo encontrado no PDF - Página {i+1}, Campo {j+1}: Nome: {field_name}, Tipo: {field_type}")
         return fields
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro ao analisar campos do PDF {pdf_path}: {str(e)}")
         raise APIError(f"Erro ao analisar campos do PDF: {str(e)}", 500)
 
@@ -62,22 +66,22 @@ def emit_socket_notification(notification_data, room=None):
         if socketio:
             debug_msg = f"🔥 BACKEND DEBUG: Emitindo notificação para {room} - {notification_data}"
             print(debug_msg)
-            current_app.logger.info(debug_msg)
+            logger.info(debug_msg)
 
             socketio.emit('new_notification', notification_data, room=room)
 
             success_msg = f"🔥 BACKEND DEBUG: Notificação emitida com sucesso!"
             print(success_msg)
-            current_app.logger.info(success_msg)
-            current_app.logger.info(
+            logger.info(success_msg)
+            logger.info(
                 f"Notificação enviada para {room}: {notification_data['message']}")
             return True
         else:
-            current_app.logger.warning(
+            logger.warning(
                 "Socket.IO não está disponível para enviar notificação")
             return False
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro ao enviar notificação via socket: {str(e)}")
         return False
 
@@ -135,7 +139,7 @@ def format_xml_response(xml_response):
     except APIError:
         raise
     except Exception as e:
-        current_app.logger.error(f"Erro ao analisar resposta XML: {str(e)}")
+        logger.error(f"Erro ao analisar resposta XML: {str(e)}")
         raise APIError(
             f"Erro ao processar resposta do servidor: {str(e)}", 500)
 

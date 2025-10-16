@@ -14,7 +14,6 @@ import requests
 import hashlib
 import base64
 import os
-import logging
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 from flask import current_app
@@ -22,8 +21,10 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from app.utils.error_handler import api_error_handler
 from .letter_audit_service import LetterAuditService
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class DigitalSignatureService:

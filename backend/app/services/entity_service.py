@@ -10,6 +10,11 @@ from pydantic import BaseModel, EmailStr, constr, Field
 from app.utils.serializers import model_to_dict
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError, DuplicateResourceError
 from typing import Optional
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # ===================================================================
 # MODELOS DE DADOS COM PYDANTIC
@@ -82,7 +87,7 @@ def create_entity(data: dict, current_user: str):
                 (:nipc, :name, :address, :postal, :door, :floor, :nut1, :nut2, :nut3, :nut4, :phone, :email, :ident_type, :ident_value, :descr)
         """)
         session.execute(insert_query, entity_dict)
-        current_app.logger.info(f"Entidade criada com sucesso: {entity_dict['nipc']}")
+        logger.info(f"Entidade criada com sucesso: {entity_dict['nipc']}")
     return {'message': 'Entidade criada com sucesso'}, 201
 
 

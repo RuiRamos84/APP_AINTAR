@@ -10,6 +10,11 @@ from .. import db, cache
 import time
 from ..utils.utils import format_message, parse_xml_response, fs_setsession, add_token_to_blacklist, is_token_revoked, db_session_manager
 from ..utils.error_handler import APIError, InvalidCredentialsError, TokenExpiredError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 # Constante para o prefixo da chave de cache
@@ -26,7 +31,7 @@ def fsf_client_notificationget():
             row = result.fetchone()
             return row.notification if row else None
     except Exception as e:
-        current_app.logger.error(f"Erro ao obter notificação: {str(e)}")
+        logger.error(f"Erro ao obter notificação: {str(e)}")
         return {'erro': f"Erro ao obter notificação: {str(e)}"}, 500
 
 
@@ -40,7 +45,7 @@ def fsf_client_notificationadd(user_id):
             s = result.fetchone()[0]
             return format_message(s)
     except Exception as e:
-        current_app.logger.error(f"Erro ao adicionar notificação: {str(e)}")
+        logger.error(f"Erro ao adicionar notificação: {str(e)}")
         return f"Erro ao adicionar notificação: {str(e)}"
 
 
@@ -67,7 +72,7 @@ def fsf_client_darkmodeclean(user_id, current_user):
             s = result.fetchone()[0]
             return s
     except Exception as e:
-        current_app.logger.error(f"Erro ao atualizar o darkmode: {str(e)}")
+        logger.error(f"Erro ao atualizar o darkmode: {str(e)}")
         raise APIError(f"Erro ao atualizar o darkmode: {str(e)}", 500)
 
 
@@ -107,7 +112,7 @@ def login_user(username, password):
 
             if user_info_result is None:
                 # Se o login teve sucesso mas não encontramos o user, é um erro de servidor
-                current_app.logger.error(f"Informações do utilizador não encontradas para {username} após login bem-sucedido.")
+                logger.error(f"Informações do utilizador não encontradas para {username} após login bem-sucedido.")
                 raise APIError('Erro ao obter informações do utilizador após o login.', 500)
  
             # Obter as interfaces/permissões do utilizador. Esta é a única fonte de verdade.
@@ -138,10 +143,10 @@ def login_user(username, password):
         user_data['access_token'] = access_token
         user_data['refresh_token'] = refresh_token
 
-        current_app.logger.info(f"Login concluído com sucesso para {username} com session_id: {session_id}")
+        logger.info(f"Login concluído com sucesso para {username} com session_id: {session_id}")
         return user_data
     except Exception as e:
-        current_app.logger.error(f'Erro durante o processo de login para {username}: {str(e)}', exc_info=True)
+        logger.error(f'Erro durante o processo de login para {username}: {str(e)}', exc_info=True)
         raise # Re-lança a exceção para ser tratada pelo @api_error_handler
 
 
@@ -193,7 +198,7 @@ def fs_login(username, password):
             return session_id, profil
         raise InvalidCredentialsError('Resposta inválida do procedimento de login.')
     except Exception as e:
-        current_app.logger.error(f'Erro ao executar fs_login para {username}: {str(e)}', exc_info=True)
+        logger.error(f'Erro ao executar fs_login para {username}: {str(e)}', exc_info=True)
         # Se não for uma InvalidCredentialsError, lança um erro genérico
         if not isinstance(e, InvalidCredentialsError):
             raise APIError(f"Erro inesperado no login: {format_message(str(e))}", 500)
@@ -238,7 +243,7 @@ def refresh_access_token(refresh_token, client_time, server_time):
         last_activity_timestamp = decoded_token.get('last_activity')
 
         if token_created_at_timestamp is None or last_activity_timestamp is None:
-            current_app.logger.error(
+            logger.error(
                 f"Campos do token em falta: created_at={token_created_at_timestamp}, last_activity={last_activity_timestamp}")
             raise InvalidTokenError("Os dados do token estão incompletos")
 
@@ -282,7 +287,7 @@ def refresh_access_token(refresh_token, client_time, server_time):
         }
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao renovar token: {str(e)}")
+        logger.error(f"Erro ao renovar token: {str(e)}")
         raise # Re-lança a exceção para ser tratada pelo controller
 
 
@@ -290,7 +295,7 @@ def update_last_activity(current_user):
     if current_app.config['ENV'] != 'production':
         cache.set(f"{LAST_ACTIVITY_PREFIX}{current_user}", datetime.now(timezone.utc))
     active_users.add(current_user)
-    current_app.logger.info(f"Última atividade atualizada para o utilizador {current_user}")
+    logger.info(f"Última atividade atualizada para o utilizador {current_user}")
 
 
 def get_last_activity(current_user):
@@ -302,12 +307,12 @@ def get_last_activity(current_user):
 def check_inactivity(current_user):
     last_activity = get_last_activity(current_user)
     if not last_activity:
-        current_app.logger.warning(f"Nenhuma atividade registrada para o usuário {current_user}")
+        logger.warning(f"Nenhuma atividade registrada para o usuário {current_user}")
         return True
     now = datetime.now(timezone.utc)
     time_since_last_activity = now - last_activity
     is_inactive = time_since_last_activity > current_app.config['INACTIVITY_TIMEOUT']
-    current_app.logger.info(f"Verificação de inatividade para usuário {current_user}: Última atividade: {last_activity}, Tempo desde última atividade: {time_since_last_activity}, Inativo: {is_inactive}")
+    logger.info(f"Verificação de inatividade para usuário {current_user}: Última atividade: {last_activity}, Tempo desde última atividade: {time_since_last_activity}, Inativo: {is_inactive}")
     return is_inactive
 
 
@@ -332,7 +337,7 @@ def clear_inactive_users(current_user):
         if not last_activity or (now - last_activity) > INACTIVITY_TIMEOUT.total_seconds():
             cache.delete(f"{LAST_ACTIVITY_PREFIX}{current_user}")
             active_users.discard(current_user)
-            current_app.logger.info(f"Atividade do utilizador {current_user} removida do cache")
+            logger.info(f"Atividade do utilizador {current_user} removida do cache")
 
 
 def fs_logout(session):
@@ -355,7 +360,7 @@ def fs_logout(session):
             else:
                 return {"success": False, "message": "Erro desconhecido"}
     except Exception as e:
-        current_app.logger.error(f"Erro ao executar fs_logout: {str(e)}")
+        logger.error(f"Erro ao executar fs_logout: {str(e)}")
         return {"success": False, "message": f"Erro ao executar logout: {str(e)}"}
 
 
@@ -373,7 +378,7 @@ def logout_user(user_identity):
 
         return True
     except Exception as e:
-        current_app.logger.error(f"Erro ao fazer logout: {str(e)}")
+        logger.error(f"Erro ao fazer logout: {str(e)}")
         raise
 
 
@@ -407,7 +412,7 @@ def insert_new_movement(who, what, pk_result, tb_document):
                     'what': what, 'who': who}
             )
     except Exception as e:
-        current_app.logger.error(f"Erro ao inserir novo movimento: {str(e)}")
+        logger.error(f"Erro ao inserir novo movimento: {str(e)}")
         raise
 
 
@@ -418,5 +423,5 @@ def get_file_info_from_database(pk):
             file_info = session.execute(query, {'pk': pk}).fetchone()
             return file_info
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar informações do arquivo: {str(e)}")
+        logger.error(f"Erro ao buscar informações do arquivo: {str(e)}")
         return None

@@ -24,6 +24,9 @@ from ..utils.utils import token_required, db_session_manager, set_session
 from app.utils.error_handler import api_error_handler
 from app.utils.permissions_decorator import require_permission
 from sqlalchemy.exc import SQLAlchemyError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 bp = Blueprint('operations', __name__)
 
@@ -52,16 +55,16 @@ def get_operations():
             data = {k: v for k, v in data.items() if v.get('data')}
             return jsonify(data), 200
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de banco de dados ao buscar dados de operações: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro de banco de dados", "message": "Não foi possível recuperar dados de operações devido a um erro de banco de dados"}), 500
     except Exception as e:
         if "SESSÃO INVÁLIDA" in str(e):
-            current_app.logger.error(
+            logger.error(
                 f"Sessão inválida: {str(e)}", exc_info=True)
             return jsonify({"error": "Sessão inválida", "message": "Sua sessão expirou. Por favor, faça login novamente."}), 419
         else:
-            current_app.logger.error(
+            logger.error(
                 f"Erro ao buscar dados de operações: {str(e)}", exc_info=True)
             return jsonify({"error": "Erro interno do servidor", "message": "Ocorreu um erro inesperado ao buscar dados de operações"}), 500
 
@@ -108,10 +111,10 @@ def get_operacao_meta():
             data = get_operacao_meta_data(current_user)
             return jsonify(data), 200
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de banco de dados ao buscar metas de operação: {str(e)}", exc_info=True)
+        logger.error(f"Erro de banco de dados ao buscar metas de operação: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro de banco de dados", "message": "Não foi possível recuperar metas de operação"}), 500
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar metas de operação: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao buscar metas de operação: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro interno do servidor", "message": "Ocorreu um erro inesperado"}), 500
 
 
@@ -187,10 +190,10 @@ def get_operacao():
             data = get_operacao_data(current_user)
             return jsonify(data), 200
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de banco de dados ao buscar operações: {str(e)}", exc_info=True)
+        logger.error(f"Erro de banco de dados ao buscar operações: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro de banco de dados", "message": "Não foi possível recuperar operações"}), 500
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar operações: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao buscar operações: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro interno do servidor", "message": "Ocorreu um erro inesperado"}), 500
 
 
@@ -210,10 +213,10 @@ def get_operacao_self():
             data = get_operacao_self_data(user_id, current_user)
             return jsonify(data), 200
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de banco de dados ao buscar tarefas do utilizador {user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Erro de banco de dados ao buscar tarefas do utilizador {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro de banco de dados", "message": "Não foi possível recuperar tarefas do utilizador"}), 500
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar tarefas do utilizador {user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Erro ao buscar tarefas do utilizador {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": "Erro interno do servidor", "message": "Ocorreu um erro inesperado"}), 500
 
 
@@ -255,7 +258,7 @@ def complete_task(task_id):
             if not request.files and request.is_json:
                 completion_data = request.get_json() or {}
 
-            current_app.logger.info(f"Completando tarefa {task_id} com dados: {list(completion_data.keys())}")
+            logger.info(f"Completando tarefa {task_id} com dados: {list(completion_data.keys())}")
 
             result = complete_task_operation(task_id, user_id, current_user, completion_data)
 
@@ -265,10 +268,10 @@ def complete_task(task_id):
                 return jsonify({"error": result['error']}), 400
 
         except SQLAlchemyError as e:
-            current_app.logger.error(f"Erro de banco de dados ao completar tarefa {task_id}: {str(e)}", exc_info=True)
+            logger.error(f"Erro de banco de dados ao completar tarefa {task_id}: {str(e)}", exc_info=True)
             return jsonify({"error": "Erro de banco de dados", "message": "Não foi possível completar a tarefa"}), 500
         except Exception as e:
-            current_app.logger.error(f"Erro ao completar tarefa {task_id}: {str(e)}", exc_info=True)
+            logger.error(f"Erro ao completar tarefa {task_id}: {str(e)}", exc_info=True)
             return jsonify({"error": "Erro interno do servidor", "message": "Ocorreu um erro inesperado"}), 500
 
 
@@ -325,7 +328,7 @@ def get_operation_reference_options(ref_obj):
             rows = result.fetchall()
             data = [{"pk": row[0], "value": row[1]} for row in rows]
 
-            current_app.logger.info(f"Opções de referência encontradas para {ref_obj}: {len(data)} opções")
+            logger.info(f"Opções de referência encontradas para {ref_obj}: {len(data)} opções")
 
             return jsonify({
                 'success': True,
@@ -334,7 +337,7 @@ def get_operation_reference_options(ref_obj):
             }), 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao buscar opções de referência para {ref_obj}: {str(e)}")
+        logger.error(f"Erro ao buscar opções de referência para {ref_obj}: {str(e)}")
         return jsonify({"error": "Erro ao buscar opções de referência"}), 500
 
 
@@ -424,5 +427,5 @@ def download_operation_photo_route(photo_path):
         return download_operation_photo(instalacao_nome, ano, mes, filename)
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao fazer download da foto: {str(e)}")
+        logger.error(f"Erro ao fazer download da foto: {str(e)}")
         return jsonify({"error": "Erro ao fazer download da foto"}), 500

@@ -8,6 +8,11 @@ from datetime import datetime
 import os
 from functools import wraps
 from .utils import ensure_directories, emit_socket_notification, validate_document_data, sanitize_input
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def cache_result(timeout=300):
@@ -18,7 +23,7 @@ def cache_result(timeout=300):
             cache_key = f"{f.__name__}_{args}_{kwargs}"
             result = cache.get(cache_key)
             if result:
-                current_app.logger.debug(
+                logger.debug(
                     f"Resultado encontrado em cache para {f.__name__}")
                 return result
 
@@ -50,11 +55,11 @@ def list_documents(current_user):
                 return {'message': 'Nenhum documento encontrado'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de banco de dados ao listar documentos: {str(e)}")
         raise APIError("Erro ao consultar documentos", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao listar documentos: {str(e)}")
         raise APIError(f"Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -83,11 +88,11 @@ def documentById(documentId, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao buscar documento {documentId}: {str(e)}")
         raise APIError("Erro ao consultar documento", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao buscar documento {documentId}: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -114,11 +119,11 @@ def document_self(current_user):
                 return {'mensagem': 'Não existem Pedidos atribuídos a si'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao listar documentos próprios: {str(e)}")
         raise APIError("Erro ao consultar documentos", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao listar documentos próprios: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -145,11 +150,11 @@ def document_owner(current_user):
                 return {'mensagem': 'Não existem Documentos atribuídos a si'}, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao listar documentos criados: {str(e)}")
         raise APIError("Erro ao consultar documentos", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao listar documentos criados: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -239,10 +244,10 @@ def create_document(data, files, current_user):
                 session.commit()
             except IntegrityError as ie:
                 session.rollback()
-                current_app.logger.error(f"Erro ao inserir documento: {str(ie)}")
+                logger.error(f"Erro ao inserir documento: {str(ie)}")
                 if "unique constraint" in str(ie).lower():
                     raise DuplicateResourceError("Documento", "regnumber", "")
-                    current_app.logger.error(f"Erro de duplicação: {str(ie)}")
+                    logger.error(f"Erro de duplicação: {str(ie)}")
                 raise APIError(f"Erro ao inserir documento: {str(ie)}", 500, "ERR_DB_INTEGRITY")
 
             # Obter regnumber e who
@@ -269,7 +274,7 @@ def create_document(data, files, current_user):
                 try:
                     file.save(filepath)
                 except Exception as fe:
-                    current_app.logger.error(
+                    logger.error(
                         f"Erro ao salvar arquivo {filename}: {str(fe)}")
                     continue
 
@@ -285,7 +290,7 @@ def create_document(data, files, current_user):
                     })
                     session.commit()
                 except Exception as ae:
-                    current_app.logger.error(
+                    logger.error(
                         f"Erro ao registrar anexo {filename}: {str(ae)}")
                     continue
 
@@ -388,7 +393,7 @@ def create_document(data, files, current_user):
 
             debug_msg = f"🔥 BACKEND DEBUG: core.py - Preparando notificação {notification_data['notification_id']}"
             print(debug_msg)
-            current_app.logger.info(debug_msg)
+            logger.info(debug_msg)
             emit_socket_notification(notification_data, f"user_{who}")
 
             # Buscar e atualizar parâmetros
@@ -421,7 +426,7 @@ def create_document(data, files, current_user):
 
                 session.commit()
             except Exception as pe:
-                current_app.logger.error(
+                logger.error(
                     f"Erro ao processar parâmetros: {str(pe)}")
                 # Não falhar a operação se os parâmetros falharem
 
@@ -440,7 +445,7 @@ def create_document(data, files, current_user):
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except Exception as e:
-        current_app.logger.error(f"Erro ao criar documento: {str(e)}")
+        logger.error(f"Erro ao criar documento: {str(e)}")
         return {'error': f"Erro ao criar documento: {str(e)}"}, 500
 
 
@@ -472,11 +477,11 @@ def update_document_notification(pk, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao atualizar notificação: {str(e)}")
         raise APIError("Erro ao atualizar notificação", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao atualizar notificação: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -577,7 +582,7 @@ def create_document_direct(ntype, associate, nif, name, phone, email, text_value
                     sender_email="geral@aintar.pt"
                 )
             except Exception as em:
-                current_app.logger.error(f"Erro ao enviar email: {str(em)}")
+                logger.error(f"Erro ao enviar email: {str(em)}")
                 # Não falhar a operação se o email falhar
 
             return {'resultado': formatted_result, 'regnumber': regnumber}, 200
@@ -585,7 +590,7 @@ def create_document_direct(ntype, associate, nif, name, phone, email, text_value
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except Exception as e:
-        current_app.logger.error(f"Erro ao criar documento: {str(e)}")
+        logger.error(f"Erro ao criar documento: {str(e)}")
         return {'error': f"Erro ao criar documento: {str(e)}"}, 500
     finally:
         # Garantir logout mesmo com erros
@@ -615,11 +620,11 @@ def check_vacation_status(user_pk, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao verificar férias: {str(e)}")
+        logger.error(f"Erro de BD ao verificar férias: {str(e)}")
         raise APIError("Erro ao verificar status de férias",
                        500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao verificar férias: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -652,10 +657,10 @@ def get_documents_late(current_user):
                 }, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de banco de dados ao listar documentos em atraso: {str(e)}")
         raise APIError("Erro ao consultar documentos em atraso", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao listar documentos em atraso: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")

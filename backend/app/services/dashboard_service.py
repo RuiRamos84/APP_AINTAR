@@ -4,6 +4,11 @@ from sqlalchemy.exc import ProgrammingError, OperationalError
 from flask import current_app
 from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 @api_error_handler
@@ -44,7 +49,7 @@ def get_dashboard_data(current_user):
                     'columns': columns
                 }
             except Exception as e:
-                current_app.logger.error(f"Erro ao processar a view {friendly_name}: {str(e)}", exc_info=True)
+                logger.error(f"Erro ao processar a view {friendly_name}: {str(e)}", exc_info=True)
                 dashboard_data[view_name] = {
                     'name': friendly_name,
                     'total': 0,

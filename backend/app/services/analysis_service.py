@@ -5,6 +5,11 @@ from ..utils.utils import db_session_manager
 from ..utils.error_handler import api_error_handler
 from pydantic import BaseModel
 from typing import Optional
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 class AnalysisQuery(BaseModel):
@@ -83,7 +88,7 @@ def query_analysis(filters: dict, current_user: str):
             columns = result.keys()
             data = [dict(zip(columns, row)) for row in result.fetchall()]
 
-            current_app.logger.info(f"Query de análises retornou {len(data)} registros")
+            logger.info(f"Query de análises retornou {len(data)} registros")
 
             return {
                 'success': True,
@@ -92,7 +97,7 @@ def query_analysis(filters: dict, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao consultar análises: {str(e)}")
+        logger.error(f"Erro ao consultar análises: {str(e)}")
         return {'error': 'Erro ao consultar análises'}, 500
 
 
@@ -126,7 +131,7 @@ def update_analysis(data: dict, current_user: str):
 
             session.commit()
 
-            current_app.logger.info(f"Análise {update_data.pk} atualizada com sucesso")
+            logger.info(f"Análise {update_data.pk} atualizada com sucesso")
 
             return {
                 'success': True,
@@ -135,7 +140,7 @@ def update_analysis(data: dict, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao atualizar análise: {str(e)}")
+        logger.error(f"Erro ao atualizar análise: {str(e)}")
         return {'error': 'Erro ao atualizar análise'}, 500
 
 
@@ -188,5 +193,5 @@ def get_analysis_by_pk(pk: int, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao obter análise {pk}: {str(e)}")
+        logger.error(f"Erro ao obter análise {pk}: {str(e)}")
         return {'error': 'Erro ao obter análise'}, 500

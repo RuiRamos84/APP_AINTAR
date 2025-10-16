@@ -10,6 +10,10 @@ from ..services.entity_service import (
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 
 bp = Blueprint('entity_routes', __name__)
@@ -51,14 +55,14 @@ def create_new_entity():
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         referrer = request.referrer
-        current_app.logger.info(f"Recebendo requisição para criar entidade de: {referrer}")
+        logger.info(f"Recebendo requisição para criar entidade de: {referrer}")
 
         data = request.get_json()
-        current_app.logger.debug(f"Dados recebidos para criação de entidade: {data}")
+        logger.debug(f"Dados recebidos para criação de entidade: {data}")
 
         response = create_entity(data, current_user)
 
-        current_app.logger.info(f"Resposta da criação de entidade: {response}")
+        logger.info(f"Resposta da criação de entidade: {response}")
         return response
 
 

@@ -5,6 +5,11 @@ from ..utils.utils import set_session, token_required, db_session_manager
 from sqlalchemy.exc import SQLAlchemyError
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 bp = Blueprint('meta_data_routes', __name__)
 
@@ -38,7 +43,7 @@ def cleanup_session(response):
         delattr(g, 'current_user')
     if hasattr(g, 'current_session_id'):
         delattr(g, 'current_session_id')
-    # current_app.logger.debug("Sessão limpa após requisição")
+    # logger.debug("Sessão limpa após requisição")
     return response
 
 

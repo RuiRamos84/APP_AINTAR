@@ -20,6 +20,10 @@ import os
 from pydantic import BaseModel, Field, field_validator
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Optional, Any
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 
 class BaseLetterTemplate(BaseDocTemplate):
@@ -448,7 +452,7 @@ class FileService:
             return output_path, output_filename
 
         except Exception as e:
-            current_app.logger.error(f"Erro ao gerar ofício: {str(e)}")
+            logger.error(f"Erro ao gerar ofício: {str(e)}")
             raise
 
     def save_attachment(self, file, regnumber: str, filename: str, current_user) -> bool:
@@ -471,7 +475,7 @@ class FileService:
             file.save(file_path)
             return True
         except Exception as e:
-            current_app.logger.error(f"Erro ao salvar anexo: {str(e)}")
+            logger.error(f"Erro ao salvar anexo: {str(e)}")
             raise
 
     def download_file(self, regnumber: Optional[str], filename: str, current_user) -> Any:
@@ -509,7 +513,7 @@ class FileService:
                 return send_file(file_path, as_attachment=True)
 
         # 3. Se não for encontrado em lado nenhum
-        current_app.logger.error(f"Arquivo não encontrado: reg: {regnumber}, file: {filename}")
+        logger.error(f"Arquivo não encontrado: reg: {regnumber}, file: {filename}")
         raise ResourceNotFoundError("Arquivo não encontrado.")
 
     def _get_output_path(self, regnumber: str, filename: str, is_free_letter: bool) -> str:

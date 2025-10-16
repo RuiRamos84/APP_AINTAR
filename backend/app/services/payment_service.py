@@ -1,6 +1,5 @@
 import requests
 from datetime import datetime, timedelta
-import logging
 from app.utils.utils import db_session_manager
 from sqlalchemy import text
 import json
@@ -9,8 +8,10 @@ import time
 from pydantic import BaseModel, Field, conint, constr, condecimal
 from typing import Optional
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError, APIError
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 

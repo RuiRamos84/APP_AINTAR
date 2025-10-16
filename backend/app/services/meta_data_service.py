@@ -5,6 +5,11 @@ from functools import lru_cache
 from datetime import datetime, timedelta
 from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 metadata_cache = {}
 CACHE_DURATION = timedelta(hours=1)
@@ -16,7 +21,7 @@ def fetch_meta_data(current_user):
     global metadata_cache
     current_time = datetime.now()
     if metadata_cache and metadata_cache['timestamp'] > current_time - CACHE_DURATION:
-        current_app.logger.info("Returning cached metadata")
+        logger.info("Returning cached metadata")
         return metadata_cache['data'], 200
 
     queries = {
@@ -72,4 +77,4 @@ def clear_meta_data_cache():
     global metadata_cache
     metadata_cache = {}
     # fetch_meta_data.cache_clear()
-    current_app.logger.info("Metadata cache cleared")
+    logger.info("Metadata cache cleared")

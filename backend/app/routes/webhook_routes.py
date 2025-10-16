@@ -2,12 +2,13 @@ from flask import Blueprint, request, jsonify
 import hmac
 import hashlib
 import os
-import logging
 from base64 import b64decode
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
 
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 webhook_bp = Blueprint('webhook', __name__)
 

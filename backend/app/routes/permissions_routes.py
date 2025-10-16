@@ -6,10 +6,11 @@ from app.utils.permissions_decorator import get_user_permissions_from_jwt
 from app.core.permissions import permission_manager
 from app.utils.utils import set_session, token_required
 from app.utils.error_handler import api_error_handler
-import logging
+from app.utils.logger import get_logger
+
 
 bp = Blueprint("permissions", __name__)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @bp.route("/permissions/check", methods=["POST"])

@@ -5,6 +5,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..utils.utils import db_session_manager
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 bp = Blueprint('dashboard_routes', __name__)

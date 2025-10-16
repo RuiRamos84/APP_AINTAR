@@ -8,6 +8,11 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict, Any
 from datetime import date
 from ..repositories.operations_repository import OperationsRepository, OperationMetaRepository
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # ===================================================================
 # MODELOS DE DADOS COM PYDANTIC
@@ -134,7 +139,7 @@ def get_operations_data(current_user):
                     'columns': list(result.keys()) if result.returns_rows else []
                 }
             except (ProgrammingError, OperationalError) as e:
-                current_app.logger.warning(f"A view {friendly_name} ({view_name}) não foi encontrada ou gerou um erro: {str(e)}")
+                logger.warning(f"A view {friendly_name} ({view_name}) não foi encontrada ou gerou um erro: {str(e)}")
                 # Não adiciona a view ao resultado se ela falhar
     return operations_data
 
@@ -181,11 +186,11 @@ def get_operacao_meta_data(current_user):
                 'columns': result.get('columns', [])
             }
         else:
-            current_app.logger.error(f"Erro ao buscar metas: {result.get('error')}")
+            logger.error(f"Erro ao buscar metas: {result.get('error')}")
             return {'name': 'Metas de Operação', 'total': 0, 'data': [], 'columns': []}
 
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao buscar metas: {str(e)}")
+        logger.error(f"Erro inesperado ao buscar metas: {str(e)}")
         return {'name': 'Metas de Operação', 'total': 0, 'data': [], 'columns': []}
 
 
@@ -202,7 +207,7 @@ def get_operacao_data(current_user, filters: Dict[str, Any] = None):
             'columns': result.get('columns', [])
         } if result['success'] else {'name': 'Operações', 'total': 0, 'data': [], 'columns': []}
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar operações: {str(e)}")
+        logger.error(f"Erro ao buscar operações: {str(e)}")
         return {'name': 'Operações', 'total': 0, 'data': [], 'columns': []}
 
 
@@ -223,7 +228,7 @@ def get_operacao_self_data(user_id: int, current_user: str):
             'columns': result.get('columns', [])
         } if result['success'] else {'name': 'Minhas Tarefas de Hoje', 'total': 0, 'data': [], 'columns': []}
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar tarefas: {str(e)}")
+        logger.error(f"Erro ao buscar tarefas: {str(e)}")
         return {'name': 'Minhas Tarefas de Hoje', 'total': 0, 'data': [], 'columns': []}
 
 
@@ -246,10 +251,10 @@ def create_operacao_meta(data: dict, current_user: str):
             return {'error': result['error']}, 400
 
     except ValueError as e:
-        current_app.logger.error(f"Erro de validação: {str(e)}")
+        logger.error(f"Erro de validação: {str(e)}")
         return {'error': f'Dados inválidos: {str(e)}'}, 400
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao criar meta: {str(e)}")
+        logger.error(f"Erro inesperado ao criar meta: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 
@@ -270,7 +275,7 @@ def get_operacao_meta_by_id(meta_id: int, current_user: str):
     except ResourceNotFoundError:
         raise
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao buscar meta por ID: {str(e)}")
+        logger.error(f"Erro inesperado ao buscar meta por ID: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 
@@ -301,12 +306,12 @@ def update_operacao_meta(meta_id: int, data: dict, current_user: str):
             return {'error': result['error']}, 400
 
     except ValueError as e:
-        current_app.logger.error(f"Erro de validação: {str(e)}")
+        logger.error(f"Erro de validação: {str(e)}")
         return {'error': f'Dados inválidos: {str(e)}'}, 400
     except ResourceNotFoundError:
         raise
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao atualizar meta: {str(e)}")
+        logger.error(f"Erro inesperado ao atualizar meta: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 
@@ -349,7 +354,7 @@ def get_analysis_parameters(operation_id: int, current_user: str):
             result = session.execute(query, {'operation_id': operation_id})
             data = [dict(row._mapping) for row in result.fetchall()]
 
-            current_app.logger.info(f"Parâmetros de análise encontrados para operação {operation_id}: {len(data)} parâmetros")
+            logger.info(f"Parâmetros de análise encontrados para operação {operation_id}: {len(data)} parâmetros")
 
             return {
                 'success': True,
@@ -358,7 +363,7 @@ def get_analysis_parameters(operation_id: int, current_user: str):
             }
 
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao buscar parâmetros de análise para operação {operation_id}: {str(e)}")
+        logger.error(f"Erro ao buscar parâmetros de análise para operação {operation_id}: {str(e)}")
         return {
             'success': False,
             'error': 'Erro ao buscar parâmetros de análise',
@@ -408,9 +413,9 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                         instalacao_nome=instalacao_nome,
                         current_user=current_user
                     )
-                    current_app.logger.info(f"Foto guardada para operação {task_id}: {photo_path}")
+                    logger.info(f"Foto guardada para operação {task_id}: {photo_path}")
                 except Exception as photo_error:
-                    current_app.logger.error(f"Erro ao guardar foto: {str(photo_error)}")
+                    logger.error(f"Erro ao guardar foto: {str(photo_error)}")
                     # Continuar sem a foto - não deve bloquear a conclusão
                     photo_path = None
 
@@ -453,7 +458,7 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
             }
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao completar tarefa {task_id}: {str(e)}")
+        logger.error(f"Erro ao completar tarefa {task_id}: {str(e)}")
         return {'success': False, 'error': 'Erro ao completar tarefa'}
 
 
@@ -476,7 +481,7 @@ def delete_operacao_meta(meta_id: int, current_user: str):
     except ResourceNotFoundError:
         raise
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao eliminar meta: {str(e)}")
+        logger.error(f"Erro inesperado ao eliminar meta: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 
@@ -499,7 +504,7 @@ def get_operations_analytics(current_user: str, filters: Dict[str, Any] = None):
             return {'error': result['error']}, 400
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao calcular analytics: {str(e)}")
+        logger.error(f"Erro ao calcular analytics: {str(e)}")
         return {'error': 'Erro ao calcular estatísticas'}, 500
 
 
@@ -523,7 +528,7 @@ def get_operations_by_operator(operator_id: int, current_user: str):
             return {'error': result['error']}, 400
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar operações por operador: {str(e)}")
+        logger.error(f"Erro ao buscar operações por operador: {str(e)}")
         return {'error': 'Erro ao buscar operações'}, 500
 
 
@@ -567,7 +572,7 @@ def create_operacao(data: dict, current_user: str):
             session.execute(query, operacao_data.model_dump())
             session.commit()
 
-            current_app.logger.info(f"Operação criada com sucesso")
+            logger.info(f"Operação criada com sucesso")
 
             return {
                 'success': True,
@@ -575,13 +580,13 @@ def create_operacao(data: dict, current_user: str):
             }, 201
 
     except ValueError as e:
-        current_app.logger.error(f"Erro de validação ao criar operação: {str(e)}")
+        logger.error(f"Erro de validação ao criar operação: {str(e)}")
         return {'success': False, 'error': f'Dados inválidos: {str(e)}'}, 400
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao criar operação: {str(e)}")
+        logger.error(f"Erro de BD ao criar operação: {str(e)}")
         return {'success': False, 'error': 'Erro ao criar operação'}, 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao criar operação: {str(e)}")
+        logger.error(f"Erro inesperado ao criar operação: {str(e)}")
         return {'success': False, 'error': 'Erro interno do servidor'}, 500
 
 
@@ -631,7 +636,7 @@ def update_operacao(operacao_id: int, data: dict, current_user: str):
             session.execute(update_query, {**clean_data, 'pk': operacao_id})
             session.commit()
 
-            current_app.logger.info(f"Operação {operacao_id} atualizada: {list(clean_data.keys())}")
+            logger.info(f"Operação {operacao_id} atualizada: {list(clean_data.keys())}")
 
             return {
                 'success': True,
@@ -640,11 +645,11 @@ def update_operacao(operacao_id: int, data: dict, current_user: str):
             }, 200
 
     except ValueError as e:
-        current_app.logger.error(f"Erro de validação ao atualizar operação {operacao_id}: {str(e)}")
+        logger.error(f"Erro de validação ao atualizar operação {operacao_id}: {str(e)}")
         return {'success': False, 'error': f'Dados inválidos: {str(e)}'}, 400
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao atualizar operação {operacao_id}: {str(e)}")
+        logger.error(f"Erro de BD ao atualizar operação {operacao_id}: {str(e)}")
         return {'success': False, 'error': 'Erro ao atualizar operação'}, 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado ao atualizar operação {operacao_id}: {str(e)}")
+        logger.error(f"Erro inesperado ao atualizar operação {operacao_id}: {str(e)}")
         return {'success': False, 'error': 'Erro interno do servidor'}, 500

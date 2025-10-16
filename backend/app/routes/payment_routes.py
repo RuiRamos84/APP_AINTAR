@@ -1,6 +1,5 @@
 # backend/app/routes/payment_routes.py - MIGRAÇÃO PARA NOVO SISTEMA
 
-import logging
 from app.services.payment_service import payment_service
 from app.utils.error_handler import api_error_handler
 from flask import Blueprint, jsonify, request
@@ -10,9 +9,11 @@ from ..utils.utils import set_session, token_required
 # ✅ NOVO SISTEMA DE PERMISSÕES
 from app.utils.permissions_decorator import require_permission, get_user_permissions_from_jwt
 from app.core.permissions import permission_manager
+from app.utils.logger import get_logger
+
 
 bp = Blueprint("payments", __name__)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ===== TRANSIÇÃO: MANTER COMPATIBILIDADE COM SISTEMA ANTIGO =====
 # Estas constantes serão removidas gradualmente

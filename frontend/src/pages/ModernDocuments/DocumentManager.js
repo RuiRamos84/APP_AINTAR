@@ -30,7 +30,7 @@ import ReplicateDocumentModal from './modals/ReplicateDocumentModal';
 
 // Contexts
 import { UIProvider, useUI } from './context/UIStateContext';
-import { DocumentsProvider, useDocumentsContext } from './context/DocumentsContext';
+import { useDocumentsContext } from './context/DocumentsContext'; // Provider está em index.js
 import { DocumentActionsProvider, useDocumentActions } from './context/DocumentActionsContext';
 import { AdvancedDocumentsProvider, useAdvancedDocuments } from './context/AdvancedDocumentsContext';
 // DocumentNotificationProvider agora está no App.js (global)
@@ -876,17 +876,16 @@ const DocumentManagerContent = () => {
 };
 
 // App component with providers
+// NOTA: DocumentsProvider está em ModernDocuments/index.js (não duplicar aqui)
 const DocumentManager = () => (
     // Configurar o worker do pdf.js globalmente para a versão correta
     <Worker workerUrl="/pdf.worker.min.js">
         <UIProvider>
-            <DocumentsProvider>
-                <AdvancedDocumentsProvider>
-                    <DocumentActionsProvider>
-                        <DocumentManagerContent />
-                    </DocumentActionsProvider>
-                </AdvancedDocumentsProvider>
-            </DocumentsProvider>
+            <AdvancedDocumentsProvider>
+                <DocumentActionsProvider>
+                    <DocumentManagerContent />
+                </DocumentActionsProvider>
+            </AdvancedDocumentsProvider>
         </UIProvider>
     </Worker>
 );

@@ -5,6 +5,11 @@ from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
 from pydantic import BaseModel
 from typing import Optional
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # ===================================================================
 # MODELOS DE DADOS COM PYDANTIC
@@ -42,7 +47,7 @@ def create_task(data: dict, current_user: str):
             if socketio_events:
                 socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='new_task')
         except Exception as e:
-            current_app.logger.warning(f"Falha ao enviar notificação de nova tarefa via Socket.IO: {str(e)}")
+            logger.warning(f"Falha ao enviar notificação de nova tarefa via Socket.IO: {str(e)}")
 
         return {'message': 'Tarefa criada com sucesso', 'task_id': task_id}, 201
 
@@ -59,7 +64,7 @@ def add_task_note(task_id: int, data: dict, current_user: str):
             if socketio_events:
                 socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='new_note')
         except Exception as e:
-            current_app.logger.warning(f"Falha ao enviar notificação de nova nota via Socket.IO: {str(e)}")
+            logger.warning(f"Falha ao enviar notificação de nova nota via Socket.IO: {str(e)}")
         
         return {'message': 'Nota adicionada com sucesso'}, 201
 
@@ -88,7 +93,7 @@ def update_task(task_id: int, data: dict, current_user: str):
             if socketio_events:
                 socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='task_update')
         except Exception as e:
-            current_app.logger.warning(f"Falha ao enviar notificação de atualização de tarefa via Socket.IO: {str(e)}")
+            logger.warning(f"Falha ao enviar notificação de atualização de tarefa via Socket.IO: {str(e)}")
 
         return {'message': 'Tarefa atualizada com sucesso'}, 200
 
@@ -104,7 +109,7 @@ def close_task(task_id: int, current_user: str):
             if socketio_events:
                 socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='task_closed')
         except Exception as e:
-            current_app.logger.warning(f"Falha ao enviar notificação de tarefa fechada via Socket.IO: {str(e)}")
+            logger.warning(f"Falha ao enviar notificação de tarefa fechada via Socket.IO: {str(e)}")
 
         return {'message': 'Tarefa fechada com sucesso'}, 200
 
@@ -120,7 +125,7 @@ def update_task_status(task_id: int, status_id: int, user_id: int, current_user:
             if socketio_events:
                 socketio_events.emit_task_notification(task_id, user_id, current_user, notification_type='status_update')
         except Exception as e:
-            current_app.logger.warning(f"Falha ao enviar notificação de status de tarefa via Socket.IO: {str(e)}")
+            logger.warning(f"Falha ao enviar notificação de status de tarefa via Socket.IO: {str(e)}")
         
         return {'message': 'Status da tarefa atualizado com sucesso'}, 200
 
@@ -161,7 +166,7 @@ def update_task_note_notification(task_id: int, current_user: str):
         is_client = int(user_id) == task.ts_client
 
         if is_owner and is_client:
-            current_app.logger.info(f"Utilizador {user_id} é owner E client da tarefa {task_id}")
+            logger.info(f"Utilizador {user_id} é owner E client da tarefa {task_id}")
             update_query = text("""
                 UPDATE tb_task 
                 SET notification_owner = 0, notification_client = 0
@@ -186,6 +191,6 @@ def update_task_note_notification(task_id: int, current_user: str):
             if socketio_events:
                 socketio_events.emit_task_notification_count(user_id, current_user)
         except Exception as e:
-            current_app.logger.warning(f"Falha ao enviar atualização de contagem de notificação via Socket.IO: {str(e)}")
+            logger.warning(f"Falha ao enviar atualização de contagem de notificação via Socket.IO: {str(e)}")
         
         return {'message': 'Notificações atualizadas com sucesso'}, 200

@@ -5,6 +5,11 @@ from datetime import datetime, date
 from pydantic import BaseModel, Field, field_validator
 from app.utils.error_handler import api_error_handler, DuplicateResourceError
 from typing import Optional, Union
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 class EpiDeliveryFilter(BaseModel):
     start_date: Optional[date] = None

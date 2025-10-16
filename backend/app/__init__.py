@@ -1,7 +1,6 @@
 # app/create_app.py
 
 from config import get_config
-import logging
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -21,9 +20,9 @@ from flask_jwt_extended.exceptions import NoAuthorizationError
 from .services.payment_service import payment_service
 from app.utils.error_handler import APIError
 
-# Configuração do logger
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# Sistema de logging centralizado
+from app.utils.logger import get_logger
+logger = get_logger(__name__)
 
 # Inicialização das extensões
 db = SQLAlchemy()
@@ -38,8 +37,6 @@ try:
     from flask_compress import Compress
     compress = Compress()
 except ImportError:
-    logger.warning(
-        "flask_compress not installed. Compression will not be available.")
     compress = None
 
 
@@ -129,7 +126,7 @@ def create_app(config_class):
     app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
     limiter.init_app(app)
 
-    logger.info(f"Rate limiting initialized with in-memory storage: {''}")
+    # Rate limiting configurado
 
     @app.errorhandler(APIError)
     def handle_api_error(error):
@@ -179,9 +176,7 @@ def create_app(config_class):
         # Armazenar a instância do Socket.IO no app.extensions para acesso global
         # A instância é criada dentro de register_socket_events
         if not hasattr(app, 'extensions') or 'socketio_events' not in app.extensions:
-            app.logger.warning("A instância de SocketIOEvents não foi registrada no app.extensions.")
-
-        app.logger.info("Socket.IO events registados com sucesso!")
+            app.logger.error("ERRO: SocketIOEvents não foi registrada - notificações não funcionarão!")
 
     # Configuração da limpeza de sessão após cada requisição
     from .utils.utils import cleanup_session
@@ -196,12 +191,7 @@ def create_app(config_class):
     def internal_error(error):
         return {"error": "Internal server error"}, 500
 
-    logger.info("Aplicação iniciada com sucesso.")
-    # with app.app_context():
-        # print(app.url_map)
-        # Log de todas as rotas registradas
-        # for rule in app.url_map.iter_rules():
-        #     logger.info(f"Registered route: {rule}")
+    # Aplicação iniciada
 
     # Sistema de permissões agora usa apenas IDs numéricos (não precisa de inicialização)
 

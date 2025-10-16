@@ -3,6 +3,11 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.permissions_decorator import require_permission
 from ..utils.utils import set_session, token_required
 from ..services import analysis_service
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 bp = Blueprint('analysis', __name__, url_prefix='/api/v1/analysis')
 

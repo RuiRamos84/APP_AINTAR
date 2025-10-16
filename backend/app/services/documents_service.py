@@ -15,6 +15,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
 from . import pdf_filler_service
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # ===================================================================
@@ -123,7 +126,7 @@ def create_document(data: dict, files, current_user: str):
             representative_query = text("SELECT pk FROM vbf_entity WHERE nipc = :nipc")
             representative_result = session.execute(representative_query, {'nipc': doc_data.tb_representative}).scalar()
             if not representative_result:
-            raise ResourceNotFoundError('Representante', doc_data.tb_representative)
+                raise ResourceNotFoundError('Representante', doc_data.tb_representative)
             tb_representative = representative_result
 
         # Dicionário para armazenar todos os campos do documento
@@ -295,11 +298,9 @@ def create_document(data: dict, files, current_user: str):
                     }
                 }
 
-            print(f"🔥 BACKEND DEBUG: documents_service - Emitindo para user_{who} - {notification_data['notification_id']}")
             socketio.emit('new_notification', notification_data, room=f"user_{who}")
-            current_app.logger.info(f"Notificação enviada para o usuário {who}")
         except Exception as e:
-            current_app.logger.error(f"Erro ao enviar notificação via socket: {str(e)}")
+            logger.error(f"Erro ao enviar notificação via socket: {str(e)}")
         
         # Atualizar parâmetros adicionais
         param_query = text("SELECT tb_param FROM vbf_document_param WHERE tb_document = :pk")
@@ -485,15 +486,12 @@ def add_document_step(data: dict, pk: int, current_user: str):
             # Emitir através dos handlers específicos
             socket_events = current_app.extensions.get('socketio_events')
             if socket_events:
-                current_app.logger.info(f"Tentando emitir notificação para utilizador: {step_data.who}")
-                current_app.logger.info(f"Dados da notificação: {notification_data}")
                 socket_events.emit_document_transfer(notification_data, step_data.who)
-                current_app.logger.info(f"Notificação emitida com sucesso para utilizador {step_data.who}")
             else:
-                current_app.logger.warning("SocketIO events handler não encontrado")
+                logger.error("CRÍTICO: SocketIO events handler não encontrado - notificação não enviada")
 
         except Exception as e:
-            current_app.logger.error(f"Erro ao enviar notificação de documento via socket: {str(e)}")
+            logger.error(f"Erro ao enviar notificação de documento via socket: {str(e)}")
 
         return {'sucesso': 'Passo do pedido criado ou atualizado com sucesso'}, 201
 
@@ -603,7 +601,7 @@ def create_document_direct(ntype, associate, nif, name, phone, email, text_value
 
             return {'resultado': formatted_result, 'regnumber': regnumber}, 200
     except Exception:
-        current_app.logger.error("Erro em create_document_direct", exc_info=True)
+        logger.error("Erro em create_document_direct", exc_info=True)
         raise # Relança a exceção para ser tratada pelo @api_error_handler
 
     finally:

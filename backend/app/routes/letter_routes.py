@@ -10,6 +10,9 @@ from ..services.letter_service import (
 from ..services.template_service import TemplateService
 import os
 import logging
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 bp = Blueprint('oficios', __name__)
 
@@ -713,7 +716,7 @@ def sign_letter_cmd_complete(letterstore_id):
 def sign_letter_cc(letterstore_id):
     """Assinar com Cartão de Cidadão"""
     from ..services.digital_signature_service import DigitalSignatureService
-    
+
     data = request.json
     current_user = get_jwt_identity()
     

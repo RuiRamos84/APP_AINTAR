@@ -71,6 +71,10 @@ from ..services.etar_ee_service import (
 from ..utils.utils import set_session, token_required
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 
 bp = Blueprint('etar_ee_routes', __name__)

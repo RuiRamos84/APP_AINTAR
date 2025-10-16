@@ -8,6 +8,11 @@ from datetime import datetime
 from functools import wraps
 from app import cache
 from .utils import emit_socket_notification, sanitize_input
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def cache_result(timeout=120):
@@ -18,7 +23,7 @@ def cache_result(timeout=120):
             cache_key = f"{f.__name__}_{args}_{kwargs}"
             result = cache.get(cache_key)
             if result:
-                current_app.logger.debug(
+                logger.debug(
                     f"Resultado encontrado em cache para {f.__name__}")
                 return result
 
@@ -61,12 +66,12 @@ def get_document_steps(pk, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao buscar passos do documento {pk}: {str(e)}")
         raise APIError("Erro ao consultar passos do documento",
                        500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao buscar passos do documento {pk}: {str(e)}")
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
@@ -220,7 +225,7 @@ def add_document_step(data, pk, current_user):
 
                 debug_msg = f"🔥 BACKEND DEBUG: workflow.py - Preparando notificação {notification_data['notification_id']}"
                 print(debug_msg)
-                current_app.logger.info(debug_msg)
+                logger.info(debug_msg)
                 emit_socket_notification(notification_data, f"user_{who}")
 
                 return {'sucesso': 'Passo do pedido criado ou atualizado com sucesso'}, 201
@@ -239,11 +244,11 @@ def add_document_step(data, pk, current_user):
                     return {'error': error_message, 'code': 'VALIDATION_ERROR'}, 422
 
                 # Se for um erro técnico não previsto
-                current_app.logger.error(
+                logger.error(
                     f"Erro de BD ao salvar passo do documento: {str(se)}")
                 raise APIError("Erro ao salvar passo do documento", 500, "ERR_DATABASE")
     except ResourceNotFoundError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro ao buscar passo do documento: {str(e)}")
         raise APIError("Recurso não encontrado", 404, "ERR_NOT_FOUND") 
         
@@ -281,10 +286,10 @@ def get_document_type_param(current_user, type_id):
     except ResourceNotFoundError as e:
         return jsonify({'error': str(e)}), e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro BD parâmetros: {str(e)}")
+        logger.error(f"Erro BD parâmetros: {str(e)}")
         return jsonify({'error': "Erro ao consultar parâmetros"}), 500
     except Exception as e:
-        current_app.logger.error(f"Erro parâmetros: {str(e)}")
+        logger.error(f"Erro parâmetros: {str(e)}")
         return jsonify({'error': "Erro interno"}), 500
 
 
@@ -349,7 +354,7 @@ def update_document_params(current_user, document_id, data):
                     }).fetchone()
 
                     if not param_exists:
-                        current_app.logger.warning(
+                        logger.warning(
                             f"Tentativa de atualizar parâmetro inexistente: {param_pk}")
                         continue
 
@@ -390,10 +395,10 @@ def update_document_params(current_user, document_id, data):
                     }).scalar()
 
                     if invoice_result:
-                        current_app.logger.info(
+                        logger.info(
                             f"Invoice calculado para documento {document_id} (tipo {document_type}): {invoice_result}")
                     else:
-                        current_app.logger.warning(
+                        logger.warning(
                             f"Falha ao calcular invoice para documento {document_id} (tipo {document_type})")
 
                 session.commit()
@@ -409,7 +414,7 @@ def update_document_params(current_user, document_id, data):
 
             except SQLAlchemyError as se:
                 session.rollback()
-                current_app.logger.error(
+                logger.error(
                     f"Erro de BD ao atualizar parâmetros: {str(se)}")
                 raise APIError("Erro ao atualizar parâmetros",
                                500, "ERR_DATABASE")
@@ -419,7 +424,7 @@ def update_document_params(current_user, document_id, data):
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao atualizar parâmetros: {str(e)}")
         return {
             'success': False,
@@ -460,7 +465,7 @@ def update_document_pavenext(pk, current_user):
                 cache.delete_memoized(document_self, current_user)
                 cache.delete_memoized(document_owner, current_user)
             except Exception as cache_error:
-                current_app.logger.warning(
+                logger.warning(
                     f"Erro ao limpar cache: {cache_error}")
 
             return {
@@ -473,11 +478,11 @@ def update_document_pavenext(pk, current_user):
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao atualizar documento {pk}: {str(e)}")
         return {'error': "Erro ao atualizar documento", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao atualizar documento {pk}: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
@@ -502,17 +507,17 @@ def step_hierarchy(dockty_id, current_user):
                 try:
                     result = json.loads(result)
                 except json.JSONDecodeError as e:
-                    current_app.logger.error(
+                    logger.error(
                         f"Erro ao parsear JSON da hierarquia: {str(e)}")
                     return {'error': "Erro no formato dos dados da hierarquia"}, 500
 
             return result, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro de BD ao buscar hierarquia de passos: {str(e)}")
         return {'error': "Erro ao consultar passos", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao buscar hierarquia de passos: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500

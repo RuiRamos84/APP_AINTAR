@@ -7,6 +7,11 @@ from datetime import datetime
 import os
 from functools import wraps
 from app import cache
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def normalize_filename_extensions(filename):
@@ -84,12 +89,12 @@ def ensure_operation_directories(instalacao_nome, ano=None, mes=None):
         # Criar diretórios
         os.makedirs(full_path, exist_ok=True)
 
-        current_app.logger.info(f"Diretórios criados/verificados: {full_path}")
+        logger.info(f"Diretórios criados/verificados: {full_path}")
 
         return operations_base, full_path
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao criar diretórios para {instalacao_nome}: {str(e)}")
+        logger.error(f"Erro ao criar diretórios para {instalacao_nome}: {str(e)}")
         raise APIError(f"Erro ao criar diretórios: {str(e)}", 500, "ERR_DIRECTORY")
 
 
@@ -144,7 +149,7 @@ def save_operation_photo(photo_file, operation_pk, instalacao_nome, current_user
         # Definir permissões
         os.chmod(file_path, 0o644)
 
-        current_app.logger.info(f"Foto guardada: {file_path}")
+        logger.info(f"Foto guardada: {file_path}")
 
         # Retornar caminho relativo com barras NORMAIS (/) para URL
         # Sanitizar nome da instalação para o path
@@ -153,14 +158,14 @@ def save_operation_photo(photo_file, operation_pk, instalacao_nome, current_user
         # IMPORTANTE: Usar / em vez de \ para URLs (mesmo no Windows)
         relative_path = f"TarefasOperação/{safe_instalacao}/{ano}/{mes}/{filename}"
 
-        current_app.logger.info(f"📍 Caminho relativo gerado: {relative_path}")
+        logger.info(f"📍 Caminho relativo gerado: {relative_path}")
 
         return relative_path
 
     except APIError:
         raise
     except Exception as e:
-        current_app.logger.error(f"Erro ao guardar foto da operação {operation_pk}: {str(e)}")
+        logger.error(f"Erro ao guardar foto da operação {operation_pk}: {str(e)}")
         raise APIError(f"Erro ao guardar foto: {str(e)}", 500, "ERR_SAVE_FILE")
 
 
@@ -178,29 +183,29 @@ def download_operation_photo(instalacao_nome, ano, mes, filename):
         Flask Response com o ficheiro
     """
     try:
-        current_app.logger.info(f"📷 Download solicitado - Instalação: {instalacao_nome}, Ano: {ano}, Mês: {mes}, Ficheiro: {filename}")
+        logger.info(f"📷 Download solicitado - Instalação: {instalacao_nome}, Ano: {ano}, Mês: {mes}, Ficheiro: {filename}")
 
         # Validações
         if '..' in filename or '/' in filename or '\\' in filename:
-            current_app.logger.error(f"Nome de ficheiro inválido: {filename}")
+            logger.error(f"Nome de ficheiro inválido: {filename}")
             return jsonify({'error': 'Nome de ficheiro inválido'}), 400
 
         # Construir caminho base
         base_path = current_app.config.get('FILES_DIR', '/var/www/html/files')
-        current_app.logger.info(f"📁 Base path: {base_path}")
+        logger.info(f"📁 Base path: {base_path}")
 
         # Sanitizar nome da instalação
         safe_instalacao = "".join(c for c in instalacao_nome if c.isalnum() or c in (' ', '-', '_', '(', ')')).strip()
-        current_app.logger.info(f"🔧 Instalação sanitizada: '{instalacao_nome}' -> '{safe_instalacao}'")
+        logger.info(f"🔧 Instalação sanitizada: '{instalacao_nome}' -> '{safe_instalacao}'")
 
         # Caminho da operação
         operation_path = os.path.join(base_path, 'TarefasOperação', safe_instalacao, str(ano), str(mes))
-        current_app.logger.info(f"📂 Caminho da operação: {operation_path}")
-        current_app.logger.info(f"📂 Diretório existe? {os.path.exists(operation_path)}")
+        logger.info(f"📂 Caminho da operação: {operation_path}")
+        logger.info(f"📂 Diretório existe? {os.path.exists(operation_path)}")
 
         # Normalizar nome do ficheiro
         filename_variations = normalize_filename_extensions(filename)
-        current_app.logger.info(f"🔄 Variações de nome: {filename_variations}")
+        logger.info(f"🔄 Variações de nome: {filename_variations}")
 
         # Adicionar variações de case
         all_variations = []
@@ -217,7 +222,7 @@ def download_operation_photo(instalacao_nome, ano, mes, filename):
             if var not in unique_variations:
                 unique_variations.append(var)
 
-        current_app.logger.info(f"🔍 Variações únicas a procurar: {unique_variations}")
+        logger.info(f"🔍 Variações únicas a procurar: {unique_variations}")
 
         # Procurar ficheiro
         file_path = None
@@ -227,33 +232,33 @@ def download_operation_photo(instalacao_nome, ano, mes, filename):
             # Listar ficheiros no diretório
             try:
                 files_in_dir = os.listdir(operation_path)
-                current_app.logger.info(f"📋 Ficheiros no diretório: {files_in_dir}")
+                logger.info(f"📋 Ficheiros no diretório: {files_in_dir}")
             except Exception as list_error:
-                current_app.logger.error(f"Erro ao listar diretório: {list_error}")
+                logger.error(f"Erro ao listar diretório: {list_error}")
 
             for filename_var in unique_variations:
                 potential_path = os.path.join(operation_path, filename_var)
-                current_app.logger.info(f"🔎 Tentando: {potential_path}")
+                logger.info(f"🔎 Tentando: {potential_path}")
 
                 if os.path.exists(potential_path) and os.path.isfile(potential_path):
                     file_path = potential_path
                     actual_filename = filename_var
-                    current_app.logger.info(f"✅ Ficheiro encontrado: {file_path}")
+                    logger.info(f"✅ Ficheiro encontrado: {file_path}")
                     break
         else:
-            current_app.logger.error(f"❌ Diretório não existe: {operation_path}")
+            logger.error(f"❌ Diretório não existe: {operation_path}")
 
         if not file_path:
-            current_app.logger.error(f"❌ Ficheiro não encontrado após todas as tentativas")
+            logger.error(f"❌ Ficheiro não encontrado após todas as tentativas")
             return jsonify({'error': 'Ficheiro não encontrado', 'path': operation_path}), 404
 
         # Verificar permissões
         if not os.access(file_path, os.R_OK):
-            current_app.logger.error(f"❌ Sem permissões de leitura: {file_path}")
+            logger.error(f"❌ Sem permissões de leitura: {file_path}")
             return jsonify({'error': 'Sem permissões de leitura'}), 403
 
         # Enviar ficheiro
-        current_app.logger.info(f"📤 Enviando ficheiro: {file_path}")
+        logger.info(f"📤 Enviando ficheiro: {file_path}")
         response = send_file(file_path, as_attachment=True)
         response.headers["Cache-Control"] = "no-cache"
 
@@ -263,5 +268,5 @@ def download_operation_photo(instalacao_nome, ano, mes, filename):
         return response
 
     except Exception as e:
-        current_app.logger.error(f"💥 Erro ao fazer download da foto: {str(e)}", exc_info=True)
+        logger.error(f"💥 Erro ao fazer download da foto: {str(e)}", exc_info=True)
         return jsonify({'error': 'Erro interno', 'details': str(e)}), 500

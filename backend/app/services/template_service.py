@@ -5,10 +5,11 @@ Permite uso de variáveis dinâmicas e lógica condicional nos templates
 
 from jinja2 import Template, Environment, meta, TemplateSyntaxError
 from typing import Dict, List, Set
-import logging
 from flask import current_app
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class TemplateService:

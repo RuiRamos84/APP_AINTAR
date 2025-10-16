@@ -11,6 +11,11 @@ from flask import current_app, request
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # ===================================================================
 # MODELOS DE DADOS COM PYDANTIC
@@ -300,5 +305,5 @@ def generate_free_letter_document(document_data: dict, current_user: str):
             }
 
         except Exception as e:
-            current_app.logger.error(f"Erro ao gerar ofício: {str(e)}")
+            logger.error(f"Erro ao gerar ofício: {str(e)}")
             raise

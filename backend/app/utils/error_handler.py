@@ -3,6 +3,11 @@ from functools import wraps
 from flask import jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, DataError
 import re
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 # Categorização específica de erros
 
@@ -95,20 +100,20 @@ def api_error_handler(f):
         try:
             return f(*args, **kwargs)
         except ResourceNotFoundError as e:
-            current_app.logger.warning(f"Recurso não encontrado: {str(e)}")
+            logger.warning(f"Recurso não encontrado: {str(e)}")
             return jsonify(e.to_dict()), e.status_code
         except DuplicateResourceError as e:
-            current_app.logger.warning(f"Recurso duplicado: {str(e)}")
+            logger.warning(f"Recurso duplicado: {str(e)}")
             return jsonify(e.to_dict()), e.status_code
         except APIError as e:
-            current_app.logger.error(f"Erro de API: {str(e)}")
+            logger.error(f"Erro de API: {str(e)}")
             return jsonify(e.to_dict()), e.status_code
         except SQLAlchemyError as e:
             mapped_error = map_sql_error(e)
-            current_app.logger.error(f"Erro de BD: {str(e)}", exc_info=True)
+            logger.error(f"Erro de BD: {str(e)}", exc_info=True)
             return jsonify(mapped_error.to_dict()), mapped_error.status_code
         except Exception as e:
-            current_app.logger.error(
+            logger.error(
                 f"Erro não tratado: {str(e)}", exc_info=True)
             api_error = APIError(str(e), 500, "ERR_INTERNAL")
             return jsonify(api_error.to_dict()), 500

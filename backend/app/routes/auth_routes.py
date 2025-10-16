@@ -12,6 +12,9 @@ from flask_limiter.util import get_remote_address
 from .. import limiter
 from datetime import datetime, timezone
 from app.utils.error_handler import api_error_handler
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 bp = Blueprint('auth', __name__)
@@ -21,7 +24,7 @@ bp = Blueprint('auth', __name__)
 @limiter.limit("10 per minute", key_func=get_remote_address)
 @api_error_handler
 def login():
-    # current_app.logger.info("Tentativa de login iniciada")
+    # logger.info("Tentativa de login iniciada")
     username = request.json.get("username")
     password = request.json.get("password")
     
@@ -48,28 +51,28 @@ def logout():
 @limiter.limit("5 per minute", key_func=get_remote_address)
 @api_error_handler
 def refresh():
-    current_app.logger.info("Tentativa de refresh de token")
+    logger.info("Tentativa de refresh de token")
     # Verificar e obter os dados da requisição
     data = request.get_json()
-    current_app.logger.info(f"Dados da requisição recebidos: {data}")
+    logger.info(f"Dados da requisição recebidos: {data}")
 
     # Verificar se o corpo da requisição contém o campo 'current_time'
     if not data:
-        current_app.logger.error(
+        logger.error(
             "O corpo da requisição está vazio ou inválido")
         return jsonify({"error": "Corpo da requisição vazio ou inválido"}), 400
 
     if 'current_time' not in data:
-        current_app.logger.error(
+        logger.error(
             "current_time não foi passado no corpo da requisição")
         return jsonify({"error": "current_time não foi passado corretamente"}), 400
 
     current_time = data.get('current_time')
-    current_app.logger.info(f"current_time recebido: {current_time}")
+    logger.info(f"current_time recebido: {current_time}")
 
     # Verificar se current_time é None
     if current_time is None:
-        current_app.logger.error("current_time é nulo ou inválido")
+        logger.error("current_time é nulo ou inválido")
         return jsonify({"error": "current_time é nulo ou inválido"}), 400
 
     try:
@@ -77,9 +80,9 @@ def refresh():
         current_time = int(current_time)
         client_time = datetime.fromtimestamp(
             current_time / 1000, tz=timezone.utc)
-        current_app.logger.info(f"client_time calculado: {client_time}")
+        logger.info(f"client_time calculado: {client_time}")
     except (TypeError, ValueError) as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro ao processar current_time: {str(e)}")
         return jsonify({"error": f"Erro ao processar current_time: {str(e)}"}), 400
 
@@ -129,7 +132,7 @@ def update_dark_mode():
 def heartbeat():
     current_user = get_jwt_identity()
     update_last_activity(current_user)
-    current_app.logger.info(f"Heartbeat recebido para o utilizador {current_user}")
+    logger.info(f"Heartbeat recebido para o utilizador {current_user}")
     return jsonify({"message": "Heartbeat recebido"}), 200
 
 

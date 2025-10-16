@@ -3,9 +3,10 @@
 from typing import List, Dict, Optional
 from sqlalchemy import text
 from .. import db  # Importar a instância da BD
-import logging
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class PermissionManager:

@@ -5,6 +5,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from .utils import sanitize_input
 from app import cache
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def replicate_document_service(pk, new_type, current_user):
@@ -75,7 +80,7 @@ def replicate_document_service(pk, new_type, current_user):
                         'new_type': new_type
                     }, 201
             except Exception as pe:
-                current_app.logger.error(
+                logger.error(
                     f"Erro ao processar resultado da replicação: {str(pe)}")
 
             # Resposta genérica se não conseguir extrair detalhes
@@ -86,10 +91,10 @@ def replicate_document_service(pk, new_type, current_user):
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao replicar documento: {str(e)}")
+        logger.error(f"Erro de BD ao replicar documento: {str(e)}")
         return {'error': "Erro ao replicar documento", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao replicar documento: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
@@ -151,12 +156,12 @@ def reopen_document(regnumber, user_id, current_user):
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro de BD ao reabrir pedido: {str(e)}")
+        logger.error(f"Erro de BD ao reabrir pedido: {str(e)}")
         return {'error': "Erro ao reabrir pedido", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao reabrir pedido: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
-        current_app.logger.error(
+        logger.error(
             f"Erro inesperado ao reabrir pedido: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500

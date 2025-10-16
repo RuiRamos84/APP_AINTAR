@@ -2,6 +2,11 @@ from flask import current_app
 from sqlalchemy import text
 from datetime import datetime
 from ..utils.utils import db_session_manager
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 class NotificationService:
     """Serviço para gerir a lógica de negócio de notificações."""
@@ -172,7 +177,7 @@ class TaskService:
                 notification_type='new_note'
             )
         else:
-            current_app.logger.warning("Instância de SocketIOEvents não encontrada para emitir notificação.")
+            logger.warning("Instância de SocketIOEvents não encontrada para emitir notificação.")
 
     def update_task_status(self, task_id: int, status_id: int, session_id: str):
         """Atualiza o estado de uma tarefa e emite uma notificação."""
@@ -194,7 +199,7 @@ class TaskService:
                 status=status_name
             )
         else:
-            current_app.logger.warning("Instância de SocketIOEvents não encontrada para emitir notificação.")
+            logger.warning("Instância de SocketIOEvents não encontrada para emitir notificação.")
 
 
 # Instâncias dos serviços para serem importadas noutros módulos
@@ -219,4 +224,4 @@ def create_notification(user: str, title: str, message: str, type: str = 'info',
             })
             session.commit()
     except Exception as e:
-        current_app.logger.warning(f"Notification error: {e}")
+        logger.warning(f"Notification error: {e}")

@@ -6,6 +6,11 @@ from ..utils.error_handler import api_error_handler
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import os
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 class OperationControlQuery(BaseModel):
@@ -50,7 +55,7 @@ def query_operation_control(filters: dict, current_user: str):
 
         with db_session_manager(current_user) as session:
             # Log dos parâmetros recebidos
-            current_app.logger.info(
+            logger.info(
                 f"Controlquery - Instalação: {query_data.tb_instalacao}, Last Days: {query_data.last_days}"
             )
 
@@ -72,11 +77,11 @@ def query_operation_control(filters: dict, current_user: str):
 
             # Log detalhado do resultado
             if data:
-                current_app.logger.info(
+                logger.info(
                     f"Controlo: {len(data)} tarefas encontradas. Primeira tarefa data: {data[0].get('data')}, Última: {data[-1].get('data')}"
                 )
             else:
-                current_app.logger.info(
+                logger.info(
                     f"Controlo: Nenhuma tarefa encontrada para instalação {query_data.tb_instalacao}"
                 )
 
@@ -87,13 +92,13 @@ def query_operation_control(filters: dict, current_user: str):
             }, 200
 
     except ValueError as e:
-        current_app.logger.error(f"Erro de validação: {str(e)}")
+        logger.error(f"Erro de validação: {str(e)}")
         return {'error': f'Dados inválidos: {str(e)}'}, 400
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao consultar controlo: {str(e)}")
+        logger.error(f"Erro ao consultar controlo: {str(e)}")
         return {'error': 'Erro ao consultar tarefas de controlo'}, 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado: {str(e)}")
+        logger.error(f"Erro inesperado: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 
@@ -156,7 +161,7 @@ def update_operation_control(data: dict, current_user: str):
                     os.chmod(file_path, 0o644)
                     file_paths.append(safe_filename)
 
-                    current_app.logger.info(f"Arquivo salvo: {file_path}")
+                    logger.info(f"Arquivo salvo: {file_path}")
 
             # Atualizar control_foto com lista de arquivos
             if file_paths:
@@ -184,7 +189,7 @@ def update_operation_control(data: dict, current_user: str):
             session.commit()
             updated_pk = result.scalar()
 
-            current_app.logger.info(
+            logger.info(
                 f"Controlo atualizado: tarefa {updated_pk}, check={control_check}, arquivos={len(file_paths)}"
             )
 
@@ -196,13 +201,13 @@ def update_operation_control(data: dict, current_user: str):
             }, 200
 
     except ValueError as e:
-        current_app.logger.error(f"Erro de validação: {str(e)}")
+        logger.error(f"Erro de validação: {str(e)}")
         return {'error': f'Dados inválidos: {str(e)}'}, 400
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao atualizar controlo: {str(e)}")
+        logger.error(f"Erro ao atualizar controlo: {str(e)}")
         return {'error': 'Erro ao atualizar controlo'}, 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado: {str(e)}")
+        logger.error(f"Erro inesperado: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 
@@ -235,7 +240,7 @@ def get_municipalities(current_user: str):
             }, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao buscar municípios: {str(e)}")
+        logger.error(f"Erro ao buscar municípios: {str(e)}")
         return {'error': 'Erro ao buscar municípios'}, 500
 
 
@@ -268,7 +273,7 @@ def get_installation_types(current_user: str):
             }, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao buscar tipos de instalação: {str(e)}")
+        logger.error(f"Erro ao buscar tipos de instalação: {str(e)}")
         return {'error': 'Erro ao buscar tipos'}, 500
 
 
@@ -311,5 +316,5 @@ def get_installations(municipio_pk: int, tipo_pk: int, current_user: str):
             }, 200
 
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro ao buscar instalações: {str(e)}")
+        logger.error(f"Erro ao buscar instalações: {str(e)}")
         return {'error': 'Erro ao buscar instalações'}, 500

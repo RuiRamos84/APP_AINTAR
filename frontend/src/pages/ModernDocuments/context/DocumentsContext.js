@@ -46,6 +46,7 @@ export const DocumentsProvider = ({ children }) => {
     const [lateDocuments, setLateDocuments] = useState([]);
     const [loadingLate, setLoadingLate] = useState(true);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+    const [isInitialLoad, setIsInitialLoad] = useState(true); // Controlar primeiro carregamento
 
     // Funções para buscar documentos com cache
     const fetchAllDocuments = useCallback(async () => {
@@ -92,8 +93,15 @@ export const DocumentsProvider = ({ children }) => {
         setLoadingAssigned(true);
         setError(null);
         try {
-            const docs = await getDocumentsAssignedToMe();
-            // console.log('Documentos assignados:', docs);
+            // Cache de 1 minuto
+            const cacheKey = 'assigned_documents';
+            let docs = documentsCache.get(cacheKey);
+
+            if (!docs) {
+                docs = await getDocumentsAssignedToMe();
+                documentsCache.set(cacheKey, docs);
+            }
+
             setAssignedDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos assignados:', err);
@@ -115,8 +123,15 @@ export const DocumentsProvider = ({ children }) => {
         setLoadingCreated(true);
         setError(null);
         try {
-            const docs = await getDocumentsCreatedByMe();
-            // console.log('Documentos criados:', docs);
+            // Cache de 1 minuto
+            const cacheKey = 'created_documents';
+            let docs = documentsCache.get(cacheKey);
+
+            if (!docs) {
+                docs = await getDocumentsCreatedByMe();
+                documentsCache.set(cacheKey, docs);
+            }
+
             setCreatedDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos criados:', err);
@@ -138,8 +153,15 @@ export const DocumentsProvider = ({ children }) => {
         setLoadingLate(true);
         setError(null);
         try {
-            const docs = await getDocumentsLate();
-            // console.log('Documentos em atraso:', docs);
+            // Cache de 1 minuto
+            const cacheKey = 'late_documents';
+            let docs = documentsCache.get(cacheKey);
+
+            if (!docs) {
+                docs = await getDocumentsLate();
+                documentsCache.set(cacheKey, docs);
+            }
+
             setLateDocuments(docs || []);
         } catch (err) {
             console.error('Erro ao buscar documentos em atraso:', err);
@@ -176,24 +198,74 @@ export const DocumentsProvider = ({ children }) => {
         };
     }, []);
 
+    // ===== CARREGAMENTO INICIAL: Carrega TODAS as tabs =====
     useEffect(() => {
-        const loadData = async () => {
-            await Promise.all([
-                fetchAllDocuments(),
-                fetchAssignedDocuments(),
-                fetchCreatedDocuments(),
-                fetchLateDocuments()  // ADICIONAR AQUI
-            ]);
-        };
+        if (isInitialLoad) {
+            // No primeiro mount, carregar TODAS as tabs com permissões
+            const loadAllData = async () => {
+                // LIMPAR TODO O CACHE antes de carregar
+                documentsCache.clear();
 
-        loadData();
-    }, [fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, fetchLateDocuments, refreshTrigger]);
+                // Carregar sequencialmente (await) para garantir ordem
+                if (permissionService.hasPermission(500)) {
+                    await fetchAllDocuments();
+                }
+                if (permissionService.hasPermission(520)) {
+                    await fetchAssignedDocuments();
+                }
+                if (permissionService.hasPermission(510)) {
+                    await fetchCreatedDocuments();
+                }
+                if (permissionService.hasPermission(500)) {
+                    await fetchLateDocuments();
+                }
 
-    // Função para forçar atualização
+                setIsInitialLoad(false); // Marcar como carregado
+            };
+
+            loadAllData();
+        }
+    }, [isInitialLoad]);
+
+    // ===== LAZY LOADING: Depois do mount inicial, carregar apenas a tab ativa =====
+    useEffect(() => {
+        if (!isInitialLoad) {
+            // Após primeiro carregamento, carregar apenas a tab ativa quando mudar
+            switch (activeTab) {
+                case 0:
+                    if (permissionService.hasPermission(500)) {
+                        fetchAllDocuments();
+                    }
+                    break;
+                case 1:
+                    if (permissionService.hasPermission(520)) {
+                        fetchAssignedDocuments();
+                    }
+                    break;
+                case 2:
+                    if (permissionService.hasPermission(510)) {
+                        fetchCreatedDocuments();
+                    }
+                    break;
+                case 3:
+                    if (permissionService.hasPermission(500)) {
+                        fetchLateDocuments();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }, [activeTab, isInitialLoad, fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, fetchLateDocuments, refreshTrigger]);
+
+    // Função para forçar atualização (recarrega TODAS as tabs)
     const refreshDocuments = () => {
         // Invalidar cache ao fazer refresh manual
         cacheUtils.invalidateDocumentCache();
-        setRefreshTrigger(prev => prev + 1);
+
+        // Marcar como initial load para recarregar todas as tabs
+        setIsInitialLoad(true);
+
         notifySuccess('A actualizar dados...');
     };
 
@@ -265,30 +337,24 @@ export const DocumentsProvider = ({ children }) => {
         return null;
     }, [updateDocumentInList]);
 
-    // MELHORADO: Smart update com feedback visual e cache
+    // OTIMIZADO: Smart update silencioso (sem toasts desnecessários)
     const smartUpdateDocument = useCallback(async (documentId, optimisticData, updatePromise) => {
         try {
-            // 1. UPDATE IMEDIATO (Optimistic)
+            // 1. UPDATE IMEDIATO (Optimistic) - Silencioso
             if (optimisticData) {
                 updateDocumentInList({ ...optimisticData, _optimistic: true });
-                notifyInfo('A processar...');
             }
 
             // 2. REQUEST REAL
             const result = await updatePromise;
 
-            // 3. CONFIRMAÇÃO com dados reais
+            // 3. CONFIRMAÇÃO com dados reais - Silencioso
             if (result?.document) {
                 updateDocumentInList({ ...result.document, _optimistic: false });
-
-                // Invalidar cache relacionado ao documento
                 cacheUtils.invalidateDocumentCache(documentId);
-
-                notifySuccess('Documento atualizado!');
             } else {
                 // Fallback: refresh seletivo
                 await refreshDocumentSelective(documentId);
-                notifySuccess('Atualizado!');
             }
 
             return result;
@@ -305,12 +371,12 @@ export const DocumentsProvider = ({ children }) => {
                 setLateDocuments(prev => prev.filter(doc => doc.pk !== documentId));
 
                 cacheUtils.invalidateDocumentCache(documentId);
-                notifyWarning('❌ Documento não encontrado - removido da lista.');
+                notifyWarning('Documento não encontrado - removido da lista');
             } else {
                 // 4. ROLLBACK - Reverter para outros tipos de erro
                 await refreshDocumentSelective(documentId);
                 cacheUtils.invalidateDocumentCache(documentId);
-                notifyError('❌ Erro ao atualizar. Dados revertidos.');
+                notifyError('Erro ao atualizar documento');
             }
 
             throw error;

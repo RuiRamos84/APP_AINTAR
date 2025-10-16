@@ -8,10 +8,11 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict
-import logging
 from flask import current_app
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class FileCleanupService:

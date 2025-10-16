@@ -2,16 +2,11 @@
 import eventlet
 eventlet.monkey_patch()
 import logging
-# Configuração de logging para produção
-logging.basicConfig(level=logging.WARNING)
-logging.getLogger('socketio').setLevel(logging.WARNING)
-logging.getLogger('engineio').setLevel(logging.WARNING)
-logging.getLogger('werkzeug').setLevel(logging.WARNING)
-logging.getLogger('flask-socketio').setLevel(logging.WARNING)
 
-# Desativar logs verbosos
-logging.getLogger('socketio.server').disabled = True
-logging.getLogger('engineio.server').disabled = True
+# Configuração de logging - mostra todos os requests
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('socketio').setLevel(logging.INFO)
+logging.getLogger('engineio').setLevel(logging.WARNING)
 
 # Agora importe os outros módulos
 from config import get_config
@@ -19,8 +14,8 @@ from app import create_app, socket_io as socketio
 import threading
 import sys
 import signal
-from datetime import datetime
 import os
+from datetime import datetime
 
 
 def setup_logger():

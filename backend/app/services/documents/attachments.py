@@ -8,6 +8,11 @@ import os
 from functools import wraps
 from app import cache
 from .utils import ensure_directories, sanitize_input
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 def cache_result(timeout=120):
@@ -75,10 +80,10 @@ def get_document_anex_steps(pk, current_user):
     except ResourceNotFoundError as e:
         return {'error': str(e)}, e.status_code
     except SQLAlchemyError as e:
-        current_app.logger.error(f"Erro BD anexos {pk}: {str(e)}")
+        logger.error(f"Erro BD anexos {pk}: {str(e)}")
         raise APIError("Erro ao consultar anexos", 500, "ERR_DATABASE")
     except Exception as e:
-        current_app.logger.error(f"Erro anexos {pk}: {str(e)}")
+        logger.error(f"Erro anexos {pk}: {str(e)}")
         raise APIError("Erro interno", 500, "ERR_INTERNAL")
 
 
@@ -137,7 +142,7 @@ def add_document_annex(data, current_user):
                         raise Exception(f"Falha guardar: {file_path}")
                     
                     os.chmod(file_path, 0o644)
-                    current_app.logger.info(f"Ficheiro guardado: {file_path}")
+                    logger.info(f"Ficheiro guardado: {file_path}")
 
                     annex_query = text(
                         "SELECT fbf_document_annex(0, :pk, :tb_document, :data, :descr, :filename)")
@@ -159,7 +164,7 @@ def add_document_annex(data, current_user):
                             pass
 
                 except Exception as fe:
-                    current_app.logger.error(f"Erro processar {file.filename}: {str(fe)}")
+                    logger.error(f"Erro processar {file.filename}: {str(fe)}")
                     error_files.append(file.filename)
 
             session.commit()
@@ -183,7 +188,7 @@ def add_document_annex(data, current_user):
     except APIError as e:
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except Exception as e:
-        current_app.logger.error(f"Erro anexos: {str(e)}")
+        logger.error(f"Erro anexos: {str(e)}")
         return {'error': "Erro interno", 'code': "ERR_INTERNAL"}, 500
 
 
@@ -264,5 +269,5 @@ def download_file(regnumber, filename, current_user):
         return response
 
     except Exception as e:
-        current_app.logger.error(f"Erro download: {str(e)}")
+        logger.error(f"Erro download: {str(e)}")
         return jsonify({'error': 'Erro interno'}), 500

@@ -3,9 +3,10 @@
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt
-import logging
+from app.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 def check_permission_by_id(permission_id: int, user_profile: str, user_interfaces: list) -> bool:

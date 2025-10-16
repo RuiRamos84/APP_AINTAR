@@ -5,6 +5,11 @@ from ..utils.utils import db_session_manager
 from ..utils.error_handler import api_error_handler
 from pydantic import BaseModel
 from typing import Optional
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
 
 
 class OperationMetadataQuery(BaseModel):
@@ -106,7 +111,7 @@ def query_operation_metadata(filters: dict, current_user: str):
             columns = result.keys()
             data = [dict(zip(columns, row)) for row in result.fetchall()]
 
-            current_app.logger.info(f"Query de metadata retornou {len(data)} registros")
+            logger.info(f"Query de metadata retornou {len(data)} registros")
 
             return {
                 'success': True,
@@ -115,7 +120,7 @@ def query_operation_metadata(filters: dict, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao consultar metadata de operações: {str(e)}")
+        logger.error(f"Erro ao consultar metadata de operações: {str(e)}")
         return {'error': 'Erro ao consultar metadata de operações'}, 500
 
 
@@ -154,7 +159,7 @@ def create_operation_metadata(data: dict, current_user: str):
 
             session.commit()
 
-            current_app.logger.info(f"Metadata de operação criada com sucesso")
+            logger.info(f"Metadata de operação criada com sucesso")
 
             return {
                 'success': True,
@@ -162,7 +167,7 @@ def create_operation_metadata(data: dict, current_user: str):
             }, 201
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao criar metadata de operação: {str(e)}")
+        logger.error(f"Erro ao criar metadata de operação: {str(e)}")
         return {'error': 'Erro ao criar metadata de operação'}, 500
 
 
@@ -199,7 +204,7 @@ def update_operation_metadata(data: dict, current_user: str):
             session.execute(query, {**update_dict, 'pk': update_data.pk})
             session.commit()
 
-            current_app.logger.info(f"Metadata de operação {update_data.pk} atualizada com sucesso")
+            logger.info(f"Metadata de operação {update_data.pk} atualizada com sucesso")
 
             return {
                 'success': True,
@@ -208,7 +213,7 @@ def update_operation_metadata(data: dict, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao atualizar metadata de operação: {str(e)}")
+        logger.error(f"Erro ao atualizar metadata de operação: {str(e)}")
         return {'error': 'Erro ao atualizar metadata de operação'}, 500
 
 
@@ -237,7 +242,7 @@ def delete_operation_metadata(pk: int, current_user: str):
             if result.rowcount == 0:
                 return {'error': 'Metadata de operação não encontrada'}, 404
 
-            current_app.logger.info(f"Metadata de operação {pk} eliminada com sucesso")
+            logger.info(f"Metadata de operação {pk} eliminada com sucesso")
 
             return {
                 'success': True,
@@ -245,7 +250,7 @@ def delete_operation_metadata(pk: int, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao eliminar metadata de operação: {str(e)}")
+        logger.error(f"Erro ao eliminar metadata de operação: {str(e)}")
         return {'error': 'Erro ao eliminar metadata de operação'}, 500
 
 
@@ -294,5 +299,5 @@ def get_operation_metadata_by_pk(pk: int, current_user: str):
             }, 200
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao obter metadata de operação {pk}: {str(e)}")
+        logger.error(f"Erro ao obter metadata de operação {pk}: {str(e)}")
         return {'error': 'Erro ao obter metadata de operação'}, 500
