@@ -4,6 +4,7 @@ from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt
 from app.utils.logger import get_logger
+from app.core.permissions import permission_manager
 
 
 logger = get_logger(__name__)
@@ -149,7 +150,7 @@ def require_any_permission(*permission_ids):
 
                 # Verificar se tem pelo menos uma permissão
                 has_any_permission = any(
-                    permission_manager.check_permission(
+                    check_permission_by_id(
                         perm_id, str(user_profile), user_interfaces or []
                     ) for perm_id in permission_ids
                 )
@@ -213,7 +214,7 @@ def require_all_permissions(*permission_ids):
 
                 # Verificar se tem todas as permissões
                 has_all_permissions = all(
-                    permission_manager.check_permission(
+                    check_permission_by_id(
                         perm_id, str(user_profile), user_interfaces or []
                     ) for perm_id in permission_ids
                 )
@@ -245,7 +246,7 @@ def require_all_permissions(*permission_ids):
 def get_user_permissions_from_jwt():
     """
     Função utilitária para obter permissões do utilizador atual
-    
+
     Returns:
         tuple: (user_id, user_profile, user_interfaces, permissions_list)
     """
@@ -264,12 +265,14 @@ def get_user_permissions_from_jwt():
 
         user_interfaces = jwt_data.get('interfaces', [])
 
-        # Esta função foi removida do PermissionManager, pois as permissões são agora implícitas
-        # pela lista de interfaces. Retornamos a lista de nomes de permissão para consistência.
-        permissions = [
-            perm_id for perm_id, interface_id in permission_manager._permission_map.items()
-            if interface_id in user_interfaces
-        ]
+        # Obter lista de nomes de permissão a partir do mapa (opcional)
+        permissions = []
+        if permission_manager._permission_map:
+            permissions = [
+                perm_id for perm_id, interface_id in permission_manager._permission_map.items()
+                if interface_id in user_interfaces
+            ]
+
         if user_id:
             return int(user_id), str(user_profile), user_interfaces, permissions
 
@@ -280,10 +283,13 @@ def get_user_permissions_from_jwt():
         return None, None, None, []
 
 
-def check_permission_direct(permission_id: str) -> bool:
+def check_permission_direct(permission_id: int) -> bool:
     """
     Verificar permissão diretamente no contexto atual
-    
+
+    Args:
+        permission_id: ID numérico da permissão
+
     Returns:
         bool: True se tem permissão, False caso contrário
     """
@@ -293,7 +299,7 @@ def check_permission_direct(permission_id: str) -> bool:
         if not user_id:
             return False
 
-        return permission_manager.check_permission(
+        return check_permission_by_id(
             permission_id, user_profile, user_interfaces
         )
 

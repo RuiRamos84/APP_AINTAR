@@ -50,7 +50,7 @@ const GlobalModule = lazy(() => import("../../pages/Global"));
 const EpiArea = lazy(() => import("../../pages/EPIs/EpiArea"));
 const DocumentPaymentFlow = lazy(() => import('../../features/Payment/modals/DocumentPaymentFlow'));
 const PaymentAdminPage = lazy(() => import('../../features/Payment/components/PaymentAdminPage'));
-const OldOperations = lazy(() => import("../../pages/Operação/Operations"));
+const OldOperations = lazy(() => import("../../pages/Operation/OperationLegacy"));
 
 // === CONFIGURAÇÃO DE ROTAS ===
 const PUBLIC_ROUTES = ["/", "/login", "/create-user", "/activation", "/password-recovery", "/reset-password"];

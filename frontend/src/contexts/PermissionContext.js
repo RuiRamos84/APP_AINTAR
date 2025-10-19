@@ -117,7 +117,7 @@ export const PermissionProvider = ({ children }) => {
      */
     const isAdmin = useCallback(() => {
         if (user?.profil === '0') return true;
-        return hasPermission(2); // ID para 'admin.users'
+        return hasPermission(2); // 2 = admin.users
     }, [user, hasPermission]);
 
     const contextValue = {

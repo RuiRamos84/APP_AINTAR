@@ -1,1 +1,15 @@
+# Define o comportamento padrão para todos os ficheiros de texto.
+# Força o Git a usar LF nos commits, mas permite que o sistema operativo
+# use o seu formato nativo (CRLF no Windows) no working directory.
+* text=auto
+
+# Define explicitamente ficheiros que devem sempre ter finais de linha LF.
+*.js text eol=lf
+*.jsx text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.md text eol=lf
 *.pdf filter=lfs diff=lfs merge=lfs -text
+*.css text eol=lf
+*.html text eol=lf
+*.sh eol=lf

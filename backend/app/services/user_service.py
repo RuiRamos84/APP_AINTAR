@@ -292,10 +292,36 @@ def get_all_users(current_user: str):
 
 @api_error_handler
 def get_all_interfaces(current_user: str):
+    """
+    Retorna todas as interfaces/permissões com metadados completos da BD
+    """
     with db_session_manager(current_user) as session:
-        query = text("SELECT pk, value as name FROM ts_interface ORDER BY pk")
+        query = text("""
+            SELECT
+                pk,
+                value as name,
+                category,
+                label,
+                description,
+                icon,
+                requires,
+                is_critical,
+                is_sensitive,
+                sort_order
+            FROM ts_interface
+            ORDER BY sort_order, pk
+        """)
         result = session.execute(query).mappings().all()
-        return [dict(row) for row in result]
+
+        # Converter para dict e garantir que arrays sejam serializáveis
+        interfaces = []
+        for row in result:
+            interface = dict(row)
+            # Garantir que requires seja uma lista (mesmo que None)
+            interface['requires'] = interface.get('requires') or []
+            interfaces.append(interface)
+
+        return interfaces
 
 
 @api_error_handler

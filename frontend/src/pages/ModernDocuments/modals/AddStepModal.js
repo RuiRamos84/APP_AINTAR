@@ -154,10 +154,21 @@ const AddStepModal = ({ open, onClose, document, metaData, fetchDocuments }) => 
         const targetUserInt = parseInt(targetUser);
         const isValidTransition = workflowData.validTransitions.some(t => {
             const toStepMatch = t.to_step_pk === targetStep;
-            // Aceitar pk=0 ou fazer comparação normal
+
+            // CORRIGIDO: Comparação robusta para aceitar pk=0
             const clientMatch = Array.isArray(t.client)
-                ? t.client.includes(targetUserInt)
-                : t.client === targetUserInt;
+                ? t.client.some(c => parseInt(c) === targetUserInt)
+                : parseInt(t.client) === targetUserInt;
+
+            // console.log('🔍 Validação transição:', {
+            //     transition_id: t.pk,
+            //     to_step: t.to_step_pk,
+            //     client: t.client,
+            //     targetUser: targetUserInt,
+            //     toStepMatch,
+            //     clientMatch,
+            //     isValid: toStepMatch && clientMatch
+            // });
 
             return toStepMatch && clientMatch;
         });

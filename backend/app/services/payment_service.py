@@ -243,7 +243,8 @@ class PaymentService:
             phone_number = mbway_data.phone_number.replace('+351', '').replace(' ', '')
             formatted_phone = f"351#{phone_number}"
 
-            url = f"{self.base_url}/payments/{mbway_data.transaction_id}/mbway-id/purchase"
+            # Usar o transaction_id correto (pode ter sido recriado)
+            url = f"{self.base_url}/payments/{transaction_id}/mbway-id/purchase"
             headers = self._get_headers(
                 "Digest", checkout_data["transaction_signature"])
 

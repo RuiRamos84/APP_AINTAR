@@ -195,7 +195,7 @@ def update_document_pavenext(pk, current_user):
             pk = sanitize_input(pk, 'int')
 
             # Executar função para mover de "para pavimentar" para "executado"
-            sql = text("SELECT fbo_document_pavenext(:pnpk) AS result")
+            sql = text("SELECT fbo_document_nextstep(:pnpk) AS result")
             result = session.execute(sql, {"pnpk": pk}).fetchone()
 
             if not result or not result.result:
@@ -230,7 +230,7 @@ def update_document_pavpaid(pk, current_user):
             pk = sanitize_input(pk, 'int')
 
             # Executar função para mover de "executado" para "concluído/pago"
-            sql = text("SELECT fbo_document_paveclose(:pnpk, :msg) AS result")
+            sql = text("SELECT fbo_document_nextstep(:pnpk, :msg) AS result")
             result = session.execute(
                 sql, {"pnpk": pk, "msg": "Pagamento efectuado"}).fetchone()
 

@@ -13,10 +13,10 @@ import { Worker } from '@react-pdf-viewer/core';
 import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
 
 // Components
-import Header from './components/layout/Header';
+import ModernHeader from './components/layout/ModernHeader';
+import MobileFloatingButton from './components/MobileFloatingButton';
 import GridView from './views/GridView';
 import ListView from './views/ListView';
-import KanbanView from './views/KanbanView';
 import PerformanceMonitor from './components/performance/PerformanceMonitor';
 import AdvancedErrorBoundary from './components/errors/AdvancedErrorBoundary';
 import KeyboardShortcuts from './components/keyboard/KeyboardShortcuts';
@@ -315,8 +315,13 @@ const DocumentManagerContent = () => {
             toTab: tabNames[realIndex] || 'unknown'
         });
 
+        // Limpar search ao mudar de tab (UX melhorada)
+        if (searchTerm) {
+            setSearchTerm('');
+        }
+
         setActiveTab(realIndex);
-    }, [mapVisibleIndexToRealIndex, setActiveTab, activeTab, trackFlow]);
+    }, [mapVisibleIndexToRealIndex, setActiveTab, activeTab, trackFlow, searchTerm, setSearchTerm]);
 
     // ===== FUNÇÃO PRINCIPAL PARA OBTER DOCUMENTOS ATIVOS =====
     const getActiveDocuments = useCallback(() => {
@@ -514,7 +519,6 @@ const DocumentManagerContent = () => {
         switch (viewMode) {
             case 'grid': return <GridView key={renderKey} {...viewProps} />;
             case 'list': return <ListView key={renderKey} {...viewProps} />;
-            case 'kanban': return <KanbanView key={renderKey} {...viewProps} />;
             default: return <GridView key={renderKey} {...viewProps} />;
         }
     }, [
@@ -617,8 +621,8 @@ const DocumentManagerContent = () => {
                     <PerformanceMonitor compact={!isMobile} showRecommendations={true} />
                 )}
 
-                {/* Header with title and buttons */}
-                <Header
+                {/* Modern Header - Refactored for better UX */}
+                <ModernHeader
                     title="Gestão de Pedidos"
                     isMobileView={isMobile}
                     refreshDocuments={refreshDocuments}
@@ -687,6 +691,14 @@ const DocumentManagerContent = () => {
                 value={mapRealIndexToVisibleIndex(activeTab)}
                 onChange={handleTabChange}
                 variant="fullWidth"
+                sx={{
+                    minHeight: { xs: 40, md: 48 },
+                    '& .MuiTab-root': {
+                        minHeight: { xs: 40, md: 48 },
+                        py: { xs: 0.5, md: 1.5 },
+                        fontSize: { xs: '0.75rem', md: '0.875rem' },
+                    }
+                }}
             >
                 {getVisibleTabs.map((tab, index) => {
                     const count = tab.key === 'all' ? documentCounts.all :
@@ -826,6 +838,11 @@ const DocumentManagerContent = () => {
             <Box sx={{ mt: 2 }}>
                 {renderContent()}
             </Box>
+
+            {/* Mobile FAB - Floating Action Button para criar novo pedido */}
+            {isMobile && (
+                <MobileFloatingButton onClick={handleOpenCreateModal} />
+            )}
 
             {/* Modais em cascata para os documentos */}
             {renderDocumentModals()}

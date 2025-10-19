@@ -34,11 +34,12 @@ import DetailsDrawer from '../components/modals/DetailsDrawer';
 import CompletionModal from '../components/modals/CompletionModal';
 import ParametersModal from '../components/modals/ParametersModal';
 
-import { completeOperation, validateTaskCompletion } from '../services/api';
+import { validateTaskCompletion } from '../services/api';
+import { completeOperatorTask } from '../services/completionService';
 import { getUserNameByPk, getRemainingDaysColor } from '../utils/formatters';
 import useFiltersStore from '../store/filtersStore';
 
-const TabletView = () => {
+const TabletView = ({ onTaskCompleted }) => {
     const { user: currentUser } = useAuth();
     const { metaData } = useMetaData();
 
@@ -179,7 +180,12 @@ const TabletView = () => {
             // Processar acções pendentes
             for (const action of pendingActions) {
                 if (action.type === 'complete') {
-                    await completeOperation(action.data.documentId, action.data.note);
+                    await completeOperatorTask(
+                        action.data.documentId,
+                        action.data.note,
+                        action.data.document,   // Passar documento guardado offline
+                        action.data.metaData    // Passar metaData guardado offline
+                    );
                 }
             }
             clearPending();
@@ -231,13 +237,26 @@ const TabletView = () => {
         setCompletionLoading(true);
         try {
             if (isOnline) {
-                await completeOperation(ui.selectedItem.pk, ui.completionNote);
+                // Usar completionService com workflow dinâmico
+                await completeOperatorTask(
+                    ui.selectedItem.pk,
+                    ui.completionNote,
+                    ui.selectedItem,      // Documento completo com step atual
+                    metaData              // MetaData global com step_transitions
+                );
                 await refetchOperations();
+
+                // Callback para invalidar cache se fornecido
+                if (onTaskCompleted) {
+                    onTaskCompleted(ui.selectedItem.pk);
+                }
             } else {
-                // Guardar offline
+                // Guardar offline com documento e metaData
                 addAction('complete', {
                     documentId: ui.selectedItem.pk,
-                    note: ui.completionNote
+                    note: ui.completionNote,
+                    document: ui.selectedItem,
+                    metaData: metaData
                 });
             }
             closeAllModals();

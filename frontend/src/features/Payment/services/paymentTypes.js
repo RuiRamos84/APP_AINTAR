@@ -2,6 +2,17 @@
 
 /**
  * ===== SISTEMA DE PAGAMENTOS - MIGRADO PARA SISTEMA CENTRALIZADO =====
+ *
+ * MAPEAMENTO DE PERMISSÕES (ts_interface):
+ * - 30:  admin.payments (Gestão de pagamentos)
+ * - 700: payments.mbway
+ * - 710: payments.multibanco
+ * - 720: payments.bank_transfer
+ * - 730: payments.cash.action
+ * - 740: payments.municipality
+ *
+ * IMPORTANTE: As permissões devem ser verificadas usando IDs numéricos,
+ * não strings, pois o permissionService só aceita números.
  */
 
 import permissionService from '../../../services/permissionService';
@@ -25,13 +36,14 @@ export const PAYMENT_STATUS = {
     EXPIRED: 'EXPIRED'
 };
 
-// Mapeamento para o novo sistema de permissões
+// Mapeamento para o novo sistema de permissões (IDs numéricos da BD)
+// NOTA: Estes IDs devem corresponder aos valores na tabela ts_interface
 const PAYMENT_PERMISSION_MAP = {
-    [PAYMENT_METHODS.MBWAY]: 'payments.mbway',
-    [PAYMENT_METHODS.MULTIBANCO]: 'payments.multibanco',
-    [PAYMENT_METHODS.CASH]: 'payments.cash',
-    [PAYMENT_METHODS.BANK_TRANSFER]: 'payments.bank_transfer',
-    [PAYMENT_METHODS.MUNICIPALITY]: 'payments.municipality'
+    [PAYMENT_METHODS.MBWAY]: 700,           // payments.mbway
+    [PAYMENT_METHODS.MULTIBANCO]: 710,      // payments.multibanco
+    [PAYMENT_METHODS.CASH]: 730,            // payments.cash.action
+    [PAYMENT_METHODS.BANK_TRANSFER]: 720,   // payments.bank_transfer
+    [PAYMENT_METHODS.MUNICIPALITY]: 740     // payments.municipality
 };
 
 /**
@@ -65,14 +77,14 @@ export const getAvailableMethodsForUserAsync = async () => {
  * Verificar se pode gerir pagamentos (NOVA IMPLEMENTAÇÃO)
  */
 export const canManagePayments = async () => {
-    return await permissionService.hasPermission('payments.validate');
+    return await permissionService.hasPermission(30); // admin.payments
 };
 
 /**
  * Verificar se pode processar pagamentos CASH (NOVA IMPLEMENTAÇÃO)
  */
 export const canProcessCashPayments = async () => {
-    return await permissionService.hasPermission('payments.cash.process');
+    return await permissionService.hasPermission(730); // payments.cash.action
 };
 
 // Manter labels e cores para compatibilidade

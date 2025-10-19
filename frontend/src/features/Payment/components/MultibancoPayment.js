@@ -221,12 +221,21 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount }) => 
                     </Box>
                 </Paper>
 
-                <Alert severity="info" sx={{ mb: 3 }}>
+                <Alert severity="info" sx={{ mb: 2 }}>
                     <Typography variant="body2">
                         <strong>Instruções:</strong><br />
                         • No Multibanco: Pagamentos → Outros Pagamentos → Entidade + Referência<br />
                         • No Homebanking: Use os dados acima na secção de pagamentos<br />
                         • O pagamento é confirmado automaticamente
+                    </Typography>
+                </Alert>
+
+                <Alert severity="success" sx={{ mb: 3 }}>
+                    <Typography variant="body2">
+                        <strong>⏱️ Validade da Referência:</strong><br />
+                        • Esta referência é válida por <strong>7 dias</strong><br />
+                        • Pode pagar a qualquer momento dentro deste período<br />
+                        • Não há necessidade de confirmar imediatamente
                     </Typography>
                 </Alert>
 

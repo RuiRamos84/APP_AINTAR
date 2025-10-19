@@ -16,6 +16,6 @@ export const completeOperation = async (documentId, stepData) => {
 };
 
 export const exportToExcel = async (filteredData, selectedView) => {
-    const { exportToExcel: exportFunction } = await import('../../Operação/services/exportService');
+    const { exportToExcel: exportFunction } = await import('./exportService');
     return exportFunction(filteredData, selectedView);
 };

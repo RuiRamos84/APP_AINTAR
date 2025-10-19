@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchOperationsData } from "../services/operationsService";
-import { sortViews } from "../pages/Operação/utils/operationsHelpers";
+import { sortViews } from "../pages/Operation/utils/helpers";
 import { useMetaData } from "../contexts/MetaDataContext";
 
 export const useOperationsData = () => {

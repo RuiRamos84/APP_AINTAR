@@ -1,4 +1,12 @@
 # backend/app/routes/payment_routes.py - MIGRAÇÃO PARA NOVO SISTEMA
+#
+# MAPEAMENTO DE PERMISSÕES (ts_interface):
+# - 30:  admin.payments (Gestão de pagamentos)
+# - 700: payments.mbway
+# - 710: payments.multibanco
+# - 720: payments.bank_transfer
+# - 730: payments.cash.action
+# - 740: payments.municipality
 
 from app.services.payment_service import payment_service
 from app.utils.error_handler import api_error_handler
@@ -61,26 +69,29 @@ def check_payment_method_permission(payment_method):
     if not user_id:
         return False, user_id, user_profile
 
-    # Mapeamento para novo sistema
+    # Mapeamento para IDs numéricos (ts_interface)
     permission_map = {
-        'CASH': 'payments.cash.action',
-        'BANK_TRANSFER': 'payments.bank_transfer', # Assumindo que esta permissão será adicionada à BD
-        'MUNICIPALITY': 'payments.municipality',
-        'MBWAY': 'payments.mbway',
-        'MULTIBANCO': 'payments.multibanco'
+        'CASH': 730,            # payments.cash.action
+        'BANK_TRANSFER': 720,   # payments.bank_transfer
+        'MUNICIPALITY': 740,    # payments.municipality
+        'MBWAY': 700,           # payments.mbway
+        'MULTIBANCO': 710       # payments.multibanco
     }
 
-    required_permission = permission_map.get(payment_method)
-    if not required_permission:
+    required_permission_id = permission_map.get(payment_method)
+    if not required_permission_id:
         logger.warning(f"Método de pagamento desconhecido: {payment_method}")
         return False, user_id, user_profile
 
-    has_permission = permission_manager.check_permission(
-        required_permission, str(user_profile), user_interfaces or []
-    )
+    # Super admin sempre tem acesso
+    if user_profile == "0":
+        return True, user_id, user_profile
+
+    # Verificar se o ID está na lista de interfaces do utilizador
+    has_permission = required_permission_id in (user_interfaces or [])
 
     logger.debug(
-        f"Permissão {required_permission} para user {user_id}: {has_permission}")
+        f"Permissão ID {required_permission_id} para user {user_id}: {has_permission}")
     return has_permission, user_id, user_profile
 
 # ✅ NOVA FUNÇÃO PARA VERIFICAR GESTÃO DE PAGAMENTOS
@@ -93,12 +104,15 @@ def check_payment_admin_permission():
     if not user_id:
         return False, user_id, user_profile
 
-    has_permission = permission_manager.check_permission(
-        'admin.payments', str(user_profile), user_interfaces or []
-    )
+    # Super admin sempre tem acesso
+    if user_profile == "0":
+        return True, user_id, user_profile
+
+    # Verificar se tem a permissão de admin de pagamentos (ID 30)
+    has_permission = 30 in (user_interfaces or [])  # admin.payments
 
     logger.debug(
-        f"Permissão payments.validate para user {user_id}: {has_permission}")
+        f"Permissão admin.payments (ID 30) para user {user_id}: {has_permission}")
     return has_permission, user_id, user_profile
 
 # ===== ENDPOINTS ATUALIZADOS =====

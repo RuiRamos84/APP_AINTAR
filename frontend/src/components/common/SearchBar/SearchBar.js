@@ -33,7 +33,7 @@ const SearchWrapper = styled('div', {
         : alpha(theme.palette.grey[100], 0.15),
   },
   transition: theme.transitions.create(['width', 'background-color', 'border']),
-  width: open ? '200px' : '40px', // Largura fixa ao expandir
+  width: open ? 'min(280px, 50vw)' : '40px',
   maxWidth: '100%',
   height: '40px',
   overflow: 'hidden',
@@ -157,7 +157,11 @@ const SearchBar = ({ searchTerm: externalSearchTerm, onSearch }) => {
   };
 
   return (
-    <SearchWrapper open={searchOpen} ref={wrapperRef} isDarkMode={isDarkMode}>
+    <SearchWrapper
+      open={searchOpen}
+      ref={wrapperRef}
+      isDarkMode={isDarkMode}
+    >
       <StyledInputBase
         placeholder="O que procura?"
         inputProps={{ 'aria-label': 'pesquisar' }}

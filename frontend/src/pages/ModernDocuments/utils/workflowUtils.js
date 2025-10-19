@@ -28,7 +28,15 @@ export const getValidTransitions = (document, metaData) => {
     // console.log('🔄 Filtros:', {
     //     currentStep,
     //     documentTypeStr,
-    //     documentTypePk
+    //     documentTypePk,
+    //     allTransitions: metaData.step_transitions.map(t => ({
+    //         pk: t.pk,
+    //         doctype: t.doctype,
+    //         doctype_pk: t.doctype_pk,
+    //         from: t.from_step_pk,
+    //         to: t.to_step_pk,
+    //         client: t.client
+    //     }))
     // });
 
     if (!documentTypePk) {
@@ -45,6 +53,7 @@ export const getValidTransitions = (document, metaData) => {
         //     doctype_pk: transition.doctype_pk,
         //     from_step_pk: transition.from_step_pk,
         //     to_step_pk: transition.to_step_pk,
+        //     client: transition.client,
         //     matchType,
         //     matchStep,
         //     include: matchType && matchStep
@@ -53,7 +62,7 @@ export const getValidTransitions = (document, metaData) => {
         return matchType && matchStep;
     });
 
-    // console.log('✅ Transições filtradas:', filtered);
+    // console.log('✅ Transições filtradas:', filtered.length, 'de', metaData.step_transitions.length);
     return filtered;
 };
 
@@ -127,29 +136,77 @@ export const getAvailableSteps = (document, metaData) => {
 export const getAvailableUsersForStep = (stepId, document, metaData) => {
     const validTransitions = getValidTransitions(document, metaData);
 
+    // console.log('🔍 getAvailableUsersForStep - Início:', {
+    //     stepId,
+    //     validTransitionsCount: validTransitions.length,
+    //     currentStep: document?.what
+    // });
+
     // Se não há workflow, mostrar todos os utilizadores
     if (validTransitions.length === 0) {
+        // console.log('⚠️ Sem workflow configurado, retornando todos os utilizadores');
         return metaData.who || [];
     }
 
     // Se é o passo actual, permitir transferência para TODOS excepto o actual
     if (stepId === document.what) {
+        // console.log('🔄 Transferência no mesmo passo');
         return (metaData.who || []).filter(user => user.pk !== document.who_pk);
     }
 
     const stepTransitions = validTransitions.filter(t => t.to_step_pk === stepId);
 
-    // CORRIGIDO: Aceitar pk=0 explicitamente - não usar filter(Boolean)
-    const userIds = [...new Set(
-        stepTransitions.flatMap(t => Array.isArray(t.client) ? t.client : [t.client])
-    )].filter(id => id !== null && id !== undefined); // Aceitar 0 explicitamente
+    // console.log('📋 Transições filtradas para step', stepId, ':', stepTransitions);
 
-    // console.log('👥 Debug utilizadores:', { stepId, userIds, stepTransitions });
+    // CORRIGIDO: Melhor extração do client (pode ser array ou valor único)
+    const userIds = [];
 
-    // CORRIGIDO: Não usar filter(Boolean) pois remove pk=0
-    return userIds.map(userId =>
-        metaData.who?.find(user => user.pk === userId)
-    ).filter(user => user !== null && user !== undefined);
+    stepTransitions.forEach(t => {
+        // console.log('🔍 Processando transição:', {
+        //     pk: t.pk,
+        //     from: t.from_step_pk,
+        //     to: t.to_step_pk,
+        //     client: t.client,
+        //     client_type: typeof t.client,
+        //     is_array: Array.isArray(t.client)
+        // });
+
+        if (Array.isArray(t.client)) {
+            // Se é array, adicionar todos os valores
+            t.client.forEach(c => {
+                if (c !== null && c !== undefined) {
+                    userIds.push(c);
+                }
+            });
+        } else if (t.client !== null && t.client !== undefined) {
+            // Se é valor único (incluindo 0), adicionar
+            userIds.push(t.client);
+        }
+    });
+
+    // Remover duplicados
+    const uniqueUserIds = [...new Set(userIds)];
+
+    // console.log('👥 UserIds extraídos:', {
+    //     raw: userIds,
+    //     unique: uniqueUserIds,
+    //     metaData_who: metaData.who?.map(u => ({ pk: u.pk, name: u.name, type: typeof u.pk }))
+    // });
+
+    // CORRIGIDO: Comparação robusta que aceita 0, '0' e conversões
+    const users = uniqueUserIds.map(userId => {
+        // Converter ambos para número para comparação consistente
+        const userIdNum = Number(userId);
+        const found = metaData.who?.find(user => Number(user.pk) === userIdNum);
+
+        // console.log(`🔎 Buscando userId ${userId} (${userIdNum}):`, found ? `✅ ${found.name}` : '❌ Não encontrado');
+
+        return found;
+    }).filter(user => user !== null && user !== undefined);
+
+    // console.log('✅ Utilizadores finais:', users.map(u => ({ pk: u.pk, name: u.name })));
+
+    return users;
 };
 
 /**
@@ -200,12 +257,12 @@ export const getWorkflowForDocumentType = (documentType, metaData) => {
  * @returns {Object} Timeline organizada sem duplicações
  */
 export const getWorkflowTimeline = (document, metaData, steps) => {
-    console.log('🔍 Timeline - Input:', {
-        document_what: document.what,
-        steps_count: steps.length,
-        current_step: document.what,
-        steps_detail: steps.map(s => ({ what: s.what, when: s.when_start }))
-    });
+    // console.log('🔍 Timeline - Input:', {
+    //     document_what: document.what,
+    //     steps_count: steps.length,
+    //     current_step: document.what,
+    //     steps_detail: steps.map(s => ({ what: s.what, when: s.when_start }))
+    // });
 
     // 1. Função auxiliar para encontrar step data (suporta string e number)
     const findStepData = (whatValue) => {
@@ -246,15 +303,15 @@ export const getWorkflowTimeline = (document, metaData, steps) => {
             return parsePortugueseDate(a.when_start) - parsePortugueseDate(b.when_start);
         });
 
-    console.log('📋 Passos executados ordenados:', executedSteps.map(s => {
-        const stepData = findStepData(s.what);
-        return {
-            what: s.what,
-            when: s.when_start,
-            stepName: stepData?.step,
-            stepPk: stepData?.pk
-        };
-    }));
+    // console.log('📋 Passos executados ordenados:', executedSteps.map(s => {
+    //     const stepData = findStepData(s.what);
+    //     return {
+    //         what: s.what,
+    //         when: s.when_start,
+    //         stepName: stepData?.step,
+    //         stepPk: stepData?.pk
+    //     };
+    // }));
 
     // 3. Criar mapa de passos únicos executados
     const uniqueExecutedSteps = new Map();
@@ -289,15 +346,15 @@ export const getWorkflowTimeline = (document, metaData, steps) => {
                 });
             }
         } else {
-            console.warn(`⚠️ Step não encontrado nos metadados:`, step.what);
+            // console.warn(`⚠️ Step não encontrado nos metadados:`, step.what);
         }
     });
 
-    console.log('🎯 Passos únicos identificados:', Array.from(uniqueExecutedSteps.values()).map(s => ({
-        id: s.stepId,
-        name: s.stepName,
-        when: s.when
-    })));
+    // console.log('🎯 Passos únicos identificados:', Array.from(uniqueExecutedSteps.values()).map(s => ({
+    //     id: s.stepId,
+    //     name: s.stepName,
+    //     when: s.when
+    // })));
 
     // 4. Verificar se ENTRADA foi executada explicitamente
     const entradaStep = metaData.what?.find(s =>
@@ -419,18 +476,18 @@ export const getWorkflowTimeline = (document, metaData, steps) => {
         pending: possibleNextSteps
     };
 
-    console.log('✅ Timeline final corrigida:', {
-        total_steps: result.steps.length,
-        completed: result.completed,
-        current_step: result.current?.stepName,
-        pending_count: result.pending.length,
-        all_steps: result.steps.map(s => ({
-            id: s.stepId,
-            name: s.stepName,
-            status: s.status,
-            when: s.when
-        }))
-    });
+    // console.log('✅ Timeline final corrigida:', {
+    //     total_steps: result.steps.length,
+    //     completed: result.completed,
+    //     current_step: result.current?.stepName,
+    //     pending_count: result.pending.length,
+    //     all_steps: result.steps.map(s => ({
+    //         id: s.stepId,
+    //         name: s.stepName,
+    //         status: s.status,
+    //         when: s.when
+    //     }))
+    // });
 
     return result;
 };
@@ -439,10 +496,10 @@ export const getWorkflowTimeline = (document, metaData, steps) => {
  * Função para debug que mostra todos os passos encontrados nos metadados
  */
 export const debugMetaDataSteps = (metaData) => {
-    console.log('🔍 Debug - Metadados what:', metaData.what?.map(s => ({
-        pk: s.pk,
-        step: s.step
-    })));
+    // console.log('🔍 Debug - Metadados what:', metaData.what?.map(s => ({
+    //     pk: s.pk,
+    //     step: s.step
+    // })));
 };
 
 /**
