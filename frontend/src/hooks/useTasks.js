@@ -69,20 +69,31 @@ export const useTasks = (initialFetchType = 'all') => {
         queryKey: ['tasks', fetchType, user?.user_id],
         queryFn: async () => {
             const allTasks = await getTasks();
+            console.log('🔍 DEBUG useTasks:', {
+                fetchType,
+                userId: user?.user_id,
+                totalTasks: allTasks.length,
+                firstTask: allTasks[0]
+            });
+
             let filteredTasks;
 
             switch (fetchType) {
                 case 'my':
                     filteredTasks = allTasks.filter(task => task.ts_client === user?.user_id && !task.when_stop);
+                    console.log(`📋 Minhas Tarefas (ts_client === ${user?.user_id}):`, filteredTasks.length);
                     break;
                 case 'created':
                     filteredTasks = allTasks.filter(task => task.owner === user?.user_id && !task.when_stop);
+                    console.log(`👨‍💼 Tarefas Criadas (owner === ${user?.user_id}):`, filteredTasks.length);
                     break;
                 case 'all':
                     filteredTasks = allTasks.filter(task => !task.when_stop);
+                    console.log('📝 Todas as Tarefas:', filteredTasks.length);
                     break;
                 case 'completed':
                     filteredTasks = allTasks.filter(task => task.when_stop);
+                    console.log('✅ Tarefas Concluídas:', filteredTasks.length);
                     break;
                 default:
                     filteredTasks = allTasks;
@@ -162,7 +173,7 @@ export const useTasks = (initialFetchType = 'all') => {
 
     // Filtragem por termo de pesquisa (feita no cliente)
     const getFilteredTasks = useCallback(() => {
-        if (!tasks || !searchTerm.trim()) return tasks;
+        if (!tasks || !searchTerm.trim()) return tasks || {};
 
         const lowercaseSearch = searchTerm.toLowerCase();
         const filtered = {};
@@ -205,7 +216,7 @@ export const useTasks = (initialFetchType = 'all') => {
     }, []);
 
     return {
-        tasks: searchTerm ? getFilteredTasks() : tasks,
+        tasks: searchTerm ? getFilteredTasks() : (tasks || {}),
         setSearchTerm,
         searchTerm,
         loading,

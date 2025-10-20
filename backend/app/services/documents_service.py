@@ -658,7 +658,7 @@ def get_document_ramais(current_user: str):
 @api_error_handler
 def update_document_pavenext(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
-        query = text("SELECT fbo_document_pavenext(:pk) AS result")
+        query = text("SELECT fbo_document_nextstep(:pk) AS result")
         result = session.execute(query, {'pk': pk}).scalar()
         if not result:
             raise Exception('Falha ao atualizar documento')

@@ -16,7 +16,7 @@ const TaskNavigator = () => {
     if (path.includes("/tasks/all")) return 2;
     return 0;
   };
-  
+
   const handleTabChange = (event, newValue) => {
     switch (newValue) {
       case 0:
@@ -33,9 +33,6 @@ const TaskNavigator = () => {
     }
   };
 
-  // Verificar se o utilizador é um administrador (profil: "0")
-  const isAdmin = user?.profil === "0";
-
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
       <Tabs
@@ -47,7 +44,7 @@ const TaskNavigator = () => {
       >
         <Tab label="Minhas Tarefas" />
         <Tab label="Tarefas Onde Sou Responsável" />
-        {isAdmin && <Tab label="Todas as Tarefas" />}
+        <Tab label="Todas as Tarefas" />
       </Tabs>
     </Box>
   );

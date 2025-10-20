@@ -206,9 +206,9 @@ def update_document_pavenext(pk, current_user):
             formatted_result = format_message(result.result)
             session.commit()
 
-            # Limpar cache relevante
-            cache.delete_memoized(get_document_ramais, current_user)
-            cache.delete_memoized(get_document_ramais_executed, current_user)
+            # Limpar cache relevante - usar delete ao invés de delete_memoized
+            cache.delete(f"get_document_ramais_{(current_user,)}_{{}}")
+            cache.delete(f"get_document_ramais_executed_{(current_user,)}_{{}}")
 
             return {"message": "Ramal marcado como executado", "result": formatted_result}, 200
 
@@ -242,9 +242,9 @@ def update_document_pavpaid(pk, current_user):
             formatted_result = format_message(result.result)
             session.commit()
 
-            # Limpar cache relevante - corrigido
-            cache.delete_memoized(get_document_ramais_executed)
-            cache.delete_memoized(get_document_ramais_concluded)
+            # Limpar cache relevante - usar delete ao invés de delete_memoized
+            cache.delete(f"get_document_ramais_executed_{(current_user,)}_{{}}")
+            cache.delete(f"get_document_ramais_concluded_{(current_user,)}_{{}}")
 
             return {"message": "Ramal marcado como pago e concluído", "result": formatted_result}, 200
 

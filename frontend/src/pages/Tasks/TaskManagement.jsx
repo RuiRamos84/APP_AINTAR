@@ -6,13 +6,17 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import TaskNavigator from "./TaskNavigator";
 import TaskModal from "./TaskModal";
 import CreateTaskModal from "./CreateTaskModal";
+import AdvancedFilters from "./components/AdvancedFilters";
+import ExportButton from "./components/ExportButton";
 import { useMetaData } from "../../contexts/MetaDataContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import SearchBar from "../../components/common/SearchBar/SearchBar";
 import { getTasks } from "../../services/TaskService";
 import { TouchBackend } from "react-dnd-touch-backend";
+import { useDebounce } from "../../hooks/useDebounce";
 import "./TaskBoard.css";
 
 /**
@@ -26,10 +30,21 @@ const TaskManagement = () => {
   const location = useLocation();
   const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({});
+  const [allTasks, setAllTasks] = useState([]);
   const { metaData } = useMetaData();
+  const { user } = useAuth();
+  const isDarkMode = theme.palette.mode === 'dark';
+
+  // Debounce do termo de pesquisa
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const handleSearch = (query) => {
     setSearchTerm(query);
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
   };
 
   // Manipuladores para os modais
@@ -53,7 +68,24 @@ const TaskManagement = () => {
     // Esta função será passada para os componentes filhos para atualizar os dados
     const refreshEvent = new CustomEvent('task-refresh');
     window.dispatchEvent(refreshEvent);
+    // Recarregar tarefas para exportação
+    loadAllTasks();
   };
+
+  // Carregar todas as tarefas para exportação
+  const loadAllTasks = async () => {
+    try {
+      const tasks = await getTasks();
+      setAllTasks(tasks || []);
+    } catch (error) {
+      console.error('Erro ao carregar tarefas:', error);
+    }
+  };
+
+  // Carregar tarefas ao montar o componente
+  useEffect(() => {
+    loadAllTasks();
+  }, []);
 
   // Em TaskManagement.jsx ou componente de rotas
   useEffect(() => {
@@ -100,6 +132,16 @@ const TaskManagement = () => {
             <Typography variant="h4">Gestão de Tarefas</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <SearchBar onSearch={handleSearch} />
+              {!isCompletedTasksRoute && (
+                <>
+                  <AdvancedFilters
+                    metaData={metaData}
+                    onFilterChange={handleFilterChange}
+                    isDarkMode={isDarkMode}
+                  />
+                  <ExportButton tasks={allTasks} isDarkMode={isDarkMode} />
+                </>
+              )}
               {isCompletedTasksRoute ? (
                 <Button
                   variant="outlined"

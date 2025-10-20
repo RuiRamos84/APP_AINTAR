@@ -16,6 +16,15 @@ const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) =>
   const isDarkMode = user?.dark_mode || false;
   const theme = useTheme();
 
+  // Extrair todas as tarefas concluídas de todos os clientes
+  // IMPORTANTE: Hooks devem ser chamados ANTES de qualquer return condicional
+  const allCompletedTasks = React.useMemo(() => {
+    if (!tasks || typeof tasks !== 'object') return [];
+    return Object.values(tasks).flatMap(client =>
+      Object.values(client.tasks || {}).flat()
+    );
+  }, [tasks]);
+
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', mt: 4 }}>
@@ -26,11 +35,6 @@ const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) =>
       </Box>
     );
   }
-
-  // Extrair todas as tarefas concluídas de todos os clientes
-  const allCompletedTasks = Object.values(tasks).flatMap(client =>
-    Object.values(client.tasks).flat()
-  );
 
   // Função para filtrar tarefas com base no searchTerm
   const filterTasks = (tasks, searchTerm) => {

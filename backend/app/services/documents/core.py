@@ -162,14 +162,24 @@ def document_owner(current_user):
 def create_document(data, files, current_user):
     """Criar novo documento com anexos"""
     try:
+        logger.warning(f"📝 INÍCIO create_document - User: {current_user}")
+        logger.warning(f"📝 Data recebida: {dict(data)}")
+        logger.warning(f"📝 Files recebidos: {[f.filename for f in files] if files else 'Nenhum'}")
+
         with db_session_manager(current_user) as session:
             # Validar dados obrigatórios
+            logger.warning("📝 Validando dados do documento...")
             valid, error_msg = validate_document_data(data)
             if not valid:
+                logger.error(f"🔴 Validação falhou: {error_msg}")
                 raise APIError(error_msg, 400, "ERR_INVALID_INPUT")
 
+            logger.warning("📝 Validação OK! Processando campos...")
+
             ts_entity = sanitize_input(data.get('ts_entity'), 'int')
+            logger.warning(f"📝 ts_entity: {ts_entity}")
             if not ts_entity:
+                logger.error("🔴 ts_entity não fornecido")
                 raise APIError('ID da entidade não fornecido',
                                400, "ERR_MISSING_ENTITY")
 
@@ -179,17 +189,22 @@ def create_document(data, files, current_user):
             tt_presentation = sanitize_input(
                 data.get('tt_presentation'), 'int')
 
+            logger.warning(f"📝 Campos principais: tt_type={tt_type}, ts_associate={ts_associate}, representative_nipc={representative_nipc}")
+
             # Buscar o PK do representante usando o NIF
             tb_representative = None
             if representative_nipc:
+                logger.warning(f"📝 Buscando representante com NIPC: {representative_nipc}")
                 representative_query = text(
                     "SELECT pk FROM vbf_entity WHERE nipc = :nipc")
                 representative_result = session.execute(
                     representative_query, {'nipc': representative_nipc}).scalar()
                 if not representative_result:
+                    logger.error(f"🔴 Representante com NIPC {representative_nipc} não encontrado")
                     raise APIError(
                         'O representante fornecido não existe', 400, "ERR_INVALID_REP")
                 tb_representative = representative_result
+                logger.warning(f"📝 Representante encontrado: PK={tb_representative}")
 
             memo = data.get('memo')
             is_different_address = data.get('isDifferentAddress') == 'true'
@@ -216,13 +231,17 @@ def create_document(data, files, current_user):
                         f'shipping_{field}', doc_fields[field])
 
             # Gerar PK do documento
+            logger.warning("📝 Gerando PK do documento...")
             pk_query = text("SELECT fs_nextcode()")
             pk_result = session.execute(pk_query).scalar()
+            logger.warning(f"📝 PK gerado: {pk_result}")
 
             # Construir a query de inserção
             fields = ['pk', 'ts_entity', 'tt_type', 'ts_associate',
                       'tb_representative', 'memo'] + list(doc_fields.keys())
             placeholders = [f':{field}' for field in fields]
+
+            
 
             insert_query = text(
                 f"""INSERT INTO vbf_document
@@ -239,16 +258,26 @@ def create_document(data, files, current_user):
                 **doc_fields
             }
 
+            logger.warning(f"📝 Inserindo documento no BD...")
+            logger.warning(f"📝 Query params: {query_params}")
+
             try:
                 session.execute(insert_query, query_params)
                 session.commit()
+                logger.warning(f"✅ Documento inserido com sucesso! PK={pk_result}")
             except IntegrityError as ie:
                 session.rollback()
-                logger.error(f"Erro ao inserir documento: {str(ie)}")
+                logger.error(f"🔴 IntegrityError ao inserir documento: {str(ie)}")
+                logger.error(f"🔴 Tipo do erro: {type(ie)}")
+                logger.error(f"🔴 Query params que causaram erro: {query_params}")
                 if "unique constraint" in str(ie).lower():
                     raise DuplicateResourceError("Documento", "regnumber", "")
-                    logger.error(f"Erro de duplicação: {str(ie)}")
                 raise APIError(f"Erro ao inserir documento: {str(ie)}", 500, "ERR_DB_INTEGRITY")
+            except Exception as db_err:
+                session.rollback()
+                logger.error(f"🔴 Erro genérico ao inserir documento: {str(db_err)}")
+                logger.error(f"🔴 Tipo do erro: {type(db_err)}")
+                raise APIError(f"Erro ao inserir documento no BD: {str(db_err)}", 500, "ERR_DB_INSERT")
 
             # Obter regnumber e who
             reg_query = text(
@@ -443,10 +472,17 @@ def create_document(data, files, current_user):
             }, 201
 
     except APIError as e:
+        logger.error(f"🔴 APIError capturado: {str(e)} | Code: {e.error_code} | Status: {e.status_code}")
         return {'error': str(e), 'code': e.error_code}, e.status_code
     except Exception as e:
-        logger.error(f"Erro ao criar documento: {str(e)}")
-        return {'error': f"Erro ao criar documento: {str(e)}"}, 500
+        logger.error(f"🔴 EXCEÇÃO NÃO TRATADA ao criar documento: {str(e)}")
+        logger.error(f"🔴 Tipo da exceção: {type(e)}")
+        logger.error(f"🔴 Traceback:", exc_info=True)
+        return {
+            'error': f"Erro ao criar documento: {str(e)}",
+            'error_type': str(type(e).__name__),
+            'details': str(e)
+        }, 500
 
 
 def update_document_notification(pk, current_user):

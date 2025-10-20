@@ -45,7 +45,7 @@ def create_task(data: dict, current_user: str):
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
-                socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='new_task')
+                socketio_events.emit_task_notification(task_id, current_user, notification_type='new_task')
         except Exception as e:
             logger.warning(f"Falha ao enviar notificação de nova tarefa via Socket.IO: {str(e)}")
 
@@ -62,7 +62,7 @@ def add_task_note(task_id: int, data: dict, current_user: str):
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
-                socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='new_note')
+                socketio_events.emit_task_notification(task_id, current_user, notification_type='new_note')
         except Exception as e:
             logger.warning(f"Falha ao enviar notificação de nova nota via Socket.IO: {str(e)}")
         
@@ -91,7 +91,7 @@ def update_task(task_id: int, data: dict, current_user: str):
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
-                socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='task_update')
+                socketio_events.emit_task_notification(task_id, current_user, notification_type='task_update')
         except Exception as e:
             logger.warning(f"Falha ao enviar notificação de atualização de tarefa via Socket.IO: {str(e)}")
 
@@ -107,7 +107,7 @@ def close_task(task_id: int, current_user: str):
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
-                socketio_events.emit_task_notification(task_id, current_user, current_user, notification_type='task_closed')
+                socketio_events.emit_task_notification(task_id, current_user, notification_type='task_closed')
         except Exception as e:
             logger.warning(f"Falha ao enviar notificação de tarefa fechada via Socket.IO: {str(e)}")
 
@@ -123,7 +123,7 @@ def update_task_status(task_id: int, status_id: int, user_id: int, current_user:
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
-                socketio_events.emit_task_notification(task_id, user_id, current_user, notification_type='status_update')
+                socketio_events.emit_task_notification(task_id, current_user, notification_type='status_update')
         except Exception as e:
             logger.warning(f"Falha ao enviar notificação de status de tarefa via Socket.IO: {str(e)}")
         

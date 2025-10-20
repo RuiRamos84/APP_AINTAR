@@ -149,7 +149,19 @@ export const ROUTE_CONFIG = {
         permissions: { required: 200 }, // tasks.all
         showInSidebar: true,
         submenu: {
-            '/tasks': {
+            '/tasks/my': {
+                id: 'my_tasks',
+                text: 'Minhas Tarefas',
+                icon: AssignmentIndIcon, // COMPONENTE
+                permissions: { required: 200 } // tasks.all
+            },
+            '/tasks/created': {
+                id: 'created_tasks',
+                text: 'Tarefas Onde Sou Responsável',
+                icon: PersonIcon, // COMPONENTE
+                permissions: { required: 200 } // tasks.all
+            },
+            '/tasks/all': {
                 id: 'all_tasks',
                 text: 'Todas as Tarefas',
                 icon: ListAltIcon, // COMPONENTE

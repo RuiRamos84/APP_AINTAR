@@ -18,6 +18,7 @@ import { useTasks } from "../../hooks/useTasks";
 import { useMetaData } from "../../contexts/MetaDataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import TaskColumn from "./TaskColumn";
+import MobileKanban from "./components/MobileKanban";
 import { useTheme } from "@mui/material";
 
 /**
@@ -137,74 +138,15 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Grid container spacing={2} sx={{ minHeight: '400px' }}>
-                    {statuses.map((status) => (
-                      <Grid size={{ xs: 12 }} md={4} key={status.pk}>
-                        <Paper 
-                          sx={{ 
-                            p: 2, 
-                            height: '100%', 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            bgcolor: isDarkMode ? theme.palette.background.paper : '#f5f5f5',
-                            borderRadius: 2,
-                            boxShadow: isDarkMode ? '0 4px 8px rgba(0, 0, 0, 0.5)' : 3,
-                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-                            '& .MuiTypography-root': {
-                              color: isDarkMode ? theme.palette.text.primary : undefined
-                            }
-                          }}
-                        >
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              pb: 1, 
-                              mb: 2, 
-                              borderBottom: '1px solid', 
-                              borderColor: 'divider',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}
-                          >
-                            <span>{status.value}</span>
-                            <Chip 
-                              size="small" 
-                              label={getTasksByStatus(clientTasks, status.pk).length}
-                              color={getStatusColor(status.value)}
-                              variant={isDarkMode ? "default" : "outlined"}
-                              sx={{
-                                fontWeight: 'bold',
-                                color: isDarkMode ? 'white' : undefined
-                              }}
-                            />
-                          </Typography>
-                          
-                          <Box sx={{ 
-                            flexGrow: 1, 
-                            overflowY: 'auto',
-                            pr: 1,
-                            '&::-webkit-scrollbar': {
-                              width: '8px',
-                            },
-                            '&::-webkit-scrollbar-thumb': {
-                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                              borderRadius: '4px',
-                            }
-                          }}>
-                            <TaskColumn
-                              columnId={status.pk}
-                              columnName={status.value}
-                              tasks={getTasksByStatus(clientTasks, status.pk)}
-                              onTaskClick={onTaskClick}
-                              moveTask={(taskId, newStatusId) => moveTask(taskId, newStatusId, clientName)}
-                              isDarkMode={isDarkMode}
-                            />
-                          </Box>
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
+                  {/* Usar MobileKanban - responsivo automático */}
+                  <MobileKanban
+                    statuses={statuses}
+                    tasks={clientTasks}
+                    onTaskClick={onTaskClick}
+                    moveTask={moveTask}
+                    isDarkMode={isDarkMode}
+                    clientName={clientName}
+                  />
                 </AccordionDetails>
               </Accordion>
             );

@@ -433,7 +433,7 @@ def update_document_params(current_user, document_id, data):
         
 
 def update_document_pavenext(pk, current_user):
-    """Atualizar o documento usando a função fbo_document_pavenext"""
+    """Atualizar o documento usando a função fbo_document_nextstep """
     try:
         with db_session_manager(current_user) as session:
             pk = sanitize_input(pk, 'int')
@@ -446,7 +446,7 @@ def update_document_pavenext(pk, current_user):
 
             # Chamar a função armazenada
             update_query = text("""
-                SELECT fbo_document_pavenext(:pk) AS result
+                SELECT fbo_document_nextstep(:pk) AS result
             """)
             result = session.execute(update_query, {'pk': pk}).scalar()
 

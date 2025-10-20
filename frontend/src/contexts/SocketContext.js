@@ -228,22 +228,67 @@ export const SocketProvider = ({ children }) => {
                 } else if (data.task_id || data.taskId) {
                     // Notificação de tarefa
                     notificationType = 'task';
+
+                    // Determinar título e mensagem baseado no tipo de notificação
+                    const taskName = data.task_name || data.taskName || 'Tarefa';
+                    const senderName = data.senderName || data.sender_name || 'Utilizador';
+                    const content = data.content || data.message || 'Nova atualização';
+                    const notifType = data.notification_type || 'task_update';
+
+                    let title = 'Tarefa atualizada';
+                    let message = `${taskName}: ${content}`;
+                    let icon = '📋';
+
+                    // Mensagens específicas por tipo de ação
+                    switch (notifType) {
+                        case 'new_task':
+                            title = 'Nova tarefa atribuída';
+                            message = `${senderName} atribuiu-lhe a tarefa: ${taskName}`;
+                            icon = '✨';
+                            break;
+                        case 'new_note':
+                            title = 'Nova resposta na tarefa';
+                            message = `${senderName} adicionou uma nota em "${taskName}"`;
+                            icon = '💬';
+                            break;
+                        case 'status_update':
+                            title = 'Estado da tarefa alterado';
+                            message = `${senderName} mudou o estado de "${taskName}"`;
+                            icon = '🔄';
+                            break;
+                        case 'task_update':
+                            title = 'Tarefa atualizada';
+                            message = `${senderName} atualizou a tarefa "${taskName}"`;
+                            icon = '✏️';
+                            break;
+                        case 'task_closed':
+                            title = 'Tarefa encerrada';
+                            message = `${senderName} encerrou a tarefa "${taskName}"`;
+                            icon = '✅';
+                            break;
+                        default:
+                            title = 'Atualização na tarefa';
+                            message = `${senderName}: ${content}`;
+                            icon = '📋';
+                    }
+
                     notification = {
                         id: generateNotificationId(),
                         originalId: notificationId,
                         type: 'task_notification',
+                        notificationType: notifType,
                         taskId: data.task_id || data.taskId,
-                        taskName: data.task_name || data.taskName || 'Tarefa',
+                        taskName,
                         status: data.status,
                         statusId: data.statusId || data.status_id,
-                        senderName: data.senderName || data.sender_name || 'Utilizador',
-                        content: data.content || data.message || 'Nova atualização',
+                        senderName,
+                        content,
                         timestamp: data.timestamp || new Date().toISOString(),
                         read: false,
-                        title: 'Tarefa atualizada',
-                        message: `${data.task_name || 'Tarefa'}: ${data.content || data.message || 'Nova atualização'}`,
-                        priority: 'medium',
-                        icon: '📋'
+                        title,
+                        message,
+                        priority: notifType === 'new_task' ? 'high' : 'medium',
+                        icon
                     };
                 } else {
                     // Notificação genérica/sistema
@@ -287,7 +332,8 @@ export const SocketProvider = ({ children }) => {
                             notifySuccess(`📤 ${notification.message}`, { duration: 4000 });
                         }
                     } else if (notificationType === 'task') {
-                        notifyInfo(`📋 ${notification.message}`, { duration: 4000 });
+                        // Usar ícone específico da notificação
+                        notifyInfo(`${notification.icon} ${notification.message}`, { duration: 5000 });
                     } else {
                         notifyInfo(`🔔 ${notification.message}`, { duration: 3000 });
                     }

@@ -204,14 +204,14 @@ const AppRoutes = ({ user }) => (
                 <TaskManagement />
             </PrivateRoute>
         }>
-            <Route index element={<Navigate to="all" replace />} />
+            <Route index element={<Navigate to="my" replace />} />
+            <Route path="my" element={<MyTasks />} />
+            <Route path="created" element={<CreatedTasks />} />
             <Route path="all" element={
                 <PrivateRoute requiredPermission={200}>
                     <AllTasks />
                 </PrivateRoute>
             } />
-            <Route path="my" element={<MyTasks />} />
-            <Route path="created" element={<CreatedTasks />} />
             <Route path="completed" element={<CompletedTasks />} />
         </Route>
 

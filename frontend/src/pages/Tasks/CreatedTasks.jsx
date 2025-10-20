@@ -1,13 +1,10 @@
-import React from 'react';
-import MyTasks from './MyTasks'; // Reutilizamos o layout de MyTasks
+import React from "react";
+import { useOutletContext } from "react-router-dom";
+import TaskBoardLayout from "./TaskBoardLayout";
 
-const CreatedTasks = (props) => {
-  // Este componente agora é um simples wrapper que renderiza o mesmo layout
-  // que MyTasks, mas com os dados filtrados para "created".
-  // O TaskManagement.js já trata de passar as props corretas.
-  return (
-    <MyTasks {...props} />
-  );
+const CreatedTasks = () => {
+  const { searchTerm } = useOutletContext();
+  return <TaskBoardLayout fetchType="created" title="Tarefas Onde Sou Responsável" searchTerm={searchTerm} />;
 };
 
 export default CreatedTasks;
