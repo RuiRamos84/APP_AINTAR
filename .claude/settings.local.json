@@ -37,7 +37,8 @@
       "Bash(where /r backend *.sql:*)",
       "Bash(cat:*)",
       "Bash(git reset:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Implement QuickFilters component for task filtering\n\n- Added QuickFilters component to allow users to filter tasks by various criteria (All, Notifications, This Week, Overdue, High Priority).\n- Integrated QuickFilters into TaskBoardLayout with state management for active filters.\n- Created useSwipe hook for detecting swipe gestures on mobile devices.\n- Developed usePullToRefresh hook for implementing pull-to-refresh functionality.\n- Introduced useKeyboardShortcuts hook for global keyboard shortcuts.\n- Added ErrorBoundary component to handle errors gracefully in the application.\n- Implemented usePerformanceMonitor hook to track component render performance.\n- Enhanced QuickActionsMenu with additional functionality for task management.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": [
