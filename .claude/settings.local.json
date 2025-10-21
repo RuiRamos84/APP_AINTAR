@@ -33,7 +33,11 @@
       "Bash(move TROUBLESHOOTING-WINRM.md legacy )",
       "Bash(move README-OLD.md legacy)",
       "Bash(copy TaskModal.jsx TaskModal.jsx.backup)",
-      "Read(//c/Users/rui.ramos/**)"
+      "Read(//c/Users/rui.ramos/**)",
+      "Bash(where /r backend *.sql:*)",
+      "Bash(cat:*)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [

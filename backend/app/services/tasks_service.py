@@ -40,7 +40,21 @@ def create_task(data: dict, current_user: str):
     task_data = TaskCreate.model_validate(data)
     with db_session_manager(current_user) as session:
         query = text("SELECT fbo_task_new(:name, :ts_client, :ts_priority, :memo)")
-        task_id = session.execute(query, task_data.model_dump()).scalar()
+        result = session.execute(query, task_data.model_dump()).scalar()
+
+        # Parsear XML retornado pela stored procedure
+        # Formato: <result><sucess>144533</sucess><source>fbo_task_new</source></result>
+        task_id = result
+        if isinstance(result, str) and result.startswith('<result>'):
+            import re
+            match = re.search(r'<sucess>(\d+)</sucess>', result)
+            if match:
+                task_id = int(match.group(1))
+                logger.info(f"✅ Task ID extraído do XML: {task_id}")
+            else:
+                logger.error(f"❌ Não foi possível extrair task_id do XML: {result}")
+
+        logger.info(f"📝 Tarefa criada com ID: {task_id}")
 
         try:
             socketio_events = current_app.extensions.get('socketio_events')
@@ -117,16 +131,26 @@ def close_task(task_id: int, current_user: str):
 @api_error_handler
 def update_task_status(task_id: int, status_id: int, user_id: int, current_user: str):
     with db_session_manager(current_user) as session:
+        # Log antes de executar
+        logger.info(f"🔄 UPDATE_TASK_STATUS: task_id={task_id}, status_id={status_id}, user_id={user_id}, current_user={current_user}")
+
         query = text("SELECT fbo_task_status(:pnpk, :status_id)")
-        session.execute(query, {"pnpk": task_id, "status_id": status_id})
+        result = session.execute(query, {"pnpk": task_id, "status_id": status_id}).scalar()
+
+        logger.info(f"✅ Stored procedure fbo_task_status executada com sucesso para task_id={task_id}")
+        logger.info(f"📦 Resultado da stored procedure: {result} (type: {type(result).__name__})")
 
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
+                logger.info(f"📡 Tentando emitir notificação Socket.IO para task_id={task_id}, session_id={current_user}, type=status_update")
                 socketio_events.emit_task_notification(task_id, current_user, notification_type='status_update')
+                logger.info(f"✅ emit_task_notification chamado com sucesso")
+            else:
+                logger.error(f"❌ socketio_events NÃO encontrado em current_app.extensions!")
         except Exception as e:
-            logger.warning(f"Falha ao enviar notificação de status de tarefa via Socket.IO: {str(e)}")
-        
+            logger.error(f"❌ ERRO ao enviar notificação de status de tarefa via Socket.IO: {str(e)}", exc_info=True)
+
         return {'message': 'Status da tarefa atualizado com sucesso'}, 200
 
 

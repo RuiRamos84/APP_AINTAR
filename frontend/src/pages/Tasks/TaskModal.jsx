@@ -1,5 +1,5 @@
-import React from 'react';
-import { Dialog, DialogContent, Box, Tab, Tabs, useTheme, useMediaQuery } from '@mui/material';
+import React, { useMemo } from 'react';
+import { Dialog, DialogContent, Box, Tab, Tabs, useTheme, useMediaQuery, Badge } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import NotesIcon from '@mui/icons-material/Notes';
 import { useAuth } from '../../contexts/AuthContext';
@@ -119,7 +119,26 @@ const TaskModal = ({ task, onClose, onRefresh }) => {
     return 'default';
   };
 
-  // Verificação de null antes de renderizar
+  // Calcular número de notificações não lidas no histórico (ANTES do early return)
+  const unreadHistoryCount = useMemo(() => {
+    if (!taskHistory || taskHistory.length === 0 || !currentTask) return 0;
+
+    const isOwner = currentTask.owner === user?.user_id;
+    const isClient = currentTask.ts_client === user?.user_id;
+
+    return taskHistory.filter(item => {
+      if (isOwner && isClient) {
+        return item?.notification_owner === 1 || item?.notification_client === 1;
+      } else if (isOwner) {
+        return item?.notification_owner === 1;
+      } else if (isClient) {
+        return item?.notification_client === 1;
+      }
+      return false;
+    }).length;
+  }, [taskHistory, currentTask, user?.user_id]);
+
+  // Verificação de null antes de renderizar (DEPOIS de todos os hooks)
   if (!currentTask || !editedTask) return null;
 
   return (
@@ -160,6 +179,8 @@ const TaskModal = ({ task, onClose, onRefresh }) => {
             getStatusName={getStatusName}
             getStatusColor={getStatusColor}
             onClose={() => handleModalClose(onClose)}
+            user={user}
+            hasUnreadUpdates={unreadHistoryCount > 0}
           />
 
           {/* Abas */}
@@ -176,7 +197,28 @@ const TaskModal = ({ task, onClose, onRefresh }) => {
               sx={getTabsStyles(isDarkMode)}
             >
               <Tab icon={<InfoIcon />} label="Detalhes" id="task-tab-0" />
-              <Tab icon={<NotesIcon />} label="Histórico" id="task-tab-1" />
+              <Tab
+                icon={
+                  <Badge
+                    badgeContent={unreadHistoryCount}
+                    color="error"
+                    max={99}
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        animation: unreadHistoryCount > 0 ? 'pulse 2s ease-in-out infinite' : 'none',
+                        '@keyframes pulse': {
+                          '0%, 100%': { transform: 'scale(1)' },
+                          '50%': { transform: 'scale(1.2)' }
+                        }
+                      }
+                    }}
+                  >
+                    <NotesIcon />
+                  </Badge>
+                }
+                label="Histórico"
+                id="task-tab-1"
+              />
             </Tabs>
           </Box>
 
@@ -213,6 +255,7 @@ const TaskModal = ({ task, onClose, onRefresh }) => {
                 isDarkMode={isDarkMode}
                 theme={theme}
                 onAddNote={handleAddNote}
+                user={user}
               />
             </TabPanel>
           </Box>

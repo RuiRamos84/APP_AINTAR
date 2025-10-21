@@ -635,7 +635,10 @@ export const SocketProvider = ({ children }) => {
                 // Registar event handlers unificados
                 socketInstance.on("new_notification", handleNewNotification);
                 socketInstance.on("document_transferred", handleNewNotification);
-                socketInstance.on("task_notification", handleNewNotification);
+                socketInstance.on("task_notification", (data) => {
+                    console.log("📨 TASK_NOTIFICATION RECEBIDA:", data);
+                    handleNewNotification(data);
+                });
 
                 // Legacy event handlers
                 socketInstance.on("notification_update", (data) => {
@@ -654,6 +657,48 @@ export const SocketProvider = ({ children }) => {
                     setGlobalNotificationCount(0);
                 });
 
+                // Handler para notificações de tarefas da BD (quando user conecta)
+                socketInstance.on("task_notifications", (data) => {
+                    if (data && data.notifications && Array.isArray(data.notifications)) {
+                        console.log(`📋 Carregadas ${data.notifications.length} notificações de tarefas da BD`);
+
+                        // Processar cada notificação da BD e adicionar ao sistema unificado
+                        data.notifications.forEach(taskNotif => {
+                            // Converter notificação da BD para formato do sistema unificado
+                            const notification = {
+                                id: generateNotificationId(),
+                                originalId: `task_${taskNotif.taskId}_${taskNotif.timestamp}`,
+                                type: 'task_notification',
+                                notificationType: 'task_update', // Tipo genérico para notificações da BD
+                                taskId: taskNotif.taskId,
+                                taskName: taskNotif.taskName || 'Tarefa',
+                                senderName: taskNotif.senderName || 'Utilizador',
+                                content: taskNotif.content || 'Atualização pendente',
+                                timestamp: taskNotif.timestamp || new Date().toISOString(),
+                                read: false,
+                                title: 'Tarefa com atualizações pendentes',
+                                message: `${taskNotif.senderName || 'Alguém'} atualizou "${taskNotif.taskName || 'a tarefa'}"`,
+                                priority: 'medium',
+                                icon: '📋'
+                            };
+
+                            // Adicionar ao sistema unificado sem duplicar
+                            setNotifications(prev => {
+                                const exists = prev.some(n =>
+                                    n.type === 'task_notification' &&
+                                    parseInt(n.taskId) === parseInt(taskNotif.taskId)
+                                );
+                                if (exists) return prev;
+                                return [notification, ...prev];
+                            });
+                        });
+
+                        // Atualizar contadores
+                        setUnreadTaskCount(data.count || data.notifications.length);
+                        setTaskNotificationCount(data.count || data.notifications.length);
+                    }
+                });
+
             } catch (error) {
                 console.error("Erro ao configurar socket:", error);
             } finally {
@@ -670,12 +715,13 @@ export const SocketProvider = ({ children }) => {
                 socketInstance.off("new_notification");
                 socketInstance.off("document_transferred");
                 socketInstance.off("task_notification");
+                socketInstance.off("task_notifications");
                 socketInstance.off("notification_update");
                 socketInstance.off("notification_count");
                 socketInstance.off("notifications_cleared");
             }
         };
-    }, [user, isLoggingOut, handleNewNotification, refreshTaskNotifications]);
+    }, [user, isLoggingOut, handleNewNotification, refreshTaskNotifications, generateNotificationId]);
 
     // Outros efeitos
     useEffect(() => {

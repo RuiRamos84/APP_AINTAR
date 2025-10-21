@@ -16,9 +16,17 @@ const TaskHeader = ({
   theme,
   getStatusName,
   getStatusColor,
-  onClose
+  onClose,
+  user,
+  hasUnreadUpdates = false
 }) => {
   if (!task) return null;
+
+  // Determinar se há notificações não lidas para este utilizador
+  const isOwner = task.owner === user?.user_id;
+  const isClient = task.ts_client === user?.user_id;
+  const hasNotification = (isOwner && task.notification_owner === 1) ||
+                         (isClient && task.notification_client === 1);
 
   return (
     <Box
@@ -33,8 +41,8 @@ const TaskHeader = ({
         position: 'relative'
       }}
     >
-      {/* Barra pulsante para notificações */}
-      {task.notification_owner === 0 && (
+      {/* Barra pulsante para notificações não lidas */}
+      {(hasNotification || hasUnreadUpdates) && (
         <Box
           sx={{
             position: 'absolute',
@@ -43,7 +51,11 @@ const TaskHeader = ({
             width: '100%',
             height: '4px',
             bgcolor: 'error.main',
-            animation: 'pulse 1.5s infinite'
+            animation: 'pulse 1.5s infinite',
+            '@keyframes pulse': {
+              '0%, 100%': { opacity: 0.6 },
+              '50%': { opacity: 1 }
+            }
           }}
         />
       )}

@@ -7,7 +7,7 @@ import TaskColumn from '../TaskColumn';
  * Em mobile: exibe tabs para alternar entre colunas
  * Em desktop: exibe 3 colunas lado a lado
  */
-const MobileKanban = ({ statuses, tasks, onTaskClick, moveTask, isDarkMode, clientName }) => {
+const MobileKanban = ({ statuses, tasks, onTaskClick, moveTask, isMovingTask, isDarkMode, clientName }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [activeTab, setActiveTab] = useState(0);
@@ -97,6 +97,7 @@ const MobileKanban = ({ statuses, tasks, onTaskClick, moveTask, isDarkMode, clie
                     const task = tasks.find(t => t.pk === taskId);
                     moveTask({ taskId, newStatusId, clientName: task?.ts_client_name || clientName });
                   }}
+                  isMovingTask={isMovingTask}
                   isDarkMode={isDarkMode}
                 />
               </Paper>
@@ -177,6 +178,7 @@ const MobileKanban = ({ statuses, tasks, onTaskClick, moveTask, isDarkMode, clie
                   const task = tasks.find(t => t.pk === taskId);
                   moveTask({ taskId, newStatusId, clientName: task?.ts_client_name || clientName });
                 }}
+                isMovingTask={isMovingTask}
                 isDarkMode={isDarkMode}
               />
             </Box>

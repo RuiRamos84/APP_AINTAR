@@ -38,7 +38,7 @@ const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) =>
 
   // Função para filtrar tarefas com base no searchTerm
   const filterTasks = (tasks, searchTerm) => {
-    if (!searchTerm.trim()) return tasks;
+    if (!searchTerm || !searchTerm.trim()) return tasks;
 
     const lowercaseSearch = searchTerm.toLowerCase();
     return tasks.filter(task =>

@@ -19,18 +19,20 @@ import { useMetaData } from "../../contexts/MetaDataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import TaskColumn from "./TaskColumn";
 import MobileKanban from "./components/MobileKanban";
+import QuickFilters from "./components/QuickFilters";
 import { useTheme } from "@mui/material";
 
 /**
  * Layout padrão de quadro Kanban para visualização de tarefas em colunas
  */
 const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = "" }) => {
-  const { tasks, loading, error, setFetchType, fetchTasks, moveTask, setSearchTerm } = useTasks(fetchType);
+  const { tasks, loading, error, setFetchType, fetchTasks, moveTask, isMovingTask, setSearchTerm } = useTasks(fetchType);
   const { onTaskClick } = useOutletContext();
   const { metaData } = useMetaData();
   const { user } = useAuth();
   const isDarkMode = user?.dark_mode || false;
   const [expandedClient, setExpandedClient] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all');
   const theme = useTheme();
   
   // Status padrão para colunas
@@ -81,6 +83,41 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
     setExpandedClient(expandedClient === clientName ? null : clientName);
   };
 
+  // Função para filtrar tarefas baseado no filtro ativo
+  const filterTasks = (tasksToFilter) => {
+    if (activeFilter === 'all') return tasksToFilter;
+
+    const now = new Date();
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    return tasksToFilter.filter(task => {
+      switch (activeFilter) {
+        case 'notifications':
+          return (task.notification_owner === 1 && task.owner === user?.user_id) ||
+                 (task.notification_client === 1 && task.ts_client === user?.user_id);
+
+        case 'thisWeek':
+          if (!task.when_start) return false;
+          const taskDate = new Date(task.when_start);
+          return taskDate >= weekStart && taskDate <= weekEnd;
+
+        case 'overdue':
+          if (task.when_stop) return false;
+          if (!task.when_start) return false;
+          const dueDate = new Date(task.when_start);
+          return dueDate < new Date() && task.ts_notestatus !== 3;
+
+        case 'highPriority':
+          return task.ts_priority === 3;
+
+        default:
+          return true;
+      }
+    });
+  };
+
   // Extrair todas as tarefas em uma lista plana para MyTasks e CreatedTasks
   const allTasks = Object.values(tasks).flatMap(client =>
     Object.values(client.tasks).flat()
@@ -109,7 +146,16 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 3 }}>{title}</Typography>
-      
+
+      {/* Quick Filters */}
+      <QuickFilters
+        tasks={tasks}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        isDarkMode={isDarkMode}
+        user={user}
+      />
+
       <DndProvider backend={HTML5Backend}>
         {Object.keys(tasks).length === 0 ? (
           <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
@@ -118,12 +164,13 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
         ) : (
           Object.keys(tasks).map((clientName) => {
             const clientTasks = Object.values(tasks[clientName].tasks).flat();
-            
-            if (clientTasks.length === 0) {
+            const filteredClientTasks = filterTasks(clientTasks);
+
+            if (filteredClientTasks.length === 0) {
               return null;
             }
-            
-            const totalClientTasks = clientTasks.length;
+
+            const totalClientTasks = filteredClientTasks.length;
             
             return (
               <Accordion 
@@ -141,9 +188,10 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
                   {/* Usar MobileKanban - responsivo automático */}
                   <MobileKanban
                     statuses={statuses}
-                    tasks={clientTasks}
+                    tasks={filteredClientTasks}
                     onTaskClick={onTaskClick}
                     moveTask={moveTask}
+                    isMovingTask={isMovingTask}
                     isDarkMode={isDarkMode}
                     clientName={clientName}
                   />

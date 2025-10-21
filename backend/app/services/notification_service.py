@@ -47,6 +47,7 @@ class TaskNotificationService:
         with db_session_manager(session_id) as session:
             # Obter o ID do utilizador que está a realizar a ação
             sender_id = session.execute(text("SELECT fs_client()")).scalar()
+            logger.info(f"🔍 PREPARE_TASK_NOTIFICATION: task_id={task_id}, session_id={session_id}, sender_id={sender_id}")
 
             task_query = text("""
             SELECT pk, name, owner, ts_client, ts_notestatus, ts_client_name, owner_name
@@ -55,11 +56,21 @@ class TaskNotificationService:
             task = session.execute(task_query, {"task_id": task_id}).fetchone()
 
             if not task:
+                logger.error(f"❌ Tarefa {task_id} NÃO encontrada!")
                 raise ValueError(f"Tarefa {task_id} não encontrada")
+
+            logger.info(f"📋 Tarefa encontrada: pk={task.pk}, name={task.name}, owner={task.owner}, ts_client={task.ts_client}")
 
             # Determinar o destinatário
             is_admin_sender = int(sender_id) == task.owner
             recipient_id = task.ts_client if is_admin_sender else task.owner
+
+            logger.info(f"🎯 LÓGICA DE DESTINATÁRIO:")
+            logger.info(f"   - sender_id = {sender_id}")
+            logger.info(f"   - task.owner = {task.owner}")
+            logger.info(f"   - task.ts_client = {task.ts_client}")
+            logger.info(f"   - is_admin_sender (sender == owner) = {is_admin_sender}")
+            logger.info(f"   - recipient_id = {recipient_id} ({'ts_client' if is_admin_sender else 'owner'})")
 
             # Obter a nota mais recente
             note_query = text("SELECT memo FROM vbl_task_note WHERE tb_task = :task_id ORDER BY when_submit DESC LIMIT 1")
@@ -135,24 +146,45 @@ class TaskNotificationService:
             task = session.execute(task_query, {"task_id": task_id}).fetchone()
 
             if not task:
+                logger.error(f"❌ Tarefa {task_id} não encontrada!")
                 raise ValueError(f"Tarefa {task_id} não encontrada")
 
             is_owner = int(user_id) == task.owner
             is_client = int(user_id) == task.ts_client
 
+            logger.info(f"🔍 Marcar como lida: task_id={task_id}, user_id={user_id}, is_owner={is_owner}, is_client={is_client}")
+
+            # Fazer todos os UPDATEs na mesma transação, evitando deadlock
+            # 1. Atualizar flag na tabela principal tb_task
+            # 2. Atualizar flags nas notas direto (sem stored procedure)
+
             if is_owner and is_client:
+                logger.info(f"👤 User é OWNER E CLIENT - Limpando ambas flags")
                 update_query = text("UPDATE tb_task SET notification_owner = 0, notification_client = 0 WHERE pk = :task_id")
                 session.execute(update_query, {"task_id": task_id})
                 notes_query = text("UPDATE tb_task_note SET notification_owner = 0, notification_client = 0 WHERE tb_task = :task_id")
                 session.execute(notes_query, {"task_id": task_id})
             else:
-                notes_query = text("SELECT pk FROM vbl_task_note WHERE tb_task = :task_id")
-                notes = session.execute(notes_query, {"task_id": task_id}).all()
-                for note in notes:
-                    f_query = text("SELECT fbo_task_note_notification(:note_id)")
-                    session.execute(f_query, {"note_id": note.pk})
-            
+                # Atualizar flag na tabela principal tb_task
+                if is_owner:
+                    logger.info(f"👤 User é OWNER - Limpando notification_owner")
+                    update_query = text("UPDATE tb_task SET notification_owner = 0 WHERE pk = :task_id")
+                    session.execute(update_query, {"task_id": task_id})
+                    # Atualizar notas direto, sem stored procedure (evita deadlock)
+                    notes_query = text("UPDATE tb_task_note SET notification_owner = 0 WHERE tb_task = :task_id")
+                    session.execute(notes_query, {"task_id": task_id})
+                elif is_client:
+                    logger.info(f"👤 User é CLIENT - Limpando notification_client")
+                    update_query = text("UPDATE tb_task SET notification_client = 0 WHERE pk = :task_id")
+                    session.execute(update_query, {"task_id": task_id})
+                    # Atualizar notas direto, sem stored procedure (evita deadlock)
+                    notes_query = text("UPDATE tb_task_note SET notification_client = 0 WHERE tb_task = :task_id")
+                    session.execute(notes_query, {"task_id": task_id})
+
+                logger.info(f"📝 Flags de notas atualizadas direto na tb_task_note")
+
             session.commit()
+            logger.info(f"✅ Commit realizado - Notificação marcada como lida na BD")
 
 
 class TaskService:

@@ -17,6 +17,8 @@ import SearchBar from "../../components/common/SearchBar/SearchBar";
 import { getTasks } from "../../services/TaskService";
 import { TouchBackend } from "react-dnd-touch-backend";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import ErrorBoundary from "../../components/common/ErrorBoundary";
 import "./TaskBoard.css";
 
 /**
@@ -42,6 +44,22 @@ const TaskManagement = () => {
   const handleSearch = (query) => {
     setSearchTerm(query);
   };
+
+  // Keyboard Shortcuts
+  useKeyboardShortcuts({
+    'ctrl+n': () => {
+      if (!isCompletedTasksRoute) {
+        setIsCreateTaskOpen(true);
+      }
+    },
+    'esc': () => {
+      if (selectedTask) {
+        handleCloseTaskModal();
+      } else if (isCreateTaskOpen) {
+        setIsCreateTaskOpen(false);
+      }
+    }
+  });
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
@@ -115,13 +133,14 @@ const TaskManagement = () => {
 
   // Verifica se estamos na rota de tarefas completadas
   const isCompletedTasksRoute = location.pathname.includes("/tasks/completed");
-  
+
   return (
-    <DndProvider backend={backend} options={{ enableMouseEvents: true }}>
+    <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
+      <DndProvider backend={backend} options={{ enableMouseEvents: true }}>
       <Paper
         className="paper-task"
         sx={{
-          marginLeft: theme.spacing(0),
+          marginBottom: theme.spacing(-2.5),
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
         }}
@@ -178,7 +197,7 @@ const TaskManagement = () => {
 
         {/* Conteúdo principal - Componentes injetados pelo Router */}
         <div className="tasks-container">
-          <Outlet context={{ onTaskClick: handleOpenTaskModal, searchTerm }} />
+          <Outlet context={{ onTaskClick: handleOpenTaskModal, searchTerm: debouncedSearchTerm }} />
         </div>
 
         {/* Modal para visualizar e editar uma tarefa */}
@@ -201,6 +220,7 @@ const TaskManagement = () => {
         )}
       </Paper>
     </DndProvider>
+    </ErrorBoundary>
   );
 };
 

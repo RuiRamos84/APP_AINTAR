@@ -10,7 +10,7 @@ const ItemTypes = {
   TASK: "task",
 };
 
-const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isDarkMode }) => {
+const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isMovingTask, isDarkMode }) => {
   const { user } = useAuth();
   const [error, setError] = React.useState(null);
   const theme = useTheme();
@@ -80,12 +80,13 @@ const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isDark
           </Typography>
         ) : (
           tasks.map((task) => (
-            <TaskCard 
-              key={task.pk} 
-              task={task} 
-              onTaskClick={onTaskClick} 
+            <TaskCard
+              key={task.pk}
+              task={task}
+              onTaskClick={onTaskClick}
               isDarkMode={isDarkMode}
               columnId={columnId}
+              isUpdating={isMovingTask}
             />
           ))
         )}

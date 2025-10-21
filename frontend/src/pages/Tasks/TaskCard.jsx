@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, Typography, Tooltip, Box, Chip } from "@mui/material";
+import { Card, CardContent, Typography, Tooltip, Box, Chip, CircularProgress, Fade } from "@mui/material";
 import { useDrag } from "react-dnd";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import PersonIcon from "@mui/icons-material/Person";
@@ -9,12 +9,13 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useSocket } from "../../contexts/SocketContext";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useTheme } from "@mui/material";
+import QuickActionsMenu from './components/QuickActionsMenu';
 
 const ItemTypes = {
   TASK: "task",
 };
 
-const TaskCard = ({ task, onTaskClick, isDarkMode, columnId }) => {
+const TaskCard = ({ task, onTaskClick, isDarkMode, columnId, isUpdating = false }) => {
   const { user } = useAuth();
   const { markTaskNotificationAsRead } = useSocket();
   const theme = useTheme();
@@ -171,6 +172,34 @@ const TaskCard = ({ task, onTaskClick, isDarkMode, columnId }) => {
         onClick={handleClick}
         sx={getCardStyle()}
       >
+        {/* Quick Actions Menu */}
+        <QuickActionsMenu
+          task={task}
+          onRefresh={() => window.dispatchEvent(new CustomEvent('task-refresh'))}
+          isDarkMode={isDarkMode}
+        />
+
+        {/* Loading Overlay durante drag & drop */}
+        {isUpdating && (
+          <Fade in={isUpdating}>
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px',
+              zIndex: 10
+            }}>
+              <CircularProgress size={30} sx={{ color: 'white' }} />
+            </Box>
+          </Fade>
+        )}
+
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: 'center' }}>
             {task.ts_client_name && (

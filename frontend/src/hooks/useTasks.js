@@ -105,7 +105,7 @@ export const useTasks = (initialFetchType = 'all') => {
     });
 
     // Mutação para mover uma tarefa (com UI otimista)
-    const { mutate: moveTask } = useMutation({
+    const { mutate: moveTask, isPending: isMovingTask } = useMutation({
         mutationFn: ({ taskId, newStatusId }) => updateTaskStatus(taskId, newStatusId),
         onMutate: async ({ taskId, newStatusId, clientName }) => {
             // Cancelar queries pendentes para evitar conflitos
@@ -223,6 +223,7 @@ export const useTasks = (initialFetchType = 'all') => {
         error,
         fetchTasks,
         moveTask,
+        isMovingTask,
         closeTaskAndRefresh,
         setFetchType
     };
