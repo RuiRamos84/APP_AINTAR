@@ -17,11 +17,12 @@ import {
     Event as EventIcon,
     AccessTime as AccessTimeIcon,
     LocationOn as LocationIcon,
-    Business as BusinessIcon
+    Business as BusinessIcon,
+    Mail as MailIcon
 } from '@mui/icons-material';
 import { formatDate, formatAddress } from '../../utils/documentUtils';
 import { notificationStyles } from '../../styles/documentStyles';
-import { getDaysSinceSubmission } from '../../../../utils/dataUtils';
+import { getDaysSinceSubmission, getBusinessDaysSince } from '../../../../utils/dataUtils';
 import DocumentUpdateIndicator from '../feedback/DocumentUpdateIndicator';
 
 const DocumentCard = ({
@@ -35,6 +36,7 @@ const DocumentCard = ({
     onAddStep,
     onAddAnnex,
     onReplicate,
+    onCreateEmission,
     onDownloadComprovativo,
     ...props
 }) => {
@@ -158,9 +160,60 @@ const DocumentCard = ({
         if (handler) handler(document);
     };
 
-    const timeInfo = getDaysSinceSubmission(document.submission);
-    const shouldHighlightCard = !document.days && document.what !== 0 && timeInfo.days > 15;
-    const isUrgent = timeInfo.days >= 30;
+    // Formatar dias úteis em anos, meses e dias
+    const formatarDiasUteis = (totalDias) => {
+        if (totalDias <= 0) return '0 dias úteis';
+
+        // Aproximações: 252 dias úteis/ano, 21 dias úteis/mês
+        const anos = Math.floor(totalDias / 252);
+        const meses = Math.floor((totalDias % 252) / 21);
+        const dias = (totalDias % 252) % 21;
+
+        let resultado = '';
+        if (anos > 0) resultado += `${anos} ano${anos > 1 ? 's' : ''}`;
+        if (meses > 0) resultado += `${resultado ? ', ' : ''}${meses} mês${meses > 1 ? 'es' : ''}`;
+        if (dias > 0) resultado += `${resultado ? ' e ' : ''}${dias} dia${dias !== 1 ? 's' : ''} úteis`;
+
+        return resultado || '0 dias úteis';
+    };
+
+    // Determinar prazo baseado no tipo e urgência
+    const determinarPrazo = () => {
+        const tipo = document.tt_type?.toLowerCase() || '';
+
+        // Ramal: Execução
+        if (tipo.includes('ramal') && tipo.includes('execução')) {
+            return document.urgency ? 30 : 60; // urgency = 30 dias, normal = 60 dias
+        }
+
+        // Pedido de Limpeza de Fossa
+        if (tipo.includes('limpeza') && tipo.includes('fossa')) {
+            return document.urgency === 1 ? 2 : 10; // urgency=1 = 48h (2 dias), normal = 10 dias
+        }
+
+        // Padrão
+        return 60;
+    };
+
+    // Usar exec_data (data de início de execução) em vez de submission
+    const timeInfo = getBusinessDaysSince(document.exec_data || document.submission);
+    const PRAZO_EXECUCAO = determinarPrazo();
+    const diasDecorridos = timeInfo.days;
+    const dentroDosPrazo = diasDecorridos < PRAZO_EXECUCAO;
+    const diasRestantes = PRAZO_EXECUCAO - diasDecorridos;
+    const diasUltrapassados = diasDecorridos - PRAZO_EXECUCAO;
+
+    // Determinar limite de alerta (25% do prazo ou mínimo 2 dias)
+    const limiteAlerta = Math.max(Math.floor(PRAZO_EXECUCAO * 0.25), 2);
+
+    // Determinar status do prazo
+    const isUrgent = !dentroDosPrazo; // Vermelho: ultrapassou
+    const isWarning = dentroDosPrazo && diasRestantes <= limiteAlerta; // Amarelo: faltam <= 25% do prazo
+    const isOk = dentroDosPrazo && diasRestantes > limiteAlerta; // Verde: está tranquilo
+
+    // Mostrar contagem sempre (verde, amarelo ou vermelho)
+    const shouldShowTimer = !document.days && document.what !== 0;
+    const shouldHighlightCard = shouldShowTimer && (isWarning || isUrgent);
 
     // CSS-in-JS para animações
     const keyframes = {
@@ -361,15 +414,20 @@ const DocumentCard = ({
                         )}
                     </Grid>
 
-                    {/* Alerta de urgência */}
-                    {shouldHighlightCard && (
+                    {/* Indicador de prazo */}
+                    {shouldShowTimer && (
                         <Box sx={{ mt: 1.5 }}>
                             <Typography
                                 variant={style.fontSize.details}
-                                color={isUrgent ? "error.dark" : "warning.dark"}
+                                color={isUrgent ? "error.dark" : isWarning ? "warning.dark" : "success.dark"}
                                 sx={{ fontWeight: 'medium', fontSize: '0.75rem' }}
                             >
-                                {isUrgent ? '🔴' : '🟡'} {timeInfo.formatted} pendente
+                                {isUrgent
+                                    ? `🔴 Ultrapassou o prazo há ${formatarDiasUteis(diasUltrapassados)}`
+                                    : isWarning
+                                        ? `🟡 Faltam ${formatarDiasUteis(diasRestantes)} para o prazo de ${PRAZO_EXECUCAO} dias úteis`
+                                        : `🟢 Faltam ${formatarDiasUteis(diasRestantes)} para o prazo de ${PRAZO_EXECUCAO} dias úteis`
+                                }
                             </Typography>
                         </Box>
                     )}
@@ -523,6 +581,20 @@ const DocumentCard = ({
                 </Tooltip>
                 {isAssignedToMe && (
                     <>
+                        <Tooltip title="Criar Emissão">
+                            <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={(e) => handleActionClick(onCreateEmission, e)}
+                                sx={{
+                                    '&:hover': {
+                                        bgcolor: alpha(theme.palette.primary.main, 0.1)
+                                    }
+                                }}
+                            >
+                                <MailIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
                         <Tooltip title="Adicionar passo">
                             <IconButton
                                 size="small"
@@ -578,6 +650,7 @@ DocumentCard.propTypes = {
     onAddStep: PropTypes.func,
     onAddAnnex: PropTypes.func,
     onReplicate: PropTypes.func,
+    onCreateEmission: PropTypes.func,
     onDownloadComprovativo: PropTypes.func,
 };
 

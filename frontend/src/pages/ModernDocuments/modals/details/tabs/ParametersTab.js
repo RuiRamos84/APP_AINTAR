@@ -36,8 +36,8 @@ import {
 
 // Import services
 import { getDocumentTypeParams, updateDocumentParams } from '../../../../../services/documentService';
-import { useDocumentsContext } from '../../../../ModernDocuments/context/DocumentsContext';
-import { useDocumentActions } from '../../../../ModernDocuments/context/DocumentActionsContext';
+import { useDocumentsContext } from '../../../context/DocumentsContext';
+import { useDocumentActions } from '../../../context/DocumentActionsContext';
 import {
     notifySuccess,
     notifyError,

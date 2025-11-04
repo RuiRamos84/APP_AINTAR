@@ -18,6 +18,7 @@ import {
     FileCopy as FileCopyIcon,
     CloudDownload as DownloadIcon,
     NotificationsActive as NotificationsActiveIcon,
+    Mail as MailIcon,
 } from '@mui/icons-material';
 import { formatDate } from '../../utils/documentUtils';
 import { getStatusColor, getStatusName } from '../../utils/statusUtils';
@@ -32,6 +33,7 @@ const DocumentListItem = ({
     onAddStep,
     onAddAnnex,
     onReplicate,
+    onCreateEmission,
     onDownloadComprovativo,
     isAssignedToMe,
     showComprovativo,
@@ -81,6 +83,11 @@ const DocumentListItem = ({
                     </Tooltip>
                     {isAssignedToMe && (
                         <>
+                            <Tooltip title="Criar Emissão" arrow TransitionComponent={Zoom}>
+                                <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); onCreateEmission && onCreateEmission(document); }}>
+                                    <MailIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
                             <Tooltip title="Adicionar passo" arrow TransitionComponent={Zoom}>
                                 <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); onAddStep && onAddStep(document); }}>
                                     <SendIcon fontSize="small" />
@@ -120,6 +127,7 @@ DocumentListItem.propTypes = {
     onAddStep: PropTypes.func,
     onAddAnnex: PropTypes.func,
     onReplicate: PropTypes.func,
+    onCreateEmission: PropTypes.func,
     onDownloadComprovativo: PropTypes.func,
     isAssignedToMe: PropTypes.bool,
     showComprovativo: PropTypes.bool,

@@ -36,8 +36,8 @@ const PendingPavimentations = lazy(() => import("../../features/Pavimentations")
 const ExecutedPavimentations = lazy(() => import("../../features/Pavimentations").then(module => ({ default: module.ExecutedPavimentations })));
 const CompletedPavimentations = lazy(() => import("../../features/Pavimentations").then(module => ({ default: module.CompletedPavimentations })));
 
-const Dashboard = lazy(() => import("../../pages/Dashboard/Dashboard"));
-const LetterManagement = lazy(() => import("../../pages/Letters/LetterManagement"));
+const Dashboard = lazy(() => import("../../pages/Dashboard"));
+const EmissionHub = lazy(() => import("../../pages/Emissions/EmissionHub"));
 
 const AllTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.AllTasks })));
 const CompletedTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.CompletedTasks })));
@@ -180,9 +180,9 @@ const AppRoutes = ({ user }) => (
         <Route path="/ramais/concluded" element={<PrivateRoute><CompletedPavimentations /></PrivateRoute>} />
 
         {/* === ROTAS DE GESTÃO === */}
-        <Route path="/letters" element={
+        <Route path="/emissions" element={
         <PrivateRoute requiredPermission={220}>
-                <LetterManagement />
+                <EmissionHub />
             </PrivateRoute>
         } />
 

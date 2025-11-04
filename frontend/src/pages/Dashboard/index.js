@@ -1,3 +1,7 @@
-import Dashboard from './Dashboard';
+import DashboardModern from './DashboardModern';
 
-export default Dashboard;
+// Exportar o dashboard moderno como padrão
+export default DashboardModern;
+
+// Manter a versão antiga disponível para fallback se necessário
+export { default as DashboardLegacy } from './Dashboard';

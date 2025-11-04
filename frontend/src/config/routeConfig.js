@@ -24,7 +24,8 @@ import {
     Notifications as NotificationIcon,
     ViewModule as ViewModuleIcon,
     Security as SecurityIcon,
-    Science as ScienceIcon
+    Science as ScienceIcon,
+    SendToMobile as EmissionIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import { AccountBalance as PaymentBalanceIcon } from '@mui/icons-material';
@@ -246,11 +247,11 @@ export const ROUTE_CONFIG = {
         }
     },
 
-    '/letters': {
-        id: 'letters',
-        text: 'Gestão de Ofícios',
-        icon: DraftsIcon, // COMPONENTE
-        permissions: { required: 220 }, // letters.manage
+    '/emissions': {
+        id: 'emissions',
+        text: 'Emissões',
+        icon: EmissionIcon, // COMPONENTE
+        permissions: { required: 220 },
         showInSidebar: true
     },
 

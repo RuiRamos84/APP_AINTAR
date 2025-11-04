@@ -1,0 +1,353 @@
+# services/emissions/core_service.py
+# Serviço Core - CRUD genérico para sistema unificado de emissões
+from app import db
+from app.models.emission import DocumentType, EmissionTemplate, Emission
+from datetime import datetime
+from sqlalchemy import desc, or_
+from app.utils.utils import db_session_manager
+
+
+class EmissionCoreService:
+    """
+    Serviço centralizado para operações CRUD em templates e emissões
+    Abstrai lógica comum para todos os tipos de documentos
+    """
+
+    # =========================================================================
+    # DOCUMENT TYPES
+    # =========================================================================
+
+    @staticmethod
+    def get_document_types(current_user, active_only=True):
+        """Lista todos os tipos de documentos disponíveis"""
+        # ts_lettertype não tem campo 'active', retorna todos
+        with db_session_manager(current_user):
+            # ts_lettertype não tem campo active - sempre retorna todos
+            types = DocumentType.query.order_by(DocumentType.name).all()
+            # Converter para dict dentro da sessão para evitar DetachedInstanceError
+            return [t.to_dict() for t in types]
+
+    @staticmethod
+    def get_document_type_by_code(code):
+        """Obtém tipo de documento por código/acronimo"""
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):            
+            return DocumentType.query.filter_by(acron=code).first()
+
+    @staticmethod
+    def get_document_type_by_id(type_id):
+        """Obtém tipo de documento por ID"""
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):            
+            return DocumentType.query.get(type_id)
+
+    # =========================================================================
+    # TEMPLATES - CRUD
+    # =========================================================================
+
+    @staticmethod
+    def create_template(data, current_user):
+        """
+        Cria novo template de emissão
+
+        Args:
+            data: dict com {tb_document_type, name, body, header_template, footer_template, metadata}
+            current_user: username do utilizador
+
+        Returns:
+            EmissionTemplate criado
+        """
+
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+        # Verificar se já existe
+            existing = EmissionTemplate.query.filter_by(
+                ts_lettertype=data.get('tb_document_type'),
+                name=data.get('name')
+            ).first()
+            if existing:
+                raise ValueError(f'Template com nome "{data.get("name")}" já existe para o tipo de documento {data.get("tb_document_type")}')
+            
+            # Criar template
+            template = EmissionTemplate(
+                ts_lettertype=data.get('tb_document_type'),  # Frontend usa tb_document_type, BD usa ts_lettertype
+                name=data.get('name'),
+                body=data.get('body'),
+                header_template=data.get('header_template'),
+                footer_template=data.get('footer_template'),
+                version=data.get('version', 1.0),
+                active=data.get('active', 1),
+                meta_data=data.get('metadata', {}),
+                hist_client=data.get('hist_client', 1)  # ID do utilizador que criou
+            )
+            return template
+
+    @staticmethod
+    def get_template(template_id, current_user):
+        """Obtém template por ID"""
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            return EmissionTemplate.query.get(template_id)
+
+    @staticmethod
+    def list_templates(current_user, filters=None):
+        """
+        Lista templates com filtros opcionais
+
+        Args:
+            filters: dict com {tb_document_type, active, search, limit, offset}
+
+        Returns:
+            Lista de templates
+        """
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            query = EmissionTemplate.query
+
+            if filters:
+                # Filtro por tipo
+                if 'tb_document_type' in filters and filters['tb_document_type']:
+                    query = query.filter(EmissionTemplate.ts_lettertype == filters['tb_document_type'])
+
+                # Filtro por ativo/inativo
+                if 'active' in filters:
+                    query = query.filter(EmissionTemplate.active == filters['active'])
+
+                # Pesquisa por nome
+                if 'search' in filters and filters['search']:
+                    search_term = f"%{filters['search']}%"
+                    query = query.filter(EmissionTemplate.name.ilike(search_term))
+
+            # Ordenação
+            query = query.order_by(EmissionTemplate.name)
+
+            # Paginação
+            if filters and 'limit' in filters:
+                query = query.limit(filters['limit'])
+            if filters and 'offset' in filters:
+                query = query.offset(filters['offset'])
+
+            return query.all()
+
+    @staticmethod
+    def update_template(template_id, data, current_user):
+        """
+        Atualiza template existente
+
+        Args:
+            template_id: ID do template
+            data: dict com campos a atualizar
+            current_user: username
+
+        Returns:
+            Template atualizado ou None
+        """
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            template = EmissionTemplate.query.get(template_id)
+            if not template:
+                return None
+
+            # Atualizar campos
+            if 'name' in data:
+                template.name = data['name']
+            if 'body' in data:
+                template.body = data['body']
+            if 'header_template' in data:
+                template.header_template = data['header_template']
+            if 'footer_template' in data:
+                template.footer_template = data['footer_template']
+            if 'version' in data:
+                template.version = data['version']
+            if 'active' in data:
+                template.active = data['active']
+            if 'metadata' in data:
+                template.meta_data = data['metadata']
+
+            template.hist_time = datetime.now()
+
+            return template
+
+    @staticmethod
+    def delete_template(template_id, current_user):
+        """
+        Apaga template (soft delete - marca como inativo)
+
+        Args:
+            template_id: ID do template
+            current_user: username
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            template = EmissionTemplate.query.get(template_id)
+            if not template:
+                return False
+
+            # Soft delete
+            template.active = 0
+            template.hist_time = datetime.now()
+
+            db.session.commit()
+
+            return True
+
+    # =========================================================================
+    # EMISSIONS - CRUD
+    # =========================================================================
+
+    @staticmethod
+    def create_emission(data, current_user):
+        """
+        Cria nova emissão
+
+        Args:
+            data: dict com todos os campos da emissão
+            current_user: username
+
+        Returns:
+            Emission criada
+        """
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+
+            emission = Emission(
+                tb_letter_template=data.get('tb_letter_template'),
+                tb_document=data.get('tb_document'),
+                emission_number=data.get('emission_number'),
+                emission_date=data.get('emission_date', datetime.now()),
+                subject=data.get('subject'),
+                recipient_data=data.get('recipient_data', {}),
+                custom_data=data.get('custom_data', {}),
+                ts_letterstatus=data.get('ts_letterstatus', Emission.STATUS_DRAFT),
+                filename=data.get('filename', ''),
+                hist_client=current_user,
+                hist_time=datetime.now()
+            )
+
+            return emission
+
+    @staticmethod
+    def get_emission(emission_id, current_user):
+        """Obtém emissão por ID"""
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            return Emission.query.get(emission_id)
+
+    @staticmethod
+    def get_emission_by_number(emission_number, current_user):
+        """Obtém emissão por número"""
+
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            return Emission.query.filter_by(emission_number=emission_number).first()
+
+    @staticmethod
+    def list_emissions(current_user, filters=None):
+        """
+        Lista emissões com filtros
+
+        Args:
+            filters: dict com {status, search, date_from, date_to, limit, offset, created_by}
+
+        Returns:
+            Lista de emissões
+        """
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            query = Emission.query
+
+            if filters:
+                # Filtro por tipo de documento (através do template)
+                if 'tb_document_type' in filters and filters['tb_document_type']:
+                    # Filtrar por tipo através da relação com template
+                    query = query.join(EmissionTemplate).filter(
+                        EmissionTemplate.ts_lettertype == filters['tb_document_type']
+                    )
+
+                # Filtro por status
+                if 'status' in filters and filters['status']:
+                    query = query.filter(Emission.ts_letterstatus == filters['status'])
+
+                # Filtro por criador
+                if 'created_by' in filters and filters['created_by']:
+                    query = query.filter(Emission.hist_client == filters['created_by'])
+
+                # Pesquisa
+                if 'search' in filters and filters['search']:
+                    search_term = f"%{filters['search']}%"
+                    query = query.filter(
+                        or_(
+                            Emission.emission_number.ilike(search_term),
+                            Emission.subject.ilike(search_term)
+                        )
+                    )
+
+                # Filtro por data
+                if 'date_from' in filters and filters['date_from']:
+                    query = query.filter(Emission.emission_date >= filters['date_from'])
+                if 'date_to' in filters and filters['date_to']:
+                    query = query.filter(Emission.emission_date <= filters['date_to'])
+
+            # Ordenação
+            query = query.order_by(desc(Emission.emission_date))
+
+            # Paginação
+            if filters and 'limit' in filters:
+                query = query.limit(filters['limit'])
+            if filters and 'offset' in filters:
+                query = query.offset(filters['offset'])
+
+            return query.all()
+
+    @staticmethod
+    def update_emission(emission_id, data, current_user):
+        """Atualiza emissão existente"""
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+        # Obter emissão
+            emission = Emission.query.get(emission_id)
+            if not emission:
+                return None
+
+            # Verificar se pode editar
+            if not emission.can_edit:
+                raise ValueError(f'Emissão {emission.emission_number} não pode ser editada (status: {emission.get_status_name()})')
+
+            # Atualizar campos
+            if 'subject' in data:
+                emission.subject = data['subject']
+            if 'recipient_data' in data:
+                emission.recipient_data = data['recipient_data']
+            if 'custom_data' in data:
+                emission.custom_data = data['custom_data']
+            if 'ts_letterstatus' in data:
+                emission.ts_letterstatus = data['ts_letterstatus']
+            if 'filename' in data:
+                emission.filename = data['filename']
+
+            emission.hist_time = datetime.now()
+
+            db.session.commit()
+
+            return emission
+
+    @staticmethod
+    def delete_emission(emission_id, current_user):
+        """Cancela emissão (soft delete)"""
+        current_user = get_jwt_identity()
+        with db_session_manager(current_user):
+            # Obter emissão
+            emission = Emission.query.get(emission_id)
+            if not emission:
+                return False
+
+            # Soft delete via status
+            emission.ts_letterstatus = Emission.STATUS_CANCELLED
+            emission.hist_time = datetime.now()
+
+            db.session.commit()
+
+            return True

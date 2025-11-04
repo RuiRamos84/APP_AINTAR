@@ -27,6 +27,7 @@ import DocumentModal from './modals/details/DocumentModal';
 import AddStepModal from './modals/AddStepModal';
 import AddAnnexModal from './modals/AddAnnexModal';
 import ReplicateDocumentModal from './modals/ReplicateDocumentModal';
+import EmissionModal from '../../components/Emissions/EmissionModal';
 
 // Contexts
 import { UIProvider, useUI } from './context/UIStateContext';
@@ -113,6 +114,7 @@ const DocumentManagerContent = () => {
         handleAddStep,
         handleAddAnnex,
         handleReplicate,
+        handleCreateEmission,
         handleDownloadCompr,
         handleOpenCreateModal,
         handleCloseDocumentModal,
@@ -120,6 +122,7 @@ const DocumentManagerContent = () => {
         handleCloseAnnexModal: closeAnnexModal,
         handleCloseReplicateModal,
         handleCloseCreateModal,
+        handleCloseEmissionModal,
         openDocuments,
         modalInstanceKey,
     } = useDocumentActions();
@@ -511,6 +514,7 @@ const DocumentManagerContent = () => {
             onAddStep: handleAddStep,
             onAddAnnex: handleAddAnnex,
             onReplicate: handleReplicate,
+            onCreateEmission: handleCreateEmission,
             onDownloadComprovativo: handleDownloadCompr,
             onRefresh: refreshDocuments,
             onCreateDocument: handleOpenCreateModal
@@ -534,6 +538,7 @@ const DocumentManagerContent = () => {
         handleAddStep,
         handleAddAnnex,
         handleReplicate,
+        handleCreateEmission,
         handleDownloadCompr,
         refreshDocuments,
         handleOpenCreateModal
@@ -558,6 +563,7 @@ const DocumentManagerContent = () => {
                 onAddStep={handleAddStep}
                 onAddAnnex={handleAddAnnex}
                 onReplicate={handleReplicate}
+                onCreateEmission={handleCreateEmission}
                 onDownloadComprovativo={handleDownloadCompr}
                 modalKey={docData.modalInstanceKey}
                 onUpdateDocument={handleUpdateDocument}
@@ -576,6 +582,7 @@ const DocumentManagerContent = () => {
         handleAddStep,
         handleAddAnnex,
         handleReplicate,
+        handleCreateEmission,
         handleDownloadCompr,
         handleUpdateDocument,
         handleViewOriginDetails
@@ -871,6 +878,13 @@ const DocumentManagerContent = () => {
             <CreateDocumentModal
                 open={modalState.create}
                 onClose={handleCloseCreateModal}
+            />
+
+            <EmissionModal
+                open={modalState.emission}
+                onClose={() => handleCloseEmissionModal(false)}
+                documentData={selectedDocument}
+                onSuccess={() => handleCloseEmissionModal(true)}
             />
 
             {/* Notifications */}

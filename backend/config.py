@@ -71,12 +71,22 @@ class DevelopmentConfig(Config):
     FILES_DIR = 'C:/Users/rui.ramos/Desktop/APP/files'
     CACHE_TYPE = 'simple'
 
+    # Caminhos para recursos de emissões (desenvolvimento)
+    LOGOS_DIR = 'C:/Users/rui.ramos/Desktop/APP/frontend/public'
+    PDF_OUTPUT_DIR = 'C:/Users/rui.ramos/Desktop/APP/backend/temp'
+    FONTS_DIR = os.path.join(os.path.dirname(__file__), 'app', 'utils', 'fonts')
+
 
 class ProductionConfig(Config):
     DEBUG = False
     FILES_DIR = 'D:\APP\FilesApp'
     CACHE_TYPE = 'redis'
     CACHE_REDIS_URL = Config.REDIS_URL
+
+    # Caminhos para recursos de emissões (produção)
+    LOGOS_DIR = os.getenv('LOGOS_DIR', 'D:/APP/logos')
+    PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', 'D:/APP/pdfs')
+    FONTS_DIR = os.path.join(os.path.dirname(__file__), 'app', 'utils', 'fonts')
 
 
 def get_config():

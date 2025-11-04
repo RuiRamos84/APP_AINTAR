@@ -5,10 +5,18 @@ import { getAllDashboardData } from '../services/dashboardService';
  * Hook para buscar e gerir os dados do Dashboard principal.
  * Utiliza React Query para caching, re-fetching em background e gestão de estado.
  *
- * @param {number|null} year - O ano para o qual filtrar os dados.
+ * @param {Object} filters - Filtros para aplicar (year, month, etc.)
  * @returns {object} - O estado da query, incluindo `data`, `isLoading`, `error`, e `refetch`.
  */
-export const useDashboardData = (year = null) => {
+export const useDashboardData = (filters = {}) => {
+    // Normalizar year para o formato esperado
+    let normalizedFilters = { ...filters };
+
+    // Se filters for um número (year), converter para objeto
+    if (typeof filters === 'number' || typeof filters === 'string') {
+        normalizedFilters = { year: filters };
+    }
+
     const {
         data: dashboardData,
         isLoading,
@@ -16,9 +24,9 @@ export const useDashboardData = (year = null) => {
         error,
         refetch
     } = useQuery({
-        // A queryKey inclui o ano para que os dados de cada ano sejam cacheados separadamente.
-        queryKey: ['dashboardData', year],
-        queryFn: () => getAllDashboardData(year),
+        // A queryKey inclui os filtros para que os dados sejam cacheados separadamente
+        queryKey: ['dashboardData', normalizedFilters],
+        queryFn: () => getAllDashboardData(normalizedFilters),
         staleTime: 1000 * 60 * 15, // Considerar os dados "frescos" por 15 minutos.
         refetchOnWindowFocus: true, // Atualiza os dados quando o utilizador volta à janela.
     });

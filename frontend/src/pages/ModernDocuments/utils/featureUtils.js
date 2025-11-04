@@ -36,6 +36,11 @@ export function isFeatureAvailable(feature, context) {
         case 'createDocument':
             return true; // Sempre disponível
 
+        case 'createEmission':
+            // Disponível apenas na tab "A meu cargo"
+            // Permissão 220 (letters.manage) verificada no backend
+            return activeTab === 1;
+
         // Funcionalidades de UI
         case 'filterDocuments':
         case 'sortDocuments':
@@ -105,6 +110,10 @@ export function getFeatureTexts() {
         createDocument: {
             label: 'Novo Pedido',
             tooltip: 'Criar um novo pedido'
+        },
+        createEmission: {
+            label: 'Criar Emissão',
+            tooltip: 'Criar uma emissão (ofício, notificação, etc.) a partir deste pedido'
         },
         filterDocuments: {
             label: 'Filtrar',

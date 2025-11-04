@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useUI } from '../context/UIStateContext';
-import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
+import { useDocumentsContext } from '../context/DocumentsContext';
 import { normalizeText } from '../../../utils/textUtils';
 
 /**

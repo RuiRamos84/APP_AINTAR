@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
+import { useDocumentsContext } from './DocumentsContext';
 import { isFeatureAvailable } from '../utils/featureUtils';
 import { updateDocumentNotification } from '../../../services/documentService';
 import { notifySuccess, notifyError, notifyWarning } from "../../../components/common/Toaster/ThemedToaster.js";
@@ -31,7 +31,8 @@ export const DocumentActionsProvider = ({ children }) => {
         step: false,
         annex: false,
         replicate: false,
-        create: false
+        create: false,
+        emission: false
     });
 
     // Verificar disponibilidade de funcionalidade
@@ -58,7 +59,8 @@ export const DocumentActionsProvider = ({ children }) => {
             step: false,
             annex: false,
             replicate: false,
-            create: false
+            create: false,
+            emission: false
         });
     }, []);
 
@@ -74,6 +76,7 @@ export const DocumentActionsProvider = ({ children }) => {
                 annex: false,
                 replicate: false,
                 create: false,
+                emission: false,
                 [modalName]: true
             };
             // console.log('[DEBUG] Novo estado do modal:', newState);
@@ -272,6 +275,24 @@ export const DocumentActionsProvider = ({ children }) => {
         openModal('create');
     }, [openModal]);
 
+    // Criar emissão
+    const handleCreateEmission = useCallback((document) => {
+        const targetDoc = document || selectedDocument;
+
+        if (!targetDoc) {
+            notifyWarning('Selecione um documento primeiro');
+            return;
+        }
+
+        if (!checkFeatureAvailability('createEmission')) {
+            notifyError('Sem permissão para criar emissões');
+            return;
+        }
+
+        setSelectedDocument(targetDoc);
+        openModal('emission');
+    }, [selectedDocument, openModal, checkFeatureAvailability]);
+
     // Handlers para fechar modais com feedback
     const handleCloseDocumentModal = useCallback((modalKey) => {
         // console.log('[DEBUG] Fechando modal com key:', modalKey);
@@ -307,11 +328,19 @@ export const DocumentActionsProvider = ({ children }) => {
         }
     }, [closeModal]);
 
+    const handleCloseEmissionModal = useCallback((success) => {
+        const result = closeModal('emission', success);
+        if (result) {
+            notifySuccess('Emissão criada com sucesso');
+        }
+    }, [closeModal]);
+
     // Verificação de disponibilidade de features
     const canAddStep = checkFeatureAvailability('addStep');
     const canAddAnnex = checkFeatureAvailability('addAnnex');
     const canReplicate = checkFeatureAvailability('replicate');
     const canDownloadComprovativo = checkFeatureAvailability('downloadComprovativo');
+    const canCreateEmission = checkFeatureAvailability('createEmission');
 
     // Valor do contexto
     const contextValue = {
@@ -326,6 +355,7 @@ export const DocumentActionsProvider = ({ children }) => {
         canAddAnnex,
         canReplicate,
         canDownloadComprovativo,
+        canCreateEmission,
 
         // Ações de documento
         handleViewDetails,
@@ -335,6 +365,7 @@ export const DocumentActionsProvider = ({ children }) => {
         handleReplicate,
         handleDownloadCompr,
         handleOpenCreateModal,
+        handleCreateEmission,
 
         // Handlers de modais
         handleCloseDocumentModal,
@@ -342,6 +373,7 @@ export const DocumentActionsProvider = ({ children }) => {
         handleCloseAnnexModal,
         handleCloseReplicateModal,
         handleCloseCreateModal,
+        handleCloseEmissionModal,
 
         // Utilitários
         setSelectedDocument,

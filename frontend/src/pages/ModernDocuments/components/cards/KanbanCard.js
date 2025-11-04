@@ -14,10 +14,10 @@ import {
     useTheme,
     alpha,
 } from '@mui/material';
-import { Visibility as VisibilityIcon, Send as SendIcon } from '@mui/icons-material';
+import { Visibility as VisibilityIcon, Send as SendIcon, Mail as MailIcon } from '@mui/icons-material';
 import { findMetaValue, formatDate } from '../../utils/documentUtils';
 
-const KanbanCard = ({ document, metaData, onView, onAddStep, isAssignedToMe }) => {
+const KanbanCard = ({ document, metaData, onView, onAddStep, onCreateEmission, isAssignedToMe }) => {
     const theme = useTheme();
 
     const getBgColor = () => {
@@ -103,6 +103,22 @@ const KanbanCard = ({ document, metaData, onView, onAddStep, isAssignedToMe }) =
                         </IconButton>
                     </Tooltip>
                 )}
+                {onCreateEmission && (
+                    <Tooltip title="Criar Emissão" arrow TransitionComponent={Zoom}>
+                        <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={(e) => handleClick(onCreateEmission, e)}
+                            sx={{
+                                '&:hover': {
+                                    bgcolor: alpha(theme.palette.primary.main, 0.1)
+                                }
+                            }}
+                        >
+                            <MailIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
             </CardActions>
         </Card>
     );
@@ -113,6 +129,7 @@ KanbanCard.propTypes = {
     metaData: PropTypes.object,
     onView: PropTypes.func,
     onAddStep: PropTypes.func,
+    onCreateEmission: PropTypes.func,
     isAssignedToMe: PropTypes.bool,
 };
 

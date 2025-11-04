@@ -9,7 +9,8 @@ import {
     Send as SendIcon,
     Settings as SettingsIcon,
     Timeline as TimelineIcon,
-    CheckCircle as CheckCircleIcon
+    CheckCircle as CheckCircleIcon,
+    Mail as MailIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -45,7 +46,7 @@ import DocumentPreview from './DocumentPreview';
 
 // Contextos e hooks
 import HistoryIcon from '@mui/icons-material/History';
-import { useDocumentsContext } from '../../../ModernDocuments/context/DocumentsContext';
+import { useDocumentsContext } from '../../context/DocumentsContext';
 import { useDocumentActions } from '../../context/DocumentActionsContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { notifySuccess, notifyError, notifyWarning, notifyInfo } from "../../../../components/common/Toaster/ThemedToaster.js";
@@ -235,7 +236,7 @@ const DocumentModal = ({
 
         const handleDocumentTransferred = (event) => {
             if (event.detail && event.detail.documentId === document?.pk && !documentTransferred) {
-                console.log('📤 Documento transferido - fechando modal automaticamente');
+                // console.log('📤 Documento transferido - fechando modal automaticamente');
                 setDocumentTransferred(true); // Marcar como transferido para evitar futuros refreshes
                 notifySuccess(event.detail.message || 'Documento transferido!');
                 setTimeout(() => onClose?.(), 1500);
@@ -334,7 +335,7 @@ const DocumentModal = ({
         const handleEvent = async (event) => {
             if (event.detail.documentId !== document.pk) return;
 
-            console.log('📄 Evento recebido:', event.detail);
+            // console.log('📄 Evento recebido:', event.detail);
 
             switch (event.detail.type) {
                 case 'step-added':
@@ -363,7 +364,7 @@ const DocumentModal = ({
 
     // Sistema de actualização reactiva
     useDocumentEvents(document?.pk, useCallback(async (eventDetail) => {
-        console.log('📄 Evento recebido:', eventDetail);
+        // console.log('📄 Evento recebido:', eventDetail);
 
         switch (eventDetail.type) {
             case 'step-added':
@@ -511,6 +512,53 @@ const DocumentModal = ({
     const handleReplicateClick = () => {
         if (onReplicate) {
             onReplicate(document);
+        }
+    };
+
+    const handleCreateEmissionClick = () => {
+        // console.log('═══════════════════════════════════════════════');
+        // console.log('🚀 [DocumentModal] CRIAR EMISSÃO - Dados do Documento:');
+        // console.log('═══════════════════════════════════════════════');
+        // console.log('📄 Documento completo:', document);
+        // console.log('');
+        // console.log('🔑 Campos principais:');
+        // console.log('  - pk:', document?.pk);
+        // console.log('  - regnumber:', document?.regnumber);
+        // console.log('  - tt_type:', document?.tt_type);
+        // console.log('');
+        // console.log('👤 Dados de entidade:');
+        // console.log('  - entity_name:', document?.entity_name);
+        // console.log('  - name:', document?.name);
+        // console.log('  - ts_entity:', document?.ts_entity);
+        // console.log('  - ts_associate:', document?.ts_associate);
+        // console.log('');
+        // console.log('📍 Moradas:');
+        // console.log('  - address:', document?.address);
+        // console.log('  - morada:', document?.morada);
+        // console.log('  - postal:', document?.postal);
+        // console.log('  - codigo_postal:', document?.codigo_postal);
+        // console.log('  - nut3:', document?.nut3);
+        // console.log('  - nut4:', document?.nut4);
+        // console.log('  - localidade:', document?.localidade);
+        // console.log('');
+        // console.log('💼 NIF/NIPC:');
+        // console.log('  - entity_nipc:', document?.entity_nipc);
+        // console.log('  - nipc:', document?.nipc);
+        // console.log('  - nif:', document?.nif);
+        // console.log('');
+        // console.log('📧 Contactos:');
+        // console.log('  - entity_email:', document?.entity_email);
+        // console.log('  - email:', document?.email);
+        // console.log('');
+        // console.log('📝 Outros:');
+        // console.log('  - obs:', document?.obs);
+        // console.log('  - memo:', document?.memo);
+        // console.log('  - submission:', document?.submission);
+        // console.log('  - door:', document?.door);
+        // console.log('═══════════════════════════════════════════════');
+
+        if (props.onCreateEmission) {
+            props.onCreateEmission(document);
         }
     };
 
@@ -708,6 +756,26 @@ const DocumentModal = ({
                         onClick={handleReplicateClick}
                     >
                         Replicar
+                    </Button>
+                );
+
+                // Botão de criar emissão (sempre disponível)
+                actions.push(
+                    <Button
+                        key="create-emission"
+                        variant="outlined"
+                        startIcon={<MailIcon />}
+                        onClick={handleCreateEmissionClick}
+                        sx={{
+                            color: 'primary.main',
+                            borderColor: 'primary.main',
+                            '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'white'
+                            }
+                        }}
+                    >
+                        Emissão
                     </Button>
                 );
             }

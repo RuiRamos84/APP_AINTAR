@@ -41,6 +41,7 @@ const DocumentKanbanView = ({
     onRefresh,
     onViewDetails,
     onAddStep,
+    onCreateEmission,
     density = 'standard'
 }) => {
     const theme = useTheme();
@@ -379,6 +380,7 @@ const DocumentKanbanView = ({
                                                                     metaData={metaData}
                                                                     onViewDetails={onViewDetails}
                                                                     onAddStep={onAddStep ? () => onAddStep(item) : null}
+                                                                    onCreateEmission={onCreateEmission ? () => onCreateEmission(item) : null}
                                                                     isDragging={snapshot.isDragging}
                                                                     density={density}
                                                                 />

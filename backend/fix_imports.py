@@ -11,7 +11,6 @@ FILES_TO_FIX = [
     'app/routes/entity_routes.py',
     'app/routes/epi_routes.py',
     'app/routes/etar_ee_routes.py',
-    'app/routes/letter_routes.py',
     'app/routes/operations_routes.py',
     'app/routes/tasks_routes.py',
     'app/routes/user_routes.py',

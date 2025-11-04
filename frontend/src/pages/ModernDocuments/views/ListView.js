@@ -170,6 +170,7 @@ const ListView = (props) => {
         onAddStep,
         onAddAnnex,
         onReplicate,
+        onCreateEmission,
         onDownloadComprovativo,
         density = 'standard',
         page = 0,
@@ -469,6 +470,7 @@ const ListView = (props) => {
                                 onAddStep={onAddStep}
                                 onAddAnnex={onAddAnnex}
                                 onReplicate={onReplicate}
+                                onCreateEmission={onCreateEmission}
                                 onDownloadComprovativo={onDownloadComprovativo}
                                 isAssignedToMe={isAssignedToMe}
                                 showComprovativo={showComprovativo}

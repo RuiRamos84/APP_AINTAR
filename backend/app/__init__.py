@@ -142,7 +142,8 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, letters_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp, permissions_bp, operation_control_bp, analysis_bp, operation_metadata_bp
+        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp, permissions_bp, operation_control_bp, analysis_bp, operation_metadata_bp
+        from .routes.emission_routes import emission_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
         app.register_blueprint(user_bp, url_prefix='/api/v1/user')
@@ -150,16 +151,16 @@ def create_app(config_class):
         app.register_blueprint(document_bp, url_prefix='/api/v1')
         app.register_blueprint(meta_data_bp, url_prefix='/api/v1')
         app.register_blueprint(dashboard_bp, url_prefix='/api/v1')
-        app.register_blueprint(letters_bp, url_prefix='/api/v1')
+        app.register_blueprint(emission_bp)
         app.register_blueprint(etar_ee_bp, url_prefix='/api/v1')
         app.register_blueprint(epi_bp, url_prefix='/api/v1')
         app.register_blueprint(webhook_bp, url_prefix='/api/v1')
         app.register_blueprint(payment_bp, url_prefix='/api/v1')
         app.register_blueprint(tasks_bp, url_prefix='/api/v1')
         app.register_blueprint(operations_bp, url_prefix='/api/v1')
-        app.register_blueprint(operation_control_bp)  # Já tem url_prefix definido no blueprint
-        app.register_blueprint(analysis_bp)  # Já tem url_prefix definido no blueprint
-        app.register_blueprint(operation_metadata_bp)  # Já tem url_prefix definido no blueprint
+        app.register_blueprint(operation_control_bp)
+        app.register_blueprint(analysis_bp)
+        app.register_blueprint(operation_metadata_bp)
         app.register_blueprint(permissions_bp, url_prefix='/api/v1')
 
         # Configuração do search_path para o PostgreSQL

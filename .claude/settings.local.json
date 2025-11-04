@@ -1,48 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)",
-      "Bash(find:*)",
-      "Bash(mkdir:*)",
-      "Bash(touch:*)",
-      "Bash(curl:*)",
       "Bash(npm install:*)",
-      "Bash(grep:*)",
-      "Bash(tree:*)",
-      "Bash(npm start)",
-      "Bash(pip install:*)",
-      "Bash(netstat:*)",
+      "Bash(python:*)",
       "Bash(findstr:*)",
-      "Bash(taskkill:*)",
-      "Bash(Stop-Process -Id 10172 -Force)",
-      "Bash(dir:*)",
-      "Bash(for file in AssociateFilter OperationCard OperationsTable ViewCards)",
-      "Bash(do echo \"=== $file ===\")",
-      "Bash(ls:*)",
-      "Bash(done)",
-      "Bash(./venv/Scripts/pip install pyhanko==0.20.1 cryptography==46.0.2)",
-      "Bash(./venv/Scripts/pip show pyhanko)",
-      "Bash(./venv/Scripts/pip show cryptography)",
-      "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''✅ DigitalSignatureService importado com sucesso'')\")",
-      "Bash(./venv/Scripts/python -c \"from app.services.digital_signature_service import DigitalSignatureService; print(''Servico importado com sucesso'')\")",
-      "Bash(powershell:*)",
-      "Bash(Get-Content \"C:\\Users\\rui.ramos\\Desktop\\APP\\deployment.log\" -Tail 100)",
-      "Read(//c/172.16.2.35/app/NewAPP/nginx/**)",
-      "Bash(move README.md README-OLD.md)",
-      "Bash(move Setup-CredSSP.ps1 legacy )",
-      "Bash(move TROUBLESHOOTING-WINRM.md legacy )",
-      "Bash(move README-OLD.md legacy)",
-      "Bash(copy TaskModal.jsx TaskModal.jsx.backup)",
-      "Read(//c/Users/rui.ramos/**)",
-      "Bash(where /r backend *.sql:*)",
-      "Bash(cat:*)",
-      "Bash(git reset:*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Implement QuickFilters component for task filtering\n\n- Added QuickFilters component to allow users to filter tasks by various criteria (All, Notifications, This Week, Overdue, High Priority).\n- Integrated QuickFilters into TaskBoardLayout with state management for active filters.\n- Created useSwipe hook for detecting swipe gestures on mobile devices.\n- Developed usePullToRefresh hook for implementing pull-to-refresh functionality.\n- Introduced useKeyboardShortcuts hook for global keyboard shortcuts.\n- Added ErrorBoundary component to handle errors gracefully in the application.\n- Implemented usePerformanceMonitor hook to track component render performance.\n- Enhanced QuickActionsMenu with additional functionality for task management.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(test:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
-    "ask": [
-      "Bash(npm run build:*)"
-    ]
+    "ask": []
   }
 }

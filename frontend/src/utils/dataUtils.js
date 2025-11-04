@@ -68,10 +68,29 @@ export const getDaysSinceSubmission = (submissionDate) => {
   if (!submissionDate) return { days: 0, formatted: '0 dias' };
 
   try {
-    const datePart = submissionDate.split(' às ')[0];
-    const [year, month, day] = datePart.split('-').map(Number);
+    // Suportar três formatos:
+    // 1. "2025-04-11 às 14:30" (formato submission)
+    // 2. "2025-07-04 15:44:00.336" (formato SQL timestamp)
+    // 3. "Mon, 03 Nov 2025 14:25:59 GMT" (formato GMT)
+    let submission;
 
-    const submission = new Date(year, month - 1, day);
+    if (submissionDate.includes('GMT') || (submissionDate.includes(',') && !submissionDate.includes('-'))) {
+      // Formato GMT - usar Date constructor
+      submission = new Date(submissionDate);
+      submission.setHours(0, 0, 0, 0);
+    } else {
+      // Formatos 1 e 2 (baseados em YYYY-MM-DD)
+      let datePart;
+      if (submissionDate.includes(' às ')) {
+        datePart = submissionDate.split(' às ')[0];
+      } else {
+        // Pega apenas a parte da data (YYYY-MM-DD)
+        datePart = submissionDate.split(' ')[0];
+      }
+      const [year, month, day] = datePart.split('-').map(Number);
+      submission = new Date(year, month - 1, day);
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -88,7 +107,64 @@ export const getDaysSinceSubmission = (submissionDate) => {
     if (days > 0 || !formatted) formatted += `${formatted ? ' ' : ''}${days} dia${days !== 1 ? 's' : ''}`;
 
     return { days: totalDays, formatted };
-  } catch {
+  } catch (error) {
+    return { days: 0, formatted: '0 dias' };
+  }
+};
+
+/**
+ * Calcula o número de dias úteis entre duas datas (excluindo sábados e domingos)
+ */
+export const getBusinessDaysSince = (submissionDate) => {
+  if (!submissionDate) return { days: 0, formatted: '0 dias' };
+
+  try {
+    // Suportar três formatos de data
+    let startDate;
+
+    if (submissionDate.includes('GMT') || (submissionDate.includes(',') && !submissionDate.includes('-'))) {
+      startDate = new Date(submissionDate);
+    } else {
+      let datePart;
+      if (submissionDate.includes(' às ')) {
+        datePart = submissionDate.split(' às ')[0];
+      } else {
+        datePart = submissionDate.split(' ')[0];
+      }
+      const [year, month, day] = datePart.split('-').map(Number);
+      startDate = new Date(year, month - 1, day);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Contar dias úteis
+    let businessDays = 0;
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= today) {
+      const dayOfWeek = currentDate.getDay();
+      // 0 = domingo, 6 = sábado
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        businessDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Formatar
+    const years = Math.floor(businessDays / 252); // ~252 dias úteis por ano
+    const remainingDays = businessDays % 252;
+    const months = Math.floor(remainingDays / 21); // ~21 dias úteis por mês
+    const days = remainingDays % 21;
+
+    let formatted = '';
+    if (years > 0) formatted += `${years} ano${years > 1 ? 's' : ''}`;
+    if (months > 0) formatted += `${formatted ? ', ' : ''}${months} mês${months > 1 ? 'es' : ''}`;
+    if (days > 0 || !formatted) formatted += `${formatted ? ' e ' : ''}${days} dia${days !== 1 ? 's' : ''} úteis`;
+
+    return { days: businessDays, formatted };
+  } catch (error) {
     return { days: 0, formatted: '0 dias' };
   }
 };

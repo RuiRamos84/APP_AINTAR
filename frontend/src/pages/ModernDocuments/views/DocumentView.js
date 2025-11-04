@@ -9,7 +9,7 @@ import ListView from './ListView';
 import KanbanView from './KanbanView';
 
 // Hooks e contextos
-import { useDocumentsContext } from '../../ModernDocuments/context/DocumentsContext';
+import { useDocumentsContext } from '../context/DocumentsContext';
 import { useDocumentActions } from '../context/DocumentActionsContext';
 import { useUI } from '../context/UIStateContext';
 
@@ -33,6 +33,7 @@ const DocumentView = () => {
         handleAddStep,
         handleAddAnnex,
         handleReplicate,
+        handleCreateEmission,
         handleDownloadCompr,
         handleOpenCreateModal,
         canAddStep,
@@ -186,9 +187,10 @@ const DocumentView = () => {
         isAssignedToMe: activeTab === 1,
         showComprovativo: canDownloadComprovativo,
         onViewDetails: handleViewDetails,
-        onAddStep: canAddStep ? handleAddStep : null,
-        onAddAnnex: canAddAnnex ? handleAddAnnex : null,
-        onReplicate: canReplicate ? handleReplicate : null,
+        onAddStep: handleAddStep,
+        onAddAnnex: handleAddAnnex,
+        onReplicate: handleReplicate,
+        onCreateEmission: handleCreateEmission,
         onDownloadComprovativo: handleDownloadCompr,
         density,
         page,

@@ -38,6 +38,7 @@ const GridView = (props) => {
         onAddStep,
         onAddAnnex,
         onReplicate,
+        onCreateEmission,
         onDownloadComprovativo,
         density = 'standard',
     } = props;
@@ -323,6 +324,7 @@ const GridView = (props) => {
                                 onAddStep={onAddStep}
                                 onAddAnnex={onAddAnnex}
                                 onReplicate={onReplicate}
+                                onCreateEmission={onCreateEmission}
                                 onDownloadComprovativo={onDownloadComprovativo}
                                 density={density}
                                 isAssignedToMe={isAssignedToMe}
@@ -375,6 +377,7 @@ const GridView = (props) => {
                                 onAddStep={onAddStep}
                                 onAddAnnex={onAddAnnex}
                                 onReplicate={onReplicate}
+                                onCreateEmission={onCreateEmission}
                                 onDownloadComprovativo={onDownloadComprovativo}
                                 density={density}
                                 isAssignedToMe={false}
@@ -549,6 +552,7 @@ const GridView = (props) => {
                                         onAddStep={onAddStep}
                                         onAddAnnex={onAddAnnex}
                                         onReplicate={onReplicate}
+                                        onCreateEmission={onCreateEmission}
                                         onDownloadComprovativo={onDownloadComprovativo}
                                         density={density}
                                         isAssignedToMe={isAssignedToMe}

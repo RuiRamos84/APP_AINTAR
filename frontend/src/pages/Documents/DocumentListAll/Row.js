@@ -45,7 +45,7 @@ import "driver.js/dist/driver.css";
 import DocumentDetailsModal from "../DocumentDetails/DocumentDetailsModal";
 import AddDocumentStepModal from "../DocumentSteps/AddDocumentStepModal";
 import AddDocumentAnnexModal from "../DocumentSteps/AddDocumentAnnexModal";
-import LetterEmissionModal from "../../Letters/LetterEmissionModal";
+import EmissionModal from "../../../components/Emissions/EmissionModal";
 import EditParametersModal from "./EditParametersModal";
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import ReplicateDocumentModal from '../DocumentSelf/ReplicateDocumentModal';
@@ -75,7 +75,7 @@ function Row({
   const [modalOpen, setModalOpen] = useState(false);
   const [stepModalOpen, setStepModalOpen] = useState(false);
   const [selectedStep, setSelectedStep] = useState(null);
-  const [openLetterModal, setOpenLetterModal] = useState(false);
+  const [openEmissionModal, setOpenEmissionModal] = useState(false);
   const [openParams, setOpenParams] = useState(false);
   const [openParamModal, setOpenParamModal] = useState(false);
   const [editableParams, setEditableParams] = useState([]);
@@ -286,11 +286,14 @@ function Row({
     return result.trim();
   };
 
-  const handleLetterSuccess = () => {
+  const handleEmissionSuccess = (emissionData) => {
     // Atualizar a lista de documentos ou fazer outras ações necessárias
+    console.log('Emissão criada:', emissionData);
     if (props.onSave) {
       props.onSave();
     }
+    // Fechar modal
+    setOpenEmissionModal(false);
   };
 
   const renderDurationWithTooltip = (start, stop) => {
@@ -506,11 +509,11 @@ function Row({
                     <AttachmentIcon />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Ofício" placement="top">
+                <Tooltip title="Emissão" placement="top">
                   <IconButton
-                    onClick={() => setOpenLetterModal(true)}
+                    onClick={() => setOpenEmissionModal(true)}
                     size="small"
-                    aria-label="Criar ofício"
+                    aria-label="Criar emissão"
                   >
                     <MailIcon />
                   </IconButton>
@@ -571,9 +574,9 @@ function Row({
                         variant="outlined"
                         size="small"
                         startIcon={<MailIcon />}
-                        onClick={() => setOpenLetterModal(true)}
+                        onClick={() => setOpenEmissionModal(true)}
                       >
-                        Ofício
+                        Emissão
                       </Button>
                       <Button
                         variant="outlined"
@@ -851,11 +854,11 @@ function Row({
         documentId={row.pk}
         regnumber={row.regnumber}
       />
-      <LetterEmissionModal
-        open={openLetterModal}
-        onClose={() => setOpenLetterModal(false)}
+      <EmissionModal
+        open={openEmissionModal}
+        onClose={() => setOpenEmissionModal(false)}
         documentData={row}
-        onSuccess={handleLetterSuccess}
+        onSuccess={handleEmissionSuccess}
       />
       <EditParametersModal
         open={openParamModal}

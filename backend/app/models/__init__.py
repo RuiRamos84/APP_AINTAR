@@ -3,11 +3,12 @@ from .document import Document, DocumentStep, DocumentAnnex, DocumentParam, Para
 from .task import Task, TaskNote
 from .etar_ee import ETAR, EE, ETARVolume, EEVolume, ETAREnergy, EEEnergy
 from .epi import EPI, EPIDelivery
-from .letter import Letter, LetterStore
 from .payment import SIBSPayment
+from .emission import DocumentType, EmissionTemplate, EmissionTemplateRead, Emission, EmissionRead, EmissionAudit
 
 __all__ = [
     'User', 'Document', 'DocumentStep', 'DocumentAnnex', 'DocumentParam',
     'Task', 'TaskNote', 'ETAR', 'EE', 'ETARVolume', 'EEVolume',
-    'EPI', 'EPIDelivery', 'Letter', 'LetterStore', 'SIBSPayment', 'Param', 'ETAREnergy', 'EEEnergy'
+    'EPI', 'EPIDelivery', 'SIBSPayment', 'Param', 'ETAREnergy', 'EEEnergy',
+    'DocumentType', 'EmissionTemplate', 'EmissionTemplateRead', 'Emission', 'EmissionRead', 'EmissionAudit'
 ]

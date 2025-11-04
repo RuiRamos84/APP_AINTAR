@@ -50,7 +50,7 @@ import {
 import { getDocumentById } from '../../../../../services/documentService';
 import { getEntity } from '../../../../../services/entityService';
 import { useDocumentActions } from '../../../context/DocumentActionsContext';
-import { useDocumentsContext } from '../../../../ModernDocuments/context/DocumentsContext';
+import { useDocumentsContext } from '../../../context/DocumentsContext';
 import LocationMap from './/LocationMap';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import HistoryIcon from '@mui/icons-material/History';
