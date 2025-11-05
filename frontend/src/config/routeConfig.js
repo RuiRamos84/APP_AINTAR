@@ -25,7 +25,7 @@ import {
     ViewModule as ViewModuleIcon,
     Security as SecurityIcon,
     Science as ScienceIcon,
-    SendToMobile as EmissionIcon
+    Mail as EmissionIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import { AccountBalance as PaymentBalanceIcon } from '@mui/icons-material';

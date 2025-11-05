@@ -27,6 +27,7 @@ class TaskUpdate(TaskCreate):
 class TaskNoteAdd(BaseModel):
     memo: str
 
+
 @api_error_handler
 def list_tasks(current_user):
     with db_session_manager(current_user) as session:
