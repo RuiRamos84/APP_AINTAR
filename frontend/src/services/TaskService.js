@@ -94,6 +94,17 @@ export const closeTask = async (taskId) => {
     }
 };
 
+// 5.1) Reabrir uma tarefa fechada
+export const reopenTask = async (taskId) => {
+    try {
+        const response = await api.post(`/tasks/${taskId}/reopen`);
+        return handleResponse(response);
+    } catch (error) {
+        console.error("Erro ao reabrir tarefa:", error);
+        throw error;
+    }
+};
+
 // 6) Consultar o histórico de notas de uma tarefa
 export const getTaskHistory = async (taskId) => {
     try {

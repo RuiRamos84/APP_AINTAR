@@ -13,23 +13,11 @@ class PermissionService {
    * @param {Object} user - User object with interfaces array
    */
   setUser(user) {
-    // Evitar logs repetidos se o user não mudou
+    // Evitar atualizações desnecessárias se o user não mudou
     if (this.user?.user_id === user?.user_id) {
       return;
     }
-
     this.user = user;
-
-    // Log apenas em desenvolvimento e apenas uma vez por user
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[PermissionService] User set:', {
-        user_id: user?.user_id,
-        user_name: user?.user_name,
-        profil: user?.profil,
-        isSuperAdmin: user?.profil === '0',
-        interfacesCount: user?.interfaces?.length || 0
-      });
-    }
   }
 
   /**
@@ -45,39 +33,29 @@ class PermissionService {
    * @returns {boolean}
    */
   hasPermission(requiredInterfaceId) {
-    // No user = no permission
     if (!this.user) {
-      console.warn('[PermissionService] ✗ NO USER authenticated');
       return false;
     }
 
+    // Converter para número para garantir comparação
+    const permId = Number(requiredInterfaceId);
+
     // Super admin (profil === '0') has all permissions
-    if (this.user.profil === '0') {
-      // Super admin - sem log para evitar spam (apenas return true)
+    if (String(this.user.profil) === '0') {
       return true;
     }
 
     // Check if permission ID is valid
-    if (typeof requiredInterfaceId !== 'number') {
-      console.warn('[PermissionService] ✗ Invalid permission ID (must be number):', requiredInterfaceId);
+    if (typeof permId !== 'number' || isNaN(permId)) {
       return false;
     }
 
     // Check if user has the permission in their interfaces array
     const userInterfaces = this.user.interfaces || [];
-    const hasAccess = userInterfaces.includes(requiredInterfaceId);
-
-    // Log apenas negações (para debug de problemas)
-    if (!hasAccess) {
-      console.warn(`[PermissionService] ✗ Permission ${requiredInterfaceId} - DENIED`, {
-        requiredPermission: requiredInterfaceId,
-        userInterfaces: userInterfaces,
-        userProfil: this.user.profil
-      });
-    }
-
-    return hasAccess;
+    return userInterfaces.includes(permId);
   }
+
+
 
   /**
    * Check if user has ANY of the specified permissions

@@ -122,7 +122,7 @@ def create_ee_document_direct(ee_pk, current_user):
         return {"error": "Erro interno do servidor", "code": "ERR_INTERNAL"}, 500
 
 
-@cache_result(timeout=120)
+# @cache_result(timeout=120)  # DESATIVADO: Cache causava dados de utilizador anterior
 def get_document_ramais(current_user):
     """Obtém ramais para pavimentar (vbr_document_pav01)"""
     try:
@@ -144,7 +144,7 @@ def get_document_ramais(current_user):
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
 
-@cache_result(timeout=120)
+# @cache_result(timeout=120)  # DESATIVADO: Cache causava dados de utilizador anterior
 def get_document_ramais_executed(current_user):
     """Obtém ramais executados mas não pagos (vbr_document_pav02)"""
     try:
@@ -166,7 +166,7 @@ def get_document_ramais_executed(current_user):
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
 
 
-@cache_result(timeout=120)
+# @cache_result(timeout=120)  # DESATIVADO: Cache causava dados de utilizador anterior
 def get_document_ramais_concluded(current_user):
     """Obtém ramais concluídos e pagos (vbr_document_pav03)"""
     try:

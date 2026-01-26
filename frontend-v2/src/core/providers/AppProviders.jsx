@@ -12,6 +12,9 @@ import { getTheme } from '@/styles/theme';
 import { useUIStore } from '@/core/store/uiStore';
 import { AuthProvider } from '@/core/contexts/AuthContext';
 import { PermissionProvider } from '@/core/contexts/PermissionContext';
+import { SocketProvider } from '@/core/contexts/SocketContext';
+import { MetadataProvider } from '@/core/contexts/MetadataContext';
+import { ThemedToaster } from '@/shared/components/notifications/ThemedToaster';
 
 /**
  * Configuração do React Query Client
@@ -46,6 +49,7 @@ function AppThemeProvider({ children }) {
   return (
     <ThemeProvider theme={muiTheme}>
       <CssBaseline />
+      <ThemedToaster />
       {children}
     </ThemeProvider>
   );
@@ -60,17 +64,21 @@ export function AppProviders({ children }) {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <PermissionProvider>
-            <AppThemeProvider>
-              {children}
+            <MetadataProvider>
+              <SocketProvider>
+                <AppThemeProvider>
+                  {children}
 
-              {/* React Query DevTools apenas em desenvolvimento */}
-              {import.meta.env.DEV && (
-                <ReactQueryDevtools
-                  initialIsOpen={false}
-                  position="bottom-right"
-                />
-              )}
-            </AppThemeProvider>
+                  {/* React Query DevTools apenas em desenvolvimento */}
+                  {import.meta.env.DEV && (
+                    <ReactQueryDevtools
+                      initialIsOpen={false}
+                      position="bottom-right"
+                    />
+                  )}
+                </AppThemeProvider>
+              </SocketProvider>
+            </MetadataProvider>
           </PermissionProvider>
         </AuthProvider>
       </QueryClientProvider>

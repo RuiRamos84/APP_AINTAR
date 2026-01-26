@@ -166,7 +166,7 @@ export const ROUTE_CONFIG = {
                 id: 'all_tasks',
                 text: 'Todas as Tarefas',
                 icon: ListAltIcon, // COMPONENTE
-                permissions: { required: 200 } // tasks.all
+                permissions: { required: 200, profile: 0 } // tasks.all - apenas admins
             }
         }
     },

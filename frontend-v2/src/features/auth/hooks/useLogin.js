@@ -7,16 +7,8 @@
 import { useState } from 'react';
 import { z } from 'zod';
 import { useAuth } from '@/core/contexts/AuthContext';
-
-// Schema de validação para login
-const loginSchema = z.object({
-  username: z
-    .string()
-    .min(1, 'Username é obrigatório'),
-  password: z
-    .string()
-    .min(1, 'Password é obrigatória'),
-});
+import { notification } from '@/core/services/notification';
+import { loginSchema } from '../schemas';
 
 export const useLogin = () => {
   const { loginUser, isLoading } = useAuth();
@@ -27,7 +19,6 @@ export const useLogin = () => {
   });
 
   const [errors, setErrors] = useState({});
-  const [submitError, setSubmitError] = useState(null);
 
   /**
    * Atualiza campo do formulário
@@ -46,11 +37,6 @@ export const useLogin = () => {
         return newErrors;
       });
     }
-
-    // Limpar erro de submit
-    if (submitError) {
-      setSubmitError(null);
-    }
   };
 
   /**
@@ -64,9 +50,12 @@ export const useLogin = () => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors = {};
-        error.errors.forEach((err) => {
-          const field = err.path[0];
-          newErrors[field] = err.message;
+        // ZodError usa 'issues', não 'errors'
+        error.issues.forEach((issue) => {
+          const field = issue.path[0];
+          if (field) {
+            newErrors[field] = issue.message;
+          }
         });
         setErrors(newErrors);
       }
@@ -91,7 +80,7 @@ export const useLogin = () => {
       return { success: true };
     } catch (error) {
       const errorMessage = error.message || 'Erro ao fazer login';
-      setSubmitError(errorMessage);
+      notification.error(errorMessage);
       return { success: false, error: errorMessage };
     }
   };
@@ -105,14 +94,12 @@ export const useLogin = () => {
       password: '',
     });
     setErrors({});
-    setSubmitError(null);
   };
 
   return {
     // Dados do formulário
     formData,
     errors,
-    submitError,
     isLoading,
 
     // Ações

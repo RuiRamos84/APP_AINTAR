@@ -1,23 +1,23 @@
 {
   "permissions": {
     "allow": [
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
       "Bash(npm install:*)",
-      "Bash(python:*)",
-      "Bash(findstr:*)",
-      "Bash(test:*)",
-      "Bash(rm:*)",
-      "Bash(tree:*)",
+      "Bash(tree /F /A c:Usersrui.ramosDesktopAPPfrontend-v2src 2)",
+      "Bash(nul)",
       "Bash(mkdir:*)",
-      "Bash(npm create:*)",
-      "Bash(dir:*)",
+      "Bash(copy \"C:\\Users\\rui.ramos\\Desktop\\APP\\frontend\\src\\assets\\images\\logo.png\" \"C:\\Users\\rui.ramos\\Desktop\\APP\\frontend-v2\\src\\assets\\images\\logo.png\")",
+      "Bash(cp:*)",
       "Bash(npm run dev:*)",
-      "Bash(Get-Process node -ErrorAction SilentlyContinue)",
-      "Bash(Stop-Process -Force -ErrorAction SilentlyContinue)",
-      "Bash(tasklist:*)",
-      "Bash(taskkill:*)",
-      "Bash(cmd.exe //c \"taskkill //F //IM node.exe\")",
-      "Bash(start.bat)",
-      "Bash(npm run build:*)"
+      "Bash(cat:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run lint:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(.venvScriptspython.exe -c \"from app.services.telemetry_service import *; print\\(''OK''\\)\")",
+      "Bash(python:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

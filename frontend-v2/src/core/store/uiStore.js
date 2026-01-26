@@ -53,6 +53,15 @@ export const useUIStore = create(
        */
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 
+      // Estado do Módulo Ativo
+      currentModule: null, // ID do módulo ativo (ex: 'operacao', 'gestao', etc.)
+
+      /**
+       * Set módulo ativo
+       * @param {string|null} moduleId - ID do módulo ou null
+       */
+      setCurrentModule: (moduleId) => set({ currentModule: moduleId }),
+
       // Notificações (não persistidas)
       notifications: [],
 
@@ -149,6 +158,7 @@ export const useUIStore = create(
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
         sidebarCollapsed: state.sidebarCollapsed,
+        currentModule: state.currentModule,
         preferences: state.preferences,
       }),
     }

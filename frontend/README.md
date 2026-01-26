@@ -1,70 +1,97 @@
-# Getting Started with Create React App
+# AINTAR Frontend (Producao)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Interface web React para o sistema AINTAR. Esta e a versao em producao.
 
-## Available Scripts
+## Tecnologias
 
-In the project directory, you can run:
+- **Framework:** React 18
+- **UI Library:** Material-UI (MUI)
+- **Estado:** Redux + Context API
+- **Routing:** React Router v6
+- **HTTP Client:** Axios
+- **Build Tool:** Create React App
 
-### `npm start`
+## Estrutura
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+frontend/
+├── src/
+│   ├── components/       # Componentes reutilizaveis
+│   │   ├── common/       # Componentes genericos (Sidebar, AppBar, etc.)
+│   │   └── ...
+│   ├── config/           # Configuracoes (rotas, constantes)
+│   ├── features/         # Modulos por funcionalidade
+│   │   ├── Pavimentations/
+│   │   └── ...
+│   ├── hooks/            # Custom hooks
+│   ├── pages/            # Paginas da aplicacao
+│   │   ├── Administration/
+│   │   ├── Tasks/
+│   │   └── ...
+│   ├── services/         # Servicos (API, auth, etc.)
+│   └── App.js            # Componente principal
+├── public/               # Assets estaticos
+└── build/                # Output de producao (gerado)
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Desenvolvimento
 
-### `npm test`
+```bash
+# Instalar dependencias
+npm install
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Iniciar servidor de desenvolvimento
+npm start
+```
 
-### `npm run build`
+Abre em `http://localhost:3000`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Build de Producao
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+# Criar build otimizado
+npm run build
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+O output fica em `build/` e deve ser copiado para o servidor via scripts de Deploy.
 
-### `npm run eject`
+## Configuracao
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Variaveis de Ambiente
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Criar ficheiro `.env` na raiz:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```env
+REACT_APP_API_URL=http://localhost:5000/api/v1
+REACT_APP_SOCKET_URL=http://localhost:5000
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Producao
 
-## Learn More
+```env
+REACT_APP_API_URL=https://app.aintar.pt/api/v1
+REACT_APP_SOCKET_URL=https://app.aintar.pt
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Modulos Principais
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Modulo | Localizacao | Descricao |
+|--------|-------------|-----------|
+| Tasks | `/pages/Tasks/` | Gestao de tarefas (Kanban) |
+| Pavimentations | `/features/Pavimentations/` | Gestao de pavimentacoes |
+| Administration | `/pages/Administration/` | Gestao de utilizadores |
+| Dashboard | `/pages/Dashboard/` | Paineis e estatisticas |
 
-### Code Splitting
+## Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+O deployment e feito via scripts PowerShell na pasta `Deploy/`:
 
-### Analyzing the Bundle Size
+```powershell
+# Build + Deploy frontend
+.\Deploy-Main.ps1 -Frontend
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Notas
 
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Esta versao esta em **producao**
+- Nova versao em desenvolvimento em `frontend-v2/` (Vite + arquitetura modular)

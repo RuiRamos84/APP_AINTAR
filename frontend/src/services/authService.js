@@ -5,6 +5,7 @@ import config from "../config";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { queryClient } from '../queryClient'; // Importar a instância partilhada
+import { pavimentationService } from '../features/Pavimentations/services/pavimentationService'; // Cache de pavimentações
 
 const SessionAlert = Swal.mixin({
   customClass: {
@@ -142,9 +143,13 @@ export const logout = async () => {
   } finally {
     localStorage.removeItem("user");
     localStorage.removeItem("lastActivityTime");
-    
+
     // Limpar o cache do React Query para garantir que os metadados são recarregados no próximo login.
     queryClient.clear(); // Agora usa a instância correta da aplicação
+
+    // Limpar cache de serviços específicos para evitar dados do utilizador anterior
+    pavimentationService.clearCache();
+
     // window.location.href = "/login"; // Força o redirecionamento
     isLoggingOut = false;
   }

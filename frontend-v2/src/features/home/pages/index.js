@@ -2,4 +2,5 @@
  * Home Pages - Barrel Export
  */
 
-export { HomePage } from './HomePage';
+export { default as HomePage } from './HomePage';
+export { default as HomeRedirect } from './HomeRedirect';

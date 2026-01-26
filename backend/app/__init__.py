@@ -39,6 +39,9 @@ try:
 except ImportError:
     compress = None
 
+from flasgger import Swagger
+swagger = Swagger()
+
 
 def limiter_key_func():
     # logger.debug(f"Request method: {request.method}")
@@ -113,6 +116,51 @@ def create_app(config_class):
         compress.init_app(app)
         # logger.info("Compression initialized.")
 
+    # Configuração do Swagger
+    app.config['SWAGGER'] = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec_1',
+                "route": '/apispec_1.json',
+                "rule_filter": lambda rule: True,  # all in
+                "model_filter": lambda tag: True,  # all in
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs/"
+    }
+    
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "AINTAR API",
+            "description": "API documentation for AINTAR System",
+            "contact": {
+                "responsible": "Rui Ramos",
+                "email": "rui.ramos@aintar.pt",
+            },
+            "version": "1.0.0"
+        },
+        "securityDefinitions": {
+            "Bearer": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header",
+                "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+            }
+        },
+        "security": [
+            {
+                "Bearer": []
+            }
+        ]
+    }
+
+    swagger.template = swagger_template
+    swagger.init_app(app)
+
     # Inicialização do Cache e Limiter
     if app.config['ENV'] == 'production':
         cache_config = {'CACHE_TYPE': 'simple'}
@@ -142,7 +190,7 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp, permissions_bp, operation_control_bp, analysis_bp, operation_metadata_bp
+        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp, permissions_bp, operation_control_bp, analysis_bp, operation_metadata_bp, telemetry_bp
         from .routes.emission_routes import emission_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
@@ -162,6 +210,7 @@ def create_app(config_class):
         app.register_blueprint(analysis_bp)
         app.register_blueprint(operation_metadata_bp)
         app.register_blueprint(permissions_bp, url_prefix='/api/v1')
+        app.register_blueprint(telemetry_bp, url_prefix='/api/v1/telemetry')
 
         # Configuração do search_path para o PostgreSQL
         @db.event.listens_for(db.engine, "connect")

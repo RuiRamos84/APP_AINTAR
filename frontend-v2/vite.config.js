@@ -26,6 +26,14 @@ export default defineConfig({
     cors: true,
   },
 
+  // Preview configuration
+  preview: {
+    port: 4173,
+    strictPort: true,
+    open: true,
+    cors: true,
+  },
+
   // Build configuration
   build: {
     // Output directory
@@ -49,6 +57,10 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'mui-vendor': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
           'query-vendor': ['@tanstack/react-query'],
+          'state-vendor': ['zustand', 'immer'],
+          'utils-vendor': ['axios', 'date-fns', 'zod', 'sonner'],
+          'socket-vendor': ['socket.io-client'],
+          'animation-vendor': ['framer-motion'],
         },
       },
     },
@@ -72,6 +84,24 @@ export default defineConfig({
       '@mui/icons-material',
       'zustand',
       '@tanstack/react-query',
+      'socket.io-client',
+      'axios',
+      'date-fns',
+      'zod',
+      'sonner',
+      'framer-motion',
     ],
+  },
+  // Test configuration
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+    css: true,
+    poolOptions: {
+      threads: {
+        singleThread: true
+      }
+    }
   },
 });

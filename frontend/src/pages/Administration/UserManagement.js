@@ -146,12 +146,12 @@ const UserManagement = () => {
 
   const handleSave = async () => {
     try {
-      await api.put(`/user/users/${selectedUser.pk}/interfaces`, {
+      await api.put(`/user/users/${selectedUser.user_id}/interfaces`, {
         interfaces: selectedInterfaces
       });
 
       setUsers(users.map(user =>
-        user.pk === selectedUser.pk
+        user.user_id === selectedUser.user_id
           ? { ...user, interface: selectedInterfaces }
           : user
       ));
@@ -189,7 +189,7 @@ const UserManagement = () => {
       filtered = filtered.filter(user =>
         user.name.toLowerCase().includes(lowercasedQuery) ||
         user.username.toLowerCase().includes(lowercasedQuery) ||
-        String(user.pk).includes(lowercasedQuery)
+        String(user.user_id).includes(lowercasedQuery)
       );
     }
 
@@ -259,7 +259,7 @@ const UserManagement = () => {
 
   const handleSelectAll = (checked) => {
     if (checked) {
-      setSelectedUsers(filteredAndSortedUsers.map(u => u.pk));
+      setSelectedUsers(filteredAndSortedUsers.map(u => u.user_id));
     } else {
       setSelectedUsers([]);
     }
@@ -283,7 +283,7 @@ const UserManagement = () => {
   const handleBulkActionSubmit = async (permissionsToAdd = [], permissionsToRemove = [], templateName = null) => {
     try {
       const promises = selectedUsers.map(userId => {
-        const user = users.find(u => u.pk === userId);
+        const user = users.find(u => u.user_id === userId);
         if (!user) return null;
 
         let newInterfaces = [...(user.interface || [])];
@@ -408,11 +408,11 @@ const UserManagement = () => {
         </TableHead>
         <TableBody>
           {filteredAndSortedUsers.map(user => (
-            <TableRow key={user.pk} hover selected={selectedUsers.includes(user.pk)}>
+            <TableRow key={user.user_id} hover selected={selectedUsers.includes(user.user_id)}>
               <TableCell padding="checkbox">
                 <Checkbox
-                  checked={selectedUsers.includes(user.pk)}
-                  onChange={() => handleSelectUser(user.pk)}
+                  checked={selectedUsers.includes(user.user_id)}
+                  onChange={() => handleSelectUser(user.user_id)}
                 />
               </TableCell>
               <TableCell>
@@ -421,7 +421,7 @@ const UserManagement = () => {
                     {user.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    ID: {user.pk} • {user.username}
+                    ID: {user.user_id} • {user.username}
                   </Typography>
                 </Box>
               </TableCell>
@@ -497,10 +497,10 @@ const UserManagement = () => {
               </Typography>
               <List dense>
                 {users.filter(u => u.interface?.includes(PERMISSION_IDS.ADMIN_PAYMENTS)).map(user => (
-                  <ListItem key={user.pk}>
+                  <ListItem key={user.user_id}>
                     <ListItemText
                       primary={user.name}
-                      secondary={`ID: ${user.pk}`}
+                      secondary={`ID: ${user.user_id}`}
                     />
                     <Chip label="Admin Pagamentos" color="primary" size="small" />
                   </ListItem>
@@ -530,10 +530,10 @@ const UserManagement = () => {
               </Typography>
               <List dense>
                 {users.filter(u => u.interface?.includes(PERMISSION_IDS.PAYMENTS_CASH_ACTION)).map(user => (
-                  <ListItem key={user.pk}>
+                  <ListItem key={user.user_id}>
                     <ListItemText
                       primary={user.name}
-                      secondary={`ID: ${user.pk}`}
+                      secondary={`ID: ${user.user_id}`}
                     />
                     <Chip label="Numerário" color="success" size="small" />
                   </ListItem>
@@ -568,13 +568,13 @@ const UserManagement = () => {
                       const canUseMbway = userInterfaces.includes(PERMISSION_IDS.PAYMENTS_MBWAY);
                       const canUseMunicipality = userInterfaces.includes(PERMISSION_IDS.PAYMENTS_MUNICIPALITY);
                       return (
-                        <TableRow key={user.pk}>
+                        <TableRow key={user.user_id}>
                           <TableCell>
                             <Typography variant="body2" fontWeight={600}>
                               {user.name}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              ID: {user.pk}
+                              ID: {user.user_id}
                             </Typography>
                           </TableCell>
                           <TableCell>

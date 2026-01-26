@@ -6,6 +6,7 @@
 export { AppBar } from './AppBar';
 export { Sidebar } from './Sidebar';
 export { MainLayout } from './MainLayout';
+export { ModulePage } from './ModulePage';
 
 // Public Layout (sem sidebar)
 export { PublicNavbar } from './PublicNavbar';

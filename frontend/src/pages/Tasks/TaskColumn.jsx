@@ -20,7 +20,11 @@ const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isMovi
     canDrop: (item) => item.canDrag,
     drop: (item) => {
       try {
-        moveTask(item.id, columnId);
+        // Encontrar a tarefa para obter o clientName
+        const task = tasks.find(t => t.pk === item.id);
+        const clientName = task?.ts_client_name;
+
+        moveTask(item.id, columnId, clientName);
       } catch (error) {
         console.error("Erro ao processar o drop:", error);
         setError("Erro ao mover a tarefa");
@@ -87,6 +91,8 @@ const TaskColumn = ({ columnId, columnName, tasks, onTaskClick, moveTask, isMovi
               isDarkMode={isDarkMode}
               columnId={columnId}
               isUpdating={isMovingTask}
+              moveTask={moveTask}
+              clientName={task.ts_client_name}
             />
           ))
         )}

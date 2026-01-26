@@ -2,7 +2,7 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    height: calc(96vh - 64px);
+    min-height: calc(100vh - 180px);
     width: 100%;
     max-width: 100%;
     overflow: hidden;
@@ -27,7 +27,8 @@
     flex-grow: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    height: calc(100vh - 200px);
+    min-height: 400px;
+    max-height: calc(100vh - 250px);
     padding: 0 4px;
     width: 100%;
     max-width: 100%;

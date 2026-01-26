@@ -1,10 +1,19 @@
 /**
  * AlertManager
  * Manages session timeout alerts and warnings
- * Uses SweetAlert2 for UI (can be replaced with MUI Dialog)
+ * Uses Sonner + Material-UI for modern toast notifications
  */
 
+import { toast } from 'sonner';
+import { createElement } from 'react';
+import { SessionWarningToast } from '@/shared/components/notifications';
+import { notification } from '@/core/services/notification';
+
 class AlertManager {
+  constructor() {
+    this.activeToastId = null;
+  }
+
   /**
    * Show session warning alert (at 55 minutes)
    * @param {number} remainingTime - Remaining time in milliseconds
@@ -13,39 +22,36 @@ class AlertManager {
    * @returns {Promise}
    */
   async showSessionWarning(remainingTime, onContinue, onLogout) {
-    // Calculate minutes and seconds
-    const totalSeconds = Math.floor(remainingTime / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    const result = await this.showAlert({
-      title: 'Aviso de Inatividade',
-      html: `
-        <div>
-          <p>A sua sessão irá expirar em:</p>
-          <h2 style="color: #f44336; font-size: 2rem; margin: 1rem 0;">
-            ${minutes}:${seconds.toString().padStart(2, '0')}
-          </h2>
-          <p>Deseja continuar com a sessão?</p>
-        </div>
-      `,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Continuar Sessão',
-      cancelButtonText: 'Fazer Logout',
-      confirmButtonColor: '#1976d2',
-      cancelButtonColor: '#d33',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-    });
-
-    if (result.isConfirmed) {
-      onContinue?.();
-    } else {
-      onLogout?.();
+    // Fechar toast anterior se existir
+    if (this.activeToastId) {
+      toast.dismiss(this.activeToastId);
     }
 
-    return result;
+    // Criar toast customizado com o componente SessionWarningToast
+    this.activeToastId = toast.custom(
+      (toastId) =>
+        createElement(SessionWarningToast, {
+          remainingTime,
+          onContinue: () => {
+            toast.dismiss(toastId);
+            this.activeToastId = null;
+            onContinue?.();
+          },
+          onLogout: () => {
+            toast.dismiss(toastId);
+            this.activeToastId = null;
+            onLogout?.();
+          },
+          toastId,
+        }),
+      {
+        duration: Infinity, // Não fecha automaticamente
+        position: 'top-center',
+        dismissible: false, // Não pode fechar clicando fora
+      }
+    );
+
+    return { isConfirmed: false };
   }
 
   /**
@@ -53,15 +59,12 @@ class AlertManager {
    * @returns {Promise}
    */
   async showSessionExpired() {
-    return this.showAlert({
-      title: 'Sessão Expirada',
-      text: 'A sua sessão expirou devido à inatividade.',
-      icon: 'warning',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#1976d2',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
+    notification.error('A sua sessão expirou devido à inatividade.', {
+      duration: 5000,
+      position: 'top-center',
     });
+
+    return { isConfirmed: true };
   }
 
   /**
@@ -69,74 +72,30 @@ class AlertManager {
    * @param {string} message - Message to display
    */
   showInfo(message) {
-    if (typeof window !== 'undefined' && window.Swal) {
-      const Toast = window.Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-          toast.addEventListener('mouseenter', window.Swal.stopTimer);
-          toast.addEventListener('mouseleave', window.Swal.resumeTimer);
-        }
-      });
-
-      Toast.fire({
-        icon: 'success',
-        title: message
-      });
-    } else {
-      // Fallback to console log
-      console.log('[SessionManager]', message);
-    }
+    notification.info(message, {
+      duration: 3000,
+      position: 'top-end',
+    });
   }
 
   /**
-   * Show generic alert
-   * @param {Object} options - SweetAlert2 options
-   * @returns {Promise}
-   */
-  async showAlert(options) {
-    // Check if SweetAlert2 is available
-    if (typeof window !== 'undefined' && window.Swal) {
-      return window.Swal.fire(options);
-    }
-
-    // Fallback to native confirm/alert
-    if (options.showCancelButton) {
-      const result = window.confirm(`${options.title}\n\n${options.text || options.html}`);
-      return { isConfirmed: result };
-    } else {
-      window.alert(`${options.title}\n\n${options.text}`);
-      return { isConfirmed: true };
-    }
-  }
-
-  /**
-   * Show loading alert
+   * Show loading notification
    * @param {string} text - Loading text
    */
   showLoading(text = 'A processar...') {
-    if (typeof window !== 'undefined' && window.Swal) {
-      window.Swal.fire({
-        title: text,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        willOpen: () => {
-          window.Swal.showLoading();
-        },
-      });
-    }
+    notification.info(text, {
+      duration: Infinity,
+      position: 'top-center',
+    });
   }
 
   /**
-   * Close any open alert
+   * Close active toast
    */
   close() {
-    if (typeof window !== 'undefined' && window.Swal) {
-      window.Swal.close();
+    if (this.activeToastId) {
+      toast.dismiss(this.activeToastId);
+      this.activeToastId = null;
     }
   }
 }

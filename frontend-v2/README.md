@@ -1,16 +1,133 @@
-# React + Vite
+# AINTAR Frontend v2 (Em Desenvolvimento)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Nova versao da interface web React para o sistema AINTAR, usando Vite e arquitetura modular.
 
-Currently, two official plugins are available:
+## Tecnologias
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Framework:** React 18
+- **Build Tool:** Vite (mais rapido que CRA)
+- **UI Library:** Material-UI (MUI)
+- **Estado:** Zustand + Context API
+- **Routing:** React Router v6
+- **HTTP Client:** Axios
+- **Validacao:** Zod
 
-## React Compiler
+## Diferencas vs Frontend v1
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Aspecto | v1 (frontend/) | v2 (frontend-v2/) |
+|---------|----------------|-------------------|
+| Build | Create React App | Vite |
+| Estado | Redux | Zustand |
+| Arquitetura | Paginas monoliticas | Modular por features |
+| Performance | Lento em dev | Rapido (HMR) |
+| Validacao | Manual | Zod schemas |
 
-## Expanding the ESLint configuration
+## Estrutura
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+frontend-v2/
+├── src/
+│   ├── core/             # Nucleo da aplicacao
+│   │   ├── config/       # Configuracoes (rotas, modulos, permissoes)
+│   │   ├── contexts/     # Contexts globais (Auth, Metadata, Socket)
+│   │   ├── hooks/        # Hooks globais
+│   │   ├── providers/    # Providers da aplicacao
+│   │   └── utils/        # Utilitarios core
+│   ├── features/         # Modulos por funcionalidade
+│   │   ├── auth/         # Autenticacao
+│   │   ├── admin/        # Administracao
+│   │   ├── dashboard/    # Dashboards
+│   │   ├── tasks/        # Gestao de tarefas
+│   │   ├── entities/     # Gestao de entidades
+│   │   ├── operations/   # Operacoes
+│   │   └── payments/     # Pagamentos
+│   ├── services/         # Servicos partilhados
+│   │   ├── api/          # Cliente API + interceptors
+│   │   ├── auth/         # AuthManager, TokenManager
+│   │   └── websocket/    # Conexoes WebSocket
+│   ├── shared/           # Componentes partilhados
+│   │   ├── components/   # UI components reutilizaveis
+│   │   └── ...
+│   ├── App.jsx           # Componente raiz
+│   └── main.jsx          # Entry point
+├── public/               # Assets estaticos
+└── vite.config.js        # Configuracao Vite
+```
+
+## Desenvolvimento
+
+```bash
+# Instalar dependencias
+npm install
+
+# Iniciar servidor de desenvolvimento
+npm run dev
+```
+
+Abre em `http://localhost:5173`
+
+## Build de Producao
+
+```bash
+# Criar build otimizado
+npm run build
+
+# Preview local do build
+npm run preview
+```
+
+## Configuracao
+
+### Variaveis de Ambiente
+
+Criar ficheiro `.env`:
+
+```env
+VITE_API_URL=http://localhost:5000/api/v1
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+**Nota:** No Vite, as variaveis devem comecar com `VITE_` para serem expostas ao cliente.
+
+## Sistema de Permissoes
+
+O sistema usa IDs numericos para permissoes:
+
+```javascript
+// core/config/permissionMap.js
+export const PERMISSION_IDS = {
+  ADMIN_USERS: 1,
+  ADMIN_PAYMENTS: 2,
+  // ...
+};
+```
+
+## Modulos (Features)
+
+Cada feature segue a estrutura:
+
+```
+features/[nome]/
+├── components/     # Componentes especificos
+├── hooks/          # Hooks especificos
+├── pages/          # Paginas do modulo
+├── services/       # Servicos do modulo
+└── schemas/        # Schemas Zod (validacao)
+```
+
+## Estado da Migracao
+
+| Modulo | Estado | Notas |
+|--------|--------|-------|
+| Auth | Completo | Login, logout, tokens |
+| Dashboard | Completo | - |
+| Tasks | Em progresso | Kanban board |
+| Entities | Parcial | - |
+| Operations | Parcial | - |
+| Payments | Parcial | - |
+
+## Notas
+
+- Esta versao esta **em desenvolvimento**
+- Nao usar em producao ate migracao completa
+- Versao de producao atual: `frontend/`

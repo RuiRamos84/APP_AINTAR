@@ -140,23 +140,30 @@ const TaskHistoryTab = ({
           <Typography variant="h6" gutterBottom sx={getTypographyStyles(isDarkMode)}>
             Adicionar Nova Nota
           </Typography>
-          <TextField
-            label="Nova Nota"
-            fullWidth
-            multiline
-            rows={3}
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            sx={{ mb: 1, ...getTextFieldStyles(isDarkMode) }}
-          />
-          <Button
-            variant="contained"
-            onClick={onAddNote}
-            disabled={isAddingNote || !newNote.trim()}
-            sx={{ color: isDarkMode ? 'white' : undefined }}
-          >
-            {isAddingNote ? 'A adicionar...' : 'Adicionar Nota'}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+            <TextField
+              label="Nova Nota"
+              fullWidth
+              multiline
+              rows={1}
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              sx={getTextFieldStyles(isDarkMode)}
+            />
+            <Button
+              variant="contained"
+              onClick={onAddNote}
+              disabled={isAddingNote || !newNote.trim()}
+              sx={{
+                color: isDarkMode ? 'white' : undefined,
+                minWidth: 'auto',
+                height: '56px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {isAddingNote ? 'A adicionar...' : 'Adicionar'}
+            </Button>
+          </Box>
         </Box>
       ) : (
         <Box

@@ -7,6 +7,7 @@ from ..services.tasks_service import (
     add_task_note,
     update_task,
     close_task,
+    reopen_task,
     update_task_status,
     get_task_history,
     get_notification_count,
@@ -90,6 +91,19 @@ def close_task_route(task_id):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return close_task(task_id, current_user)
+
+
+@bp.route('/tasks/<int:task_id>/reopen', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(750)  # tasks.manage
+@set_session
+@api_error_handler
+def reopen_task_route(task_id):
+    """Reabrir uma tarefa fechada"""
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user):
+        return reopen_task(task_id, current_user)
 
 
 @bp.route('/tasks/<int:task_id>/status', methods=['PUT'])

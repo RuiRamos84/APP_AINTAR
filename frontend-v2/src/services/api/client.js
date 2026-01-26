@@ -1,12 +1,13 @@
 /**
  * API Client
- * Instância Axios configurada com interceptors
+ * Instância Axios configurada
+ *
+ * NOTA: Os interceptors são configurados pelo AuthManager durante a inicialização
+ * para evitar duplicação e garantir que o token correto é sempre usado.
  */
 
 import axios from 'axios';
 import { API_CONFIG } from '@/core/config/api.config';
-import { setupRequestInterceptor } from './interceptors/requestInterceptor';
-import { setupResponseInterceptor } from './interceptors/responseInterceptor';
 
 /**
  * Criar instância Axios
@@ -19,9 +20,8 @@ export const apiClient = axios.create({
 });
 
 /**
- * Configurar interceptors
+ * IMPORTANTE: Interceptors são configurados pelo AuthManager.setupApiInterceptors()
+ * Não adicionar interceptors aqui para evitar duplicação!
  */
-setupRequestInterceptor(apiClient);
-setupResponseInterceptor(apiClient);
 
 export default apiClient;

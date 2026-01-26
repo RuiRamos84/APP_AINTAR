@@ -15,12 +15,15 @@
 .content-app {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Responsivo */
 @media (max-width: 768px) {
   .content-app {
-    padding: 16px;
+    padding: 12px;
   }
 }

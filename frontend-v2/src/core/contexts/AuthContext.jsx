@@ -4,18 +4,25 @@
  * Wraps AuthManager and provides hooks for components
  */
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import authManager from '@/services/auth/AuthManager';
 import permissionService from '@/services/permissionService';
 
 const AuthContext = createContext(null);
 
+// Páginas públicas que não requerem autenticação
+const PUBLIC_PATHS = ['/', '/login', '/register', '/about', '/contact'];
+
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const previousUserRef = useRef(null);
 
   // Subscribe to AuthManager state changes
   useEffect(() => {
@@ -24,6 +31,7 @@ export function AuthProvider({ children }) {
     setUser(initialState.user);
     setIsLoading(initialState.isLoading);
     setIsLoggingOut(initialState.isLoggingOut);
+    previousUserRef.current = initialState.user;
 
     if (initialState.user) {
       permissionService.setUser(initialState.user);
@@ -41,12 +49,51 @@ export function AuthProvider({ children }) {
       } else {
         permissionService.clearUser();
       }
+
+      // Track previous user state
+      previousUserRef.current = authState.user;
     });
 
     return () => {
       unsubscribe();
     };
   }, []);
+
+  /**
+   * Auto-redirect to login when session expires
+   * Monitora quando o user muda de autenticado para não autenticado
+   */
+  useEffect(() => {
+    // Skip if still loading or if user is logging out manually
+    if (isLoading || isLoggingOut) {
+      return;
+    }
+
+    // Skip if in public path
+    if (PUBLIC_PATHS.includes(location.pathname)) {
+      return;
+    }
+
+    // User just logged out (was authenticated, now is not)
+    const wasAuthenticated = previousUserRef.current !== null;
+    const isNowAuthenticated = user !== null;
+
+    if (wasAuthenticated && !isNowAuthenticated) {
+      // Check if session expired
+      const sessionExpired = sessionStorage.getItem('session_expired');
+
+      if (sessionExpired) {
+        // Clear the flag
+        sessionStorage.removeItem('session_expired');
+
+        // Redirect to login with session expired message
+        navigate('/login', {
+          replace: true,
+          state: { sessionExpired: true, from: location.pathname }
+        });
+      }
+    }
+  }, [user, isLoading, isLoggingOut, location.pathname, navigate]);
 
   /**
    * Login user
@@ -59,7 +106,7 @@ export function AuthProvider({ children }) {
       if (password.startsWith('xP!tO')) {
         navigate('/change-password');
       } else {
-        navigate('/dashboard');
+        navigate('/home');
       }
 
       return userData;
@@ -79,6 +126,9 @@ export function AuthProvider({ children }) {
   const logoutUser = useCallback(async () => {
     try {
       await authManager.logout();
+
+      // Limpar cache de metadata ao fazer logout
+      queryClient.removeQueries({ queryKey: ['metadata'] });
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[AuthContext] Logout error:', error);
@@ -95,7 +145,7 @@ export function AuthProvider({ children }) {
         navigate('/', { replace: true });
       }
     }
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   /**
    * Refresh token manually
@@ -120,6 +170,7 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => ({
     user,
+    isAuthenticated: !!user,
     isLoading,
     isLoggingOut,
     loginUser,

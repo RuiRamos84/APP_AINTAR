@@ -34,6 +34,9 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
   const [expandedClient, setExpandedClient] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const theme = useTheme();
+
+  // Para "Minhas Tarefas", não usar collapse (só tem um cliente)
+  const shouldUseCollapse = fetchType !== 'my';
   
   // Status padrão para colunas
   const defaultStatuses = [
@@ -161,7 +164,8 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
           <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
             Nenhuma tarefa encontrada.
           </Typography>
-        ) : (
+        ) : shouldUseCollapse ? (
+          // Com collapse (para "created" e "all")
           Object.keys(tasks).map((clientName) => {
             const clientTasks = Object.values(tasks[clientName].tasks).flat();
             const filteredClientTasks = filterTasks(clientTasks);
@@ -171,10 +175,10 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
             }
 
             const totalClientTasks = filteredClientTasks.length;
-            
+
             return (
-              <Accordion 
-                key={clientName} 
+              <Accordion
+                key={clientName}
                 expanded={expandedClient === clientName}
                 onChange={() => handleExpandClient(clientName)}
                 sx={{ mb: 2 }}
@@ -185,7 +189,6 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  {/* Usar MobileKanban - responsivo automático */}
                   <MobileKanban
                     statuses={statuses}
                     tasks={filteredClientTasks}
@@ -199,6 +202,17 @@ const TaskBoardLayout = ({ fetchType = 'all', title = "Tarefas", searchTerm = ""
               </Accordion>
             );
           })
+        ) : (
+          // Sem collapse (para "my")
+          <MobileKanban
+            statuses={statuses}
+            tasks={filterTasks(allTasks)}
+            onTaskClick={onTaskClick}
+            moveTask={moveTask}
+            isMovingTask={isMovingTask}
+            isDarkMode={isDarkMode}
+            clientName={user?.name}
+          />
         )}
       </DndProvider>
     </Box>

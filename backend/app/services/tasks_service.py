@@ -130,6 +130,22 @@ def close_task(task_id: int, current_user: str):
 
 
 @api_error_handler
+def reopen_task(task_id: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        session.execute(text("SELECT fbo_task_open(:pnpk)"), {"pnpk": task_id})
+        session.execute(text("SELECT fbo_task_note_new(:pnpk, :pnmemo)"), {"pnpk": task_id, "pnmemo": "Tarefa reaberta"})
+
+        try:
+            socketio_events = current_app.extensions.get('socketio_events')
+            if socketio_events:
+                socketio_events.emit_task_notification(task_id, current_user, notification_type='task_reopened')
+        except Exception as e:
+            logger.warning(f"Falha ao enviar notificação de tarefa reaberta via Socket.IO: {str(e)}")
+
+        return {'message': 'Tarefa reaberta com sucesso'}, 200
+
+
+@api_error_handler
 def update_task_status(task_id: int, status_id: int, user_id: int, current_user: str):
     with db_session_manager(current_user) as session:
         # Log antes de executar

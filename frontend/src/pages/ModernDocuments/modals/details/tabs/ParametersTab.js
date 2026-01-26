@@ -26,7 +26,8 @@ import {
     FormControl,
     InputLabel,
     Divider,
-    CircularProgress
+    CircularProgress,
+    Switch
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -44,13 +45,24 @@ import {
 } from '../../../../../components/common/Toaster/ThemedToaster';
 import { useSmartRefresh } from '../../../hooks/useSmartRefresh';
 
+// ============================================
+// CONSTANTES DE TIPOS DE PARÂMETROS
+// ============================================
+const PARAM_TYPES = {
+    NUMBER: 1,      // Input numérico
+    TEXT: 2,        // Input de texto
+    REFERENCE: 3,   // Select/dropdown (referência a outra tabela)
+    BOOLEAN: 4      // Switch/checkbox (Sim/Não)
+};
+
 // Helpers
 const normalizeZoneName = (zoneName) => {
     if (!zoneName) return "";
     return zoneName.replace(/^Município de /, "").trim();
 };
 
-const isBooleanParam = (name) => {
+// Fallback para parâmetros sem type definido (compatibilidade)
+const isBooleanParamByName = (name) => {
     return [
         "Gratuito",
         "Existência de sanemanto até 20 m",
@@ -58,6 +70,30 @@ const isBooleanParam = (name) => {
         "Urgência",
         "Existência de saneamento até 20 m"
     ].includes(name);
+};
+
+// Verifica se é booleano por type OU por nome (fallback)
+const isBooleanParam = (param) => {
+    if (param.type === PARAM_TYPES.BOOLEAN) return true;
+    if (!param.type && isBooleanParamByName(param.name)) return true;
+    return false;
+};
+
+// Verifica se é numérico por type OU por nome (fallback)
+const isNumberParam = (param) => {
+    if (param.type === PARAM_TYPES.NUMBER) return true;
+    if (!param.type && param.name === "Número de cisternas") return true;
+    return false;
+};
+
+// Verifica se é referência (select) - por type ou por nome
+const isReferenceParam = (param) => {
+    if (param.type === PARAM_TYPES.REFERENCE) return true;
+    // Fallback por nome para parâmetros antigos
+    if (!param.type) {
+        return ["Local de descarga/ETAR", "ETAR", "EE", "Método de pagamento"].includes(param.name);
+    }
+    return false;
 };
 
 const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
@@ -81,6 +117,7 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
                 const response = await getDocumentTypeParams(document.pk);
                 const fetchedParams = response.params || [];
                 setParams(fetchedParams);
+                console.log("Parâmetros carregados:", fetchedParams);
             }
         } catch (error) {
             console.error("Erro ao buscar parâmetros:", error);
@@ -159,24 +196,30 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
     const getDisplayValueForParam = useCallback((param) => {
         if (!param) return "-";
 
-        switch (param.name) {
-            case "Local de descarga/ETAR":
-                return metaData?.etar?.find(e => Number(e.pk) === Number(param.value))?.nome || "-";
-            case "EE":
-                return metaData?.ee?.find(e => Number(e.pk) === Number(param.value))?.nome || "-";
-            case "ETAR":
-                return metaData?.etar?.find(e => Number(e.pk) === Number(param.value))?.nome || "-";
-            case "Método de pagamento":
-                return metaData?.payment_method?.find(m => Number(m.pk) === Number(param.value))?.value || "-";
-            default:
-                if (isBooleanParam(param.name)) {
-                    // IMPORTANTE: Manter comportamento original
-                    if (param.value === "1") return "Sim";
-                    if (param.value === "0") return "Não";
-                    return "-"; // null, vazio ou undefined
-                }
-                return param.value || "-";
+        // Verificar por type primeiro, depois fallback por nome
+        if (isBooleanParam(param)) {
+            if (param.value === "1" || param.value === 1) return "Sim";
+            if (param.value === "0" || param.value === 0) return "Não";
+            return "-";
         }
+
+        if (isReferenceParam(param)) {
+            // Referências - determinar fonte pelo nome (fallback)
+            switch (param.name) {
+                case "Local de descarga/ETAR":
+                case "ETAR":
+                    return metaData?.etar?.find(e => Number(e.pk) === Number(param.value))?.nome || "-";
+                case "EE":
+                    return metaData?.ee?.find(e => Number(e.pk) === Number(param.value))?.nome || "-";
+                case "Método de pagamento":
+                    return metaData?.payment_method?.find(m => Number(m.pk) === Number(param.value))?.value || "-";
+                default:
+                    return param.value || "-";
+            }
+        }
+
+        // NUMBER e TEXT - mostrar valor diretamente
+        return param.value || "-";
     }, [metaData]);
 
     // Loading state
@@ -229,23 +272,28 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
                     <TableBody>
                         {params.map((param) => {
                             const valueDisplay = getDisplayValueForParam(param);
+                            const isBoolean = isBooleanParam(param);
+                            const hasValue = param.value === "1" || param.value === "0" || param.value === 1 || param.value === 0;
+
                             return (
                                 <TableRow key={param.pk}>
                                     <TableCell component="th" scope="row" sx={{ fontWeight: 'medium' }}>
                                         {param.name}
+                                        {/* Debug: mostrar type */}
+                                        {process.env.NODE_ENV === 'development' && param.type && (
+                                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                                (type: {param.type})
+                                            </Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        {isBooleanParam(param.name) ? (
-                                            param.value === "1" || param.value === "0" ? (
-                                                <Chip
-                                                    label={valueDisplay}
-                                                    color={param.value === "1" ? "success" : "default"}
-                                                    size="small"
-                                                    variant={param.value === "1" ? "filled" : "outlined"}
-                                                />
-                                            ) : (
-                                                valueDisplay
-                                            )
+                                        {isBoolean && hasValue ? (
+                                            <Chip
+                                                label={valueDisplay}
+                                                color={param.value === "1" || param.value === 1 ? "success" : "default"}
+                                                size="small"
+                                                variant={param.value === "1" || param.value === 1 ? "filled" : "outlined"}
+                                            />
                                         ) : (
                                             valueDisplay
                                         )}
@@ -270,6 +318,179 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
                 />
             )}
         </>
+    );
+};
+
+// ============================================
+// FUNÇÃO DE RENDERIZAÇÃO DINÂMICA POR TYPE
+// ============================================
+const renderParamInput = (param, handleParamChange, options = {}) => {
+    const { metaData, filteredEtars, getSelectedName } = options;
+
+    // TYPE 4: BOOLEAN - Switch Sim/Não
+    if (isBooleanParam(param)) {
+        return (
+            <Box sx={{
+                pt: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                width: '100%'
+            }}>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={param.value === "1" || param.value === 1}
+                            onChange={(e) => handleParamChange(param.pk, "value", e.target.checked ? "1" : "0")}
+                            color="primary"
+                            size="medium"
+                        />
+                    }
+                    label={param.value === "1" || param.value === 1 ? "Sim" : "Não"}
+                    sx={{
+                        '& .MuiFormControlLabel-label': {
+                            fontSize: '1.1rem',
+                            fontWeight: 500
+                        }
+                    }}
+                />
+            </Box>
+        );
+    }
+
+    // TYPE 1: NUMBER - Input numérico
+    if (isNumberParam(param)) {
+        return (
+            <TextField
+                fullWidth
+                label="Valor"
+                value={param.value || ""}
+                onChange={(e) => {
+                    const value = e.target.value;
+                    // Aceitar números inteiros e decimais
+                    if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+                        handleParamChange(param.pk, "value", value);
+                    }
+                }}
+                variant="outlined"
+                size="medium"
+                type="text"
+                inputProps={{
+                    inputMode: "decimal",
+                    pattern: "[0-9]*\\.?[0-9]*"
+                }}
+                InputProps={{
+                    endAdornment: param.units ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                            {param.units}
+                        </Typography>
+                    ) : null
+                }}
+            />
+        );
+    }
+
+    // TYPE 3: REFERENCE - Select/Dropdown (fallback por nome)
+    if (isReferenceParam(param)) {
+        // Determinar qual lista usar baseado no nome
+        if (param.name === "Local de descarga/ETAR" || param.name === "ETAR") {
+            return (
+                <FormControl fullWidth>
+                    <InputLabel>ETAR</InputLabel>
+                    <Select
+                        value={param.value || ""}
+                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                        label="ETAR"
+                        size="medium"
+                        displayEmpty
+                    >
+                        <MenuItem value="">
+                            <em>Selecione uma ETAR</em>
+                        </MenuItem>
+                        {filteredEtars?.map((etar) => (
+                            <MenuItem key={etar.pk} value={String(etar.pk)}>
+                                {etar.nome}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                    {param.value && getSelectedName && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                            Selecionado: {getSelectedName(param.name, param.value)}
+                        </Typography>
+                    )}
+                </FormControl>
+            );
+        }
+
+        if (param.name === "EE" && metaData?.ee) {
+            return (
+                <FormControl fullWidth>
+                    <InputLabel>Estação Elevatória</InputLabel>
+                    <Select
+                        value={param.value || ""}
+                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                        label="Estação Elevatória"
+                        size="medium"
+                        displayEmpty
+                    >
+                        <MenuItem value="">
+                            <em>Selecione uma EE</em>
+                        </MenuItem>
+                        {metaData.ee?.map((ee) => (
+                            <MenuItem key={ee.pk} value={String(ee.pk)}>
+                                {ee.nome}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                    {param.value && getSelectedName && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                            Selecionado: {getSelectedName(param.name, param.value)}
+                        </Typography>
+                    )}
+                </FormControl>
+            );
+        }
+
+        if (param.name === "Método de pagamento" && metaData?.payment_method) {
+            return (
+                <FormControl fullWidth>
+                    <InputLabel>Método de Pagamento</InputLabel>
+                    <Select
+                        value={param.value || ""}
+                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+                        label="Método de Pagamento"
+                        size="medium"
+                        displayEmpty
+                    >
+                        <MenuItem value="">
+                            <em>Selecione um método</em>
+                        </MenuItem>
+                        {metaData.payment_method.map((method) => (
+                            <MenuItem key={method.pk} value={String(method.pk)}>
+                                {method.value}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                    {param.value && getSelectedName && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                            Selecionado: {getSelectedName(param.name, param.value)}
+                        </Typography>
+                    )}
+                </FormControl>
+            );
+        }
+    }
+
+    // TYPE 2: TEXT (default) - Input de texto
+    return (
+        <TextField
+            fullWidth
+            label="Valor"
+            value={param.value || ""}
+            onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
+            variant="outlined"
+            size="medium"
+        />
     );
 };
 
@@ -360,137 +581,12 @@ const EditParametersModal = React.memo(({
                             gap: 3,
                             alignItems: 'flex-start'
                         }}>
-                            {param.name === "Local de descarga/ETAR" || param.name === "ETAR" ? (
-                                <FormControl fullWidth>
-                                    <InputLabel>ETAR</InputLabel>
-                                    <Select
-                                        value={param.value || ""}
-                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                        label="ETAR"
-                                        size="medium"
-                                        displayEmpty
-                                    >
-                                        <MenuItem value="">
-                                            <em>Selecione uma ETAR</em>
-                                        </MenuItem>
-                                        {filteredEtars.map((etar) => (
-                                            <MenuItem key={etar.pk} value={String(etar.pk)}>
-                                                {etar.nome}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {param.value && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                            Selecionado: {getSelectedName(param.name, param.value)}
-                                        </Typography>
-                                    )}
-                                </FormControl>
-                            ) : param.name === "EE" && metaData?.ee ? (
-                                <FormControl fullWidth>
-                                    <InputLabel>Estação Elevatória</InputLabel>
-                                    <Select
-                                        value={param.value || ""}
-                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                        label="Estação Elevatória"
-                                        size="medium"
-                                        displayEmpty
-                                    >
-                                        <MenuItem value="">
-                                            <em>Selecione uma EE</em>
-                                        </MenuItem>
-                                        {metaData.ee?.map((ee) => (
-                                            <MenuItem key={ee.pk} value={String(ee.pk)}>
-                                                {ee.nome}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {param.value && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                            Selecionado: {getSelectedName(param.name, param.value)}
-                                        </Typography>
-                                    )}
-                                </FormControl>
-                            ) : param.name === "Método de pagamento" && metaData?.payment_method ? (
-                                <FormControl fullWidth>
-                                    <InputLabel>Método de Pagamento</InputLabel>
-                                    <Select
-                                        value={param.value || ""}
-                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                        label="Método de Pagamento"
-                                        size="medium"
-                                        displayEmpty
-                                    >
-                                        <MenuItem value="">
-                                            <em>Selecione um método</em>
-                                        </MenuItem>
-                                        {metaData.payment_method.map((method) => (
-                                            <MenuItem key={method.pk} value={String(method.pk)}>
-                                                {method.value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {param.value && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                            Selecionado: {getSelectedName(param.name, param.value)}
-                                        </Typography>
-                                    )}
-                                </FormControl>
-                            ) : isBooleanParam(param.name) ? (
-                                <Box sx={{
-                                    pt: 1,
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    width: '100%'
-                                }}>
-                                    <RadioGroup
-                                        row
-                                        value={param.value === "1" || param.value === "0" ? String(param.value) : ""}
-                                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                        sx={{ gap: 4 }}
-                                    >
-                                        <FormControlLabel
-                                            value="1"
-                                            control={<Radio size="medium" />}
-                                            label="Sim"
-                                            sx={{ '& .MuiFormControlLabel-label': { fontSize: '1.1rem' } }}
-                                        />
-                                        <FormControlLabel
-                                            value="0"
-                                            control={<Radio size="medium" />}
-                                            label="Não"
-                                            sx={{ '& .MuiFormControlLabel-label': { fontSize: '1.1rem' } }}
-                                        />
-                                    </RadioGroup>
-                                </Box>
-                            ) : param.name === "Número de cisternas" ? (
-                                <TextField
-                                    fullWidth
-                                    label="Cisternas"
-                                    value={param.value || ""}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
-                                        // Aceitar apenas números inteiros
-                                        if (value === "" || /^\d+$/.test(value)) {
-                                            handleParamChange(param.pk, "value", value);
-                                        }
-                                    }}
-                                    variant="outlined"
-                                    size="medium"
-                                    inputProps={{
-                                        pattern: "[0-9]*",
-                                        inputMode: "numeric"
-                                    }}
-                                />
-                            ) : (
-                                <TextField
-                                    fullWidth
-                                    label="Valor"
-                                    value={param.value || ""}
-                                    onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
-                                    variant="outlined"
-                                    size="medium"
-                                />
-                            )}
+                            {/* Renderização dinâmica baseada no type */}
+                            {renderParamInput(param, handleParamChange, {
+                                metaData,
+                                filteredEtars,
+                                getSelectedName
+                            })}
                             <TextField
                                 fullWidth
                                 label="Observações"

@@ -1,9 +1,9 @@
 /**
  * ChangePasswordPage
- * Página moderna para alterar password
+ * Página moderna para alterar password com validação Zod
  *
  * Features:
- * - Validação de password forte
+ * - Validação de password forte com Zod schema
  * - Toggle de visibilidade de password
  * - Indicador de força da password
  * - Feedback visual em tempo real
@@ -20,7 +20,6 @@ import {
   Button,
   InputAdornment,
   IconButton,
-  Alert,
   LinearProgress,
   List,
   ListItem,
@@ -35,14 +34,24 @@ import {
   Check as CheckIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { changePassword } from '@/services/userService';
+import { useChangePassword } from '../hooks';
 
 const ChangePasswordPage = () => {
-  const [formData, setFormData] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
+  const {
+    formData,
+    errors,
+    isLoading,
+    passwordRequirements,
+    passwordStrength,
+    isPasswordValid,
+    passwordsMatch,
+    updateField,
+    handleSubmit,
+    getFieldError,
+    hasError,
+    getStrengthColor,
+    getStrengthText,
+  } = useChangePassword();
 
   const [showPasswords, setShowPasswords] = useState({
     old: false,
@@ -50,96 +59,12 @@ const ChangePasswordPage = () => {
     confirm: false,
   });
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-
-  // Validação de requisitos de password
-  const passwordRequirements = {
-    minLength: formData.newPassword.length >= 8,
-    hasLetter: /[a-zA-Z]/.test(formData.newPassword),
-    hasNumber: /[0-9]/.test(formData.newPassword),
-    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(formData.newPassword),
-  };
-
-  const passwordStrength = Object.values(passwordRequirements).filter(Boolean).length;
-  const isPasswordValid = Object.values(passwordRequirements).every(Boolean);
-  const passwordsMatch = formData.newPassword === formData.confirmPassword && formData.newPassword.length > 0;
-
-  // Atualizar campo
-  const handleChange = (field) => (event) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
-    setError(null);
-  };
-
   // Toggle visibilidade
   const toggleVisibility = (field) => () => {
     setShowPasswords((prev) => ({
       ...prev,
       [field]: !prev[field],
     }));
-  };
-
-  // Submeter alteração
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Validações
-      if (!formData.oldPassword) {
-        throw new Error('Password atual é obrigatória');
-      }
-
-      if (!isPasswordValid) {
-        throw new Error('A nova password não cumpre os requisitos');
-      }
-
-      if (!passwordsMatch) {
-        throw new Error('As passwords não coincidem');
-      }
-
-      // Chamar API
-      await changePassword({
-        old_password: formData.oldPassword,
-        new_password: formData.newPassword,
-      });
-
-      setSuccess(true);
-      setFormData({
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-
-      // Limpar mensagem de sucesso após 5s
-      setTimeout(() => setSuccess(false), 5000);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erro ao alterar password');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Cor do indicador de força
-  const getStrengthColor = () => {
-    if (passwordStrength <= 1) return 'error';
-    if (passwordStrength === 2) return 'warning';
-    if (passwordStrength === 3) return 'info';
-    return 'success';
-  };
-
-  // Texto do indicador de força
-  const getStrengthText = () => {
-    if (passwordStrength <= 1) return 'Fraca';
-    if (passwordStrength === 2) return 'Média';
-    if (passwordStrength === 3) return 'Boa';
-    return 'Forte';
   };
 
   return (
@@ -169,19 +94,6 @@ const ChangePasswordPage = () => {
           </Typography>
         </Box>
 
-        {/* Mensagens de Feedback */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        {success && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            Password alterada com sucesso!
-          </Alert>
-        )}
-
         {/* Formulário */}
         <Box component="form" onSubmit={handleSubmit}>
           {/* Password Atual */}
@@ -190,8 +102,10 @@ const ChangePasswordPage = () => {
             label="Password Atual"
             type={showPasswords.old ? 'text' : 'password'}
             value={formData.oldPassword}
-            onChange={handleChange('oldPassword')}
+            onChange={(e) => updateField('oldPassword', e.target.value)}
             required
+            error={hasError('oldPassword')}
+            helperText={getFieldError('oldPassword')}
             sx={{ mb: 3 }}
             InputProps={{
               endAdornment: (
@@ -210,8 +124,10 @@ const ChangePasswordPage = () => {
             label="Nova Password"
             type={showPasswords.new ? 'text' : 'password'}
             value={formData.newPassword}
-            onChange={handleChange('newPassword')}
+            onChange={(e) => updateField('newPassword', e.target.value)}
             required
+            error={hasError('newPassword')}
+            helperText={getFieldError('newPassword')}
             sx={{ mb: 2 }}
             InputProps={{
               endAdornment: (
@@ -250,13 +166,14 @@ const ChangePasswordPage = () => {
             label="Confirmar Password"
             type={showPasswords.confirm ? 'text' : 'password'}
             value={formData.confirmPassword}
-            onChange={handleChange('confirmPassword')}
+            onChange={(e) => updateField('confirmPassword', e.target.value)}
             required
-            error={formData.confirmPassword.length > 0 && !passwordsMatch}
+            error={hasError('confirmPassword') || (formData.confirmPassword.length > 0 && !passwordsMatch)}
             helperText={
-              formData.confirmPassword.length > 0 && !passwordsMatch
+              getFieldError('confirmPassword') ||
+              (formData.confirmPassword.length > 0 && !passwordsMatch
                 ? 'As passwords não coincidem'
-                : ''
+                : '')
             }
             sx={{ mb: 3 }}
             InputProps={{

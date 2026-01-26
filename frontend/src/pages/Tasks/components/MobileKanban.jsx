@@ -93,9 +93,9 @@ const MobileKanban = ({ statuses, tasks, onTaskClick, moveTask, isMovingTask, is
                   columnName={status.value}
                   tasks={getTasksByStatus(status.pk)}
                   onTaskClick={onTaskClick}
-                  moveTask={(taskId, newStatusId) => {
+                  moveTask={(taskId, newStatusId, taskClientName) => {
                     const task = tasks.find(t => t.pk === taskId);
-                    moveTask({ taskId, newStatusId, clientName: task?.ts_client_name || clientName });
+                    moveTask({ taskId, newStatusId, clientName: taskClientName || task?.ts_client_name || clientName });
                   }}
                   isMovingTask={isMovingTask}
                   isDarkMode={isDarkMode}
@@ -174,9 +174,9 @@ const MobileKanban = ({ statuses, tasks, onTaskClick, moveTask, isMovingTask, is
                 columnName={status.value}
                 tasks={getTasksByStatus(status.pk)}
                 onTaskClick={onTaskClick}
-                moveTask={(taskId, newStatusId) => {
+                moveTask={(taskId, newStatusId, taskClientName) => {
                   const task = tasks.find(t => t.pk === taskId);
-                  moveTask({ taskId, newStatusId, clientName: task?.ts_client_name || clientName });
+                  moveTask({ taskId, newStatusId, clientName: taskClientName || task?.ts_client_name || clientName });
                 }}
                 isMovingTask={isMovingTask}
                 isDarkMode={isDarkMode}

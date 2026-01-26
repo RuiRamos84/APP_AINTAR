@@ -1,22 +1,38 @@
 /**
  * MainLayout Component
  * Layout principal da aplicação com AppBar e Sidebar
- * Adaptado para sidebar dinâmica (collapsed/expanded)
+ *
+ * Features:
+ * - Sidebar dinâmica (collapsed/expanded)
+ * - Suporte completo mobile/tablet/desktop
+ * - Drawer temporário para mobile
+ * - Drawer permanente para desktop
+ * - Persistência de estado collapsed
+ * - Transições suaves
+ * - Sincronização automática de módulo com rota
+ * - Sidebar apenas visível quando há módulo ativo
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Toolbar, useMediaQuery, useTheme } from '@mui/material';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AppBar } from './AppBar';
 import { Sidebar } from './Sidebar';
-
-const DRAWER_WIDTH_EXPANDED = 260;
-const DRAWER_WIDTH_COLLAPSED = 72;
+import { PageTransition } from './PageTransition';
+import { useUIStore } from '@/core/store/uiStore';
+import { detectModuleFromPath } from '@/core/config/moduleConfig';
 
 export const MainLayout = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const currentModule = useUIStore((state) => state.currentModule);
+  const setCurrentModule = useUIStore((state) => state.setCurrentModule);
+
+  // Metadata já é carregado globalmente pelo MetadataContext (AppProviders.jsx)
 
   // Estado collapsed da sidebar - partilhado entre MainLayout e Sidebar
   const [collapsed, setCollapsed] = useState(() => {
@@ -27,46 +43,74 @@ export const MainLayout = () => {
     return true;
   });
 
+  // Auto-detectar e sincronizar módulo baseado na rota atual
+  useEffect(() => {
+    const detectedModule = detectModuleFromPath(location.pathname);
+
+    if (detectedModule && detectedModule !== currentModule) {
+      // Rota pertence a um módulo específico -> selecionar esse módulo
+      setCurrentModule(detectedModule);
+    } else if (!detectedModule && location.pathname === '/home') {
+      // Na Home, limpar o módulo ativo (sidebar não deve aparecer)
+      setCurrentModule(null);
+    }
+    // Se detectedModule é null mas currentModule existe, manter o módulo atual
+    // (permite navegar para rotas globais como /profile sem perder contexto)
+  }, [location.pathname, currentModule, setCurrentModule]);
+
+  // Fechar drawer mobile quando mudar para desktop
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileOpen(false);
+    }
+  }, [isMobile]);
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  // Desktop: margem ajusta-se ao estado da sidebar
-  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
-
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* AppBar */}
+      {/* AppBar - ocupa todo o topo */}
       <AppBar onMenuClick={handleDrawerToggle} />
 
-      {/* Sidebar - Desktop */}
-      <Sidebar
-        variant="permanent"
-        collapsed={collapsed}
-        onToggleCollapse={() => setCollapsed(prev => !prev)}
-      />
+      {/* Sidebar - Apenas quando há módulo ativo */}
+      {currentModule && (
+        <>
+          {/* Sidebar - Desktop */}
+          <Sidebar
+            variant="permanent"
+            collapsed={collapsed}
+            onToggleCollapse={() => setCollapsed(prev => !prev)}
+          />
 
-      {/* Sidebar - Mobile */}
-      <Sidebar
-        variant="temporary"
-        open={mobileOpen}
-        onClose={handleDrawerToggle}
-        collapsed={true}
-      />
+          {/* Sidebar - Mobile (sempre expandida) */}
+          <Sidebar
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+          />
+        </>
+      )}
 
-      {/* Main Content - Acompanha movimento da sidebar */}
+      {/* Main Content - Responsivo e adaptativo */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           minHeight: '100vh',
           bgcolor: 'background.default',
-          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-          p: 3,
+          p: { xs: 2, sm: 3 },
+          overflowX: 'hidden',
+          position: 'relative',
         }}
       >
-        <Toolbar /> {/* Espaço para o AppBar */}
-        <Outlet />
+        <Toolbar sx={{ minHeight: { xs: 64, sm: 72 } }} />
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            <Outlet />
+          </PageTransition>
+        </AnimatePresence>
       </Box>
     </Box>
   );

@@ -14,22 +14,27 @@ import {
   TextField,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  Tooltip
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircle';
 import NoteAddIcon from '@mui/icons-material/NoteAdd';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
 import { useMetaData } from '../../../contexts/MetaDataContext';
-import { updateTask, addTaskNote, closeTask } from '../../../services/TaskService';
+import { updateTask, addTaskNote, closeTask, reopenTask } from '../../../services/TaskService';
 import { notifySuccess, notifyError } from '../../../components/common/Toaster/ThemedToaster';
+import { useTaskPermissions } from '../../../hooks/useTaskPermissions';
 
 /**
  * Menu de ações rápidas para TaskCard
  * Permite mudanças rápidas sem abrir o modal completo
+ * Com sistema de permissões baseado no papel do utilizador
  */
-const QuickActionsMenu = ({ task, onRefresh, isDarkMode }) => {
+const QuickActionsMenu = ({ task, onRefresh, isDarkMode, moveTask, clientName }) => {
+  const permissions = useTaskPermissions(task);
   const [anchorEl, setAnchorEl] = useState(null);
   const [statusDialog, setStatusDialog] = useState(false);
   const [noteDialog, setNoteDialog] = useState(false);
@@ -53,11 +58,16 @@ const QuickActionsMenu = ({ task, onRefresh, isDarkMode }) => {
 
   const handleStatusChange = async () => {
     try {
-      await updateTask(task.pk, { ...task, ts_notestatus: selectedStatus });
+      // Usar moveTask se disponível (UI otimista), senão updateTask
+      if (moveTask) {
+        moveTask(task.pk, selectedStatus, clientName);
+      } else {
+        await updateTask(task.pk, { ...task, ts_notestatus: selectedStatus });
+        if (onRefresh) onRefresh();
+      }
       notifySuccess('Status alterado com sucesso!');
       setStatusDialog(false);
       handleClose();
-      if (onRefresh) onRefresh();
     } catch (error) {
       console.error('Erro ao mudar status:', error);
       notifyError('Erro ao mudar status');
@@ -96,12 +106,24 @@ const QuickActionsMenu = ({ task, onRefresh, isDarkMode }) => {
   const handleComplete = async () => {
     try {
       await closeTask(task.pk);
-      notifySuccess('Tarefa concluída!');
+      notifySuccess('Tarefa fechada com sucesso!');
       handleClose();
       if (onRefresh) onRefresh();
     } catch (error) {
-      console.error('Erro ao concluir:', error);
-      notifyError('Erro ao concluir tarefa');
+      console.error('Erro ao fechar tarefa:', error);
+      notifyError('Erro ao fechar tarefa');
+    }
+  };
+
+  const handleReopen = async () => {
+    try {
+      await reopenTask(task.pk);
+      notifySuccess('Tarefa reaberta com sucesso!');
+      handleClose();
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Erro ao reabrir tarefa:', error);
+      notifyError('Erro ao reabrir tarefa');
     }
   };
 
@@ -130,61 +152,87 @@ const QuickActionsMenu = ({ task, onRefresh, isDarkMode }) => {
         onClose={handleClose}
         onClick={(e) => e.stopPropagation()}
       >
-        <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            setStatusDialog(true);
-            handleClose();
-          }}
-        >
-          <ListItemIcon>
-            <ChangeCircleIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Mudar Status</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            setNoteDialog(true);
-            handleClose();
-          }}
-        >
-          <ListItemIcon>
-            <NoteAddIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Adicionar Nota Rápida</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            setAssignDialog(true);
-            handleClose();
-          }}
-        >
-          <ListItemIcon>
-            <PersonAddIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Reatribuir</ListItemText>
-        </MenuItem>
-
-        {!task.when_stop && (
-          <>
-            <Divider />
-            <MenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                handleComplete();
-              }}
-            >
-              <ListItemIcon>
-                <CheckCircleIcon fontSize="small" color="success" />
-              </ListItemIcon>
-              <ListItemText>Marcar como Concluída</ListItemText>
-            </MenuItem>
-          </>
+        {/* Mudar Status - Apenas para clientes */}
+        {permissions.canChangeStatus && (
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              setStatusDialog(true);
+              handleClose();
+            }}
+          >
+            <ListItemIcon>
+              <ChangeCircleIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Mudar Status</ListItemText>
+          </MenuItem>
         )}
+
+        {/* Adicionar Nota - Disponível para todos com permissão */}
+        {permissions.canAddNote && (
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              setNoteDialog(true);
+              handleClose();
+            }}
+          >
+            <ListItemIcon>
+              <NoteAddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Adicionar Nota Rápida</ListItemText>
+          </MenuItem>
+        )}
+
+        {/* Reatribuir - Apenas para owner */}
+        {permissions.canReassign && (
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              setAssignDialog(true);
+              handleClose();
+            }}
+          >
+            <ListItemIcon>
+              <PersonAddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Reatribuir</ListItemText>
+          </MenuItem>
+        )}
+
+        {/* Fechar Tarefa - Apenas para owner (quando não está fechada) */}
+        {permissions.canComplete && [
+          <Divider key="divider-complete" />,
+          <MenuItem
+            key="complete"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleComplete();
+            }}
+          >
+            <ListItemIcon>
+              <CheckCircleIcon fontSize="small" color="success" />
+            </ListItemIcon>
+            <ListItemText>Fechar Tarefa</ListItemText>
+          </MenuItem>
+        ]}
+
+        {/* Reabrir Tarefa - Apenas para owner (quando está fechada) */}
+        {permissions.canReopen && [
+          <Divider key="divider-reopen" />,
+          <MenuItem
+            key="reopen"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleReopen();
+            }}
+          >
+            <ListItemIcon>
+              <LockOpenIcon fontSize="small" color="primary" />
+            </ListItemIcon>
+            <ListItemText>Reabrir Tarefa</ListItemText>
+          </MenuItem>
+        ]}
       </Menu>
 
       {/* Dialog: Mudar Status */}

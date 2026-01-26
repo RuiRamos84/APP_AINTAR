@@ -10,19 +10,21 @@ import { useSocket } from "../../contexts/SocketContext";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useTheme } from "@mui/material";
 import QuickActionsMenu from './components/QuickActionsMenu';
+import { useTaskPermissions } from "../../hooks/useTaskPermissions";
 
 const ItemTypes = {
   TASK: "task",
 };
 
-const TaskCard = ({ task, onTaskClick, isDarkMode, columnId, isUpdating = false }) => {
+const TaskCard = ({ task, onTaskClick, isDarkMode, columnId, isUpdating = false, moveTask, clientName }) => {
   const { user } = useAuth();
   const { markTaskNotificationAsRead } = useSocket();
   const theme = useTheme();
   const [forceUpdate, setForceUpdate] = useState(false);
-  
-  // Apenas o cliente pode arrastar tarefas não fechadas
-  const canDrag = task.ts_client === user?.user_id && !task.when_stop;
+  const permissions = useTaskPermissions(task);
+
+  // Usar permissões do hook
+  const canDrag = permissions.canDrag;
 
   const [{ isDragging }, drag] = useDrag(() => ({
     type: ItemTypes.TASK,
@@ -177,6 +179,8 @@ const TaskCard = ({ task, onTaskClick, isDarkMode, columnId, isUpdating = false 
           task={task}
           onRefresh={() => window.dispatchEvent(new CustomEvent('task-refresh'))}
           isDarkMode={isDarkMode}
+          moveTask={moveTask}
+          clientName={clientName || task.ts_client_name}
         />
 
         {/* Loading Overlay durante drag & drop */}
@@ -201,13 +205,13 @@ const TaskCard = ({ task, onTaskClick, isDarkMode, columnId, isUpdating = false 
         )}
 
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: 'center' }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: 'center', pr: 6 }}>
             {task.ts_client_name && (
               <Tooltip title={`Cliente: ${task.ts_client_name}`}>
-                <Chip 
-                  size="small" 
+                <Chip
+                  size="small"
                   label={task.ts_client_name}
-                  sx={{ 
+                  sx={{
                     maxWidth: '120px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -219,7 +223,7 @@ const TaskCard = ({ task, onTaskClick, isDarkMode, columnId, isUpdating = false 
                 />
               </Tooltip>
             )}
-            <Box>{getPriorityIcons(task.ts_priority)}</Box>
+            <Box sx={{ mr: -3 }}>{getPriorityIcons(task.ts_priority)}</Box>
           </Box>
           
           <Typography 

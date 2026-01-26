@@ -1,10 +1,12 @@
 // hooks/useRouteConfig.js - Lógica de permissões para a Sidebar
 import { useCallback, useMemo } from 'react';
 import { usePermissionContext } from '../../../contexts/PermissionContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { ROUTE_CONFIG } from '../../../config/routeConfig';
 
 export const useRouteConfig = () => {
     const { hasPermission, hasAnyPermission } = usePermissionContext();
+    const { user } = useAuth();
 
     /**
      * Verifica se um utilizador pode aceder a um item de configuração (rota ou ação).
@@ -13,8 +15,20 @@ export const useRouteConfig = () => {
         if (!config?.permissions?.required) {
             return true; // Sem restrições de permissão
         }
-        return hasPermission(config.permissions.required);
-    }, [hasPermission]);
+
+        // Verificar permissão de acesso
+        const hasRequiredPermission = hasPermission(config.permissions.required);
+        if (!hasRequiredPermission) {
+            return false;
+        }
+
+        // Verificar restrição de perfil (se existir)
+        if (config.permissions.profile !== undefined) {
+            return String(user?.profil) === String(config.permissions.profile);
+        }
+
+        return true;
+    }, [hasPermission, user]);
 
     /**
      * Filtra e constrói os itens da sidebar com base nas permissões do utilizador.

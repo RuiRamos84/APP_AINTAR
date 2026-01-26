@@ -13,8 +13,7 @@ import {
  */
 class PavimentationService {
     constructor() {
-        this.cache = new Map();
-        this.cacheTimeout = 5 * 60 * 1000; // 5 minutos
+        // Cache removido para evitar dados de utilizador anterior
     }
 
     /**
@@ -28,15 +27,6 @@ class PavimentationService {
             const statusConfig = StatusUtils.getStatusConfig(status);
             if (!statusConfig) {
                 throw new Error(`Status inválido: ${status}`);
-            }
-
-            // Verificar cache se não forçar refresh
-            const cacheKey = `pavimentations_${status}`;
-            if (!options.forceRefresh && this.cache.has(cacheKey)) {
-                const cached = this.cache.get(cacheKey);
-                if (Date.now() - cached.timestamp < this.cacheTimeout) {
-                    return cached.data;
-                }
             }
 
             console.log(`Buscando pavimentações: ${status}`);
@@ -59,12 +49,6 @@ class PavimentationService {
                 processed.submission_month = DataHelpers.getSubmissionMonth(processed.submission);
 
                 return processed;
-            });
-
-            // Salvar no cache
-            this.cache.set(cacheKey, {
-                data,
-                timestamp: Date.now()
             });
 
             console.log(`✅ ${data.length} pavimentações carregadas para status: ${status}`);
@@ -105,9 +89,6 @@ class PavimentationService {
             if (!response.data) {
                 throw new Error('Resposta vazia do servidor');
             }
-
-            // Limpar cache relacionado
-            this.clearCache();
 
             console.log(`✅ Ação ${actionId} executada com sucesso`);
             return {
@@ -383,7 +364,7 @@ class PavimentationService {
      */
     async getPavimentationById(id, status = null) {
         try {
-            // Se status fornecido, buscar primeiro no cache desse status
+            // Se status fornecido, buscar primeiro nesse status
             if (status) {
                 const statusData = await this.getPavimentations(status);
                 const found = statusData.find(item => item.pk === id);
@@ -456,36 +437,10 @@ class PavimentationService {
     }
 
     /**
-     * Limpar cache
-     * @param {string} specific - Limpar cache específico (opcional)
+     * Limpar cache (mantido para compatibilidade, mas sem efeito)
      */
-    clearCache(specific = null) {
-        if (specific) {
-            this.cache.delete(specific);
-            console.log(`Cache limpo: ${specific}`);
-        } else {
-            this.cache.clear();
-            console.log('Cache completamente limpo');
-        }
-    }
-
-    /**
-     * Obter informações do cache
-     * @returns {Object} Informações do cache
-     */
-    getCacheInfo() {
-        const entries = Array.from(this.cache.entries()).map(([key, value]) => ({
-            key,
-            size: value.data?.length || 0,
-            timestamp: value.timestamp,
-            age: Date.now() - value.timestamp
-        }));
-
-        return {
-            totalEntries: this.cache.size,
-            entries,
-            totalSize: entries.reduce((sum, entry) => sum + entry.size, 0)
-        };
+    clearCache() {
+        // Cache foi removido - função mantida para compatibilidade
     }
 
     /**
@@ -500,7 +455,6 @@ class PavimentationService {
             return {
                 status: 'healthy',
                 timestamp: new Date().toISOString(),
-                cache: this.getCacheInfo(),
                 apiConnectivity: true,
                 lastResponse: testResponse.status === 200
             };
@@ -509,7 +463,6 @@ class PavimentationService {
                 status: 'unhealthy',
                 timestamp: new Date().toISOString(),
                 error: error.message,
-                cache: this.getCacheInfo(),
                 apiConnectivity: false
             };
         }

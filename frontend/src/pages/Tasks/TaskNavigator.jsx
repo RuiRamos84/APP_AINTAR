@@ -6,14 +6,16 @@ import { useAuth } from "../../contexts/AuthContext";
 const TaskNavigator = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth(); 
+  const { user } = useAuth();
+
+  const isAdmin = String(user?.profil) === "0";
 
   // Determinar qual tab está ativa com base na rota atual
   const getActiveTab = () => {
     const path = location.pathname;
     if (path.includes("/tasks/my")) return 0;
     if (path.includes("/tasks/created")) return 1;
-    if (path.includes("/tasks/all")) return 2;
+    if (path.includes("/tasks/all") && isAdmin) return 2;
     return 0;
   };
 
@@ -26,7 +28,7 @@ const TaskNavigator = () => {
         navigate("/tasks/created");
         break;
       case 2:
-        navigate("/tasks/all");
+        if (isAdmin) navigate("/tasks/all");
         break;
       default:
         navigate("/tasks/my");
@@ -44,7 +46,7 @@ const TaskNavigator = () => {
       >
         <Tab label="Minhas Tarefas" />
         <Tab label="Tarefas Onde Sou Responsável" />
-        <Tab label="Todas as Tarefas" />
+        {isAdmin && <Tab label="Todas as Tarefas" />}
       </Tabs>
     </Box>
   );

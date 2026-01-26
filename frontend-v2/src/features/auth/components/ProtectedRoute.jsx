@@ -42,11 +42,6 @@ export const ProtectedRoute = ({ children, requiredPermission }) => {
 
   // 2. NOT AUTHENTICATED - Utilizador não está autenticado (acesso indevido)
   if (!user) {
-    if (import.meta.env.DEV) {
-      console.warn('[ProtectedRoute] Acesso indevido:', location.pathname);
-    }
-
-    // Redirecionar para 401 (Unauthorized)
     return (
       <Navigate
         to="/401"
@@ -57,17 +52,7 @@ export const ProtectedRoute = ({ children, requiredPermission }) => {
   }
 
   // 3. AUTHENTICATED BUT NO PERMISSION - Utilizador autenticado mas sem permissão
-  // Apenas verifica se permissionNeeded existe (não é null)
   if (permissionNeeded && !hasPermission(permissionNeeded)) {
-    if (import.meta.env.DEV) {
-      console.warn('[ProtectedRoute] Sem permissão:', {
-        user: user.user_name,
-        permission: permissionNeeded,
-        path: location.pathname
-      });
-    }
-
-    // Redirecionar para página 403 (Forbidden)
     return (
       <Navigate
         to="/403"

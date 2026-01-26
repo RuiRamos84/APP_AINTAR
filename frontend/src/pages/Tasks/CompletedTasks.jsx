@@ -1,30 +1,39 @@
 import React from "react";
-import { 
-  Box, 
-  Typography, 
-  Grid, 
-  Paper,
+import {
+  Box,
+  Typography,
+  Grid,
   Chip,
-  useTheme
+  CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useAuth } from "../../contexts/AuthContext";
+import { useOutletContext } from "react-router-dom";
+import { useTasks } from "../../hooks/useTasks";
 import TaskCard from "./TaskCard";
 
-const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) => {
+const CompletedTasks = () => {
   const { user } = useAuth();
   const isDarkMode = user?.dark_mode || false;
-  const theme = useTheme();
+  const { onTaskClick, searchTerm } = useOutletContext();
+  const [expandedClient, setExpandedClient] = React.useState(null);
 
-  // Extrair todas as tarefas concluídas de todos os clientes
-  // IMPORTANTE: Hooks devem ser chamados ANTES de qualquer return condicional
-  const allCompletedTasks = React.useMemo(() => {
-    if (!tasks || typeof tasks !== 'object') return [];
-    return Object.values(tasks).flatMap(client =>
-      Object.values(client.tasks || {}).flat()
-    );
+  // Usar o hook useTasks com fetchType='completed'
+  const { tasks, loading, error } = useTasks('completed');
+
+  // Contar total de tarefas para o header - ANTES de qualquer return
+  const totalTasks = React.useMemo(() => {
+    if (!tasks || typeof tasks !== 'object') return 0;
+    return Object.values(tasks).reduce((total, client) => {
+      return total + Object.values(client.tasks || {}).flat().length;
+    }, 0);
   }, [tasks]);
 
+  // Error state - DEPOIS de todos os hooks
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', mt: 4 }}>
@@ -36,18 +45,29 @@ const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) =>
     );
   }
 
-  // Função para filtrar tarefas com base no searchTerm
-  const filterTasks = (tasks, searchTerm) => {
-    if (!searchTerm || !searchTerm.trim()) return tasks;
+  // Função para filtrar tarefas por cliente
+  const filterClientTasks = (clientTasks) => {
+    if (!searchTerm || !searchTerm.trim()) return clientTasks;
 
     const lowercaseSearch = searchTerm.toLowerCase();
-    return tasks.filter(task =>
+    return clientTasks.filter(task =>
       task.name.toLowerCase().includes(lowercaseSearch) ||
       (task.memo && task.memo.toLowerCase().includes(lowercaseSearch))
     );
   };
 
-  const filteredCompletedTasks = filterTasks(allCompletedTasks, searchTerm);
+  const handleExpandClient = (clientName) => {
+    setExpandedClient(expandedClient === clientName ? null : clientName);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -55,66 +75,57 @@ const CompletedTasks = ({ tasks, onTaskClick, searchTerm, isLoading, error }) =>
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        mb: 2
+        mb: 3
       }}>
         <Typography variant="h4">Tarefas Concluídas</Typography>
-        <Chip 
-          icon={<CheckCircleIcon />} 
-          label={`Total: ${filteredCompletedTasks.length}`}
+        <Chip
+          icon={<CheckCircleIcon />}
+          label={`Total: ${totalTasks}`}
           color="success"
           variant="outlined"
         />
       </Box>
 
-      {filteredCompletedTasks.length === 0 && !isLoading ? (
+      {!tasks || Object.keys(tasks).length === 0 ? (
         <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
           Nenhuma tarefa concluída encontrada.
         </Typography>
       ) : (
-        <Grid container spacing={2}>
-          {filteredCompletedTasks.map((task) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={task.pk}>
-              <Paper 
-                sx={{ 
-                  p: 0, 
-                  height: '100%',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderRadius: 2,
-                  bgcolor: isDarkMode ? theme.palette.background.paper : '#f5f5f5',
-                  boxShadow: isDarkMode ? '0 4px 8px rgba(0, 0, 0, 0.5)' : 3,
-                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-                  '& .MuiTypography-root': {
-                    color: isDarkMode ? theme.palette.text.primary : undefined
-                  }
-            
-                }}
-              >
-                {/* Overlay para indicar que a tarefa está concluída */}
-                <Box sx={{
-                  position: 'absolute',
-                  top: 10,
-                  right: 10,
-                  zIndex: 2
-                }}>
-                  <Chip 
-                    size="small"
-                    icon={<CheckCircleIcon />} 
-                    label="Concluída" 
-                    color="success"
-                  />
-                </Box>
-                
-                <TaskCard 
-                  task={task} 
-                  onTaskClick={() => onTaskClick(task)}  // Passando a função diretamente
-                  isDarkMode={isDarkMode}
-                  columnId={3} // Sempre coluna "Concluído"
-                />
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+        Object.keys(tasks).map((clientName) => {
+          const clientTasks = Object.values(tasks[clientName].tasks || {}).flat();
+          const filteredTasks = filterClientTasks(clientTasks);
+
+          if (filteredTasks.length === 0) return null;
+
+          return (
+            <Accordion
+              key={clientName}
+              expanded={expandedClient === clientName}
+              onChange={() => handleExpandClient(clientName)}
+              sx={{ mb: 2 }}
+            >
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography>
+                  <strong>{clientName}</strong> ({filteredTasks.length} {filteredTasks.length === 1 ? 'tarefa' : 'tarefas'})
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid container spacing={3}>
+                  {filteredTasks.map((task) => (
+                    <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={task.pk}>
+                      <TaskCard
+                        task={task}
+                        onTaskClick={() => onTaskClick(task)}
+                        isDarkMode={isDarkMode}
+                        columnId={3}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })
       )}
     </Box>
   );

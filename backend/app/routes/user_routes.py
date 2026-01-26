@@ -13,8 +13,15 @@ from ..services.user_service import (
     fsf_client_vacationadd,
     fsf_client_vacationclean,
     get_all_users,
+    get_user_by_id,
+    create_user_admin,
+    update_user_admin,
+    delete_user_admin,
+    reset_user_password_admin,
+    toggle_user_status_admin,
     get_all_interfaces,
-    update_user_permissions
+    update_user_permissions,
+    bulk_update_permissions
 
 )
 from ..utils.utils import set_session, token_required, db_session_manager
@@ -146,6 +153,124 @@ def update_user_interfaces(user_id):
     current_user = get_jwt_identity()
     data = request.get_json()
     return update_user_permissions(user_id, data, current_user)
+
+
+# ============================================
+# ADMIN USER CRUD ENDPOINTS
+# ============================================
+
+@bp.route('/admin/users', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_get_users():
+    """Lista todos os utilizadores (admin)"""
+    current_user = get_jwt_identity()
+    return get_all_users(current_user)
+
+
+@bp.route('/admin/users/<int:user_id>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_get_user(user_id):
+    """Obtém utilizador por ID (admin)"""
+    current_user = get_jwt_identity()
+    return get_user_by_id(user_id, current_user)
+
+
+@bp.route('/admin/users', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_create_user():
+    """Cria novo utilizador (admin)"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return create_user_admin(data, current_user)
+
+
+@bp.route('/admin/users/<int:user_id>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_update_user(user_id):
+    """Atualiza utilizador (admin)"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return update_user_admin(user_id, data, current_user)
+
+
+@bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_delete_user(user_id):
+    """Apaga utilizador (admin)"""
+    current_user = get_jwt_identity()
+    return delete_user_admin(user_id, current_user)
+
+
+@bp.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_reset_user_password(user_id):
+    """Reset password de utilizador (admin)"""
+    current_user = get_jwt_identity()
+    return reset_user_password_admin(user_id, current_user)
+
+
+@bp.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_toggle_user_status(user_id):
+    """Ativa/Desativa utilizador (admin)"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    active = data.get('active', True)
+    return toggle_user_status_admin(user_id, active, current_user)
+
+
+@bp.route('/admin/users/<int:user_id>/permissions', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_update_user_permissions(user_id):
+    """Atualiza permissões de utilizador (admin)"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return update_user_permissions(user_id, data, current_user)
+
+
+@bp.route('/admin/users/bulk-permissions', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def admin_bulk_update_permissions():
+    """Atualiza permissões em massa para múltiplos utilizadores (admin)"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return bulk_update_permissions(data, current_user)
 
 
 @bp.after_request

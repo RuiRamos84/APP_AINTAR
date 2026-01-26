@@ -1,17 +1,18 @@
 /**
  * UserProfilePage
- * Página moderna para visualizar e editar perfil do utilizador
+ * Página moderna para visualizar e editar perfil do utilizador com validação Zod
  *
  * Features:
  * - Ver informações do perfil
  * - Editar informações pessoais
+ * - Validação com Zod schema
  * - Upload de avatar (futuro)
  * - Seções colapsáveis para organização
  * - Validação em tempo real
  * - UX/UI moderna e responsiva
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Container,
@@ -23,8 +24,10 @@ import {
   Divider,
   IconButton,
   Collapse,
-  Alert,
   CircularProgress,
+  MenuItem,
+  InputAdornment,
+  Tooltip,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
@@ -37,17 +40,32 @@ import {
   Email as EmailIcon,
   Badge as BadgeIcon,
   LocationOn as LocationIcon,
+  CheckCircle as CheckCircleIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useAuth } from '@/core/contexts/AuthContext';
-import { getUserInfo, updateUserInfo } from '@/services/userService';
+import { useIdentTypes } from '@/core/hooks/useMetaData';
+import { usePostalCode } from '@/core/hooks/usePostalCode';
+import { useUserProfile } from '../hooks';
 
 const UserProfilePage = () => {
   const { user } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const { data: identTypes, isLoading: identTypesLoading } = useIdentTypes();
+
+  const {
+    formData,
+    isLoading,
+    isSaving,
+    isEditing,
+    hasChanges,
+    updateField,
+    updateFields,
+    handleEdit,
+    handleCancel,
+    handleSave,
+    getFieldError,
+    hasError,
+  } = useUserProfile(user);
 
   // Seções expandidas
   const [expandedSections, setExpandedSections] = useState({
@@ -57,63 +75,22 @@ const UserProfilePage = () => {
     description: false,
   });
 
-  // Dados do formulário
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    nipc: '',
-    ident_type: '',
-    ident_value: '',
-    address: '',
-    postal: '',
-    city: '',
-    country: 'Portugal',
-    descr: '',
+  // Hook para código postal com auto-preenchimento
+  const postalCodeHook = usePostalCode({
+    onAddressFound: ({ streets, administrativeData }) => {
+      // Auto-preencher campos administrativos usando updateFields do hook
+      updateFields({
+        nut1: administrativeData.nut1,
+        nut2: administrativeData.nut2,
+        nut3: administrativeData.nut3,
+        nut4: administrativeData.nut4,
+        // Se só existe 1 rua, selecionar automaticamente
+        // Se existem mais de 1, limpar para utilizador selecionar
+        address: streets.length === 1 ? streets[0] : '',
+      });
+    },
+    showNotifications: true,
   });
-
-  // Dados originais (para cancelar edição)
-  const [originalData, setOriginalData] = useState({});
-
-  // Carregar dados do utilizador
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await getUserInfo();
-
-        // A resposta já vem como objeto direto (apiClient faz unwrap)
-        // Pode vir como {user_info: {...}} ou diretamente como {...}
-        const userData = response?.user_info || response;
-
-        const mappedData = {
-          name: userData.name || '',
-          email: userData.email || '',
-          phone: userData.phone || '',
-          nipc: userData.nipc || '',
-          ident_type: userData.ident_type || '',
-          ident_value: userData.ident_value || '',
-          address: userData.address || '',
-          postal: userData.postal || '',
-          city: userData.city || '',
-          country: userData.country || 'Portugal',
-          descr: userData.descr || '',
-        };
-
-        setFormData(mappedData);
-        setOriginalData(mappedData);
-      } catch (err) {
-        console.error('[UserProfilePage] Error loading user data:', err);
-        setError(err.response?.data?.message || err.message || 'Erro ao carregar dados do utilizador');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchUserData();
-    }
-  }, [user]);
 
   // Toggle seção
   const toggleSection = (section) => {
@@ -123,65 +100,36 @@ const UserProfilePage = () => {
     }));
   };
 
-  // Atualizar campo
-  const handleChange = (field) => (event) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
-    setError(null);
+  // Handler especial para código postal com auto-preenchimento
+  const handlePostalCodeChange = (event) => {
+    const formatted = postalCodeHook.handlePostalCodeChange(event.target.value);
+
+    // Se o código postal não está completo, limpar todos os campos relacionados
+    if (formatted.length < 8) { // 8 caracteres = XXXX-XXX
+      updateFields({
+        postal: formatted,
+        address: '',
+        nut1: '',
+        nut2: '',
+        nut3: '',
+        nut4: '',
+      });
+    } else {
+      // Código postal completo, apenas atualizar o campo
+      updateField('postal', formatted);
+    }
   };
 
-  // Iniciar edição
-  const handleEdit = () => {
-    setIsEditing(true);
-    setError(null);
-    setSuccess(false);
-  };
+  // Handler para seleção de rua
+  const handleAddressChange = (event) => {
+    const selectedAddress = event.target.value;
 
-  // Cancelar edição
-  const handleCancel = () => {
-    setFormData(originalData);
-    setIsEditing(false);
-    setError(null);
-  };
-
-  // Guardar alterações
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-
-      // Validação básica
-      if (!formData.name?.trim()) {
-        throw new Error('Nome é obrigatório');
-      }
-      if (!formData.email?.trim()) {
-        throw new Error('Email é obrigatório');
-      }
-      if (!formData.address?.trim()) {
-        throw new Error('Morada é obrigatória');
-      }
-      if (!formData.postal?.trim()) {
-        throw new Error('Código Postal é obrigatório');
-      }
-      if (!formData.phone?.trim()) {
-        throw new Error('Telefone é obrigatório');
-      }
-
-      // Chamar API para atualizar perfil
-      await updateUserInfo(formData);
-
-      setOriginalData(formData);
-      setIsEditing(false);
-      setSuccess(true);
-
-      // Limpar mensagem de sucesso após 3s
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erro ao guardar perfil');
-    } finally {
-      setIsSaving(false);
+    // Se selecionar "Outra", ativar modo manual
+    if (selectedAddress === 'Outra') {
+      postalCodeHook.enableManualMode();
+      updateField('address', '');
+    } else {
+      updateField('address', selectedAddress);
     }
   };
 
@@ -195,9 +143,6 @@ const UserProfilePage = () => {
       .toUpperCase()
       .substring(0, 2);
   };
-
-  // Verificar se houve alterações
-  const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -260,18 +205,6 @@ const UserProfilePage = () => {
       </Paper>
 
       {/* Mensagens de Feedback */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(false)}>
-          Perfil atualizado com sucesso!
-        </Alert>
-      )}
-
       {/* Seção: Informações Pessoais */}
       <Paper sx={{ mb: 2 }}>
         <Box
@@ -309,9 +242,10 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Número Fiscal (NIPC)"
                   value={formData.nipc}
-                  onChange={handleChange('nipc')}
+                  onChange={(e) => updateField('nipc', e.target.value)}
                   disabled={!isEditing}
-                  required
+                  error={hasError('nipc')}
+                  helperText={getFieldError('nipc')}
                   inputProps={{ maxLength: 9 }}
                 />
               </Grid>
@@ -321,9 +255,11 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Nome Completo"
                   value={formData.name}
-                  onChange={handleChange('name')}
+                  onChange={(e) => updateField('name', e.target.value)}
                   disabled={!isEditing}
                   required
+                  error={hasError('name')}
+                  helperText={getFieldError('name')}
                   InputProps={{
                     startAdornment: <BadgeIcon sx={{ mr: 1, color: 'action.active' }} />,
                   }}
@@ -333,12 +269,23 @@ const UserProfilePage = () => {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
+                  select
                   label="Tipo de Identificação"
-                  value={formData.ident_type}
-                  onChange={handleChange('ident_type')}
-                  disabled={!isEditing}
-                  placeholder="Ex: BI, CC, Passaporte"
-                />
+                  value={formData.ident_type || ''}
+                  onChange={(e) => updateField('ident_type', e.target.value)}
+                  disabled={!isEditing || identTypesLoading}
+                  error={hasError('ident_type')}
+                  helperText={getFieldError('ident_type') || (identTypesLoading ? 'A carregar tipos...' : '')}
+                >
+                  <MenuItem value="">
+                    <em>Nenhum</em>
+                  </MenuItem>
+                  {identTypes?.map((type) => (
+                    <MenuItem key={type.pk} value={type.pk}>
+                      {type.descr}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -346,8 +293,10 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Número de Identificação"
                   value={formData.ident_value}
-                  onChange={handleChange('ident_value')}
+                  onChange={(e) => updateField('ident_value', e.target.value)}
                   disabled={!isEditing}
+                  error={hasError('ident_value')}
+                  helperText={getFieldError('ident_value')}
                 />
               </Grid>
             </Grid>
@@ -393,9 +342,11 @@ const UserProfilePage = () => {
                   label="Email"
                   type="email"
                   value={formData.email}
-                  onChange={handleChange('email')}
+                  onChange={(e) => updateField('email', e.target.value)}
                   disabled={!isEditing}
                   required
+                  error={hasError('email')}
+                  helperText={getFieldError('email')}
                   InputProps={{
                     startAdornment: <EmailIcon sx={{ mr: 1, color: 'action.active' }} />,
                   }}
@@ -407,8 +358,10 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Telefone"
                   value={formData.phone}
-                  onChange={handleChange('phone')}
+                  onChange={(e) => updateField('phone', e.target.value)}
                   disabled={!isEditing}
+                  error={hasError('phone')}
+                  helperText={getFieldError('phone')}
                   InputProps={{
                     startAdornment: <PhoneIcon sx={{ mr: 1, color: 'action.active' }} />,
                   }}
@@ -451,50 +404,162 @@ const UserProfilePage = () => {
           <Divider />
           <Box sx={{ p: 3 }}>
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Morada"
-                  value={formData.address}
-                  onChange={handleChange('address')}
-                  disabled={!isEditing}
-                  multiline
-                  rows={2}
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <TextField
                   fullWidth
                   label="Código Postal"
                   value={formData.postal}
-                  onChange={handleChange('postal')}
+                  onChange={handlePostalCodeChange}
                   disabled={!isEditing}
                   placeholder="0000-000"
                   required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                    endAdornment: isEditing && postalCodeHook.loading ? (
+                      <InputAdornment position="end">
+                        <CircularProgress size={20} />
+                      </InputAdornment>
+                    ) : isEditing && postalCodeHook.success ? (
+                      <InputAdornment position="end">
+                        <Tooltip title="Código postal encontrado!">
+                          <CheckCircleIcon color="success" />
+                        </Tooltip>
+                      </InputAdornment>
+                    ) : null,
+                  }}
+                  helperText={
+                    isEditing
+                      ? postalCodeHook.loading
+                        ? 'A procurar endereço...'
+                        : postalCodeHook.success
+                        ? 'Endereço encontrado!'
+                        : 'Formato: XXXX-XXX'
+                      : ''
+                  }
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 5 }}>
+                {postalCodeHook.streets.length > 0 && !postalCodeHook.manualMode ? (
+                  <TextField
+                    fullWidth
+                    select
+                    label="Morada"
+                    value={formData.address}
+                    onChange={handleAddressChange}
+                    disabled={!isEditing}
+                    required
+                    helperText={
+                      isEditing && !formData.address
+                        ? `${postalCodeHook.streets.length} ${postalCodeHook.streets.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}`
+                        : ''
+                    }
+                  >
+                    {postalCodeHook.streets.map((street, index) => (
+                      <MenuItem key={index} value={street}>
+                        {street}
+                      </MenuItem>
+                    ))}
+                    <MenuItem value="Outra">
+                      <em>Outra (entrada manual)</em>
+                    </MenuItem>
+                  </TextField>
+                ) : (
+                  <TextField
+                    fullWidth
+                    label="Morada"
+                    value={formData.address}
+                    onChange={(e) => updateField('address', e.target.value)}
+                    disabled={!isEditing}
+                    required
+                    error={hasError('address')}
+                    helperText={
+                      getFieldError('address') ||
+                      (isEditing
+                        ? postalCodeHook.manualMode
+                          ? 'Modo manual - insira a morada'
+                          : 'Insira o código postal primeiro'
+                        : '')
+                    }
+                  />
+                )}
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Porta"
+                  value={formData.door}
+                  onChange={(e) => updateField('door', e.target.value)}
+                  disabled={!isEditing}
+                  error={hasError('door')}
+                  helperText={getFieldError('door')}
+                  placeholder="Ex: 1A"
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 2 }}>
                 <TextField
                   fullWidth
-                  label="Cidade"
-                  value={formData.city}
-                  onChange={handleChange('city')}
+                  label="Andar"
+                  value={formData.floor}
+                  onChange={(e) => updateField('floor', e.target.value)}
                   disabled={!isEditing}
+                  error={hasError('floor')}
+                  helperText={getFieldError('floor')}
+                  placeholder="Ex: 2º"
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <TextField
                   fullWidth
-                  label="País"
-                  value={formData.country}
-                  onChange={handleChange('country')}
-                  disabled={!isEditing}
+                  label="Localidade"
+                  value={formData.nut4}
+                  onChange={handleChange('nut4')}
+                  disabled={!isEditing || postalCodeHook.success}
+                  helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
                 />
               </Grid>
+
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Freguesia"
+                  value={formData.nut3}
+                  onChange={handleChange('nut3')}
+                  disabled={!isEditing || postalCodeHook.success}
+                  helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
+                />
+              </Grid>
+
+
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Concelho"
+                  value={formData.nut2}
+                  onChange={handleChange('nut2')}
+                  disabled={!isEditing || postalCodeHook.success}
+                  helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Distrito"
+                  value={formData.nut1}
+                  onChange={handleChange('nut1')}
+                  disabled={!isEditing || postalCodeHook.success}
+                  helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
+                />
+              </Grid>
+
+
             </Grid>
           </Box>
         </Collapse>
@@ -537,8 +602,10 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Descrição"
                   value={formData.descr}
-                  onChange={handleChange('descr')}
+                  onChange={(e) => updateField('descr', e.target.value)}
                   disabled={!isEditing}
+                  error={hasError('descr')}
+                  helperText={getFieldError('descr')}
                   multiline
                   rows={4}
                   placeholder="Informações adicionais..."

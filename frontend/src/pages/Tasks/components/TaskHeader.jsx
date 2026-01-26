@@ -37,7 +37,7 @@ const TaskHeader = ({
         borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'divider',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         position: 'relative'
       }}
     >
@@ -60,11 +60,19 @@ const TaskHeader = ({
         />
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, pr: 2, minWidth: 0 }}>
         <Typography
           variant="h5"
           component="h2"
-          sx={getTypographyStyles(isDarkMode)}
+          sx={{
+            ...getTypographyStyles(isDarkMode),
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            wordBreak: 'break-word'
+          }}
         >
           {task.name || 'Sem nome'}
         </Typography>
@@ -117,12 +125,12 @@ const TaskHeader = ({
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexShrink: 0 }}>
         <Box>{getPriorityIcons(task.ts_priority)}</Box>
         <IconButton
           onClick={onClose}
           size="small"
-          sx={{ color: isDarkMode ? 'white' : undefined }}
+          sx={{ color: isDarkMode ? 'white' : undefined, mt: -0.5 }}
         >
           <CloseIcon />
         </IconButton>

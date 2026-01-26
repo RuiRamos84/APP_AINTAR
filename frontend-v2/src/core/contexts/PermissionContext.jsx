@@ -33,14 +33,8 @@ export function PermissionProvider({ children }) {
 
     // Update permission service
     if (user) {
-      if (import.meta.env.DEV) {
-        console.log('[PermissionContext] Setting user:', user.user_id);
-      }
       permissionService.setUser(user);
     } else {
-      if (import.meta.env.DEV) {
-        console.log('[PermissionContext] Clearing user');
-      }
       permissionService.clearUser();
     }
 

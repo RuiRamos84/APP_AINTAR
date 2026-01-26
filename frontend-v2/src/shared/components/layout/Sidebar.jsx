@@ -1,39 +1,47 @@
 /**
- * Sidebar Component - Moderna e Dinâmica
+ * Sidebar Component - Modern & Responsive
  * Features:
- * - Toggle collapsed/expanded
- * - Tooltips no modo collapsed
- * - Integração com routeConfig dinâmico
- * - Persistência de estado
- * - Animações suaves
- * - Totalmente responsiva
+ * - Glassmorphism effect
+ * - Smooth transitions
+ * - Dynamic module filtering
+ * - Collapsible state persistence
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { getSidebarRoutesForModule } from '@/core/config/routeConfig';
+import { usePermissionContext } from '@/core/contexts/PermissionContext';
+import { useSocket } from '@/core/contexts/SocketContext';
+import { useUIStore } from '@/core/store/uiStore';
+import { getModuleById } from '@/core/config/moduleConfig';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import WifiIcon from '@mui/icons-material/Wifi';
+import WifiOffIcon from '@mui/icons-material/WifiOff';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
+  Box,
+  Collapse,
+  Divider,
   Drawer,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Toolbar,
-  Box,
-  Divider,
-  IconButton,
   Tooltip,
   Typography,
-  useTheme,
   useMediaQuery,
+  useTheme,
+  Chip,
+  alpha,
 } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { getSidebarRoutes } from '@/core/config/routeConfig';
-import { usePermissionContext } from '@/core/contexts/PermissionContext';
-
-const DRAWER_WIDTH_EXPANDED = 260;
-const DRAWER_WIDTH_COLLAPSED = 72;
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED } from './layoutConstants';
 
 export const Sidebar = ({
   open,
@@ -47,67 +55,100 @@ export const Sidebar = ({
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { hasPermission } = usePermissionContext();
+  const { isConnected } = useSocket();
 
-  // Estado collapsed vem das props (controlado por MainLayout)
-  const collapsed = collapsedProp ?? true;
+  const collapsed = variant === 'temporary' ? false : (collapsedProp ?? true);
+  const [openSubmenus, setOpenSubmenus] = useState({});
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [popoverRoute, setPopoverRoute] = useState(null);
+  const currentModule = useUIStore((state) => state.currentModule);
 
-  // Persistir estado quando muda (apenas em desktop)
   useEffect(() => {
     if (!isMobile && collapsedProp !== undefined) {
       localStorage.setItem('sidebar_collapsed', JSON.stringify(collapsedProp));
     }
   }, [collapsedProp, isMobile]);
 
-  // Obter rotas visíveis baseado em permissões (já filtradas)
   const visibleRoutes = useMemo(() => {
-    return getSidebarRoutes(hasPermission);
-  }, [hasPermission]);
-
-  const handleToggleCollapse = () => {
-    if (onToggleCollapse) {
-      onToggleCollapse();
+    if (!currentModule) {
+      return [];
     }
+    return getSidebarRoutesForModule(currentModule, hasPermission);
+  }, [currentModule, hasPermission]);
+
+  const activeModule = useMemo(() => {
+    return currentModule ? getModuleById(currentModule) : null;
+  }, [currentModule]);
+
+  const handleToggleCollapse = () => onToggleCollapse?.();
+
+  const handleToggleSubmenu = (routeId) => {
+    setOpenSubmenus(prev => ({ ...prev, [routeId]: !prev[routeId] }));
+  };
+
+  const handleOpenPopover = (event, route) => {
+    setAnchorEl(event.currentTarget);
+    setPopoverRoute(route);
+  };
+
+  const handleClosePopover = () => {
+    setAnchorEl(null);
+    setPopoverRoute(null);
   };
 
   const handleNavigation = (path) => {
     navigate(path);
-    if (variant === 'temporary') {
-      onClose?.();
-    }
+    handleClosePopover();
+    if (variant === 'temporary') onClose?.();
   };
 
   const isActive = (path) => location.pathname === path;
-
+  const isSubmenuActive = (submenu) => submenu && Object.keys(submenu).some(path => location.pathname.startsWith(path));
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
+  // Styles for Glassmorphism
+  const glassStyles = {
+    backgroundColor: alpha(theme.palette.background.paper, 0.8),
+    backdropFilter: 'blur(12px)',
+    borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+  };
+
   const renderMenuItem = (route) => {
-    const active = isActive(route.path);
+    const hasSubmenu = route.submenu && Object.keys(route.submenu).length > 0;
+    const isSubmenuOpen = openSubmenus[route.id];
+    const active = isActive(route.path) || isSubmenuActive(route.submenu);
     const Icon = route.icon;
+
+    if (!Icon) return null;
 
     const button = (
       <ListItemButton
         selected={active}
-        onClick={() => handleNavigation(route.path)}
+        onClick={(event) => {
+          if (hasSubmenu && !collapsed) handleToggleSubmenu(route.id);
+          else if (hasSubmenu && collapsed) handleOpenPopover(event, route);
+          else handleNavigation(route.path);
+        }}
         sx={{
           minHeight: 48,
           justifyContent: collapsed ? 'center' : 'initial',
-          px: 2.5,
-          borderRadius: 1,
-          mx: 0.5,
+          px: collapsed ? 2.5 : 2.5, // Remove padding when collapsed to allow centering
+          mx: 1, // Keep margin as requested
+          borderRadius: 2, // Keep rounded corners as requested
           mb: 0.5,
-          transition: 'all 0.2s',
+          transition: 'all 0.2s ease-in-out',
           '&.Mui-selected': {
-            bgcolor: 'primary.main',
+            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
             color: 'white',
+            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
             '&:hover': {
-              bgcolor: 'primary.dark',
+              background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
             },
-            '& .MuiListItemIcon-root': {
-              color: 'white',
-            },
+            '& .MuiListItemIcon-root': { color: 'white' },
           },
           '&:hover': {
-            bgcolor: active ? 'primary.dark' : 'action.hover',
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+            transform: 'translateX(4px)',
           },
         }}
       >
@@ -116,176 +157,219 @@ export const Sidebar = ({
             minWidth: 0,
             mr: collapsed ? 0 : 2,
             justifyContent: 'center',
-            color: active ? 'white' : 'inherit',
-            transition: 'margin 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+            color: active ? 'white' : theme.palette.text.secondary,
+            transition: 'margin 0.2s',
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
           <Icon />
         </ListItemIcon>
         <ListItemText
           primary={route.text}
+          primaryTypographyProps={{
+            fontWeight: active ? 600 : 400,
+            fontSize: '0.9rem',
+            noWrap: true, // Prevent text wrapping
+          }}
           sx={{
             opacity: collapsed ? 0 : 1,
-            display: collapsed ? 'none' : 'block',
-            transition: 'opacity 0.6s ease-in-out',
+            width: collapsed ? 0 : 'auto', // Collapse width
+            overflow: 'hidden', // Hide overflow
+            transition: 'all 0.2s',
+            m: 0, // Reset margin
           }}
         />
+        {hasSubmenu && !collapsed && (
+          <Box sx={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>
+            {isSubmenuOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </Box>
+        )}
       </ListItemButton>
     );
 
-    // Tooltip apenas quando collapsed
     if (collapsed) {
       return (
-        <Tooltip
-          key={route.path}
-          title={route.text}
-          placement="right"
-          arrow
-        >
-          <ListItem disablePadding>
-            {button}
-          </ListItem>
+        <Tooltip key={route.path} title={route.text} placement="right" arrow>
+          <ListItem disablePadding>{button}</ListItem>
         </Tooltip>
       );
     }
 
-    return (
-      <ListItem key={route.path} disablePadding>
-        {button}
-      </ListItem>
-    );
+    if (hasSubmenu) {
+      return (
+        <Box key={route.path}>
+          <ListItem disablePadding>{button}</ListItem>
+          <Collapse in={isSubmenuOpen} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {Object.entries(route.submenu).map(([subPath, subRoute]) => {
+                const subActive = isActive(subPath);
+                const SubIcon = subRoute.icon;
+                return (
+                  <ListItemButton
+                    key={subPath}
+                    selected={subActive}
+                    onClick={() => handleNavigation(subPath)}
+                    sx={{
+                      pl: 4,
+                      mx: 1,
+                      borderRadius: 2,
+                      mb: 0.5,
+                      '&.Mui-selected': {
+                        color: theme.palette.primary.main,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        fontWeight: 600,
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 0, mr: 2 }}>
+                      <SubIcon fontSize="small" sx={{ fontSize: 18 }} />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={subRoute.text} 
+                      primaryTypographyProps={{ fontSize: '0.85rem' }}
+                    />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          </Collapse>
+        </Box>
+      );
+    }
+
+    return <ListItem key={route.path} disablePadding>{button}</ListItem>;
   };
 
   const drawerContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar
-        sx={{
-          display: 'flex',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          alignItems: 'center',
-          px: collapsed ? 1 : 2,
-        }}
-      >
-        {!collapsed && (
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{
-              fontWeight: 600,
-              opacity: collapsed ? 0 : 1,
-              transition: 'opacity 0.6s ease-in-out',
-            }}
-          >
-            APP
-          </Typography>
-        )}
-      </Toolbar>
-
-      <Divider />
-
-      {/* Menu Principal */}
-      <Box sx={{ flexGrow: 1, overflow: 'auto', py: 1 }}>
-        <List>
-          {visibleRoutes.map(route => renderMenuItem(route))}
-        </List>
-      </Box>
-
-      {/* Footer - versão/info */}
-      {!collapsed && (
-        <>
-          <Divider />
-          <Box
-            sx={{
-              p: 2,
-              textAlign: 'center',
-              opacity: collapsed ? 0 : 1,
-              transition: 'opacity 0.6s ease-in-out',
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              v2.0.0
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflowX: 'hidden', pt: 2 }}>
+      {activeModule && (
+        <Box
+          sx={{
+            px: 2,
+            py: 2,
+            mx: 1,
+            mb: 2,
+            borderRadius: 3,
+            backgroundColor: alpha(activeModule.color, 0.1),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 1.5,
+            transition: 'all 0.3s ease',
+          }}
+        >
+          <activeModule.icon sx={{ color: activeModule.color }} />
+          {!collapsed && (
+            <Typography
+              variant="subtitle2"
+              fontWeight={700}
+              sx={{ color: activeModule.color, textTransform: 'uppercase', letterSpacing: 1 }}
+            >
+              {activeModule.label}
             </Typography>
-          </Box>
-        </>
+          )}
+        </Box>
       )}
 
-      {/* Botão Toggle - Fundo da Sidebar */}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 0.5 }}>
+        <List>{visibleRoutes.map(renderMenuItem)}</List>
+      </Box>
+
       {variant === 'permanent' && !isMobile && (
-        <>
-          <Divider />
-          <Box
+        <Box sx={{ p: 2 }}>
+          <Divider sx={{ mb: 2 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mb: 2 }}>
+            {collapsed ? (
+              <Tooltip title={isConnected ? 'Online' : 'Offline'}>
+                {isConnected ? <WifiIcon color="success" fontSize="small" /> : <WifiOffIcon color="error" fontSize="small" />}
+              </Tooltip>
+            ) : (
+              <Chip
+                icon={isConnected ? <WifiIcon fontSize="small" /> : <WifiOffIcon fontSize="small" />}
+                label={isConnected ? 'Online' : 'Offline'}
+                size="small"
+                color={isConnected ? 'success' : 'default'}
+                variant="outlined"
+                sx={{ width: '100%' }}
+              />
+            )}
+          </Box>
+          <IconButton
+            onClick={handleToggleCollapse}
             sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              p: 1.5,
+              width: '100%',
+              borderRadius: 2,
+              bgcolor: alpha(theme.palette.divider, 0.05),
+              '&:hover': { bgcolor: alpha(theme.palette.divider, 0.1) },
             }}
           >
-            <Tooltip title={collapsed ? 'Expandir menu' : 'Colapsar menu'} placement="right">
-              <IconButton
-                onClick={handleToggleCollapse}
-                sx={{
-                  bgcolor: 'action.hover',
-                  '&:hover': {
-                    bgcolor: 'action.selected',
-                    transform: 'scale(1.1)',
-                  },
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </>
+            {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          </IconButton>
+        </Box>
       )}
     </Box>
   );
 
-  // Mobile drawer (temporary)
-  if (variant === 'temporary') {
-    return (
+  const popoverMenu = (
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={handleClosePopover}
+      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      PaperProps={{
+        sx: {
+          ml: 1,
+          minWidth: 200,
+          borderRadius: 3,
+          boxShadow: theme.shadows[4],
+          ...glassStyles,
+        },
+      }}
+    >
+      {popoverRoute?.submenu && Object.entries(popoverRoute.submenu).map(([subPath, subRoute]) => (
+        <MenuItem
+          key={subPath}
+          selected={isActive(subPath)}
+          onClick={() => handleNavigation(subPath)}
+          sx={{ borderRadius: 1, mx: 1, my: 0.5 }}
+        >
+          <ListItemIcon><subRoute.icon fontSize="small" /></ListItemIcon>
+          <ListItemText primary={subRoute.text} />
+        </MenuItem>
+      ))}
+    </Menu>
+  );
+
+  return (
+    <>
       <Drawer
-        variant="temporary"
-        open={open}
+        variant={variant}
+        open={variant === 'temporary' ? open : true}
         onClose={onClose}
-        ModalProps={{
-          keepMounted: true,
-        }}
         sx={{
-          display: { xs: 'block', sm: 'none' },
+          width: variant === 'temporary' ? 'auto' : drawerWidth,
+          flexShrink: 0,
           '& .MuiDrawer-paper': {
+            width: variant === 'temporary' ? DRAWER_WIDTH_EXPANDED : drawerWidth,
             boxSizing: 'border-box',
-            width: DRAWER_WIDTH_EXPANDED,
+            ...glassStyles,
+            marginTop: variant === 'permanent' ? '72px' : 0, // Começa abaixo da AppBar
+            height: variant === 'permanent' ? 'calc(100vh - 72px)' : '100vh',
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: collapsed
+                ? theme.transitions.duration.leavingScreen
+                : theme.transitions.duration.enteringScreen,
+            }),
           },
         }}
       >
         {drawerContent}
       </Drawer>
-    );
-  }
-
-  // Desktop drawer (permanent)
-  return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        display: { xs: 'none', sm: 'block' },
-        width: drawerWidth,
-        flexShrink: 0,
-        transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-        '& .MuiDrawer-paper': {
-          width: drawerWidth,
-          boxSizing: 'border-box',
-          transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflowX: 'hidden',
-        },
-      }}
-      open
-    >
-      {drawerContent}
-    </Drawer>
+      {popoverMenu}
+    </>
   );
 };
 

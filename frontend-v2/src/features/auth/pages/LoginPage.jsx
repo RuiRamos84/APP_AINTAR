@@ -27,7 +27,6 @@ export const LoginPage = () => {
   const {
     formData,
     errors,
-    submitError,
     isLoading,
     updateField,
     handleSubmit,
@@ -111,13 +110,6 @@ export const LoginPage = () => {
               onClose={() => setSessionExpiredMessage(null)}
             >
               {sessionExpiredMessage}
-            </Alert>
-          )}
-
-          {/* Error Alert */}
-          {submitError && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {submitError}
             </Alert>
           )}
 

@@ -12,7 +12,7 @@ class TokenManager {
 
   /**
    * Validate if token is still valid
-   * Access tokens expire after 1 minute
+   * Access tokens expire after 1 hour (backend: ACCESS_TOKEN_EXPIRES = 1 hour)
    */
   isTokenValid(token) {
     try {
@@ -21,12 +21,11 @@ class TokenManager {
       // Decode JWT payload (without verification - backend handles that)
       const payload = JSON.parse(atob(token.split('.')[1]));
 
-      // Token expires at created_at + 1 minute
-      const expirationTime = payload.created_at * 1000 + (1 * 60 * 1000);
-
+      // Token expires at created_at + 1 hour (60 minutes)
+      const expirationTime = payload.created_at * 1000 + (60 * 60 * 1000);
       return Date.now() < expirationTime;
     } catch (error) {
-      console.error('Error validating token:', error);
+      console.error('[TokenManager] Error validating token:', error);
       return false;
     }
   }
@@ -39,14 +38,7 @@ class TokenManager {
   async refreshToken(currentTime) {
     const currentUser = this.authState.getState().user;
 
-    console.log('[TokenManager] Attempting to refresh token, current user:', {
-      hasUser: !!currentUser,
-      hasRefreshToken: !!currentUser?.refresh_token,
-      userName: currentUser?.user_name
-    });
-
     if (!currentUser?.refresh_token) {
-      console.error('[TokenManager] No refresh token available!', { currentUser });
       throw new Error('No refresh token available');
     }
 

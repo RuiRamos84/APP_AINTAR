@@ -138,15 +138,20 @@ const TaskManagement = () => {
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
       <DndProvider backend={backend} options={{ enableMouseEvents: true }}>
       <Paper
-        className="paper-task"
         sx={{
-          marginBottom: theme.spacing(-2.5),
+          p: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          minHeight: '85vh',
+          maxHeight: '85vh',
+          overflow: 'hidden',
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
         }}
       >
         {/* Cabeçalho e botões de ação */}
-        <Box className="header-container-task">
+        <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <Typography variant="h4">Gestão de Tarefas</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -196,9 +201,16 @@ const TaskManagement = () => {
         {!isCompletedTasksRoute && <TaskNavigator />}
 
         {/* Conteúdo principal - Componentes injetados pelo Router */}
-        <div className="tasks-container">
+        <Box
+          sx={{
+            flexGrow: 1,
+            overflow: 'auto',
+            width: '100%',
+            minHeight: 0
+          }}
+        >
           <Outlet context={{ onTaskClick: handleOpenTaskModal, searchTerm: debouncedSearchTerm }} />
-        </div>
+        </Box>
 
         {/* Modal para visualizar e editar uma tarefa */}
         {selectedTask && (

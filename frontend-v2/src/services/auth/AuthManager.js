@@ -102,7 +102,7 @@ class AuthManager {
 
     // Response interceptor - handle 401 and refresh token
     apiClient.interceptors.response.use(
-      (response) => response,
+      (response) => response.data,
       async (error) => {
         const originalRequest = error.config;
 
@@ -120,8 +120,9 @@ class AuthManager {
             // Retry original request
             return apiClient(originalRequest);
           } catch (refreshError) {
-            // Refresh failed, logout user
+            // Refresh failed - mark session as expired and logout user
             console.error('Token refresh failed:', refreshError);
+            sessionStorage.setItem('session_expired', 'true');
             await this.logout();
             return Promise.reject(refreshError);
           }
