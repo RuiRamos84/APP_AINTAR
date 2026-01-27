@@ -22,12 +22,7 @@ import taskService from '../services/taskService';
 import { toast } from 'sonner';
 
 export const useTasks = (options = {}) => {
-  const {
-    autoFetch = true,
-    fetchOnMount = true,
-    onSuccess,
-    onError,
-  } = options;
+  const { autoFetch = true, fetchOnMount = true, onSuccess, onError } = options;
 
   // Estado do store
   const {
@@ -146,7 +141,6 @@ export const useTasks = (options = {}) => {
       toast.error(errorMsg);
     }
   }, [page, rowsPerPage, orderBy, order, filters, setLoading, setError, clearError, setTasks]);
-
 
   // ==================== CREATE ====================
 
@@ -290,7 +284,6 @@ export const useTasks = (options = {}) => {
     [setLoading, setError, clearError, updateTaskInStore, invalidateCache]
   );
 
-
   // ==================== NOTES & HISTORY ====================
 
   /**
@@ -303,7 +296,10 @@ export const useTasks = (options = {}) => {
 
       try {
         await taskService.addTaskNote(taskId, note);
-        toast.success('Nota adicionada!');
+        invalidateCache();
+
+        // Disparar evento para atualizar UI em background
+        window.dispatchEvent(new CustomEvent('task-refresh'));
       } catch (err) {
         const errorMsg = err.message || 'Erro ao adicionar nota';
         toast.error(errorMsg);
@@ -312,24 +308,21 @@ export const useTasks = (options = {}) => {
         setLoading(false);
       }
     },
-    [setLoading, setError, clearError]
+    [setLoading, setError, clearError, invalidateCache]
   );
 
   /**
    * Carregar histórico
    */
-  const fetchHistory = useCallback(
-    async (taskId) => {
-      try {
-        const history = await taskService.getTaskHistory(taskId);
-        return history;
-      } catch (err) {
-        toast.error('Erro ao carregar histórico');
-        throw err;
-      }
-    },
-    []
-  );
+  const fetchHistory = useCallback(async (taskId) => {
+    try {
+      const history = await taskService.getTaskHistory(taskId);
+      return history;
+    } catch (err) {
+      toast.error('Erro ao carregar histórico');
+      throw err;
+    }
+  }, []);
 
   /**
    * Marcar notificação de tarefa como lida
@@ -349,7 +342,6 @@ export const useTasks = (options = {}) => {
     },
     [updateTaskInStore]
   );
-
 
   // ==================== EFFECTS ====================
 

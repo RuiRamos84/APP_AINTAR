@@ -17,7 +17,9 @@
       "Bash(findstr:*)",
       "Bash(.venvScriptspython.exe -c \"from app.services.telemetry_service import *; print\\(''OK''\\)\")",
       "Bash(python:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier:*)"
     ],
     "deny": [],
     "ask": []

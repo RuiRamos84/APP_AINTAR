@@ -22,20 +22,27 @@ import {
 import {
   Search as SearchIcon,
   Clear as ClearIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import PropTypes from 'prop-types';
 
+// Context
+import { useMetadata } from '@/core/contexts/MetadataContext';
+
 /**
  * QuickFilters Component
+ * @param {boolean} isAdmin - Se o utilizador é admin (mostra filtro de cliente)
  */
-export const QuickFilters = ({ filters = {}, onChange, onReset }) => {
+export const QuickFilters = ({ filters = {}, onChange, onReset, isAdmin = false }) => {
   const theme = useTheme();
+  const { metadata } = useMetadata();
 
   const [localFilters, setLocalFilters] = useState({
     search: filters.search || '',
     status: filters.status || 'all',
     priority: filters.priority || 'all',
     assignedTo: filters.assignedTo || 'all',
+    client: filters.client || 'all',
   });
 
   // Handle mudança de filtro
@@ -52,6 +59,7 @@ export const QuickFilters = ({ filters = {}, onChange, onReset }) => {
       status: 'all',
       priority: 'all',
       assignedTo: 'all',
+      client: 'all',
     };
     setLocalFilters(resetFilters);
     onChange?.(resetFilters);
@@ -63,7 +71,14 @@ export const QuickFilters = ({ filters = {}, onChange, onReset }) => {
     localFilters.search ||
     localFilters.status !== 'all' ||
     localFilters.priority !== 'all' ||
-    localFilters.assignedTo !== 'all';
+    localFilters.assignedTo !== 'all' ||
+    localFilters.client !== 'all';
+
+  // Obter nome do cliente selecionado
+  const getClientName = (clientId) => {
+    const client = metadata.associates?.find((c) => String(c.pk) === String(clientId));
+    return client?.name || clientId;
+  };
 
   return (
     <Paper
@@ -165,6 +180,30 @@ export const QuickFilters = ({ filters = {}, onChange, onReset }) => {
               <MenuItem value="me">Atribuídas a mim</MenuItem>
             </Select>
           </FormControl>
+
+          {/* Cliente (só admin) */}
+          {isAdmin && metadata.associates?.length > 0 && (
+            <FormControl fullWidth size="small">
+              <InputLabel>Cliente</InputLabel>
+              <Select
+                value={localFilters.client}
+                label="Cliente"
+                onChange={(e) => handleFilterChange('client', e.target.value)}
+                startAdornment={
+                  localFilters.client !== 'all' ? (
+                    <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'primary.main' }} />
+                  ) : null
+                }
+              >
+                <MenuItem value="all">Todos os clientes</MenuItem>
+                {metadata.associates.map((client) => (
+                  <MenuItem key={client.pk} value={client.pk}>
+                    {client.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </Stack>
 
         {/* Filtros ativos e ações */}
@@ -205,6 +244,16 @@ export const QuickFilters = ({ filters = {}, onChange, onReset }) => {
                   variant="outlined"
                 />
               )}
+              {localFilters.client !== 'all' && (
+                <Chip
+                  icon={<PersonIcon fontSize="small" />}
+                  label={`Cliente: ${getClientName(localFilters.client)}`}
+                  size="small"
+                  onDelete={() => handleFilterChange('client', 'all')}
+                  color="secondary"
+                  variant="outlined"
+                />
+              )}
             </Stack>
           )}
 
@@ -229,6 +278,7 @@ QuickFilters.propTypes = {
   filters: PropTypes.object,
   onChange: PropTypes.func,
   onReset: PropTypes.func,
+  isAdmin: PropTypes.bool,
 };
 
 export default QuickFilters;

@@ -48,11 +48,7 @@ import taskService from '../services/taskService';
 /**
  * TaskHistoryTab Component
  */
-export const TaskHistoryTab = ({
-  task,
-  canAddNote = false,
-  onNoteAdded,
-}) => {
+export const TaskHistoryTab = ({ task, canAddNote = false, onNoteAdded }) => {
   const { user } = useAuth();
   const { addNote, loading: taskLoading } = useTasks({ autoFetch: false });
 
@@ -69,7 +65,8 @@ export const TaskHistoryTab = ({
   // Determinar se user é owner ou client
   const isOwner = task ? task.owner === user?.user_id : false;
   const isClient = task ? task.ts_client === user?.user_id : false;
-  const isCompleted = task?.status === 'completed' || task?.when_stop;
+  // IMPORTANTE: isClosed = encerrada pelo owner (when_stop preenchido)
+  const isClosed = !!task?.when_stop;
 
   // Verificar se a tarefa tem notificação não lida para o utilizador atual
   const hasTaskNotification = useMemo(() => {
@@ -161,7 +158,9 @@ export const TaskHistoryTab = ({
         setHighlightedNotes(new Set([latestNote?.pk || 'note_0']));
       }
 
-      onNoteAdded?.();
+      // Nota: Não chamamos onNoteAdded() aqui para NÃO fechar o modal
+      // O evento 'task-refresh' já é disparado no hook addNote
+      // para atualizar a lista de tarefas em background
     } catch (error) {
       console.error('Erro ao adicionar nota:', error);
       toast.error('Erro ao adicionar nota');
@@ -182,8 +181,8 @@ export const TaskHistoryTab = ({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Adicionar Nova Nota */}
-      {!isCompleted && canAddNote ? (
+      {/* Adicionar Nova Nota - só se tarefa não estiver encerrada */}
+      {!isClosed && canAddNote ? (
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle1" fontWeight={600} gutterBottom>
             Adicionar Nova Nota
@@ -213,8 +212,8 @@ export const TaskHistoryTab = ({
         </Box>
       ) : (
         <Alert severity="info" sx={{ mb: 3 }}>
-          {isCompleted
-            ? 'Esta tarefa está fechada. Não é possível adicionar notas.'
+          {isClosed
+            ? 'Esta tarefa está encerrada. Não é possível adicionar notas.'
             : 'Não tem permissão para adicionar notas a esta tarefa.'}
         </Alert>
       )}
@@ -331,8 +330,8 @@ export const TaskHistoryTab = ({
                       borderColor: isUnread
                         ? 'error.main'
                         : item?.isadmin
-                        ? 'secondary.main'
-                        : 'primary.main',
+                          ? 'secondary.main'
+                          : 'primary.main',
                       boxShadow: isUnread ? '0 4px 12px rgba(244, 67, 54, 0.2)' : undefined,
                       position: 'relative',
                     }}

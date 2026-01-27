@@ -29,7 +29,11 @@ const initialState = {
     priority: 'all', // 'all' | 'baixa' | 'media' | 'alta' | 'urgente'
     assignedTo: 'all', // 'all' | 'me' | userId
     search: '',
+    client: 'all', // 'all' | clientId - Filtrar por cliente (só admin)
   },
+
+  // Agrupamento (só admin)
+  groupBy: 'status', // 'status' | 'client'
 
   // UI State
   loading: false,
@@ -193,6 +197,13 @@ export const useTaskStore = create(
             state.viewMode = mode;
           }),
 
+        // ==================== AGRUPAMENTO ====================
+
+        setGroupBy: (groupBy) =>
+          set((state) => {
+            state.groupBy = groupBy;
+          }),
+
         // ==================== LOADING & ERROR ====================
 
         setLoading: (loading) =>
@@ -255,6 +266,14 @@ export const useTaskStore = create(
           // Priority
           if (state.filters.priority !== 'all') {
             filtered = filtered.filter((task) => task.priority === state.filters.priority);
+          }
+
+          // Client (filtrar por cliente)
+          if (state.filters.client !== 'all') {
+            const clientId = parseInt(state.filters.client, 10);
+            filtered = filtered.filter(
+              (task) => task.client === clientId || task.ts_client === clientId
+            );
           }
 
           return filtered;

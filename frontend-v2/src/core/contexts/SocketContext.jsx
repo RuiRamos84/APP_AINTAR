@@ -15,7 +15,15 @@
  * const { socket, isConnected, emit, notifications, unreadCount } = useSocket();
  */
 
-import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from 'react';
 import {
   connectSocket,
   disconnectSocket,
@@ -45,10 +53,7 @@ export const SocketProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
   // Calcular unreadCount a partir do array (evita dessincronização)
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
-  );
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   // Refs para controlo
   const audioRef = useRef(null);
@@ -189,9 +194,7 @@ export const SocketProvider = ({ children }) => {
         // Ignorar se já existe uma notificação para a mesma tarefa nos últimos 5 segundos
         if (taskId) {
           const recentTaskNotif = prev.find(
-            (n) =>
-              n.taskId === taskId &&
-              new Date() - new Date(n.timestamp) < 5000
+            (n) => n.taskId === taskId && new Date() - new Date(n.timestamp) < 5000
           );
           if (recentTaskNotif) {
             console.debug('[SocketContext] Ignorando notificação duplicada para tarefa:', taskId);
@@ -289,6 +292,10 @@ export const SocketProvider = ({ children }) => {
       // (o toast já é mostrado pelo hook useTasks quando o utilizador faz a ação)
       // Apenas adicionar ao centro de notificações
       handleNewNotification(notif, false);
+
+      // Disparar evento para atualizar a lista de tarefas em tempo real
+      // Isto permite que a TasksPage atualize os cards com as notificações
+      window.dispatchEvent(new CustomEvent('task-refresh'));
     },
     [handleNewNotification]
   );
@@ -381,7 +388,10 @@ export const SocketProvider = ({ children }) => {
 
         // Registar event listeners
         const removeNewNotif = onEvent(SOCKET_EVENTS.NEW_NOTIFICATION, handleNewNotification);
-        const removeDocTransfer = onEvent(SOCKET_EVENTS.DOCUMENT_TRANSFERRED, handleDocumentTransferred);
+        const removeDocTransfer = onEvent(
+          SOCKET_EVENTS.DOCUMENT_TRANSFERRED,
+          handleDocumentTransferred
+        );
         const removeTaskNotif = onEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleTaskNotification);
 
         // Event para atualização de conexão
@@ -418,7 +428,14 @@ export const SocketProvider = ({ children }) => {
         setIsConnected(false);
       }
     };
-  }, [isAuthenticated, user, emit, handleNewNotification, handleDocumentTransferred, handleTaskNotification]);
+  }, [
+    isAuthenticated,
+    user,
+    emit,
+    handleNewNotification,
+    handleDocumentTransferred,
+    handleTaskNotification,
+  ]);
 
   // Limpeza automática de notificações antigas (a cada hora)
   useEffect(() => {

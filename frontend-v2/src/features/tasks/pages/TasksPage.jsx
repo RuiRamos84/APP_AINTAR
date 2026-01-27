@@ -44,6 +44,8 @@ import {
   Person as PersonIcon,
   Edit as EditIcon,
   AdminPanelSettings as AdminIcon,
+  Archive as ArchiveIcon,
+  GroupWork as GroupIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -73,9 +75,10 @@ const VIEW_MODES = {
 };
 
 const TAB_TYPES = {
-  ALL: 'all',           // Todas as tarefas (admin)
+  ALL: 'all', // Todas as tarefas (admin)
   ASSIGNED: 'assigned', // Tarefas atribuídas ao utilizador
-  CREATED: 'created',   // Tarefas criadas pelo utilizador
+  CREATED: 'created', // Tarefas criadas pelo utilizador
+  CLOSED: 'closed', // Tarefas encerradas (arquivadas)
 };
 
 // ============================================
@@ -101,6 +104,7 @@ export const TasksPage = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [groupBy, setGroupBy] = useState('status'); // 'status' | 'client' - agrupamento (só admin)
 
   // Hook de tarefas
   const {
@@ -146,47 +150,70 @@ export const TasksPage = () => {
   const userId = user?.user_id || user?.pk || user?.id;
 
   // Filtrar tarefas baseado na tab ativa
+  // IMPORTANTE: Tarefas encerradas (when_stop != null) só aparecem na tab "Encerradas"
   const filteredTasks = useMemo(() => {
     if (!tasks || !userId) return [];
 
     switch (activeTab) {
       case TAB_TYPES.ALL:
-        // Admin vê todas
-        return tasks;
+        // Admin vê todas as tarefas ATIVAS (não encerradas)
+        return tasks.filter((task) => !task.when_stop);
 
       case TAB_TYPES.ASSIGNED:
-        // Tarefas atribuídas ao utilizador (ts_client = utilizador)
+        // Tarefas ATIVAS atribuídas ao utilizador (ts_client = utilizador)
         // O CLIENT é quem executa a tarefa
         return tasks.filter((task) => {
           const taskClient = task.client || task.ts_client;
-          return taskClient === userId;
+          return taskClient === userId && !task.when_stop;
         });
 
       case TAB_TYPES.CREATED:
-        // Tarefas criadas pelo utilizador (owner = utilizador)
+        // Tarefas ATIVAS criadas pelo utilizador (owner = utilizador)
         // O OWNER é quem criou a tarefa
         return tasks.filter((task) => {
           const taskOwner = task.owner || task.ts_owner;
-          return taskOwner === userId;
+          return taskOwner === userId && !task.when_stop;
+        });
+
+      case TAB_TYPES.CLOSED:
+        // Tarefas ENCERRADAS (when_stop preenchido)
+        // Mostra todas as encerradas onde o utilizador é owner OU client
+        return tasks.filter((task) => {
+          if (!task.when_stop) return false;
+          const taskOwner = task.owner || task.ts_owner;
+          const taskClient = task.client || task.ts_client;
+          return isAdmin || taskOwner === userId || taskClient === userId;
         });
 
       default:
-        return tasks;
+        return tasks.filter((task) => !task.when_stop);
     }
-  }, [tasks, activeTab, userId]);
+  }, [tasks, activeTab, userId, isAdmin]);
 
   // Estatísticas por tab
+  // Contagens separadas para tarefas ativas vs encerradas
   const tabStats = useMemo(() => {
-    if (!tasks || !userId) return { all: 0, assigned: 0, created: 0 };
+    if (!tasks || !userId) return { all: 0, assigned: 0, created: 0, closed: 0 };
+
+    // Separar tarefas ativas e encerradas
+    const activeTasks = tasks.filter((t) => !t.when_stop);
+    const closedTasks = tasks.filter((t) => !!t.when_stop);
 
     return {
-      all: tasks.length,
-      // ASSIGNED = tarefas onde sou o CLIENT (atribuídas a mim)
-      assigned: tasks.filter((t) => (t.client || t.ts_client) === userId).length,
-      // CREATED = tarefas onde sou o OWNER (criadas por mim)
-      created: tasks.filter((t) => (t.owner || t.ts_owner) === userId).length,
+      // ALL = tarefas ativas (admin)
+      all: activeTasks.length,
+      // ASSIGNED = tarefas ATIVAS onde sou o CLIENT (atribuídas a mim)
+      assigned: activeTasks.filter((t) => (t.client || t.ts_client) === userId).length,
+      // CREATED = tarefas ATIVAS onde sou o OWNER (criadas por mim)
+      created: activeTasks.filter((t) => (t.owner || t.ts_owner) === userId).length,
+      // CLOSED = tarefas encerradas onde sou owner OU client
+      closed: closedTasks.filter((t) => {
+        const taskOwner = t.owner || t.ts_owner;
+        const taskClient = t.client || t.ts_client;
+        return isAdmin || taskOwner === userId || taskClient === userId;
+      }).length,
     };
-  }, [tasks, userId]);
+  }, [tasks, userId, isAdmin]);
 
   // Handlers
   const handleTabChange = useCallback((_, newTab) => {
@@ -213,9 +240,12 @@ export const TasksPage = () => {
     refresh();
   }, [refresh]);
 
-  const handleFiltersChange = useCallback((newFilters) => {
-    setFilters(newFilters);
-  }, [setFilters]);
+  const handleFiltersChange = useCallback(
+    (newFilters) => {
+      setFilters(newFilters);
+    },
+    [setFilters]
+  );
 
   // Verificar permissões de edição
   const canEditTask = useCallback(
@@ -277,12 +307,7 @@ export const TasksPage = () => {
   );
 
   return (
-    <ModulePage
-      breadcrumbs={[
-        { label: 'Início', path: '/' },
-        { label: 'Tarefas' },
-      ]}
-    >
+    <ModulePage breadcrumbs={[{ label: 'Início', path: '/' }, { label: 'Tarefas' }]}>
       <Container
         maxWidth="xl"
         sx={{
@@ -291,46 +316,132 @@ export const TasksPage = () => {
           px: { xs: 1, sm: 2, md: 3 },
         }}
       >
-        {/* Header: Título + Ações */}
+        {/* Header Unificado: Título + Tabs + Ações na mesma linha */}
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 1.5, sm: 2 },
             mb: { xs: 2, sm: 3 },
             bgcolor: alpha(theme.palette.background.paper, 0.8),
             borderRadius: 2,
             border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            overflow: 'hidden',
           }}
         >
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            spacing={2}
+          {/* Linha 1: Título + Tabs + Controlos */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 1, sm: 2 },
+              p: { xs: 1, sm: 1.5 },
+              flexWrap: { xs: 'wrap', md: 'nowrap' },
+            }}
           >
-            {/* Título e Subtítulo */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <TaskIcon sx={{ fontSize: 28, color: 'primary.main' }} />
-              <Box>
-                <Typography variant="h6" fontWeight={600} lineHeight={1.2}>
-                  Gestão de Tarefas
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Gerir e acompanhar tarefas
-                </Typography>
-              </Box>
+            {/* Título (esquerda) */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexShrink: 0,
+              }}
+            >
+              <TaskIcon sx={{ fontSize: { xs: 24, sm: 28 }, color: 'primary.main' }} />
+              <Typography
+                variant="h6"
+                fontWeight={600}
+                sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, whiteSpace: 'nowrap' }}
+              >
+                Gestão de Tarefas
+              </Typography>
             </Box>
 
-            {/* Controlos */}
-            <Stack direction="row" alignItems="center" spacing={0.5}>
+            {/* Tabs (centro, flexível) */}
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                '& .MuiTabs-flexContainer': {
+                  justifyContent: { xs: 'flex-start', md: 'center' },
+                },
+                '& .MuiTab-root': {
+                  minHeight: { xs: 40, sm: 44 },
+                  minWidth: 'auto',
+                  px: { xs: 1, sm: 1.5 },
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                },
+                '& .MuiTabs-indicator': {
+                  height: 3,
+                },
+              }}
+            >
+              {/* Tab Todas - Apenas Admin */}
+              {isAdmin && (
+                <Tab
+                  value={TAB_TYPES.ALL}
+                  icon={
+                    <Badge badgeContent={tabStats.all} color="primary" max={99}>
+                      <AdminIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                    </Badge>
+                  }
+                  iconPosition="start"
+                  label={isTablet ? '' : 'Todas'}
+                />
+              )}
+
+              {/* Tab Minhas Tarefas */}
+              <Tab
+                value={TAB_TYPES.ASSIGNED}
+                icon={
+                  <Badge badgeContent={tabStats.assigned} color="info" max={99}>
+                    <PersonIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                  </Badge>
+                }
+                iconPosition="start"
+                label={isTablet ? '' : 'Minhas'}
+              />
+
+              {/* Tab Criadas por Mim */}
+              <Tab
+                value={TAB_TYPES.CREATED}
+                icon={
+                  <Badge badgeContent={tabStats.created} color="secondary" max={99}>
+                    <EditIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                  </Badge>
+                }
+                iconPosition="start"
+                label={isTablet ? '' : 'Criadas'}
+              />
+
+              {/* Tab Encerradas */}
+              <Tab
+                value={TAB_TYPES.CLOSED}
+                icon={
+                  <Badge badgeContent={tabStats.closed} color="default" max={99}>
+                    <ArchiveIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                  </Badge>
+                }
+                iconPosition="start"
+                label={isTablet ? '' : 'Encerradas'}
+              />
+            </Tabs>
+
+            {/* Controlos (direita) */}
+            <Stack direction="row" alignItems="center" spacing={0.25} flexShrink={0}>
               {/* Toggle Vista */}
               <Tooltip title="Vista Kanban">
                 <IconButton
                   onClick={() => setViewMode(VIEW_MODES.KANBAN)}
                   color={viewMode === VIEW_MODES.KANBAN ? 'primary' : 'default'}
-                  size={isMobile ? 'small' : 'medium'}
+                  size="small"
                 >
-                  <KanbanIcon />
+                  <KanbanIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
 
@@ -338,28 +449,43 @@ export const TasksPage = () => {
                 <IconButton
                   onClick={() => setViewMode(VIEW_MODES.LIST)}
                   color={viewMode === VIEW_MODES.LIST ? 'primary' : 'default'}
-                  size={isMobile ? 'small' : 'medium'}
+                  size="small"
                 >
-                  <ListIcon />
+                  <ListIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
+
+              {/* Agrupar por Cliente (só admin, só na vista Kanban) */}
+              {isAdmin && viewMode === VIEW_MODES.KANBAN && (
+                <Tooltip
+                  title={groupBy === 'client' ? 'Agrupar por Status' : 'Agrupar por Cliente'}
+                >
+                  <IconButton
+                    onClick={() => setGroupBy(groupBy === 'client' ? 'status' : 'client')}
+                    color={groupBy === 'client' ? 'secondary' : 'default'}
+                    size="small"
+                  >
+                    <GroupIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
 
               {/* Filtros Rápidos */}
               <Tooltip title="Filtros Rápidos">
                 <IconButton
                   onClick={() => setShowFilters(!showFilters)}
                   color={showFilters ? 'primary' : 'default'}
-                  size={isMobile ? 'small' : 'medium'}
+                  size="small"
                 >
-                  <FilterIcon />
+                  <FilterIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
 
               {/* Filtros Avançados */}
               {!isMobile && (
                 <Tooltip title="Filtros Avançados">
-                  <IconButton onClick={() => setShowAdvancedFilters(true)} size="medium">
-                    <TuneIcon />
+                  <IconButton onClick={() => setShowAdvancedFilters(true)} size="small">
+                    <TuneIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
               )}
@@ -367,19 +493,15 @@ export const TasksPage = () => {
               {/* Exportar */}
               <ExportButton
                 tasks={filteredTasks}
-                size={isMobile ? 'small' : 'medium'}
+                size="small"
                 disabled={filteredTasks.length === 0}
               />
 
               {/* Atualizar */}
               <Tooltip title="Atualizar">
                 <span>
-                  <IconButton
-                    onClick={() => refresh()}
-                    disabled={loading}
-                    size={isMobile ? 'small' : 'medium'}
-                  >
-                    <RefreshIcon />
+                  <IconButton onClick={() => refresh()} disabled={loading} size="small">
+                    <RefreshIcon fontSize="small" />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -389,91 +511,37 @@ export const TasksPage = () => {
                 variant="contained"
                 startIcon={!isMobile && <AddIcon />}
                 onClick={handleCreateTask}
-                size={isMobile ? 'small' : 'medium'}
-                sx={{ ml: 1 }}
+                size="small"
+                sx={{ ml: 0.5 }}
               >
-                {isMobile ? <AddIcon /> : 'Nova Tarefa'}
+                {isMobile ? <AddIcon /> : 'Nova'}
               </Button>
             </Stack>
-          </Stack>
-        </Paper>
+          </Box>
 
-        {/* Tabs: Todas | Minhas Tarefas | Criadas por Mim */}
-        <Paper
-          elevation={0}
-          sx={{
-            mb: { xs: 2, sm: 3 },
-            borderRadius: 2,
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            overflow: 'hidden',
-          }}
-        >
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant={isMobile ? 'fullWidth' : 'standard'}
-            sx={{
-              bgcolor: alpha(theme.palette.background.paper, 0.5),
-              '& .MuiTab-root': {
-                minHeight: { xs: 48, sm: 56 },
-                textTransform: 'none',
-                fontWeight: 500,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              },
-            }}
-          >
-            {/* Tab Todas - Apenas Admin */}
-            {isAdmin && (
-              <Tab
-                value={TAB_TYPES.ALL}
-                icon={
-                  <Badge badgeContent={tabStats.all} color="primary" max={99}>
-                    <AdminIcon fontSize="small" />
-                  </Badge>
-                }
-                iconPosition="start"
-                label={isMobile ? '' : 'Todas'}
-              />
-            )}
-
-            {/* Tab Minhas Tarefas */}
-            <Tab
-              value={TAB_TYPES.ASSIGNED}
-              icon={
-                <Badge badgeContent={tabStats.assigned} color="info" max={99}>
-                  <PersonIcon fontSize="small" />
-                </Badge>
-              }
-              iconPosition="start"
-              label={isMobile ? '' : 'Minhas Tarefas'}
-            />
-
-            {/* Tab Criadas por Mim */}
-            <Tab
-              value={TAB_TYPES.CREATED}
-              icon={
-                <Badge badgeContent={tabStats.created} color="secondary" max={99}>
-                  <EditIcon fontSize="small" />
-                </Badge>
-              }
-              iconPosition="start"
-              label={isMobile ? '' : 'Criadas por Mim'}
-            />
-          </Tabs>
-
-          {/* Info da Tab Ativa */}
+          {/* Linha 2: Subtítulo + Info da Tab Ativa */}
           <Box
             sx={{
               px: 2,
-              py: 1,
-              bgcolor: alpha(theme.palette.info.main, 0.05),
-              borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              py: 0.5,
+              bgcolor: alpha(theme.palette.info.main, 0.04),
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
+            <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7 }}>
+              Gerir e acompanhar tarefas
+            </Typography>
             <Typography variant="caption" color="text.secondary">
-              {activeTab === TAB_TYPES.ALL && 'Visualização de todas as tarefas do sistema (apenas administradores)'}
-              {activeTab === TAB_TYPES.ASSIGNED && 'Tarefas atribuídas a si - pode alterar estado e adicionar notas'}
-              {activeTab === TAB_TYPES.CREATED && 'Tarefas que criou - pode acompanhar o progresso'}
+              •
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {activeTab === TAB_TYPES.ALL && 'Todas as tarefas ativas do sistema'}
+              {activeTab === TAB_TYPES.ASSIGNED && 'Tarefas atribuídas a si'}
+              {activeTab === TAB_TYPES.CREATED && 'Tarefas que criou'}
+              {activeTab === TAB_TYPES.CLOSED && 'Histórico de tarefas encerradas'}
             </Typography>
           </Box>
         </Paper>
@@ -487,7 +555,7 @@ export const TasksPage = () => {
               exit={{ opacity: 0, height: 0 }}
             >
               <Box mb={{ xs: 2, sm: 3 }}>
-                <QuickFilters filters={filters} onChange={handleFiltersChange} />
+                <QuickFilters filters={filters} onChange={handleFiltersChange} isAdmin={isAdmin} />
               </Box>
             </motion.div>
           )}
@@ -514,29 +582,27 @@ export const TasksPage = () => {
               Sem tarefas
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              {activeTab === TAB_TYPES.ALL && 'Não existem tarefas no sistema.'}
-              {activeTab === TAB_TYPES.ASSIGNED && 'Não tem tarefas atribuídas de momento.'}
-              {activeTab === TAB_TYPES.CREATED && 'Ainda não criou nenhuma tarefa.'}
+              {activeTab === TAB_TYPES.ALL && 'Não existem tarefas ativas no sistema.'}
+              {activeTab === TAB_TYPES.ASSIGNED && 'Não tem tarefas ativas atribuídas de momento.'}
+              {activeTab === TAB_TYPES.CREATED && 'Não tem tarefas ativas criadas por si.'}
+              {activeTab === TAB_TYPES.CLOSED && 'Não existem tarefas encerradas.'}
             </Typography>
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={handleCreateTask}
-            >
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={handleCreateTask}>
               Criar Tarefa
             </Button>
           </Paper>
         ) : (
           /* Conteúdo: Kanban ou Lista */
+          /* Nota: Tab "Encerradas" mostra sempre ListView (não faz sentido Kanban) */
           <AnimatePresence mode="wait">
             <motion.div
-              key={viewMode}
+              key={`${viewMode}-${activeTab}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.2 }}
             >
-              {viewMode === VIEW_MODES.KANBAN ? (
+              {viewMode === VIEW_MODES.KANBAN && activeTab !== TAB_TYPES.CLOSED ? (
                 <KanbanView
                   tasks={filteredTasks}
                   onTaskClick={handleTaskClick}
@@ -544,6 +610,7 @@ export const TasksPage = () => {
                   onMenuAction={handleMenuAction}
                   canDrag={canDragTask}
                   loading={loading}
+                  groupBy={groupBy}
                 />
               ) : (
                 <ListView

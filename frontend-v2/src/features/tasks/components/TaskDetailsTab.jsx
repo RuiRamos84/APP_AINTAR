@@ -30,7 +30,6 @@ import {
   Edit as EditIcon,
   Cancel as CancelIcon,
   Save as SaveIcon,
-  CheckCircle as CompleteIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
 import PropTypes from 'prop-types';
@@ -41,15 +40,9 @@ import { useTasks } from '../hooks/useTasks';
 /**
  * TaskDetailsTab Component
  */
-export const TaskDetailsTab = ({
-  task,
-  canEdit = false,
-  canClose = false,
-  onUpdate,
-  onClose,
-}) => {
+export const TaskDetailsTab = ({ task, canEdit = false, onUpdate }) => {
   const { metadata } = useMetadata();
-  const { updateTask, closeTask, loading } = useTasks({ autoFetch: false });
+  const { updateTask, loading } = useTasks({ autoFetch: false });
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState(null);
@@ -82,8 +75,6 @@ export const TaskDetailsTab = ({
 
   if (!task || !editedTask) return null;
 
-  const isCompleted = task.status === 'completed' || task.when_stop;
-
   // Handlers
   const handleFieldChange = (field, value) => {
     setEditedTask((prev) => ({ ...prev, [field]: value }));
@@ -112,19 +103,6 @@ export const TaskDetailsTab = ({
       ts_client: task.ts_client || task.client,
     });
     setIsEditing(false);
-  };
-
-  const handleCloseTask = async () => {
-    if (window.confirm('Tem a certeza que deseja encerrar esta tarefa?')) {
-      try {
-        await closeTask(task.pk || task.id);
-        // Toast já é mostrado no hook useTasks
-        onClose?.();
-      } catch (error) {
-        console.error('Erro ao encerrar tarefa:', error);
-        // Toast de erro já é mostrado no hook useTasks
-      }
-    }
   };
 
   return (
@@ -173,7 +151,7 @@ export const TaskDetailsTab = ({
           )}
 
           {/* Botão Editar */}
-          {!isEditing && canEdit && !isCompleted && (
+          {!isEditing && canEdit && (
             <Button
               variant="outlined"
               startIcon={<EditIcon />}
@@ -192,7 +170,7 @@ export const TaskDetailsTab = ({
       {!isEditing ? (
         <Stack spacing={2}>
           {/* Descrição */}
-          {(task.description || task.memo) ? (
+          {task.description || task.memo ? (
             <Box>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Descrição
@@ -205,23 +183,6 @@ export const TaskDetailsTab = ({
             <Typography variant="body2" color="text.secondary" fontStyle="italic">
               Sem descrição disponível.
             </Typography>
-          )}
-
-          {/* Botão de encerrar */}
-          {canClose && !isCompleted && (
-            <>
-              <Divider />
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<CompleteIcon />}
-                onClick={handleCloseTask}
-                disabled={loading}
-                fullWidth
-              >
-                Encerrar Tarefa
-              </Button>
-            </>
           )}
         </Stack>
       ) : (
@@ -325,9 +286,7 @@ export const TaskDetailsTab = ({
 TaskDetailsTab.propTypes = {
   task: PropTypes.object,
   canEdit: PropTypes.bool,
-  canClose: PropTypes.bool,
   onUpdate: PropTypes.func,
-  onClose: PropTypes.func,
 };
 
 export default TaskDetailsTab;

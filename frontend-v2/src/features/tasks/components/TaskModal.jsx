@@ -35,12 +35,13 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  CheckCircle as CompleteIcon,
   Replay as ReopenIcon,
   Flag as FlagIcon,
   Description as DescriptionIcon,
   History as HistoryIcon,
   CalendarMonth as CalendarIcon,
+  Archive as ArchiveIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -53,6 +54,7 @@ import { useTasks } from '../hooks/useTasks';
 // Components
 import TaskDetailsTab from './TaskDetailsTab';
 import TaskHistoryTab from './TaskHistoryTab';
+import ConfirmDialog from '@/shared/components/feedback/ConfirmDialog';
 
 // Services
 import taskService from '../services/taskService';
@@ -83,21 +85,29 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
   const { closeTask, reopenTask, loading } = useTasks({ autoFetch: false });
 
   const [currentTab, setCurrentTab] = useState(0);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: null });
 
   // Verificar permissões
+  // IMPORTANTE: Distinguir entre:
+  // - isCompleted: executor marcou como concluída (status = 'completed')
+  // - isClosed: owner encerrou a tarefa (when_stop preenchido)
   const permissions = useMemo(() => {
-    if (!task || !user) return { canEdit: false, canClose: false, canReopen: false, canAddNote: false };
+    if (!task || !user)
+      return { canEdit: false, canClose: false, canReopen: false, canAddNote: false };
 
     const isOwner = task.owner === user.user_id;
     const isClient = task.ts_client === user.user_id;
     const isAdmin = user.profile === 0;
-    const isCompleted = task.status === 'completed' || task.when_stop;
+    const isClosed = !!task.when_stop; // Encerrada pelo owner
 
     return {
-      canEdit: isOwner || isAdmin,
-      canClose: (isOwner || isAdmin) && !isCompleted,
-      canReopen: (isOwner || isAdmin) && isCompleted,
-      canAddNote: (isOwner || isClient) && !isCompleted,
+      canEdit: (isOwner || isAdmin) && !isClosed,
+      // Só o owner/admin pode ENCERRAR, e apenas se não estiver já encerrada
+      canClose: (isOwner || isAdmin) && !isClosed,
+      // Só o owner/admin pode REABRIR uma tarefa encerrada
+      canReopen: (isOwner || isAdmin) && isClosed,
+      // Pode adicionar notas se não estiver encerrada
+      canAddNote: (isOwner || isClient) && !isClosed,
     };
   }, [task, user]);
 
@@ -108,8 +118,7 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
     const isClient = task.ts_client === user.user_id;
 
     return (
-      (isOwner && task.notification_owner === 1) ||
-      (isClient && task.notification_client === 1)
+      (isOwner && task.notification_owner === 1) || (isClient && task.notification_client === 1)
     );
   }, [task, user]);
 
@@ -132,33 +141,41 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
 
   if (!task) return null;
 
-  // Handle fechar tarefa
-  const handleComplete = async () => {
-    if (window.confirm('Concluir esta tarefa?')) {
-      try {
-        await closeTask(task.pk || task.id);
-        // Toast já é mostrado no hook useTasks
-        onSuccess?.();
-      } catch (err) {
-        // Error handled in hook
-      }
+  // Estados da tarefa
+  const isCompleted = task.status === 'completed'; // Executor marcou como concluída
+  const isClosed = !!task.when_stop; // Owner encerrou a tarefa
+
+  // Abrir dialog de confirmação
+  const openConfirmDialog = (type) => {
+    setConfirmDialog({ open: true, type });
+  };
+
+  // Fechar dialog de confirmação
+  const closeConfirmDialog = () => {
+    setConfirmDialog({ open: false, type: null });
+  };
+
+  // Handle ENCERRAR tarefa (owner fecha definitivamente)
+  const handleCloseTask = async () => {
+    try {
+      await closeTask(task.pk || task.id);
+      closeConfirmDialog();
+      onSuccess?.();
+    } catch (err) {
+      // Error handled in hook
     }
   };
 
-  // Handle reabrir tarefa
+  // Handle REABRIR tarefa encerrada
   const handleReopen = async () => {
-    if (window.confirm('Reabrir esta tarefa?')) {
-      try {
-        await reopenTask(task.pk || task.id);
-        // Toast já é mostrado no hook useTasks
-        onSuccess?.();
-      } catch (err) {
-        // Error handled in hook
-      }
+    try {
+      await reopenTask(task.pk || task.id);
+      closeConfirmDialog();
+      onSuccess?.();
+    } catch (err) {
+      // Error handled in hook
     }
   };
-
-  const isCompleted = task.status === 'completed' || task.when_stop;
 
   return (
     <Dialog
@@ -178,7 +195,14 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
       {/* Header */}
       <DialogTitle sx={{ pb: 1 }}>
         {/* Linha 1: Título + Chips + Botão Fechar */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 2,
+          }}
+        >
           {/* Título à esquerda */}
           <Typography variant="h6" fontWeight={700} sx={{ flex: 1, lineHeight: 1.3 }}>
             {task.title || task.name}
@@ -200,7 +224,7 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
               icon={<FlagIcon />}
             />
 
-            {/* Status */}
+            {/* Status de execução */}
             <Chip
               label={
                 isCompleted
@@ -212,6 +236,17 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
               color={isCompleted ? 'success' : task.status === 'in_progress' ? 'info' : 'warning'}
               size="small"
             />
+
+            {/* Indicador de Encerrada (se aplicável) */}
+            {isClosed && (
+              <Chip
+                label="Encerrada"
+                color="default"
+                size="small"
+                icon={<LockIcon />}
+                sx={{ bgcolor: 'grey.300' }}
+              />
+            )}
 
             {/* Notificação */}
             {hasNotification && (
@@ -242,14 +277,14 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
             </Box>
           )}
 
-          {/* Data de fecho (se concluída) */}
-          {isCompleted && task.when_stop && (
+          {/* Data de encerramento (se encerrada) */}
+          {isClosed && task.when_stop && (
             <Chip
-              label={`Fechada em ${format(new Date(task.when_stop), 'dd/MM/yyyy', { locale: pt })}`}
-              color="success"
+              label={`Encerrada em ${format(new Date(task.when_stop), 'dd/MM/yyyy', { locale: pt })}`}
+              color="default"
               size="small"
               variant="outlined"
-              icon={<CompleteIcon />}
+              icon={<ArchiveIcon />}
             />
           )}
         </Box>
@@ -262,18 +297,10 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
           onChange={(e, v) => setCurrentTab(v)}
           variant={isMobile ? 'fullWidth' : 'standard'}
         >
-          <Tab
-            label="Detalhes"
-            icon={<DescriptionIcon />}
-            iconPosition="start"
-          />
+          <Tab label="Detalhes" icon={<DescriptionIcon />} iconPosition="start" />
           <Tab
             label={
-              <Badge
-                color="error"
-                variant="dot"
-                invisible={!hasNotification}
-              >
+              <Badge color="error" variant="dot" invisible={!hasNotification}>
                 Histórico
               </Badge>
             }
@@ -293,22 +320,12 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
       >
         {/* Tab: Detalhes */}
         <TabPanel value={currentTab} index={0}>
-          <TaskDetailsTab
-            task={task}
-            canEdit={permissions.canEdit}
-            canClose={permissions.canClose}
-            onUpdate={onSuccess}
-            onClose={onSuccess}
-          />
+          <TaskDetailsTab task={task} canEdit={permissions.canEdit} onUpdate={onSuccess} />
         </TabPanel>
 
         {/* Tab: Histórico */}
         <TabPanel value={currentTab} index={1}>
-          <TaskHistoryTab
-            task={task}
-            canAddNote={permissions.canAddNote}
-            onNoteAdded={onSuccess}
-          />
+          <TaskHistoryTab task={task} canAddNote={permissions.canAddNote} onNoteAdded={onSuccess} />
         </TabPanel>
       </DialogContent>
 
@@ -316,29 +333,58 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Box sx={{ flex: 1 }} />
 
-        {permissions.canReopen && isCompleted && (
+        {/* Botão Reabrir - só aparece se tarefa está ENCERRADA */}
+        {permissions.canReopen && isClosed && (
           <Button
             variant="outlined"
             startIcon={<ReopenIcon />}
-            onClick={handleReopen}
+            onClick={() => openConfirmDialog('reopen')}
             disabled={loading}
           >
             Reabrir
           </Button>
         )}
 
-        {permissions.canClose && !isCompleted && (
+        {/* Botão Encerrar - só aparece se tarefa NÃO está encerrada */}
+        {/* Owner pode encerrar a qualquer momento (tarefa concluída ou não) */}
+        {permissions.canClose && !isClosed && (
           <Button
             variant="contained"
-            color="success"
-            startIcon={<CompleteIcon />}
-            onClick={handleComplete}
+            color="warning"
+            startIcon={<ArchiveIcon />}
+            onClick={() => openConfirmDialog('close')}
             disabled={loading}
           >
-            Concluir
+            Encerrar
           </Button>
         )}
       </DialogActions>
+
+      {/* Dialog de Confirmação - Encerrar */}
+      <ConfirmDialog
+        open={confirmDialog.open && confirmDialog.type === 'close'}
+        title="Encerrar tarefa?"
+        message="Esta ação irá arquivar a tarefa. Poderá reabri-la mais tarde se necessário."
+        confirmText="Encerrar"
+        confirmColor="warning"
+        type="warning"
+        loading={loading}
+        onConfirm={handleCloseTask}
+        onCancel={closeConfirmDialog}
+      />
+
+      {/* Dialog de Confirmação - Reabrir */}
+      <ConfirmDialog
+        open={confirmDialog.open && confirmDialog.type === 'reopen'}
+        title="Reabrir tarefa?"
+        message="A tarefa voltará a ficar ativa e poderá ser editada."
+        confirmText="Reabrir"
+        confirmColor="info"
+        type="info"
+        loading={loading}
+        onConfirm={handleReopen}
+        onCancel={closeConfirmDialog}
+      />
     </Dialog>
   );
 };

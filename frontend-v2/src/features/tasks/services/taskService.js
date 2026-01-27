@@ -390,6 +390,62 @@ export const getNotificationCount = async () => {
 // ==================== HELPERS ====================
 
 /**
+ * Verifica se uma tarefa está ENCERRADA (fechada pelo owner)
+ * Uma tarefa encerrada tem when_stop preenchido
+ *
+ * @param {Object} task - Objeto da tarefa
+ * @returns {boolean}
+ */
+export const isTaskClosed = (task) => {
+  return !!task?.when_stop;
+};
+
+/**
+ * Verifica se uma tarefa está ATIVA (não encerrada)
+ * Uma tarefa ativa tem when_stop nulo/vazio
+ *
+ * @param {Object} task - Objeto da tarefa
+ * @returns {boolean}
+ */
+export const isTaskActive = (task) => {
+  return !task?.when_stop;
+};
+
+/**
+ * Verifica se uma tarefa está CONCLUÍDA pelo executor (status = completed)
+ * Isto é diferente de encerrada - o executor terminou o trabalho,
+ * mas o owner ainda não fechou a tarefa
+ *
+ * @param {Object} task - Objeto da tarefa
+ * @returns {boolean}
+ */
+export const isTaskCompleted = (task) => {
+  return task?.status === 'completed';
+};
+
+/**
+ * Filtra apenas tarefas ativas (não encerradas)
+ *
+ * @param {Array} tasks - Lista de tarefas
+ * @returns {Array}
+ */
+export const filterActiveTasks = (tasks) => {
+  if (!Array.isArray(tasks)) return [];
+  return tasks.filter(isTaskActive);
+};
+
+/**
+ * Filtra apenas tarefas encerradas
+ *
+ * @param {Array} tasks - Lista de tarefas
+ * @returns {Array}
+ */
+export const filterClosedTasks = (tasks) => {
+  if (!Array.isArray(tasks)) return [];
+  return tasks.filter(isTaskClosed);
+};
+
+/**
  * Obter estatísticas das tarefas (calculadas client-side)
  */
 export const getTaskStats = (tasks) => {
@@ -466,6 +522,11 @@ const taskService = {
   // Helpers
   getTaskStats,
   filterTasks,
+  isTaskClosed,
+  isTaskActive,
+  isTaskCompleted,
+  filterActiveTasks,
+  filterClosedTasks,
 
   // Constants
   STATUS_MAP,
