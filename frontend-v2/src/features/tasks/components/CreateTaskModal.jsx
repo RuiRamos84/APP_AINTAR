@@ -3,7 +3,7 @@
  * Integrado com backend real e userService
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -20,7 +20,6 @@ import {
   Typography,
   IconButton,
   Autocomplete,
-  CircularProgress,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -30,9 +29,7 @@ import PropTypes from 'prop-types';
 
 // Hooks
 import { useTasks } from '../hooks/useTasks';
-
-// Services
-import { listUsers } from '@/services/userService';
+import { useWhoList } from '@/core/hooks/useMetaData';
 
 /**
  * CreateTaskModal Component
@@ -41,6 +38,7 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { createTask, loading } = useTasks({ autoFetch: false });
+  const { data: clients } = useWhoList();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -50,42 +48,6 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
   });
 
   const [errors, setErrors] = useState({});
-  const [users, setUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-
-  // Carregar lista de utilizadores ao abrir modal
-  useEffect(() => {
-    if (open) {
-      loadUsers();
-    }
-  }, [open]);
-
-  // Carregar utilizadores
-  const loadUsers = async () => {
-    try {
-      setLoadingUsers(true);
-      const response = await listUsers({ limit: 100 });
-
-      // Mapear resposta para formato esperado
-      const userList = response.users || response.data || [];
-      setUsers(
-        userList.map((u) => ({
-          id: u.user_id || u.pk || u.id,
-          name: u.name || u.username || 'Sem nome',
-          email: u.email || '',
-        }))
-      );
-    } catch (err) {
-      console.error('Erro ao carregar utilizadores:', err);
-      toast.error('Erro ao carregar lista de utilizadores');
-      // Fallback para mock se falhar
-      setUsers([
-        { id: 1, name: 'Utilizador Demo', email: 'demo@example.com' },
-      ]);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
 
   // Handle mudança de campo
   const handleChange = (field, value) => {
@@ -199,11 +161,10 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
 
           {/* Cliente (ts_client) */}
           <Autocomplete
-            options={users}
-            getOptionLabel={(option) => `${option.name}${option.email ? ` (${option.email})` : ''}`}
-            value={users.find((u) => u.id === formData.client) || null}
-            onChange={(_, newValue) => handleChange('client', newValue?.id || null)}
-            loading={loadingUsers}
+            options={clients}
+            getOptionLabel={(option) => option.name || ''}
+            value={clients.find((c) => c.pk === formData.client) || null}
+            onChange={(_, newValue) => handleChange('client', newValue?.pk || null)}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -211,21 +172,10 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
                 required
                 error={!!errors.client}
                 helperText={errors.client || 'Atribuir tarefa a'}
-                slotProps={{
-                  input: {
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  },
-                }}
               />
             )}
-            isOptionEqualToValue={(option, value) => option.id === value?.id}
-            noOptionsText="Sem utilizadores disponíveis"
+            isOptionEqualToValue={(option, value) => option.pk === value?.pk}
+            noOptionsText="Sem clientes disponíveis"
           />
 
           {/* Descrição */}
@@ -276,7 +226,7 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading || !formData.title || !formData.client || loadingUsers}
+          disabled={loading || !formData.title || !formData.client}
           startIcon={<AddIcon />}
           fullWidth={isMobile}
         >

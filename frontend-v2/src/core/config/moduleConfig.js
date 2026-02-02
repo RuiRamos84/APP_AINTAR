@@ -202,6 +202,7 @@ export const detectModuleFromPath = (pathname) => {
     '/epi': 'administrativo',
     '/inventory': 'administrativo',
     '/offices': 'administrativo',
+    '/pedidos': 'administrativo',
   };
 
   // Remove trailing slash

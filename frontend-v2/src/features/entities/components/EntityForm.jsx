@@ -27,7 +27,7 @@ import {
 import { useEntityStore } from '../store/entityStore';
 import { entitySchema } from '../schemas/entitySchema';
 import { useMetaData } from '@/core/hooks/useMetaData';
-import { getAddressByPostalCode, isValidPostalCode, formatPostalCode, extractStreets, extractAdministrativeData } from '@/services/postalCodeService';
+import { getAddressByPostalCode, isValidPostalCode, extractStreets, extractAdministrativeData } from '@/services/postalCodeService';
 import { toast } from 'sonner';
 
 // Sub-componente para títulos de secção
@@ -45,12 +45,12 @@ export const EntityForm = () => {
     createModalOpen, 
     modalOpen, 
     selectedEntity, 
+    createInitialData, // Added prop
     closeCreateModal, 
     closeModal, 
     openModal,
     addEntity, 
-    updateEntity,
-    loading 
+    updateEntity
   } = useEntityStore();
   
   const { data: metaData } = useMetaData();
@@ -93,6 +93,7 @@ export const EntityForm = () => {
   const nipcValue = watch('nipc');
 
   // Estado local
+  const [submitting, setSubmitting] = React.useState(false); // Local loading for form submission
   const [addressOptions, setAddressOptions] = React.useState([]);
   const [showAddressSelect, setShowAddressSelect] = React.useState(false);
   const [nifStatus, setNifStatus] = React.useState('default'); // default, valid, invalid, exists
@@ -120,7 +121,6 @@ export const EntityForm = () => {
     return parseInt(nifStr[8]) === expectedDigit;
   };
 
-  // Efeito: Código Postal
   // Efeito: Código Postal
   useEffect(() => {
     const checkPostal = async () => {
@@ -289,9 +289,23 @@ export const EntityForm = () => {
                 nut3: selectedEntity.nut3 || '',
                 nut4: selectedEntity.nut4 || '',
             });
+          } else if (createModalOpen && createInitialData) {
+              // Pre-fill creation data
+               reset({
+                name: '',
+                nipc: createInitialData.nipc || '',
+                email: '',
+                phone: '',
+                address: '',
+                door: '',
+                floor: '',
+                postal: '',
+                nut1: '', nut2: '', nut3: '', nut4: '',
+                ident_type: '', ident_value: '', descr: ''
+              });
           }
       }
-  }, [isOpen, isEditMode, selectedEntity, reset]);
+  }, [isOpen, isEditMode, selectedEntity, reset, createModalOpen, createInitialData]);
 
   const processSubmit = async (data) => {
     // Sanitização de dados antes do envio
@@ -308,18 +322,21 @@ export const EntityForm = () => {
     // Converter NIPC para string sempre (para garantir)
     payload.nipc = String(payload.nipc);
 
+    setSubmitting(true);
     try {
       if (isEditMode && selectedEntity) {
         await updateEntity(selectedEntity.pk, payload);
         toast.success('Entidade atualizada com sucesso!');
       } else {
-        await addEntity(data);
+        await addEntity(payload); // Using sanitized payload instead of raw data
         toast.success('Entidade criada com sucesso!');
       }
       onClose();
     } catch (error) {
       console.error('Falha ao salvar entidade:', error);
       toast.error('Erro ao guardar entidade.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -702,9 +719,9 @@ export const EntityForm = () => {
             variant="contained" 
             color="primary" 
             size="large"
-            disabled={loading}
+            disabled={submitting}
           >
-            {loading ? 'A guardar...' : isEditMode ? 'Atualizar Entidade' : 'Criar Entidade'}
+            {submitting ? 'A guardar...' : isEditMode ? 'Atualizar Entidade' : 'Criar Entidade'}
           </Button>
         </DialogActions>
       </form>

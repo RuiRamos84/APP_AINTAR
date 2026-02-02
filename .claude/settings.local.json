@@ -19,7 +19,9 @@
       "Bash(python:*)",
       "Bash(dir:*)",
       "Bash(npx eslint:*)",
-      "Bash(npx prettier:*)"
+      "Bash(npx prettier:*)",
+      "Bash(npx vite:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

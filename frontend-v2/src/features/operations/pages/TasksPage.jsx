@@ -7,8 +7,6 @@ import {
     Tabs,
     Tab,
     useTheme,
-    TextField,
-    InputAdornment,
     Fab
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,8 +14,8 @@ import { operationService } from '../services/operationService';
 import metadataService from '@/services/metadataService';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
+import { SearchBar } from '@/shared/components/data';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import OperationCard from '../components/OperationCard';
 import AssociateFilter from '../components/AssociateFilter';
@@ -266,17 +264,10 @@ const TasksPage = () => {
                                     onAssociateChange={setSelectedAssociate}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <TextField 
-                                    fullWidth
-                                    placeholder="Pesquisar..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    InputProps={{
-                                        startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
-                                        sx: { bgcolor: 'background.paper' }
-                                    }}
-                                    size="small"
+                            <Grid size={{ xs: 12, md: 4 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <SearchBar
+                                    searchTerm={searchTerm}
+                                    onSearch={setSearchTerm}
                                 />
                             </Grid>
                         </Grid>

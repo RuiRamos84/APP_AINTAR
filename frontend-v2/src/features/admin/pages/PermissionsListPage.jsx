@@ -22,8 +22,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  TextField,
-  InputAdornment,
   IconButton,
   Tooltip,
   Card,
@@ -35,11 +33,11 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  Search as SearchIcon,
   Refresh as RefreshIcon,
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { SearchBar } from '@/shared/components/data';
 import { useInterfaces } from '@/core/contexts/MetadataContext';
 
 const PermissionsListPage = () => {
@@ -105,20 +103,12 @@ const PermissionsListPage = () => {
         <FadeIn delay={0.1}>
           <Paper sx={{ p: isMobile ? 2 : 3, mb: 3 }}>
             <Stack spacing={2}>
-              <TextField
-                placeholder="Pesquisar permissões..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                fullWidth
-                size={isMobile ? 'small' : 'medium'}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-              />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <SearchBar
+                  searchTerm={searchTerm}
+                  onSearch={setSearchTerm}
+                />
+              </Box>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                 <Chip
                   icon={<AdminIcon />}

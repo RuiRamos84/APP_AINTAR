@@ -18,7 +18,6 @@ import {
   Container,
   Paper,
   Typography,
-  TextField,
   Button,
   Table,
   TableBody,
@@ -29,7 +28,6 @@ import {
   TablePagination,
   IconButton,
   Chip,
-  InputAdornment,
   Menu,
   MenuItem,
   Dialog,
@@ -53,7 +51,6 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Search as SearchIcon,
   MoreVert as MoreVertIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -69,6 +66,7 @@ import {
 } from '@mui/icons-material';
 import { useUserList } from '../hooks';
 import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { SearchBar } from '@/shared/components/data';
 import { TableSkeleton } from '@/shared/components/feedback';
 import { useProfiles } from '@/core/contexts/MetadataContext';
 import UserPermissionsDialog from '../components/UserPermissionsDialog';
@@ -328,36 +326,21 @@ const UserListPage = () => {
 
       {/* Filtros e Pesquisa */}
       <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, md: 8 }}>
-            <TextField
-              fullWidth
-              placeholder="Pesquisar por nome, email ou username..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size={isMobile ? "small" : "medium"}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-            <Button
-              variant="outlined"
-              startIcon={!isMobile && <RefreshIcon />}
-              onClick={refetch}
-              disabled={isLoading}
-              fullWidth={isMobile || isTablet}
-              size={isMobile ? "small" : "medium"}
-            >
-              Atualizar
-            </Button>
-          </Grid>
-        </Grid>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <SearchBar
+            searchTerm={search}
+            onSearch={setSearch}
+          />
+          <Button
+            variant="outlined"
+            startIcon={!isMobile && <RefreshIcon />}
+            onClick={refetch}
+            disabled={isLoading}
+            size={isMobile ? "small" : "medium"}
+          >
+            Atualizar
+          </Button>
+        </Box>
       </Paper>
 
       {/* Error */}

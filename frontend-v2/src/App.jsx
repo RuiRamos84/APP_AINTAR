@@ -38,6 +38,7 @@ import { DashboardOverviewPage } from '@/features/dashboards/pages';
 import { EPIPage } from '@/features/administrativo/pages';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
+import DocumentsPage from '@/features/documents/pages/DocumentsPage';
 
 function App() {
   return (
@@ -217,7 +218,8 @@ function App() {
 
         {/* ==================== DOCUMENTOS (LEGACY) ==================== */}
         {/* Documents - permissão 500 (DOCS_VIEW_ALL) verificada automaticamente */}
-        <Route path="/documents" element={<div>Documents Page (Coming Soon)</div>} />
+        <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/pedidos" element={<DocumentsPage />} />
 
         {/* ==================== ENTIDADES ==================== */}
         {/* Entities - permissão 800 (ENTITIES_VIEW) verificada automaticamente */}

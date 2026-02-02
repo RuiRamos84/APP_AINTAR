@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { entityService } from '../services/entityService';
+import { entitiesService } from '../api/entitiesService';
 
 export const useEntityStore = create((set, get) => ({
   entities: [],
   selectedEntity: null,
-  loading: false,
+  loading: true, // Iniciar true para evitar flash de empty state antes do fetch
   error: null,
 
   searchQuery: '',
@@ -18,6 +18,7 @@ export const useEntityStore = create((set, get) => ({
   },
   modalOpen: false,
   createModalOpen: false,
+  createInitialData: null,
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setFilter: (key, value) => set(state => ({ filters: { ...state.filters, [key]: value } })),
@@ -31,13 +32,13 @@ export const useEntityStore = create((set, get) => ({
     set({ selectedEntity: null, modalOpen: false });
   },
 
-  openCreateModal: () => set({ createModalOpen: true }),
-  closeCreateModal: () => set({ createModalOpen: false }),
+  openCreateModal: (data = null) => set({ createModalOpen: true, createInitialData: data }),
+  closeCreateModal: () => set({ createModalOpen: false, createInitialData: null }),
 
   fetchEntities: async (silent = false) => {
     if (!silent) set({ loading: true, error: null });
     try {
-      const data = await entityService.getEntities();
+      const data = await entitiesService.getEntities();
       // Backend returns { entities: [...] } or just [...] depending on endpoint
       // Adjusting to handle wrapping object
       // O backend pode retornar { entities: [], total: ... } ou array direto
@@ -54,9 +55,11 @@ export const useEntityStore = create((set, get) => ({
   fetchEntityByNIF: async (nipc) => {
     set({ loading: true, error: null });
     try {
-      const data = await entityService.getEntityByNIF(nipc);
-      set({ selectedEntity: data, loading: false });
-      return data;
+      const data = await entitiesService.getEntityByNipc(nipc);
+      // Extract entity from potentially wrapped response { entity: {...} }
+      const entity = data?.entity || data;
+      set({ selectedEntity: entity, loading: false });
+      return entity;
     } catch (error) {
       set({ error: error.message, loading: false });
       throw error;
@@ -66,9 +69,10 @@ export const useEntityStore = create((set, get) => ({
   fetchEntity: async (id) => {
     set({ loading: true, error: null });
     try {
-      const data = await entityService.getEntity(id);
-      set({ selectedEntity: data, loading: false });
-      return data;
+      const data = await entitiesService.getEntityByNipc(id);
+      const entity = data?.entity || data;
+      set({ selectedEntity: entity, loading: false });
+      return entity;
     } catch (error) {
       set({ error: error.message, loading: false });
       throw error;
@@ -78,19 +82,16 @@ export const useEntityStore = create((set, get) => ({
   updateEntity: async (pk, entityData) => {
     set({ loading: true, error: null });
     try {
-      const result = await entityService.updateEntity(pk, entityData);
+      const result = await entitiesService.updateEntity(pk, entityData);
+      // Extract entity from potentially wrapped response { entity: {...} }
+      const entity = result?.entity || result;
       set(state => ({
-        // Optimistic update (backup)
-        entities: state.entities.map(e => e.pk === pk ? result.data : e),
-        selectedEntity: result.data,
+        entities: state.entities.map(e => e.pk === pk ? entity : e),
+        selectedEntity: entity,
         loading: false,
         modalOpen: false
       }));
-      
-      // Silent Refresh para garantir consistência total (ex: campos calculados no server)
-      get().fetchEntities(true);
-      
-      return result;
+      return entity;
     } catch (error) {
       set({ error: error.message, loading: false });
       throw error;
@@ -98,21 +99,43 @@ export const useEntityStore = create((set, get) => ({
   },
 
   addEntity: async (entityData) => {
+    console.log('[EntityStore] addEntity called with:', entityData);
     set({ loading: true, error: null });
     try {
-      const result = await entityService.addEntity(entityData);
-      set(state => ({
-        // Optimistic update
-        entities: [...state.entities, result.data],
-        loading: false,
-        createModalOpen: false
-      }));
-      
-      // Silent Refresh
-      get().fetchEntities(true);
+      const result = await entitiesService.createEntity(entityData);
+      console.log('[EntityStore] Entity created, raw result:', result);
 
-      return result;
+      // Backend returns only { message: '...' }, not the entity data
+      // We need to fetch the created entity by NIPC to get full data (pk, name, etc.)
+      let entity = result?.entity || null;
+
+      if (!entity?.nipc && entityData.nipc) {
+        console.log('[EntityStore] No entity in create response, fetching by NIPC:', entityData.nipc);
+        try {
+          const fetchResult = await entitiesService.getEntityByNipc(entityData.nipc);
+          entity = fetchResult?.entity || fetchResult;
+          console.log('[EntityStore] Fetched entity after creation:', entity?.nipc, entity?.name, entity?.pk);
+        } catch (fetchErr) {
+          console.warn('[EntityStore] Could not fetch created entity, using input data as fallback:', fetchErr);
+          entity = { ...entityData };
+        }
+      }
+
+      set(state => {
+        console.log('[EntityStore] Updating state with new entity. Current entities count:', state.entities.length);
+        return {
+          entities: [...state.entities, entity],
+          selectedEntity: entity,
+          loading: false,
+          createModalOpen: false
+        };
+      });
+
+      console.log('[EntityStore] State updated. selectedEntity set to:', entity?.nipc, entity?.name);
+
+      return entity;
     } catch (error) {
+      console.error('[EntityStore] Error creating entity:', error);
       set({ error: error.message, loading: false });
       throw error;
     }

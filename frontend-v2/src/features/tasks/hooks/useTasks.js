@@ -154,7 +154,6 @@ export const useTasks = (options = {}) => {
 
       try {
         const newTask = await taskService.createTask(taskData);
-        addTask(newTask);
         invalidateCache();
 
         toast.success('Tarefa criada com sucesso!');

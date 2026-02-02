@@ -685,6 +685,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/pedidos': {
+    id: 'pedidos',
+    text: 'Pedidos',
+    icon: DocumentsIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.DOCS_VIEW_ALL },
+    showInSidebar: true,
+  },
+
   // ==================== ROTAS LEGACY (mantidas para compatibilidade) ====================
 
   '/documents': {
