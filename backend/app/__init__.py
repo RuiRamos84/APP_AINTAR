@@ -1,7 +1,7 @@
 # app/create_app.py
 
 from config import get_config
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import (
@@ -16,6 +16,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 import os
+import time
+import logging
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from .services.payment_service import payment_service
 from app.utils.error_handler import APIError
@@ -96,12 +98,17 @@ def create_app(config_class):
     mail.init_app(app)
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     socket_io.init_app(app,
-                       logger=True,
+                       logger=False,
                        engineio_logger=False,
                        cors_allowed_origins="*",
                        async_mode='eventlet',
                        ping_timeout=60,
                        ping_interval=25)
+
+    # Silenciar logs verbosos do socketio (room joins, events, etc.)
+    logging.getLogger('socketio').setLevel(logging.WARNING)
+    logging.getLogger('socketio.server').setLevel(logging.WARNING)
+    logging.getLogger('engineio').setLevel(logging.WARNING)
 
     # Inicializar o serviço de pagamento
     payment_service.init_app(app)
@@ -227,6 +234,30 @@ def create_app(config_class):
         # A instância é criada dentro de register_socket_events
         if not hasattr(app, 'extensions') or 'socketio_events' not in app.extensions:
             app.logger.error("ERRO: SocketIOEvents não foi registrada - notificações não funcionarão!")
+
+    # Request logging limpo (substitui o logger verboso do socketio)
+    @app.before_request
+    def log_request_start():
+        g._request_start = time.time()
+
+    @app.after_request
+    def log_request(response):
+        # Ignorar OPTIONS (CORS preflight) - só ruído
+        if request.method == 'OPTIONS':
+            return response
+
+        duration = time.time() - getattr(g, '_request_start', time.time())
+        status = response.status_code
+        log_line = f"{request.method} {request.path} - {status} ({duration:.3f}s)"
+
+        if status >= 500:
+            logger.error(log_line)
+        elif status >= 400:
+            logger.warning(log_line)
+        else:
+            logger.info(log_line)
+
+        return response
 
     # Configuração da limpeza de sessão após cada requisição
     from .utils.utils import cleanup_session

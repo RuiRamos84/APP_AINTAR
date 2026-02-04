@@ -311,14 +311,13 @@ def check_payment_status(transaction_id):
 
 @bp.route("/payments/webhook", methods=["POST"])
 def webhook():
-    """Webhook SIBS - sem autenticação"""
-    data = request.json or {}
-    try:
-        result = payment_service.process_webhook(data)
-        return jsonify(result), (200 if result.get("success") else 400)
-    except Exception as e:
-        logger.error(f"Erro webhook: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    """
+    Webhook SIBS - DEPRECATED.
+    Usar /api/v1/webhook/sibs que inclui desencriptação AES-GCM.
+    Este endpoint mantido para compatibilidade.
+    """
+    from app.routes.webhook_routes import sibs_webhook
+    return sibs_webhook()
 
 # ===== ENDPOINTS DE DEBUG =====
 

@@ -78,10 +78,19 @@ def list_documents(current_user: str):
 
 
 @api_error_handler
-def documentById(documentId: int, current_user: str):
+def documentById(documentId, current_user: str):
+    """Obter dados do documento por pk ou regnumber"""
     with db_session_manager(current_user) as session:
-        document_query = text("SELECT * FROM vbl_document WHERE regnumber = :documentId")
-        document_result = session.execute(document_query, {"documentId": documentId}).fetchone()
+        # Tentar converter para int (pk) ou usar como string (regnumber)
+        try:
+            doc_pk = int(documentId)
+            # Se é um número, procurar por pk
+            document_query = text("SELECT * FROM vbl_document WHERE pk = :doc_pk")
+            document_result = session.execute(document_query, {"doc_pk": doc_pk}).fetchone()
+        except (ValueError, TypeError):
+            # Se não é número, procurar por regnumber
+            document_query = text("SELECT * FROM vbl_document WHERE regnumber = :regnumber")
+            document_result = session.execute(document_query, {"regnumber": documentId}).fetchone()
 
         if not document_result:
             raise ResourceNotFoundError('Documento', documentId)

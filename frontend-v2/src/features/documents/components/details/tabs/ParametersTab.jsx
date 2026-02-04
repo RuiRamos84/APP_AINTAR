@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Paper,
@@ -23,11 +23,28 @@ import { documentsService } from '../../../api/documentsService';
 import ParametersStep from '../../forms/steps/ParametersStep';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import paymentService from '../../../../../features/payments/services/paymentService';
 
 const ParametersTab = ({ document }) => {
     const { data: metaData } = useMetaData();
     const queryClient = useQueryClient();
     const [editOpen, setEditOpen] = useState(false);
+
+    // Fetch invoice data para verificar se pagamento SIBS foi concluído
+    const { data: invoiceAmount } = useQuery({
+        queryKey: ['invoiceAmount', document?.pk],
+        queryFn: () => paymentService.getInvoiceAmount(document.pk),
+        enabled: !!document?.pk
+    });
+
+    // Verificar se o pagamento foi feito via SIBS (MBWay ou Multibanco) com sucesso
+    const isSibsPaymentCompleted = useMemo(() => {
+        if (!invoiceAmount?.invoice_data) return false;
+        const paymentStatus = invoiceAmount.invoice_data.payment_status?.toLowerCase();
+        const paymentMethod = invoiceAmount.invoice_data.payment_method?.toUpperCase();
+        return paymentStatus === 'success' &&
+               (paymentMethod === 'MBWAY' || paymentMethod === 'MULTIBANCO' || paymentMethod === 'REFERENCE');
+    }, [invoiceAmount]);
     
     // Fetch Params
     const { data: params, isLoading, error } = useQuery({
@@ -160,10 +177,11 @@ const ParametersTab = ({ document }) => {
             <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>Editar Parâmetros</DialogTitle>
                 <DialogContent dividers>
-                     <ParametersStep 
-                        docTypeParams={docTypeParams} 
-                        paramValues={editValues} 
-                        handleParamChange={handleParamChange} 
+                     <ParametersStep
+                        docTypeParams={docTypeParams}
+                        paramValues={editValues}
+                        handleParamChange={handleParamChange}
+                        isSibsPaymentCompleted={isSibsPaymentCompleted}
                     />
                 </DialogContent>
                 <DialogActions>

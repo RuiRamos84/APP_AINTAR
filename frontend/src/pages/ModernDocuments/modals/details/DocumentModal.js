@@ -1037,6 +1037,7 @@ const DocumentModal = ({
                                 document={document}
                                 metaData={metaData}
                                 isAssignedToMe={props.tabType === 'assigned'}
+                                invoiceData={invoiceAmount?.invoice_data}
                             />
                         )}
                     </TabPanel>

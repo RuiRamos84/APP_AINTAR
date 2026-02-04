@@ -63,13 +63,23 @@ const normalizeZoneName = (zoneName) => {
 
 // Fallback para parâmetros sem type definido (compatibilidade)
 const isBooleanParamByName = (name) => {
-    return [
+    if (!name) return false;
+    const booleanNames = [
         "Gratuito",
+        "Urgência",
+        "Existência de saneamento até 20 m",
         "Existência de sanemanto até 20 m",
         "Existência de rede de água",
-        "Urgência",
-        "Existência de saneamento até 20 m"
-    ].includes(name);
+        "Existe pavimento",
+        "Existe rede de águas",
+        "Existe rede de esgotos",
+        "Existe rede de telecomunicações",
+        "Existe rede de gás",
+        "Existe rede elétrica",
+        "Necessita licenciamento",
+        "Obra em zona protegida"
+    ];
+    return booleanNames.some(bp => name.toLowerCase().includes(bp.toLowerCase()));
 };
 
 // Verifica se é booleano por type OU por nome (fallback)
@@ -96,10 +106,19 @@ const isReferenceParam = (param) => {
     return false;
 };
 
-const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
+const ParametersTab = ({ document, metaData, isAssignedToMe = false, invoiceData = null }) => {
     const theme = useTheme();
     const { } = useDocumentsContext();
     const { updateDocumentParams: updateContextParams, documentParams } = useDocumentActions();
+
+    // Verificar se o pagamento foi feito via SIBS (MBWay ou Multibanco) com sucesso
+    const isSibsPaymentCompleted = useMemo(() => {
+        if (!invoiceData) return false;
+        const paymentStatus = invoiceData.payment_status?.toLowerCase();
+        const paymentMethod = invoiceData.payment_method?.toUpperCase();
+        return paymentStatus === 'success' &&
+               (paymentMethod === 'MBWAY' || paymentMethod === 'MULTIBANCO' || paymentMethod === 'REFERENCE');
+    }, [invoiceData]);
 
     // States
     const [params, setParams] = useState([]);
@@ -156,11 +175,25 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
     const handleSaveParams = useCallback(async (updatedParams) => {
         setSavingParams(true);
         try {
-            const paramsToSend = updatedParams.map(param => ({
-                pk: Number(param.pk),
-                value: param.value !== null && param.value !== undefined ? String(param.value) : "",
-                memo: String(param.memo || "")
-            }));
+            const paramsToSend = updatedParams.map(param => {
+                let value;
+
+                // Se o valor é null, undefined ou vazio, preservar como null
+                if (param.value === null || param.value === undefined || param.value === '') {
+                    value = null;
+                } else if (isBooleanParam(param)) {
+                    // Booleanos: converter para "1" ou "0" apenas se tiver valor
+                    value = (param.value === "1" || param.value === 1 || param.value === true) ? "1" : "0";
+                } else {
+                    value = String(param.value);
+                }
+
+                return {
+                    pk: Number(param.pk),
+                    value,
+                    memo: String(param.memo || "")
+                };
+            });
 
             await updateDocumentParams(document.pk, paramsToSend);
             setParams(updatedParams);
@@ -315,6 +348,7 @@ const ParametersTab = ({ document, metaData, isAssignedToMe = false }) => {
                     metaData={metaData}
                     etars={etars}
                     saving={savingParams}
+                    isSibsPaymentCompleted={isSibsPaymentCompleted}
                 />
             )}
         </>
@@ -452,8 +486,9 @@ const renderParamInput = (param, handleParamChange, options = {}) => {
         }
 
         if (param.name === "Método de pagamento" && metaData?.payment_method) {
+            const isDisabledBySibs = options.isSibsPaymentCompleted || false;
             return (
-                <FormControl fullWidth>
+                <FormControl fullWidth disabled={isDisabledBySibs}>
                     <InputLabel>Método de Pagamento</InputLabel>
                     <Select
                         value={param.value || ""}
@@ -461,6 +496,7 @@ const renderParamInput = (param, handleParamChange, options = {}) => {
                         label="Método de Pagamento"
                         size="medium"
                         displayEmpty
+                        disabled={isDisabledBySibs}
                     >
                         <MenuItem value="">
                             <em>Selecione um método</em>
@@ -471,7 +507,12 @@ const renderParamInput = (param, handleParamChange, options = {}) => {
                             </MenuItem>
                         ))}
                     </Select>
-                    {param.value && getSelectedName && (
+                    {isDisabledBySibs && (
+                        <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
+                            Definido automaticamente pelo pagamento SIBS
+                        </Typography>
+                    )}
+                    {!isDisabledBySibs && param.value && getSelectedName && (
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
                             Selecionado: {getSelectedName(param.name, param.value)}
                         </Typography>
@@ -502,14 +543,22 @@ const EditParametersModal = React.memo(({
     onSave,
     metaData = {},
     etars = [],
-    saving = false
+    saving = false,
+    isSibsPaymentCompleted = false
 }) => {
     const [localParams, setLocalParams] = useState([]);
     const [filteredEtars, setFilteredEtars] = useState([]);
 
     useEffect(() => {
         if (open && params?.length) {
-            setLocalParams(params.map(param => ({ ...param })));
+            setLocalParams(params.map(param => {
+                const copy = { ...param };
+                // Normalizar booleanos: null/undefined/'' → '0'
+                if (isBooleanParam(copy) && (copy.value === null || copy.value === undefined || copy.value === '')) {
+                    copy.value = '0';
+                }
+                return copy;
+            }));
         }
     }, [open, params]);
 
@@ -585,7 +634,8 @@ const EditParametersModal = React.memo(({
                             {renderParamInput(param, handleParamChange, {
                                 metaData,
                                 filteredEtars,
-                                getSelectedName
+                                getSelectedName,
+                                isSibsPaymentCompleted
                             })}
                             <TextField
                                 fullWidth

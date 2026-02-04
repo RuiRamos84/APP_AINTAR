@@ -346,6 +346,9 @@ export const SOCKET_EVENTS = {
   DOCUMENT_TRANSFERRED: 'document_transferred',
   DOCUMENT_UPDATE: 'document_update',
 
+  // Payments
+  PAYMENT_STATUS_UPDATE: 'payment_status_update',
+
   // Tasks
   TASK_NOTIFICATION: 'task_notification',
   TASK_NOTIFICATIONS: 'task_notifications',

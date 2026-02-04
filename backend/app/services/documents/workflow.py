@@ -358,14 +358,22 @@ def update_document_params(current_user, document_id, data):
                             f"Tentativa de atualizar parâmetro inexistente: {param_pk}")
                         continue
 
-                    # Atualizar o parâmetro
+                    # Só actualizar se o valor não for vazio
+                    # A BD não permite NULL no campo value (trigger fbf_document_param)
+                    if param_value is None or str(param_value).strip() == '':
+                        # Valor vazio - não actualizar este parâmetro (preservar estado actual)
+                        logger.info(f"Parâmetro {param_pk} sem valor - não actualizado")
+                        continue
+
+                    # Usar a VIEW vbf_document_param que faz o tratamento correcto dos dados
                     update_query = text("""
                         UPDATE vbf_document_param
                         SET value = :value, memo = :memo
                         WHERE pk = :pk AND tb_document = :document_id
                     """)
+
                     result = session.execute(update_query, {
-                        'value': param_value if param_value is not None else '',
+                        'value': str(param_value),
                         'memo': param_memo if param_memo is not None else '',
                         'pk': param_pk,
                         'document_id': document_id
@@ -375,42 +383,67 @@ def update_document_params(current_user, document_id, data):
                 # Chamar a função de invoice se o tipo estiver configurado
                 invoice_info = None
 
+                logger.info(f"Invoice: document_type='{document_type}' (type: {type(document_type).__name__}) para documento {document_id}")
+
                 # Verificar se document_type é string (nome) ou número (id)
                 if isinstance(document_type, str) and document_type in TYPE_TO_INVOICE:
                     invoice_info = TYPE_TO_INVOICE[document_type]
+                    logger.info(f"Invoice: match por string '{document_type}' → {invoice_info['function']}")
                 elif isinstance(document_type, (int, float)):
                     # Procurar pelo ID no mapeamento
                     for type_name, info in TYPE_TO_INVOICE.items():
                         if info["id"] == int(document_type):
                             invoice_info = info
+                            logger.info(f"Invoice: match por ID {document_type} → {info['function']}")
                             break
+
+                if not invoice_info:
+                    logger.info(f"Invoice: nenhuma função configurada para tipo '{document_type}' - tipos disponíveis: {list(TYPE_TO_INVOICE.keys())}")
+
+                # Calcular invoice com savepoint - se falhar, os parâmetros
+                # são guardados na mesma (faltam campos obrigatórios)
+                invoice_updated = False
+                invoice_warning = None
 
                 if invoice_info:
                     invoice_function = invoice_info["function"]
-                    invoice_query = text(f"""
-                        SELECT {invoice_function}(:pnpk) AS result
-                    """)
-                    invoice_result = session.execute(invoice_query, {
-                        'pnpk': document_id
-                    }).scalar()
+                    try:
+                        savepoint = session.begin_nested()
+                        invoice_query = text(f"""
+                            SELECT {invoice_function}(:pnpk) AS result
+                        """)
+                        invoice_result = session.execute(invoice_query, {
+                            'pnpk': document_id
+                        }).scalar()
 
-                    if invoice_result:
-                        logger.info(
-                            f"Invoice calculado para documento {document_id} (tipo {document_type}): {invoice_result}")
-                    else:
+                        # invoice_result pode ser 0 para documentos gratuitos - isso é válido
+                        if invoice_result is not None:
+                            logger.info(
+                                f"Invoice calculado para documento {document_id} (tipo '{document_type}'): resultado={invoice_result}")
+                            invoice_updated = True
+                        else:
+                            logger.warning(
+                                f"Invoice retornou NULL para documento {document_id} (tipo '{document_type}') - campos obrigatórios em falta?")
+                    except SQLAlchemyError as invoice_err:
+                        savepoint.rollback()
+                        invoice_warning = "Parâmetros guardados, mas o cálculo da fatura falhou. Verifique se todos os campos obrigatórios estão preenchidos."
                         logger.warning(
-                            f"Falha ao calcular invoice para documento {document_id} (tipo {document_type})")
+                            f"Invoice não calculado para documento {document_id} (tipo '{document_type}'): {invoice_err}")
 
                 session.commit()
 
                 # Limpar cache relacionado
                 cache.delete_memoized(get_document_type_param)
 
-                return {
+                result = {
                     'success': True,
                     'message': f'Atualizados {update_count} parâmetros com sucesso',
-                    'invoice_updated': invoice_info is not None
-                }, 200
+                    'invoice_updated': invoice_updated
+                }
+                if invoice_warning:
+                    result['warning'] = invoice_warning
+
+                return result, 200
 
             except SQLAlchemyError as se:
                 session.rollback()

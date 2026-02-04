@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Box, Button, TextField, Alert, CircularProgress, Typography,
     InputAdornment, Card, CardContent, Avatar, Fade, Stepper,
@@ -10,77 +10,152 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
+import { getSocket } from '../../../services/socketService';
 
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
-const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
+const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
     const [localStep, setLocalStep] = useState(0);
-    const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutos em segundos
+    const [timeRemaining, setTimeRemaining] = useState(300);
     const [isExpired, setIsExpired] = useState(false);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [paymentDeclined, setPaymentDeclined] = useState(false);
+    const [webhookReceived, setWebhookReceived] = useState(false);
 
-    // Controlar polling com useRef para evitar múltiplos intervalos
-    const pollingIntervalRef = useRef(null);
-    const isPollingRef = useRef(false);
     const countdownIntervalRef = useRef(null);
     const startTimeRef = useRef(null);
+    const fallbackTimeoutRef = useRef(null);
+    const socketListenerRef = useRef(false);
 
     const { mutate: payWithMBWay, isLoading: isSubmitting } = useMutation({
         mutationFn: (phoneNumber) => paymentService.processMBWay(transactionId, phoneNumber),
         onSuccess: (data) => {
-            setLocalStep(2); // Avança para o passo de espera
-            startControlledPolling();
+            setLocalStep(2);
+            startWebhookListener();
             onSuccess?.(data);
         },
         onError: (err) => {
             setError(err.message || 'Erro ao processar MB WAY');
-            setLocalStep(0); // Volta ao passo inicial em caso de erro
+            setLocalStep(0);
         }
     });
 
     const { mutate: checkStatus, isLoading: isCheckingStatus } = useMutation({
         mutationFn: () => paymentService.checkStatus(transactionId),
         onSuccess: (data) => {
-            console.log('📊 Status recebido:', data.payment_status);
-
-            if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(data.payment_status)) {
-                stopControlledPolling();
-
-                if (data.payment_status === 'SUCCESS') {
-                    setPaymentSuccess(true);
-                    setLocalStep(3); // Novo step de sucesso
-                    onSuccess?.(data); // Notificar componente pai
-                } else if (data.payment_status === 'DECLINED') {
-                    setPaymentDeclined(true);
-                    setError('Pagamento recusado. Por favor, verifique com o seu banco.');
-                } else if (data.payment_status === 'EXPIRED') {
-                    setIsExpired(true);
-                    setError('Tempo de pagamento expirado. Por favor, tente novamente.');
-                }
-            }
+            console.log('Status recebido (fallback GetStatus):', data.payment_status);
+            handlePaymentStatusUpdate(data.payment_status);
         },
         onError: (err) => {
-            console.error('❌ Erro ao verificar status:', err);
+            console.error('Erro ao verificar status (fallback):', err);
         }
     });
 
-    // Limpar polling e countdown ao desmontar componente
-    useEffect(() => {
-        return () => {
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
+    // Limpar todos os listeners e timers (definido primeiro para ser usado por outros callbacks)
+    const cleanupListeners = useCallback(() => {
+        // Limpar listener SocketIO
+        if (socketListenerRef.current && typeof socketListenerRef.current === 'function') {
+            const socket = getSocket();
+            if (socket) {
+                socket.off('payment_status_update', socketListenerRef.current);
             }
-            if (countdownIntervalRef.current) {
-                clearInterval(countdownIntervalRef.current);
-                countdownIntervalRef.current = null;
-            }
-            isPollingRef.current = false;
-        };
+        }
+        socketListenerRef.current = false;
+
+        // Limpar timer de fallback
+        if (fallbackTimeoutRef.current) {
+            clearTimeout(fallbackTimeoutRef.current);
+            fallbackTimeoutRef.current = null;
+        }
+
+        // Limpar countdown
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+        }
     }, []);
+
+    // Processar atualização de status (usado tanto pelo SocketIO como pelo fallback)
+    const handlePaymentStatusUpdate = useCallback((status) => {
+        if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(status)) {
+            cleanupListeners();
+
+            if (status === 'SUCCESS') {
+                setPaymentSuccess(true);
+                setLocalStep(3);
+                onSuccess?.({ payment_status: status });
+            } else if (status === 'DECLINED') {
+                setPaymentDeclined(true);
+                setError('Pagamento recusado. Por favor, verifique com o seu banco.');
+            } else if (status === 'EXPIRED') {
+                setIsExpired(true);
+                setError('Tempo de pagamento expirado. Por favor, tente novamente.');
+            }
+        }
+    }, [onSuccess, cleanupListeners]);
+
+    // Timer de fallback: GetStatus após 5 minutos sem webhook
+    const startFallbackTimer = useCallback(() => {
+        if (fallbackTimeoutRef.current) return;
+
+        console.log('[MBWay] Timer de fallback iniciado (5 min)');
+        fallbackTimeoutRef.current = setTimeout(() => {
+            if (!webhookReceived) {
+                console.log('[MBWay] Sem webhook em 5 min - executando GetStatus fallback');
+                checkStatus();
+            }
+        }, 300000); // 5 minutos = 300000ms
+    }, [webhookReceived, checkStatus]);
+
+    // Iniciar listener SocketIO para notificações de webhook
+    const startWebhookListener = useCallback(() => {
+        if (!transactionId) {
+            console.warn('[MBWay] Sem transactionId, não pode iniciar listener');
+            return;
+        }
+
+        const socket = getSocket();
+        if (!socket) {
+            console.warn('[MBWay] Socket não disponível, usando fallback GetStatus');
+            startFallbackTimer();
+            return;
+        }
+
+        // Se já temos listener, limpar primeiro
+        if (socketListenerRef.current && typeof socketListenerRef.current === 'function') {
+            console.log('[MBWay] Limpando listener anterior');
+            socket.off('payment_status_update', socketListenerRef.current);
+        }
+
+        console.log('[MBWay] Registando listener para:', transactionId, '| Socket connected:', socket.connected);
+
+        const handleWebhookEvent = (data) => {
+            console.log('[MBWay] Evento payment_status_update recebido:', data);
+
+            // Filtrar pelo transactionId desta transação
+            if (data.transaction_id === transactionId) {
+                console.log('[MBWay] Match! Status:', data.payment_status);
+                setWebhookReceived(true);
+                handlePaymentStatusUpdate(data.payment_status);
+            } else {
+                console.log('[MBWay] Ignorado - transaction_id diferente:', data.transaction_id, '!==', transactionId);
+            }
+        };
+
+        socket.on('payment_status_update', handleWebhookEvent);
+        socketListenerRef.current = handleWebhookEvent;
+
+        // Iniciar timer de fallback: se não receber webhook em 5 min, fazer GetStatus
+        startFallbackTimer();
+
+    }, [transactionId, handlePaymentStatusUpdate, startFallbackTimer]);
+
+    // Limpar ao desmontar componente
+    useEffect(() => {
+        return () => cleanupListeners();
+    }, [cleanupListeners]);
 
     // Countdown de 5 minutos
     useEffect(() => {
@@ -97,7 +172,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                 if (remaining === 0) {
                     setIsExpired(true);
                     setError('Tempo de pagamento expirado (5 minutos).');
-                    stopControlledPolling();
+                    cleanupListeners();
                     clearInterval(countdownIntervalRef.current);
                 }
             }, 1000);
@@ -108,32 +183,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                 }
             };
         }
-    }, [localStep, isExpired]);
-
-    // Iniciar polling APENAS quando necessário
-    const startControlledPolling = () => {
-        if (isPollingRef.current || !transactionId) {
-            return; // Já está a fazer polling ou não tem transactionId
-        }
-
-        console.log('🔄 Iniciando polling controlado para:', transactionId);
-        isPollingRef.current = true;
-
-        pollingIntervalRef.current = setInterval(() => {
-            console.log('🔍 Verificando status MB WAY...');
-            checkStatus();
-        }, 15000); // 15 segundos em vez de 30
-    };
-
-    // Parar polling
-    const stopControlledPolling = () => {
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-        }
-        isPollingRef.current = false;
-        console.log('⏹️ Polling MB WAY parado');
-    };
+    }, [localStep, isExpired, cleanupListeners]);
 
     const formatPhone = (value) => {
         const numbers = value.replace(/\D/g, '');
@@ -149,11 +199,18 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
     };
 
     const handleRetry = () => {
+        console.log('[MBWay] Retry solicitado');
         setIsExpired(false);
         setError('');
         setLocalStep(0);
         setTimeRemaining(300);
-        stopControlledPolling();
+        setPaymentSuccess(false);
+        setPaymentDeclined(false);
+        setWebhookReceived(false);
+        cleanupListeners();
+
+        // Notificar o parent para criar novo checkout
+        onRetry?.();
     };
 
     const validatePhone = (phone) => /^9\d{8}$/.test(phone.replace(/\s/g, ''));
@@ -180,11 +237,11 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
         }
 
         setError('');
-        setLocalStep(1); // Avançar para processing
+        setLocalStep(1);
         payWithMBWay(cleanPhone);
     };
 
-    // Verificação manual (para debug)
+    // Verificação manual (fallback)
     const handleManualCheck = () => {
         checkStatus();
     };
@@ -204,7 +261,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                 </Avatar>
                 <Typography variant="h5" gutterBottom>MB WAY</Typography>
                 <Typography variant="body2" color="text.secondary">
-                    Pagamento de €{Number(amount || 0).toFixed(2)}
+                    Pagamento de &euro;{Number(amount || 0).toFixed(2)}
                 </Typography>
             </Box>
 
@@ -308,7 +365,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                             <Typography variant="body2">
                                 <strong>Próximos passos:</strong><br />
                                 1. Abra a notificação MB WAY<br />
-                                2. Confirme €{Number(amount || 0).toFixed(2)}<br />
+                                2. Confirme &euro;{Number(amount || 0).toFixed(2)}<br />
                                 3. Aguarde confirmação
                             </Typography>
                         </Paper>
@@ -322,7 +379,6 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         {paymentDeclined ? (
                             <>
-                                {/* Estado Recusado */}
                                 <Cancel sx={{ fontSize: 80, color: 'error.main', mb: 2 }} />
 
                                 <Typography variant="h5" gutterBottom color="error.main">
@@ -336,10 +392,10 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                                 <Alert severity="error" sx={{ mb: 3 }}>
                                     <Typography variant="body2">
                                         <strong>Possíveis motivos:</strong><br />
-                                        • Saldo insuficiente<br />
-                                        • Limite diário atingido<br />
-                                        • Operação cancelada no telemóvel<br />
-                                        • Problema com a aplicação MB WAY
+                                        &bull; Saldo insuficiente<br />
+                                        &bull; Limite diário atingido<br />
+                                        &bull; Operação cancelada no telemóvel<br />
+                                        &bull; Problema com a aplicação MB WAY
                                     </Typography>
                                 </Alert>
 
@@ -398,12 +454,13 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                                 <Alert severity={timeRemaining < 60 ? "warning" : "success"}>
                                     <Typography variant="body2">
                                         <strong>Status:</strong> A aguardar confirmação...<br />
-                                        Verificação automática a cada 15s
-                                        {isPollingRef.current && ' (Ativo)'}
+                                        {webhookReceived
+                                            ? 'Notificação recebida via webhook'
+                                            : 'A aguardar notificação automática (webhook)'}
                                     </Typography>
                                     {timeRemaining < 60 && (
                                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                            ⚠️ Menos de 1 minuto restante!
+                                            Menos de 1 minuto restante!
                                         </Typography>
                                     )}
                                 </Alert>
@@ -413,7 +470,8 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                                     <Alert severity="info" sx={{ mt: 1 }}>
                                         <Typography variant="caption">
                                             Transaction: {transactionId}<br />
-                                            Polling: {isPollingRef.current ? 'Ativo' : 'Inativo'}<br />
+                                            Webhook: {webhookReceived ? 'Recebido' : 'A aguardar'}<br />
+                                            Socket: {getSocket()?.connected ? 'Conectado' : 'Desconectado'}<br />
                                             Time: {timeRemaining}s
                                         </Typography>
                                     </Alert>
@@ -421,7 +479,6 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                             </>
                         ) : (
                             <>
-                                {/* Estado Expirado */}
                                 <Timer sx={{ fontSize: 80, color: 'error.main', mb: 2 }} />
 
                                 <Typography variant="h5" gutterBottom color="error.main">
@@ -435,9 +492,9 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                                 <Alert severity="error" sx={{ mb: 3 }}>
                                     <Typography variant="body2">
                                         <strong>O que aconteceu?</strong><br />
-                                        • O pagamento MB WAY não foi confirmado a tempo<br />
-                                        • A transação foi cancelada automaticamente<br />
-                                        • Nenhum valor foi debitado
+                                        &bull; O pagamento MB WAY não foi confirmado a tempo<br />
+                                        &bull; A transação foi cancelada automaticamente<br />
+                                        &bull; Nenhum valor foi debitado
                                     </Typography>
                                 </Alert>
 
@@ -485,7 +542,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                                 Valor pago
                             </Typography>
                             <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                                €{Number(amount || 0).toFixed(2)}
+                                &euro;{Number(amount || 0).toFixed(2)}
                             </Typography>
                             <Typography variant="body2" sx={{ opacity: 0.9, mt: 1 }}>
                                 Telemóvel: {phone}
@@ -494,11 +551,11 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
 
                         <Alert severity="success" sx={{ mb: 3, textAlign: 'left' }}>
                             <Typography variant="body2">
-                                <strong>✅ Pagamento concluído:</strong><br />
-                                • Transação autorizada e processada<br />
-                                • Receberá confirmação por email<br />
-                                • O documento será processado automaticamente<br />
-                                • ID: {transactionId}
+                                <strong>Pagamento concluído:</strong><br />
+                                &bull; Transação autorizada e processada<br />
+                                &bull; Receberá confirmação por email<br />
+                                &bull; O documento será processado automaticamente<br />
+                                &bull; ID: {transactionId}
                             </Typography>
                         </Alert>
 

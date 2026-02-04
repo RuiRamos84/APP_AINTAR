@@ -65,16 +65,26 @@ def list_documents(current_user):
 
 
 def documentById(documentId, current_user):
-    """Obter dados do documento"""
+    """Obter dados do documento por pk ou regnumber"""
     try:
         with db_session_manager(current_user) as session:
             # Sanitizar entrada
             documentId = sanitize_input(documentId)
 
-            document_query = text(
-                "SELECT * FROM vbl_document WHERE regnumber = :documentId")
-            document_result = session.execute(
-                document_query, {"documentId": documentId}).fetchone()
+            # Tentar converter para int (pk) ou usar como string (regnumber)
+            try:
+                doc_pk = int(documentId)
+                # Se é um número, procurar por pk
+                document_query = text(
+                    "SELECT * FROM vbl_document WHERE pk = :doc_pk")
+                document_result = session.execute(
+                    document_query, {"doc_pk": doc_pk}).fetchone()
+            except (ValueError, TypeError):
+                # Se não é número, procurar por regnumber
+                document_query = text(
+                    "SELECT * FROM vbl_document WHERE regnumber = :regnumber")
+                document_result = session.execute(
+                    document_query, {"regnumber": documentId}).fetchone()
 
             if not document_result:
                 raise ResourceNotFoundError("Documento", documentId)
@@ -427,33 +437,110 @@ def create_document(data, files, current_user):
 
             # Buscar e atualizar parâmetros
             try:
+                # DEBUG: Log de TODOS os dados recebidos do frontend
+                all_data_keys = list(data.keys())
+                logger.info(f"🔍 TODAS as chaves recebidas do frontend: {all_data_keys}")
+
+                # DEBUG: Log de todos os parâmetros recebidos do frontend
+                frontend_params = {k: v for k, v in data.items() if k.startswith('param_')}
+                logger.info(f"📥 Parâmetros (param_*) recebidos do frontend para documento {pk_result}: {frontend_params}")
+                logger.info(f"📥 Total de parâmetros param_*: {len(frontend_params)}")
+
                 param_query = text("""
-                    SELECT tb_param, value, memo 
-                    FROM vbf_document_param 
+                    SELECT tb_param, value, memo
+                    FROM vbf_document_param
                     WHERE tb_document = :pk
                 """)
                 params = session.execute(
                     param_query, {'pk': pk_result}).fetchall()
 
+                # DEBUG: Log dos parâmetros encontrados na BD
+                logger.info(f"📋 Parâmetros encontrados na BD para documento {pk_result}: {[(p.tb_param, p.value) for p in params]}")
+
                 # Inserir ou atualizar os parâmetros adicionais
+                updated_params = []
+                logger.info(f"🔄 A processar {len(params)} parâmetros da BD para documento {pk_result}")
                 for param in params:
-                    param_value = data.get(f'param_{param.tb_param}')
-                    param_memo = data.get(f'param_memo_{param.tb_param}')
+                    param_key = f'param_{param.tb_param}'
+                    param_memo_key = f'param_memo_{param.tb_param}'
+                    param_value = data.get(param_key)
+                    param_memo = data.get(param_memo_key)
+                    logger.info(f"  🔎 Param tb_param={param.tb_param}: key='{param_key}', value='{param_value}', memo='{param_memo}'")
 
                     if param_value is not None or param_memo is not None:
+                        logger.info(f"    ✅ A atualizar param {param.tb_param} com value={param_value}, memo={param_memo}")
+
+                        # Usar a VIEW vbf_document_param que faz o tratamento correcto dos dados
                         update_query = text("""
-                            UPDATE vbf_document_param 
+                            UPDATE vbf_document_param
                             SET value = :value, memo = :memo
                             WHERE tb_document = :doc_id AND tb_param = :param_id
                         """)
                         session.execute(update_query, {
-                            'value': param_value,
-                            'memo': param_memo,
+                            'value': str(param_value) if param_value is not None else None,
+                            'memo': param_memo if param_memo is not None else '',
                             'doc_id': pk_result,
                             'param_id': param.tb_param
                         })
+                        updated_params.append((param.tb_param, param_value))
+
+                # DEBUG: Log dos parâmetros actualizados
+                logger.info(f"✅ Parâmetros actualizados para documento {pk_result}: {updated_params}")
 
                 session.commit()
+
+                # Calcular invoice após guardar parâmetros
+                TYPE_TO_INVOICE = {
+                    "Ramal: Execução": {
+                        "id": 1,
+                        "function": "fbo_document_invoice$1"
+                    },
+                    "Pedido de Limpeza de Fossa": {
+                        "id": 2,
+                        "function": "fbo_document_invoice$2"
+                    },
+                }
+
+                try:
+                    # Obter tipo do documento da view (resolve para texto)
+                    type_query = text("SELECT tt_type FROM vbl_document WHERE pk = :pk")
+                    doc_type = session.execute(type_query, {'pk': pk_result}).scalar()
+                    logger.info(f"🔍 Tipo do documento para invoice: '{doc_type}' (type: {type(doc_type).__name__})")
+
+                    invoice_info = None
+                    if isinstance(doc_type, str) and doc_type in TYPE_TO_INVOICE:
+                        invoice_info = TYPE_TO_INVOICE[doc_type]
+                        logger.info(f"✅ Match por string: '{doc_type}' → {invoice_info['function']}")
+                    elif isinstance(doc_type, (int, float)):
+                        for type_name, info in TYPE_TO_INVOICE.items():
+                            if info["id"] == int(doc_type):
+                                invoice_info = info
+                                logger.info(f"✅ Match por ID: {doc_type} → {info['function']}")
+                                break
+
+                    if invoice_info:
+                        invoice_function = invoice_info["function"]
+                        logger.info(f"🧮 A chamar função de invoice: {invoice_function}({pk_result})")
+                        try:
+                            savepoint = session.begin_nested()
+                            invoice_query = text(f"SELECT {invoice_function}(:pnpk) AS result")
+                            invoice_result = session.execute(invoice_query, {'pnpk': pk_result}).scalar()
+                            session.commit()
+                            logger.info(f"💰 Invoice calculado na criação do documento {pk_result}: resultado={invoice_result}")
+
+                            # Verificar se o valor foi gravado
+                            check_invoice = text("SELECT invoice FROM vbl_document_invoice WHERE tb_document = :pk")
+                            saved_invoice = session.execute(check_invoice, {'pk': pk_result}).scalar()
+                            logger.info(f"💾 Invoice gravado na BD para documento {pk_result}: {saved_invoice}")
+                        except SQLAlchemyError as inv_err:
+                            savepoint.rollback()
+                            logger.warning(f"⚠️ Invoice não calculado na criação do documento {pk_result} (campos em falta?): {inv_err}")
+                    else:
+                        logger.info(f"❌ Documento {pk_result} tipo '{doc_type}' não tem função de invoice configurada. Tipos disponíveis: {list(TYPE_TO_INVOICE.keys())}")
+
+                except Exception as inv_e:
+                    logger.warning(f"Erro ao calcular invoice na criação: {inv_e}")
+
             except Exception as pe:
                 logger.error(
                     f"Erro ao processar parâmetros: {str(pe)}")

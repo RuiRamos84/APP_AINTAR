@@ -24,13 +24,10 @@ def check_permission_by_id(permission_id: int, user_profile: str, user_interface
     """
     # Super admin (perfil '0') sempre tem acesso
     if user_profile == "0":
-        logger.debug(f"Super admin acesso autorizado para permissão {permission_id}")
         return True
 
     # Verificar se o ID da permissão está na lista de interfaces do utilizador
-    has_perm = permission_id in (user_interfaces or [])
-    logger.debug(f"Verificação para permissão {permission_id}: {has_perm} (interfaces: {user_interfaces})")
-    return has_perm
+    return permission_id in (user_interfaces or [])
 
 
 def require_permission(permission_id):
@@ -93,12 +90,6 @@ def require_permission(permission_id):
                         "required_permission": permission_id,
                         "code": "INSUFFICIENT_PERMISSION"
                     }), 403
-
-                # Log de sucesso (apenas em debug)
-                logger.debug(
-                    f"Acesso autorizado - Permissão: {permission_id}, "
-                    f"User: {user_id}, Rota: {f.__name__}"
-                )
 
                 return f(*args, **kwargs)
 

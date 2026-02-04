@@ -18,20 +18,51 @@ export const useDocumentParams = (formData, entityData, metaData) => {
         return String(value);
     };
 
+    // Nomes de parâmetros que são booleanos (fallback quando type não é 4)
+    const BOOLEAN_PARAM_NAMES = [
+        'Gratuito',
+        'Urgência',
+        'Existência de saneamento até 20 m',
+        'Existência de sanemanto até 20 m',
+        'Existência de rede de água',
+        'Existe pavimento',
+        'Existe rede de águas',
+        'Existe rede de esgotos',
+        'Existe rede de telecomunicações',
+        'Existe rede de gás',
+        'Existe rede elétrica',
+        'Necessita licenciamento',
+        'Obra em zona protegida'
+    ];
+
+    const isBooleanByName = (name) => {
+        if (!name) return false;
+        return BOOLEAN_PARAM_NAMES.some(bp => name.toLowerCase().includes(bp.toLowerCase()));
+    };
+
     // Função para normalizar valores booleanos
-    const normalizeValue = (value, type) => {
-        if (type === '4') { // Tipo booleano
+    const normalizeValue = (value, type, name) => {
+        // Se não há valor, retornar vazio (não pré-seleccionar)
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        if (type === '4' || isBooleanByName(name)) { // Tipo booleano (por type ou por nome)
             if (value === true || value === 'true' || value === '1' || value === 1) {
                 return '1';
             }
-            return '0';
+            if (value === false || value === 'false' || value === '0' || value === 0) {
+                return '0';
+            }
+            // Se o valor não é claramente booleano, deixar vazio
+            return '';
         }
 
         if (type === '1') { // Tipo numérico
-            return value !== null && value !== undefined ? value : '';
+            return value;
         }
 
-        return value !== null && value !== undefined ? value : '';
+        return value;
     };
 
     // Efeito para buscar contagens quando entityData mudar
@@ -158,14 +189,13 @@ export const useDocumentParams = (formData, entityData, metaData) => {
                     return 0;
                 });
 
-                // console.log("🎯 Parâmetros finais:", sortedParams);
                 setDocTypeParams(sortedParams);
 
                 // 6. Inicializar valores
                 const initialValues = {};
                 sortedParams.forEach(param => {
                     if (param && param.tb_param) {
-                        const normalizedValue = normalizeValue(param.value || '', param.type);
+                        const normalizedValue = normalizeValue(param.value || '', param.type, param.name);
                         initialValues[`param_${param.tb_param}`] = normalizedValue;
                         initialValues[`param_memo_${param.tb_param}`] = param.memo || '';
                     }
@@ -194,7 +224,7 @@ export const useDocumentParams = (formData, entityData, metaData) => {
             docTypeParams.forEach(param => {
                 const paramKey = `param_${param.tb_param}`;
                 if (newValues[paramKey] !== undefined) {
-                    newValues[paramKey] = normalizeValue(newValues[paramKey], param.type);
+                    newValues[paramKey] = normalizeValue(newValues[paramKey], param.type, param.name);
                 }
             });
 
@@ -211,7 +241,7 @@ export const useDocumentParams = (formData, entityData, metaData) => {
             const param = docTypeParams.find(p => String(p.tb_param) === String(paramId));
 
             if (param) {
-                const normalizedValue = normalizeValue(value, param.type);
+                const normalizedValue = normalizeValue(value, param.type, param.name);
                 setParamValues(prev => ({ ...prev, [name]: normalizedValue }));
                 return;
             }

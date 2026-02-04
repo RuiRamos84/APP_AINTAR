@@ -109,6 +109,15 @@ const PaymentModule = ({
         setSelectedMethod(method);
     };
 
+    // Handler para retry - limpa o transactionId para forçar criação de novo checkout
+    const handlePaymentRetry = () => {
+        console.log('[PaymentModule] Retry solicitado - criando novo checkout');
+        setTransactionId(null);
+        setStatus(null);
+        setError(null);
+        // O useEffect vai detectar que transactionId é null e criar novo checkout
+    };
+
     const handleBack = () => {
         setDirection('backward');
         if (step === 1) {
@@ -125,6 +134,7 @@ const PaymentModule = ({
             userInfo: user,
             transactionId: transactionId,
             onSuccess: (result) => setStatus(result.payment_status || 'SUCCESS'),
+            onRetry: handlePaymentRetry,
         };
 
         switch (selectedMethod) {

@@ -90,6 +90,8 @@ class PaymentService:
         Tenta criar a fatura se ela não existir.
         Lança um erro se o documento não for encontrado.
         """
+        logger.info(f"🔍 get_invoice_data chamado para documento {document_id}")
+
         with db_session_manager(current_user) as session:
             # 1. Verificar se o documento existe
             doc_check_query = text("SELECT pk FROM vbl_document WHERE pk = :document_id")
@@ -103,20 +105,30 @@ class PaymentService:
 
             # 3. Se a fatura existir, retorná-la
             if result:
-                return dict(result._mapping)
+                invoice_data = dict(result._mapping)
+                logger.info(f"💰 Invoice encontrado para documento {document_id}: {invoice_data.get('invoice', 0)}")
+                return invoice_data
+
+            logger.warning(f"⚠️ Invoice NÃO encontrado para documento {document_id}, tentando criar...")
 
             # 4. Se não existir, tentar criar a fatura
             try:
+                logger.info(f"🧮 A chamar fbo_document_invoice$getset({document_id})")
                 session.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
                 # Tentar buscar novamente após a criação
                 result = session.execute(invoice_query, {"document_id": document_id}).fetchone()
                 if result:
-                    return dict(result._mapping)
+                    invoice_data = dict(result._mapping)
+                    logger.info(f"✅ Invoice criado para documento {document_id}: {invoice_data.get('invoice', 0)}")
+                    return invoice_data
+                else:
+                    logger.warning(f"❌ fbo_document_invoice$getset executou mas não criou invoice para documento {document_id}")
             except Exception as create_error:
-                logger.warning(f"Não foi possível criar a fatura para o documento {document_id}: {create_error}")
-            
+                logger.warning(f"❌ Fatura não criada para documento {document_id} - erro: {create_error}")
+
             # 5. Se a criação falhar ou não retornar dados, retornar uma estrutura vazia, mas válida.
             # Isto indica que o documento existe, mas não tem fatura associada.
+            logger.info(f"📭 Retornando invoice=0 para documento {document_id}")
             return {
                 'tb_document': document_id,
                 'invoice': 0.0,
@@ -472,74 +484,126 @@ class PaymentService:
         return self.register_manual_payment_direct(data, current_user)
 
     def check_payment_status(self, transaction_id: str, current_user: str):
-        """Verificar estado do pagamento"""
+        """
+        Verificar estado do pagamento.
+
+        Lógica diferenciada por método:
+        - MBWAY: Chamado apenas como fallback se webhook não chegar em 5min
+        - MULTIBANCO: Chamado apenas na data de expiração da referência
+        """
         try:
             # Estado local primeiro
             with db_session_manager(current_user) as db:
                 local_data = db.execute(text("""
-                    SELECT s.payment_status, s.order_id, di.tb_document
+                    SELECT s.payment_status, s.order_id,
+                           s.payment_method, s.expiry_date,
+                           di.tb_document
                     FROM vbl_sibs s
-                    LEFT JOIN vbl_document_invoice di ON di.order_id = s.order_id
+                    LEFT JOIN vbl_document_invoice di
+                        ON di.order_id = s.order_id
                     WHERE s.transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
 
                 if not local_data:
-                    raise ResourceNotFoundError("Transação não encontrada")
+                    raise ResourceNotFoundError(
+                        "Transação não encontrada"
+                    )
 
-            # Consultar SIBS se ainda pendente
-            if local_data.payment_status in [PaymentStatus.CREATED, PaymentStatus.PENDING]:
-                url = f"{self.base_url}/payments/{transaction_id}/status"
-                resp = requests.get(
-                    url, headers=self._get_headers(), timeout=30)
-                resp.raise_for_status()
-
-                sibs_data = resp.json()
-                payment_status = sibs_data.get("paymentStatus")
-                print(f"SIBS Response: {sibs_data}")  # ADICIONAR LOG
-
-                # Mapear e actualizar se mudou
-                status_map = {
-                    "Success": PaymentStatus.SUCCESS, # CORREÇÃO: Mapear para SUCCESS
-                    "Pending": PaymentStatus.PENDING, # Manter como está
-                    "Declined": PaymentStatus.DECLINED,
-                    "Expired": PaymentStatus.EXPIRED
+            # Se já tem status final, retornar sem consultar SIBS
+            if local_data.payment_status not in [
+                PaymentStatus.CREATED, PaymentStatus.PENDING
+            ]:
+                return {
+                    "success": True,
+                    "payment_status": local_data.payment_status,
+                    "payment_method": local_data.payment_method,
+                    "document_id": local_data.tb_document,
+                    "updated": False
                 }
-                new_status = status_map.get(
-                    payment_status, PaymentStatus.PENDING)
 
-                if new_status != local_data.payment_status:
-                    with db_session_manager(current_user) as db:
+            # Para MULTIBANCO: só consultar SIBS se a data de
+            # expiração já foi atingida
+            if local_data.payment_method == 'MULTIBANCO':
+                if local_data.expiry_date:
+                    expiry = local_data.expiry_date
+                    if hasattr(expiry, 'date'):
+                        expiry_date = expiry.date()
+                    else:
+                        expiry_date = expiry
+                    if date.today() < expiry_date:
+                        return {
+                            "success": True,
+                            "payment_status": local_data.payment_status,
+                            "payment_method": "MULTIBANCO",
+                            "document_id": local_data.tb_document,
+                            "expiry_date": str(local_data.expiry_date),
+                            "updated": False,
+                            "message": "Referência ainda válida. "
+                                       "Aguardar webhook ou expiração."
+                        }
+
+            # Consultar SIBS API
+            url = f"{self.base_url}/payments/{transaction_id}/status"
+            resp = requests.get(
+                url, headers=self._get_headers(), timeout=30
+            )
+            resp.raise_for_status()
+
+            sibs_data = resp.json()
+            payment_status = sibs_data.get("paymentStatus")
+            logger.info(f"SIBS GetStatus response: {sibs_data}")
+
+            # Mapear e actualizar se mudou
+            status_map = {
+                "Success": PaymentStatus.SUCCESS,
+                "Pending": PaymentStatus.PENDING,
+                "Declined": PaymentStatus.DECLINED,
+                "Expired": PaymentStatus.EXPIRED
+            }
+            new_status = status_map.get(
+                payment_status, PaymentStatus.PENDING
+            )
+
+            if new_status != local_data.payment_status:
+                with db_session_manager(current_user) as db:
+                    db.execute(text("""
+                        UPDATE tb_sibs
+                        SET payment_status = :status,
+                            payment_reference = :pref,
+                            updated_at = NOW()
+                        WHERE transaction_id = :transaction_id
+                    """), {
+                        "status": new_status,
+                        "pref": json.dumps(sibs_data),
+                        "transaction_id": transaction_id
+                    })
+
+                    # Se sucesso, atualizar a fatura
+                    if (new_status == PaymentStatus.SUCCESS
+                            and local_data.tb_document):
                         db.execute(text("""
-                            UPDATE tb_sibs
-                            SET payment_status = :status,
-                                payment_reference = :pref,
-                                updated_at = NOW()
-                            WHERE transaction_id = :transaction_id
+                            SELECT fbo_document_invoice$sibs(
+                                :doc,
+                                (SELECT pk FROM tb_sibs
+                                 WHERE transaction_id = :tid)
+                            )
                         """), {
-                            "status": new_status,
-                            "pref": json.dumps(sibs_data),
-                            "transaction_id": transaction_id
+                            "doc": local_data.tb_document,
+                            "tid": transaction_id
                         })
 
-                    # Se o pagamento foi bem-sucedido, atualizar a fatura
-                    if new_status == PaymentStatus.SUCCESS and local_data.tb_document:
-                        db.execute(text("""
-                            SELECT fbo_document_invoice$sibs(:doc, (
-                                SELECT pk FROM tb_sibs WHERE transaction_id = :transaction_id
-                            ))
-                        """), {"doc": local_data.tb_document, "transaction_id": transaction_id})
-
-                    # Retorna sempre o novo estado e que foi atualizado
-                    return {
-                        "success": True,
-                        "payment_status": new_status,
-                        "document_id": local_data.tb_document,
-                        "updated": True
-                    }
+                return {
+                    "success": True,
+                    "payment_status": new_status,
+                    "payment_method": local_data.payment_method,
+                    "document_id": local_data.tb_document,
+                    "updated": True
+                }
 
             return {
                 "success": True,
                 "payment_status": local_data.payment_status,
+                "payment_method": local_data.payment_method,
                 "document_id": local_data.tb_document,
                 "updated": False
             }
@@ -761,6 +825,7 @@ class PaymentService:
         try:
             transaction_id = webhook_data.get("transactionID")
             payment_status = webhook_data.get("paymentStatus")
+            payment_method = webhook_data.get("paymentMethod")
 
             if not transaction_id:
                 return {"success": False, "error": "Transaction ID missing"}
@@ -776,7 +841,10 @@ class PaymentService:
             internal_status = status_map.get(
                 payment_status, PaymentStatus.PENDING)
 
-            with db_session_manager("system") as db:
+            document_id = None
+
+            # Webhook não tem sessão autenticada - usar conexão directa
+            with db_session_manager(None) as db:
                 # Actualizar status
                 db.execute(text("""
                     UPDATE tb_sibs
@@ -790,21 +858,55 @@ class PaymentService:
                     "transaction_id": transaction_id
                 })
 
-                # Se sucesso, actualizar invoice
-                if internal_status == PaymentStatus.SUCCESS:
-                    document_id = db.execute(text("""
-                        SELECT di.tb_document
-                        FROM tb_sibs s
-                        JOIN tb_document_invoice di ON di.tb_sibs = s.pk
-                        WHERE s.transaction_id = :transaction_id
-                    """), {"transaction_id": transaction_id}).scalar()
+                # Obter document_id associado
+                document_id = db.execute(text("""
+                    SELECT di.tb_document
+                    FROM tb_sibs s
+                    JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                    WHERE s.transaction_id = :transaction_id
+                """), {"transaction_id": transaction_id}).scalar()
 
-                    if document_id:
-                        db.execute(text("""
-                            SELECT fbo_document_invoice$sibs(:doc, (
-                                SELECT pk FROM tb_sibs WHERE transaction_id = :transaction_id
-                            ))
-                        """), {"doc": document_id, "transaction_id": transaction_id})
+                # Se sucesso, actualizar invoice
+                if internal_status == PaymentStatus.SUCCESS and document_id:
+                    db.execute(text("""
+                        SELECT fbo_document_invoice$sibs(:doc, (
+                            SELECT pk FROM tb_sibs
+                            WHERE transaction_id = :transaction_id
+                        ))
+                    """), {
+                        "doc": document_id,
+                        "transaction_id": transaction_id
+                    })
+
+                    # Actualizar parâmetro "Método de pagamento" automaticamente
+                    # Mapear método SIBS para pk do payment_method:
+                    # MBWAY -> pk 3, MULTIBANCO/REFERENCE -> pk 2
+                    payment_method_pk = None
+                    if payment_method:
+                        method_upper = payment_method.upper()
+                        if method_upper == "MBWAY":
+                            payment_method_pk = "3"  # MBWay
+                        elif method_upper in ("MULTIBANCO", "REFERENCE"):
+                            payment_method_pk = "2"  # Multibanco
+
+                    if payment_method_pk:
+                        # Encontrar e actualizar o parâmetro "Método de pagamento"
+                        # usando a VIEW vbf_document_param que tem triggers
+                        update_result = db.execute(text("""
+                            UPDATE vbf_document_param dp
+                            SET value = :payment_method_pk
+                            FROM tb_param p
+                            WHERE dp.tb_param = p.pk
+                              AND dp.tb_document = :document_id
+                              AND p.name = 'Método de pagamento'
+                        """), {
+                            "payment_method_pk": payment_method_pk,
+                            "document_id": document_id
+                        })
+                        logger.info(
+                            f"Parâmetro 'Método de pagamento' actualizado para {payment_method_pk} "
+                            f"(document_id={document_id}, método SIBS={payment_method})"
+                        )
 
             logger.info(
                 f"Webhook processado: {transaction_id} -> {internal_status}")
@@ -812,7 +914,8 @@ class PaymentService:
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "status": internal_status
+                "status": internal_status,
+                "document_id": document_id
             }
 
         except Exception as e:

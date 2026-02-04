@@ -22,7 +22,7 @@ const PARAM_TYPES = {
     BOOLEAN: 4
 };
 
-const ParametersStep = ({ docTypeParams, paramValues, handleParamChange }) => {
+const ParametersStep = ({ docTypeParams, paramValues, handleParamChange, isSibsPaymentCompleted = false }) => {
     const { data: metaData } = useMetaData();
 
     if (!docTypeParams || docTypeParams.length === 0) {
@@ -77,9 +77,39 @@ const ParametersStep = ({ docTypeParams, paramValues, handleParamChange }) => {
             } else if (param.name === "Método de pagamento") {
                 options = metaData?.payment_method || [];
                 label = "Método de Pagamento";
+                // Desactivar se pagamento SIBS foi concluído
+                if (options.length > 0) {
+                    const isDisabledBySibs = isSibsPaymentCompleted;
+                    return (
+                        <FormControl fullWidth disabled={isDisabledBySibs}>
+                            <InputLabel>{param.name}</InputLabel>
+                            <Select
+                                value={String(value)}
+                                onChange={(e) => handleParamChange(param.param_pk, e.target.value)}
+                                label={param.name}
+                                displayEmpty
+                                disabled={isDisabledBySibs}
+                            >
+                                <MenuItem value="">
+                                    <em>Selecione...</em>
+                                </MenuItem>
+                                {options.map((opt) => (
+                                    <MenuItem key={opt.pk} value={String(opt.pk)}>
+                                        {opt.nome || opt.value || opt.name || `Opção ${opt.pk}`}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                            {isDisabledBySibs && (
+                                <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
+                                    Definido automaticamente pelo pagamento SIBS
+                                </Typography>
+                            )}
+                        </FormControl>
+                    );
+                }
             }
 
-            // If we found a matching list
+            // If we found a matching list (for ETAR and EE)
             if (options.length > 0) {
                  return (
                     <FormControl fullWidth>

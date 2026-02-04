@@ -41,7 +41,9 @@ import { useAuth } from '../../../../../contexts/AuthContext';
 const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) => {
     const theme = useTheme();
     const [paymentDetails, setPaymentDetails] = useState(null);
-    const { reset, state } = useContext(PaymentContext);
+    const paymentContext = useContext(PaymentContext);
+    const reset = paymentContext?.reset;
+    const state = paymentContext?.state;
     const { user } = useAuth();
     const [error, setError] = useState(null);
 
@@ -107,55 +109,42 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
         }
     };
 
+    // Extrair dados de pagamento da referência (que pode ser um JSON string da SIBS)
     useEffect(() => {
-        if (hasInvoiceData && invoiceAmount.invoice_data.payment_method === 'MULTIBANCO') {
-            const fetchSibsData = async () => {
-                try {
-                    const orderId = invoiceAmount.invoice_data.order_id;
-                    const sibsData = await paymentService.getSibsData(orderId);
-                    console.log('Dados SIBS obtidos:', sibsData);
-
-                    if (sibsData && sibsData.data) {
-                        setPaymentDetails(sibsData.data);
-                    } else {
-                        // Fallback
-                        setPaymentDetails({
-                            entity: '52791',
-                            reference: invoiceAmount.invoice_data.payment_reference
-                        });
-                    }
-                } catch (error) {
-                    console.error('Erro SIBS:', error);
-                    setPaymentDetails({
-                        entity: '52791',
-                        reference: invoiceAmount.invoice_data.payment_reference
-                    });
-                }
-            };
-
-            fetchSibsData();
+        if (!hasInvoiceData || !invoiceAmount.invoice_data.payment_reference) {
+            return;
         }
-    }, [hasInvoiceData, invoiceAmount]);
 
-    // Extrair dados de pagamento da referência (que pode ser um JSON string)
-    useEffect(() => {
-        if (hasInvoiceData && invoiceAmount.invoice_data.payment_reference) {
+        const paymentRef = invoiceAmount.invoice_data.payment_reference;
+
+        // Se já é um objecto (não é string), usar directamente
+        if (typeof paymentRef === 'object' && paymentRef !== null) {
+            setPaymentDetails(paymentRef);
+            return;
+        }
+
+        // Se é uma string JSON, fazer parse
+        if (typeof paymentRef === 'string' && paymentRef.startsWith('{')) {
             try {
-                // Tenta fazer parse do JSON se for um string
-                let paymentRef = invoiceAmount.invoice_data.payment_reference;
-                if (typeof paymentRef === 'string' && paymentRef.startsWith('{')) {
-                    const parsedRef = JSON.parse(paymentRef);
-                    setPaymentDetails(parsedRef);
-                } else {
-                    // Se não for JSON, usar como está
-                    setPaymentDetails({ reference: paymentRef });
-                }
+                const parsedRef = JSON.parse(paymentRef);
+                console.log('Dados de pagamento parsed:', parsedRef);
+                setPaymentDetails(parsedRef);
             } catch (error) {
-                console.error("Erro ao processar referência de pagamento:", error);
-                setPaymentDetails({ reference: invoiceAmount.invoice_data.payment_reference });
+                console.error("Erro ao fazer parse do JSON de pagamento:", error);
+                // Fallback: mostrar como referência simples
+                setPaymentDetails({ reference: paymentRef });
             }
+            return;
         }
-    }, [invoiceAmount]);
+
+        // Se é uma string simples (referência directa), usar como está
+        setPaymentDetails({
+            paymentReference: {
+                reference: paymentRef,
+                entity: '52791'
+            }
+        });
+    }, [hasInvoiceData, invoiceAmount]);
 
     // Obter método de pagamento
     const getPaymentMethod = () => {
@@ -225,12 +214,25 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
 
     // Renderizar o conteúdo de pagamento Multibanco
     const renderMultibancoContent = () => {
-        const entity = paymentDetails?.entity || '52791';
-        const reference = paymentDetails?.payment_reference ||
-            invoiceAmount.invoice_data.payment_reference ||
+        // Extrair dados da estrutura SIBS (paymentReference é um objeto aninhado)
+        const paymentRef = paymentDetails?.paymentReference || {};
+
+        // Tentar múltiplas fontes para a entidade
+        const entity = paymentRef?.entity ||
+            paymentRef?.paymentEntity ||
+            paymentDetails?.entity ||
+            '52791';
+
+        // Tentar múltiplas fontes para a referência (número de 9 dígitos)
+        const reference = paymentRef?.reference ||
+            paymentDetails?.reference ||
             'N/D';
-        const expiryDate = paymentDetails?.expiry_date ?
-            formatDateTime(paymentDetails.expiry_date) : 'N/D';
+
+        // Tentar múltiplas fontes para a data de expiração
+        const rawExpiryDate = paymentRef?.expireDate ||
+            paymentDetails?.expiry_date ||
+            paymentDetails?.expiryDate;
+        const expiryDate = rawExpiryDate ? formatDateTime(rawExpiryDate) : 'N/D';
 
         return (
             <Box sx={{ mt: 2 }}>
@@ -355,7 +357,7 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                                     size="small"
                                     startIcon={<PaymentIcon />}
                                     onClick={() => {
-                                        reset();
+                                        reset?.();
                                         onPayment?.(document);
                                     }}
                                 >

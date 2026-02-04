@@ -1,57 +1,135 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Box, Button, TextField, Alert, CircularProgress, Typography,
-    InputAdornment, Card, CardContent, Avatar, Fade, Stepper,
-    Step, StepLabel, Paper
+    InputAdornment, Avatar, Fade, Stepper, Step, StepLabel
 } from '@mui/material';
 import {
-    PhoneAndroid, Security, Speed, CheckCircle, Send, Timer, Refresh,
-    Cancel, EmojiEvents
+    PhoneAndroid, CheckCircle, Send, Timer, EmojiEvents
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
+import { getSocket, SOCKET_EVENTS, isSocketConnected } from '@/services/websocket/socketService';
 
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
-const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
+const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
     const [localStep, setLocalStep] = useState(0);
-    const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutos em segundos
+    const [timeRemaining, setTimeRemaining] = useState(300);
     const [isExpired, setIsExpired] = useState(false);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [paymentDeclined, setPaymentDeclined] = useState(false);
+    const [webhookReceived, setWebhookReceived] = useState(false);
 
-    // Controlar polling com useRef
+    // Refs para controlo
     const pollingIntervalRef = useRef(null);
     const isPollingRef = useRef(false);
     const countdownIntervalRef = useRef(null);
     const startTimeRef = useRef(null);
+    const socketListenerRef = useRef(null);
+    const webhookReceivedRef = useRef(false);
 
-    const { mutate: payWithMBWay, isLoading: isSubmitting } = useMutation({
-        mutationFn: (phoneNumber) => paymentService.processMBWay(transactionId, phoneNumber),
-        onSuccess: (data) => {
-            setLocalStep(2); // Avança para o passo de espera
-            startControlledPolling();
-            onSuccess?.(data);
-        },
-        onError: (err) => {
-            setError(err.message || 'Erro ao processar MB WAY');
-            setLocalStep(0);
+    // 1. Limpar todos os listeners e timers (definido primeiro)
+    const cleanupListeners = useCallback(() => {
+        console.log('[MBWay] Limpando listeners e timers');
+
+        // Limpar listener de socket
+        if (socketListenerRef.current) {
+            const socket = getSocket();
+            if (socket) {
+                socket.off(SOCKET_EVENTS.PAYMENT_STATUS_UPDATE, socketListenerRef.current);
+            }
+            socketListenerRef.current = null;
         }
-    });
 
-    const { mutate: checkStatus, isLoading: isCheckingStatus } = useMutation({
+        // Limpar polling
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+        }
+        isPollingRef.current = false;
+
+        // Limpar countdown
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+        }
+    }, []);
+
+    // 2. Handler para atualização de status (usa cleanupListeners)
+    const handlePaymentStatusUpdate = useCallback((status) => {
+        console.log('[MBWay] handlePaymentStatusUpdate:', status);
+
+        if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(status)) {
+            cleanupListeners();
+
+            if (status === 'SUCCESS') {
+                setPaymentSuccess(true);
+                setLocalStep(3);
+                onSuccess?.({ payment_status: status });
+            } else if (status === 'DECLINED') {
+                setPaymentDeclined(true);
+                setError('Pagamento recusado. Por favor, verifique com o seu banco.');
+            } else if (status === 'EXPIRED') {
+                setIsExpired(true);
+                setError('Tempo de pagamento expirado. Por favor, tente novamente.');
+            }
+        }
+    }, [onSuccess, cleanupListeners]);
+
+    // 3. Iniciar listener de webhook via SocketIO (usa handlePaymentStatusUpdate)
+    const startWebhookListener = useCallback(() => {
+        if (!transactionId) {
+            console.warn('[MBWay] Sem transactionId, não pode iniciar listener');
+            return;
+        }
+
+        const socket = getSocket();
+        const connected = isSocketConnected();
+        console.log('[MBWay] Registando listener para:', transactionId, '| Socket connected:', connected);
+
+        if (!socket || !connected) {
+            console.warn('[MBWay] Socket não disponível, usando apenas polling');
+            return;
+        }
+
+        // Limpar listener anterior se existir
+        if (socketListenerRef.current) {
+            socket.off(SOCKET_EVENTS.PAYMENT_STATUS_UPDATE, socketListenerRef.current);
+        }
+
+        // Handler do evento
+        const handleWebhookEvent = (data) => {
+            console.log('[MBWay] Evento payment_status_update recebido:', data);
+
+            if (data.transaction_id === transactionId) {
+                console.log('[MBWay] Match! Status:', data.payment_status);
+                setWebhookReceived(true);
+                webhookReceivedRef.current = true;
+                handlePaymentStatusUpdate(data.payment_status);
+            } else {
+                console.log('[MBWay] Ignorado - transaction_id diferente:', data.transaction_id, '!==', transactionId);
+            }
+        };
+
+        // Registar listener
+        socket.on(SOCKET_EVENTS.PAYMENT_STATUS_UPDATE, handleWebhookEvent);
+        socketListenerRef.current = handleWebhookEvent;
+    }, [transactionId, handlePaymentStatusUpdate]);
+
+    // Mutation para verificar status
+    const { mutate: checkStatus } = useMutation({
         mutationFn: () => paymentService.checkStatus(transactionId),
         onSuccess: (data) => {
-            console.log('📊 Status recebido:', data.payment_status);
+            console.log('[MBWay] Status recebido via polling:', data.payment_status);
 
             if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(data.payment_status)) {
-                stopControlledPolling();
+                cleanupListeners();
 
                 if (data.payment_status === 'SUCCESS') {
                     setPaymentSuccess(true);
-                    setLocalStep(3); // Novo step de sucesso
+                    setLocalStep(3);
                     onSuccess?.(data);
                 } else if (data.payment_status === 'DECLINED') {
                     setPaymentDeclined(true);
@@ -63,24 +141,64 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
             }
         },
         onError: (err) => {
-            console.error('❌ Erro ao verificar status:', err);
+            console.error('[MBWay] Erro ao verificar status:', err);
         }
     });
 
+    // 4. Iniciar polling controlado (usa startWebhookListener e checkStatus)
+    const startControlledPolling = useCallback(() => {
+        if (isPollingRef.current || !transactionId) {
+            return;
+        }
+
+        console.log('[MBWay] Iniciando polling controlado para:', transactionId);
+        isPollingRef.current = true;
+        webhookReceivedRef.current = false;
+
+        // Iniciar listener de webhook (prioridade sobre polling)
+        startWebhookListener();
+
+        // Verificação imediata
+        checkStatus();
+
+        // Polling como fallback (15s interval)
+        pollingIntervalRef.current = setInterval(() => {
+            // Se já recebeu webhook, parar polling
+            if (webhookReceivedRef.current) {
+                console.log('[MBWay] Webhook já recebido, parando polling');
+                if (pollingIntervalRef.current) {
+                    clearInterval(pollingIntervalRef.current);
+                    pollingIntervalRef.current = null;
+                }
+                return;
+            }
+            console.log('[MBWay] Verificando status via polling...');
+            checkStatus();
+        }, 15000);
+    }, [transactionId, startWebhookListener, checkStatus]);
+
+    // Mutation para processar MB WAY
+    const { mutate: payWithMBWay, isLoading: isSubmitting } = useMutation({
+        mutationFn: (phoneNumber) => paymentService.processMBWay(transactionId, phoneNumber),
+        onSuccess: (data) => {
+            setLocalStep(2);
+            startControlledPolling();
+            onSuccess?.(data);
+        },
+        onError: (err) => {
+            setError(err.message || 'Erro ao processar MB WAY');
+            setLocalStep(0);
+        }
+    });
+
+    // Cleanup no unmount
     useEffect(() => {
         return () => {
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-            }
-            if (countdownIntervalRef.current) {
-                clearInterval(countdownIntervalRef.current);
-                countdownIntervalRef.current = null;
-            }
-            isPollingRef.current = false;
+            cleanupListeners();
         };
-    }, []);
+    }, [cleanupListeners]);
 
+    // Countdown timer
     useEffect(() => {
         if (localStep === 2 && !isExpired) {
             startTimeRef.current = Date.now();
@@ -95,8 +213,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                 if (remaining === 0) {
                     setIsExpired(true);
                     setError('Tempo de pagamento expirado (5 minutos).');
-                    stopControlledPolling();
-                    clearInterval(countdownIntervalRef.current);
+                    cleanupListeners();
                 }
             }, 1000);
 
@@ -106,34 +223,9 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                 }
             };
         }
-    }, [localStep, isExpired]);
+    }, [localStep, isExpired, cleanupListeners]);
 
-    const startControlledPolling = () => {
-        if (isPollingRef.current || !transactionId) {
-            return;
-        }
-
-        console.log('🔄 Iniciando polling controlado para:', transactionId);
-        isPollingRef.current = true;
-
-         // Verificação imediata
-        checkStatus();
-
-        pollingIntervalRef.current = setInterval(() => {
-            console.log('🔍 Verificando status MB WAY...');
-            checkStatus();
-        }, 15000); // 15s interval
-    };
-
-    const stopControlledPolling = () => {
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-        }
-        isPollingRef.current = false;
-        console.log('⏹️ Polling MB WAY parado');
-    };
-
+    // Formatação e validação
     const formatPhone = (value) => {
         const numbers = value.replace(/\D/g, '');
         if (numbers.length <= 3) return numbers;
@@ -145,14 +237,6 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    const handleRetry = () => {
-        setIsExpired(false);
-        setError('');
-        setLocalStep(0);
-        setTimeRemaining(300);
-        stopControlledPolling();
     };
 
     const validatePhone = (phone) => /^9\d{8}$/.test(phone.replace(/\s/g, ''));
@@ -179,8 +263,24 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
         }
 
         setError('');
-        setLocalStep(1); 
+        setLocalStep(1);
         payWithMBWay(cleanPhone);
+    };
+
+    const handleRetry = () => {
+        console.log('[MBWay] Retry solicitado');
+        setIsExpired(false);
+        setError('');
+        setLocalStep(0);
+        setTimeRemaining(300);
+        setPaymentSuccess(false);
+        setPaymentDeclined(false);
+        setWebhookReceived(false);
+        webhookReceivedRef.current = false;
+        cleanupListeners();
+
+        // Notificar o parent para criar novo checkout
+        onRetry?.();
     };
 
     return (
@@ -190,7 +290,9 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                     <PhoneAndroid sx={{ fontSize: 32 }} />
                 </Avatar>
                 <Typography variant="h5" gutterBottom>MB WAY</Typography>
-                <Typography variant="body2" color="text.secondary">Pagamento de €{Number(amount || 0).toFixed(2)}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Pagamento de €{Number(amount || 0).toFixed(2)}
+                </Typography>
             </Box>
 
             <Stepper activeStep={localStep} sx={{ mb: 4 }}>
@@ -213,7 +315,11 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                             error={!!error}
                             helperText={error || 'Exemplo: 912 345 678'}
                             InputProps={{
-                                startAdornment: <InputAdornment position="start"><Typography variant="body2" color="text.secondary">+351</Typography></InputAdornment>
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <Typography variant="body2" color="text.secondary">+351</Typography>
+                                    </InputAdornment>
+                                )
                             }}
                             sx={{ mb: 3, '& input': { fontSize: '1.1rem', fontFamily: 'monospace' } }}
                         />
@@ -247,17 +353,35 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                         {!isExpired ? (
                             <>
                                 <CheckCircle sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
-                                <Typography variant="h5" gutterBottom color="success.main">Pagamento Enviado</Typography>
-                                <Typography variant="body1" color="text.secondary">Confirme no telemóvel {phone}</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, my: 3, p: 2, bgcolor: timeRemaining < 60 ? 'error.light' : 'info.light', borderRadius: 2, color: 'white' }}>
+                                <Typography variant="h5" gutterBottom color="success.main">
+                                    Pagamento Enviado
+                                </Typography>
+                                <Typography variant="body1" color="text.secondary">
+                                    Confirme no telemóvel {phone}
+                                </Typography>
+                                <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 1,
+                                    my: 3,
+                                    p: 2,
+                                    bgcolor: timeRemaining < 60 ? 'error.light' : 'info.light',
+                                    borderRadius: 2,
+                                    color: 'white'
+                                }}>
                                     <Timer />
-                                    <Typography variant="h6" sx={{ fontFamily: 'monospace' }}>Tempo restante: {formatTime(timeRemaining)}</Typography>
+                                    <Typography variant="h6" sx={{ fontFamily: 'monospace' }}>
+                                        Tempo restante: {formatTime(timeRemaining)}
+                                    </Typography>
                                 </Box>
                             </>
                         ) : (
                             <Box sx={{ mt: 2 }}>
                                 <Typography variant="h5" color="error">Expirado</Typography>
-                                <Button variant="contained" onClick={handleRetry} sx={{ mt: 2 }}>Tentar Novamente</Button>
+                                <Button variant="contained" onClick={handleRetry} sx={{ mt: 2 }}>
+                                    Tentar Novamente
+                                </Button>
                             </Box>
                         )}
                     </Box>
@@ -268,8 +392,12 @@ const MBWayPayment = ({ onSuccess, transactionId, amount }) => {
                 <Fade in timeout={300}>
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <EmojiEvents sx={{ fontSize: 100, color: 'success.main', mb: 2 }} />
-                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'success.main' }}>Pagamento Confirmado!</Typography>
-                        <Button variant="outlined" onClick={handleRetry} startIcon={<PhoneAndroid />}>Novo Pagamento</Button>
+                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'success.main' }}>
+                            Pagamento Confirmado!
+                        </Typography>
+                        <Button variant="outlined" onClick={handleRetry} startIcon={<PhoneAndroid />}>
+                            Novo Pagamento
+                        </Button>
                     </Box>
                 </Fade>
             )}

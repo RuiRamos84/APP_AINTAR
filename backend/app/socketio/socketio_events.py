@@ -211,6 +211,44 @@ class SocketIOEvents(Namespace):
         except Exception as e:
             logger.error(f"Erro ao emitir rejeição de documento: {str(e)}")
 
+    # =========================================================================
+    # PAYMENT NOTIFICATION HANDLERS
+    # =========================================================================
+
+    def emit_payment_status_update(self, transaction_id, payment_status, payment_method=None, webhook_data=None):
+        """
+        Emite notificação de atualização de status de pagamento via webhook SIBS.
+
+        Faz broadcast para TODOS os utilizadores conectados, pois o webhook
+        não contém informação sobre qual utilizador iniciou o pagamento.
+        O frontend filtra pelo transaction_id relevante.
+        """
+        try:
+            notification_data = {
+                'type': 'payment_status_update',
+                'transaction_id': transaction_id,
+                'payment_status': payment_status,
+                'payment_method': payment_method,
+                **(webhook_data or {})
+            }
+
+            logger.info(
+                f"Emitindo payment_status_update: transaction={transaction_id}, "
+                f"status={payment_status}, method={payment_method}"
+            )
+
+            # Broadcast para todos os utilizadores conectados
+            self.socketio.emit(
+                'payment_status_update',
+                notification_data,
+                namespace='/'
+            )
+
+            logger.info(f"payment_status_update emitido com sucesso (broadcast)")
+
+        except Exception as e:
+            logger.error(f"Erro ao emitir payment_status_update: {str(e)}", exc_info=True)
+
 
 def register_socket_events(socketio):
     # Criamos uma instância da classe e a registramos no socketio

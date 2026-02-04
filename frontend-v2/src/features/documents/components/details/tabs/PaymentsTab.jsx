@@ -97,37 +97,40 @@ const PaymentsTab = ({ document }) => {
         } catch (e) { return dateString; }
     };
 
+    // Extrair dados de pagamento da referência (que pode ser um JSON string da SIBS)
     useEffect(() => {
-        if (hasInvoiceData && invoiceAmount.invoice_data.payment_method === 'MULTIBANCO') {
-            const fetchSibsData = async () => {
-                try {
-                    const orderId = invoiceAmount.invoice_data.order_id;
-                    const sibsData = await paymentService.getSibsData(orderId);
-                    if (sibsData && sibsData.data) {
-                        setPaymentDetails(sibsData.data);
-                    } else {
-                        setPaymentDetails({
-                            entity: '52791',
-                            reference: invoiceAmount.invoice_data.payment_reference
-                        });
-                    }
-                } catch (error) {
-                    setPaymentDetails({ reference: invoiceAmount.invoice_data.payment_reference });
-                }
-            };
-            fetchSibsData();
-        } else if (hasInvoiceData && invoiceAmount.invoice_data.payment_reference) {
-             try {
-                let paymentRef = invoiceAmount.invoice_data.payment_reference;
-                if (typeof paymentRef === 'string' && paymentRef.startsWith('{')) {
-                    setPaymentDetails(JSON.parse(paymentRef));
-                } else {
-                    setPaymentDetails({ reference: paymentRef });
-                }
-            } catch (error) {
-                setPaymentDetails({ reference: invoiceAmount.invoice_data.payment_reference });
-            }
+        if (!hasInvoiceData || !invoiceAmount.invoice_data.payment_reference) {
+            return;
         }
+
+        const paymentRef = invoiceAmount.invoice_data.payment_reference;
+
+        // Se já é um objecto (não é string), usar directamente
+        if (typeof paymentRef === 'object' && paymentRef !== null) {
+            setPaymentDetails(paymentRef);
+            return;
+        }
+
+        // Se é uma string JSON, fazer parse
+        if (typeof paymentRef === 'string' && paymentRef.startsWith('{')) {
+            try {
+                const parsedRef = JSON.parse(paymentRef);
+                console.log('Dados de pagamento parsed:', parsedRef);
+                setPaymentDetails(parsedRef);
+            } catch (error) {
+                console.error("Erro ao fazer parse do JSON de pagamento:", error);
+                setPaymentDetails({ reference: paymentRef });
+            }
+            return;
+        }
+
+        // Se é uma string simples (referência directa), usar como está
+        setPaymentDetails({
+            paymentReference: {
+                reference: paymentRef,
+                entity: '52791'
+            }
+        });
     }, [hasInvoiceData, invoiceAmount]);
 
     const getPaymentMethod = () => {
@@ -142,9 +145,25 @@ const PaymentsTab = ({ document }) => {
     };
 
     const renderMultibancoContent = () => {
-        const entity = paymentDetails?.entity || '52791';
-        const reference = paymentDetails?.payment_reference || invoiceAmount?.invoice_data?.payment_reference || 'N/D';
-        const expiryDate = paymentDetails?.expiry_date ? formatDateTime(paymentDetails.expiry_date) : 'N/D';
+        // Extrair dados da estrutura SIBS (paymentReference é um objeto aninhado)
+        const paymentRef = paymentDetails?.paymentReference || {};
+
+        // Tentar múltiplas fontes para a entidade
+        const entity = paymentRef?.entity ||
+            paymentRef?.paymentEntity ||
+            paymentDetails?.entity ||
+            '52791';
+
+        // Tentar múltiplas fontes para a referência (número de 9 dígitos)
+        const reference = paymentRef?.reference ||
+            paymentDetails?.reference ||
+            'N/D';
+
+        // Tentar múltiplas fontes para a data de expiração
+        const rawExpiryDate = paymentRef?.expireDate ||
+            paymentDetails?.expiry_date ||
+            paymentDetails?.expiryDate;
+        const expiryDate = rawExpiryDate ? formatDateTime(rawExpiryDate) : 'N/D';
 
         return (
             <Box sx={{ mt: 2 }}>

@@ -68,9 +68,14 @@ const ParametersStep = ({
     //     });
     // }, [metaData]);
 
-    // Função para verificar se é parâmetro booleano
+    // Função para verificar se é parâmetro booleano (por nome - fallback)
     const isBooleanParam = (paramName) => {
         const booleanParams = [
+            'Gratuito',
+            'Urgência',
+            'Existência de saneamento até 20 m',
+            'Existência de sanemanto até 20 m',
+            'Existência de rede de água',
             'Existe pavimento',
             'Existe rede de águas',
             'Existe rede de esgotos',
