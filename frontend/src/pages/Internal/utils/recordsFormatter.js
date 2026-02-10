@@ -22,6 +22,35 @@ export const formatDate = (dateString) => {
         return dateString;
     }
 };
+export const formatDateTime = (dateString) => {
+    if (!dateString) return null;
+
+    try {
+        // Converte a string do backend para Date
+        const date = new Date(dateString);
+
+        // Verifica se é válido
+        if (isNaN(date.getTime())) {
+            console.warn('Data inválida:', dateString);
+            return dateString;
+        }
+
+        // Extrai dia, mês, ano
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+
+        // Extrai hora e minutos
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        // Retorna no formato dd/MM/yyyy HH:mm
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return dateString;
+    }
+};
 
 export const formatCurrency = (value) => {
     if (!value && value !== 0) return "-";
@@ -42,3 +71,12 @@ export const formatNumber = (value, decimals = 2) => {
         maximumFractionDigits: decimals,
     });
   };
+  // Função para printar um registro de inventário
+export const printInventoryRecord = (record) => {
+  if (!record || typeof record !== "object") {
+    console.error("Registro inválido:", record);
+    return;
+  }
+
+ 
+};
