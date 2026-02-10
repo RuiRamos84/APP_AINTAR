@@ -17,6 +17,6 @@ from .permissions_routes import bp as permissions_bp
 from .analysis_routes import bp as analysis_bp
 from .operation_metadata_routes import bp as operation_metadata_bp
 from .telemetry_routes import bp as telemetry_bp
+from .inventory_routes import bp as inventory_bp
 
-
-__all__ = ['auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp', 'dashboard_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp', 'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp', 'analysis_bp', 'operation_metadata_bp', 'telemetry_bp']
+__all__ = ['auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp', 'dashboard_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp', 'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp', 'analysis_bp', 'operation_metadata_bp', 'telemetry_bp', 'inventory_bp']

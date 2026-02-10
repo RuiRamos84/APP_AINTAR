@@ -14,7 +14,7 @@ export function useRecords(recordType) {
     const [submitting, setSubmitting] = useState(false);
 
     const fetchRecords = async () => {
-        if (!selectedEntity && !["rede", "ramal", "manutencao", "equip"].includes(getTypeByArea(selectedArea))) return;
+        if (recordType !== "inventario" && !selectedEntity && !["rede", "ramal", "manutencao", "equip"].includes(getTypeByArea(selectedArea))) return;
 
         dispatch({ type: "FETCH_START" });
         try {
@@ -52,7 +52,17 @@ export function useRecords(recordType) {
                     response = await InternalService.getIncumprimentoRecords(selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.incumprimentos || [] });
                     break;
-
+                case "inventario":
+                    try {
+                        response = await InternalService.getInventoryRecordsInstalation();
+                     // pegar o array correto
+                        const recordsArray = response.inventory || [];
+                        dispatch({ type: "FETCH_SUCCESS", payload: recordsArray });
+                    } catch (error) {
+                        console.error("Erro ao buscar inventário:", error);
+                        dispatch({ type: "FETCH_ERROR", payload: error.message });
+                    }
+                    break;
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
@@ -61,6 +71,7 @@ export function useRecords(recordType) {
             handleApiError(error, `Erro ao carregar registos de ${recordType}`);
         }
     };
+
 
     const addRecord = async (data) => {
         try {
@@ -112,6 +123,9 @@ export function useRecords(recordType) {
                 case "incumprimentos":
                     await InternalService.addIncumprimentoRecord(data);
                     break;
+                case "inventario":
+                    await InternalService.addInventoryRecord(data);
+                    break;
 
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
@@ -127,6 +141,35 @@ export function useRecords(recordType) {
             setSubmitting(false);
         }
     };
+    const updateRecord = async (id, data) => {
+        try {
+            setSubmitting(true);
+
+            
+            
+
+            // Chamar API de update adequada
+            switch (recordType) {
+            
+
+                case "inventario":
+                    await InternalService.updateInventoryRecord(id, data);
+                    break;
+
+                default:
+                    throw new Error(`Tipo de registo inválido: ${recordType}`);
+            }
+
+            notifySuccess(`Registo de ${getRecordTypeName(recordType)} atualizado com sucesso`);
+            await fetchRecords();
+            return true;
+        } catch (error) {
+            handleApiError(error, `Erro ao atualizar registo de ${getRecordTypeName(recordType)}`);
+            return false;
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const getTypeByArea = (area) => {
         switch (area) {
@@ -136,6 +179,9 @@ export function useRecords(recordType) {
             case 4: return "ramal";
             case 5: return "manutencao";
             case 6: return "equip";
+            case 8: return "inventario";
+            
+            
             default: return "";
         }
     };
@@ -147,6 +193,7 @@ export function useRecords(recordType) {
             case "energy": return "energia";
             case "expense": return "despesa";
             case "incumprimentos": return "incumprimento";
+            case "inventario": return "inventario";
             default: return type;
         }
     };
@@ -163,6 +210,7 @@ export function useRecords(recordType) {
         newRecord,
         setNewRecord,
         addRecord,
-        fetchRecords
+        fetchRecords,
+        updateRecord
     };
 }

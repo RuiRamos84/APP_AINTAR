@@ -13,6 +13,13 @@ export const getInstallationVolumeRecords = async (tbInstalacao) => {
         throw error;
     }
 };
+export const getInventoryRecordsInstalation = async()=>{
+   
+        const response = await api.get("/inventory_list");
+        return response.data;
+    }
+    
+
 
 export const addInstallationVolumeRecord = async (data) => {
     try {
@@ -211,6 +218,24 @@ export const updateEntityDetails = async (areaId, pk, data) => {
         throw error;
     }
 };
+export const updateInventoryRecord = async (pk, data) => {
+    try {
+        if (!pk) throw new Error("PK do inventário inválido.");
+        if (!data || Object.keys(data).length === 0) {
+            throw new Error("Dados inválidos para atualização.");
+        }
+
+        // ================= PUT (UPDATE) =================
+        const response = await api.put(`/inventory_update/${pk}`, data);
+
+        console.log(`Registro com pk=${pk} atualizado com sucesso.`);
+        return response.data; // resposta da API
+
+    } catch (error) {
+        console.error("Erro ao atualizar inventário:", error);
+        throw error;
+    }
+};
 
 export const addMaintenance = async (type, pk) => {
     try {
@@ -227,6 +252,17 @@ export const addMaintenance = async (type, pk) => {
         throw error;
     }
 };
+//FUNCAO QUE ADICIONA INVENTARIO ATRAV´S DE API
+
+export const addInventoryRecord = async (data) => {
+    try {
+        const response = await api.post("/inventory_create", data);
+        return response.data; // dados retornados pela API
+    } catch (error) {
+        console.error("Erro ao adicionar inventário:", error);
+        throw error; // relança o erro para ser tratado quem chamou
+    }
+}
 
 export const createInternalRequest = async (data, requestType) => {
     try {
