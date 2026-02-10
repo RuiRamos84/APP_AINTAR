@@ -21,7 +21,9 @@
       "Bash(npx eslint:*)",
       "Bash(npx prettier:*)",
       "Bash(npx vite:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(nslookup:*)",
+      "Bash(Test-NetConnection -ComputerName 83.240.148.114 -Port 443)"
     ],
     "deny": [],
     "ask": []

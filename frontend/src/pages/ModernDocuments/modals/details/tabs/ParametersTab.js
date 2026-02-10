@@ -486,20 +486,20 @@ const renderParamInput = (param, handleParamChange, options = {}) => {
         }
 
         if (param.name === "Método de pagamento" && metaData?.payment_method) {
-            const isDisabledBySibs = options.isSibsPaymentCompleted || false;
+            // Campo sempre desactivado - gerido pelo módulo de pagamentos
+            const selectedMethod = metaData.payment_method.find(m => String(m.pk) === String(param.value));
             return (
-                <FormControl fullWidth disabled={isDisabledBySibs}>
+                <FormControl fullWidth disabled>
                     <InputLabel>Método de Pagamento</InputLabel>
                     <Select
                         value={param.value || ""}
-                        onChange={(e) => handleParamChange(param.pk, "value", e.target.value)}
                         label="Método de Pagamento"
                         size="medium"
                         displayEmpty
-                        disabled={isDisabledBySibs}
+                        disabled
                     >
                         <MenuItem value="">
-                            <em>Selecione um método</em>
+                            <em>Não definido</em>
                         </MenuItem>
                         {metaData.payment_method.map((method) => (
                             <MenuItem key={method.pk} value={String(method.pk)}>
@@ -507,16 +507,12 @@ const renderParamInput = (param, handleParamChange, options = {}) => {
                             </MenuItem>
                         ))}
                     </Select>
-                    {isDisabledBySibs && (
-                        <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
-                            Definido automaticamente pelo pagamento SIBS
-                        </Typography>
-                    )}
-                    {!isDisabledBySibs && param.value && getSelectedName && (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                            Selecionado: {getSelectedName(param.name, param.value)}
-                        </Typography>
-                    )}
+                    <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
+                        {param.value
+                            ? `Definido pelo módulo de pagamentos: ${selectedMethod?.value || param.value}`
+                            : "Gerido pelo módulo de pagamentos"
+                        }
+                    </Typography>
                 </FormControl>
             );
         }

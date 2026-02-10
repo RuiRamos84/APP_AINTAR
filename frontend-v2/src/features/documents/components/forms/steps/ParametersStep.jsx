@@ -77,21 +77,20 @@ const ParametersStep = ({ docTypeParams, paramValues, handleParamChange, isSibsP
             } else if (param.name === "Método de pagamento") {
                 options = metaData?.payment_method || [];
                 label = "Método de Pagamento";
-                // Desactivar se pagamento SIBS foi concluído
+                // Campo sempre desactivado - gerido pelo módulo de pagamentos
                 if (options.length > 0) {
-                    const isDisabledBySibs = isSibsPaymentCompleted;
+                    const selectedMethod = options.find(m => String(m.pk) === String(value));
                     return (
-                        <FormControl fullWidth disabled={isDisabledBySibs}>
+                        <FormControl fullWidth disabled>
                             <InputLabel>{param.name}</InputLabel>
                             <Select
                                 value={String(value)}
-                                onChange={(e) => handleParamChange(param.param_pk, e.target.value)}
                                 label={param.name}
                                 displayEmpty
-                                disabled={isDisabledBySibs}
+                                disabled
                             >
                                 <MenuItem value="">
-                                    <em>Selecione...</em>
+                                    <em>Não definido</em>
                                 </MenuItem>
                                 {options.map((opt) => (
                                     <MenuItem key={opt.pk} value={String(opt.pk)}>
@@ -99,11 +98,12 @@ const ParametersStep = ({ docTypeParams, paramValues, handleParamChange, isSibsP
                                     </MenuItem>
                                 ))}
                             </Select>
-                            {isDisabledBySibs && (
-                                <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
-                                    Definido automaticamente pelo pagamento SIBS
-                                </Typography>
-                            )}
+                            <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
+                                {value
+                                    ? `Definido pelo módulo de pagamentos: ${selectedMethod?.value || selectedMethod?.nome || value}`
+                                    : "Gerido pelo módulo de pagamentos"
+                                }
+                            </Typography>
                         </FormControl>
                     );
                 }

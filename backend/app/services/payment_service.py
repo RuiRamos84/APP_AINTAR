@@ -84,6 +84,43 @@ class PaymentService:
         for k in expired:
             del self.checkout_cache[k]
 
+    def _map_payment_method_to_param(self, payment_method: str) -> str:
+        """
+        Mapear método de pagamento para pk do parâmetro 'Método de pagamento'.
+
+        Mapeamentos:
+        - Dinheiro -> pk 1
+        - Multibanco/Reference -> pk 2
+        - MBWay -> pk 3
+        - Transferência Bancária -> pk 4
+        - Pagamento Município -> pk 5
+        """
+        if not payment_method:
+            return None
+
+        method_upper = payment_method.upper()
+
+        # Mapeamento de métodos SIBS e manuais (português e inglês)
+        mapping = {
+            # SIBS methods
+            "MBWAY": "3",
+            "MULTIBANCO": "2",
+            "REFERENCE": "2",
+            # Manual payment methods
+            "DINHEIRO": "1",
+            "CASH": "1",
+            "TRANSFERENCIA": "4",
+            "TRANSFERÊNCIA": "4",
+            "TRANSFER": "4",
+            "BANK_TRANSFER": "4",
+            "MUNICIPIO": "5",
+            "MUNICÍPIO": "5",
+            "PAG_MUNICIPIO": "5",
+            "MUNICIPALITY": "5",
+        }
+
+        return mapping.get(method_upper)
+
     def get_invoice_data(self, document_id, current_user):
         """
         Obtém os dados da fatura de um documento.
@@ -458,10 +495,29 @@ class PaymentService:
 
                 # Actualizar tb_document_invoice
                 db.execute(text("""
-                    UPDATE tb_document_invoice 
-                    SET tb_sibs = :sibs_pk 
+                    UPDATE tb_document_invoice
+                    SET tb_sibs = :sibs_pk
                     WHERE tb_document = :document_id
                 """), {"sibs_pk": sibs_pk, "document_id": document_id})
+
+                # Actualizar parâmetro "Método de pagamento" automaticamente
+                payment_method_pk = self._map_payment_method_to_param(payment_data.payment_type)
+                if payment_method_pk:
+                    db.execute(text("""
+                        UPDATE vbf_document_param dp
+                        SET value = :payment_method_pk
+                        FROM tb_param p
+                        WHERE dp.tb_param = p.pk
+                          AND dp.tb_document = :document_id
+                          AND p.name = 'Método de pagamento'
+                    """), {
+                        "payment_method_pk": payment_method_pk,
+                        "document_id": document_id
+                    })
+                    logger.info(
+                        f"Parâmetro 'Método de pagamento' actualizado para {payment_method_pk} "
+                        f"(document_id={document_id}, método={payment_data.payment_type})"
+                    )
 
                 # Commit explícito
                 db.commit()
@@ -630,18 +686,43 @@ class PaymentService:
                     "payment_pk": payment_pk
                 })
 
-                # Obter document_id e actualizar invoice
-                document_id = db.execute(text("""
-                    SELECT di.tb_document
+                # Obter document_id, payment_method e actualizar invoice
+                payment_info = db.execute(text("""
+                    SELECT di.tb_document, s.payment_method
                     FROM tb_sibs s
                     JOIN tb_document_invoice di ON di.tb_sibs = s.pk
                     WHERE s.pk = :payment_pk
-                """), {"payment_pk": payment_pk}).scalar()
+                """), {"payment_pk": payment_pk}).fetchone()
+
+                document_id = payment_info[0] if payment_info else None
+                payment_method = payment_info[1] if payment_info else None
 
                 if document_id:
                     db.execute(text("""
                         SELECT fbo_document_invoice$sibs(:doc, :pk)
                     """), {"doc": document_id, "pk": payment_pk})
+
+                    # Actualizar parâmetro "Método de pagamento" automaticamente
+                    # Mapear método de pagamento para pk do payment_method:
+                    # Dinheiro -> 1, Multibanco -> 2, MBWay -> 3, Transferência -> 4, Pag. Município -> 5
+                    payment_method_pk = self._map_payment_method_to_param(payment_method)
+
+                    if payment_method_pk:
+                        db.execute(text("""
+                            UPDATE vbf_document_param dp
+                            SET value = :payment_method_pk
+                            FROM tb_param p
+                            WHERE dp.tb_param = p.pk
+                              AND dp.tb_document = :document_id
+                              AND p.name = 'Método de pagamento'
+                        """), {
+                            "payment_method_pk": payment_method_pk,
+                            "document_id": document_id
+                        })
+                        logger.info(
+                            f"Parâmetro 'Método de pagamento' actualizado para {payment_method_pk} "
+                            f"(document_id={document_id}, método={payment_method})"
+                        )
 
             return {"success": True, "message": "Pagamento aprovado"}
 
@@ -879,15 +960,7 @@ class PaymentService:
                     })
 
                     # Actualizar parâmetro "Método de pagamento" automaticamente
-                    # Mapear método SIBS para pk do payment_method:
-                    # MBWAY -> pk 3, MULTIBANCO/REFERENCE -> pk 2
-                    payment_method_pk = None
-                    if payment_method:
-                        method_upper = payment_method.upper()
-                        if method_upper == "MBWAY":
-                            payment_method_pk = "3"  # MBWay
-                        elif method_upper in ("MULTIBANCO", "REFERENCE"):
-                            payment_method_pk = "2"  # Multibanco
+                    payment_method_pk = self._map_payment_method_to_param(payment_method)
 
                     if payment_method_pk:
                         # Encontrar e actualizar o parâmetro "Método de pagamento"

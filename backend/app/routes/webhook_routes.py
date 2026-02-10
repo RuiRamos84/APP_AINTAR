@@ -113,13 +113,16 @@ def sibs_webhook_test():
         return jsonify({"error": str(e)}), 500
 
 
-@webhook_bp.route('/webhook/sibs', methods=['POST'])
+@webhook_bp.route('/webhook/sibs', methods=['GET', 'POST'])
 @api_error_handler
 def sibs_webhook():
     """
     Endpoint para receber notificações webhook da SIBS.
 
-    Fluxo:
+    GET: Validação do endpoint (SIBS verifica se URL está acessível)
+    POST: Receber notificações de pagamento
+
+    Fluxo POST:
     1. Receber payload encriptado (Base64)
     2. Obter IV e Auth Tag dos headers
     3. Desencriptar com AES-GCM
@@ -127,7 +130,18 @@ def sibs_webhook():
     5. Notificar frontend via SocketIO
     6. Responder com acknowledgment conforme documentação SIBS
     """
+    # GET - Validação do webhook pela SIBS
+    if request.method == 'GET':
+        logger.info(f"[WEBHOOK] Validação GET recebida de {request.remote_addr}")
+        return jsonify({
+            "statusCode": "200",
+            "statusMsg": "Webhook endpoint active"
+        }), 200
+
     notification_id = None
+
+    # DEBUG TEMPORÁRIO - Log para confirmar que webhook chegou
+    logger.warning(f"[WEBHOOK DEBUG] Request recebido de {request.remote_addr}")
 
     try:
         # 1. Obter headers de autenticação
