@@ -27,7 +27,10 @@
       "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\components\\\\TabelaSoParaInventario.js\")",
       "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\components\\\\RecordFormParaInventario.js\")",
       "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\components\\\\InventaryTable.js\")",
-      "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\views\\\\InventarioViews.js\")"
+      "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\views\\\\InventarioViews.js\")",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
