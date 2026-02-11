@@ -30,7 +30,9 @@
       "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\views\\\\InventarioViews.js\")",
       "Bash(git rm:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
