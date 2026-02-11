@@ -89,6 +89,5 @@ dist/
 .env.*.local
 
 # Local development specific
-~/.pyenv
-~/.vscode
-~/.idea
+.claude/
+~
