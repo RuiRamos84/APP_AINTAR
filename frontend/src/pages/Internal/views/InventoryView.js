@@ -1,16 +1,16 @@
 import React from "react";
 import { Box } from "@mui/material";
 import { useMetaData } from "../../../contexts/MetaDataContext";
-import InventaryTable from "../components/InventaryTable";
+import InventoryTable from "../components/InventoryTable";
 
-const InventaryView = () => {
+const InventoryView = () => {
     const { metaData } = useMetaData();
 
     return (
         <Box>
-            <InventaryTable metaData={metaData} />
+            <InventoryTable metaData={metaData} />
         </Box>
     );
 };
 
-export default InventaryView;
+export default InventoryView;

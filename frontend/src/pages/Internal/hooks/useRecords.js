@@ -53,15 +53,8 @@ export function useRecords(recordType) {
                     dispatch({ type: "FETCH_SUCCESS", payload: response.incumprimentos || [] });
                     break;
                 case "inventario":
-                    try {
-                        response = await InternalService.getInventoryRecordsInstalation();
-                     // pegar o array correto
-                        const recordsArray = response.inventory || [];
-                        dispatch({ type: "FETCH_SUCCESS", payload: recordsArray });
-                    } catch (error) {
-                        console.error("Erro ao buscar inventário:", error);
-                        dispatch({ type: "FETCH_ERROR", payload: error.message });
-                    }
+                    response = await InternalService.getInventoryRecords();
+                    dispatch({ type: "FETCH_SUCCESS", payload: response.inventory || [] });
                     break;
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
@@ -145,13 +138,7 @@ export function useRecords(recordType) {
         try {
             setSubmitting(true);
 
-            
-            
-
-            // Chamar API de update adequada
             switch (recordType) {
-            
-
                 case "inventario":
                     await InternalService.updateInventoryRecord(id, data);
                     break;
@@ -180,8 +167,6 @@ export function useRecords(recordType) {
             case 5: return "manutencao";
             case 6: return "equip";
             case 8: return "inventario";
-            
-            
             default: return "";
         }
     };
@@ -193,7 +178,7 @@ export function useRecords(recordType) {
             case "energy": return "energia";
             case "expense": return "despesa";
             case "incumprimentos": return "incumprimento";
-            case "inventario": return "inventario";
+            case "inventario": return "inventário";
             default: return type;
         }
     };

@@ -23,7 +23,11 @@
       "Bash(npx vite:*)",
       "Bash(grep:*)",
       "Bash(nslookup:*)",
-      "Bash(Test-NetConnection -ComputerName 83.240.148.114 -Port 443)"
+      "Bash(Test-NetConnection -ComputerName 83.240.148.114 -Port 443)",
+      "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\components\\\\TabelaSoParaInventario.js\")",
+      "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\components\\\\RecordFormParaInventario.js\")",
+      "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\components\\\\InventaryTable.js\")",
+      "Bash(del \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend\\\\src\\\\pages\\\\Internal\\\\views\\\\InventarioViews.js\")"
     ],
     "deny": [],
     "ask": []

@@ -14,7 +14,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import BuildIcon from '@mui/icons-material/Build';
 import HandymanIcon from '@mui/icons-material/Handyman';
 import DescriptionIcon from '@mui/icons-material/Description';
-import InventarioView from "./views/InventarioViews";
+import InventarioView from "./views/InventoryView";
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 
 

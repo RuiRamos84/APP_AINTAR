@@ -71,12 +71,3 @@ export const formatNumber = (value, decimals = 2) => {
         maximumFractionDigits: decimals,
     });
   };
-  // Função para printar um registro de inventário
-export const printInventoryRecord = (record) => {
-  if (!record || typeof record !== "object") {
-    console.error("Registro inválido:", record);
-    return;
-  }
-
- 
-};

@@ -2,6 +2,7 @@
 import eventlet
 eventlet.monkey_patch()
 import logging
+from logging.handlers import RotatingFileHandler
 
 # Configuração de logging - mostra todos os requests
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +22,11 @@ from datetime import datetime
 def setup_logger():
     logger = logging.getLogger('socketio')  # Mudei para um nome único
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler('flask-socketio.log')
+    handler = RotatingFileHandler(
+        'flask-socketio.log',
+        maxBytes=10*1024*1024,  # 10MB por ficheiro
+        backupCount=5           # Mantém 5 ficheiros antigos
+    )
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -41,7 +46,7 @@ class CustomLogger(object):
         def custom_start_response(status, headers, exc_info=None):
             duration = datetime.now() - start_time
             self.logger.info(
-                f'{start_time.strftime("%Y-%m-%d %H:%M:%S")} - {environ["REMOTE_ADDR"]} - {status} - {environ["REQUEST_METHOD"]} {environ["PATH_INFO"]} - {duration.total_seconds():.3f}s')
+                f'{environ["REMOTE_ADDR"]} - {status} - {environ["REQUEST_METHOD"]} {environ["PATH_INFO"]} - {duration.total_seconds():.3f}s')
             return start_response(status, headers, exc_info)
 
         return self.app(environ, custom_start_response)

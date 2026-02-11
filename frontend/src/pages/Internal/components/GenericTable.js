@@ -66,13 +66,18 @@ const GenericTable = ({
                                 ) : (
                                     records.map((record, index) => (
                                         <TableRow key={index} hover>
-                                            {columns.map((column) => (
-                                                <TableCell key={`${index}-${column.id}`}>
-                                                    {formatters[column.id]
-                                                        ? formatters[column.id](record[column.field])
-                                                        : record[column.field] || "-"}
-                                                </TableCell>
-                                            ))}
+                                            {columns.map((column) => {
+                                                const formatter = formatters[column.field] || formatters[column.id];
+                                                return (
+                                                    <TableCell key={`${index}-${column.id}`}>
+                                                        {column.render
+                                                            ? column.render(record)
+                                                            : formatter
+                                                                ? formatter(record[column.field])
+                                                                : record[column.field] ?? "-"}
+                                                    </TableCell>
+                                                );
+                                            })}
                                         </TableRow>
                                     ))
                                 )}
