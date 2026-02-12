@@ -8,9 +8,16 @@ import {
     Chip,
     useTheme,
     Collapse,
-    Button,
     IconButton,
-    LinearProgress
+    Stepper,
+    Step,
+    StepLabel,
+    Popover,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Alert
 } from '@mui/material';
 import {
     ExpandMore,
@@ -18,7 +25,9 @@ import {
     CheckCircle as CheckCircleIcon,
     RadioButtonChecked as CurrentIcon,
     CircleOutlined as PendingIcon,
-    AccountTree as WorkflowIcon
+    AccountTree as WorkflowIcon,
+    ArrowForward as ArrowForwardIcon,
+    Info as InfoIcon
 } from '@mui/icons-material';
 import { documentsService } from '../../../api/documentsService';
 
@@ -34,7 +43,7 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
     const theme = useTheme();
     const [workflowData, setWorkflowData] = useState(null);
     const [loadingWorkflow, setLoadingWorkflow] = useState(false);
-    const [expandedWorkflow, setExpandedWorkflow] = useState(true);
+    const [expandedWorkflow, setExpandedWorkflow] = useState(false);
     const [expandedNodes, setExpandedNodes] = useState(new Set());
 
     // Função para encontrar o PK do tipo de documento
@@ -42,14 +51,10 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
         if (!ttType || !metaData?.types) return null;
 
         const typeData = metaData.types.find(type =>
-            type.tt_doctype_value === ttType || type.pk === ttType // Handle both value and PK if needed
+            type.tt_doctype_value === ttType
         );
 
-        // Se ttType já for numero, pode ser o PK ou o code? 
-        // Legacy usava tt_doctype_code, mas `get_document_workflow` costuma pedir PK.
-        // Vamos assumir PK primeiro, ou fallback para code.
-        // Legacy: return typeData?.tt_doctype_code || null;
-        return typeData?.pk || typeData?.tt_doctype_code || null; 
+        return typeData?.tt_doctype_code || null;
     };
 
     // Buscar o workflow completo
@@ -59,20 +64,15 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
                 return;
             }
 
-            console.log('WorkflowViewer - Fetching for tt_type:', document.tt_type);
-            // Converter tt_type (string) para pk (number)
             const doctypePk = getDocumentTypePk(document.tt_type);
-            console.log('WorkflowViewer - Resolved doctypePk:', doctypePk);
 
             if (!doctypePk) {
-                console.warn('Não foi possível encontrar PK para tt_type:', document.tt_type);
                 return;
             }
 
             setLoadingWorkflow(true);
             try {
                 const workflow = await documentsService.getDocumentWorkflow(doctypePk);
-                console.log('WorkflowViewer - Fetched workflow:', workflow);
                 setWorkflowData(workflow);
 
                 // Callback para partilhar workflow com HistoryTab
@@ -101,29 +101,57 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
         fetchWorkflow();
     }, [document?.tt_type, metaData?.types]);
 
+    // Resolver o nome/PK de um passo executado usando metadados
+    const resolveStepIdentifiers = (execWhat) => {
+        if (!execWhat) return { name: null, pk: null };
+
+        // Se é número, é um PK
+        const numVal = typeof execWhat === 'string' ? parseInt(execWhat, 10) : execWhat;
+
+        if (metaData?.what) {
+            // Procurar por PK
+            const byPk = metaData.what.find(m => m.pk === numVal || m.pk === execWhat);
+            if (byPk) return { name: byPk.step || byPk.name, pk: byPk.pk };
+
+            // Procurar por nome
+            const byName = metaData.what.find(m =>
+                m.step === execWhat || m.name === execWhat ||
+                m.step?.toUpperCase() === String(execWhat).toUpperCase()
+            );
+            if (byName) return { name: byName.step || byName.name, pk: byName.pk };
+        }
+
+        return { name: String(execWhat), pk: isNaN(numVal) ? null : numVal };
+    };
+
     // Mapear passos executados para o workflow
     const mapExecutedSteps = (workflowHierarchy, executedSteps) => {
         if (!workflowHierarchy || !executedSteps) return workflowHierarchy;
 
+        // Pré-resolver todos os passos executados
+        const resolvedExecSteps = executedSteps.map(exec => ({
+            ...exec,
+            _resolved: resolveStepIdentifiers(exec.what)
+        }));
+
         return workflowHierarchy.map(step => {
-            // Tentar várias formas de correspondência
-            const executed = executedSteps.find(exec => {
-                // Correspondência por nome
+            const executed = resolvedExecSteps.find(exec => {
+                // Correspondência por PK (mais fiável)
+                if (exec._resolved.pk != null && exec._resolved.pk === step.step_id) return true;
+                if (exec.what_pk != null && exec.what_pk === step.step_id) return true;
+
+                // Correspondência por nome exacto
                 if (exec.what === step.step_name) return true;
+                if (exec._resolved.name === step.step_name) return true;
 
-                // Correspondência por ID se disponível
-                if (exec.what_pk === step.step_id) return true;
+                // Correspondência normalizada (case-insensitive, trim)
+                const execName = (exec._resolved.name || String(exec.what)).toUpperCase().trim();
+                const stepName = (step.step_name || '').toUpperCase().trim();
+                if (execName && stepName && execName === stepName) return true;
 
-                // Correspondência normalizada
-                if (exec.what?.toUpperCase() === step.step_name?.toUpperCase()) return true;
-
-                // Buscar nos metadados
-                if (metaData?.what) {
-                    const metaStep = metaData.what.find(meta =>
-                        meta.step === exec.what || meta.pk === exec.what
-                    );
-                    if (metaStep && metaStep.pk === step.step_id) return true;
-                }
+                // Correspondência parcial (contém)
+                if (execName && stepName && stepName.length > 3 &&
+                    (execName.includes(stepName) || stepName.includes(execName))) return true;
 
                 return false;
             });
@@ -133,8 +161,8 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
                 executed: !!executed,
                 executedAt: executed?.when_start,
                 executedBy: executed?.who,
-                memo: executed?.memo || step.memo, // Priorizar memo do executed, depois do workflow
-                workflowMemo: step.memo, // Manter memo original do workflow
+                memo: executed?.memo || step.memo,
+                workflowMemo: step.memo,
                 executedStep: executed
             };
         });
@@ -283,64 +311,61 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
                         } : {}
                     }}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        {/* Ícone de expansão */}
-                        <Box sx={{ width: 24, display: 'flex', justifyContent: 'center' }}>
-                            {hasChildren ? (
-                                <IconButton size="small" sx={{ p: 0 }}>
-                                    {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                                </IconButton>
-                            ) : (
-                                <Box sx={{ width: 20 }} />
-                            )}
-                        </Box>
-
-                        {/* Ícone de status */}
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {getStatusIcon()}
-                        </Box>
-
-                        {/* Conteúdo principal */}
-                        <Box sx={{ flex: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        fontWeight: document?.what === node.step_id ? 'bold' : 'medium',
-                                        color: colors.text,
-                                        fontSize: '0.9rem'
-                                    }}
-                                >
-                                    {node.level}. {node.step_name}
-                                </Typography>
-
-                                {/* Chips de status */}
-                                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                    {node.executed && (
-                                        <Chip label="Executado" size="small" color="success" sx={{ height: 18, fontSize: '0.65rem' }} />
-                                    )}
-                                    {document?.what === node.step_id && (
-                                        <Chip label="Atual" size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
-                                    )}
-                                </Box>
-                            </Box>
-
-                            {/* Informações adicionais - Simplificadas */}
-                            <Box sx={{ mt: 0.5, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                                 {node.executed && node.executedAt && (
-                                    <Typography variant="caption" color="success.main" sx={{ fontWeight: 500 }}>
-                                        {new Date(node.executedAt.replace(' às ', ' ')).toLocaleDateString('pt-PT')}
-                                    </Typography>
+                    <Box>
+                        {/* Linha principal: expansão + status + nome + chips + data */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {/* Ícone de expansão */}
+                            <Box sx={{ width: 24, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                                {hasChildren ? (
+                                    <IconButton size="small" sx={{ p: 0 }}>
+                                        {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                    </IconButton>
+                                ) : (
+                                    <Box sx={{ width: 20 }} />
                                 )}
                             </Box>
 
-                             {/* Memo Obs */}
-                             {node.memo && (
-                                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5, fontStyle: 'italic' }}>
-                                    Obs: {node.memo}
+                            {/* Ícone de status */}
+                            {getStatusIcon()}
+
+                            {/* Nome do passo */}
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    fontWeight: document?.what === node.step_id ? 'bold' : 'medium',
+                                    color: colors.text,
+                                    fontSize: '0.85rem',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                {node.level}. {node.step_name}
+                            </Typography>
+
+                            {/* Chips de status */}
+                            {node.executed && (
+                                <Chip label="Executado" size="small" color="success" sx={{ height: 18, fontSize: '0.65rem' }} />
+                            )}
+                            {document?.what === node.step_id && (
+                                <Chip label="Atual" size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
+                            )}
+
+                            {/* Espaçador */}
+                            <Box sx={{ flex: 1 }} />
+
+                            {/* Data à direita */}
+                            {node.executed && node.executedAt && (
+                                <Typography variant="caption" color="success.main" sx={{ fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                    {new Date(node.executedAt.replace(' às ', ' ')).toLocaleDateString('pt-PT')}
                                 </Typography>
                             )}
                         </Box>
+
+                        {/* Memo/Observação - abaixo, só quando existe */}
+                        {node.memo && (
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5, ml: 7, fontStyle: 'italic' }}>
+                                Obs: {node.memo}
+                            </Typography>
+                        )}
                     </Box>
                 </Paper>
 
@@ -366,23 +391,55 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
         );
     };
 
-    // Calcular estatísticas
-    const getWorkflowStats = () => {
-        if (!workflowData?.hierarchy) return null;
+    // Construir timeline linear: executados + atual + próximos
+    const getWorkflowTimeline = () => {
+        if (!workflowData?.hierarchy || !mappedWorkflow) return null;
 
-        const totalSteps = workflowData.hierarchy.length;
-        const executedSteps = workflowData.hierarchy.filter(step =>
-            mappedWorkflow?.find(mapped => mapped.step_id === step.step_id && mapped.executed)
-        ).length;
-        const progressPercentage = totalSteps > 0 ? (executedSteps / totalSteps) * 100 : 0;
+        // Passos executados (ordenados por data)
+        const executedList = mappedWorkflow
+            .filter(step => step.executed)
+            .sort((a, b) => {
+                if (!a.executedAt || !b.executedAt) return 0;
+                return new Date(a.executedAt) - new Date(b.executedAt);
+            });
+
+        // Passo atual
+        const currentStep = mappedWorkflow.find(step => step.step_id === document?.what);
+        const currentStepName = currentStep?.step_name || resolveStepIdentifiers(document?.what).name;
+
+        // Próximos passos possíveis: filhos do passo atual na hierarquia
+        let nextOptions = [];
+        if (currentStep) {
+            const currentLevel = currentStep.level;
+            // Procurar passos no nível seguinte que sejam filhos do atual
+            nextOptions = mappedWorkflow.filter(step =>
+                step.level === currentLevel + 1 &&
+                step.parent_id === currentStep.step_id &&
+                !step.executed
+            );
+
+            // Se não encontrou filhos directos, procurar pelo path
+            if (nextOptions.length === 0) {
+                const currentPath = currentStep.path;
+                nextOptions = mappedWorkflow.filter(step =>
+                    step.level === currentLevel + 1 &&
+                    step.path?.startsWith(currentPath) &&
+                    !step.executed
+                );
+            }
+        }
 
         return {
-            totalSteps,
-            executedSteps,
-            progressPercentage,
-            pendingSteps: totalSteps - executedSteps
+            executedList,
+            executedCount: executedList.length,
+            currentStepName,
+            currentStep,
+            nextOptions,
+            nextOptionsCount: nextOptions.length,
         };
     };
+
+    const [anchorEl, setAnchorEl] = useState(null);
 
     const mappedWorkflow = workflowData ?
         mapExecutedSteps(workflowData.hierarchy, steps) : null;
@@ -390,7 +447,7 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
     const workflowTreeData = mappedWorkflow ?
         buildWorkflowTree(mappedWorkflow) : null;
 
-    const stats = getWorkflowStats();
+    const timeline = getWorkflowTimeline();
 
     if (loadingWorkflow) {
         return (
@@ -415,61 +472,162 @@ const WorkflowViewer = ({ document, metaData, steps = [], onWorkflowLoaded }) =>
         );
     }
 
+    // Construir steps para o Stepper linear
+    const buildStepperSteps = () => {
+        if (!timeline) return [];
+        const stepperSteps = [];
+
+        // Passos executados
+        timeline.executedList.forEach(step => {
+            stepperSteps.push({
+                label: step.step_name,
+                status: 'completed',
+                date: step.executedAt,
+            });
+        });
+
+        // Passo atual (se não está já nos executados)
+        if (timeline.currentStep && !timeline.currentStep.executed) {
+            stepperSteps.push({
+                label: timeline.currentStepName,
+                status: 'current',
+            });
+        }
+
+        // Primeiro próximo passo (pendente)
+        if (timeline.nextOptions.length > 0) {
+            stepperSteps.push({
+                label: timeline.nextOptions[0].step_name,
+                status: 'pending',
+            });
+        }
+
+        return stepperSteps;
+    };
+
+    const stepperSteps = buildStepperSteps();
+    const activeStepIndex = stepperSteps.findIndex(s => s.status === 'current');
+
     return (
-        <Box>
-            {/* Cabeçalho com estatísticas */}
-            <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <WorkflowIcon color="primary" />
-                    <Typography variant="h6" sx={{ flex: 1 }}>
-                        Processo Completo
-                    </Typography>
-                    <Button
-                        size="small"
-                        onClick={() => setExpandedWorkflow(!expandedWorkflow)}
-                        endIcon={expandedWorkflow ? <ExpandLess /> : <ExpandMore />}
-                        variant="outlined"
+        <Paper elevation={0} variant="outlined" sx={{ p: 2 }}>
+            {/* Cabeçalho: Título + ícone árvore */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: stepperSteps.length > 0 ? 2 : 0 }}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ flex: 1 }}>
+                    Linha do Tempo
+                </Typography>
+                <IconButton
+                    size="small"
+                    onClick={() => setExpandedWorkflow(!expandedWorkflow)}
+                    color={expandedWorkflow ? 'primary' : 'default'}
+                    title="Árvore do Processo"
+                >
+                    <WorkflowIcon />
+                </IconButton>
+            </Box>
+
+            {/* Timeline linear */}
+            {stepperSteps.length > 0 && (
+                <>
+                    <Stepper
+                        activeStep={activeStepIndex >= 0 ? activeStepIndex : stepperSteps.length - 1}
+                        alternativeLabel
                     >
-                        {expandedWorkflow ? 'Recolher' : 'Expandir'}
-                    </Button>
-                </Box>
+                        {stepperSteps.map((step, index) => (
+                            <Step key={index} completed={step.status === 'completed'}>
+                                <StepLabel
+                                    error={false}
+                                    StepIconProps={{
+                                        ...(step.status === 'pending' && { icon: <PendingIcon sx={{ color: 'text.disabled' }} /> }),
+                                    }}
+                                    optional={step.date ? (
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(step.date.replace(' às ', ' ')).toLocaleDateString('pt-PT')}
+                                        </Typography>
+                                    ) : null}
+                                >
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            fontWeight: step.status === 'current' ? 'bold' : 'normal',
+                                            color: step.status === 'pending' ? 'text.disabled' : 'text.primary',
+                                            fontSize: '0.7rem'
+                                        }}
+                                    >
+                                        {step.label}
+                                    </Typography>
+                                </StepLabel>
+                            </Step>
+                        ))}
+                    </Stepper>
 
-                {stats && (
-                    <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2" fontWeight="medium">Progresso</Typography>
-                            <Typography variant="body2" color="text.secondary">{stats.executedSteps}/{stats.totalSteps}</Typography>
-                        </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={stats.progressPercentage}
-                            sx={{ height: 8, borderRadius: 4, mb: 2 }}
-                        />
-                        <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
-                             <Box sx={{ textAlign: 'center' }}>
-                                <Typography variant="h6" color="success.main" fontWeight="bold">{stats.executedSteps}</Typography>
-                                <Typography variant="caption" color="text.secondary">Executados</Typography>
-                            </Box>
-                            <Box sx={{ textAlign: 'center' }}>
-                                <Typography variant="h6" color="text.secondary" fontWeight="bold">{stats.pendingSteps}</Typography>
-                                <Typography variant="caption" color="text.secondary">Pendentes</Typography>
-                            </Box>
-                        </Box>
-                    </Box>
-                )}
-            </Paper>
+                    {/* Aviso de múltiplas opções */}
+                    {timeline.nextOptionsCount > 1 && (
+                        <Alert
+                            severity="warning"
+                            variant="outlined"
+                            sx={{ mt: 1.5, py: 0 }}
+                            action={
+                                <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
+                                    <InfoIcon fontSize="small" />
+                                </IconButton>
+                            }
+                        >
+                            <Typography variant="body2">
+                                <strong>{timeline.nextOptionsCount} opções disponíveis</strong> para o próximo movimento
+                            </Typography>
+                        </Alert>
+                    )}
 
-            {/* Árvore do workflow */}
+                    {/* Popover com todas as opções */}
+                    <Popover
+                        open={Boolean(anchorEl)}
+                        anchorEl={anchorEl}
+                        onClose={() => setAnchorEl(null)}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    >
+                        <Box sx={{ p: 2, maxWidth: 350 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                Próximas Opções Disponíveis:
+                            </Typography>
+                            <List dense sx={{ py: 0 }}>
+                                {timeline.nextOptions.map((option, index) => (
+                                    <ListItem key={option.step_id} sx={{ px: 0.5 }}>
+                                        <ListItemIcon sx={{ minWidth: 28 }}>
+                                            <ArrowForwardIcon fontSize="small" color={index === 0 ? 'primary' : 'action'} />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        fontWeight: index === 0 ? 600 : 400,
+                                                        color: index === 0 ? 'primary.main' : 'text.primary'
+                                                    }}
+                                                >
+                                                    {option.step_name}
+                                                </Typography>
+                                            }
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </Box>
+                    </Popover>
+                </>
+            )}
+
+            {/* Árvore do workflow (expansível) */}
             <Collapse in={expandedWorkflow}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
+                <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
                     <Box sx={{ maxHeight: '70vh', overflow: 'auto' }}>
                         {workflowTreeData && workflowTreeData.map((node) => (
                             <WorkflowTreeNode key={node.uniqueKey} node={node} />
                         ))}
                     </Box>
-                </Paper>
+                </Box>
             </Collapse>
-        </Box>
+        </Paper>
     );
 };
 

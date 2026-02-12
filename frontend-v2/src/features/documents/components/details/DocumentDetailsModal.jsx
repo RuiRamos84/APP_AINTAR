@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  IconButton, 
-  Typography, 
-  Box, 
-  Grid, 
-  Chip, 
-  Tabs, 
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Typography,
+  Box,
+  Grid,
+  Chip,
+  Tabs,
   Tab,
   Button,
   useTheme,
@@ -70,10 +70,9 @@ const DocumentDetailsModal = ({ open, onClose, documentData }) => {
   const [isAddStepOpen, setIsAddStepOpen] = useState(false);
   const [isReplicateOpen, setIsReplicateOpen] = useState(false);
 
-  // Extract identifiers and Log
+  // Extract identifiers
   const { pk: documentPk, regnumber: documentRegNumber } = documentData || {};
-  console.log('DocumentDetailsModal - Received Data:', documentData);
-  console.log('DocumentDetailsModal - Using PK:', documentPk, 'RegNumber:', documentRegNumber);
+  const printRef = useRef(null);
 
   // Fetch Data
   // Use regnumber for details (as expected by backend /document/:id route which maps to regnumber)
@@ -94,6 +93,55 @@ const DocumentDetailsModal = ({ open, onClose, documentData }) => {
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
+
+  const handlePrint = useCallback(() => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const doc = document;
+    const statusLabel = getStatusLabel(doc.what);
+    const associate = findMetaValue(metaData?.associates, 'name', doc.ts_associate);
+    const creator = findMetaValue(metaData?.who, 'username', doc.creator);
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Pedido ${doc.regnumber}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+            h1 { font-size: 22px; margin-bottom: 4px; }
+            .status { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #e0e0e0; font-size: 13px; }
+            .section { margin-top: 24px; }
+            .section h2 { font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+            .field { margin: 8px 0; }
+            .label { font-weight: bold; font-size: 13px; color: #666; }
+            .value { font-size: 14px; }
+            .memo { white-space: pre-wrap; background: #f5f5f5; padding: 12px; border-radius: 4px; }
+            @media print { body { padding: 20px; } }
+          </style>
+        </head>
+        <body>
+          <h1>${doc.regnumber}</h1>
+          <span class="status">${statusLabel}</span>
+          <div class="section">
+            <h2>Informação Geral</h2>
+            <div class="field"><span class="label">Tipo:</span> <span class="value">${doc.tt_type || 'Geral'}</span></div>
+            <div class="field"><span class="label">Entidade:</span> <span class="value">${doc.ts_entity_name || doc.ts_entity || 'N/D'}</span></div>
+            <div class="field"><span class="label">Associado:</span> <span class="value">${associate || 'N/D'}</span></div>
+            <div class="field"><span class="label">Criado por:</span> <span class="value">${creator || 'N/D'}</span></div>
+            <div class="field"><span class="label">Data:</span> <span class="value">${formatDate(doc.submission)}</span></div>
+            ${doc.address ? `<div class="field"><span class="label">Morada:</span> <span class="value">${doc.address} ${doc.postal || ''}</span></div>` : ''}
+          </div>
+          <div class="section">
+            <h2>Descrição</h2>
+            <div class="memo">${doc.memo || 'Sem descrição.'}</div>
+          </div>
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }, [document, metaData]);
 
   if (!open) return null;
 
@@ -138,7 +186,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData }) => {
         </Box>
         
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button startIcon={<PrintIcon />} variant="outlined" size="small" disabled={!document}>
+          <Button startIcon={<PrintIcon />} variant="outlined" size="small" disabled={!document} onClick={handlePrint}>
             Imprimir
           </Button>
           <IconButton onClick={onClose}>

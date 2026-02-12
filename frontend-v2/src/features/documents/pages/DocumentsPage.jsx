@@ -12,6 +12,7 @@ import { exportDocumentsToExcel } from '../utils/excelExport';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import KeyboardShortcutsHelp from '../components/keyboard/KeyboardShortcutsHelp';
+import AddStepModal from '../components/modals/AddStepModal';
 
 // Lazy-loaded modals (only loaded when opened)
 const CreateDocumentModal = lazy(() => import('../components/forms/CreateDocumentModal'));
@@ -35,6 +36,7 @@ const DocumentsPage = () => {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const [kanbanStepDoc, setKanbanStepDoc] = useState(null);
 
   // Determine which API to call based on activeTab
   const queryType = useMemo(() => {
@@ -63,7 +65,6 @@ const DocumentsPage = () => {
   const handleCloseCreate = () => setIsCreateOpen(false);
 
   const handleViewDetails = (doc) => {
-     console.log('Opening details for document:', doc);
      if (doc.notification === 1 || doc.notification === true) {
         clearNotificationMutation.mutate(doc.pk);
      }
@@ -80,11 +81,9 @@ const DocumentsPage = () => {
     exportDocumentsToExcel(processedDocuments, metaData, TAB_NAMES[activeTab] || 'Pedidos');
   }, [processedDocuments, metaData, activeTab]);
 
-  const handleStatusChange = (docId, newStatus) => {
-      console.log(`Move doc ${docId} to status ${newStatus}`);
-      // TODO: Implement mutation to update status
-      // updateStatusMutation.mutate({ id: docId, status: newStatus });
-  };
+  const handleStatusChange = useCallback((docId, newStatus, document) => {
+    setKanbanStepDoc({ document, targetStep: newStatus });
+  }, []);
 
   // Keyboard Shortcuts
   const { showHelp, setShowHelp, shortcuts } = useKeyboardShortcuts({
@@ -153,6 +152,16 @@ const DocumentsPage = () => {
         onClose={() => setShowHelp(false)}
         shortcuts={shortcuts}
       />
+
+      {kanbanStepDoc && (
+        <AddStepModal
+          open={!!kanbanStepDoc}
+          onClose={() => setKanbanStepDoc(null)}
+          documentId={kanbanStepDoc.document.pk}
+          document={kanbanStepDoc.document}
+          initialStep={kanbanStepDoc.targetStep}
+        />
+      )}
     </>
   );
 };

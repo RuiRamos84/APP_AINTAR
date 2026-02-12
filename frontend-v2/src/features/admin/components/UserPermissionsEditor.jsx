@@ -212,7 +212,7 @@ export const UserPermissionsEditor = ({ userId, currentPermissions = [], onSave 
               <AccordionDetails sx={{ bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider' }}>
                 <Grid container spacing={2}>
                   {permissions.map((permission) => (
-                    <Grid item xs={12} sm={6} md={4} key={permission.pk}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={permission.pk}>
                       <FormControlLabel
                         control={
                           <Checkbox

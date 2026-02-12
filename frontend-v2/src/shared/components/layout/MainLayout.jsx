@@ -106,7 +106,7 @@ export const MainLayout = () => {
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 64, sm: 72 } }} />
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           <PageTransition key={location.pathname}>
             <Outlet />
           </PageTransition>

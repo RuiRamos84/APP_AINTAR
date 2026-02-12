@@ -169,7 +169,7 @@ const ParametersStep = ({ docTypeParams, paramValues, handleParamChange, isSibsP
     return (
         <Grid container spacing={3}>
             {docTypeParams.map((param) => (
-                <Grid item xs={12} md={6} key={param.link_pk}>
+                <Grid size={{ xs: 12, md: 6 }} key={param.link_pk}>
                     <Box sx={{ mb: 1 }}>
                         {renderInput(param)}
                     </Box>

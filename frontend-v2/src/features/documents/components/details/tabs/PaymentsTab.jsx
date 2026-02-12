@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -33,13 +33,15 @@ import {
     Phone as PhoneIcon,
     Info as InfoIcon
 } from '@mui/icons-material';
-import paymentService from '../../../../../features/payments/services/paymentService'; // Updated import
-// import { PaymentContext } from '../../../../../features/payments/context/PaymentContext'; // Updated import if needed context
-import { useQuery } from '@tanstack/react-query';
+import paymentService from '../../../../../features/payments/services/paymentService';
+import PaymentDialog from '../../../../../features/payments/components/modals/PaymentDialog';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const PaymentsTab = ({ document }) => {
     const theme = useTheme();
+    const queryClient = useQueryClient();
     const [paymentDetails, setPaymentDetails] = useState(null);
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
     // Fetch Invoice Amount
     const { data: invoiceAmount, isLoading } = useQuery({
@@ -115,7 +117,6 @@ const PaymentsTab = ({ document }) => {
         if (typeof paymentRef === 'string' && paymentRef.startsWith('{')) {
             try {
                 const parsedRef = JSON.parse(paymentRef);
-                console.log('Dados de pagamento parsed:', parsedRef);
                 setPaymentDetails(parsedRef);
             } catch (error) {
                 console.error("Erro ao fazer parse do JSON de pagamento:", error);
@@ -170,7 +171,7 @@ const PaymentsTab = ({ document }) => {
                 <Typography variant="subtitle1" gutterBottom>Detalhes da Referência Multibanco</Typography>
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 150, 136, 0.08)' : 'rgba(0, 150, 136, 0.05)' }}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                              <Box display="flex" alignItems="center">
                                 <BankIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -179,7 +180,7 @@ const PaymentsTab = ({ document }) => {
                                 </Box>
                             </Box>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                              <Box display="flex" alignItems="center">
                                 <ReceiptIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -188,7 +189,7 @@ const PaymentsTab = ({ document }) => {
                                 </Box>
                             </Box>
                         </Grid>
-                         <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                              <Box display="flex" alignItems="center">
                                 <CalendarIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -210,7 +211,7 @@ const PaymentsTab = ({ document }) => {
                 <Typography variant="subtitle1" gutterBottom>Detalhes do Pagamento MB WAY</Typography>
                  <Paper variant="outlined" sx={{ p: 2 }}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Box display="flex" alignItems="center">
                                 <PhoneIcon color="primary" sx={{ mr: 1 }} />
                                 <Box>
@@ -252,7 +253,7 @@ const PaymentsTab = ({ document }) => {
                     </Typography>
                     <Divider sx={{ my: 2 }} />
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <List disablePadding>
                                 <ListItem sx={{ px: 0, py: 0.5 }}>
                                     <ListItemIcon sx={{ minWidth: 40 }}><MoneyIcon fontSize="small" color="action" /></ListItemIcon>
@@ -264,13 +265,17 @@ const PaymentsTab = ({ document }) => {
                                 </ListItem>
                             </List>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <List disablePadding>
                                 <ListItem sx={{ px: 0, py: 0.5 }}>
                                     <ListItemIcon sx={{ minWidth: 40 }}><PaymentIcon fontSize="small" color="action" /></ListItemIcon>
-                                    <ListItemText primary="Status" secondary={
-                                         <Chip icon={getStatusIcon()} label={paymentStatus.label} color={paymentStatus.color} size="small" />
-                                    } />
+                                    <ListItemText
+                                        primary="Status"
+                                        secondary={
+                                            <Chip component="span" icon={getStatusIcon()} label={paymentStatus.label} color={paymentStatus.color} size="small" />
+                                        }
+                                        secondaryTypographyProps={{ component: 'div' }}
+                                    />
                                 </ListItem>
                                 {invoiceAmount.invoice_data.order_id && (
                                     <ListItem sx={{ px: 0, py: 0.5 }}>
@@ -291,15 +296,41 @@ const PaymentsTab = ({ document }) => {
                 </>
             )}
 
-             {!hasPaymentInfo && (
+             {paymentStatus.status !== 'success' && (
                 <Box sx={{ mt: 3, textAlign: 'center' }}>
-                    <Alert severity="info">
-                        <AlertTitle>Pagamento Pendente</AlertTitle>
-                        Valor a pagar: <strong>{invoiceAmount.invoice_data.invoice}€</strong>
-                    </Alert>
-                    {/* TODO: Add 'Novo Pagamento' flow here when PaymentModule is available */}
+                    {!hasPaymentInfo && (
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            <AlertTitle>Pagamento Pendente</AlertTitle>
+                            Valor a pagar: <strong>{invoiceAmount.invoice_data.invoice}€</strong>
+                        </Alert>
+                    )}
+                    {paymentStatus.status === 'failed' && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            <AlertTitle>Pagamento Falhado</AlertTitle>
+                            O pagamento anterior falhou. Pode iniciar um novo pagamento.
+                        </Alert>
+                    )}
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<PaymentIcon />}
+                        onClick={() => setPaymentDialogOpen(true)}
+                    >
+                        {paymentStatus.status === 'failed' ? 'Tentar Novamente' : 'Efetuar Pagamento'}
+                    </Button>
                 </Box>
              )}
+
+            <PaymentDialog
+                open={paymentDialogOpen}
+                onClose={() => {
+                    setPaymentDialogOpen(false);
+                    queryClient.invalidateQueries({ queryKey: ['invoiceAmount', document?.pk] });
+                }}
+                documentId={document?.pk}
+                amount={invoiceAmount?.invoice_data?.invoice || invoiceAmount?.invoice_data?.amount}
+                regnumber={document?.regnumber}
+            />
         </Box>
     );
 };

@@ -204,7 +204,7 @@ export const EntityList = () => {
   const renderExpandedRow = (row) => (
     <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
       <Grid container spacing={4}>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Typography variant="subtitle2" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <BusinessIcon fontSize="small" /> Endereço Completo
           </Typography>
@@ -219,7 +219,7 @@ export const EntityList = () => {
             ].filter(Boolean).join(' • ')}
           </Typography>
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Typography variant="subtitle2" color="primary" gutterBottom>
             Observações
           </Typography>

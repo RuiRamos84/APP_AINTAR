@@ -44,7 +44,11 @@ const KanbanColumn = ({ status, title, documents, onDrop, onViewDetails }) => {
 
   const [{ isOver }, drop] = useDrop(() => ({
     accept: ItemTypes.CARD,
-    drop: (item) => onDrop(item.id, status),
+    drop: (item) => {
+      if (parseInt(item.status) !== status) {
+        onDrop(item.id, status, item.document);
+      }
+    },
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
     }),
@@ -99,9 +103,9 @@ const DocumentKanban = ({ documents, onViewDetails, onStatusChange }) => {
         { id: 0, title: 'Concluído' }
     ];
 
-    const handleDrop = (docId, newStatus) => {
+    const handleDrop = (docId, newStatus, document) => {
         if (onStatusChange) {
-            onStatusChange(docId, newStatus);
+            onStatusChange(docId, newStatus, document);
         }
     };
 

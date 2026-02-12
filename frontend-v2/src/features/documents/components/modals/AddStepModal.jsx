@@ -28,12 +28,11 @@ import VacationWarningBadge from '../vacation/VacationWarningBadge';
  * Modal to Add a Step/Action to a Document
  * Uses workflow validation to show only valid transitions
  */
-const AddStepModal = ({ open, onClose, documentId, document: propDocument }) => {
+const AddStepModal = ({ open, onClose, documentId, document: propDocument, initialStep }) => {
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
 
-  // If document is passed as prop, use it. Otherwise try to fetch (but note: if documentId is PK, fetch will fail 404)
-  // We pass null to useDocumentDetails if propDocument is present, effectively disabling the hook
+  // If document is passed as prop, use it. Otherwise try to fetch
   const { data: fetchedDocument } = useDocumentDetails(propDocument ? null : documentId);
   const document = propDocument || fetchedDocument;
   const { data: metaData } = useMetaData();
@@ -43,14 +42,22 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument }) => 
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      step: '',
+      step: initialStep || '',
       user: '',
       memo: '',
     },
   });
+
+  // Pre-select step when initialStep changes (Kanban drag-drop)
+  React.useEffect(() => {
+    if (initialStep && open) {
+      setValue('step', initialStep);
+    }
+  }, [initialStep, open, setValue]);
 
   const selectedStep = watch('step');
 

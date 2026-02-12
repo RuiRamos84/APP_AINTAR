@@ -298,37 +298,29 @@ const CreateDocumentModal = ({ open, onClose }) => {
 
     createMutation.mutate(formData, {
       onSuccess: async (response) => {
-        // Document Created. Now check for fees/payment.
-        // response typically contains { pk: ..., regnumber: ... } or similar
-        // We need to check if there is an invoice amount.
-        
-        // This logic assumes we can fetch invoice amount immediately or it's in response
-        // Legacy fetches getInvoiceAmount(pk).
-        
-        const docId = response.pk || response.order_id;
-        const regnumber = response.regnumber;
+        const docId = response?.pk || response?.order_id || response?.data?.pk;
+        const regnumber = response?.regnumber || response?.data?.regnumber;
 
         if (docId) {
-             try {
-                // We need to fetch invoice amount. 
-                // Using paymentService.getInvoiceAmount (Need to ensure it exists in v2 or use legacy)
-                const invoiceResult = await paymentService.getInvoiceAmount(docId);
-                
-                if (invoiceResult.success && invoiceResult.invoice_data?.invoice > 0) {
-                     setFinalPaymentData({
-                        documentId: docId,
-                        amount: invoiceResult.invoice_data.invoice,
-                        regnumber: regnumber
-                    });
-                    setPaymentDialogOpen(true);
-                    return; // Don't close modal yet, switch to payment dialog
-                }
-            } catch (err) {
-                console.error("Error checking invoice:", err);
+          try {
+            const invoiceResult = await paymentService.getInvoiceAmount(docId);
+            const invoiceData = invoiceResult?.invoice_data || invoiceResult;
+            const invoiceAmount = invoiceData?.invoice || invoiceData?.amount || 0;
+
+            if (invoiceAmount > 0) {
+              setFinalPaymentData({
+                documentId: docId,
+                amount: invoiceAmount,
+                regnumber: regnumber,
+              });
+              setPaymentDialogOpen(true);
+              return;
             }
+          } catch (err) {
+            console.warn('Não foi possível verificar valor de fatura:', err);
+          }
         }
-        
-        // If no payment needed
+
         handleClose();
       },
     });
