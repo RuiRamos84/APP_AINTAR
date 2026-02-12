@@ -58,6 +58,7 @@ def fetch_meta_data(current_user):
         'interfaces': "SELECT * FROM ts_interface ORDER BY pk",
         'inventory_type': "SELECT * FROM tt_inventorytype ORDER BY pk",
         'assign_who': "SELECT * FROM ts_client ORDER BY pk",
+        'maintenancetype': "SELECT * FROM tt_maintenancetype ORDER BY pk",
     
 
     }
