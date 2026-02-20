@@ -19,7 +19,7 @@ const RecordForm = ({
     formData,
     setFormData,
     onSubmit,
-    metaData,
+   
     fieldsConfig,
     loading = false,
     editMode = false,

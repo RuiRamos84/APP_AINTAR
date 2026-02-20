@@ -127,7 +127,7 @@ const InventoryTable = ({ metaData }) => {
             name: "assign_who",
             label: "Associado",
             type: "select",
-            options: metaData?.assign_who || [],
+            options: metaData?.who || [],
             required: true,
             size: 1.5,
             disabled: !!editingId

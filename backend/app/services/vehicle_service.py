@@ -16,6 +16,7 @@ from reportlab.pdfgen import canvas
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
 from . import pdf_filler_service
 from app.utils.logger import get_logger
+from datetime import datetime, date
 logger = get_logger(__name__)
 
 
@@ -24,7 +25,7 @@ logger = get_logger(__name__)
 
 def list_vehicle(current_user: str):
     with db_session_manager(current_user) as session:
-        query = text("SELECT * FROM vbl_vehicle")
+        query = text("SELECT * FROM vbl_vehicle order by hist_time desc")
         vehicle_result = session.execute(query).mappings().all()
         vehicle_list=[]
         for vehicle in vehicle_result:
@@ -142,7 +143,7 @@ def update_vehicle(current_user: str, pk: int, data: dict):
 @api_error_handler
 def list_vehicle_assign(current_user: str):
     with db_session_manager(current_user) as session:
-        query = text("SELECT * FROM vbl_vehicle_assign ORDER BY data DESC")
+        query = text("SELECT * FROM vbl_vehicle_assign ORDER BY hist_time DESC")
         vehicle_assign_result = session.execute(query).mappings().all()
         vehicle_assign_list = []
 
@@ -257,7 +258,7 @@ def update_vehicle_assign(current_user: str, data: dict):
 @api_error_handler
 def list_vehicle_maintenance(current_user: str):
     with db_session_manager(current_user) as session:
-        query = text("SELECT * FROM vbl_vehicle_maintenance ORDER BY data DESC")
+        query = text("SELECT * FROM vbl_vehicle_maintenance ORDER BY hist_time DESC")
         maintenance_result = session.execute(query).mappings().all()
         maintenance_list = []
 
@@ -295,6 +296,7 @@ def add_vehicle_maintenance(current_user: str, data: dict):
         maint_type = data.get("tt_maintenancetype")
         maint_date = data.get("data")
         price = data.get("price")
+        memo = data.get("memo")
 
         # Converter data se for string
         if isinstance(maint_date, str):
@@ -303,9 +305,9 @@ def add_vehicle_maintenance(current_user: str, data: dict):
         # Montar query SQL
         query = text("""
             INSERT INTO vbf_vehicle_maintenance
-            (pk, tb_vehicle, tt_maintenancetype, data, price)
+            (pk, tb_vehicle, tt_maintenancetype, data, price, memo)
             VALUES
-            (:pk, :tb_vehicle, :tt_maintenancetype, :data, :price)
+            (:pk, :tb_vehicle, :tt_maintenancetype, :data, :price, :memo)
         """)
 
         params = {
@@ -313,7 +315,8 @@ def add_vehicle_maintenance(current_user: str, data: dict):
             "tb_vehicle": tb_vehicle,
             "tt_maintenancetype": maint_type,
             "data": maint_date,
-            "price": price
+            "price": price,
+            "memo": memo
         }
 
         session.execute(query, params)
