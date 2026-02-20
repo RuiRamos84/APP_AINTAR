@@ -237,6 +237,22 @@ export const updateInventoryRecord = async (pk, data) => {
         throw error;
     }
 };
+export const updateVehicleAssignRegister = async (pk, data) => {
+    try {
+        if (!pk) throw new Error("PK do inventário inválido.");
+        if (!data || Object.keys(data).length === 0) {
+            throw new Error("Dados inválidos para atualização.");
+        }
+
+        const response = await api.put(`/vehicle_update/${pk}`, data);
+        return response.data;
+
+    } catch (error) {
+        console.error("Erro ao atualizar inventário:", error);
+        throw error;
+    }
+};
+
 
 export const addMaintenance = async (type, pk) => {
     try {
@@ -372,6 +388,62 @@ export const addIncumprimentoRecord = async (data) => {
         return response.data;
     } catch (error) {
         console.error("Erro ao adicionar incumprimento:", error);
+        throw error;
+    }
+};
+export const addVehicleRegister = async (data) => {
+    try {
+        const response = await api.post("/vehicle_create", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao adicionar incumprimento:", error);
+        throw error;
+    }
+};
+export const getVehicleRecords = async () => {
+    try {
+        const response = await api.get("/vehicle_list");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar lista de veículos:", error);
+        throw error;
+    }
+};
+
+export const addVehicleAssignRegister = async (data) => {
+    try {
+        const response = await api.post("/vehicle_assign_create", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao adicionar incumprimento:", error);
+        throw error;
+    }
+};
+export const getVehicleAssignRecords = async () => {
+    try {
+        const response = await api.get("/vehicle_assign_list");
+        
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar lista de veículos:", error);
+        throw error;
+    }
+};
+export const addVehicleMaintenance = async (data) => {
+    try {
+        const response = await api.post("/vehicle_maintenance_create", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao adicionar incumprimento:", error);
+        throw error;
+    }
+};
+export const getVehicleMaintenance = async () => {
+    try {
+        const response = await api.get("/vehicle_maintenance_list");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar lista de veículos:", error);
         throw error;
     }
 };
