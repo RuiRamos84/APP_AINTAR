@@ -4,23 +4,31 @@ import { operationService } from '../services/operationService';
 import { notification } from '@/core/services/notification';
 
 /**
- * Mapear campos da view para nomes usados nos componentes.
+ * Mapear campos da view vbl_operacao$self / vbl_operacao.
+ *
+ * Campos reais da view:
+ *   pk, data, descr, photo,
+ *   pk_instalacao, tb_instalacao,
+ *   pk_operacaoaccao, tt_operacaoaccao, tt_operacaoaccao_type,
+ *   pk_operador1, ts_operador1, pk_operador2, ts_operador2,
+ *   tt_instalacaolicenciamento,
+ *   tt_operacaoaccao_refobj/refpk/refvalue (tipo 3),
+ *   tt_operacaoaccao_analise* (tipo 5),
+ *   valuetext, valuenumb, valuememo, updt_time, updt_client
+ *
+ * NÃO existem: tt_operacaomodo, tt_operacaodia, phone, photo_path
  */
 const mapTask = (raw, completed = false) => ({
     ...raw,
     instalacao_nome: raw.tb_instalacao || '',
     acao_operacao: raw.tt_operacaoaccao || '',
-    modo_operacao: raw.tt_operacaomodo || '',
     dia_operacao: raw.data || '',
     operacao_tipo: raw.tt_operacaoaccao_type,
     operador1_nome: raw.ts_operador1 || '',
     operador2_nome: raw.ts_operador2 || '',
     requer_foto: raw.photo,
-    caminho_foto: raw.photo_path || '',
     completed,
-    description: raw.tt_operacaoaccao
-        ? `${raw.tt_operacaoaccao}${raw.tb_instalacao ? ' - ' + raw.tb_instalacao : ''}`
-        : '',
+    description: raw.descr || raw.tt_operacaoaccao || '',
 });
 
 /**

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
     Box, Typography, Grid, CircularProgress, Chip, Stack,
     Card, CardContent, Accordion, AccordionSummary, AccordionDetails,
-    Badge, LinearProgress, Alert, useTheme, alpha, Fab, Tooltip, Collapse
+    LinearProgress, Alert, useTheme, alpha, Fab, Tooltip, Collapse
 } from '@mui/material';
 import {
     Assignment as AssignmentIcon,
@@ -12,14 +12,13 @@ import {
     Schedule,
     TaskAlt,
     WifiOff,
-    Phone as PhoneIcon,
 } from '@mui/icons-material';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useOperationTasks } from '../hooks/useOperationTasks';
 import { useOffline } from '../hooks/useOffline';
-import { getInstallationLicenseColor, formatCompletedTaskValue } from '../utils/formatters';
+import { getInstallationLicenseColor, formatCompletedTaskValue, formatDate } from '../utils/formatters';
 import { exportTasksToExcel } from '../services/exportService';
 import MESSAGES from '../constants/messages';
 import ExportButton from '../components/ExportButton';
@@ -251,22 +250,29 @@ const TasksPage = () => {
                                                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                                         <Typography variant="subtitle2" fontWeight={600} noWrap>
-                                                            {task.acao_operacao || task.description || `Tarefa #${task.pk}`}
+                                                            {task.acao_operacao || `Tarefa #${task.pk}`}
                                                         </Typography>
-                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25 }}>
-                                                            {task.modo_operacao && (
+                                                        <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" sx={{ mt: 0.25, gap: 0.5 }}>
+                                                            {task.dia_operacao && (
                                                                 <Typography variant="caption" color="text.secondary">
-                                                                    {task.modo_operacao}
+                                                                    {formatDate(task.dia_operacao)}
                                                                 </Typography>
                                                             )}
-                                                            {task.modo_operacao && task.phone && (
-                                                                <Typography variant="caption" color="text.disabled">·</Typography>
+                                                            {task.descr && (
+                                                                <>
+                                                                    <Typography variant="caption" color="text.disabled">·</Typography>
+                                                                    <Typography variant="caption" color="text.secondary" noWrap>
+                                                                        {task.descr}
+                                                                    </Typography>
+                                                                </>
                                                             )}
-                                                            {task.phone && (
-                                                                <Stack direction="row" alignItems="center" spacing={0.3}>
-                                                                    <PhoneIcon sx={{ fontSize: 11, color: 'text.disabled' }} />
-                                                                    <Typography variant="caption" color="text.secondary">{task.phone}</Typography>
-                                                                </Stack>
+                                                            {task.operador1_nome && (
+                                                                <>
+                                                                    <Typography variant="caption" color="text.disabled">·</Typography>
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        {task.operador1_nome}
+                                                                    </Typography>
+                                                                </>
                                                             )}
                                                         </Stack>
                                                     </Box>
