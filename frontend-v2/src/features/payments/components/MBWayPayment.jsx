@@ -15,6 +15,7 @@ const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
+    const [phoneError, setPhoneError] = useState('');
     const [localStep, setLocalStep] = useState(0);
     const [timeRemaining, setTimeRemaining] = useState(300);
     const [isExpired, setIsExpired] = useState(false);
@@ -145,36 +146,32 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         }
     });
 
-    // 4. Iniciar polling controlado (usa startWebhookListener e checkStatus)
-    const startControlledPolling = useCallback(() => {
+    // 4. Iniciar listener de webhook (polling apenas como fallback se socket indisponível)
+    const startPaymentListener = useCallback(() => {
         if (isPollingRef.current || !transactionId) {
             return;
         }
 
-        console.log('[MBWay] Iniciando polling controlado para:', transactionId);
         isPollingRef.current = true;
         webhookReceivedRef.current = false;
 
-        // Iniciar listener de webhook (prioridade sobre polling)
+        // Tentar iniciar listener de webhook via SocketIO
         startWebhookListener();
 
-        // Verificação imediata
-        checkStatus();
+        const socket = getSocket();
+        const connected = isSocketConnected();
 
-        // Polling como fallback (15s interval)
-        pollingIntervalRef.current = setInterval(() => {
-            // Se já recebeu webhook, parar polling
-            if (webhookReceivedRef.current) {
-                console.log('[MBWay] Webhook já recebido, parando polling');
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                }
-                return;
-            }
-            console.log('[MBWay] Verificando status via polling...');
+        if (!socket || !connected) {
+            // Socket indisponível - usar polling como fallback
+            console.log('[MBWay] Socket indisponível, usando polling como fallback');
             checkStatus();
-        }, 15000);
+            pollingIntervalRef.current = setInterval(() => {
+                console.log('[MBWay] Verificando status via polling (fallback)...');
+                checkStatus();
+            }, 15000);
+        } else {
+            console.log('[MBWay] Webhook ativo, aguardando notificação via SocketIO');
+        }
     }, [transactionId, startWebhookListener, checkStatus]);
 
     // Mutation para processar MB WAY
@@ -182,7 +179,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         mutationFn: (phoneNumber) => paymentService.processMBWay(transactionId, phoneNumber),
         onSuccess: (data) => {
             setLocalStep(2);
-            startControlledPolling();
+            startPaymentListener();
             onSuccess?.(data);
         },
         onError: (err) => {
@@ -245,7 +242,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         const formatted = formatPhone(e.target.value);
         if (formatted.replace(/\s/g, '').length <= 9) {
             setPhone(formatted);
-            setError('');
+            setPhoneError('');
         }
     };
 
@@ -253,7 +250,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         const cleanPhone = phone.replace(/\s/g, '');
 
         if (!validatePhone(cleanPhone)) {
-            setError('Número inválido (9 dígitos)');
+            setPhoneError('Número inválido (9 dígitos)');
             return;
         }
 
@@ -263,6 +260,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         }
 
         setError('');
+        setPhoneError('');
         setLocalStep(1);
         payWithMBWay(cleanPhone);
     };
@@ -271,6 +269,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         console.log('[MBWay] Retry solicitado');
         setIsExpired(false);
         setError('');
+        setPhoneError('');
         setLocalStep(0);
         setTimeRemaining(300);
         setPaymentSuccess(false);
@@ -312,8 +311,8 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
                             value={phone}
                             onChange={handlePhoneChange}
                             placeholder="9XX XXX XXX"
-                            error={!!error}
-                            helperText={error || 'Exemplo: 912 345 678'}
+                            error={!!phoneError}
+                            helperText={phoneError || 'Exemplo: 912 345 678'}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -350,7 +349,19 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
             {localStep === 2 && (
                 <Fade in timeout={300}>
                     <Box sx={{ textAlign: 'center', py: 4 }}>
-                        {!isExpired ? (
+                        {paymentDeclined ? (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="h5" color="error" gutterBottom>
+                                    Pagamento Recusado
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                    Verifique com o seu banco ou tente outro método de pagamento.
+                                </Typography>
+                                <Button variant="contained" onClick={handleRetry} sx={{ mt: 2 }}>
+                                    Tentar Novamente
+                                </Button>
+                            </Box>
+                        ) : !isExpired ? (
                             <>
                                 <CheckCircle sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
                                 <Typography variant="h5" gutterBottom color="success.main">

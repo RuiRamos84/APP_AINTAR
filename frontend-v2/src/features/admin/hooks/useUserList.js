@@ -42,7 +42,7 @@ export const useUserList = () => {
   const [totalCount, setTotalCount] = useState(0);
 
   // Estados
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Parâmetros de listagem

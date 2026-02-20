@@ -161,7 +161,8 @@ const PaymentsTab = ({ document }) => {
             'N/D';
 
         // Tentar múltiplas fontes para a data de expiração
-        const rawExpiryDate = paymentRef?.expireDate ||
+        const rawExpiryDate = invoiceAmount?.invoice_data?.sibs_expiry ||
+            paymentRef?.expireDate ||
             paymentDetails?.expiry_date ||
             paymentDetails?.expiryDate;
         const expiryDate = rawExpiryDate ? formatDateTime(rawExpiryDate) : 'N/D';
@@ -304,6 +305,11 @@ const PaymentsTab = ({ document }) => {
                             Valor a pagar: <strong>{invoiceAmount.invoice_data.invoice}€</strong>
                         </Alert>
                     )}
+                    {hasPaymentInfo && paymentStatus.status === 'pending' && (
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            Pode alterar o método de pagamento enquanto este não estiver concluído.
+                        </Alert>
+                    )}
                     {paymentStatus.status === 'failed' && (
                         <Alert severity="error" sx={{ mb: 2 }}>
                             <AlertTitle>Pagamento Falhado</AlertTitle>
@@ -316,7 +322,11 @@ const PaymentsTab = ({ document }) => {
                         startIcon={<PaymentIcon />}
                         onClick={() => setPaymentDialogOpen(true)}
                     >
-                        {paymentStatus.status === 'failed' ? 'Tentar Novamente' : 'Efetuar Pagamento'}
+                        {paymentStatus.status === 'failed'
+                            ? 'Tentar Novamente'
+                            : hasPaymentInfo
+                                ? 'Alterar Método de Pagamento'
+                                : 'Efetuar Pagamento'}
                     </Button>
                 </Box>
              )}

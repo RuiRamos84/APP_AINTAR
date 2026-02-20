@@ -3,7 +3,7 @@ import {
     Box, Button, Fade, Slide, Typography, Alert, CircularProgress,
     useTheme, useMediaQuery, AlertTitle
 } from '@mui/material';
-import { ArrowBack, ArrowForward } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import { useAuth } from '@/core/contexts/AuthContext'; // v2 uses useAuth from context
 import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
@@ -13,14 +13,10 @@ import { usePaymentPermissions, PAYMENT_METHODS } from '../services/paymentTypes
 import PaymentMethodSelector from './PaymentMethodSelector';
 import MBWayPayment from './MBWayPayment';
 import MultibancoPayment from './MultibancoPayment';
+import CashPayment from './CashPayment';
+import BankTransferPayment from './BankTransferPayment';
+import MunicipalityPayment from './MunicipalityPayment';
 import PaymentStatus from './PaymentStatus';
-
-const PlaceholderPayment = ({ title }) => (
-    <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography variant="h6">{title}</Typography>
-        <Typography variant="body2" color="text.secondary">Em desenvolvimento</Typography>
-    </Box>
-);
 
 const PaymentModule = ({
     documentId,
@@ -140,9 +136,9 @@ const PaymentModule = ({
         switch (selectedMethod) {
             case 'MBWAY': return <MBWayPayment {...props} />;
             case 'MULTIBANCO': return <MultibancoPayment {...props} />;
-            case 'CASH': return <PlaceholderPayment title="Pagamento Numerário" />;
-            case 'BANK_TRANSFER': return <PlaceholderPayment title="Transferência Bancária" />;
-            case 'MUNICIPALITY': return <PlaceholderPayment title="Município" />;
+            case 'CASH': return <CashPayment {...props} />;
+            case 'BANK_TRANSFER': return <BankTransferPayment {...props} />;
+            case 'MUNICIPALITY': return <MunicipalityPayment {...props} />;
             default: return null;
         }
     };
@@ -178,7 +174,7 @@ const PaymentModule = ({
             renderPaymentMethod(), // Step 1: Specific Method UI
             (selectedMethod === 'MULTIBANCO' && status === 'REFERENCE_GENERATED') 
                 ? renderPaymentMethod() 
-                : <PaymentStatus transactionId={transactionId || "TEMP-ID"} onComplete={onComplete} /> // Step 2: Status
+                : <PaymentStatus transactionId={transactionId || "TEMP-ID"} status={status} onComplete={onComplete} /> // Step 2: Status
         ];
 
         // Ensure step is within bounds
@@ -195,19 +191,11 @@ const PaymentModule = ({
         <Box sx={{ position: 'relative', overflow: 'hidden' }}>
             {renderStepContent()}
 
-            {(step > 0) && (
+            {step === 1 && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, borderTop: 1, borderColor: 'divider' }}>
-                     {step === 1 && (
-                        <Button startIcon={<ArrowBack />} onClick={handleBack} disabled={isCreatingCheckout}>
-                            Voltar
-                        </Button>
-                     )}
-                     <Box sx={{ flexGrow: 1 }} />
-                     {step === 2 && (
-                         <Button variant="contained" endIcon={<ArrowForward />} onClick={() => onComplete?.({ status, transactionId })}>
-                             Concluir
-                         </Button>
-                     )}
+                    <Button startIcon={<ArrowBack />} onClick={handleBack} disabled={isCreatingCheckout}>
+                        Voltar
+                    </Button>
                 </Box>
             )}
         </Box>

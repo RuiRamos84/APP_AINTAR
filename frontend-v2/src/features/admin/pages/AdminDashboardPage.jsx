@@ -26,7 +26,7 @@ import {
   Description as DocumentsIcon,
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
-import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { FadeIn } from '@/shared/components/animation';
 
 const AdminDashboardPage = () => {
   // Responsividade
@@ -66,7 +66,6 @@ const AdminDashboardPage = () => {
   ];
 
   return (
-    <PageTransition variant="slideUp">
       <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
         {/* Header */}
         <FadeIn direction="down">
@@ -212,7 +211,6 @@ const AdminDashboardPage = () => {
           </Grid>
         </Grid>
       </Container>
-    </PageTransition>
   );
 };
 

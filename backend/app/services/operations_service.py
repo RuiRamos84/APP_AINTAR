@@ -170,13 +170,13 @@ def create_internal_document(data: dict, current_user: str):
 # ===================================================================
 
 @api_error_handler
-def get_operacao_meta_data(current_user):
+def get_operacao_meta_data(current_user, filters=None):
     """
-    Obtém dados das metas de operação usando repository
+    Obtém dados das metas de operação com paginação e pesquisa
     """
     try:
         meta_repo = OperationMetaRepository()
-        result = meta_repo.find_all(current_user)
+        result = meta_repo.find_all(current_user, filters)
 
         if result['success']:
             return {
@@ -216,20 +216,38 @@ def get_operacao_self_data(user_id: int, current_user: str):
     """
     Obtém tarefas do utilizador - USA vbl_operacao$self
     View retorna PKs (pk_*) + nomes (tt_*, tb_*, ts_*)
-    Frontend pode usar metadados para lookups se necessário
+    Inclui stats: total_assigned e total_completed do operador
     """
     try:
         operations_repo = OperationsRepository()
         result = operations_repo.find_today_tasks(user_id, current_user)
+        if result['success']:
+            return {
+                'name': 'Minhas Tarefas de Hoje',
+                'total': result['total'],
+                'data': result['data'],
+                'completed': result.get('completed', []),
+                'stats': result.get('stats', {}),
+                'columns': result.get('columns', [])
+            }
         return {
             'name': 'Minhas Tarefas de Hoje',
-            'total': result['total'],
-            'data': result['data'],
-            'columns': result.get('columns', [])
-        } if result['success'] else {'name': 'Minhas Tarefas de Hoje', 'total': 0, 'data': [], 'columns': []}
+            'total': 0,
+            'data': [],
+            'completed': [],
+            'stats': {'total_assigned': 0, 'total_completed': 0},
+            'columns': []
+        }
     except Exception as e:
         logger.error(f"Erro ao buscar tarefas: {str(e)}")
-        return {'name': 'Minhas Tarefas de Hoje', 'total': 0, 'data': [], 'columns': []}
+        return {
+            'name': 'Minhas Tarefas de Hoje',
+            'total': 0,
+            'data': [],
+            'completed': [],
+            'stats': {'total_assigned': 0, 'total_completed': 0},
+            'columns': []
+        }
 
 
 @api_error_handler
@@ -393,7 +411,7 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
             # 1. Verificar permissão e obter dados da tarefa
             check_query = text("""
                 SELECT pk, tb_instalacao
-                FROM vbl_operacao$self
+                FROM "vbl_operacao$self"
                 WHERE pk = :task_id
             """)
             task = session.execute(check_query, {'task_id': task_id}).fetchone()
@@ -432,12 +450,19 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                 params['photo_path'] = photo_path
 
             update_query = text(f"""
-                UPDATE vbf_operacao$self
+                UPDATE vbf_operacao
                 SET {', '.join(update_fields)}
                 WHERE pk = :task_id
             """)
 
-            session.execute(update_query, params)
+            result = session.execute(update_query, params)
+            rows_affected = result.rowcount
+            logger.info(f"UPDATE vbf_operacao pk={task_id}: {rows_affected} linhas afetadas, valuetext='{valuetext}'")
+
+            if rows_affected == 0:
+                logger.warning(f"UPDATE vbf_operacao não afetou nenhuma linha para pk={task_id}")
+                return {'success': False, 'error': 'Tarefa não pôde ser atualizada'}
+
             session.commit()
 
             response_data = {

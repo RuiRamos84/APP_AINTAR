@@ -17,6 +17,7 @@ const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
+    const [phoneError, setPhoneError] = useState('');
     const [localStep, setLocalStep] = useState(0);
     const [timeRemaining, setTimeRemaining] = useState(300);
     const [isExpired, setIsExpired] = useState(false);
@@ -202,6 +203,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         console.log('[MBWay] Retry solicitado');
         setIsExpired(false);
         setError('');
+        setPhoneError('');
         setLocalStep(0);
         setTimeRemaining(300);
         setPaymentSuccess(false);
@@ -219,7 +221,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         const formatted = formatPhone(e.target.value);
         if (formatted.replace(/\s/g, '').length <= 9) {
             setPhone(formatted);
-            setError('');
+            setPhoneError('');
         }
     };
 
@@ -227,7 +229,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         const cleanPhone = phone.replace(/\s/g, '');
 
         if (!validatePhone(cleanPhone)) {
-            setError('Número inválido (9 dígitos)');
+            setPhoneError('Número inválido (9 dígitos)');
             return;
         }
 
@@ -237,6 +239,7 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
         }
 
         setError('');
+        setPhoneError('');
         setLocalStep(1);
         payWithMBWay(cleanPhone);
     };
@@ -291,8 +294,8 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
                             value={phone}
                             onChange={handlePhoneChange}
                             placeholder="9XX XXX XXX"
-                            error={!!error}
-                            helperText={error || 'Exemplo: 912 345 678'}
+                            error={!!phoneError}
+                            helperText={phoneError || 'Exemplo: 912 345 678'}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">

@@ -229,7 +229,8 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
             'N/D';
 
         // Tentar múltiplas fontes para a data de expiração
-        const rawExpiryDate = paymentRef?.expireDate ||
+        const rawExpiryDate = invoiceAmount?.invoice_data?.sibs_expiry ||
+            paymentRef?.expireDate ||
             paymentDetails?.expiry_date ||
             paymentDetails?.expiryDate;
         const expiryDate = rawExpiryDate ? formatDateTime(rawExpiryDate) : 'N/D';
@@ -474,13 +475,26 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                 </>
             )}
 
-            {/* Seção de pagamento - exibida apenas se não houver status de pagamento */}
-            {!hasPaymentInfo && (
+            {/* Seção de pagamento - exibida quando o pagamento não está concluído */}
+            {paymentStatus.status !== 'success' && (
                 <Box sx={{ mt: 3, textAlign: 'center' }}>
-                    <Alert severity="info" sx={{ mb: 2, textAlign: 'left' }}>
-                        <AlertTitle>Pagamento Pendente</AlertTitle>
-                        Este documento tem um valor a pagar de <strong>{invoiceAmount.invoice_data.invoice}€</strong>
-                    </Alert>
+                    {!hasPaymentInfo && (
+                        <Alert severity="info" sx={{ mb: 2, textAlign: 'left' }}>
+                            <AlertTitle>Pagamento Pendente</AlertTitle>
+                            Este documento tem um valor a pagar de <strong>{invoiceAmount.invoice_data.invoice}€</strong>
+                        </Alert>
+                    )}
+                    {hasPaymentInfo && paymentStatus.status === 'pending' && (
+                        <Alert severity="info" sx={{ mb: 2, textAlign: 'left' }}>
+                            Pode alterar o método de pagamento enquanto este não estiver concluído.
+                        </Alert>
+                    )}
+                    {paymentStatus.status === 'failed' && (
+                        <Alert severity="error" sx={{ mb: 2, textAlign: 'left' }}>
+                            <AlertTitle>Pagamento Falhado</AlertTitle>
+                            O pagamento anterior falhou. Pode iniciar um novo pagamento.
+                        </Alert>
+                    )}
 
                     {onPayment && (
                         <Button
@@ -490,7 +504,11 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                             onClick={() => onPayment(document)}
                             sx={{ mt: 2 }}
                         >
-                            Efetuar Pagamento
+                            {paymentStatus.status === 'failed'
+                                ? 'Tentar Novamente'
+                                : hasPaymentInfo
+                                    ? 'Alterar Método de Pagamento'
+                                    : 'Efetuar Pagamento'}
                         </Button>
                     )}
                 </Box>

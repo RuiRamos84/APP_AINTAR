@@ -10,7 +10,7 @@ const SHORTCUTS = [
   { key: 'Ctrl + F', description: 'Toggle filtros', category: 'Vista' },
   { key: '1', description: 'Vista Lista', category: 'Vista' },
   { key: '2', description: 'Vista Grid', category: 'Vista' },
-  { key: '3', description: 'Vista Kanban', category: 'Vista' },
+
   { key: '?', description: 'Mostrar ajuda', category: 'Ajuda' },
   { key: 'Esc', description: 'Fechar modais', category: 'Navegação' },
 ];
@@ -22,7 +22,7 @@ const SHORTCUTS = [
  * @param {Function} handlers.onCreate - Open create document modal
  * @param {Function} handlers.onRefresh - Refresh data
  * @param {Function} handlers.onToggleFilters - Toggle filters panel
- * @param {Function} handlers.onViewModeChange - Change view mode (list/grid/kanban)
+ * @param {Function} handlers.onViewModeChange - Change view mode (list/grid)
  * @param {boolean} [enabled=true] - Whether shortcuts are active
  * @returns {{ showHelp: boolean, setShowHelp: Function, shortcuts: Array }}
  */
@@ -88,11 +88,7 @@ export const useKeyboardShortcuts = (handlers = {}, enabled = true) => {
           handlers.onViewModeChange?.('grid');
           break;
 
-        // 3 - Kanban view
-        case event.key === '3':
-          event.preventDefault();
-          handlers.onViewModeChange?.('kanban');
-          break;
+
 
         // ? - Help
         case event.key === '?':

@@ -57,7 +57,7 @@ import {
 import { getUserById, updateUserAdmin, deleteUser, resetUserPassword, toggleUserStatus } from '@/services/userService';
 import { useIdentTypes } from '@/core/hooks/useMetaData';
 import { notification } from '@/core/services/notification';
-import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { FadeIn } from '@/shared/components/animation';
 import { FormSkeleton } from '@/shared/components/feedback';
 import { useProfiles } from '@/core/contexts/MetadataContext';
 import { UserPermissionsEditor } from '../components/UserPermissionsEditor';
@@ -262,11 +262,9 @@ const UserDetailPage = () => {
 
   if (isLoading) {
     return (
-      <PageTransition variant="fade">
         <Container maxWidth="md" sx={{ py: 4 }}>
           <FormSkeleton fields={12} showAvatar showActions />
         </Container>
-      </PageTransition>
     );
   }
 
@@ -275,7 +273,6 @@ const UserDetailPage = () => {
   }
 
   return (
-    <PageTransition variant="slideUp">
       <Container maxWidth="md" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
         {/* Breadcrumbs */}
         <FadeIn direction="down">
@@ -715,7 +712,6 @@ const UserDetailPage = () => {
           </DialogActions>
         </Dialog>
       </Container>
-    </PageTransition>
   );
 };
 

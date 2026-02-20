@@ -31,9 +31,10 @@ import {
 } from '@/features/admin/pages';
 
 // Módulos do sistema de navegação híbrida
-import { BranchesPage, OperationControlPage } from '@/features/operations/pages';
+import { OperationPage, OperationMetadataPage, OperationControlPage } from '@/features/operations/pages';
 import { ETARPage } from '@/features/gestao/pages';
 import { ClientsPage } from '@/features/payments/pages';
+import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
 import { DashboardOverviewPage } from '@/features/dashboards/pages';
 import { EPIPage } from '@/features/administrativo/pages';
 import { TasksPage } from '@/features/tasks/pages';
@@ -120,27 +121,21 @@ function App() {
         <Route path="/users" element={<div>Users Page (Coming Soon)</div>} />
 
         {/* Payments - permissão 850 (PAYMENTS_VIEW) verificada automaticamente */}
-        <Route path="/payments" element={<div>Payments Page (Coming Soon)</div>} />
+        <Route path="/payments" element={<PaymentAdminPage />} />
 
         {/* ==================== MÓDULO: OPERAÇÃO ==================== */}
         {/* Tasks - permissão 200 (TASKS_VIEW) verificada automaticamente */}
         {/* Página unificada com tabs: Todas (admin) | Minhas Tarefas | Criadas por Mim */}
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/*" element={<TasksPage />} />
-        <Route path="/tasks/control" element={<OperationControlPage />} />
 
-        {/* Operations Register - permissão 310 (OPERATIONS_CREATE) verificada automaticamente */}
-        <Route path="/operations/register" element={<div>Register Operation (Coming Soon)</div>} />
-        <Route path="/operations/register/etar" element={<div>ETAR Operation (Coming Soon)</div>} />
-        <Route path="/operations/register/ee" element={<div>EE Operation (Coming Soon)</div>} />
-        <Route path="/operations/register/network" element={<div>Network Operation (Coming Soon)</div>} />
-        <Route path="/operations/register/boxes" element={<div>Boxes Operation (Coming Soon)</div>} />
+        {/* Operation - permissão 310 (OPERATIONS_ACCESS) verificada automaticamente */}
+        {/* Vista adaptativa: mobile → OperatorMobilePage, desktop → TasksPage/SupervisorPage */}
+        <Route path="/operation" element={<OperationPage />} />
+        <Route path="/operation/control" element={<OperationControlPage />} />
+        <Route path="/operation/metadata" element={<OperationMetadataPage />} />
 
-        {/* Branches - permissão 400 (BRANCHES_VIEW) verificada automaticamente */}
-        <Route path="/branches" element={<BranchesPage />} />
-
-        {/* Septic Tanks - permissão 450 (SEPTIC_TANKS_VIEW) verificada automaticamente */}
-        <Route path="/septic-tanks" element={<div>Septic Tanks Page (Coming Soon)</div>} />
+        {/* /branches e /septic-tanks removidos - não implementados */}
 
         {/* ==================== MÓDULO: GESTÃO ==================== */}
         {/* Analyses - permissão 700 (ANALYSES_VIEW) verificada automaticamente */}

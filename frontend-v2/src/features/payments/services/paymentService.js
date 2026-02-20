@@ -34,11 +34,20 @@ class PaymentService {
      * MBWAY - Usa checkout SIBS existente
      */
     async processMBWay(transactionId, phoneNumber) {
-        const response = await api.post('/payments/mbway', {
-            transaction_id: transactionId,
-            phone_number: phoneNumber
-        });
-        return response;
+        try {
+            const response = await api.post('/payments/mbway', {
+                transaction_id: transactionId,
+                phone_number: phoneNumber
+            });
+            return response;
+        } catch (error) {
+            // Extrair mensagem de erro do backend (APIError usa chave 'erro')
+            const backendMsg = error.response?.data?.erro || error.response?.data?.error;
+            if (backendMsg) {
+                throw new Error(backendMsg);
+            }
+            throw error;
+        }
     }
 
     /**
@@ -95,6 +104,35 @@ class PaymentService {
 
     async checkStatus(transactionId) {
         const response = await api.get(`/payments/status/${transactionId}`);
+        return response;
+    }
+
+    /**
+     * ADMINISTRAÇÃO
+     */
+    async getPaymentDetails(paymentPk) {
+        const response = await api.get(`/payments/details/${paymentPk}`);
+        return response;
+    }
+
+    async getPendingPayments() {
+        const response = await api.get('/payments/pending');
+        return response;
+    }
+
+    async approvePayment(paymentPk) {
+        const response = await api.put(`/payments/approve/${paymentPk}`);
+        return response;
+    }
+
+    async getPaymentHistory(params = {}) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== '') {
+                queryParams.append(key, value);
+            }
+        });
+        const response = await api.get(`/payments/history?${queryParams}`);
         return response;
     }
 }

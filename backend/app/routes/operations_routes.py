@@ -104,11 +104,19 @@ def cleanup_session(response):
 @set_session
 @api_error_handler
 def get_operacao_meta():
-    """Obter dados das metas de operação"""
+    """Obter dados das metas de operação com paginação"""
     current_user = get_jwt_identity()
     try:
+        filters = {
+            'limit': request.args.get('limit', type=int),
+            'offset': request.args.get('offset', 0, type=int),
+            'search': request.args.get('search'),
+        }
+        # Remover filtros vazios
+        filters = {k: v for k, v in filters.items() if v is not None}
+
         with db_session_manager(current_user):
-            data = get_operacao_meta_data(current_user)
+            data = get_operacao_meta_data(current_user, filters)
             return jsonify(data), 200
     except SQLAlchemyError as e:
         logger.error(f"Erro de banco de dados ao buscar metas de operação: {str(e)}", exc_info=True)

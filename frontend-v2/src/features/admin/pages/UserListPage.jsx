@@ -65,7 +65,7 @@ import {
   Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useUserList } from '../hooks';
-import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { FadeIn } from '@/shared/components/animation';
 import { SearchBar } from '@/shared/components/data';
 import { TableSkeleton } from '@/shared/components/feedback';
 import { useProfiles } from '@/core/contexts/MetadataContext';
@@ -290,7 +290,6 @@ const UserListPage = () => {
   };
 
   return (
-    <PageTransition variant="slideUp">
       <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
         {/* Header */}
         <FadeIn direction="down">
@@ -850,7 +849,6 @@ const UserListPage = () => {
         onConfirm={handleBulkPermissionsConfirm}
       />
       </Container>
-    </PageTransition>
   );
 };
 

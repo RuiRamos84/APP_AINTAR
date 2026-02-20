@@ -9,7 +9,7 @@ export const useDocumentsStore = create(
     (set) => ({
       // UI View State
       activeTab: 0, // 0: All, 1: Assigned, 2: Created, 3: Late
-      viewMode: 'list', // 'list' | 'grid' | 'kanban'
+      viewMode: 'list', // 'list' | 'grid'
       density: 'standard', // 'compact' | 'standard' | 'comfortable'
       
       // Filters

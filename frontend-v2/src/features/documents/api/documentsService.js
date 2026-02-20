@@ -97,7 +97,11 @@ export const documentsService = {
    * @returns {Promise<Object>} Result
    */
   async addStep(id, formData) {
-    const response = await api.post(`/add_document_step/${id}`, formData);
+    const response = await api.post(`/add_document_step/${id}`, formData, {
+      headers: {
+        'Content-Type': undefined,
+      },
+    });
     return response;
   },
 
@@ -110,7 +114,7 @@ export const documentsService = {
     // Ensure 'files' is present in formData even if empty, but usually handled by caller
     const response = await api.post('/create_document', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': undefined,
       },
     });
     return response;
@@ -166,7 +170,7 @@ export const documentsService = {
   async addAnnex(formData) {
     const response = await api.post('/add_document_annex', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': undefined,
       },
     });
     return response;

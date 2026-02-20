@@ -167,8 +167,6 @@ export const detectModuleFromPath = (pathname) => {
     // OPERAÇÃO
     '/tasks': 'operacao',
     '/operations': 'operacao',
-    '/branches': 'operacao',
-    '/septic-tanks': 'operacao',
 
     // GESTÃO
     '/etar': 'gestao',
