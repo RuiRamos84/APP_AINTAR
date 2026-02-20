@@ -3,7 +3,6 @@ import { Box, CircularProgress, Alert } from '@mui/material';
 import DocumentsLayout from './DocumentsLayout';
 import DocumentList from '../components/list/DocumentList';
 import DocumentGrid from '../components/card/DocumentGrid';
-import DocumentKanban from '../components/kanban/DocumentKanban';
 import { useDocumentsStore } from '../store/documentsStore';
 import { useDocuments, useClearNotification } from '../hooks/useDocuments';
 import { filterDocuments, sortDocuments } from '../utils/documentUtils';
@@ -12,7 +11,7 @@ import { exportDocumentsToExcel } from '../utils/excelExport';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import KeyboardShortcutsHelp from '../components/keyboard/KeyboardShortcutsHelp';
-import AddStepModal from '../components/modals/AddStepModal';
+
 
 // Lazy-loaded modals (only loaded when opened)
 const CreateDocumentModal = lazy(() => import('../components/forms/CreateDocumentModal'));
@@ -36,7 +35,7 @@ const DocumentsPage = () => {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
-  const [kanbanStepDoc, setKanbanStepDoc] = useState(null);
+
 
   // Determine which API to call based on activeTab
   const queryType = useMemo(() => {
@@ -81,9 +80,7 @@ const DocumentsPage = () => {
     exportDocumentsToExcel(processedDocuments, metaData, TAB_NAMES[activeTab] || 'Pedidos');
   }, [processedDocuments, metaData, activeTab]);
 
-  const handleStatusChange = useCallback((docId, newStatus, document) => {
-    setKanbanStepDoc({ document, targetStep: newStatus });
-  }, []);
+
 
   // Keyboard Shortcuts
   const { showHelp, setShowHelp, shortcuts } = useKeyboardShortcuts({
@@ -111,18 +108,14 @@ const DocumentsPage = () => {
                   <DocumentList 
                       documents={processedDocuments} 
                       loading={isLoading}
+                      metaData={metaData}
                       onViewDetails={handleViewDetails}
-                  />
-              ) : viewMode === 'kanban' ? (
-                  <DocumentKanban
-                      documents={processedDocuments}
-                      onViewDetails={handleViewDetails}
-                      onStatusChange={handleStatusChange}
                   />
               ) : (
                   <DocumentGrid 
                       documents={processedDocuments} 
                       loading={isLoading}
+                      metaData={metaData}
                       onViewDetails={handleViewDetails}
                   />
               )}
@@ -143,6 +136,8 @@ const DocumentsPage = () => {
             open={!!selectedDocument}
             onClose={handleCloseDetails}
             documentData={selectedDocument}
+            isOwner={activeTab === 1}
+            isCreator={activeTab === 2}
           />
         )}
       </Suspense>
@@ -153,15 +148,7 @@ const DocumentsPage = () => {
         shortcuts={shortcuts}
       />
 
-      {kanbanStepDoc && (
-        <AddStepModal
-          open={!!kanbanStepDoc}
-          onClose={() => setKanbanStepDoc(null)}
-          documentId={kanbanStepDoc.document.pk}
-          document={kanbanStepDoc.document}
-          initialStep={kanbanStepDoc.targetStep}
-        />
-      )}
+
     </>
   );
 };

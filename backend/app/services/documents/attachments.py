@@ -8,6 +8,7 @@ import os
 from functools import wraps
 from app import cache
 from .utils import ensure_directories, sanitize_input
+from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -142,6 +143,12 @@ def add_document_annex(data, current_user):
                         raise Exception(f"Falha guardar: {file_path}")
                     
                     os.chmod(file_path, 0o644)
+
+                    # Compress images and PDFs automatically
+                    new_path, orig_size, new_size = process_uploaded_file(file_path, filename)
+                    if new_path != file_path:
+                        filename = os.path.basename(new_path)
+                        file_path = new_path
                     logger.info(f"Ficheiro guardado: {file_path}")
 
                     annex_query = text(

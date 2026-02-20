@@ -140,10 +140,36 @@ class PaymentService:
             invoice_query = text("SELECT * FROM vbl_document_invoice WHERE tb_document = :document_id")
             result = session.execute(invoice_query, {"document_id": document_id}).fetchone()
 
-            # 3. Se a fatura existir, retorná-la
+            # 3. Se a fatura existir, retorná-la (enriquecida com dados SIBS)
             if result:
                 invoice_data = dict(result._mapping)
                 logger.info(f"💰 Invoice encontrado para documento {document_id}: {invoice_data.get('invoice', 0)}")
+
+                # Enriquecer com dados da tabela SIBS (expiry, entity, etc.)
+                # A view vbl_document_invoice não tem tb_sibs, usar order_id ou tb_document
+                order_id = invoice_data.get('order_id')
+                sibs_result = None
+                if order_id:
+                    sibs_query = text("SELECT * FROM vbl_sibs WHERE order_id = :order_id ORDER BY created_at DESC LIMIT 1")
+                    sibs_result = session.execute(sibs_query, {"order_id": order_id}).fetchone()
+
+                if not sibs_result:
+                    # Fallback: procurar via tb_document_invoice -> tb_sibs
+                    sibs_query = text("""
+                        SELECT s.* FROM vbl_sibs s
+                        JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                        WHERE di.tb_document = :document_id
+                    """)
+                    sibs_result = session.execute(sibs_query, {"document_id": document_id}).fetchone()
+
+                if sibs_result:
+                    sibs_data = dict(sibs_result._mapping)
+                    invoice_data['sibs_expiry'] = str(sibs_data.get('expiry_date', '')) if sibs_data.get('expiry_date') else None
+                    invoice_data['sibs_entity'] = sibs_data.get('entity')
+                    invoice_data['sibs_reference'] = sibs_data.get('pref')
+                    invoice_data['sibs_method'] = sibs_data.get('method')
+                    invoice_data['sibs_status'] = sibs_data.get('status')
+
                 return invoice_data
 
             logger.warning(f"⚠️ Invoice NÃO encontrado para documento {document_id}, tentando criar...")
@@ -299,15 +325,54 @@ class PaymentService:
 
             resp = requests.post(
                 url, json={"customerPhone": formatted_phone}, headers=headers, timeout=30)
-            resp.raise_for_status()
+
+            # Tratar erros HTTP da SIBS com mensagens claras
+            if resp.status_code != 200:
+                sibs_error = None
+                try:
+                    sibs_error = resp.json()
+                except Exception:
+                    pass
+
+                logger.error(f"SIBS MBWay erro HTTP {resp.status_code}: {sibs_error or resp.text}")
+
+                error_messages = {
+                    404: "O número de telemóvel indicado não tem MB WAY ativo. Verifique o número ou utilize outro método de pagamento.",
+                    400: "Dados inválidos enviados para o MB WAY. Verifique o número de telemóvel.",
+                    401: "Erro de autenticação com o serviço de pagamentos.",
+                    403: "Acesso negado ao serviço de pagamentos.",
+                    409: "Já existe um pagamento pendente para esta transação.",
+                    429: "Demasiados pedidos. Aguarde uns segundos e tente novamente.",
+                    500: "O serviço MB WAY está temporariamente indisponível. Tente novamente mais tarde.",
+                    503: "O serviço MB WAY está em manutenção. Tente novamente mais tarde.",
+                }
+                msg = error_messages.get(
+                    resp.status_code,
+                    f"Erro no serviço MB WAY (código {resp.status_code}). Tente novamente."
+                )
+                raise APIError(msg, 400, "ERR_MBWAY_SIBS")
 
             sibs_response = resp.json()
             payment_status = sibs_response.get("paymentStatus", "UNKNOWN")
-            print(f"SIBS Response: {sibs_response}")  # ADICIONAR LOG
+            logger.info(f"SIBS MBWay Response: payment_status={payment_status}")
+
+            # Tratar recusa imediata da SIBS (ex: número sem MBWay na 2a tentativa)
+            if payment_status == "Declined":
+                status_desc = sibs_response.get("returnStatus", {}).get("statusDescription", "")
+                logger.warning(f"SIBS MBWay recusado imediatamente: {status_desc}")
+
+                declined_messages = {
+                    "The provided alias does not exist": "O número de telemóvel indicado não tem MB WAY ativo. Verifique o número ou utilize outro método de pagamento.",
+                }
+                msg = declined_messages.get(
+                    status_desc,
+                    "O pagamento MB WAY foi recusado. Verifique o número ou tente outro método de pagamento."
+                )
+                raise APIError(msg, 400, "ERR_MBWAY_DECLINED")
+
             status_map = {
                 "Success": PaymentStatus.PENDING_VALIDATION,
                 "Pending": PaymentStatus.PENDING,
-                "Declined": PaymentStatus.DECLINED,
                 "Expired": PaymentStatus.EXPIRED
             }
             internal_status = status_map.get(

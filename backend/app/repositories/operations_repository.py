@@ -49,22 +49,48 @@ class OperationsRepository(BaseRepository):
 
     def find_today_tasks(self, user_id: int, current_user: str) -> Dict[str, Any]:
         """
-        Buscar tarefas do dia - USA vbl_operacao$self
-        View retorna PKs + nomes. Frontend pode usar metadados para lookups adicionais.
+        Buscar tarefas do dia:
+        - Pendentes via vbl_operacao$self
+        - Concluídas via vbl_operacao (filtradas por operador + valuetext preenchido)
+        - Stats (total_assigned, total_completed)
         """
         try:
             with db_session_manager(current_user) as session:
+                # 1. Tarefas pendentes (view $self só retorna pendentes)
                 query = text("SELECT * FROM \"vbl_operacao$self\" ORDER BY pk")
                 result = session.execute(query)
                 data = [dict(row) for row in result.mappings().all()]
+                columns = list(result.keys())
 
-                current_app.logger.info(f"Encontradas {len(data)} tarefas")
+                # 2. Tarefas concluídas (mesmas colunas, filtradas por operador)
+                completed_query = text("""
+                    SELECT * FROM vbl_operacao
+                    WHERE (pk_operador1 = :user_id OR pk_operador2 = :user_id)
+                      AND valuetext IS NOT NULL AND valuetext != ''
+                    ORDER BY pk DESC
+                """)
+                completed_result = session.execute(completed_query, {'user_id': user_id})
+                completed_data = [dict(row) for row in completed_result.mappings().all()]
+
+                # 3. Stats
+                total_assigned = len(data) + len(completed_data)
+                stats = {
+                    'total_assigned': total_assigned,
+                    'total_completed': len(completed_data),
+                }
+
+                current_app.logger.info(
+                    f"Tarefas: {len(data)} pendentes, "
+                    f"{stats['total_completed']}/{stats['total_assigned']} concluídas"
+                )
 
                 return {
                     'success': True,
                     'data': data,
+                    'completed': completed_data,
                     'total': len(data),
-                    'columns': list(result.keys())
+                    'stats': stats,
+                    'columns': columns
                 }
 
         except SQLAlchemyError as e:
@@ -72,7 +98,9 @@ class OperationsRepository(BaseRepository):
             return {
                 'success': False,
                 'data': [],
+                'completed': [],
                 'total': 0,
+                'stats': {'total_assigned': 0, 'total_completed': 0},
                 'error': 'Erro ao buscar tarefas'
             }
 
@@ -123,17 +151,40 @@ class OperationMetaRepository(BaseRepository):
         super().__init__('vbl_operacaometa', 'tb_operacaometa')
 
     def find_all(self, current_user: str, filters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Buscar todas as metas - USA vbl_operacaometa"""
+        """Buscar metas com paginação e pesquisa - USA vbl_operacaometa"""
         try:
+            filters = filters or {}
+            limit = filters.get('limit')
+            offset = filters.get('offset', 0)
+            search = filters.get('search', '').strip()
+
             with db_session_manager(current_user) as session:
-                query = text("SELECT * FROM vbl_operacaometa ORDER BY pk")
-                result = session.execute(query)
+                params = {}
+                where_clause = ""
+
+                if search:
+                    where_clause = " WHERE CAST(pk AS TEXT) || ' ' || COALESCE(CAST(tb_instalacao AS TEXT),'') || ' ' || COALESCE(CAST(tt_operacaoaccao AS TEXT),'') || ' ' || COALESCE(CAST(ts_operador1 AS TEXT),'') ILIKE :search"
+                    params['search'] = f'%{search}%'
+
+                # Total sem paginação
+                count_sql = f"SELECT COUNT(*) FROM vbl_operacaometa{where_clause}"
+                total = session.execute(text(count_sql), params).scalar()
+
+                # Query paginada
+                data_sql = f"SELECT * FROM vbl_operacaometa{where_clause} ORDER BY pk"
+
+                if limit:
+                    data_sql += " LIMIT :limit OFFSET :offset"
+                    params['limit'] = min(int(limit), 200)
+                    params['offset'] = int(offset)
+
+                result = session.execute(text(data_sql), params)
                 data = [dict(row) for row in result.mappings().all()]
 
                 return {
                     'success': True,
                     'data': data,
-                    'total': len(data),
+                    'total': total,
                     'columns': list(result.keys())
                 }
 

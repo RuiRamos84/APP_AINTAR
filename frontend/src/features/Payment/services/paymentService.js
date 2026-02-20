@@ -35,16 +35,25 @@ class PaymentService {
      * MBWAY - Usa checkout SIBS existente
      */
     async processMBWay(transactionId, phoneNumber) {
-        const response = await this.api.post('/payments/mbway', {
-            transaction_id: transactionId,
-            phone_number: phoneNumber
-        });
+        try {
+            const response = await this.api.post('/payments/mbway', {
+                transaction_id: transactionId,
+                phone_number: phoneNumber
+            });
 
-        if (response.data.success) {
-            return response.data;
+            if (response.data.success) {
+                return response.data;
+            }
+
+            throw new Error(response.data.error || 'Erro MBWay');
+        } catch (error) {
+            // Extrair mensagem de erro do backend (APIError usa chave 'erro')
+            const backendMsg = error.response?.data?.erro || error.response?.data?.error;
+            if (backendMsg) {
+                throw new Error(backendMsg);
+            }
+            throw error;
         }
-
-        throw new Error(response.data.error || 'Erro MBWay');
     }
 
     /**

@@ -36,7 +36,7 @@ import {
   Refresh as RefreshIcon,
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
-import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { FadeIn } from '@/shared/components/animation';
 import { SearchBar } from '@/shared/components/data';
 import { useInterfaces } from '@/core/contexts/MetadataContext';
 
@@ -71,7 +71,6 @@ const PermissionsListPage = () => {
   }, {});
 
   return (
-    <PageTransition variant="slideUp">
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Header */}
         <FadeIn direction="down">
@@ -278,7 +277,6 @@ const PermissionsListPage = () => {
           </FadeIn>
         )}
       </Container>
-    </PageTransition>
   );
 };
 

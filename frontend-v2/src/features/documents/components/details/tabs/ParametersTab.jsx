@@ -128,8 +128,12 @@ const ParametersTab = ({ document }) => {
     const formatValue = (p) => {
         if (p.type === 4 || p.type === '4') {
             const val = p.value;
+            if (val === null || val === undefined || val === '') return '—';
             const isTrue = val === '1' || val === 1 || val === true || val === 'true';
-            return <Chip label={isTrue ? "Sim" : "Não"} color={isTrue ? "success" : "default"} size="small" />;
+            const isFalse = val === '0' || val === 0 || val === false || val === 'false';
+            if (isTrue) return <Chip label="Sim" color="success" size="small" />;
+            if (isFalse) return <Chip label="Não" color="default" size="small" />;
+            return '—';
         }
         // Reference Type resolution if needed
         if (p.type === 3 || p.type === '3') {

@@ -86,6 +86,7 @@ def create_app(config_class):
     # Adicione estas linhas
     app.config['ROOT_PATH'] = os.path.dirname(os.path.abspath(__file__))
     app.config['UPLOAD_FOLDER'] = os.path.join(app.config['ROOT_PATH'], 'uploads')
+    app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max upload
     app.config['UTILS_FOLDER'] = os.path.join(app.config['ROOT_PATH'], 'utils')
 
     # Definir o ambiente explicitamente
@@ -274,6 +275,15 @@ def create_app(config_class):
     @app.errorhandler(500)
     def internal_error(error):
         return {"error": "Internal server error"}, 500
+
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        max_mb = app.config.get('MAX_CONTENT_LENGTH', 0) / (1024 * 1024)
+        return {
+            "error": f"Ficheiro demasiado grande. Tamanho máximo permitido: {max_mb:.0f}MB",
+            "code": "ERR_FILE_TOO_LARGE",
+            "max_size_mb": max_mb
+        }, 413
 
     # Aplicação iniciada
 

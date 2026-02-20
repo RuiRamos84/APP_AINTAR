@@ -7,7 +7,7 @@ import { Box, Typography, Paper, Breadcrumbs, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
-export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, children }) => {
+export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, children }) => {
   const navigate = useNavigate();
 
   return (
@@ -63,7 +63,7 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               <Icon sx={{ fontSize: 28, color: color || 'primary.main' }} />
             </Box>
           )}
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="h4" fontWeight={600} gutterBottom>
               {title}
             </Typography>
@@ -73,6 +73,7 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               </Typography>
             )}
           </Box>
+          {actions && <Box sx={{ ml: 'auto', flexShrink: 0 }}>{actions}</Box>}
         </Box>
       )}
 

@@ -1,333 +1,378 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-    Box,
-    Typography,
-    Grid,
-    CircularProgress,
-    Tabs,
-    Tab,
-    useTheme,
-    Fab
+    Box, Typography, Grid, CircularProgress, Chip, Stack,
+    Card, CardContent, Accordion, AccordionSummary, AccordionDetails,
+    Badge, LinearProgress, Alert, useTheme, alpha, Fab, Tooltip, Collapse
 } from '@mui/material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { operationService } from '../services/operationService';
-import metadataService from '@/services/metadataService';
+import {
+    Assignment as AssignmentIcon,
+    Refresh as RefreshIcon,
+    ExpandMore,
+    CheckCircle,
+    Schedule,
+    TaskAlt,
+    WifiOff,
+    Phone as PhoneIcon,
+} from '@mui/icons-material';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import OperationCard from '../components/OperationCard';
-import AssociateFilter from '../components/AssociateFilter';
+import { useOperationTasks } from '../hooks/useOperationTasks';
+import { useOffline } from '../hooks/useOffline';
+import { getInstallationLicenseColor, formatCompletedTaskValue } from '../utils/formatters';
+import { exportTasksToExcel } from '../services/exportService';
+import MESSAGES from '../constants/messages';
+import ExportButton from '../components/ExportButton';
 import DetailsDrawer from '../components/DetailsDrawer';
-import CompletionModal from '../components/CompletionModal';
+import TaskCompletionDialog from '../components/TaskCompletionDialog';
 
 const TasksPage = () => {
     const theme = useTheme();
-    const queryClient = useQueryClient();
     const { user } = useAuth();
+    const { isOnline, hasPendingActions } = useOffline();
 
-    // State
-    const [selectedAssociate, setSelectedAssociate] = useState('all');
-    const [selectedView, setSelectedView] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // UI State
+    const [showCompleted, setShowCompleted] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [selectedItem, setSelectedItem] = useState(null);
+    const [completionOpen, setCompletionOpen] = useState(false);
+    const [selectedTask, setSelectedTask] = useState(null);
 
-    // Queries
-    const { data: operationsData, isLoading, error } = useQuery({
-        queryKey: ['operationsData'],
-        queryFn: async () => {
-            const data = await operationService.fetchOperationsData();
-            console.log('[TasksPage] Raw Operations Data:', data);
-            return data;
-        },
-        staleTime: 1000 * 60 * 5 // 5 mins
-    });
+    const {
+        tasks,
+        pendingTasks,
+        completedTasks,
+        tasksByInstallation,
+        completedByInstallation,
+        stats,
+        isLoading,
+        error,
+        refetch,
+        completeTask,
+    } = useOperationTasks();
 
-    const { data: metaData } = useQuery({
-        queryKey: ['metadata'],
-        queryFn: metadataService.fetchMetaData,
-        staleTime: 1000 * 60 * 30
-    });
+    // Pesquisa
+    const filteredInstallations = useMemo(() => {
+        if (!searchTerm) return tasksByInstallation;
+        const lower = searchTerm.toLowerCase();
+        return tasksByInstallation
+            .map(([name, data]) => {
+                const filtered = data.tasks.filter(t =>
+                    (t.instalacao_nome || '').toLowerCase().includes(lower) ||
+                    (t.acao_operacao || '').toLowerCase().includes(lower) ||
+                    (t.modo_operacao || '').toLowerCase().includes(lower)
+                );
+                return filtered.length > 0 ? [name, { ...data, tasks: filtered }] : null;
+            })
+            .filter(Boolean);
+    }, [tasksByInstallation, searchTerm]);
 
-    // Derived State
-    const associates = useMemo(() => {
-        if (!operationsData) return ['all'];
-        const uniqueAssociates = new Set(['all']);
-        Object.values(operationsData).forEach(item => {
-            if (item.data) {
-                item.data.forEach(d => {
-                    if (d.ts_associate && typeof d.ts_associate === 'string' && isNaN(Number(d.ts_associate))) {
-                        uniqueAssociates.add(d.ts_associate);
-                    }
-                });
-            }
-        });
-        return Array.from(uniqueAssociates);
-    }, [operationsData]);
-
-    const filteredData = useMemo(() => {
-        if (!operationsData) return {};
-        
-        // Logic ported from useOperationsFiltering
-        const result = {};
-        const specificViews = [
-            "vbr_document_ramais01",
-            "vbr_document_caixas01",
-            "vbr_document_desobstrucao01",
-            "vbr_document_pavimentacao01",
-            "vbr_document_rede01",
-        ];
-
-        const municipalityFossaMap = {
-            "Município de Carregal do Sal": "vbr_document_fossa02",
-            "Município de Santa Comba Dão": "vbr_document_fossa03",
-            "Município de Tábua": "vbr_document_fossa04",
-            "Município de Tondela": "vbr_document_fossa05",
-        };
-
-        if (selectedAssociate === "all") {
-            if (operationsData["vbr_document_fossa01"]) {
-                result["vbr_document_fossa01"] = operationsData["vbr_document_fossa01"];
-            }
-            specificViews.forEach((view) => {
-                if (operationsData[view]) {
-                    result[view] = operationsData[view];
-                }
-            });
-        } else {
-            const fossaKey = municipalityFossaMap[selectedAssociate];
-            if (fossaKey && operationsData[fossaKey]) {
-                result[fossaKey] = operationsData[fossaKey];
-            }
-
-            specificViews.forEach((view) => {
-                if (operationsData[view]) {
-                    const filteredItems = operationsData[view].data.filter(
-                        (item) => item.ts_associate === selectedAssociate
-                    );
-                    if (filteredItems.length > 0) {
-                        result[view] = {
-                            ...operationsData[view],
-                            data: filteredItems,
-                            total: filteredItems.length,
-                        };
-                    }
-                }
-            });
-        }
-        console.log('[TasksPage] Filtered Data:', result);
-        return result;
-    }, [operationsData, selectedAssociate]);
-
-    const sortedViews = useMemo(() => {
-        return Object.entries(filteredData).sort((a, b) => b[1].total - a[1].total);
-    }, [filteredData]);
-
-    // Auto-select view
-    useEffect(() => {
-        if ((!selectedView || !filteredData[selectedView]) && sortedViews.length > 0) {
-            setSelectedView(sortedViews[0][0]);
-        }
-    }, [filteredData, selectedView, sortedViews]);
-
-    // Items to display
-    const displayItems = useMemo(() => {
-        if (!selectedView || !filteredData[selectedView]) return [];
-        let items = filteredData[selectedView].data;
-
-        if (searchTerm) {
-            const lowerInfo = searchTerm.toLowerCase();
-            items = items.filter(item => 
-                item.regnumber?.toLowerCase().includes(lowerInfo) ||
-                item.ts_entity?.toLowerCase().includes(lowerInfo) ||
-                (item.address && item.address.toLowerCase().includes(lowerInfo))
-            );
-        }
-
-        return items;
-    }, [selectedView, filteredData, searchTerm]);
-
-    const getRemainingDaysColor = (days) => {
-        if (days < 0) return theme.palette.error.main;
-        if (days < 3) return theme.palette.warning.main;
-        return theme.palette.success.main;
-    };
-
-    // Actions
-    const handleOpenDetails = (item) => {
-        setSelectedItem(item);
+    const handleOpenDetails = (task) => {
+        setSelectedTask(task);
         setDrawerOpen(true);
     };
 
-    const handleOpenCompletion = (item) => {
-        setSelectedItem(item);
-        setModalOpen(true);
-        // Drawer might remain open or close, let's close it for focus
-        setDrawerOpen(false); 
+    const handleOpenCompletion = (task) => {
+        setSelectedTask(task);
+        setCompletionOpen(true);
+        setDrawerOpen(false);
     };
 
-    const handleNavigate = (item) => {
-        const target = item || selectedItem;
-        if (!target) return;
-        if (target.latitude && target.longitude) {
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}`);
-        } else {
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${target.address}, ${target.postal}`)}`);
-        }
+    const handleCompleteTask = async (taskId, completionData) => {
+        await completeTask(taskId, completionData);
+        setCompletionOpen(false);
+        setSelectedTask(null);
     };
 
-    const handleCall = (item) => {
-         const target = item || selectedItem;
-         if (target?.phone) window.open(`tel:${target.phone}`);
-    };
-
-    // Mutation
-    const completeTaskMutation = useMutation({
-        mutationFn: (data) => operationService.completeOperation(selectedItem.pk, data),
-        onSuccess: () => {
-            queryClient.invalidateQueries(['operationsData']);
-            setModalOpen(false);
-            setSelectedItem(null);
-        },
-        onError: (err) => {
-            console.error(err);
-            // Handle error toast
-        }
-    });
-
-    const handleConfirmCompletion = ({ note, files }) => {
-        const fd = new FormData();
-        fd.append('notes', note); 
-        // We might need 'step' or 'action' depending on backend requirement.
-        // Assuming minimal payload is enough or backend handles it based on pk context.
-        
-        files.forEach(f => fd.append('files', f.file));
-        
-        completeTaskMutation.mutate(fd);
-    };
-
-    const canAct = (item) => {
-        // user.id vs item.who (which is string or int)
-        // Ensure to handle cases where user is null or item.who is null
-        if (!user || !user.id || !item || !item.who) return false;
-        return String(item.who) === String(user.id);
+    const handleExportExcel = () => {
+        exportTasksToExcel(tasks, { filename: 'Minhas_Tarefas' });
     };
 
     return (
         <ModulePage
-            title="Minhas Tarefas"
+            title={MESSAGES.SECTIONS.MY_TASKS}
             subtitle="Gestão de tarefas operacionais diárias"
             icon={AssignmentIcon}
             color="#2196f3"
             breadcrumbs={[
-                { label: 'Operação', path: '/tasks' },
-                { label: 'Minhas Tarefas', path: '/tasks' },
+                { label: 'Operação', path: '/operation' },
+                { label: MESSAGES.SECTIONS.MY_TASKS },
             ]}
             actions={
-                <Fab 
-                    color="primary" 
-                    size="small" 
-                    onClick={() => queryClient.invalidateQueries(['operationsData'])}
-                >
-                    <RefreshIcon />
-                </Fab>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+                    <ExportButton
+                        onExportExcel={handleExportExcel}
+                        count={tasks.length}
+                        disabled={isLoading}
+                    />
+                    {!isOnline && (
+                        <Chip icon={<WifiOff />} label="Offline" color="warning" size="small" />
+                    )}
+                    {hasPendingActions && (
+                        <Chip label="Sync pendente" color="info" size="small" variant="outlined" />
+                    )}
+                    <Tooltip title="Atualizar">
+                        <span>
+                            <Fab color="primary" size="small" onClick={refetch} disabled={isLoading}>
+                                {isLoading ? <CircularProgress size={22} color="inherit" /> : <RefreshIcon />}
+                            </Fab>
+                        </span>
+                    </Tooltip>
+                </Stack>
             }
         >
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {MESSAGES.ERROR.LOAD_TASKS}: {error.message}
+                </Alert>
+            )}
+
             {isLoading && (
                 <Box display="flex" justifyContent="center" py={8}><CircularProgress /></Box>
             )}
 
-            {error && (
-                <Typography color="error">Erro ao carregar tarefas: {error.message}</Typography>
-            )}
-
-            {!isLoading && !error && Object.keys(filteredData).length === 0 && (
-                <Box textAlign="center" py={8}>
-                     <Typography variant="h6" color="text.secondary">Nenhuma tarefa disponível.</Typography>
-                </Box>
-            )}
-
-            {!isLoading && !error && Object.keys(filteredData).length > 0 && (
+            {!isLoading && !error && (
                 <>
-                    {/* Filters */}
-                    <Box sx={{ mb: 3 }}>
-                        <Grid container spacing={2} alignItems="center">
-                            <Grid size={{ xs: 12, md: 8 }}>
-                                <AssociateFilter 
-                                    associates={associates}
-                                    selectedAssociate={selectedAssociate}
-                                    onAssociateChange={setSelectedAssociate}
-                                />
+                    {/* Stats + Progress compacto */}
+                    <Card variant="outlined" sx={{ mb: 3, borderRadius: 3, overflow: 'hidden' }}>
+                        <Box sx={{ px: 2.5, pt: 2, pb: 1.5 }}>
+                            <Grid container spacing={2} alignItems="center">
+                                {[
+                                    { label: 'Total', value: stats.total, icon: <AssignmentIcon fontSize="small" />, color: theme.palette.primary.main },
+                                    { label: 'Pendentes', value: stats.pending, icon: <Schedule fontSize="small" />, color: theme.palette.warning.main },
+                                    { label: 'Concluídas', value: stats.completed, icon: <CheckCircle fontSize="small" />, color: theme.palette.success.main },
+                                ].map((stat) => (
+                                    <Grid size={{ xs: 4 }} key={stat.label}>
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                            <Box sx={{
+                                                width: 36, height: 36, borderRadius: 2,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                bgcolor: alpha(stat.color, 0.1), color: stat.color
+                                            }}>
+                                                {stat.icon}
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="h6" fontWeight={700} lineHeight={1} color={stat.color}>
+                                                    {stat.value}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {stat.label}
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Grid>
+                                ))}
                             </Grid>
-                            <Grid size={{ xs: 12, md: 4 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <SearchBar
-                                    searchTerm={searchTerm}
-                                    onSearch={setSearchTerm}
+                        </Box>
+                        {stats.total > 0 && (
+                            <Box sx={{ px: 2.5, pb: 1.5 }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Progresso do dia
+                                    </Typography>
+                                    <Typography variant="caption" fontWeight={600} color="success.main">
+                                        {stats.completionRate}%
+                                    </Typography>
+                                </Stack>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={stats.completionRate}
+                                    sx={{
+                                        height: 6, borderRadius: 3,
+                                        bgcolor: alpha(theme.palette.success.main, 0.1),
+                                        '& .MuiLinearProgress-bar': {
+                                            borderRadius: 3,
+                                            bgcolor: theme.palette.success.main
+                                        }
+                                    }}
                                 />
-                            </Grid>
-                        </Grid>
-                    </Box>
+                            </Box>
+                        )}
+                    </Card>
 
-                    {/* Views Tabs */}
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                        <Tabs 
-                            value={selectedView || false}
-                            onChange={(e, val) => setSelectedView(val)}
-                            variant="scrollable"
-                            scrollButtons="auto"
+                    {/* Empty state */}
+                    {filteredInstallations.length === 0 && !showCompleted && (
+                        <Box textAlign="center" py={6}>
+                            <TaskAlt sx={{ fontSize: 64, color: 'success.main', mb: 2, opacity: 0.6 }} />
+                            <Typography variant="h6" color="text.secondary" gutterBottom>
+                                {searchTerm ? 'Nenhuma tarefa encontrada' : MESSAGES.EMPTY.NO_TASKS_TODAY}
+                            </Typography>
+                            {searchTerm && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Tente ajustar os termos de pesquisa
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Tarefas Pendentes por Instalação */}
+                    {filteredInstallations.map(([instalacao, data]) => (
+                        <Accordion
+                            key={instalacao}
+                            sx={{
+                                mb: 1, borderRadius: 2,
+                                '&:before': { display: 'none' },
+                                '&.Mui-expanded': { mb: 1 }
+                            }}
                         >
-                            {sortedViews.map(([key, value]) => (
-                                <Tab 
-                                    key={key} 
-                                    value={key} 
-                                    label={`${value.name} (${value.total})`}
-                                />
-                            ))}
-                        </Tabs>
-                    </Box>
+                            <AccordionSummary expandIcon={<ExpandMore />}>
+                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: '100%', mr: 1 }}>
+                                    <Box sx={{
+                                        width: 10, height: 10, borderRadius: '50%',
+                                        bgcolor: getInstallationLicenseColor(data.licenseStatus),
+                                        flexShrink: 0
+                                    }} />
+                                    <Typography fontWeight={600} sx={{ flex: 1 }}>
+                                        {instalacao}
+                                    </Typography>
+                                    <Chip label={data.tasks.length} size="small" color="primary" />
+                                </Stack>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{ pt: 0 }}>
+                                <Stack spacing={1}>
+                                    {data.tasks.map(task => (
+                                        <Card
+                                            key={task.pk}
+                                            variant="outlined"
+                                            sx={{
+                                                borderRadius: 2,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease',
+                                                borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                                                '&:hover': {
+                                                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                                    borderLeftColor: theme.palette.primary.main,
+                                                    transform: 'translateX(2px)'
+                                                }
+                                            }}
+                                            onClick={() => handleOpenDetails(task)}
+                                        >
+                                            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                        <Typography variant="subtitle2" fontWeight={600} noWrap>
+                                                            {task.acao_operacao || task.description || `Tarefa #${task.pk}`}
+                                                        </Typography>
+                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25 }}>
+                                                            {task.modo_operacao && (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    {task.modo_operacao}
+                                                                </Typography>
+                                                            )}
+                                                            {task.modo_operacao && task.phone && (
+                                                                <Typography variant="caption" color="text.disabled">·</Typography>
+                                                            )}
+                                                            {task.phone && (
+                                                                <Stack direction="row" alignItems="center" spacing={0.3}>
+                                                                    <PhoneIcon sx={{ fontSize: 11, color: 'text.disabled' }} />
+                                                                    <Typography variant="caption" color="text.secondary">{task.phone}</Typography>
+                                                                </Stack>
+                                                            )}
+                                                        </Stack>
+                                                    </Box>
+                                                    <Chip
+                                                        label="Concluir"
+                                                        color="success"
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleOpenCompletion(task);
+                                                        }}
+                                                        sx={{
+                                                            cursor: 'pointer', ml: 1, flexShrink: 0,
+                                                            '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) }
+                                                        }}
+                                                    />
+                                                </Stack>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </Stack>
+                            </AccordionDetails>
+                        </Accordion>
+                    ))}
 
-                    {/* Grid */}
-                    <Grid container spacing={3}>
-                        {displayItems.map((item) => (
-                            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={item.pk}>
-                                <OperationCard
-                                    item={item}
-                                    isUrgent={item.urgency === "1"}
-                                    canAct={canAct(item)}
-                                    getRemainingDaysColor={getRemainingDaysColor}
-                                    onClick={() => handleOpenDetails(item)}
-                                    onNavigate={() => handleNavigate(item)}
-                                    onCall={() => handleCall(item)}
-                                    onComplete={() => handleOpenCompletion(item)}
-                                    getAddressString={(i) => `${i.address || ''}, ${i.postal || ''}`}
-                                />
-                            </Grid>
-                        ))}
-                    </Grid>
+                    {/* Tarefas Concluídas */}
+                    {completedTasks.length > 0 && (
+                        <Box sx={{ mt: 3 }}>
+                            <Chip
+                                label={`${MESSAGES.SECTIONS.COMPLETED_TASKS} (${completedTasks.length})`}
+                                onClick={() => setShowCompleted(!showCompleted)}
+                                color={showCompleted ? 'success' : 'default'}
+                                variant={showCompleted ? 'filled' : 'outlined'}
+                                icon={<CheckCircle />}
+                                sx={{ mb: 2 }}
+                            />
+
+                            <Collapse in={showCompleted}>
+                                {completedByInstallation.map(([instalacao, data]) => (
+                                    <Accordion
+                                        key={`completed-${instalacao}`}
+                                        sx={{ mb: 1, opacity: 0.7, borderRadius: 2, '&:before': { display: 'none' } }}
+                                    >
+                                        <AccordionSummary expandIcon={<ExpandMore />}>
+                                            <Typography fontWeight={600}>{instalacao} ({data.tasks.length})</Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails sx={{ pt: 0 }}>
+                                            <Stack spacing={1}>
+                                                {data.tasks.map(task => {
+                                                    const completedValue = formatCompletedTaskValue(task);
+                                                    return (
+                                                        <Card key={task.pk} variant="outlined" sx={{
+                                                            borderRadius: 2,
+                                                            bgcolor: alpha(theme.palette.success.main, 0.03)
+                                                        }}>
+                                                            <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                                                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                                                    <Box sx={{ minWidth: 0 }}>
+                                                                        <Typography variant="subtitle2" sx={{ textDecoration: 'line-through', opacity: 0.6 }} noWrap>
+                                                                            {task.acao_operacao || task.description}
+                                                                        </Typography>
+                                                                        {completedValue && (
+                                                                            <Typography variant="caption" color="success.main">
+                                                                                {completedValue.label}: {completedValue.value}
+                                                                            </Typography>
+                                                                        )}
+                                                                    </Box>
+                                                                    <CheckCircle color="success" fontSize="small" sx={{ flexShrink: 0, ml: 1 }} />
+                                                                </Stack>
+                                                            </CardContent>
+                                                        </Card>
+                                                    );
+                                                })}
+                                            </Stack>
+                                        </AccordionDetails>
+                                    </Accordion>
+                                ))}
+                            </Collapse>
+                        </Box>
+                    )}
                 </>
             )}
 
+            {/* Drawers e Diálogos */}
             <DetailsDrawer
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
-                item={selectedItem}
-                canExecuteActions={selectedItem && canAct(selectedItem)}
-                onNavigate={handleNavigate}
-                onCall={handleCall}
+                item={selectedTask}
+                canExecuteActions={true}
                 onComplete={handleOpenCompletion}
-                getAddressString={(i) => `${i.address || ''}, ${i.postal || ''}`}
+                onNavigate={(item) => {
+                    const target = item || selectedTask;
+                    if (!target) return;
+                    if (target.latitude && target.longitude) {
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}`);
+                    }
+                }}
+                getAddressString={(i) => `${i?.address || ''}, ${i?.postal || ''}`}
             />
 
-            <CompletionModal
-                open={modalOpen}
-                onClose={() => setModalOpen(false)}
-                onConfirm={handleConfirmCompletion}
-                loading={completeTaskMutation.isPending}
+            <TaskCompletionDialog
+                open={completionOpen}
+                onClose={() => { setCompletionOpen(false); setSelectedTask(null); }}
+                task={selectedTask}
+                onComplete={handleCompleteTask}
             />
         </ModulePage>
     );

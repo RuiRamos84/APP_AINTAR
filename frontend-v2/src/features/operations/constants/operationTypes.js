@@ -88,6 +88,17 @@ export const getOperationTypeConfig = (typeId) => {
     return OPERATION_TYPE_CONFIG[typeId] || null;
 };
 
+export const getModalTitle = (typeId) => {
+    const config = OPERATION_TYPE_CONFIG[typeId];
+    return config?.modalTitle || 'Concluir Tarefa';
+};
+
+export const isLaboratoryParameter = (analiseForma) => {
+    if (!analiseForma) return false;
+    const keyword = OPERATION_TYPE_CONFIG[OPERATION_TYPES.ANALYSIS]?.laboratoryKeyword || 'laborat';
+    return analiseForma.toLowerCase().includes(keyword);
+};
+
 export const formatBooleanValue = (value) => {
     const config = OPERATION_TYPE_CONFIG[OPERATION_TYPES.BOOLEAN];
     return value === '1' ? config.valueMapping.checked : config.valueMapping.unchecked;

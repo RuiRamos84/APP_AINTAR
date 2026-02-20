@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 from functools import wraps
 from .utils import ensure_directories, emit_socket_notification, validate_document_data, sanitize_input
+from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -240,6 +241,14 @@ def create_document(data, files, current_user):
                     doc_fields[field] = data.get(
                         f'shipping_{field}', doc_fields[field])
 
+            # Verificar sessão BD antes de inserir (diagnóstico who=null)
+            try:
+                session_check = session.execute(text("SELECT fs_setsession(:sid)"), {"sid": current_user}).scalar()
+                logger.warning(f"📝 Sessão BD re-confirmada: {session_check}")
+            except Exception as sess_err:
+                logger.error(f"🔴 Falha ao re-confirmar sessão BD: {sess_err}")
+                raise APIError("Sessão de base de dados inválida. Faça login novamente.", 401, "ERR_SESSION")
+
             # Gerar PK do documento
             logger.warning("📝 Gerando PK do documento...")
             pk_query = text("SELECT fs_nextcode()")
@@ -250,8 +259,6 @@ def create_document(data, files, current_user):
             fields = ['pk', 'ts_entity', 'tt_type', 'ts_associate',
                       'tb_representative', 'memo'] + list(doc_fields.keys())
             placeholders = [f':{field}' for field in fields]
-
-            
 
             insert_query = text(
                 f"""INSERT INTO vbf_document
@@ -282,6 +289,13 @@ def create_document(data, files, current_user):
                 logger.error(f"🔴 Query params que causaram erro: {query_params}")
                 if "unique constraint" in str(ie).lower():
                     raise DuplicateResourceError("Documento", "regnumber", "")
+                # Check constraint (who=null) → sessão BD expirada → 419 para trigger refresh
+                if "check constraint" in str(ie).lower() or "nn05" in str(ie).lower():
+                    logger.error(f"🔴 Possível problema de sessão BD (who=null). Session ID: {current_user}")
+                    from app.utils.error_handler import InvalidSessionError
+                    raise InvalidSessionError(
+                        "Sessão de base de dados expirada ao criar documento."
+                    )
                 raise APIError(f"Erro ao inserir documento: {str(ie)}", 500, "ERR_DB_INTEGRITY")
             except Exception as db_err:
                 session.rollback()
@@ -312,6 +326,11 @@ def create_document(data, files, current_user):
 
                 try:
                     file.save(filepath)
+                    # Compress images and PDFs automatically
+                    new_path, orig_size, new_size = process_uploaded_file(filepath, file.filename)
+                    if new_path != filepath:
+                        filename = os.path.basename(new_path)
+                        filepath = new_path
                 except Exception as fe:
                     logger.error(
                         f"Erro ao salvar arquivo {filename}: {str(fe)}")

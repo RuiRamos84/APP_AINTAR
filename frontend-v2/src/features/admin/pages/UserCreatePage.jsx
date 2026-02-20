@@ -37,7 +37,7 @@ import {
 } from '@mui/icons-material';
 import { createUserAdmin } from '@/services/userService';
 import { notification } from '@/core/services/notification';
-import { PageTransition, FadeIn } from '@/shared/components/animation';
+import { FadeIn } from '@/shared/components/animation';
 import { useProfiles } from '@/core/contexts/MetadataContext';
 
 const UserCreatePage = () => {
@@ -111,7 +111,6 @@ const UserCreatePage = () => {
   };
 
   return (
-    <PageTransition variant="slideUp">
       <Container maxWidth="md" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
         {/* Breadcrumbs */}
         <FadeIn direction="down">
@@ -295,7 +294,6 @@ const UserCreatePage = () => {
           </Paper>
         </FadeIn>
       </Container>
-    </PageTransition>
   );
 };
 

@@ -94,7 +94,8 @@ export const useAddStep = () => {
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() }); 
     },
     onError: (error) => {
-      toast.error('Erro ao adicionar passo: ' + error.message);
+      const backendMsg = error.response?.data?.error;
+      toast.error('Erro ao adicionar ação: ' + (backendMsg || error.message));
     }
   });
 };
@@ -140,8 +141,9 @@ export const useAddAnnex = () => {
     mutationFn: (formData) => documentsService.addAnnex(formData),
     onSuccess: (_, variables) => {
       toast.success('Anexo adicionado com sucesso');
-      // Extrair docId do FormData se possível
-      const docId = variables.get?.('tb_document') || variables.get?.('document_id') || variables.get?.('pk');
+      // Extract docId from FormData — parse as Number to match query key type
+      const rawId = variables.get?.('tb_document') || variables.get?.('document_id') || variables.get?.('pk');
+      const docId = rawId ? Number(rawId) : null;
       if (docId) {
         queryClient.invalidateQueries({ queryKey: documentKeys.annexes(docId) });
       }

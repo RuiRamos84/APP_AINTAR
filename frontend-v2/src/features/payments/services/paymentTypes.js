@@ -55,23 +55,16 @@ export const canUsePaymentMethod = async (paymentMethod) => {
  * Obter métodos disponíveis para utilizador
  */
 export const getAvailableMethodsForUserAsync = async () => {
-    const methodPermissions = Object.values(PAYMENT_PERMISSION_MAP);
-    // permissionService in v2 might need adjustment on checkPermissions if it differs,
-    // but assuming it's same as legacy based on file structure.
-    // If checkPermissions doesn't exist, we fallback to hasPermission loop/parallel.
-    // Let's assume it exists.
     try {
-        const results = await permissionService.checkPermissions(methodPermissions);
         const availableMethods = [];
         Object.entries(PAYMENT_PERMISSION_MAP).forEach(([method, permission]) => {
-            if (results[permission]) {
+            if (permissionService.hasPermission(permission)) {
                 availableMethods.push(method);
             }
         });
         return availableMethods;
     } catch (e) {
-        console.warn("checkPermissions failed, defaulting to all methods for dev/fallback or empty", e);
-        // Fallback or empty? Better empty secure default.
+        console.warn("Erro ao verificar permissões de pagamento:", e);
         return [];
     }
 };

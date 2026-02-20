@@ -539,7 +539,7 @@ export const resetUserPassword = async (userId) => {
 export const updateUserPermissions = async (userId, permissions) => {
   try {
     const response = await apiClient.put(`/user/admin/users/${userId}/permissions`, {
-      interface: permissions
+      interfaces: permissions
     });
     return response;
   } catch (error) {

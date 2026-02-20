@@ -42,7 +42,6 @@ import {
   RequestPage as RequestsIcon,
   Inventory as InventoryIcon,
   Work as EPIIcon,
-  Inventory2 as BoxIcon,
   Cable as NetworkIcon,
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
@@ -122,43 +121,31 @@ export const ROUTE_CONFIG = {
     // - Criadas por Mim (criadas pelo utilizador)
   },
 
-  '/operations/register': {
-    id: 'operations_register',
-    text: 'Registar Operação',
-    icon: AddIcon,
+  '/operation': {
+    id: 'operation',
+    text: 'Operação',
+    icon: TasksIcon,
+    module: 'operacao',
+    permissions: { required: PERMISSIONS.OPERATIONS_VIEW },
+    showInSidebar: true,
+  },
+
+  '/operation/control': {
+    id: 'operation_control',
+    text: 'Controlo Operacional',
+    icon: ControlIcon,
+    module: 'operacao',
+    permissions: { required: PERMISSIONS.TASKS_CONTROL },
+    showInSidebar: true,
+  },
+
+  '/operation/metadata': {
+    id: 'operation_metadata',
+    text: 'Gestão de Voltas',
+    icon: SettingsIcon,
     module: 'operacao',
     permissions: { required: PERMISSIONS.OPERATIONS_CREATE },
     showInSidebar: true,
-    submenu: {
-      '/operations/register/etar': {
-        id: 'operations_etar',
-        text: 'ETAR',
-        icon: ETARIcon,
-        permissions: { required: PERMISSIONS.OPERATIONS_ETAR },
-        showInSidebar: true,
-      },
-      '/operations/register/ee': {
-        id: 'operations_ee',
-        text: 'Estações Elevatórias (EE)',
-        icon: EEIcon,
-        permissions: { required: PERMISSIONS.OPERATIONS_EE },
-        showInSidebar: true,
-      },
-      '/operations/register/network': {
-        id: 'operations_network',
-        text: 'Rede',
-        icon: NetworkIcon,
-        permissions: { required: PERMISSIONS.OPERATIONS_NETWORK },
-        showInSidebar: true,
-      },
-      '/operations/register/boxes': {
-        id: 'operations_boxes',
-        text: 'Caixas',
-        icon: BoxIcon,
-        permissions: { required: PERMISSIONS.OPERATIONS_BOXES },
-        showInSidebar: true,
-      },
-    },
   },
 
   '/tasks/control': {
@@ -167,26 +154,10 @@ export const ROUTE_CONFIG = {
     icon: ControlIcon,
     module: 'operacao',
     permissions: { required: PERMISSIONS.TASKS_CONTROL },
-    showInSidebar: true,
+    showInSidebar: false,
   },
 
-  '/branches': {
-    id: 'branches',
-    text: 'Ramais',
-    icon: BranchIcon,
-    module: 'operacao',
-    permissions: { required: PERMISSIONS.BRANCHES_VIEW },
-    showInSidebar: true,
-  },
-
-  '/septic-tanks': {
-    id: 'septic_tanks',
-    text: 'Fossas',
-    icon: SepticTankIcon,
-    module: 'operacao',
-    permissions: { required: PERMISSIONS.SEPTIC_TANKS_VIEW },
-    showInSidebar: true,
-  },
+  // '/branches' e '/septic-tanks' removidos - não implementados
 
   // ==================== MÓDULO: GESTÃO ====================
 

@@ -242,6 +242,13 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, onRet
                         <Typography variant="h3" sx={{ fontWeight: 600 }}>
                             €{Number(amount || 0).toFixed(2)}
                         </Typography>
+                        {referenceData?.expire_date && (
+                            <Typography variant="body2" sx={{ opacity: 0.8, mt: 1.5 }}>
+                                Válido até: {new Date(referenceData.expire_date).toLocaleDateString('pt-PT', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                })}
+                            </Typography>
+                        )}
                     </Box>
                 </Paper>
                 <Box sx={{ textAlign: 'center', mt: 3 }}>
