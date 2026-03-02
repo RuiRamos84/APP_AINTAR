@@ -26,10 +26,12 @@ const ManutencaoDeVeiculoTable = ({ metaData, searchTerm = "" }) => {
           )
         : records;
 
-    const vehicleOptions = vehicleData.vehicles.map(vehicle => ({
-        label: `${vehicle.brand} ${vehicle.model} (${vehicle.licence})`,
-        value: vehicle.pk
-    }));
+    const vehicleOptions = [...vehicleData.vehicles]
+        .sort((a, b) => a.brand.localeCompare(b.brand, 'pt', { sensitivity: 'base' }))
+        .map(vehicle => ({
+            label: `${vehicle.brand} ${vehicle.model} (${vehicle.licence})`,
+            value: vehicle.pk
+        }));
     const maintenanceOptions = (metaData?.maintenancetype || []).map(opt => ({
         label: opt.value,
         value: opt.pk
@@ -98,6 +100,7 @@ const ManutencaoDeVeiculoTable = ({ metaData, searchTerm = "" }) => {
             options: vehicleOptions,
             required: true,
             size: 2.7,
+            searchable: true,
         },
         {
             name: "tt_maintenancetype",

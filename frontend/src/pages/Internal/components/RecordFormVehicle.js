@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
     Grid,
     TextField,
@@ -9,8 +9,10 @@ import {
     MenuItem,
     Paper,
     CircularProgress,
-    Tooltip
+    Tooltip,
+    InputAdornment
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 
 // Máscara da matrícula: posições 2 e 5 são traços fixos, restantes são editáveis
 const LICENCE_MASK = "  -  -  ";
@@ -26,6 +28,7 @@ const RecordFormVehicle = ({
     onCancel
 }) => {
     const licenceInputRef = useRef(null);
+    const [selectSearch, setSelectSearch] = useState({});
 
     const setCursor = (pos) => {
         requestAnimationFrame(() => {
@@ -132,17 +135,52 @@ const RecordFormVehicle = ({
                                     onChange={(e) => handleInputChange(field.name, e.target.value)}
                                     label={field.label}
                                     required={field.required}
+                                    onClose={() => setSelectSearch(prev => ({ ...prev, [field.name]: "" }))}
+                                    MenuProps={{ autoFocus: false }}
                                 >
+                                    {field.searchable && (
+                                        <MenuItem
+                                            disableRipple
+                                            onClickCapture={(e) => e.stopPropagation()}
+                                            sx={{ p: 1, position: 'sticky', top: 0, zIndex: 1, bgcolor: 'background.paper' }}
+                                            value={undefined}
+                                        >
+                                            <TextField
+                                                size="small"
+                                                placeholder="Pesquisar..."
+                                                fullWidth
+                                                autoFocus
+                                                value={selectSearch[field.name] || ""}
+                                                onChange={(e) => setSelectSearch(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                                slotProps={{
+                                                    input: {
+                                                        startAdornment: (
+                                                            <InputAdornment position="start">
+                                                                <SearchIcon fontSize="small" />
+                                                            </InputAdornment>
+                                                        )
+                                                    }
+                                                }}
+                                            />
+                                        </MenuItem>
+                                    )}
                                     {field.emptyOption && (
                                         <MenuItem value="">
                                             <em>{field.emptyOption}</em>
                                         </MenuItem>
                                     )}
-                                    {field.options && field.options.map((option) => (
-                                        <MenuItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </MenuItem>
-                                    ))}
+                                    {field.options && field.options
+                                        .filter(option => {
+                                            const term = (selectSearch[field.name] || "").toLowerCase();
+                                            return !term || option.label.toLowerCase().includes(term);
+                                        })
+                                        .map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </MenuItem>
+                                        ))
+                                    }
                                 </Select>
                             </FormControl>
                         ) : (

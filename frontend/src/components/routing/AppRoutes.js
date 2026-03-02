@@ -37,6 +37,7 @@ const ExecutedPavimentations = lazy(() => import("../../features/Pavimentations"
 const CompletedPavimentations = lazy(() => import("../../features/Pavimentations").then(module => ({ default: module.CompletedPavimentations })));
 
 const Dashboard = lazy(() => import("../../pages/Dashboard"));
+const CategoryPage = lazy(() => import("../../pages/Dashboard/CategoryPage"));
 const EmissionHub = lazy(() => import("../../pages/Emissions/EmissionHub"));
 
 const AllTasks = lazy(() => import('../../pages/Tasks/index.js').then(module => ({ default: module.AllTasks })));
@@ -148,6 +149,12 @@ const AppRoutes = ({ user }) => (
         <Route path="/dashboard" element={
             <PrivateRoute requiredPermission={400}>
                 <Dashboard />
+            </PrivateRoute>
+        } />
+
+        <Route path="/dashboard/:category" element={
+            <PrivateRoute requiredPermission={400}>
+                <CategoryPage />
             </PrivateRoute>
         } />
 

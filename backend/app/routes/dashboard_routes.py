@@ -110,7 +110,7 @@ def get_all_data():
 def get_category_data(category):
     """
     Obtém dados de todas as views de uma categoria específica
-    Categories: pedidos, ramais, fossas, instalacoes
+    Categories: pedidos, ramais, fossas, instalacoes, analises, incumprimentos, repavimentacoes, transmitacoes
     Query params opcionais: year, month
     """
     current_user = get_jwt_identity()
