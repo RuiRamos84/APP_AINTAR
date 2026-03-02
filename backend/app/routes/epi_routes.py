@@ -28,8 +28,28 @@ bp = Blueprint('epi_routes', __name__)
 @api_error_handler
 def get_epi_deliveries_route():
     """
-    Listar entregas de EPI
-    Permite buscar histórico completo ou filtrar por período/funcionário
+    Listar Histórico de Entregas EPI
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Devolve histórico de material de proteção individual entregue, permitindo filtrar por data ou funcionário.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: start_date
+        type: string
+        format: date
+      - in: query
+        name: end_date
+        type: string
+        format: date
+      - in: query
+        name: employee_id
+        type: integer
+    responses:
+      200:
+        description: Listagem de entregas.
     """
     current_user = get_jwt_identity()
     filters = {
@@ -48,7 +68,26 @@ def get_epi_deliveries_route():
 @set_session
 @api_error_handler
 def create_epi_delivery_route():
-    """Registrar nova entrega de EPI"""
+    """
+    Registar Entrega de EPI
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Associa um equipamento de proteção a um colaborador.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Entrega registada.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     with db_session_manager(current_user):
@@ -62,7 +101,30 @@ def create_epi_delivery_route():
 @set_session
 @api_error_handler
 def update_epi_preferences_route(user_pk):
-    """Atualizar preferências de EPI do trabalhador"""
+    """
+    Atualizar Tamanhos/Preferências do Colaborador
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Atualiza o tamanho de calçado, farda, etc na ficha do HR.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: user_pk
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Atualizado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     with db_session_manager(current_user):
@@ -75,7 +137,18 @@ def update_epi_preferences_route(user_pk):
 @require_permission(210)  # epi.manage
 @api_error_handler
 def get_epi_data():
-    """Obtém dados de EPI"""
+    """
+    Catálogos de EPI / Componentes (Lookup)
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Retorna vbl_epi e vbl_epiwhat combinados para preenchimento de dropdowns.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Arrays combinados em JSON.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user) as session:
         epi_list = session.execute(
@@ -94,7 +167,18 @@ def get_epi_data():
 @token_required
 @api_error_handler
 def get_epi_list():
-    """Obtém apenas a lista de EPIs"""
+    """
+    Apenas Catálogo de EPI
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: VBL_EPI simples para autocompletes limitados.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Retorna list.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user) as session:
         epi_list = session.execute(
@@ -109,7 +193,30 @@ def get_epi_list():
 @set_session
 @api_error_handler
 def update_epi_delivery_route(pk):
-    """Atualizar entrega de EPI"""
+    """
+    Atualizar Ocorrência de Entrega de EPI
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Edita quantidades, anotações ou data de um registo já lançado na BD.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Atualizado na table.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     with db_session_manager(current_user):
@@ -123,7 +230,30 @@ def update_epi_delivery_route(pk):
 @set_session
 @api_error_handler
 def return_epi_delivery_route(pk):
-    """Anular entrega de EPI"""
+    """
+    Devolução de EPI Existente
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Indica que o equipamento em uso foi entregue/devolvido ao Almoxarifado validando o Life Cycle do EPI.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Sucesso.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     with db_session_manager(current_user):
@@ -137,7 +267,26 @@ def return_epi_delivery_route(pk):
 @set_session
 @api_error_handler
 def create_epi_route():
-    """Criar novo colaborador EPI"""
+    """
+    Validar/Criar Utilizador EPI Base
+    ---
+    tags:
+      - Recursos Humanos (EPIs)
+    summary: Configura internamente o colaborador (trigger table inicialização de HR/Epi Params) aquando admissão.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Ok.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     with db_session_manager(current_user):

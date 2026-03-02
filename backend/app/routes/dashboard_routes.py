@@ -20,7 +20,18 @@ bp = Blueprint('dashboard_routes', __name__)
 @require_permission(400)  # dashboard.view
 @api_error_handler
 def test_dashboard():
-    """Rota de teste para verificar disponibilidade das views"""
+    """
+    Testar Disponibilidade do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Rota de teste para verificar a acessibilidade das principais views do Data Warehouse reportadas no Dashboard.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Resultados do teste por view (Existe Sim/Não) e View count total.
+    """
     current_user = get_jwt_identity()
 
     test_views = [
@@ -76,7 +87,18 @@ def test_dashboard():
 @require_permission(400)  # dashboard.view
 @api_error_handler
 def get_structure():
-    """Obtém a estrutura completa do dashboard (categorias e views disponíveis)"""
+    """
+    Estrutura do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Obtém a árvore completa de configuração do dashboard (Grupos, Categorias, Metricas e Views associadas disponíveis).
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Estrutura em JSON hierárquico.
+    """
     structure = dashboard_service.get_dashboard_structure()
     return jsonify(structure), 200
 
@@ -87,8 +109,25 @@ def get_structure():
 @api_error_handler
 def get_all_data():
     """
-    Obtém dados de todas as views do dashboard
-    Query params opcionais: year, month
+    Obter Todos os Dados do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Compila massivamente TODAS as estatísticas e views pre-computadas disponíveis no momento para exibição geral.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: year
+        type: string
+        description: Ano fiscal
+      - in: query
+        name: month
+        type: string
+        description: Mês fiscal
+    responses:
+      200:
+        description: Matriz com o total de dados renderizados para frontend dashboard components.
     """
     current_user = get_jwt_identity()
 
@@ -109,9 +148,30 @@ def get_all_data():
 @api_error_handler
 def get_category_data(category):
     """
-    Obtém dados de todas as views de uma categoria específica
-    Categories: pedidos, ramais, fossas, instalacoes
-    Query params opcionais: year, month
+    Obter Dados por Categoria de Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Solicita a extração e cálculo de widgets apenas para uma categoria em específico (pedidos, ramais, fossas, instalacoes).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: category
+        in: path
+        type: string
+        required: true
+        description: Slug da categoria
+      - in: query
+        name: year
+        type: string
+      - in: query
+        name: month
+        type: string
+    responses:
+      200:
+        description: Dados seccionados devolvidos.
+      400:
+        description: Categoria inválida.
     """
     current_user = get_jwt_identity()
 
@@ -139,14 +199,29 @@ def get_category_data(category):
 @api_error_handler
 def get_view_data(view_name):
     """
-    Obtém dados de uma view específica do dashboard
-    Query params opcionais: year, month
-
-    Exemplos de view_name:
-    - vds_pedido_01$001
-    - vds_ramal_01$002
-    - vds_fossa_01$003
-    - vds_instalacao_01$001
+    Consultar Gráfico Específico (Por View)
+    ---
+    tags:
+      - Dashboard
+    summary: Otimiza chamadas focando apenas na View desejada (Ex. vds_pedido_01$001) aplicando filtros sazonais.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: view_name
+        in: path
+        type: string
+        required: true
+      - in: query
+        name: year
+        type: string
+      - in: query
+        name: month
+        type: string
+    responses:
+      200:
+        description: Resultados da Base de Dados da Query View.
+      400:
+        description: View Name não catalogado no dicionário.
     """
     current_user = get_jwt_identity()
 

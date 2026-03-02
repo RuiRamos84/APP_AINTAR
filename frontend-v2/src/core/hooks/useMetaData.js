@@ -88,4 +88,64 @@ export const useWhatList = () => {
   };
 };
 
+/**
+ * Hook para buscar tipos/destinos de despesas
+ * @returns {Object} { data: expenseTypes, isLoading, error }
+ */
+export const useExpenseTypes = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+
+  return {
+    data: metaData?.expense || [],
+    isLoading,
+    error,
+  };
+};
+
+/**
+ * Hook para buscar tipos de inventário
+ * @returns {Object} { data: inventoryTypes, isLoading, error }
+ */
+export const useInventoryTypes = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+
+  return {
+    data: metaData?.inventory_type || [],
+    isLoading,
+    error,
+  };
+};
+
+/**
+ * Hook para buscar lista de ETARs
+ */
+export const useETARList = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.etar || [], isLoading, error };
+};
+
+/**
+ * Hook para buscar lista de Estações Elevatórias
+ */
+export const useEEList = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.ee || [], isLoading, error };
+};
+
+/**
+ * Hook para buscar tipos de ponto de leitura (volume spots)
+ */
+export const useSpotList = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.spot || [], isLoading, error };
+};
+
+/**
+ * Hook para buscar parâmetros de análise (incumprimentos)
+ */
+export const useAnaliseParams = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.analiseParams || [], isLoading, error };
+};
+
 export default useMetaData;

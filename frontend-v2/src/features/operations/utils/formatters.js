@@ -10,6 +10,11 @@ export const formatDate = (value) => {
     });
 };
 
+export const formatDateOnly = (value) => {
+    if (!value) return '';
+    return new Date(value).toLocaleDateString('pt-PT');
+};
+
 export const formatPhone = (phone) => {
     if (!phone) return '';
     const cleaned = phone.replace(/\D/g, '');

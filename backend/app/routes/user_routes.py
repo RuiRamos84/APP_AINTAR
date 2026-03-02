@@ -39,6 +39,31 @@ bp = Blueprint('user', __name__)
 @token_required
 @api_error_handler
 def send_mail():
+    """
+    Enviar Email (Interno)
+    ---
+    tags:
+      - Utilizadores
+    summary: Permite o envio de emails isolados usando a configuração base do sistema.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: email_data
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+            subject:
+              type: string
+            message:
+              type: string
+    responses:
+      200:
+        description: Email enviado com sucesso.
+    """
     data = request.get_json()
     email = data.get('email')
     subject = data.get('subject')
@@ -50,12 +75,49 @@ def send_mail():
 @bp.route('/create_user_ext', methods=['POST'])
 @api_error_handler
 def create_user():
+    """
+    Registo Externo
+    ---
+    tags:
+      - Utilizadores
+    summary: Regista um novo utilizador a partir do formato público (não autenticado).
+    parameters:
+      - in: body
+        name: user_data
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Utilizador criado com sucesso com necessidade de ativação.
+    """
     return create_user_ext(request.get_json())
 
 
 @bp.route('/activation/<int:id>/<int:activation_code>', methods=['GET'])
 @api_error_handler
 def activate_user(id, activation_code):
+    """
+    Ativar Nova Conta
+    ---
+    tags:
+      - Utilizadores
+    summary: Confirma o email inserido usando o ID e código transmitido.
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: O ID do utilizador pendente
+      - name: activation_code
+        in: path
+        type: integer
+        required: true
+        description: O código numérico recebido por e-mail
+    responses:
+      200:
+        description: Conta validada e ativa.
+    """
     return activate_user_service(id, activation_code)
 
 
@@ -65,6 +127,18 @@ def activate_user(id, activation_code):
 @set_session
 @api_error_handler
 def user_info():
+    """
+    Obter ou Editar Perfil (Me)
+    ---
+    tags:
+      - Utilizadores
+    summary: Devolve os detalhes do Utilizador Ativo ou atualiza os próprios dados.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Devolve dados da sessão do utilizador logado.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         if request.method == 'GET':
@@ -80,6 +154,29 @@ def user_info():
 @set_session
 @api_error_handler
 def change_password_route():
+    """
+    Mudar a Própria Password
+    ---
+    tags:
+      - Utilizadores
+    summary: Exige validação da password atual antes de gravar a nova password.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            oldPassword:
+              type: string
+            newPassword:
+              type: string
+    responses:
+      200:
+        description: Password alterada.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     old_password = data.get("oldPassword")
@@ -110,6 +207,30 @@ def reset_password_route():
 @set_session
 @api_error_handler
 def vacation_status():
+    """
+    Definir Estado de Ausência (Férias)
+    ---
+    tags:
+      - Utilizadores
+    summary: Assinala se o utilizador atual entrou num estado temporariamente ausente.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            vacation:
+              type: integer
+              description: 1 ou 0
+    responses:
+      200:
+        description: Estado modificado com sucesso.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         data = request.get_json()
@@ -166,7 +287,18 @@ def update_user_interfaces(user_id):
 @set_session
 @api_error_handler
 def admin_get_users():
-    """Lista todos os utilizadores (admin)"""
+    """
+    Listar Todos os Utilizadores (Admin)
+    ---
+    tags:
+      - Admin Users
+    summary: Devolve todos os utilizadores existentes. (Exige premissão admin.users)
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Lista carregada com sucesso.
+    """
     current_user = get_jwt_identity()
     return get_all_users(current_user)
 
@@ -178,7 +310,23 @@ def admin_get_users():
 @set_session
 @api_error_handler
 def admin_get_user(user_id):
-    """Obtém utilizador por ID (admin)"""
+    """
+    Detalhes de Utilizador Específico (Admin)
+    ---
+    tags:
+      - Admin Users
+    summary: Obtém um utilizador por ID.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Detalhes carregados.
+    """
     current_user = get_jwt_identity()
     return get_user_by_id(user_id, current_user)
 
@@ -190,7 +338,26 @@ def admin_get_user(user_id):
 @set_session
 @api_error_handler
 def admin_create_user():
-    """Cria novo utilizador (admin)"""
+    """
+    Registar Novo Utilizador (Admin)
+    ---
+    tags:
+      - Admin Users
+    summary: Cria novo utilizador ignorando certas validações públicas de Sign Up.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Criado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     return create_user_admin(data, current_user)

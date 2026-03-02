@@ -110,7 +110,10 @@ def api_error_handler(f):
             return jsonify(e.to_dict()), e.status_code
         except SQLAlchemyError as e:
             mapped_error = map_sql_error(e)
-            logger.error(f"Erro de BD: {str(e)}", exc_info=True)
+            if "<error>" in str(e):
+                logger.warning(f"Erro de negócio: {mapped_error.message}")
+            else:
+                logger.error(f"Erro de BD: {str(e)}", exc_info=True)
             return jsonify(mapped_error.to_dict()), mapped_error.status_code
         except Exception as e:
             logger.error(

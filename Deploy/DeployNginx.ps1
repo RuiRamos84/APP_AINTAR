@@ -27,7 +27,7 @@ class NginxConfigurator {
     }
     
     [string] GenerateNginxConfig() {
-        Write-DeployDebug "Gerando configuração do Nginx..." "NGINX"
+        Write-DeployDebug "A gerar configuração do Nginx..." "NGINX"
         
         $config = @"
 worker_processes auto;
@@ -124,7 +124,7 @@ http {
         location / {
             try_files `$uri `$uri/ /index.html;
             
-            # Cache para arquivos estáticos
+            # Cache para ficheiros estáticos
             location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)`$ {
                 expires 1y;
                 add_header Cache-Control "public, immutable";
@@ -146,7 +146,7 @@ http {
             proxy_read_timeout 60s;
         }
 
-        # Upload de arquivos
+        # Upload de ficheiros
         location /api/v1/files/ {
             proxy_pass http://127.0.0.1:$($this.BackendPort)/api/v1/files/;
             proxy_set_header Host `$host;
@@ -198,7 +198,7 @@ http {
             add_header Content-Type text/plain;
         }
 
-        # Bloquear acesso a arquivos sensíveis
+        # Bloquear acesso a ficheiros sensíveis
         location ~ /\. {
             deny all;
         }
@@ -214,7 +214,7 @@ http {
     }
     
     [bool] ValidateConfig([string]$config) {
-        Write-DeployDebug "Validando configuração do Nginx..." "NGINX"
+        Write-DeployDebug "A validar a configuração do Nginx..." "NGINX"
         
         # Verificações básicas da configuração
         $requiredSections = @("worker_processes", "events", "http", "server")
@@ -259,20 +259,23 @@ http {
             Write-DeployDebug "Backup de configuração desabilitado" "NGINX"
             return $true
         }
-        
-        if (-not (Test-Path $this.ConfigPath)) {
-            Write-DeployDebug "Arquivo de configuração não existe, backup desnecessário" "NGINX"
+
+        # Converter ServerDrive: para UNC (igual ao padrão de backend/frontend)
+        $remoteConfigPath = $this.ConfigPath -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+        if (-not (Test-Path $remoteConfigPath)) {
+            Write-DeployDebug "Ficheiro de configuração não existe, cópia de segurança desnecessária" "NGINX"
             return $true
         }
-        
+
         try {
-            $backupPath = Get-BackupPath ($this.ConfigPath -replace "\.conf$", "")
+            $backupPath = Get-BackupPath ($remoteConfigPath -replace "\.conf$", "")
             $backupPath += ".conf"
-            
-            Write-DeployInfo "Criando backup da configuração: $backupPath" "NGINX"
-            Copy-Item $this.ConfigPath $backupPath -ErrorAction Stop
-            
-            Write-DeployInfo "Backup da configuração criado com sucesso!" "NGINX"
+
+            Write-DeployInfo "A criar cópia de segurança da configuração: $backupPath" "NGINX"
+            Copy-Item $remoteConfigPath $backupPath -ErrorAction Stop
+
+            Write-DeployInfo "Cópia de segurança da configuração criada com sucesso!" "NGINX"
             return $true
         }
         catch {
@@ -282,52 +285,57 @@ http {
     }
     
     [bool] DeployConfig() {
-        Write-DeployInfo "Iniciando deployment da configuração do Nginx..." "NGINX"
-        
+        Write-DeployInfo "A iniciar o deployment da configuração do Nginx..." "NGINX"
+
         try {
-            # Gerar configuração
-            $config = $this.GenerateNginxConfig()
-            
-            # Validar configuração
+            # Converter ServerDrive: para UNC (igual ao padrão de backend/frontend)
+            $remoteConfigPath = $this.ConfigPath -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+            # Usar o nginx.conf do repositório como fonte de verdade
+            $localConf = $Global:DeployConfig.CaminhoLocalNginxConf
+            if (-not (Test-Path $localConf)) {
+                Write-DeployError "nginx.conf local não encontrado: $localConf" "NGINX"
+                Write-DeployError "Certifique-se que CaminhoLocalNginxConf está correto em DeployConfig.ps1" "NGINX"
+                return $false
+            }
+
+            Write-DeployInfo "A utilizar nginx.conf do repositório: $localConf" "NGINX"
+
+            # Ler e validar o ficheiro local
+            $config = Get-Content $localConf -Raw -Encoding UTF8
             if (-not $this.ValidateConfig($config)) {
                 Write-DeployError "Configuração inválida, deployment cancelado" "NGINX"
                 return $false
             }
-            
-            # Verificar se já existe e pedir confirmação se necessário
-            if (Test-Path $this.ConfigPath) {
-                Write-DeployWarning "Arquivo de configuração já existe: $($this.ConfigPath)" "NGINX"
-                Write-DeployInfo "A configuração será substituída..." "NGINX"
-            }
-            
-            # Criar backup da configuração atual
+
+            # Criar backup da configuração atual no servidor
             if (-not $this.CreateConfigBackup()) {
                 Write-DeployWarning "Falha ao criar backup, continuando..." "NGINX"
             }
-            
-            # Garantir que o diretório existe
-            $configDir = Split-Path $this.ConfigPath -Parent
+
+            # Garantir que o diretório remoto existe
+            $configDir = Split-Path $remoteConfigPath -Parent
             if (-not (Test-Path $configDir)) {
-                Write-DeployDebug "Criando diretório de configuração: $configDir" "NGINX"
+                Write-DeployDebug "Criando diretório de configuração remoto: $configDir" "NGINX"
                 New-Item -Path $configDir -ItemType Directory -Force | Out-Null
             }
-            
-            # Escrever configuração
-            Write-DeployDebug "Escrevendo configuração em: $($this.ConfigPath)" "NGINX"
-            $config | Out-File -FilePath $this.ConfigPath -Encoding UTF8 -ErrorAction Stop
-            
-            # Verificar se foi criado corretamente
-            if (Test-Path $this.ConfigPath) {
-                $writtenConfig = Get-Content $this.ConfigPath -Raw
+
+            # Copiar ficheiro para o servidor
+            Write-DeployDebug "A copiar nginx.conf para: $remoteConfigPath" "NGINX"
+            Copy-Item -Path $localConf -Destination $remoteConfigPath -Force -ErrorAction Stop
+
+            # Verificar se foi copiado corretamente
+            if (Test-Path $remoteConfigPath) {
+                $writtenConfig = Get-Content $remoteConfigPath -Raw
                 if ($writtenConfig.Length -gt 0) {
-                    Write-DeployInfo "Configuração do Nginx criada/atualizada com sucesso!" "NGINX"
+                    Write-DeployInfo "nginx.conf copiado com sucesso do repositório para o servidor!" "NGINX"
                     return $true
                 } else {
-                    Write-DeployError "Arquivo de configuração foi criado mas está vazio" "NGINX"
+                    Write-DeployError "Ficheiro foi copiado mas está vazio" "NGINX"
                     return $false
                 }
             } else {
-                Write-DeployError "Falha ao criar arquivo de configuração" "NGINX"
+                Write-DeployError "Falha ao copiar ficheiro de configuração" "NGINX"
                 return $false
             }
         }
@@ -338,18 +346,18 @@ http {
     }
     
     [bool] TestConfigSyntax() {
-        Write-DeployDebug "Testando sintaxe da configuração do Nginx..." "NGINX"
-        
-        if (-not (Test-Path $this.ConfigPath)) {
-            Write-DeployError "Arquivo de configuração não encontrado para teste" "NGINX"
+        Write-DeployDebug "A testar a sintaxe da configuração do Nginx..." "NGINX"
+
+        # Converter ServerDrive: para UNC (igual ao padrão de DeployConfig/CreateConfigBackup)
+        $testPath = $this.ConfigPath -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+        if (-not (Test-Path $testPath)) {
+            Write-DeployError "Ficheiro de configuração não encontrado para teste: $testPath" "NGINX"
             return $false
         }
-        
-        # Nota: Este é um teste básico. Em um ambiente real, você poderia
-        # executar 'nginx -t' se o nginx estiver instalado localmente
-        
+
         try {
-            $configContent = Get-Content $this.ConfigPath -Raw
+            $configContent = Get-Content $testPath -Raw
             
             # Verificações básicas de sintaxe
             $braceCount = ($configContent | Select-String "{" -AllMatches).Matches.Count - 
@@ -413,7 +421,7 @@ http {
     }
     
     [bool] Deploy() {
-        Write-DeployInfo "Iniciando deployment completo da configuração do Nginx..." "NGINX"
+        Write-DeployInfo "A iniciar o deployment completo da configuração do Nginx..." "NGINX"
         
         if (-not $this.DeployConfig()) {
             Write-DeployError "Falha no deployment da configuração" "NGINX"
@@ -456,7 +464,7 @@ function Deploy-NginxConfig {
         $result = $configurator.Deploy()
         
         if ($result -and $TestSyntax) {
-            Write-DeployInfo "Executando teste final de sintaxe..." "NGINX"
+            Write-DeployInfo "A executar o teste final de sintaxe..." "NGINX"
             $result = $configurator.TestConfigSyntax()
         }
         

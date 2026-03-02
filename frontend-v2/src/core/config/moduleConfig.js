@@ -22,15 +22,14 @@ export const MODULES = {
     permissions: {
       // Acesso ao módulo (pelo menos UMA dessas permissões)
       required: [
-        PERMISSIONS.TASKS_VIEW,
         PERMISSIONS.TASKS_MY,
         PERMISSIONS.OPERATIONS_VIEW,
         PERMISSIONS.BRANCHES_VIEW,
         PERMISSIONS.SEPTIC_TANKS_VIEW,
       ]
     },
-    description: 'Gestão de tarefas e operações de campo',
-    defaultRoute: '/tasks',
+    description: 'Operações de campo e controlo operacional',
+    defaultRoute: '/operation',
   },
 
   GESTAO: {
@@ -110,13 +109,14 @@ export const MODULES = {
     order: 6,
     permissions: {
       required: [
+        PERMISSIONS.TASKS_VIEW,
         PERMISSIONS.EPI_MANAGEMENT,
         PERMISSIONS.INVENTORY_VIEW,
         PERMISSIONS.OFFICES_VIEW,
       ]
     },
-    description: 'Gestão administrativa e inventário',
-    defaultRoute: '/epi',
+    description: 'Gestão administrativa, tarefas e inventário',
+    defaultRoute: '/tasks',
   },
 };
 
@@ -165,8 +165,7 @@ export const detectModuleFromPath = (pathname) => {
   // Mapeamento de prefixos de rota para módulos
   const pathModuleMap = {
     // OPERAÇÃO
-    '/tasks': 'operacao',
-    '/operations': 'operacao',
+    '/operation': 'operacao',
 
     // GESTÃO
     '/etar': 'gestao',
@@ -197,7 +196,10 @@ export const detectModuleFromPath = (pathname) => {
     '/requests': 'administracao',
 
     // ADMINISTRATIVO
+    '/tasks': 'administrativo',
+    '/internal': 'administrativo',
     '/epi': 'administrativo',
+    '/fleet': 'administrativo',
     '/inventory': 'administrativo',
     '/offices': 'administrativo',
     '/pedidos': 'administrativo',

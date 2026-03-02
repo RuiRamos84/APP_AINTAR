@@ -50,6 +50,18 @@ export const operationService = {
     return response;
   },
 
+  /** Criar nova operação (execução real ad-hoc) */
+  createOperacao: async (data) => {
+    const response = await apiClient.post('/operacao', data);
+    return response;
+  },
+
+  /** Atualizar operação existente (execução real) */
+  updateOperacao: async (id, data) => {
+    const response = await apiClient.put(`/operacao/${id}`, data);
+    return response;
+  },
+
   /** Completar tarefa operacional (com suporte para foto via FormData) */
   completeTask: async (taskId, completionData) => {
     if (completionData.photo) {
@@ -161,5 +173,20 @@ export const operationService = {
       { responseType: 'blob' }
     );
     return response;
-  }
+  },
+
+  /** Listar anexos de uma operação (tb_operacao_annex) */
+  getControlAnnexes: async (operationPk) => {
+    const response = await apiClient.get(`/operation_control/annexes/${operationPk}`);
+    return response;
+  },
+
+  /** Download/preview de um anexo pelo seu pk */
+  downloadControlAnnex: async (annexPk) => {
+    const response = await apiClient.get(
+      `/operation_control/annex/${annexPk}/download`,
+      { responseType: 'blob' }
+    );
+    return response;
+  },
 };

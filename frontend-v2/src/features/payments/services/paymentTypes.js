@@ -20,7 +20,8 @@ export const PAYMENT_METHODS = {
     MULTIBANCO: 'MULTIBANCO',
     CASH: 'CASH',
     BANK_TRANSFER: 'BANK_TRANSFER',
-    MUNICIPALITY: 'MUNICIPALITY'
+    MUNICIPALITY: 'MUNICIPALITY',
+    ISENCAO: 'ISENCAO'
 };
 
 export const PAYMENT_STATUS = {
@@ -29,7 +30,9 @@ export const PAYMENT_STATUS = {
     PENDING_VALIDATION: 'PENDING_VALIDATION',
     SUCCESS: 'SUCCESS',
     DECLINED: 'DECLINED',
-    EXPIRED: 'EXPIRED'
+    EXPIRED: 'EXPIRED',
+    REJECTED: 'REJECTED',
+    REFUNDED: 'REFUNDED'
 };
 
 // Mapeamento para o novo sistema de permissões (IDs numéricos da BD)
@@ -75,7 +78,8 @@ export const PAYMENT_METHOD_LABELS = {
     [PAYMENT_METHODS.MULTIBANCO]: 'Multibanco',
     [PAYMENT_METHODS.CASH]: 'Numerário',
     [PAYMENT_METHODS.BANK_TRANSFER]: 'Transferência',
-    [PAYMENT_METHODS.MUNICIPALITY]: 'Municípios'
+    [PAYMENT_METHODS.MUNICIPALITY]: 'Municípios',
+    [PAYMENT_METHODS.ISENCAO]: 'Isenção'
 };
 
 export const PAYMENT_STATUS_COLORS = {
@@ -85,12 +89,15 @@ export const PAYMENT_STATUS_COLORS = {
     [PAYMENT_STATUS.SUCCESS]: 'success.main',
     [PAYMENT_STATUS.DECLINED]: 'error.main',
     [PAYMENT_STATUS.EXPIRED]: 'error.light',
+    [PAYMENT_STATUS.REJECTED]: 'error.main',
+    [PAYMENT_STATUS.REFUNDED]: 'secondary.main',
     // Cores para métodos
     'MBWAY': '#667eea',
     'MULTIBANCO': '#f093fb',
     'CASH': '#43e97b',
     'BANK_TRANSFER': '#4facfe',
-    'MUNICIPALITY': '#fa709a'
+    'MUNICIPALITY': '#fa709a',
+    'ISENCAO': '#9c27b0'
 };
 
 /**

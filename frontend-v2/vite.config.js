@@ -24,6 +24,7 @@ export default defineConfig({
     strictPort: true, // Não tentar outras portas se 3001 estiver ocupada
     open: true,
     cors: true,
+    allowedHosts: true,
   },
 
   // Preview configuration

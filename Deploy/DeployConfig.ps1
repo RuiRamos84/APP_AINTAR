@@ -27,6 +27,7 @@ $Global:DeployConfig = @{
     CaminhoLocalFrontend = "C:\Users\rui.ramos\Desktop\APP\frontend\build"
     CaminhoLocalBackend = "C:\Users\rui.ramos\Desktop\APP\backend"
     CaminhoProjetoFrontend = "C:\Users\rui.ramos\Desktop\APP\frontend"
+    CaminhoLocalNginxConf = "C:\Users\rui.ramos\Desktop\APP\nginx.conf"
 
     # Estrutura remota (via compartilhamento de rede)
     CaminhoRemotoApp = "\\172.16.2.35\app"

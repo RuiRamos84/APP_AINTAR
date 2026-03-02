@@ -23,6 +23,18 @@ bp = Blueprint('inventory_routes', __name__)
 @set_session              # cria/gera sessão
 @api_error_handler        # captura erros e responde 
 def list_inventory_route():
+    """
+    Listar Inventário Geral
+    ---
+    tags:
+      - Inventário (Stocks)
+    summary: Obtém a listagem totalística das peças e consumíveis geridos nos armazéns.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Coleção de artigos devolvida.
+    """
     current_user = get_jwt_identity()
     return list_inventory(current_user)
 
@@ -35,6 +47,26 @@ def list_inventory_route():
 @set_session
 @api_error_handler
 def insert_inventory_route():
+    """
+    Criar Novo Artigo de Inventário
+    ---
+    tags:
+      - Inventário (Stocks)
+    summary: Acréscimo manual ou automático de um asset catalogado.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Artigo adicionado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     if not data:
@@ -50,6 +82,30 @@ def insert_inventory_route():
 @set_session
 @api_error_handler
 def update_inventory_route(pk):
+    """
+    Edição / Correção de Inventário
+    ---
+    tags:
+      - Inventário (Stocks)
+    summary: Altere atributos base, quantities ou restock boundaries do item.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Atualizado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     if not data:
@@ -65,5 +121,22 @@ def update_inventory_route(pk):
 @set_session
 @api_error_handler
 def delete_inventory_route(pk):
+    """
+    Abater / Apagar Artigo do Inventário
+    ---
+    tags:
+      - Inventário (Stocks)
+    summary: Anula a referência em BD para um determinado item descontinuado.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Item deletado.
+    """
     current_user = get_jwt_identity()
     return delete_inventory(current_user, pk)

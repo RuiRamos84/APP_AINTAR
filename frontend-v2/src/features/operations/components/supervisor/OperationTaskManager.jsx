@@ -12,13 +12,15 @@ import {
 } from '@mui/icons-material';
 import { SearchBar } from '@/shared/components/data';
 import { formatDate, formatCompletedTaskValue, getUserNameByPk } from '../../utils/formatters';
+import SimpleTaskForm from '../SimpleTaskForm';
 
 const OperationTaskManager = ({
-    operations, metaData, onCreateMeta, onUpdateMeta, onDeleteMeta,
+    operations, metaData, onCreateTask, onUpdateMeta, onDeleteMeta,
     onValidate, isLoading
 }) => {
     const theme = useTheme();
     const [searchTerm, setSearchTerm] = useState('');
+    const [createOpen, setCreateOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [selectedOp, setSelectedOp] = useState(null);
     const [validationOpen, setValidationOpen] = useState(false);
@@ -92,8 +94,22 @@ const OperationTaskManager = ({
 
     return (
         <Stack spacing={2}>
-            {/* Search */}
-            <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+            {/* Header: search + create button */}
+            <Stack direction="row" spacing={2} alignItems="center">
+                <Box sx={{ flex: 1 }}>
+                    <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+                </Box>
+                <Tooltip title="Criar nova volta de operação">
+                    <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={() => setCreateOpen(true)}
+                        sx={{ whiteSpace: 'nowrap' }}
+                    >
+                        Nova Tarefa
+                    </Button>
+                </Tooltip>
+            </Stack>
 
             {/* Table */}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
@@ -412,6 +428,32 @@ const OperationTaskManager = ({
                             </IconButton>
                         </Box>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog — Criar Nova Tarefa */}
+            <Dialog
+                open={createOpen}
+                onClose={() => setCreateOpen(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6">Nova Volta de Operação</Typography>
+                        <IconButton onClick={() => setCreateOpen(false)} size="small">
+                            <Close />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers sx={{ p: 0 }}>
+                    <SimpleTaskForm
+                        onSubmit={(data) => {
+                            onCreateTask?.(data);
+                            setCreateOpen(false);
+                        }}
+                        onCancel={() => setCreateOpen(false)}
+                    />
                 </DialogContent>
             </Dialog>
         </Stack>

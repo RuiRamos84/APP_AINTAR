@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     Box, Typography, Tab, Tabs, Stack, Chip, Fab, IconButton, Tooltip,
     FormControl, InputLabel, Select, MenuItem, CircularProgress, Alert,
-    alpha, useTheme, Collapse
+    alpha, useTheme, Collapse, Badge
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
@@ -41,7 +41,7 @@ const SupervisorPage = () => {
         weekFilter, setWeekFilter, dayFilter, setDayFilter,
         availableWeeks, availableDays, filterInfo,
         isLoading, hasError, error, refresh,
-        createMeta, updateMeta, deleteMeta, validateExecution
+        createTask, createMeta, updateMeta, deleteMeta, validateExecution
     } = useSupervisorData();
 
     const handleValidate = (formData) => {
@@ -179,7 +179,7 @@ const SupervisorPage = () => {
                         <OperationTaskManager
                             operations={operations}
                             metaData={metaData}
-                            onCreateMeta={(data) => createMeta.mutate(data)}
+                            onCreateTask={(data) => createTask.mutate(data)}
                             onUpdateMeta={(id, data) => updateMeta.mutate({ id, data })}
                             onDeleteMeta={(id) => deleteMeta.mutate(id)}
                             onValidate={handleValidate}

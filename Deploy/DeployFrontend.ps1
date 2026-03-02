@@ -21,7 +21,7 @@ class FrontendDeployer {
     }
     
     [bool] BuildProject() {
-        Write-DeployInfo "Iniciando build do frontend..." "FRONTEND"
+        Write-DeployInfo "A iniciar o build do frontend..." "FRONTEND"
         
         if (-not (Test-Path $this.ProjectPath)) {
             Write-DeployError "Diretório do projeto não encontrado: $($this.ProjectPath)" "FRONTEND"
@@ -32,7 +32,7 @@ class FrontendDeployer {
         
         try {
             Set-Location -Path $this.ProjectPath
-            Write-DeployDebug "Executando 'npm run build' em: $($this.ProjectPath)" "FRONTEND"
+            Write-DeployDebug "A executar 'npm run build' em: $($this.ProjectPath)" "FRONTEND"
             
             $buildProcess = Start-Process -FilePath "C:\Program Files\nodejs\npm.cmd" -ArgumentList "run", "build" -Wait -PassThru -NoNewWindow -RedirectStandardOutput "build_output.log" -RedirectStandardError "build_error.log"
             
@@ -42,7 +42,7 @@ class FrontendDeployer {
                 # Verificar se o build foi criado
                 if (Test-Path $this.LocalBuildPath) {
                     $buildInfo = Get-ChildItem $this.LocalBuildPath -Recurse | Measure-Object
-                    Write-DeployDebug "Build criado com $($buildInfo.Count) arquivos" "FRONTEND"
+                    Write-DeployDebug "Build criado com $($buildInfo.Count) ficheiros" "FRONTEND"
                     return $true
                 } else {
                     Write-DeployError "Build concluído mas pasta build não encontrada" "FRONTEND"
@@ -80,7 +80,7 @@ class FrontendDeployer {
     }
     
     [bool] ValidateBuild() {
-        Write-DeployDebug "Validando build local..." "FRONTEND"
+        Write-DeployDebug "A validar o build local..." "FRONTEND"
         
         if (-not (Test-Path $this.LocalBuildPath)) {
             Write-DeployError "Build local não encontrado: $($this.LocalBuildPath)" "FRONTEND"
@@ -121,21 +121,21 @@ class FrontendDeployer {
         if (-not $this.CreateBackup) {
             return $true
         }
-        
+
         # Converter para UNC
         $remoteBasePath = $this.RemotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
-        
+
         if (-not (Test-Path $remoteBasePath)) {
-            Write-DeployDebug "Caminho remoto não existe, backup desnecessário" "FRONTEND"
+            Write-DeployDebug "Caminho remoto não existe, cópia de segurança desnecessária" "FRONTEND"
             return $true
         }
-        
+
         try {
             $backupPath = Get-BackupPath $remoteBasePath
-            Write-DeployInfo "Criando backup: $backupPath" "FRONTEND"
-            
+            Write-DeployInfo "A criar cópia de segurança: $backupPath" "FRONTEND"
+
             Move-Item $remoteBasePath $backupPath -ErrorAction Stop
-            Write-DeployInfo "Backup criado!" "FRONTEND"
+            Write-DeployInfo "Cópia de segurança criada!" "FRONTEND"
             
             $this.CleanOldBackups()
             return $true
@@ -163,7 +163,7 @@ class FrontendDeployer {
                 $backupsToRemove = $backups | Select-Object -Skip $Global:DeployConfig.ManterBackups
                 
                 foreach ($backup in $backupsToRemove) {
-                    Write-DeployDebug "Removendo backup antigo: $($backup.Name)" "FRONTEND"
+                    Write-DeployDebug "A remover cópia de segurança antiga: $($backup.Name)" "FRONTEND"
                     Remove-Item $backup.FullName -Recurse -Force -ErrorAction SilentlyContinue
                 }
             }
@@ -174,45 +174,48 @@ class FrontendDeployer {
     }
 
     [bool] Deploy() {
-        Write-DeployInfo "Iniciando deployment do frontend..." "FRONTEND"
-    
+        Write-DeployInfo "A iniciar o deployment do frontend (robocopy)..." "FRONTEND"
+
         if (-not $this.ValidateBuild()) {
             return $false
         }
-    
+
         if (-not $this.CreateRemoteBackup()) {
             return $false
         }
-    
+
         try {
             # Converter path para UNC
             $remoteBasePath = $this.RemotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
-            
-            # Garantir directório remoto
-            if (-not (Test-Path $remoteBasePath)) {
-                New-Item -Path $remoteBasePath -ItemType Directory -Force | Out-Null
+
+            $copyStartTime = Get-Date
+
+            # robocopy /MIR: espelho completo (cria, actualiza e remove o que não existe na origem)
+            $robocopyArgs = @(
+                $this.LocalBuildPath,
+                $remoteBasePath,
+                "/MIR",     # Espelho completo
+                "/MT:8",    # 8 threads paralelas
+                "/R:2",     # 2 tentativas em erro
+                "/W:3",     # 3 segundos entre tentativas
+                "/NFL",     # Sem lista de ficheiros no output
+                "/NDL",     # Sem lista de directórios no output
+                "/NJH",     # Sem cabeçalho
+                "/NJS"      # Sem sumário
+            )
+
+            Write-DeployDebug "robocopy: $($this.LocalBuildPath) -> $remoteBasePath" "FRONTEND"
+            & robocopy @robocopyArgs | Out-Null
+
+            # robocopy: códigos 0-7 são sucesso; 8+ são erros
+            if ($LASTEXITCODE -ge 8) {
+                Write-DeployError "robocopy falhou com código $LASTEXITCODE" "FRONTEND"
+                return $false
             }
-            
-            # Copiar build
-            $buildFiles = Get-ChildItem $this.LocalBuildPath -Recurse
-            foreach ($item in $buildFiles) {
-                $relativePath = $item.FullName.Substring($this.LocalBuildPath.Length).TrimStart('\', '/')
-                $targetPath = "$($remoteBasePath.TrimEnd('\'))\$relativePath"
-                
-                if ($item.PSIsContainer) {
-                    if (-not (Test-Path $targetPath)) {
-                        New-Item -Path $targetPath -ItemType Directory -Force | Out-Null
-                    }
-                } else {
-                    $targetDir = Split-Path $targetPath -Parent
-                    if (-not (Test-Path $targetDir)) {
-                        New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
-                    }
-                    Copy-Item -Path $item.FullName -Destination $targetPath -Force
-                }
-            }
-            
-            Write-DeployInfo "Deployment do frontend concluído!" "FRONTEND"
+
+            $copyDuration = (Get-Date) - $copyStartTime
+            Write-DeployInfo "Frontend copiado em $([Math]::Round($copyDuration.TotalSeconds, 1))s (código robocopy: $LASTEXITCODE)" "FRONTEND"
+
             return $true
         }
         catch {

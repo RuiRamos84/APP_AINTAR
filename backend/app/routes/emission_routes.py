@@ -29,8 +29,21 @@ PERMISSION_MANAGE_EMISSIONS = 220
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def get_document_types():
     """
-    Lista todos os tipos de documentos disponíveis
-    GET /emissions/types
+    Listar Tipos de Documento/Ofício
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Consulta o catálogo ativo de tipologias de documentos que podem ser emitidos.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: active_only
+        type: boolean
+        description: Devolver apenas registos ativos
+    responses:
+      200:
+        description: Catálogo devolvido.
     """
     try:
         current_user = get_jwt_identity()
@@ -61,9 +74,39 @@ def get_document_types():
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def create_template():
     """
-    Cria novo template
-    POST /emissions/templates
-    Body: {tb_document_type, name, body, header_template, footer_template, metadata}
+    Criar Novo Template
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Regista um modelo (Jinja2 syntax supported) para posterior injeção de preenchimento dinâmico.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tb_document_type:
+              type: integer
+            name:
+              type: string
+            body:
+              type: string
+            header_template:
+              type: string
+            footer_template:
+              type: string
+            metadata:
+              type: object
+    responses:
+      201:
+        description: Template adicionado com sucesso e compilado.
+      400:
+        description: Template Syntax errors localizados via validação.
     """
     try:
         current_user = get_jwt_identity()
@@ -112,8 +155,32 @@ def create_template():
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def list_templates():
     """
-    Lista templates com filtros
-    GET /emissions/templates?tb_document_type=1&active=1&search=oficio&limit=50
+    Listar Templates com Filtros
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Obter a relação de templates existentes formatados ou base.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: tb_document_type
+        type: integer
+      - in: query
+        name: active
+        type: integer
+      - in: query
+        name: search
+        type: string
+      - in: query
+        name: limit
+        type: integer
+      - in: query
+        name: offset
+        type: integer
+    responses:
+      200:
+        description: Sucesso.
     """
     try:
         current_user = get_jwt_identity()
@@ -147,7 +214,23 @@ def list_templates():
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def get_template(template_id):
-    """Obtém template específico"""
+    """
+    Obter Template Específico
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Busca o conteúdo original do editor do modelo especificado.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: template_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Código do template devolvido.
+    """
     try:
         current_user = get_jwt_identity()
 
@@ -174,7 +257,30 @@ def get_template(template_id):
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def update_template(template_id):
-    """Atualiza template existente"""
+    """
+    Atualizar um Template Existente
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Emenda as alterações realizadas pelo Editor para a base de dados central, ativando compilação imediata após receção.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: template_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Atualizado.
+    """
     try:
         current_user = get_jwt_identity()
         data = request.get_json()
@@ -217,7 +323,23 @@ def update_template(template_id):
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def delete_template(template_id):
-    """Desativa template (soft delete)"""
+    """
+    Desativar Template (Soft Delete)
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Inativa um template do painel de escolha dos técnicos ao emitirem novos ofícios.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: template_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Desativado permanentemente da lista para novo uso.
+    """
     try:
         current_user = get_jwt_identity()
 
@@ -249,9 +371,26 @@ def delete_template(template_id):
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def create_emission():
     """
-    Cria nova emissão
-    POST /emissions/
-    Body: {tb_document_type, tb_emission_template, subject, recipient_data, custom_data}
+    Criar Nova Emissão/Ofício
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Inicia e regista a elaboração de um novo documento em formato de rascunho com o número provisório associado.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Emissão criada.
+      400:
+        description: Parâmetro tb_document_type obrigatório.
     """
     try:
         current_user = get_jwt_identity()
@@ -287,8 +426,30 @@ def create_emission():
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def list_emissions():
     """
-    Lista emissões com filtros
-    GET /emissions/?tb_document_type=1&status=issued&search=teste&limit=50
+    Listar Caixa de Emissões Expedidas / Rascunhos
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Caixa de saída do correio/ofícios dos utilizadores com parâmetros de busca complexos.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: tb_document_type
+        type: integer
+      - in: query
+        name: status
+        type: string
+        description: EX "issued", "draft"
+      - in: query
+        name: search
+        type: string
+      - in: query
+        name: limit
+        type: integer
+    responses:
+      200:
+        description: Lista das emissões.
     """
     try:
         current_user = get_jwt_identity()
@@ -327,7 +488,25 @@ def list_emissions():
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def get_emission(emission_id):
-    """Obtém emissão específica"""
+    """
+    Detalhes de Uma Emissão
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Fetch total dos dados da carta, remetente, PDF em meta_data se emitido, template original e datas de logs.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: emission_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Corpo e metadata da emissão.
+      404:
+        description: Emissão não encontrada.
+    """
     try:
         current_user = get_jwt_identity()
         with db_session_manager(current_user):
@@ -353,7 +532,30 @@ def get_emission(emission_id):
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def update_emission(emission_id):
-    """Atualiza emissão existente"""
+    """
+    Atualizar Conteúdo / Destinatário na Emissão
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Edita a emissão enquanto a mesma ainda não for declarada como OFICIALMENTE EMITIDA E NUMERADA.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: emission_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Sucesso.
+    """
     try:
         current_user = get_jwt_identity()
         data = request.get_json()
@@ -383,7 +585,23 @@ def update_emission(emission_id):
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def delete_emission(emission_id):
-    """Cancela emissão (soft delete)"""
+    """
+    Anular / Apagar Emissão
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Invalida uma emissão criada por expiração de rascunhos ou apagar direto.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: emission_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Cancelada (Soft Delete).
+    """
     try:
         current_user = get_jwt_identity()
         with db_session_manager(current_user):
@@ -414,9 +632,31 @@ def delete_emission(emission_id):
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def preview_next_number():
     """
-    Preview do próximo número disponível
-    POST /emissions/numbering/preview
-    Body: {document_type_code, year, department_code}
+    Previsão do Próximo Número
+    ---
+    tags:
+      - Emissões e Ofícios (Numeração)
+    summary: Tenta simular a atribuição para demonstrar a formatação final na UI quando for validado o "Guardar".
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            document_type_code:
+              type: string
+            year:
+              type: integer
+            department_code:
+              type: string
+    responses:
+      200:
+        description: 'String processada "Ex: ADIN-2026/044".'
     """
     try:
         current_user = get_jwt_identity()
@@ -453,7 +693,27 @@ def preview_next_number():
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def get_year_statistics(year):
-    """Estatísticas de emissões por ano"""
+    """
+    Estatísticas de Emissões por Ano Fiscal
+    ---
+    tags:
+      - Emissões e Ofícios (Numeração)
+    summary: Retorna estatísticas de progressão de números emitidos ao longo do ano associado em BD.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: year
+        in: path
+        type: integer
+        required: true
+      - in: query
+        name: type
+        type: string
+        description: Filtrar por departamento_prefix ou Type_Code.
+    responses:
+      200:
+        description: Totais.
+    """
     try:
         current_user = get_jwt_identity()
         document_type_code = request.args.get('type')
@@ -486,8 +746,21 @@ def get_year_statistics(year):
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def get_variables_for_type(type_code):
     """
-    Retorna variáveis disponíveis para um tipo de documento
-    GET /emissions/variables/OFI
+    Dicionário de Variáveis Dinâmicas
+    ---
+    tags:
+      - Emissões e Ofícios (Administração)
+    summary: Enumera tags macro que são validadas e processadas no core Service do Jinja2 para a compilação do output HTML->PDF.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: type_code
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Variáveis globais disponíveis.
     """
     try:
         # Obter variáveis base
@@ -521,8 +794,29 @@ def get_variables_for_type(type_code):
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def get_audit_logs():
     """
-    Lista logs de auditoria
-    GET /emissions/audit?user_id=username&action=EMISSION_CREATE&limit=100
+    Eventos de Rastreio em Emissões
+    ---
+    tags:
+      - Emissões e Ofícios (Auditoria)
+    summary: Consulta logs de manipulação, edições, emissões definitivas e deleções por utilizador.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: user_id
+        type: string
+      - in: query
+        name: action
+        type: string
+      - in: query
+        name: emission_id
+        type: integer
+      - in: query
+        name: limit
+        type: integer
+    responses:
+      200:
+        description: Lista de Audit Trails.
     """
     try:
         current_user = get_jwt_identity()
@@ -587,8 +881,26 @@ def test_minimal_generate(emission_id):
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def generate_document(emission_id):
     """
-    Gera PDF para emissão existente
-    POST /emissions/<id>/generate
+    Compilar PDF para Emissão Restante (Converter Rascunho)
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Executa o template com os recipient datas em Background, compila HTML, converte WEASYPRINT para PDF, regista log status ISSUED e atribui numeração se aplicável para gravação nos Storage da rede.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: emission_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        description: Enviar "force_regenerate = true" se o utilizador quiser forçar atualização.
+        schema:
+          type: object
+    responses:
+      200:
+        description: PDF emitido.
     """
     # Handle OPTIONS for CORS
     if request.method == 'OPTIONS':
@@ -715,7 +1027,29 @@ def generate_document(emission_id):
 @jwt_required()
 @require_permission(PERMISSION_MANAGE_EMISSIONS)
 def upload_pdf(emission_id):
-    """Recebe PDF gerado no frontend e salva no servidor"""
+    """
+    Oficializar Emissão c/ Assinatura de Ficheiro Ad-Hoc
+    ---
+    tags:
+      - Emissões e Ofícios
+    summary: Submeter um PDF já exteriormente assinado e guardá-lo nas referências da BD para esta entidade_id emitindo a OFICIALIZAÇÃO.
+    security:
+      - BearerAuth: []
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: emission_id
+        in: path
+        type: integer
+        required: true
+      - name: pdf
+        in: formData
+        type: file
+        required: true
+    responses:
+      200:
+        description: Arquivo persistido.
+    """
     try:
         from werkzeug.utils import secure_filename
         from app import db

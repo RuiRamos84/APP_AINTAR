@@ -146,9 +146,8 @@ class AdvancedCache {
             // Armazenar em memória
             this.memoryCache.set(key, cacheEntry);
 
-            // Armazenar no localStorage
-            const storageKey = this.prefix + key;
-            localStorage.setItem(storageKey, JSON.stringify(cacheEntry));
+            // Armazenar no localStorage com tratamento de quota excedida
+            this._setLocalStorage(key, cacheEntry);
 
             this.stats.sets++;
             this.updateTotalSize();
@@ -158,6 +157,73 @@ class AdvancedCache {
             this.stats.errors++;
             console.error('Erro ao armazenar no cache:', error);
             return false;
+        }
+    }
+
+    /**
+     * Escrever no localStorage com recuperação de QuotaExceededError
+     */
+    _setLocalStorage(key, cacheEntry) {
+        const storageKey = this.prefix + key;
+        const value = JSON.stringify(cacheEntry);
+
+        // Não persistir entradas grandes (>100KB) — ficam apenas em memória
+        if (value.length > 100 * 1024) {
+            return;
+        }
+
+        // Tentar até 3 vezes, libertando espaço em cada falha
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                localStorage.setItem(storageKey, value);
+                return; // sucesso
+            } catch (error) {
+                const isQuotaError = error instanceof DOMException && (
+                    error.code === 22 ||
+                    error.code === 1014 ||
+                    error.name === 'QuotaExceededError' ||
+                    error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+                );
+
+                if (!isQuotaError) {
+                    console.warn('Cache localStorage erro inesperado:', error.name);
+                    return;
+                }
+
+                if (attempt < 2) {
+                    // Libertar 30% das entradas mais antigas
+                    this._evictFromStorage(Math.max(10, Math.floor(this.memoryCache.size * 0.3)));
+                } else {
+                    // Última tentativa — limpar todo o localStorage deste prefixo
+                    this._clearAllFromStorage();
+                }
+            }
+        }
+    }
+
+    /**
+     * Remover N entradas antigas do localStorage para libertar espaço
+     */
+    _evictFromStorage(count) {
+        const entries = [...this.memoryCache.entries()]
+            .sort((a, b) => a[1].timestamp - b[1].timestamp)
+            .slice(0, count);
+
+        for (const [k] of entries) {
+            this.memoryCache.delete(k);
+            localStorage.removeItem(this.prefix + k);
+        }
+    }
+
+    /**
+     * Limpar todas as entradas deste prefixo do localStorage
+     */
+    _clearAllFromStorage() {
+        try {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith(this.prefix));
+            keys.forEach(k => localStorage.removeItem(k));
+        } catch (e) {
+            // ignorar — se localStorage não está acessível, o set também vai falhar
         }
     }
 
@@ -335,7 +401,7 @@ class AdvancedCache {
 export const documentsCache = new AdvancedCache({
     prefix: 'docs_',
     defaultTTL: 3 * 60 * 1000, // 3 minutos para documentos
-    maxSize: 150,
+    maxSize: 30,               // listas de documentos são grandes — manter em memória apenas
     enableCompression: true
 });
 
@@ -343,7 +409,7 @@ export const documentsCache = new AdvancedCache({
 export const metadataCache = new AdvancedCache({
     prefix: 'meta_',
     defaultTTL: 15 * 60 * 1000, // 15 minutos para metadados
-    maxSize: 50,
+    maxSize: 20,
     enableCompression: true
 });
 

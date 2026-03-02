@@ -54,7 +54,18 @@ logger = get_logger(__name__)
 @set_session
 @api_error_handler
 def get_documents():
-    """Listar todos os documentos"""
+    """
+    Listar Todos os Documentos
+    ---
+    tags:
+      - Documentos
+    summary: Retorna a coleção geral de todos os documentos tramitados (Requer permissão de Admin/View All).
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Lista de documentos.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return list_documents(current_user)
@@ -67,7 +78,26 @@ def get_documents():
 @set_session
 @api_error_handler
 def documentById_route(documentId):
-    """Obter dados do documento"""
+    """
+    Obter Documento por ID
+    ---
+    tags:
+      - Documentos
+    summary: Retorna os metadados agregados e detalhes operacionais de um documento específico.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: documentId
+        in: path
+        type: string
+        required: true
+        description: ID / Número de Registo do Documento
+    responses:
+      200:
+        description: Detalhes do documento solicitados.
+      404:
+        description: Documento não existe ou sem permissão.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return documentById(documentId, current_user)
@@ -80,7 +110,18 @@ def documentById_route(documentId):
 @set_session
 @api_error_handler
 def get_document_self():
-    """Listar documentos atribuídos a si"""
+    """
+    Documentos Pendentes (Meus)
+    ---
+    tags:
+      - Documentos
+    summary: Retorna a lista de documentos onde o utilizador autêntico é o "workflow asignee" (Atribuídos a si).
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Documentos pendentes devolvidos na lista.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return document_self(current_user)
@@ -105,7 +146,24 @@ def check_vacation_status_route(user_pk):
 @set_session
 @api_error_handler
 def check_step_hierarchy(dockty_id):
-    """consulta ps passo de um tipo de pedido e suas hierarquias"""
+    """
+    Consultar Hierarquia de Passos
+    ---
+    tags:
+      - Documentos
+    summary: Determina a "árvore" de workflow/configuração exigida para preencher um Tipo Específico de Pedido.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: dockty_id
+        in: path
+        type: integer
+        required: true
+        description: ID do Tipo de Pedido (Document Type)
+    responses:
+      200:
+        description: Hierarquia obtida.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return step_hierarchy(dockty_id, current_user)
@@ -118,6 +176,29 @@ def check_step_hierarchy(dockty_id):
 @set_session
 @api_error_handler
 def create_new_document():
+    """
+    Criar (e submeter) Documento
+    ---
+    tags:
+      - Documentos
+    summary: Inicia a criação de um documento com opção de injeção de anexos Multi-Part.
+    security:
+      - BearerAuth: []
+    consumes:
+      - multipart/form-data
+    parameters:
+      - in: formData
+        name: files
+        type: file
+        description: Ficheiros de upload opcional
+      - in: formData
+        name: data
+        type: string
+        description: Meta JSON do payload de form-data
+    responses:
+      201:
+        description: Documento Formado e Ingressado com Sucesso.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         data = request.form
@@ -145,7 +226,18 @@ def update_document_notification_route(pk):
 @set_session
 @api_error_handler
 def get_document_owner():
-    """Listar documentos criados por si"""
+    """
+    Meus Documentos Lançados
+    ---
+    tags:
+      - Documentos
+    summary: Listar documentos submetidos/lançados pelo próprio utilizador.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Dados organizados.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return document_owner(current_user)

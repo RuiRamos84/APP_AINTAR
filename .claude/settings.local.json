@@ -33,9 +33,24 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "WebFetch(domain:sileo.aaryan.design)"
+      "WebFetch(domain:sileo.aaryan.design)",
+      "Bash(powershell.exe -ExecutionPolicy:*)",
+      "Bash(/tmp/check_heredoc.ps1:*)",
+      "Bash(/tmp/check_heredoc2.ps1:*)",
+      "Bash(/tmp/check_heredoc3.ps1:*)",
+      "Bash(/tmp/check_syntax2.ps1:*)",
+      "Bash(/tmp/check_line168.ps1:*)",
+      "Bash(/tmp/test_timing.ps1:*)",
+      "Bash(powershell -ExecutionPolicy ByPass -Command \":*)",
+      "Bash(powershell -ExecutionPolicy ByPass -File \"Deploy/Deploy-Main.ps1\" -Help)",
+      "Bash(powershell -ExecutionPolicy ByPass -File \"Deploy/Deploy-Main.ps1\")",
+      "Read(//c/Users/rui.ramos/AppData/Roaming/Code/User/**)",
+      "Read(//c/Users/rui.ramos/Desktop/APP/backend/app/**)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\rui.ramos\\AppData\\Roaming\\Code\\User"
+    ]
   }
 }

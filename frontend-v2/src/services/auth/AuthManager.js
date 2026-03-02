@@ -128,6 +128,15 @@ class AuthManager {
           }
         }
 
+        // Extract backend error message if available
+        const backendMessage = error.response?.data?.erro;
+        if (backendMessage) {
+          const enrichedError = new Error(backendMessage);
+          enrichedError.response = error.response;
+          enrichedError.status = error.response?.status;
+          return Promise.reject(enrichedError);
+        }
+
         return Promise.reject(error);
       }
     );

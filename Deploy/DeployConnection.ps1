@@ -34,15 +34,15 @@ class ServerConnection {
             $this.ConnectionAttempts++
             
             try {
-                Write-DeployDebug "Tentativa de conexão $($this.ConnectionAttempts)/$maxAttempts" "CONNECTION"
+                Write-DeployDebug "Tentativa de ligação $($this.ConnectionAttempts)/$maxAttempts" "CONNECTION"
                 
                 # Limpar conexão existente se houver
                 $this.Disconnect($false)
                 Start-Sleep -Seconds 1
                 
                 # Tentar nova conexão
-                Write-DeployDebug "Conectando a: $($this.ServerPath)" "CONNECTION"
-                New-PSDrive -Name $this.DriveName -PSProvider FileSystem -Root $this.ServerPath -Credential $this.Credential -ErrorAction Stop | Out-Null
+                Write-DeployDebug "A ligar a: $($this.ServerPath)" "CONNECTION"
+                New-PSDrive -Name $this.DriveName -PSProvider FileSystem -Root $this.ServerPath -Credential $this.Credential -Scope Global -ErrorAction Stop | Out-Null
                 
                 # Verificar se a conexão funciona
                 Start-Sleep -Seconds 2
@@ -52,7 +52,7 @@ class ServerConnection {
                 $this.IsConnected = $true
                 $this.LastConnectionTime = Get-Date
                 
-                Write-DeployInfo "Conexão estabelecida com sucesso: $($testDrive.Root)" "CONNECTION"
+                Write-DeployInfo "Ligação estabelecida com sucesso: $($testDrive.Root)" "CONNECTION"
                 return $true
             }
             catch {
@@ -60,13 +60,13 @@ class ServerConnection {
                 
                 if ($this.ConnectionAttempts -lt $maxAttempts) {
                     $waitTime = [Math]::Min(3 * $this.ConnectionAttempts, 10)
-                    Write-DeployDebug "Aguardando $waitTime segundos antes da próxima tentativa..." "CONNECTION"
+                    Write-DeployDebug "A aguardar $waitTime segundos antes da próxima tentativa..." "CONNECTION"
                     Start-Sleep -Seconds $waitTime
                 }
             }
         }
         
-        Write-DeployError "Falha ao estabelecer conexão após $maxAttempts tentativas" "CONNECTION"
+        Write-DeployError "Falha ao estabelecer ligação após $maxAttempts tentativas" "CONNECTION"
         $this.IsConnected = $false
         return $false
     }
@@ -136,7 +136,7 @@ function Initialize-ServerConnection {
         $credential
     )
     
-    Write-DeployInfo "Gestor de conexão inicializado" "CONNECTION"
+    Write-DeployInfo "Gestor de ligação inicializado" "CONNECTION"
     return $true
 }
 
@@ -168,7 +168,7 @@ function Get-DeployServerPath {
     param([string]$RelativePath = "")
     
     if ($null -eq $Global:ServerConnection -or -not $Global:ServerConnection.IsConnected) {
-        Write-DeployError "Nenhuma conexão ativa com o servidor" "CONNECTION"
+        Write-DeployError "Nenhuma ligação ativa com o servidor" "CONNECTION"
         return $null
     }
     
@@ -186,13 +186,13 @@ function Invoke-WithServerConnection {
         [bool]$DisconnectAfter = $true
     )
     
-    Write-DeployInfo "Iniciando: $OperationName" "CONNECTION"
+    Write-DeployInfo "A iniciar: $OperationName" "CONNECTION"
     
     try {
         # Conectar se necessário
         if (-not (Test-DeployConnection)) {
             if (-not (Connect-DeployServer)) {
-                Write-DeployError "Falha ao conectar ao servidor para: $OperationName" "CONNECTION"
+                Write-DeployError "Falha ao ligar ao servidor para: $OperationName" "CONNECTION"
                 return $false
             }
         }
@@ -221,7 +221,7 @@ function Invoke-WithServerConnection {
 function Test-ServerConnectivity {
     param([int]$MaxAttempts = 3)
     
-    Write-DeployInfo "Testando conectividade do servidor..." "DIAGNOSTIC"
+    Write-DeployInfo "A testar conectividade do servidor..." "DIAGNOSTIC"
     
     $results = @{
         NetworkReachable = $false
@@ -240,10 +240,10 @@ function Test-ServerConnectivity {
         Write-DeployWarning "Erro no teste de rede: $($_.Exception.Message)" "DIAGNOSTIC"
     }
 
-    # 2. Teste de compartilhamento (MODIFICADO)
+    # 2. Teste de partilha (MODIFICADO)
     if ($results.NetworkReachable) {
         try {
-            # Usando caminho UNC direto em vez de PSDrive
+            # A utilizar caminho UNC directo em vez de PSDrive
             $testPath = "\\$($Global:DeployConfig.ServerIP)\$($Global:DeployConfig.CompartilhamentoNome)\NewAPP"
             if (Test-Path $testPath) {
                 $results.ShareAccessible = $true
@@ -262,7 +262,7 @@ function Test-ServerConnectivity {
                     Write-DeployDebug "Caminho $pathName : $(if ($results.PathsExist[$pathName]) { 'Existe' } else { 'Não existe' })" "DIAGNOSTIC"
                 }
             }
-            Write-DeployInfo "Teste de compartilhamento: $(if ($results.ShareAccessible) { 'Sucesso' } else { 'Falha' })" "DIAGNOSTIC"
+            Write-DeployInfo "Teste de partilha: $(if ($results.ShareAccessible) { 'Sucesso' } else { 'Falha' })" "DIAGNOSTIC"
         }
         catch {
             Write-DeployWarning "Erro no teste de compartilhamento: $($_.Exception.Message)" "DIAGNOSTIC"

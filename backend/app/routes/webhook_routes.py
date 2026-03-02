@@ -47,9 +47,29 @@ def decrypt_sibs_notification(encrypted_body, iv_b64, tag_b64, secret_b64):
 @api_error_handler
 def sibs_webhook_test():
     """
-    Endpoint de TESTE para simular webhook SIBS sem encriptação.
-    Apenas disponível em ambiente de desenvolvimento.
-    Aceita JSON direto (sem AES-GCM).
+    Testar Webhook SIBS (Apenas Dev Local)
+    ---
+    tags:
+      - Webhooks
+    summary: Envia uma payload mock JSON sem AES-GCM decryption exigido para emular callbacks SIBS.
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            transactionID:
+              type: string
+            paymentStatus:
+              type: string
+            paymentMethod:
+              type: string
+    responses:
+      200:
+        description: Test OK & SocketIO Emitted.
     """
     env = current_app.config.get('ENV', 'production')
     if env == 'production':
@@ -117,18 +137,19 @@ def sibs_webhook_test():
 @api_error_handler
 def sibs_webhook():
     """
-    Endpoint para receber notificações webhook da SIBS.
-
-    GET: Validação do endpoint (SIBS verifica se URL está acessível)
-    POST: Receber notificações de pagamento
-
-    Fluxo POST:
-    1. Receber payload encriptado (Base64)
-    2. Obter IV e Auth Tag dos headers
-    3. Desencriptar com AES-GCM
-    4. Processar a notificação (atualizar BD)
-    5. Notificar frontend via SocketIO
-    6. Responder com acknowledgment conforme documentação SIBS
+    Receção Oficial de Callbacks SIBS
+    ---
+    tags:
+      - Webhooks
+    summary: Endpoint GET/POST validado para a plataforma Pagamentos online da SIBS notificar backend.
+    description: "Desencriptação AES-GCM ocorre mediante Header Tags confidenciais com SocketIO dispatch."
+    consumes:
+      - text/plain
+    responses:
+      200:
+        description: Ack 200 required SIBS standards com Notification ID.
+      400:
+        description: Payload ausente ou falha decryption the headers.
     """
     # GET - Validação do webhook pela SIBS
     if request.method == 'GET':

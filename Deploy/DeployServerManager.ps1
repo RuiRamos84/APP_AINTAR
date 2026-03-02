@@ -158,7 +158,7 @@ function Invoke-RemoteServerCommand {
         [array]$ArgumentList = @()
     )
 
-    Write-DeployInfo "Executando comando remoto: $OperationName" "REMOTE_MGMT"
+    Write-DeployInfo "A executar comando remoto: $OperationName" "REMOTE_MGMT"
 
     if ($Global:UseWinRM) {
         return Invoke-RemoteServerCommand-WinRM -ScriptBlock $ScriptBlock -OperationName $OperationName -ArgumentList $ArgumentList
@@ -175,7 +175,7 @@ function Invoke-RemoteServerCommand-WinRM {
         [array]$ArgumentList = @()
     )
 
-    Write-DeployDebug "Usando WinRM para execução remota" "REMOTE_MGMT"
+    Write-DeployDebug "A utilizar WinRM para execução remota" "REMOTE_MGMT"
 
     # Obter método de autenticação da configuração (padrão: Negotiate)
     $authMethod = if ($Global:DeployConfig.RemoteManagement.UseCredSSP) { 'Credssp' } else { 'Negotiate' }
@@ -222,7 +222,7 @@ function Invoke-RemoteServerCommand-TaskScheduler {
         [array]$ArgumentList = @()
     )
 
-    Write-DeployDebug "Usando Task Scheduler para execução remota (sem WinRM)" "REMOTE_MGMT"
+    Write-DeployDebug "A utilizar Task Scheduler para execução remota (sem WinRM)" "REMOTE_MGMT"
 
     try {
         # Criar um nome único para a tarefa
@@ -254,9 +254,9 @@ function Write-Log {
     Write-Host `$message
 }
 
-Write-Log "=== Iniciando: $OperationName ==="
+Write-Log "=== A iniciar: $OperationName ==="
 Write-Log "Computador: `$env:COMPUTERNAME"
-Write-Log "Usuário: `$env:USERNAME"
+Write-Log "Utilizador: `$env:USERNAME"
 
 "@
 
@@ -277,7 +277,7 @@ Write-Log "Usuário: `$env:USERNAME"
         # Envolver o scriptblock em try-catch para capturar erros
         $scriptWrapper += @"
 try {
-    Write-Log "Executando scriptblock..."
+    Write-Log "A executar bloco de script..."
 
     $scriptContent
 
@@ -296,13 +296,13 @@ try {
         $tempScriptPath = "\\$serverIP\app\NewAPP\temp_deploy_script_$taskName.ps1"
         $tempScriptLocalPath = "D:\APP\NewAPP\temp_deploy_script_$taskName.ps1"
 
-        Write-DeployDebug "Criando script temporário: $tempScriptPath" "REMOTE_MGMT"
+        Write-DeployDebug "A criar script temporário: $tempScriptPath" "REMOTE_MGMT"
         Set-Content -Path $tempScriptPath -Value $scriptContent -Encoding UTF8 -Force
 
         # Criar tarefa agendada no servidor remoto
         $taskAction = "powershell.exe -ExecutionPolicy Bypass -File `"$tempScriptLocalPath`""
 
-        Write-DeployDebug "Criando tarefa agendada no servidor: $taskName" "REMOTE_MGMT"
+        Write-DeployDebug "A criar tarefa agendada no servidor: $taskName" "REMOTE_MGMT"
 
         $username = $credential.UserName
         $password = $credential.GetNetworkCredential().Password
@@ -333,7 +333,7 @@ try {
             throw "Falha ao criar tarefa agendada (Exit code: $exitCode): $createResult"
         }
 
-        Write-DeployDebug "Executando tarefa agendada..." "REMOTE_MGMT"
+        Write-DeployDebug "A executar tarefa agendada..." "REMOTE_MGMT"
 
         # Executar tarefa imediatamente
         $runTaskCmd = "schtasks /Run /S $serverIP /U `"$username`" /P `"$password`" /TN `"$taskName`""
@@ -382,16 +382,16 @@ try {
 
 function Enable-MaintenanceMode {
     return Invoke-RemoteServerCommand -OperationName "Ativar Modo Manutenção" -ScriptBlock {
-        Write-Host "=== ATIVANDO MODO DE MANUTENÇÃO ==="
+        Write-Host "=== A ATIVAR MODO DE MANUTENÇÃO ==="
 
-        # Criar o arquivo flag de manutenção
+        # Criar o ficheiro flag de manutenção
         $flagPath = "D:\APP\NewAPP\nginx\maintenance.flag"
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         "Site em manutenção ativado em $timestamp" | Out-File -FilePath $flagPath -Force
         Write-Host "[OK] Flag de manutenção criado: $flagPath"
 
         # Parar nginx
-        Write-Host "Parando nginx..."
+        Write-Host "A parar o nginx..."
         $nginxProcesses = Get-Process -Name nginx -ErrorAction SilentlyContinue
         if ($nginxProcesses) {
             Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
@@ -404,7 +404,7 @@ function Enable-MaintenanceMode {
         Start-Sleep -Seconds 2
 
         # Reiniciar nginx
-        Write-Host "Reiniciando nginx..."
+        Write-Host "A reiniciar o nginx..."
         $nginxPath = "D:\APP\NewAPP\nginx\nginx.exe"
         if (Test-Path $nginxPath) {
             Start-Process -FilePath $nginxPath -WorkingDirectory "D:\APP\NewAPP\nginx" -WindowStyle Hidden
@@ -421,15 +421,15 @@ function Enable-MaintenanceMode {
             throw "Nginx.exe não encontrado em: $nginxPath"
         }
 
-        Write-Host "=== MODO DE MANUTENÇÃO ATIVADO ==="
+        Write-Host "=== MODO DE MANUTENÇÃO ATIVO ==="
     }
 }
 
 function Disable-MaintenanceMode {
     return Invoke-RemoteServerCommand -OperationName "Desativar Modo Manutenção" -ScriptBlock {
-        Write-Host "=== DESATIVANDO MODO DE MANUTENÇÃO ==="
+        Write-Host "=== A DESATIVAR MODO DE MANUTENÇÃO ==="
 
-        # Remover o arquivo flag de manutenção
+        # Remover o ficheiro flag de manutenção
         $flagPath = "D:\APP\NewAPP\nginx\maintenance.flag"
         if (Test-Path $flagPath) {
             Remove-Item -Path $flagPath -Force
@@ -439,7 +439,7 @@ function Disable-MaintenanceMode {
         }
 
         # Parar nginx
-        Write-Host "Parando nginx..."
+        Write-Host "A parar o nginx..."
         $nginxProcesses = Get-Process -Name nginx -ErrorAction SilentlyContinue
         if ($nginxProcesses) {
             Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
@@ -452,7 +452,7 @@ function Disable-MaintenanceMode {
         Start-Sleep -Seconds 2
 
         # Reiniciar nginx
-        Write-Host "Reiniciando nginx..."
+        Write-Host "A reiniciar o nginx..."
         $nginxPath = "D:\APP\NewAPP\nginx\nginx.exe"
         if (Test-Path $nginxPath) {
             Start-Process -FilePath $nginxPath -WorkingDirectory "D:\APP\NewAPP\nginx" -WindowStyle Hidden
@@ -479,13 +479,13 @@ function Stop-BackendProcess {
         # $args[0] = nome do processo
         $name = $args[0]
 
-        Write-Host "=== PARANDO BACKEND ==="
+        Write-Host "=== A PARAR BACKEND ==="
         $processes = Get-Process -Name $name -ErrorAction SilentlyContinue
 
         if ($processes) {
             Write-Host "Encontrados $($processes.Count) processo(s) '$name'"
             foreach ($proc in $processes) {
-                Write-Host "  - Parando PID: $($proc.Id)..."
+                Write-Host "  - A parar PID: $($proc.Id)..."
                 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
             }
 
@@ -495,7 +495,7 @@ function Stop-BackendProcess {
             # Verificar se realmente pararam
             $remainingProcesses = Get-Process -Name $name -ErrorAction SilentlyContinue
             if ($remainingProcesses) {
-                Write-Host "[AVISO] Ainda existem $($remainingProcesses.Count) processo(s) '$name' rodando"
+                Write-Host "[AVISO] Ainda existem $($remainingProcesses.Count) processo(s) '$name' em execução"
             } else {
                 Write-Host "[OK] Todos os processos '$name' foram parados com sucesso"
             }
@@ -521,8 +521,8 @@ function Start-BackendProcess {
             throw "Script de arranque do backend ('start.bat') não encontrado em: $script"
         }
 
-        Write-Host "=== INICIANDO BACKEND ==="
-        Write-Host "Executando: $script"
+        Write-Host "=== A INICIAR BACKEND ==="
+        Write-Host "A executar: $script"
         $workingDir = Split-Path $script -Parent
 
         # Executar o script .bat para iniciar o backend
@@ -537,7 +537,7 @@ function Start-BackendProcess {
         }
 
         # Aguardar um pouco para o backend iniciar
-        Write-Host "Aguardando backend iniciar..."
+        Write-Host "A aguardar o arranque do backend..."
         Start-Sleep -Seconds 3
 
         # Verificar se o backend iniciou
@@ -548,7 +548,7 @@ function Start-BackendProcess {
                 Write-Host "  - PID: $($proc.Id), Session: $($proc.SessionId)"
             }
         } else {
-            Write-Host "[AVISO] Nenhum processo Python encontrado. O backend pode ainda estar iniciando..."
+            Write-Host "[AVISO] Nenhum processo Python encontrado. O backend pode ainda estar a iniciar..."
         }
 
         Write-Host "=== BACKEND INICIADO ==="

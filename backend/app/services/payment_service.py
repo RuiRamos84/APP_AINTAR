@@ -22,6 +22,8 @@ class PaymentStatus:
     SUCCESS = 'SUCCESS'
     DECLINED = 'DECLINED'
     EXPIRED = 'EXPIRED'
+    REJECTED = 'REJECTED'
+    REFUNDED = 'REFUNDED'
 
 class CheckoutCreate(BaseModel):
     document_id: int
@@ -60,10 +62,10 @@ class PaymentService:
         self.checkout_cache = {}  # Cache de instância
 
     def init_app(self, app):
-        self.base_url = "https://api.qly.sibspayments.com/sibs/spg/v2"
+        self.base_url = app.config.get('SIBS_BASE_URL')
         self.terminal_id = int(app.config.get('SIBS_TERMINAL_ID'))
         self.client_id = app.config.get('SIBS_CLIENT_ID')
-        self.entity = app.config.get('SIBS_ENTITY', '52791')
+        self.entity = app.config.get('SIBS_ENTITY', '52764')
         self.api_token = app.config.get('SIBS_API_TOKEN')
 
     def _get_headers(self, auth_type="Bearer", token=None):
@@ -406,9 +408,7 @@ class PaymentService:
                 sibs_pk = sibs_result.scalar()
 
                 db.execute(text("""
-                    UPDATE tb_document_invoice 
-                    SET tb_sibs = :sibs_pk 
-                    WHERE tb_document = :document_id
+                    SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
                 """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
 
             # Limpar cache
@@ -496,9 +496,7 @@ class PaymentService:
                 sibs_pk = sibs_result.scalar()
 
                 db.execute(text("""
-                    UPDATE tb_document_invoice 
-                    SET tb_sibs = :sibs_pk 
-                    WHERE tb_document = :document_id
+                    SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
                 """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
 
             # Limpar cache
@@ -558,11 +556,9 @@ class PaymentService:
 
                 sibs_pk = sibs_result.scalar()
 
-                # Actualizar tb_document_invoice
+                # Associar SIBS à fatura do documento
                 db.execute(text("""
-                    UPDATE tb_document_invoice
-                    SET tb_sibs = :sibs_pk
-                    WHERE tb_document = :document_id
+                    SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
                 """), {"sibs_pk": sibs_pk, "document_id": document_id})
 
                 # Actualizar parâmetro "Método de pagamento" automaticamente
@@ -616,13 +612,10 @@ class PaymentService:
             # Estado local primeiro
             with db_session_manager(current_user) as db:
                 local_data = db.execute(text("""
-                    SELECT s.payment_status, s.order_id,
-                           s.payment_method, s.expiry_date,
-                           di.tb_document
-                    FROM vbl_sibs s
-                    LEFT JOIN vbl_document_invoice di
-                        ON di.order_id = s.order_id
-                    WHERE s.transaction_id = :transaction_id
+                    SELECT payment_status, order_id, payment_method,
+                           expiry_date, tb_document, invoice_pk
+                    FROM vbl_sibs
+                    WHERE transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
 
                 if not local_data:
@@ -688,11 +681,7 @@ class PaymentService:
             if new_status != local_data.payment_status:
                 with db_session_manager(current_user) as db:
                     db.execute(text("""
-                        UPDATE tb_sibs
-                        SET payment_status = :status,
-                            payment_reference = :pref,
-                            updated_at = NOW()
-                        WHERE transaction_id = :transaction_id
+                        SELECT fbo_sibs_status(:transaction_id, :status, :pref)
                     """), {
                         "status": new_status,
                         "pref": json.dumps(sibs_data),
@@ -704,12 +693,12 @@ class PaymentService:
                             and local_data.tb_document):
                         db.execute(text("""
                             SELECT fbo_document_invoice$sibs(
-                                :doc,
+                                :invoice_pk,
                                 (SELECT pk FROM tb_sibs
                                  WHERE transaction_id = :tid)
                             )
                         """), {
-                            "doc": local_data.tb_document,
+                            "invoice_pk": local_data.invoice_pk,
                             "tid": transaction_id
                         })
 
@@ -737,35 +726,26 @@ class PaymentService:
         """Aprovar pagamento pendente"""
         try:
             with db_session_manager(current_user) as db:
-                # Actualizar estado
+                # Aprovar pagamento
                 db.execute(text("""
-                    UPDATE tb_sibs
-                    SET payment_status = :status,
-                        validated_by = :user_pk,
-                        validated_at = NOW(),
-                        updated_at = NOW()
-                    WHERE pk = :payment_pk
-                """), {
-                    "status": PaymentStatus.SUCCESS,
-                    "user_pk": user_pk,
-                    "payment_pk": payment_pk
-                })
+                    SELECT fbo_sibs_approve(:payment_pk, :user_pk)
+                """), {"payment_pk": payment_pk, "user_pk": user_pk})
 
-                # Obter document_id, payment_method e actualizar invoice
+                # Obter invoice_pk, document_id, payment_method e actualizar invoice
                 payment_info = db.execute(text("""
-                    SELECT di.tb_document, s.payment_method
-                    FROM tb_sibs s
-                    JOIN tb_document_invoice di ON di.tb_sibs = s.pk
-                    WHERE s.pk = :payment_pk
+                    SELECT invoice_pk, tb_document, payment_method
+                    FROM vbl_sibs
+                    WHERE pk = :payment_pk
                 """), {"payment_pk": payment_pk}).fetchone()
 
-                document_id = payment_info[0] if payment_info else None
-                payment_method = payment_info[1] if payment_info else None
+                invoice_pk = payment_info[0] if payment_info else None
+                document_id = payment_info[1] if payment_info else None
+                payment_method = payment_info[2] if payment_info else None
 
                 if document_id:
                     db.execute(text("""
-                        SELECT fbo_document_invoice$sibs(:doc, :pk)
-                    """), {"doc": document_id, "pk": payment_pk})
+                        SELECT fbo_document_invoice$sibs(:invoice_pk, :sibs_pk)
+                    """), {"invoice_pk": invoice_pk, "sibs_pk": payment_pk})
 
                     # Actualizar parâmetro "Método de pagamento" automaticamente
                     # Mapear método de pagamento para pk do payment_method:
@@ -800,21 +780,17 @@ class PaymentService:
         try:
             with db_session_manager(current_user) as session:
                 query = text("""
-                    SELECT
-                        s.pk, s.order_id, s.transaction_id, s.amount,
-                        s.payment_method, s.payment_status, s.payment_reference,
-                        s.created_at, s.entity, di.tb_document,
-                        d.regnumber, d.memo as document_descr
-                    FROM tb_sibs s
-                    LEFT JOIN tb_document_invoice di ON di.tb_sibs = s.pk
-                    LEFT JOIN tb_document d ON d.pk = di.tb_document
-                    WHERE s.payment_status = :status
-                    ORDER BY s.created_at DESC
+                    SELECT pk, order_id, transaction_id, amount,
+                           payment_method, payment_status, payment_reference,
+                           created_at, entity, tb_document,
+                           regnumber, document_descr
+                    FROM vbl_sibs
+                    WHERE payment_status = 'PENDING_VALIDATION'
+                      AND payment_method != 'ISENCAO'
+                    ORDER BY created_at DESC
                 """)
 
-                results = session.execute(query, {
-                    "status": PaymentStatus.PENDING_VALIDATION
-                }).fetchall()
+                results = session.execute(query).fetchall()
 
                 return [dict(row._mapping) for row in results]
 
@@ -827,20 +803,15 @@ class PaymentService:
         try:
             with db_session_manager(current_user) as session:
                 query = text("""
-                        SELECT 
-                            s.pk, s.order_id, s.transaction_id, s.amount,
-                            s.payment_method, s.payment_status, s.payment_reference,
-                            s.created_at, s.updated_at, s.validated_by, s.validated_at,
-                            b.tb_document, b.invoice, b.presented, b.accepted, 
-                            b.payed, b.closed, b.urgency,
-                            d.regnumber, d.memo as document_descr,
-                            c.name as validator_name
-                        FROM tb_sibs s
-                        LEFT JOIN tb_document_invoice b ON b.tb_sibs = s.pk
-                        LEFT JOIN tb_document d ON d.pk = b.tb_document
-                        LEFT JOIN ts_client c ON c.pk = s.validated_by
-                        WHERE s.pk = :payment_pk
-                    """)
+                    SELECT pk, order_id, transaction_id, amount,
+                           payment_method, payment_status, payment_reference,
+                           created_at, updated_at, validated_by, validated_at,
+                           tb_document, invoice, presented, accepted,
+                           payed, closed, urgency,
+                           regnumber, document_descr, validator_name
+                    FROM vbl_sibs
+                    WHERE pk = :payment_pk
+                """)
 
                 result = session.execute(
                     query, {"payment_pk": payment_pk}).fetchone()
@@ -860,14 +831,12 @@ class PaymentService:
 
             # Agora, busca os dados da fatura.
             query = text("""
-                SELECT 
-                    di.pk, di.tb_document, di.invoice, di.presented,
-                    di.accepted, di.payed, di.closed,
-                    s.pk as sibs_pk, s.transaction_id, s.payment_status,
-                    s.payment_method, s.amount, s.created_at as payment_created
-                FROM tb_document_invoice di
-                LEFT JOIN tb_sibs s ON s.pk = di.tb_sibs
-                WHERE di.tb_document = :document_id
+                SELECT pk, tb_document, invoice, presented,
+                       accepted, payed, closed,
+                       sibs_pk, transaction_id, payment_status,
+                       payment_method, amount, payment_created
+                FROM vbl_document_payment
+                WHERE tb_document = :document_id
             """)
             result = session.execute(query, {"document_id": document_id}).fetchone()
 
@@ -884,25 +853,24 @@ class PaymentService:
             with db_session_manager(current_user) as session:
                 # Base: excluir CREATED e PENDING_VALIDATION
                 where_conditions = [
-                    "s.payment_status NOT IN ('CREATED', 'PENDING_VALIDATION')"
+                    "payment_status NOT IN ('CREATED', 'PENDING_VALIDATION')"
                 ]
                 params = {}
 
                 if filter_data.start_date:
-                    where_conditions.append(
-                        "DATE(s.created_at) >= :start_date")
+                    where_conditions.append("DATE(created_at) >= :start_date")
                     params['start_date'] = filter_data.start_date
 
                 if filter_data.end_date:
-                    where_conditions.append("DATE(s.created_at) <= :end_date")
+                    where_conditions.append("DATE(created_at) <= :end_date")
                     params['end_date'] = filter_data.end_date
 
                 if filter_data.method:
-                    where_conditions.append("s.payment_method = :method")
+                    where_conditions.append("payment_method = :method")
                     params['method'] = filter_data.method
 
                 if filter_data.status:
-                    where_conditions.append("s.payment_status = :status")
+                    where_conditions.append("payment_status = :status")
                     params['status'] = filter_data.status
 
                 where_clause = " AND ".join(where_conditions)
@@ -910,8 +878,7 @@ class PaymentService:
                 # Query total
                 count_query = text(f"""
                     SELECT COUNT(*) as total
-                    FROM tb_sibs s
-                    LEFT JOIN tb_document_invoice di ON di.tb_sibs = s.pk
+                    FROM vbl_sibs
                     WHERE {where_clause}
                 """)
 
@@ -922,16 +889,13 @@ class PaymentService:
                 params.update({'limit': page_size, 'offset': offset})
 
                 data_query = text(f"""
-                    SELECT
-                        s.pk, s.order_id, s.transaction_id, s.amount,
-                        s.payment_method, s.payment_status, s.payment_reference,
-                        s.created_at, s.updated_at, s.validated_by, s.validated_at,
-                        di.tb_document, d.regnumber, d.memo as document_descr
-                    FROM tb_sibs s
-                    LEFT JOIN tb_document_invoice di ON di.tb_sibs = s.pk
-                    LEFT JOIN tb_document d ON d.pk = di.tb_document
+                    SELECT pk, order_id, transaction_id, amount,
+                           payment_method, payment_status, payment_reference,
+                           created_at, updated_at, validated_by, validated_at,
+                           tb_document, regnumber, document_descr
+                    FROM vbl_sibs
                     WHERE {where_clause}
-                    ORDER BY s.created_at DESC
+                    ORDER BY created_at DESC
                     LIMIT :limit OFFSET :offset
                 """)
 
@@ -993,34 +957,32 @@ class PaymentService:
             with db_session_manager(None) as db:
                 # Actualizar status
                 db.execute(text("""
-                    UPDATE tb_sibs
-                    SET payment_status = :status,
-                        payment_reference = :pref,
-                        updated_at = NOW()
-                    WHERE transaction_id = :transaction_id
+                    SELECT fbo_sibs_status(:transaction_id, :status, :pref)
                 """), {
                     "status": internal_status,
                     "pref": json.dumps(webhook_data),
                     "transaction_id": transaction_id
                 })
 
-                # Obter document_id associado
-                document_id = db.execute(text("""
-                    SELECT di.tb_document
-                    FROM tb_sibs s
-                    JOIN tb_document_invoice di ON di.tb_sibs = s.pk
-                    WHERE s.transaction_id = :transaction_id
-                """), {"transaction_id": transaction_id}).scalar()
+                # Obter invoice_pk e document_id associados
+                invoice_info = db.execute(text("""
+                    SELECT invoice_pk, tb_document
+                    FROM vbl_sibs
+                    WHERE transaction_id = :transaction_id
+                """), {"transaction_id": transaction_id}).fetchone()
+
+                invoice_pk = invoice_info[0] if invoice_info else None
+                document_id = invoice_info[1] if invoice_info else None
 
                 # Se sucesso, actualizar invoice
                 if internal_status == PaymentStatus.SUCCESS and document_id:
                     db.execute(text("""
-                        SELECT fbo_document_invoice$sibs(:doc, (
+                        SELECT fbo_document_invoice$sibs(:invoice_pk, (
                             SELECT pk FROM tb_sibs
                             WHERE transaction_id = :transaction_id
                         ))
                     """), {
-                        "doc": document_id,
+                        "invoice_pk": invoice_pk,
                         "transaction_id": transaction_id
                     })
 
@@ -1030,7 +992,7 @@ class PaymentService:
                     if payment_method_pk:
                         # Encontrar e actualizar o parâmetro "Método de pagamento"
                         # usando a VIEW vbf_document_param que tem triggers
-                        update_result = db.execute(text("""
+                        db.execute(text("""
                             UPDATE vbf_document_param dp
                             SET value = :payment_method_pk
                             FROM tb_param p
@@ -1058,6 +1020,195 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro no webhook: {e}")
+            raise
+
+
+    # ============================================================
+    # ISENÇÕES (Gratuito)
+    # ============================================================
+
+    def submit_exemption(self, document_id: int, current_user: str):
+        """Submeter pedido de isenção para um documento gratuito"""
+        try:
+            with db_session_manager(current_user) as db:
+                sibs_pk = db.execute(text("""
+                    SELECT "fbo_document_exemption$submit"(:document_id)
+                """), {"document_id": document_id}).scalar()
+
+                if not sibs_pk:
+                    raise APIError("Não foi possível criar o pedido de isenção.", 400)
+
+            return {
+                "success": True,
+                "sibs_pk": sibs_pk,
+                "message": "Pedido de isenção submetido com sucesso"
+            }
+
+        except Exception as e:
+            logger.error(f"Erro submit_exemption doc {document_id}: {e}")
+            raise
+
+    def get_pending_exemptions(self, current_user: str):
+        """Obter isenções pendentes de validação"""
+        try:
+            with db_session_manager(current_user) as session:
+                results = session.execute(text("""
+                    SELECT pk, order_id, transaction_id, amount,
+                           payment_method, payment_status, payment_reference,
+                           created_at, entity, tb_document,
+                           regnumber, document_descr
+                    FROM vbl_sibs
+                    WHERE payment_status = 'PENDING_VALIDATION'
+                      AND payment_method = 'ISENCAO'
+                    ORDER BY created_at DESC
+                """)).fetchall()
+
+                return [dict(row._mapping) for row in results]
+
+        except Exception as e:
+            logger.error(f"Erro get_pending_exemptions: {e}")
+            raise
+
+    def approve_exemption(self, payment_pk: int, user_pk: int, current_user: str):
+        """Aprovar isenção pendente"""
+        try:
+            with db_session_manager(current_user) as db:
+                db.execute(text("""
+                    SELECT fbo_sibs_approve(:payment_pk, :user_pk)
+                """), {"payment_pk": payment_pk, "user_pk": user_pk})
+
+                payment_info = db.execute(text("""
+                    SELECT invoice_pk, tb_document
+                    FROM vbl_sibs
+                    WHERE pk = :payment_pk
+                """), {"payment_pk": payment_pk}).fetchone()
+
+                invoice_pk = payment_info[0] if payment_info else None
+                document_id = payment_info[1] if payment_info else None
+
+                if document_id:
+                    db.execute(text("""
+                        SELECT "fbo_document_invoice$sibs"(:invoice_pk, :sibs_pk)
+                    """), {"invoice_pk": invoice_pk, "sibs_pk": payment_pk})
+
+            return {"success": True, "message": "Isenção aprovada com sucesso"}
+
+        except Exception as e:
+            logger.error(f"Erro approve_exemption pk={payment_pk}: {e}")
+            raise
+
+    def reject_exemption(self, payment_pk: int, user_pk: int, current_user: str):
+        """Rejeitar isenção pendente"""
+        try:
+            with db_session_manager(current_user) as db:
+                db.execute(text("""
+                    SELECT fbo_sibs_reject(:payment_pk, :user_pk)
+                """), {"payment_pk": payment_pk, "user_pk": user_pk})
+
+            return {"success": True, "message": "Isenção rejeitada com sucesso"}
+
+        except Exception as e:
+            logger.error(f"Erro reject_exemption pk={payment_pk}: {e}")
+            raise
+
+
+    def refund_payment(self, payment_pk: int, reason: str, current_user: str):
+        """
+        Processar devolução de um pagamento aprovado.
+        - Pagamentos SIBS (MBWAY/MULTIBANCO): chama API SIBS + atualiza BD
+        - Pagamentos manuais: só atualiza BD
+        """
+        try:
+            with db_session_manager(current_user) as db:
+                payment = db.execute(text("""
+                    SELECT pk, transaction_id, transaction_signature,
+                           amount, payment_method, payment_status,
+                           tb_document, invoice_pk, order_id
+                    FROM vbl_sibs
+                    WHERE pk = :pk
+                """), {"pk": payment_pk}).fetchone()
+
+                if not payment:
+                    raise ResourceNotFoundError(f"Pagamento {payment_pk} não encontrado")
+
+                if payment.payment_status != PaymentStatus.SUCCESS:
+                    raise APIError(
+                        f"Só é possível devolver pagamentos com estado SUCCESS "
+                        f"(estado actual: {payment.payment_status})", 400
+                    )
+
+            is_sibs = payment.payment_method in ('MBWAY', 'MULTIBANCO')
+            refund_reference = None
+
+            # Chamar API SIBS para pagamentos eletrónicos
+            if is_sibs and payment.transaction_id:
+                url = f"{self.base_url}/payments/{payment.transaction_id}/refund"
+                payload = {
+                    "merchant": {"terminalId": self.terminal_id},
+                    "transaction": {
+                        "transactionTimestamp": datetime.utcnow().isoformat(),
+                        "description": f"Devolução - {reason}" if reason else "Devolução",
+                        "amount": {"value": float(payment.amount), "currency": "EUR"}
+                    }
+                }
+                resp = requests.post(url, json=payload,
+                                     headers=self._get_headers(), timeout=30)
+
+                if not resp.ok:
+                    sibs_error = {}
+                    try:
+                        sibs_error = resp.json()
+                    except Exception:
+                        pass
+                    logger.error(f"SIBS refund erro {resp.status_code}: {sibs_error}")
+                    raise APIError(
+                        f"Erro ao processar devolução junto da SIBS (código {resp.status_code}). "
+                        "Contacte o suporte.", 502
+                    )
+
+                refund_reference = json.dumps(resp.json())
+                logger.info(f"Devolução SIBS aceite para transação {payment.transaction_id}")
+
+            # Registar devolução na BD
+            with db_session_manager(current_user) as db:
+                db.execute(text("""
+                    SELECT fbo_sibs_status(:transaction_id, :status, :pref)
+                """), {
+                    "transaction_id": payment.transaction_id,
+                    "status": PaymentStatus.REFUNDED,
+                    "pref": refund_reference or json.dumps({
+                        "manual_refund": True,
+                        "reason": reason,
+                        "refunded_at": datetime.utcnow().isoformat()
+                    })
+                })
+
+                # Reverter a fatura do documento
+                if payment.invoice_pk:
+                    db.execute(text("""
+                        SELECT fbo_document_invoice$refund(:invoice_pk)
+                    """), {"invoice_pk": payment.invoice_pk})
+
+                db.commit()
+
+            logger.info(
+                f"Devolução registada — pagamento pk={payment_pk}, "
+                f"método={payment.payment_method}, montante={payment.amount}"
+            )
+            return {
+                "success": True,
+                "message": "Devolução processada com sucesso",
+                "payment_pk": payment_pk,
+                "transaction_id": payment.transaction_id,
+                "amount": float(payment.amount),
+                "method": payment.payment_method,
+                "sibs_processed": is_sibs
+            }
+
+        except (ResourceNotFoundError, APIError):
+            raise
+        except Exception as e:
+            logger.error(f"Erro em refund_payment pk={payment_pk}: {e}")
             raise
 
 

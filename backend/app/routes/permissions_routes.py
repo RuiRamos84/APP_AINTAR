@@ -20,22 +20,30 @@ logger = get_logger(__name__)
 @api_error_handler
 def check_permissions():
     """
-    Verificar permissões específicas do utilizador atual
-    
-    Body:
-        {
-            "permissions": ["permission.id1", "permission.id2"]
-        }
-    
-    Returns:
-        {
-            "success": true,
-            "permissions": {
-                "permission.id1": true,
-                "permission.id2": false
-            },
-            "user_permissions": ["list", "of", "all", "permissions"]
-        }
+    Verificar Permissões On-the-Fly
+    ---
+    tags:
+      - Auth & Utilizadores (Permissões)
+    summary: Avalia matriz de permissões/interfaces do JWT face ao request body.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            permissions:
+              type: array
+              items:
+                type: string
+              description: Ex ["permission.id1", "permission.id2"]
+    responses:
+      200:
+        description: Objeto avaliativo devolvido true/false mapping.
     """
     try:
         data = request.json or {}
@@ -92,18 +100,16 @@ def check_permissions():
 @api_error_handler
 def get_user_permissions():
     """
-    Obter todas as permissões do utilizador atual
-    
-    Returns:
-        {
-            "success": true,
-            "permissions": ["list", "of", "permissions"],
-            "user_info": {
-                "user_id": 123,
-                "profile": "1",
-                "interfaces": [1, 2, 3]
-            }
-        }
+    Obter Árvore de Permissões do Utilizador
+    ---
+    tags:
+      - Auth & Utilizadores (Permissões)
+    summary: Devolve coleção totalítica do que este user JWT pode consumir.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: List of interfaces, profiles and permissions.
     """
     try:
         user_id, user_profile, user_interfaces, permissions = get_user_permissions_from_jwt()

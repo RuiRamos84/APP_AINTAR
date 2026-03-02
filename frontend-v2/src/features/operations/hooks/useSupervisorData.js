@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import notification from '@/core/services/notification/notificationService';
 import { operationService } from '../services/operationService';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import {
@@ -223,6 +224,19 @@ export const useSupervisorData = () => {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['operacaoMeta'] }),
     });
 
+    const createTask = useMutation({
+        mutationFn: (data) => operationService.createOperacao(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['operacao'] });
+            queryClient.invalidateQueries({ queryKey: ['operacaoMeta'] });
+            notification.success('Tarefa criada com sucesso');
+        },
+        onError: (error) => {
+            console.error('[createTask]', error);
+            notification.error('Erro ao criar tarefa');
+        },
+    });
+
     const updateMeta = useMutation({
         mutationFn: ({ id, data }) => operationService.updateOperacaoMeta(id, data),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['operacaoMeta'] }),
@@ -275,6 +289,7 @@ export const useSupervisorData = () => {
 
         // Actions
         refresh,
+        createTask,
         createMeta,
         updateMeta,
         deleteMeta,

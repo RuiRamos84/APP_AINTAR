@@ -16,6 +16,9 @@
  */
 
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { pt } from 'date-fns/locale';
 import { LoginPage, RegisterPage, ProtectedRoute, PublicRoute } from '@/features/auth';
 import { DashboardPage } from '@/features/dashboard';
 import { HomePage, HomeRedirect } from '@/features/home';
@@ -32,7 +35,7 @@ import {
 
 // Módulos do sistema de navegação híbrida
 import { OperationPage, OperationMetadataPage, OperationControlPage } from '@/features/operations/pages';
-import { ETARPage } from '@/features/gestao/pages';
+import { ETARPage, EEPage } from '@/features/gestao/pages';
 import { ClientsPage } from '@/features/payments/pages';
 import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
 import { DashboardOverviewPage } from '@/features/dashboards/pages';
@@ -40,9 +43,15 @@ import { EPIPage } from '@/features/administrativo/pages';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
+import { FleetDashboard } from '@/features/fleet';
+import {
+  InternalDashboardPage, InventoryPage, RequisicaoInternaPage,
+  MaintenancePage, EquipmentPage, NetworkPage, BranchesPage,
+} from '@/features/internal';
 
 function App() {
   return (
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={pt}>
     <Routes>
       {/* ==================== HOME PAGE ==================== */}
       {/* Rota raiz - redireciona para /home se autenticado, ou mostra página pública */}
@@ -150,7 +159,7 @@ function App() {
         <Route path="/etar/violations" element={<div>ETAR Violations (Coming Soon)</div>} />
 
         {/* EE - permissão 660 (EE_VIEW) verificada automaticamente */}
-        <Route path="/ee" element={<div>EE Page (Coming Soon)</div>} />
+        <Route path="/ee" element={<EEPage />} />
         <Route path="/ee/characteristics" element={<div>EE Characteristics (Coming Soon)</div>} />
         <Route path="/ee/volumes" element={<div>EE Volumes (Coming Soon)</div>} />
         <Route path="/ee/energy" element={<div>EE Energy (Coming Soon)</div>} />
@@ -158,10 +167,10 @@ function App() {
 
         {/* Expenses - permissão 1250 (EXPENSES_VIEW) verificada automaticamente */}
         <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
-        <Route path="/expenses/network" element={<div>Network Expenses (Coming Soon)</div>} />
-        <Route path="/expenses/branches" element={<div>Branches Expenses (Coming Soon)</div>} />
-        <Route path="/expenses/maintenance" element={<div>Maintenance Expenses (Coming Soon)</div>} />
-        <Route path="/expenses/equipment" element={<div>Equipment Expenses (Coming Soon)</div>} />
+        <Route path="/expenses/network" element={<NetworkPage />} />
+        <Route path="/expenses/branches" element={<BranchesPage />} />
+        <Route path="/expenses/maintenance" element={<MaintenancePage />} />
+        <Route path="/expenses/equipment" element={<EquipmentPage />} />
 
         {/* Telemetry - permissão 750 (TELEMETRY_VIEW) verificada automaticamente */}
         <Route path="/telemetry" element={<div>Telemetry Page (Coming Soon)</div>} />
@@ -192,6 +201,15 @@ function App() {
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         {/* EPI - permissão 1100 (EPI_MANAGEMENT) verificada automaticamente */}
         <Route path="/epi" element={<EPIPage />} />
+
+        {/* ==================== ÁREA INTERNA ==================== */}
+        {/* Hub da Área Interna - permissão via routeConfig */}
+        <Route path="/internal" element={<InternalDashboardPage />} />
+        <Route path="/internal/inventario" element={<InventoryPage />} />
+        <Route path="/internal/requisicao" element={<RequisicaoInternaPage />} />
+
+        {/* Gestão de Frota - provisoriamente usando ADMIN_USERS até criar uma specífica */}
+        <Route path="/fleet" element={<FleetDashboard />} />
 
         {/* Inventory - permissão 1150 (INVENTORY_VIEW) verificada automaticamente */}
         <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
@@ -225,6 +243,7 @@ function App() {
       {/* ==================== 404 ==================== */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </LocalizationProvider>
   );
 }
 

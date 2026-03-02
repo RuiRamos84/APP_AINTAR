@@ -35,7 +35,7 @@ $ModulesToLoad = @(
     "DeployServerManager.ps1" # <-- Adicionar o novo módulo
 )
 
-Write-Host "Inicializando Sistema de Deployment Modular..." -ForegroundColor Cyan
+Write-Host "A inicializar o Sistema de Deployment Modular..." -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
 foreach ($module in $ModulesToLoad) {
@@ -70,22 +70,22 @@ function Initialize-DeploymentSystem {
         Write-DeployInfo "Sistema de deployment iniciado" "SYSTEM"
         
         # Validar configuracoes
-        Write-DeployDebug "Validando configuracoes..." "SYSTEM"
+        Write-DeployDebug "A validar configurações..." "SYSTEM"
         $configErrors = Test-DeployConfig
         
         if ($configErrors.Count -gt 0) {
-            Write-DeployError "Erros de configuracao encontrados:" "SYSTEM"
+            Write-DeployError "Erros de configuração encontrados:" "SYSTEM"
             foreach ($error in $configErrors) {
                 Write-DeployError "  - $error" "SYSTEM"
             }
             return $false
         }
         
-        Write-DeployInfo "Configuracoes validadas com sucesso" "SYSTEM"
+        Write-DeployInfo "Configurações validadas com sucesso" "SYSTEM"
         
         # Inicializar conexao (sem conectar ainda)
         if (-not (Initialize-ServerConnection)) {
-            Write-DeployError "Falha ao inicializar gestor de conexoes" "SYSTEM"
+            Write-DeployError "Falha ao inicializar gestor de ligações" "SYSTEM"
             return $false
         }
         
@@ -110,25 +110,36 @@ function Invoke-WithMaintenance {
         [array]$ArgumentList = @()
     )
 
-    Write-DeployInfo "=== INICIANDO '$OperationName' COM GESTÃO DE MANUTENÇÃO ===" "MAIN"
+    Write-DeployInfo "=== A INICIAR '$OperationName' COM GESTÃO DE MANUTENÇÃO ===" "MAIN"
 
     # O bloco finally garante que a manutenção é desativada e o backend reiniciado,
     # mesmo que o deployment falhe a meio.
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+
     try {
         # 1. Ativar modo de manutenção
+        $t = Get-Date
         if (-not (Enable-MaintenanceMode)) { throw "Falha ao ativar modo de manutenção." }
+        $timings["Modo de manutenção (ativar)"] = (Get-Date) - $t
 
         # 2. Parar o processo do backend
+        $t = Get-Date
         if (-not (Stop-BackendProcess)) { throw "Falha ao parar o backend." }
-        Write-DeployInfo "Aguardando 5 segundos para o processo terminar..." "MAIN"
+        $timings["Parar backend"] = (Get-Date) - $t
+
+        Write-DeployInfo "A aguardar 5 segundos para o processo terminar..." "MAIN"
         Start-Sleep -Seconds 5
 
-        # Executar a ação de deployment principal
+        # 3. Executar a ação de deployment principal
+        $t = Get-Date
         $result = & $Action @ArgumentList
+        $timings[$OperationName] = (Get-Date) - $t
+
         if (-not $result) {
             throw "A operação de deployment '$OperationName' falhou durante a execução."
         }
-        
+
         Write-DeployInfo "=== '$OperationName' FINALIZADO COM SUCESSO ===" "MAIN"
         return $true
     }
@@ -138,10 +149,31 @@ function Invoke-WithMaintenance {
         return $false
     }
     finally {
-        # 3. Iniciar o backend
-        Write-DeployInfo "Iniciando o backend..." "MAIN"; Start-BackendProcess; Start-Sleep -Seconds 5
-        # 4. Desativar modo de manutenção
-        Write-DeployInfo "Desativando o modo de manutenção..." "MAIN"; Disable-MaintenanceMode
+        # 4. Iniciar o backend
+        $t = Get-Date
+        Write-DeployInfo "A iniciar o backend..." "MAIN"
+        Start-BackendProcess
+        Start-Sleep -Seconds 5
+        $timings["Iniciar backend"] = (Get-Date) - $t
+
+        # 5. Desativar modo de manutenção
+        $t = Get-Date
+        Write-DeployInfo "A desativar o modo de manutenção..." "MAIN"
+        Disable-MaintenanceMode
+        $timings["Modo de manutenção (desativar)"] = (Get-Date) - $t
+
+        # Resumo de tempos
+        $totalDuration = (Get-Date) - $totalStart
+        Write-DeployInfo "=== RESUMO DE TEMPOS: $OperationName ===" "MAIN"
+        foreach ($key in $timings.Keys) {
+            $label = ($key + ":").PadRight(42)
+            $secs  = [Math]::Round($timings[$key].TotalSeconds, 1)
+            Write-DeployInfo "  $label ${secs}s" "MAIN"
+        }
+        $totalLabel = "TOTAL:".PadRight(42)
+        $totalSecs  = [Math]::Round($totalDuration.TotalSeconds, 1)
+        Write-DeployInfo "  $totalLabel ${totalSecs}s" "MAIN"
+        Write-DeployInfo "=============================================" "MAIN"
     }
 }
 
@@ -220,7 +252,7 @@ function Invoke-NonInteractiveMode {
         [bool]$SkipValidation
     )
     
-    Write-DeployInfo "Executando em modo nao interativo: $Operation" "MAIN"
+    Write-DeployInfo "A executar em modo não interativo: $Operation" "MAIN"
     
     $result = $false
     
@@ -254,17 +286,17 @@ function Invoke-NonInteractiveMode {
             $result = Test-FrontendBuild
         }
         default {
-            Write-DeployError "Operacao nao reconhecida: $Operation" "MAIN"
-            Write-DeployInfo "Operacoes disponiveis: full, frontend, frontend-nobuild, backend, frontend-backend, nginx, test-connection, build-only, validate-build" "MAIN"
+            Write-DeployError "Operação não reconhecida: $Operation" "MAIN"
+            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, nginx, test-connection, build-only, validate-build" "MAIN"
             return $false
         }
     }
     
     if ($result) {
-        Write-DeployInfo "Operacao '$Operation' concluida com sucesso!" "MAIN"
+        Write-DeployInfo "Operação '$Operation' concluída com sucesso!" "MAIN"
         exit 0
     } else {
-        Write-DeployError "Operacao '$Operation' falhou!" "MAIN"
+        Write-DeployError "Operação '$Operation' falhou!" "MAIN"
         exit 1
     }
 }
@@ -274,7 +306,7 @@ function Invoke-NonInteractiveMode {
 # ============================================================================  
 
 function Start-InteractiveMode {
-    Write-DeployInfo "Iniciando modo interativo" "MAIN"    
+    Write-DeployInfo "A iniciar modo interativo" "MAIN"
 
     $menuActions = @{
         "1" = @{ Name = "Deployment Completo (Frontend + Backend + Nginx)"; Action = { Invoke-FullDeployment -BuildFirst $true } }
@@ -285,7 +317,7 @@ function Start-InteractiveMode {
                     if (Confirm-Action "Deseja fazer o build antes do deployment?") {
                         return Invoke-FrontendDeployment -BuildFirst $true
                     }
-                    Show-DeployStatus "Deployment cancelado pelo usuário" "Warning"
+                    Show-DeployStatus "Deployment cancelado pelo utilizador" "Warning"
                     return $null # Indica que nenhuma ação foi tomada
                 }
                 return Invoke-FrontendDeployment -BuildFirst $false
@@ -306,15 +338,15 @@ function Start-InteractiveMode {
         $opcao = Get-UserChoice
 
         if ($opcao -eq "0") {
-            Write-DeployInfo "Sistema finalizado pelo usuário" "MAIN"
-            Show-DeployStatus "Encerrando sistema..." "Info"
+            Write-DeployInfo "Sistema finalizado pelo utilizador" "MAIN"
+            Show-DeployStatus "A encerrar o sistema..." "Info"
             break
         }
 
         $menuItem = $menuActions[$opcao]
         if ($menuItem) {
-            Write-DeployInfo "Iniciando: $($menuItem.Name)" "MAIN"
-            Show-DeployStatus "Executando: $($menuItem.Name)..." "Info"
+            Write-DeployInfo "A iniciar: $($menuItem.Name)" "MAIN"
+            Show-DeployStatus "A executar: $($menuItem.Name)..." "Info"
             
             $result = & $menuItem.Action
             
