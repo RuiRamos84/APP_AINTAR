@@ -5,6 +5,7 @@ import {
     Storage as StorageIcon,
     Timeline as TimelineIcon,
     Dashboard as DashboardIcon,
+    Assessment as AssessmentIcon,
     WorkTwoTone as WorkIcon,
     Settings as SettingsIcon,
     Assignment as AssignmentIcon,

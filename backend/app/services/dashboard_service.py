@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 DASHBOARD_VIEWS = {
     'pedidos': {
         'vds_pedido_01$001': 'Por tipo',
-        'vds_pedido_01$002': 'Por tipo e por ano',
+        'vds_pedido_01$002': 'Por tipo e ano',
         'vds_pedido_01$003': 'Por tipo, total e concluídos',
         'vds_pedido_01$004': 'Por tipo, total e concluídos, ano corrente',
         'vds_pedido_01$005': 'Por ano de início, total e concluídos',
@@ -35,11 +35,14 @@ DASHBOARD_VIEWS = {
         'vds_ramal_01$002': 'Metros construídos por ano',
         'vds_ramal_01$003': 'Metros construídos por ano e mês, para o ano corrente',
         'vds_ramal_01$004': 'Pedidos por município',
+        'vds_ramal_01$005': 'Metros extensão de rede construidos por ano',
+        'vds_ramal_01$006': 'Metros extensão de rede construidos por ano e mes, para o ano corrente',
     },
     'fossas': {
         'vds_fossa_01$001': 'Por estado',
         'vds_fossa_01$002': 'Por município, por ano',
         'vds_fossa_01$003': 'Por ano e mês, para o ano corrente',
+        'vds_fossa_01$004': 'Duração (em dias) por ano e município',
     },
     'instalacoes': {
         'vds_instalacao_01$001': 'Por tipo de instalação, total, abertos e controlados',
@@ -54,7 +57,60 @@ DASHBOARD_VIEWS = {
         'vds_instalacao_01$010': 'Duração por operação, para o ano corrente',
         'vds_instalacao_01$011': 'Duração por operador',
         'vds_instalacao_01$012': 'Duração por operador, para o ano corrente',
+        'vds_instalacao_01$013': 'Por concelho, total e concluídos',
+    
+        'vds_instalacao_01$014': 'Por concelho, total e concluídos, para o ano corrente',
+        'vds_instalacao_01$015': 'Por concelho e tipo',
+        'vds_instalacao_01$016': 'Por conselho e tipo, total e concluidos',
+
+    },
+    'analises': { 
+        'vds_analise_01$001' : 'Por ano',
+        'vds_analise_01$002' : 'Por concelho',
+        'vds_analise_01$003' : 'Por ano e conselho',
+        'vds_analise_01$004' : 'Por concelho e parâmetro',
+        'vds_analise_01$005' : 'Por ano e parâmetro',  
+         },
+    'incumprimentos': {
+        'vds_incumprimento_01$001': 'Por ano',
+        'vds_incumprimento_01$002': 'Por concelho',
+        'vds_incumprimento_01$003': 'Por parâmetro e concelho',
+        'vds_incumprimento_01$004': 'Por ano e concelho',
+        'vds_incumprimento_01$005': 'Por ano e parametro',
+        'vds_incumprimento_01$006' : 'Por gravidade',
+        'vds_incumprimento_01$007' : 'Por ano e gravidade',
+        'vds_incumprimento_01$008' : 'Por parâmetro e gravidade',
+        'vds_incumprimento_01$009' : 'Por concelho e gravidade',
+    },
+    'repavimentacoes': {
+        'vds_repav_01$001': 'Por estado',
+        'vds_repav_01$002': 'Área solicitada por ano',
+        'vds_repav_01$003': 'Área solicitada por ano e mes',
+        'vds_repav_01$004': 'Área solicitada por ano e semana',
+
+
+    },
+    'transmitacoes': {
+        'vds_tramitacao_01$001': 'Por utilizador',
+         'vds_tramitacao_01$002': 'Por utilizador e ano',
+         'vds_tramitacao_01$003': 'Por utilizador, mes e ano',
+         
+
     }
+       
+
+
+
+
+
+
+
+
+    
+
+
+
+
 }
 
 
@@ -68,40 +124,27 @@ def get_all_valid_views():
 
 def get_dashboard_structure():
     """Retorna a estrutura completa do dashboard organizada por categorias"""
+    category_names = {
+        'pedidos': 'Pedidos',
+        'ramais': 'Ramais',
+        'fossas': 'Fossas',
+        'instalacoes': 'Instalações',
+        'analises': 'Análises',
+        'incumprimentos': 'Incumprimentos',
+        'repavimentacoes': 'Repavimentações',
+        'transmitacoes': 'Tramitações',
+    }
     return {
         'categories': [
             {
-                'id': 'pedidos',
-                'name': 'Pedidos',
+                'id': category,
+                'name': category_names.get(category, category.capitalize()),
                 'views': [
                     {'id': view_id, 'name': view_name}
-                    for view_id, view_name in DASHBOARD_VIEWS['pedidos'].items()
-                ]
-            },
-            {
-                'id': 'ramais',
-                'name': 'Ramais',
-                'views': [
-                    {'id': view_id, 'name': view_name}
-                    for view_id, view_name in DASHBOARD_VIEWS['ramais'].items()
-                ]
-            },
-            {
-                'id': 'fossas',
-                'name': 'Fossas',
-                'views': [
-                    {'id': view_id, 'name': view_name}
-                    for view_id, view_name in DASHBOARD_VIEWS['fossas'].items()
-                ]
-            },
-            {
-                'id': 'instalacoes',
-                'name': 'Instalações',
-                'views': [
-                    {'id': view_id, 'name': view_name}
-                    for view_id, view_name in DASHBOARD_VIEWS['instalacoes'].items()
+                    for view_id, view_name in views.items()
                 ]
             }
+            for category, views in DASHBOARD_VIEWS.items()
         ]
     }
 

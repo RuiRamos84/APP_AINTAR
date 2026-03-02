@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Typography,
@@ -36,13 +37,13 @@ import {
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { getDashboardStructure } from '../../services/dashboardService';
 import { DASHBOARD_CATEGORIES } from './constants';
-import CategorySelector from './components/CategorySelector';
 
 // Componentes de visualização
 import KPICard from './components/modern/KPICard';
 import ChartContainer from './components/modern/ChartContainer';
 import DataTableView from './components/modern/DataTableView';
 import FilterPanel from './components/modern/FilterPanel';
+import DetailedChartView from './components/modern/DetailedChartView';
 
 /**
  * Dashboard Moderno - Versão profissional com visualizações avançadas
@@ -50,6 +51,7 @@ import FilterPanel from './components/modern/FilterPanel';
  */
 const DashboardModern = () => {
     const theme = useTheme();
+    const navigate = useNavigate();
 
     // Estados principais
     const [selectedYear, setSelectedYear] = useState('');
@@ -67,7 +69,7 @@ const DashboardModern = () => {
         return f;
     }, [selectedYear, selectedMonth]);
 
-    const { dashboardData, isLoading, isError, error, refetch } = useDashboardData(filters);
+    const { dashboardData, isLoading, isFetching, isError, error, refetch } = useDashboardData(filters);
 
     // Carregar estrutura
     useEffect(() => {
@@ -110,7 +112,7 @@ const DashboardModern = () => {
                 id: category,
                 title: categoryInfo?.name || category,
                 value: totalRecords,
-                subtitle: `${totalViews} visualizações`,
+                subtitle: `${totalViews} gráficos`,
                 trend: null,
                 icon: categoryInfo?.icon || 'assignment',
                 color: getCategoryColor(category, theme)
@@ -222,37 +224,24 @@ const DashboardModern = () => {
                         </Select>
                     </FormControl>
 
-                    {/* Filtro de Mês */}
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                        <InputLabel>Mês</InputLabel>
-                        <Select value={selectedMonth} label="Mês" onChange={handleMonthChange}>
-                            <MenuItem value="">Todos os meses</MenuItem>
-                            <MenuItem value="1">Janeiro</MenuItem>
-                            <MenuItem value="2">Fevereiro</MenuItem>
-                            <MenuItem value="3">Março</MenuItem>
-                            <MenuItem value="4">Abril</MenuItem>
-                            <MenuItem value="5">Maio</MenuItem>
-                            <MenuItem value="6">Junho</MenuItem>
-                            <MenuItem value="7">Julho</MenuItem>
-                            <MenuItem value="8">Agosto</MenuItem>
-                            <MenuItem value="9">Setembro</MenuItem>
-                            <MenuItem value="10">Outubro</MenuItem>
-                            <MenuItem value="11">Novembro</MenuItem>
-                            <MenuItem value="12">Dezembro</MenuItem>
-                        </Select>
-                    </FormControl>
-
                     {/* Botões de ação */}
-                    <Tooltip title="Atualizar dados">
-                        <IconButton
-                            onClick={handleRefresh}
-                            sx={{
-                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.2) }
-                            }}
-                        >
-                            <RefreshIcon />
-                        </IconButton>
+                    <Tooltip title={isFetching ? 'A atualizar...' : 'Atualizar dados'}>
+                        <span>
+                            <IconButton
+                                onClick={handleRefresh}
+                                disabled={isFetching}
+                                sx={{
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.2) },
+                                    '& svg': {
+                                        animation: isFetching ? 'spin 0.8s linear infinite' : 'none',
+                                        '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } }
+                                    }
+                                }}
+                            >
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
                     </Tooltip>
 
                     <Tooltip title="Exportar dados">
@@ -268,21 +257,18 @@ const DashboardModern = () => {
                 </Box>
             </Box>
 
-            {/* KPIs - Sempre visíveis */}
+            {/* KPIs - Clicáveis para filtrar por categoria */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 {kpiData.map((kpi) => (
                     <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.id}>
-                        <KPICard {...kpi} />
+                        <KPICard
+                            {...kpi}
+                            isSelected={false}
+                            onClick={() => navigate(`/dashboard/${kpi.id}`)}
+                        />
                     </Grid>
                 ))}
             </Grid>
-
-            {/* Seletor de Categorias */}
-            <CategorySelector
-                selectedCategory={selectedCategory}
-                onCategoryChange={handleCategoryChange}
-                categoryCounts={getCategoryCounts()}
-            />
 
             {/* Tabs de Visualização */}
             <Paper sx={{ mb: 3, mt: 3 }}>
@@ -295,7 +281,6 @@ const DashboardModern = () => {
                 >
                     <Tab icon={<BarChartIcon />} label="Visão Geral" iconPosition="start" />
                     <Tab icon={<ShowChartIcon />} label="Análise Detalhada" iconPosition="start" />
-                    <Tab icon={<TableChartIcon />} label="Dados Tabulares" iconPosition="start" />
                 </Tabs>
             </Paper>
 
@@ -310,19 +295,12 @@ const DashboardModern = () => {
                 )}
 
                 {activeTab === 1 && (
-                    <ChartContainer
+                    <DetailedChartView
                         data={filteredData}
-                        viewMode="detailed"
                         selectedCategory={selectedCategory}
                     />
                 )}
 
-                {activeTab === 2 && (
-                    <DataTableView
-                        data={filteredData}
-                        selectedCategory={selectedCategory}
-                    />
-                )}
             </Box>
 
             {/* Mensagem se não houver dados */}

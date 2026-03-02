@@ -18,10 +18,12 @@ const AtribuicaoDeVeiculoTable = ({ metaData, searchTerm = "" }) => {
     } = useRecords("veiculoAtribuido");
 
     // Transformar veículos para dropdown {label, value}
-    const vehicleOptions = vehicleData.vehicles.map(vehicle => ({
-        label: `${vehicle.brand} ${vehicle.model} (${vehicle.licence})`,
-        value: vehicle.pk
-    }));
+    const vehicleOptions = [...vehicleData.vehicles]
+        .sort((a, b) => a.brand.localeCompare(b.brand, 'pt', { sensitivity: 'base' }))
+        .map(vehicle => ({
+            label: `${vehicle.brand} ${vehicle.model} (${vehicle.licence})`,
+            value: vehicle.pk
+        }));
     const assignedVehicles = vehicleData.assignedVehicles || [];
 
     const filteredVehicles = searchTerm
@@ -89,6 +91,7 @@ const AtribuicaoDeVeiculoTable = ({ metaData, searchTerm = "" }) => {
             options: vehicleOptions,
             required: true,
             size: 5,
+            searchable: true,
         },
         {
             name: "ts_client",
