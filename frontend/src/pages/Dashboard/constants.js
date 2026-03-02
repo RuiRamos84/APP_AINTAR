@@ -25,6 +25,30 @@ export const DASHBOARD_CATEGORIES = {
     name: 'Instalações',
     icon: 'construction',
     description: 'Controlo de instalações'
+  },
+  analises: {
+    id: 'analises',
+    name: 'Análises',
+    icon: 'science',
+    description: 'Análises por ano, concelho e parâmetro'
+  },
+  incumprimentos: {
+    id: 'incumprimentos',
+    name: 'Incumprimentos',
+    icon: 'warning',
+    description: 'Incumprimentos por ano, concelho e gravidade'
+  },
+  repavimentacoes: {
+    id: 'repavimentacoes',
+    name: 'Repavimentações',
+    icon: 'layers',
+    description: 'Repavimentações por estado e área'
+  },
+  transmitacoes: {
+    id: 'transmitacoes',
+    name: 'Tramitações',
+    icon: 'swap_horiz',
+    description: 'Tramitações por utilizador e período'
   }
 };
 
@@ -54,11 +78,14 @@ export const VIEW_MAP = {
   'vds_ramal_01$002': { category: 'ramais', name: 'Metros construídos por ano' },
   'vds_ramal_01$003': { category: 'ramais', name: 'Metros construídos por ano e mês, para o ano corrente' },
   'vds_ramal_01$004': { category: 'ramais', name: 'Pedidos por município' },
+  'vds_ramal_01$005': { category: 'ramais', name: 'Metros extensão de rede construidos por ano' },
+  'vds_ramal_01$006': { category: 'ramais', name: 'Metros extensão de rede construidos por ano e mes, para o ano corrente' },
 
   // Fossas
   'vds_fossa_01$001': { category: 'fossas', name: 'Por estado' },
   'vds_fossa_01$002': { category: 'fossas', name: 'Por município, por ano' },
   'vds_fossa_01$003': { category: 'fossas', name: 'Por ano e mês, para o ano corrente' },
+  'vds_fossa_01$004': { category: 'fossas', name: 'Duração (em dias) por ano e município' },
 
   // Instalações
   'vds_instalacao_01$001': { category: 'instalacoes', name: 'Por tipo de instalação, total, abertos e controlados' },
@@ -73,6 +100,39 @@ export const VIEW_MAP = {
   'vds_instalacao_01$010': { category: 'instalacoes', name: 'Duração por operação, para o ano corrente' },
   'vds_instalacao_01$011': { category: 'instalacoes', name: 'Duração por operador' },
   'vds_instalacao_01$012': { category: 'instalacoes', name: 'Duração por operador, para o ano corrente' },
+  'vds_instalacao_01$013': { category: 'instalacoes', name: 'Por concelho, total e concluídos' },
+  'vds_instalacao_01$014': { category: 'instalacoes', name: 'Por concelho, total e concluídos, para o ano corrente' },
+  'vds_instalacao_01$015': { category: 'instalacoes', name: 'Por concelho e tipo' },
+  'vds_instalacao_01$016': { category: 'instalacoes', name: 'Por conselho e tipo, total e concluidos' },
+
+  // Análises
+  'vds_analise_01$001': { category: 'analises', name: 'Por ano' },
+  'vds_analise_01$002': { category: 'analises', name: 'Por concelho' },
+  'vds_analise_01$003': { category: 'analises', name: 'Por ano e conselho' },
+  'vds_analise_01$004': { category: 'analises', name: 'Por concelho e parâmetro' },
+  'vds_analise_01$005': { category: 'analises', name: 'Por ano e parâmetro' },
+
+  // Incumprimentos
+  'vds_incumprimento_01$001': { category: 'incumprimentos', name: 'Por ano' },
+  'vds_incumprimento_01$002': { category: 'incumprimentos', name: 'Por concelho' },
+  'vds_incumprimento_01$003': { category: 'incumprimentos', name: 'Por parâmetro e concelho' },
+  'vds_incumprimento_01$004': { category: 'incumprimentos', name: 'Por ano e concelho' },
+  'vds_incumprimento_01$005': { category: 'incumprimentos', name: 'Por ano e parametro' },
+  'vds_incumprimento_01$006': { category: 'incumprimentos', name: 'Por gravidade' },
+  'vds_incumprimento_01$007': { category: 'incumprimentos', name: 'Por ano e gravidade' },
+  'vds_incumprimento_01$008': { category: 'incumprimentos', name: 'Por parâmetro e gravidade' },
+  'vds_incumprimento_01$009': { category: 'incumprimentos', name: 'Por concelho e gravidade' },
+
+  // Repavimentações
+  'vds_repav_01$001': { category: 'repavimentacoes', name: 'Por estado' },
+  'vds_repav_01$002': { category: 'repavimentacoes', name: 'Área solicitada por ano' },
+  'vds_repav_01$003': { category: 'repavimentacoes', name: 'Área solicitada por ano e mes' },
+  'vds_repav_01$004': { category: 'repavimentacoes', name: 'Área solicitada por ano e semana' },
+
+  // Tramitações
+  'vds_tramitacao_01$001': { category: 'transmitacoes', name: 'Por utilizador' },
+  'vds_tramitacao_01$002': { category: 'transmitacoes', name: 'Por utilizador e ano' },
+  'vds_tramitacao_01$003': { category: 'transmitacoes', name: 'Por utilizador, mes e ano' },
 
   // Views antigas (mantidas para compatibilidade)
   'vbr_document_001': { category: 'legacy', name: 'Pedidos por tipo (legado)' },
@@ -112,11 +172,14 @@ export const DEFAULT_VIEW_TYPES = {
   'vds_ramal_01$002': 'bar',
   'vds_ramal_01$003': 'line',
   'vds_ramal_01$004': 'bar',
+  'vds_ramal_01$005': 'bar',
+  'vds_ramal_01$006': 'line',
 
   // Fossas
   'vds_fossa_01$001': 'pie',
   'vds_fossa_01$002': 'bar',
   'vds_fossa_01$003': 'line',
+  'vds_fossa_01$004': 'bar',
 
   // Instalações
   'vds_instalacao_01$001': 'bar',
@@ -131,6 +194,39 @@ export const DEFAULT_VIEW_TYPES = {
   'vds_instalacao_01$010': 'bar',
   'vds_instalacao_01$011': 'bar',
   'vds_instalacao_01$012': 'bar',
+  'vds_instalacao_01$013': 'bar',
+  'vds_instalacao_01$014': 'bar',
+  'vds_instalacao_01$015': 'bar',
+  'vds_instalacao_01$016': 'bar',
+
+  // Análises
+  'vds_analise_01$001': 'bar',
+  'vds_analise_01$002': 'bar',
+  'vds_analise_01$003': 'bar',
+  'vds_analise_01$004': 'bar',
+  'vds_analise_01$005': 'bar',
+
+  // Incumprimentos
+  'vds_incumprimento_01$001': 'bar',
+  'vds_incumprimento_01$002': 'bar',
+  'vds_incumprimento_01$003': 'bar',
+  'vds_incumprimento_01$004': 'bar',
+  'vds_incumprimento_01$005': 'bar',
+  'vds_incumprimento_01$006': 'pie',
+  'vds_incumprimento_01$007': 'bar',
+  'vds_incumprimento_01$008': 'bar',
+  'vds_incumprimento_01$009': 'bar',
+
+  // Repavimentações
+  'vds_repav_01$001': 'pie',
+  'vds_repav_01$002': 'bar',
+  'vds_repav_01$003': 'line',
+  'vds_repav_01$004': 'line',
+
+  // Tramitações
+  'vds_tramitacao_01$001': 'bar',
+  'vds_tramitacao_01$002': 'bar',
+  'vds_tramitacao_01$003': 'bar',
 
   // Legacy
   'vbr_document_001': 'pie',

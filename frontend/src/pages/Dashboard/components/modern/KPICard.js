@@ -21,7 +21,8 @@ const KPICard = ({
     trend,
     icon,
     color,
-    onClick
+    onClick,
+    isSelected
 }) => {
     const theme = useTheme();
 
@@ -48,12 +49,15 @@ const KPICard = ({
                     position: 'relative',
                     overflow: 'hidden',
                     cursor: onClick ? 'pointer' : 'default',
-                    background: `linear-gradient(135deg, ${alpha(color || theme.palette.primary.main, 0.1)} 0%, ${alpha(color || theme.palette.primary.main, 0.05)} 100%)`,
-                    border: `1px solid ${alpha(color || theme.palette.primary.main, 0.2)}`,
+                    background: isSelected
+                        ? `linear-gradient(135deg, ${alpha(color || theme.palette.primary.main, 0.25)} 0%, ${alpha(color || theme.palette.primary.main, 0.15)} 100%)`
+                        : `linear-gradient(135deg, ${alpha(color || theme.palette.primary.main, 0.1)} 0%, ${alpha(color || theme.palette.primary.main, 0.05)} 100%)`,
+                    border: `${isSelected ? 2 : 1}px solid ${alpha(color || theme.palette.primary.main, isSelected ? 0.7 : 0.2)}`,
+                    boxShadow: isSelected ? `0 4px 16px ${alpha(color || theme.palette.primary.main, 0.3)}` : 'none',
                     transition: 'all 0.3s ease',
                     '&:hover': {
-                        boxShadow: `0 8px 24px ${alpha(color || theme.palette.primary.main, 0.25)}`,
-                        borderColor: alpha(color || theme.palette.primary.main, 0.5)
+                        boxShadow: `0 8px 24px ${alpha(color || theme.palette.primary.main, 0.35)}`,
+                        borderColor: alpha(color || theme.palette.primary.main, 0.6)
                     }
                 }}
                 onClick={onClick}

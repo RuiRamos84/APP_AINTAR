@@ -20,6 +20,7 @@ export const useDashboardData = (filters = {}) => {
     const {
         data: dashboardData,
         isLoading,
+        isFetching,
         isError,
         error,
         refetch
@@ -31,5 +32,5 @@ export const useDashboardData = (filters = {}) => {
         refetchOnWindowFocus: true, // Atualiza os dados quando o utilizador volta à janela.
     });
 
-    return { dashboardData, isLoading, isError, error, refetch };
+    return { dashboardData, isLoading, isFetching, isError, error, refetch };
 };
