@@ -208,7 +208,7 @@ const TramitacaoAnoCard = ({ chart, viewMode, index }) => {
 
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
                 <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
@@ -897,7 +897,7 @@ const RamalSemanaLineCard = ({ chart, viewMode, index }) => {
 
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
                 <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
@@ -1032,7 +1032,7 @@ const RamalMesLineCard = ({ chart, viewMode, index }) => {
 
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
                 <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
@@ -1122,6 +1122,20 @@ const getMunicipioColor = (name, fallback) => {
     return fallback;
 };
 
+// Paleta Tableau 10 — máxima distinção para repavimentações
+const REPAV_COLORS = [
+    '#4e79a7', // azul
+    '#f28e2b', // laranja
+    '#e15759', // vermelho coral
+    '#59a14f', // verde
+    '#76b7b2', // verde-azulado
+    '#edc948', // amarelo
+    '#b07aa1', // roxo
+    '#ff9da7', // rosa
+    '#9c755f', // castanho
+    '#bab0ac', // cinza
+];
+
 // Paleta partilhada por vds_incumprimento_01$003, $005, $008
 // Garante a mesma cor para o mesmo valor da coluna "parametros"
 const INCUMPRIMENTO_PALETTE = [
@@ -1187,7 +1201,7 @@ const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMa
 
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
                 <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
@@ -1364,24 +1378,13 @@ const getFossaStateColor = (name, fallback) => {
 const FossaEstadoCard = ({ chart, viewMode, index }) => {
     const theme = useTheme();
 
-    const BASE_COLORS = [
-        theme.palette.primary.main,
-        theme.palette.secondary.main,
-        theme.palette.success.main,
-        theme.palette.warning.main,
-        theme.palette.error.main,
-        theme.palette.info.main,
-        alpha(theme.palette.primary.main, 0.7),
-        alpha(theme.palette.secondary.main, 0.7)
-    ];
-
     const preparedData = useMemo(() => {
         return prepareChartData(chart.data, chart.columns, 'pie');
     }, [chart.data, chart.columns]);
 
-    // Cores mapeadas por nome: estados especiais têm cor fixa, os outros usam a paleta base
+    // Cores mapeadas por nome: estados especiais têm cor fixa, os outros usam REPAV_COLORS
     const COLORS = preparedData.map((item, i) =>
-        getFossaStateColor(item.name, BASE_COLORS[i % BASE_COLORS.length])
+        getFossaStateColor(item.name, REPAV_COLORS[i % REPAV_COLORS.length])
     );
 
     const total = preparedData.reduce((sum, item) => sum + item.value, 0);
@@ -1453,7 +1456,7 @@ const RepavEstadoCard = ({ chart, viewMode, index }) => {
 
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
                 <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
@@ -1588,9 +1591,598 @@ const FossaDurationCard = ({ chart, viewMode, index }) => {
 };
 
 /**
+ * Card para vds_pedido_01$005 — gráfico de linhas com chips de filtro por série
+ */
+const PEDIDO005_COLORS = ['#1565c0', '#388e3c', '#f57c00'];
+
+const Pedido005LineCard = ({ chart, viewMode, index }) => {
+    const theme = useTheme();
+    const [selectedSerie, setSelectedSerie] = useState(null); // null = Todos
+
+    const labelCol = useMemo(() => identifyLabelColumn(chart.data, chart.columns), [chart]);
+
+    const series = useMemo(() => {
+        const valueCols = chart.columns.filter(col => col !== labelCol);
+        return [
+            { key: null, label: 'Todos', color: null },
+            ...valueCols.map((col, idx) => ({
+                key: col,
+                label: formatColumnName(col),
+                color: PEDIDO005_COLORS[idx % PEDIDO005_COLORS.length],
+            })),
+        ];
+    }, [chart, labelCol]);
+
+    const lineData = useMemo(() =>
+        prepareChartData(chart.data, chart.columns, 'line', chart.data.length),
+    [chart]);
+
+    const dataKeys = getDataKeys(lineData, chart.columns);
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
+                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
+                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
+                            {series.map((serie) => {
+                                const isSelected = selectedSerie === serie.key || (serie.key === null && !selectedSerie);
+                                const color = serie.color ?? theme.palette.primary.main;
+                                return (
+                                    <Chip
+                                        key={serie.key ?? 'todos'}
+                                        label={serie.label}
+                                        size="small"
+                                        onClick={() => setSelectedSerie(prev => prev === serie.key ? null : serie.key)}
+                                        variant={isSelected ? 'filled' : 'outlined'}
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            borderColor: color,
+                                            color: isSelected ? '#fff' : color,
+                                            backgroundColor: isSelected ? color : 'transparent',
+                                            '&:hover': { backgroundColor: alpha(color, 0.15) },
+                                        }}
+                                    />
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                    <ResponsiveContainer width="100%" height={420}>
+                        <LineChart data={lineData} margin={{ top: 10, right: 30, left: 20, bottom: 70 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
+                            <XAxis dataKey="name" tick={{ fill: theme.palette.text.secondary, fontSize: 11 }} angle={-45} textAnchor="end" height={70} interval={0} />
+                            <YAxis tick={{ fill: theme.palette.text.secondary }} />
+                            <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Legend verticalAlign="bottom" height={40} wrapperStyle={{ fontSize: '14px', paddingTop: '6px' }} />
+                            {dataKeys.map((key, idx) => {
+                                const isActive = !selectedSerie || key === selectedSerie;
+                                return (
+                                    <Line
+                                        key={key}
+                                        type="monotone"
+                                        dataKey={key}
+                                        name={formatColumnName(key)}
+                                        stroke={PEDIDO005_COLORS[idx % PEDIDO005_COLORS.length]}
+                                        strokeWidth={isActive ? 2.5 : 0.8}
+                                        strokeOpacity={isActive ? 1 : 0.2}
+                                        dot={{ r: isActive ? 4 : 2 }}
+                                        activeDot={{ r: isActive ? 6 : 2 }}
+                                    />
+                                );
+                            })}
+                        </LineChart>
+                    </ResponsiveContainer>
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
+ * Card para pedidos com filtro dinâmico por tipo ($006, $007, $008, $009)
+ */
+const TIPO_COLORS = ['#e53935', '#00838f', '#f9a825', '#7c4dff', '#00bcd4'];
+
+const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
+    const theme = useTheme();
+    const [selectedTipo, setSelectedTipo] = useState(null);
+
+    const labelCol = useMemo(() =>
+        identifyLabelColumn(chart.data, chart.columns),
+    [chart]);
+
+    // Gera os botões dinamicamente a partir das colunas de valor
+    const tipos = useMemo(() => {
+        const valueCols = chart.columns.filter(col => col !== labelCol);
+        return [
+            { key: null, label: 'Todos', color: null },
+            ...valueCols.map((col, idx) => ({
+                key: col,
+                label: formatColumnName(col),
+                color: TIPO_COLORS[idx % TIPO_COLORS.length],
+            })),
+        ];
+    }, [chart, labelCol]);
+
+    // Barras — modo "Todos"
+    const barData = useMemo(() =>
+        prepareChartData(chart.data, chart.columns, 'bar', chart.data.length),
+    [chart]);
+    const dataKeys = getDataKeys(barData, chart.columns);
+    const CHART_COLORS = ['#e53935', '#00838f', '#f9a825'];
+
+    const ColoredTick = ({ x, y, payload }) => {
+        const tickColor = getMunicipioColor(payload.value, theme.palette.text.secondary);
+        return (
+            <g transform={`translate(${x},${y})`}>
+                <text x={0} y={0} dy={4} textAnchor="end"
+                    fill={tickColor} fontSize={compact ? 10 : 15} fontWeight={600} transform="rotate(-45)">
+                    {payload.value}
+                </text>
+            </g>
+        );
+    };
+
+    // Pizza — quando um tipo está seleccionado usa a coluna exacta
+    const pieData = useMemo(() => {
+        if (!selectedTipo) return [];
+        if (!chart.columns.includes(selectedTipo)) return [];
+        return chart.data
+            .map(row => ({
+                name: formatLabel(String(row[labelCol] ?? '')),
+                value: parseFloat(row[selectedTipo]) || 0
+            }))
+            .filter(item => item.value > 0);
+    }, [chart, labelCol, selectedTipo]);
+
+    const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }) => {
+        if (percent < 0.02) return null;
+        const RADIAN = Math.PI / 180;
+        const radius = outerRadius + 30;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        return (
+            <text x={x} y={y} fill={theme.palette.text.primary}
+                textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central"
+                style={{ fontSize: '13px', fontWeight: '500' }}>
+                {`${name}: ${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
+                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
+                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
+                            {tipos.map((tipo) => (
+                                <Chip
+                                    key={tipo.key ?? 'todos'}
+                                    label={tipo.label}
+                                    size="small"
+                                    onClick={() => setSelectedTipo(tipo.key)}
+                                    variant={selectedTipo === tipo.key ? 'filled' : 'outlined'}
+                                    color={!tipo.color ? (selectedTipo === tipo.key ? 'primary' : 'default') : undefined}
+                                    sx={tipo.color ? {
+                                        fontWeight: 'bold',
+                                        borderColor: tipo.color,
+                                        color: selectedTipo === tipo.key ? '#fff' : tipo.color,
+                                        backgroundColor: selectedTipo === tipo.key ? tipo.color : 'transparent',
+                                        '&:hover': { backgroundColor: alpha(tipo.color, 0.15) },
+                                    } : { fontWeight: 'bold' }}
+                                />
+                            ))}
+                        </Box>
+                    </Box>
+
+                    {/* Gráfico de barras — modo "Todos" */}
+                    {!selectedTipo && (
+                        <ResponsiveContainer width="100%" height={compact ? 400 : 600}>
+                            <BarChart data={barData} margin={{ top: 10, right: 30, left: 20, bottom: compact ? 70 : 120 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
+                                <XAxis dataKey="name" tick={<ColoredTick />} height={compact ? 70 : 120} interval={0} />
+                                <YAxis tick={{ fill: theme.palette.text.secondary }} />
+                                <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                                <Legend verticalAlign={compact ? 'top' : 'bottom'} wrapperStyle={compact ? { paddingBottom: '10px' } : { paddingTop: '40px' }} />
+                                {dataKeys.map((key, idx) => (
+                                    <Bar key={key} dataKey={key} name={formatColumnName(key)}
+                                        fill={TIPO_COLORS[idx % TIPO_COLORS.length]} radius={[8, 8, 0, 0]} />
+                                ))}
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
+
+                    {/* Gráfico de pizza — modo tipo específico */}
+                    {selectedTipo && (
+                        <ResponsiveContainer width="100%" height={compact ? 300 : 420}>
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="40%"
+                                    labelLine={{ stroke: theme.palette.text.secondary, strokeWidth: 1 }}
+                                    label={renderCustomLabel}
+                                    outerRadius={compact ? 85 : 110}
+                                    dataKey="value"
+                                    paddingAngle={2}
+                                >
+                                    {pieData.map((entry, idx) => (
+                                        <Cell key={`cell-${idx}`} fill={getMunicipioColor(entry.name, TIPO_COLORS[idx % TIPO_COLORS.length])} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ paddingTop: '20px' }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
+ * Card para vds_incumprimento_01$003 / $006 — pizza com filtro por município (coluna)
+ * Estrutura: cada linha = parâmetro/gravidade, cada coluna numérica = município (ou Total)
+ */
+const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colorsProp }) => {
+    const theme = useTheme();
+
+    const { paramCol, municipioCols } = useMemo(() => {
+        const cols = chart.columns;
+        const paramCol = cols.find(c => c.toLowerCase().includes('param'))
+            || cols.find(c => chart.data.some(r => typeof r[c] === 'string' && isNaN(parseFloat(r[c]))));
+        const municipioCols = cols.filter(c => c !== paramCol &&
+            chart.data.some(r => !isNaN(parseFloat(r[c]))));
+        return { paramCol, municipioCols };
+    }, [chart]);
+
+    const [selectedCol, setSelectedCol] = useState(() => municipioCols[0] ?? null);
+
+    const pieData = useMemo(() => {
+        if (!paramCol || !selectedCol) return [];
+        return chart.data
+            .map(row => ({
+                name: formatLabel(String(row[paramCol] ?? '')),
+                value: parseFloat(row[selectedCol]) || 0,
+            }))
+            .filter(item => item.value > 0);
+    }, [chart, paramCol, selectedCol]);
+
+    const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }) => {
+        if (percent < 0.02) return null;
+        const RADIAN = Math.PI / 180;
+        const radius = outerRadius + 30;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        return (
+            <text x={x} y={y} fill={theme.palette.text.primary}
+                textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central"
+                style={{ fontSize: '13px', fontWeight: '500' }}>
+                {`${name}: ${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
+
+    const calculateHeight = () => {
+        if (pieData.length <= 4) return 450;
+        if (pieData.length <= 6) return 520;
+        if (pieData.length <= 8) return 580;
+        return 650;
+    };
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
+                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
+                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
+                            {municipioCols.map(col => {
+                                const color = getMunicipioColor(col, theme.palette.primary.main);
+                                const isSelected = selectedCol === col;
+                                return (
+                                    <Chip
+                                        key={col}
+                                        label={formatColumnName(col)}
+                                        size="small"
+                                        onClick={() => setSelectedCol(col)}
+                                        variant={isSelected ? 'filled' : 'outlined'}
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            borderColor: color,
+                                            color: isSelected ? '#fff' : color,
+                                            backgroundColor: isSelected ? color : 'transparent',
+                                            '&:hover': { backgroundColor: alpha(color, 0.15) },
+                                        }}
+                                    />
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                    <ResponsiveContainer width="100%" height={calculateHeight()}>
+                        <PieChart>
+                            <Pie
+                                data={pieData}
+                                cx="50%"
+                                cy="40%"
+                                labelLine={{ stroke: theme.palette.text.secondary, strokeWidth: 1 }}
+                                label={renderCustomLabel}
+                                outerRadius={110}
+                                dataKey="value"
+                                paddingAngle={2}
+                            >
+                                {pieData.map((entry, idx) => {
+                                    const palette = colorsProp ?? INCUMPRIMENTO_PALETTE;
+                                    const fill = colorMap?.[entry.name] ?? getMunicipioColor(entry.name, palette[idx % palette.length]);
+                                    return (
+                                        <Cell key={`cell-${idx}`} fill={fill} />
+                                    );
+                                })}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ marginTop: '-30px' }} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
+ * Card para vds_incumprimento_01$006 — pizza por gravidade com filtro por município (linha)
+ * Estrutura: cada linha = município, cada coluna numérica = nível de gravidade
+ */
+const Incumprimento006Card = ({ chart, viewMode, index }) => {
+    const theme = useTheme();
+
+    const { labelCol, gravityCols, municipios } = useMemo(() => {
+        const cols = chart.columns;
+        const labelCol = identifyLabelColumn(chart.data, cols);
+        const gravityCols = cols.filter(c => c !== labelCol &&
+            chart.data.some(r => !isNaN(parseFloat(r[c]))));
+        const municipios = chart.data
+            .map(r => String(r[labelCol] || '').trim())
+            .filter(Boolean);
+        return { labelCol, gravityCols, municipios };
+    }, [chart]);
+
+    const [selectedMunicipio, setSelectedMunicipio] = useState(() => municipios[0] ?? null);
+
+    const pieData = useMemo(() => {
+        if (!selectedMunicipio || !gravityCols.length) return [];
+        const row = chart.data.find(r => String(r[labelCol] || '').trim() === selectedMunicipio);
+        if (!row) return [];
+        return gravityCols
+            .map(col => ({ name: formatColumnName(col), value: parseFloat(row[col]) || 0 }))
+            .filter(item => item.value > 0);
+    }, [chart, labelCol, gravityCols, selectedMunicipio]);
+
+    const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }) => {
+        if (percent < 0.02) return null;
+        const RADIAN = Math.PI / 180;
+        const radius = outerRadius + 30;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        return (
+            <text x={x} y={y} fill={theme.palette.text.primary}
+                textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central"
+                style={{ fontSize: '13px', fontWeight: '500' }}>
+                {`${name}: ${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
+
+    const calculateHeight = () => {
+        if (pieData.length <= 4) return 450;
+        if (pieData.length <= 6) return 520;
+        return 580;
+    };
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
+                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
+                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
+                            {municipios.map(m => {
+                                const color = getMunicipioColor(m, theme.palette.primary.main);
+                                const isSelected = selectedMunicipio === m;
+                                return (
+                                    <Chip
+                                        key={m}
+                                        label={m}
+                                        size="small"
+                                        onClick={() => setSelectedMunicipio(m)}
+                                        variant={isSelected ? 'filled' : 'outlined'}
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            borderColor: color,
+                                            color: isSelected ? '#fff' : color,
+                                            backgroundColor: isSelected ? color : 'transparent',
+                                            '&:hover': { backgroundColor: alpha(color, 0.15) },
+                                        }}
+                                    />
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                    <ResponsiveContainer width="100%" height={calculateHeight()}>
+                        <PieChart>
+                            <Pie
+                                data={pieData}
+                                cx="50%"
+                                cy="40%"
+                                labelLine={{ stroke: theme.palette.text.secondary, strokeWidth: 1 }}
+                                label={renderCustomLabel}
+                                outerRadius={110}
+                                dataKey="value"
+                                paddingAngle={2}
+                            >
+                                {pieData.map((entry, idx) => (
+                                    <Cell key={`cell-${idx}`} fill={REPAV_COLORS[idx % REPAV_COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ marginTop: '-50px' }} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
+ * Card para vds_pedido_01$001 — barras horizontais
+ */
+const Pedido001HBarCard = ({ chart, viewMode, index }) => {
+    const theme = useTheme();
+
+    const { labelCol, valueCols, chartData } = useMemo(() => {
+        const labelCol = identifyLabelColumn(chart.data, chart.columns);
+        const valueCols = chart.columns.filter(c => c !== labelCol &&
+            chart.data.some(r => !isNaN(parseFloat(r[c]))));
+        const chartData = chart.data.map(row => {
+            const entry = { name: formatLabel(String(row[labelCol] ?? '')) };
+            valueCols.forEach(c => { entry[c] = parseFloat(row[c]) || 0; });
+            return entry;
+        });
+        return { labelCol, valueCols, chartData };
+    }, [chart]);
+
+    const height = Math.max(200, chartData.length * 26 + 60);
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
+                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                    <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Typography variant="h6" fontWeight="bold" noWrap>{chart.name}</Typography>
+                        <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
+                    </Box>
+                    <ResponsiveContainer width="100%" height={height}>
+                        <BarChart
+                            data={chartData}
+                            layout="vertical"
+                            margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
+                            barCategoryGap="20%"
+                            barSize={14}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={alpha(theme.palette.divider, 0.3)} />
+                            <XAxis type="number" tick={{ fill: theme.palette.text.secondary, fontSize: 11 }} allowDecimals={false} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={160}
+                                tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+                            />
+                            <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Legend verticalAlign="top" height={30} wrapperStyle={{ paddingBottom: '6px', fontSize: '12px' }} />
+                            {valueCols.map((col, idx) => (
+                                <Bar key={col} dataKey={col} name={formatColumnName(col)}
+                                    fill={INCUMPRIMENTO_PALETTE[idx % INCUMPRIMENTO_PALETTE.length]}
+                                    radius={[0, 4, 4, 0]}
+                                    label={{ position: 'right', fill: theme.palette.text.secondary, fontSize: 10 }}
+                                />
+                            ))}
+                        </BarChart>
+                    </ResponsiveContainer>
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
+ * Card para vds_pedido_01$002 — barras horizontais com filtro por ano
+ */
+const Pedido002HBarCard = ({ chart, viewMode, index }) => {
+    const theme = useTheme();
+
+    const { labelCol, yearCols } = useMemo(() => {
+        const labelCol = identifyLabelColumn(chart.data, chart.columns);
+        const yearCols = chart.columns.filter(c => c !== labelCol &&
+            chart.data.some(r => !isNaN(parseFloat(r[c]))));
+        return { labelCol, yearCols };
+    }, [chart]);
+
+    const [selectedYear, setSelectedYear] = useState(() => yearCols[yearCols.length - 1] ?? null);
+
+    const chartData = useMemo(() => {
+        if (!selectedYear) return [];
+        return chart.data
+            .map(row => ({
+                name: formatLabel(String(row[labelCol] ?? '')),
+                value: parseFloat(row[selectedYear]) || 0,
+            }))
+            .filter(item => item.value > 0)
+            .sort((a, b) => b.value - a.value);
+    }, [chart, labelCol, selectedYear]);
+
+    const height = Math.max(200, chartData.length * 26 + 60);
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
+                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                            <Typography variant="h6" fontWeight="bold" noWrap>{chart.name}</Typography>
+                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
+                            {yearCols.map(year => (
+                                <Chip
+                                    key={year}
+                                    label={formatColumnName(year)}
+                                    size="small"
+                                    onClick={() => setSelectedYear(year)}
+                                    variant={selectedYear === year ? 'filled' : 'outlined'}
+                                    color={selectedYear === year ? 'primary' : 'default'}
+                                    sx={{ fontWeight: 'bold' }}
+                                />
+                            ))}
+                        </Box>
+                    </Box>
+                    <ResponsiveContainer width="100%" height={height}>
+                        <BarChart
+                            data={chartData}
+                            layout="vertical"
+                            margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
+                            barCategoryGap="20%"
+                            barSize={14}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={alpha(theme.palette.divider, 0.3)} />
+                            <XAxis type="number" tick={{ fill: theme.palette.text.secondary, fontSize: 11 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={160} tick={{ fill: theme.palette.text.secondary, fontSize: 11 }} />
+                            <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
+                            <Bar dataKey="value" name={selectedYear ? formatColumnName(selectedYear) : ''}
+                                fill={INCUMPRIMENTO_PALETTE[0]}
+                                radius={[0, 4, 4, 0]}
+                                label={{ position: 'right', fill: theme.palette.text.secondary, fontSize: 10 }}
+                            />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
  * Container de gráficos - Renderiza visualizações baseadas nos dados
  */
-const ChartContainer = ({ data, viewMode, selectedCategory }) => {
+const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) => {
     const theme = useTheme();
     const [yearSelections, setYearSelections] = useState({});
 
@@ -1613,19 +2205,6 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
         alpha(theme.palette.secondary.main, 0.7)
     ];
 
-    // Paleta Tableau 10 — máxima distinção para repavimentações
-    const REPAV_COLORS = [
-        '#4e79a7', // azul
-        '#f28e2b', // laranja
-        '#e15759', // vermelho coral
-        '#59a14f', // verde
-        '#76b7b2', // verde-azulado
-        '#edc948', // amarelo
-        '#b07aa1', // roxo
-        '#ff9da7', // rosa
-        '#9c755f', // castanho
-        '#bab0ac', // cinza
-    ];
 
     // Processar dados para visualização
     const processedCharts = useMemo(() => {
@@ -1650,7 +2229,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
                 // Determinar melhor tipo de gráfico baseado nos dados
                 let chartType = determineChartType(viewData);
                 // Overrides por viewId
-                if (viewId === 'vds_pedido_01$007') chartType = 'bar';
+                if (viewId === 'vds_pedido_01$007' || viewId === 'vds_pedido_01$006') chartType = 'bar';
                 const cols = viewData.columns || [];
 
                 // Para duration_bar, calcular antecipadamente as colunas de ano
@@ -1703,7 +2282,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
         else if (chartId === 'vds_pedido_01$017') dataToProcess = chartData.slice(0, 30);
 
         // $010–$015, tramitacao $001 e $007: adaptável ao número real de registos (sem corte)
-        const isAdaptive = /^vds_pedido_01\$01[0-5]$/.test(chartId) || chartId === 'vds_tramitacao_01$001' || chartId === 'vds_pedido_01$007';
+        const isAdaptive = /^vds_pedido_01\$01[0-5]$/.test(chartId) || chartId === 'vds_tramitacao_01$001' || chartId === 'vds_pedido_01$007' || chartId === 'vds_pedido_01$006';
         const maxItems = isAdaptive ? dataToProcess.length : 20;
 
         // Preparar dados para o gráfico
@@ -1724,7 +2303,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
             ? REPAV_COLORS
             : chartId === 'vds_pedido_01$005'
                 ? ['#1565c0', '#388e3c', '#f57c00']
-                : chartId === 'vds_pedido_01$007'
+                : (chartId === 'vds_pedido_01$007' || chartId === 'vds_pedido_01$006')
                     ? ['#e53935', '#00838f', '#f9a825']
                     : /^vds_pedido_01\$00[1-4]$/.test(chartId) || chartId === 'vds_incumprimento_01$003'
                         ? INCUMPRIMENTO_PALETTE
@@ -1735,19 +2314,21 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
 
         // Altura extra do eixo X e margem esquerda para gráficos com labels longas
         const hasLongLabels = /^vds_pedido_01\$01[01]$/.test(chartId);
-        const xAxisHeight = hasLongLabels ? 130 : chartId === 'vds_pedido_01$007' ? 120 : 80;
+        const xAxisHeight = hasLongLabels ? 130 : (chartId === 'vds_pedido_01$007' || chartId === 'vds_pedido_01$006') ? 120 : 80;
         const leftMargin = hasLongLabels ? 110 : 20;
         const legendTopOffset = hasLongLabels
             ? (viewMode === 'overview' && chartId === 'vds_pedido_01$010' ? 60 : viewMode === 'overview' && chartId === 'vds_pedido_01$011' ? 60 : 30)
             : chartId === 'vds_ramal_01$001' ? (viewMode === 'overview' ? 110 : 70)
-            : chartId === 'vds_pedido_01$007' ? 70
+            : (chartId === 'vds_pedido_01$007' || chartId === 'vds_pedido_01$006') ? 70
             : 0;
 
         // Para $007 colorir os labels do eixo X com a cor do município
-        const coloredXAxisTicks = chartId === 'vds_pedido_01$007';
+        const coloredXAxisTicks = chartId === 'vds_pedido_01$007' || chartId === 'vds_pedido_01$006';
+        const barHeightOverride = chartId === 'vds_incumprimento_01$001' ? 420 : null;
+
         switch (chartType) {
             case 'bar':
-                return renderBarChart(preparedData, columns, activeColors, nameColorMap, xAxisHeight, leftMargin, legendTopOffset, coloredXAxisTicks);
+                return renderBarChart(preparedData, columns, activeColors, nameColorMap, xAxisHeight, leftMargin, legendTopOffset, coloredXAxisTicks, barHeightOverride);
             case 'duration_bar':
                 return <DurationBarChart data={preparedData} />;
             case 'line':
@@ -1762,7 +2343,8 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
     };
 
     // Renderizar gráfico de barras
-    const renderBarChart = (data, columns, colors = COLORS, nameColorMap = null, xAxisHeight = 80, leftMargin = 20, legendTopOffset = 0, coloredXAxisTicks = false) => {
+    const renderBarChart = (data, columns, colors = COLORS, nameColorMap = null, xAxisHeight = 80, leftMargin = 20, legendTopOffset = 0, coloredXAxisTicks = false, heightOverride = null) => {
+        const containerHeight = heightOverride ?? ((coloredXAxisTicks ? 620 : 420) + xAxisHeight);
         const dataKeys = getDataKeys(data, columns);
 
         // Tick customizado com cor por município (usado quando coloredXAxisTicks=true)
@@ -1785,7 +2367,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
         };
 
         return (
-            <ResponsiveContainer width="100%" height={(coloredXAxisTicks ? 620 : 420) + xAxisHeight}>
+            <ResponsiveContainer width="100%" height={containerHeight}>
                 <BarChart data={data} margin={{ top: 10, right: 30, left: leftMargin, bottom: xAxisHeight }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
                     <XAxis
@@ -1813,10 +2395,10 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
                             fill={colors[index % colors.length]}
                             radius={[8, 8, 0, 0]}
                         >
-                            {!coloredXAxisTicks && data.map((entry, barIdx) => (
+                            {nameColorMap && data.map((entry, barIdx) => (
                                 <Cell
                                     key={`cell-${barIdx}`}
-                                    fill={nameColorMap?.[entry.name] ?? getMunicipioColor(entry.name, colors[index % colors.length])}
+                                    fill={nameColorMap[entry.name] ?? colors[index % colors.length]}
                                 />
                             ))}
                         </Bar>
@@ -1833,15 +2415,15 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
         const isOv = vm === 'overview';
 
         return (
-            <ResponsiveContainer width="100%" height={isOv ? 560 : 450}>
-                <LineChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 100 }}>
+            <ResponsiveContainer width="100%" height={isOv ? (compact ? 380 : 420) : 450}>
+                <LineChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: compact ? 50 : 70 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
                     <XAxis
                         dataKey="name"
-                        tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+                        tick={{ fill: theme.palette.text.secondary, fontSize: compact ? 9 : 11 }}
                         angle={-45}
                         textAnchor="end"
-                        height={90}
+                        height={compact ? 65 : 70}
                         interval={0}
                     />
                     <YAxis tick={{ fill: theme.palette.text.secondary }} />
@@ -1853,9 +2435,9 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
                         }}
                     />
                     <Legend
-                        verticalAlign={isOv ? 'bottom' : 'top'}
-                        height={isOv ? 140 : 36}
-                        wrapperStyle={isOv ? { fontSize: '14px', lineHeight: '24px', paddingTop: '10px' } : { paddingBottom: '10px' }}
+                        verticalAlign='bottom'
+                        height={40}
+                        wrapperStyle={{ fontSize: '14px', paddingTop: '6px' }}
                     />
                     {dataKeys.map((key, index) => (
                         <Line
@@ -2041,6 +2623,12 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
                 if (chart.chartType === 'duration_bar') {
                     return <DurationChartCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
                 }
+                if (chart.id === 'vds_pedido_01$005') {
+                    return <Pedido005LineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                }
+                if (['vds_pedido_01$006', 'vds_pedido_01$007', 'vds_pedido_01$008', 'vds_pedido_01$009'].includes(chart.id)) {
+                    return <Pedido008FilterCard key={chart.id} chart={chart} viewMode={viewMode} index={index} compact={compact} />;
+                }
                 if (chart.id === 'vds_tramitacao_01$002') {
                     return <TramitacaoAnoCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
                 }
@@ -2067,6 +2655,21 @@ const ChartContainer = ({ data, viewMode, selectedCategory }) => {
                 }
                 if (chart.id === 'vds_incumprimento_01$004') {
                     return <FossaConcelhoLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                }
+                if (chart.id === 'vds_pedido_01$001' || chart.id === 'vds_pedido_01$010') {
+                    return <Pedido001HBarCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                }
+                if (['vds_pedido_01$002', 'vds_pedido_01$003', 'vds_pedido_01$004'].includes(chart.id)) {
+                    return <Pedido002HBarCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                }
+                if (chart.id === 'vds_ramal_01$004') {
+                    return <Incumprimento003Card key={chart.id} chart={chart} viewMode={viewMode} index={index} colorMap={null} />;
+                }
+                if (chart.id === 'vds_incumprimento_01$003' || chart.id === 'vds_incumprimento_01$008') {
+                    return <Incumprimento003Card key={chart.id} chart={chart} viewMode={viewMode} index={index} colorMap={incumprimentoColorMap} />;
+                }
+                if (chart.id === 'vds_incumprimento_01$006' || chart.id === 'vds_incumprimento_01$009') {
+                    return <Incumprimento006Card key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
                 }
                 if (chart.id === 'vds_incumprimento_01$005') {
                     return <IncumprimentoLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} colorMap={incumprimentoColorMap} />;
