@@ -243,6 +243,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+
+  '/emissoes': {
+    id: 'emissoes',
+    text: 'Emissões',
+    icon: DocumentsIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.EMISSIONS_VIEW },
+    showInSidebar: true,
+  },
   // ==================== MÓDULO: PAGAMENTOS ====================
 
   '/clients': {
@@ -597,23 +606,7 @@ export const ROUTE_CONFIG = {
     icon: InventoryIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.INVENTORY_VIEW },
-    showInSidebar: true,
-    submenu: {
-      '/inventory/stocks': {
-        id: 'inventory_stocks',
-        text: 'Stocks',
-        icon: InventoryIcon,
-        permissions: { required: PERMISSIONS.INVENTORY_VIEW },
-        showInSidebar: true,
-      },
-      '/inventory/movements': {
-        id: 'inventory_movements',
-        text: 'Movimentos',
-        icon: PaymentsIcon,
-        permissions: { required: PERMISSIONS.INVENTORY_MOVEMENTS },
-        showInSidebar: true,
-      },
-    },
+    showInSidebar: false, // Duplicado — usar /internal/inventario
   },
 
   '/offices': {
@@ -622,7 +615,7 @@ export const ROUTE_CONFIG = {
     icon: OfficesIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.OFFICES_VIEW },
-    showInSidebar: true,
+    showInSidebar: false, // Consolidado em /offices-admin (módulo Sistema)
   },
 
   '/pedidos': {

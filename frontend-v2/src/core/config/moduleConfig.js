@@ -86,7 +86,7 @@ export const MODULES = {
 
   ADMINISTRACAO: {
     id: 'administracao',
-    label: 'Administração',
+    label: 'Sistema',
     icon: AdminPanelSettings,
     color: '#f44336', // Vermelho
     order: 5,
@@ -97,13 +97,13 @@ export const MODULES = {
         PERMISSIONS.SYSTEM_CONFIG,
       ]
     },
-    description: 'Administração do sistema',
+    description: 'Administração do sistema, utilizadores e logs',
     defaultRoute: '/admin',
   },
 
   ADMINISTRATIVO: {
     id: 'administrativo',
-    label: 'Administrativo',
+    label: 'Interno',
     icon: Description,
     color: '#607d8b', // Cinza azulado
     order: 6,
@@ -115,7 +115,7 @@ export const MODULES = {
         PERMISSIONS.OFFICES_VIEW,
       ]
     },
-    description: 'Gestão administrativa, tarefas e inventário',
+    description: 'Tarefas administrativas, EPI, frota e inventário',
     defaultRoute: '/tasks',
   },
 };
@@ -174,6 +174,7 @@ export const detectModuleFromPath = (pathname) => {
     '/telemetry': 'gestao',
     '/expenses': 'gestao',
     '/pavements': 'gestao',
+    '/emissoes': 'gestao',
 
     // PAGAMENTOS
     '/clients': 'pagamentos',

@@ -45,12 +45,18 @@
       "Bash(powershell -ExecutionPolicy ByPass -File \"Deploy/Deploy-Main.ps1\" -Help)",
       "Bash(powershell -ExecutionPolicy ByPass -File \"Deploy/Deploy-Main.ps1\")",
       "Read(//c/Users/rui.ramos/AppData/Roaming/Code/User/**)",
-      "Read(//c/Users/rui.ramos/Desktop/APP/backend/app/**)"
+      "Read(//c/Users/rui.ramos/Desktop/APP/backend/app/**)",
+      "Read(//c/Users/rui.ramos/.claude/**)",
+      "Read(//c/Users/rui.ramos/Desktop/APP/**)",
+      "Bash(done)",
+      "Read(//dev/**)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\Users\\rui.ramos\\AppData\\Roaming\\Code\\User"
+      "C:\\Users\\rui.ramos\\AppData\\Roaming\\Code\\User",
+      "c:\\Users\\rui.ramos\\Desktop\\APP\\.claude",
+      "c:\\Users\\rui.ramos\\.claude\\projects\\c--Users-rui-ramos-Desktop-APP\\memory"
     ]
   }
 }

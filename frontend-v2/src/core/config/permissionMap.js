@@ -164,6 +164,11 @@ export const PERMISSIONS = {
   // ==================== SIBS (1400-1449) ====================
   SIBS_VIEW: 1400,
   SIBS_PROCESS: 1410,
+
+  // ==================== EMISSOES (1450-1499) ====================
+  EMISSIONS_VIEW: 1450,
+  EMISSIONS_CREATE: 1460,
+  EMISSIONS_MANAGE_TEMPLATES: 1470,
 };
 
 /**

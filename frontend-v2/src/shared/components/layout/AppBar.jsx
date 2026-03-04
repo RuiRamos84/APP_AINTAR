@@ -34,6 +34,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LockIcon from '@mui/icons-material/Lock';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { useUIStore } from '@/core/store/uiStore';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
@@ -44,7 +45,7 @@ import { NotificationCenter } from './NotificationCenter';
 export const AppBar = ({ onMenuClick }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md')); // mostra labels a partir de tablet (≥900px)
 
   const themeMode = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
@@ -73,6 +74,11 @@ export const AppBar = ({ onMenuClick }) => {
   const handleNavigateToChangePassword = () => {
     handleCloseMenu();
     navigate('/change-password');
+  };
+
+  const handleNavigateToSettings = () => {
+    handleCloseMenu();
+    navigate('/settings');
   };
 
   const handleLogout = async () => {
@@ -307,9 +313,6 @@ export const AppBar = ({ onMenuClick }) => {
             <Typography variant="subtitle2" fontWeight="bold" noWrap>
               {user?.user_name}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              ID: {user?.user_id}
-            </Typography>
           </Box>
           <Divider sx={{ my: 1 }} />
           <MenuItem onClick={handleNavigateToProfile} sx={{ borderRadius: 1, mx: 1 }}>
@@ -319,6 +322,10 @@ export const AppBar = ({ onMenuClick }) => {
           <MenuItem onClick={handleNavigateToChangePassword} sx={{ borderRadius: 1, mx: 1 }}>
             <ListItemIcon><LockIcon fontSize="small" /></ListItemIcon>
             <Typography variant="body2">Alterar Password</Typography>
+          </MenuItem>
+          <MenuItem onClick={handleNavigateToSettings} sx={{ borderRadius: 1, mx: 1 }}>
+            <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
+            <Typography variant="body2">Configurações</Typography>
           </MenuItem>
           <Divider sx={{ my: 1 }} />
           <MenuItem onClick={handleLogout} sx={{ borderRadius: 1, mx: 1, color: theme.palette.error.main }}>
