@@ -58,10 +58,11 @@ const SidebarItem = React.memo(({
     }, [item.submenu]);
 
     const isSubmenuActive = useMemo(() => {
+        const currentPath = location.pathname + location.search;
         return submenuArray.length > 0 && submenuArray.some(
-            subItem => subItem.to === location.pathname
+            subItem => subItem.to === currentPath || subItem.to === location.pathname
         );
-    }, [submenuArray, location.pathname]);
+    }, [submenuArray, location.pathname, location.search]);
 
     const isItemActive = isActive || isSubmenuActive;
     const hasSubmenu = submenuArray.length > 0;
@@ -301,7 +302,7 @@ const SidebarItem = React.memo(({
                     >
                         <List sx={{ pl: 1 }}>
                             {submenuArray.map(subItem => {
-                                const isSubItemActive = subItem.to === location.pathname;
+                                const isSubItemActive = subItem.to === (location.pathname + location.search) || subItem.to === location.pathname;
 
                                 return (
                                     <ListItemButton
@@ -434,7 +435,7 @@ const SidebarItem = React.memo(({
                                             {item.text}
                                         </Typography>
                                         {submenuArray.map((subItem) => {
-                                            const isSubItemActive = subItem.to === location.pathname;
+                                            const isSubItemActive = subItem.to === (location.pathname + location.search) || subItem.to === location.pathname;
 
                                             return (
                                                 <MenuItem

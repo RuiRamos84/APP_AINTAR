@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -70,6 +71,20 @@ const DashboardModern = () => {
     }, [selectedYear, selectedMonth]);
 
     const { dashboardData, isLoading, isFetching, isError, error, refetch } = useDashboardData(filters);
+
+    // Garantir loading mínimo de 600ms para as animações de entrada serem sempre visíveis
+    const [isReady, setIsReady] = useState(false);
+    const mountTimeRef = useRef(Date.now());
+
+    useEffect(() => {
+        if (!isLoading && dashboardData) {
+            const elapsed = Date.now() - mountTimeRef.current;
+            const minDelay = 600;
+            const remaining = Math.max(0, minDelay - elapsed);
+            const timer = setTimeout(() => setIsReady(true), remaining);
+            return () => clearTimeout(timer);
+        }
+    }, [isLoading, dashboardData]);
 
     // Carregar estrutura
     useEffect(() => {
@@ -151,8 +166,8 @@ const DashboardModern = () => {
         return Array.from({ length: 5 }, (_, i) => currentYear - i);
     }, []);
 
-    // Estados de loading e erro
-    if (isLoading) {
+    // Loading — sempre visível enquanto os dados não estiverem prontos (mínimo 600ms)
+    if (!isReady) {
         return (
             <Box sx={{
                 display: 'flex',
@@ -160,12 +175,17 @@ const DashboardModern = () => {
                 justifyContent: 'center',
                 alignItems: 'center',
                 height: '80vh',
-                gap: 2
+                gap: 3
             }}>
-                <CircularProgress size={60} />
-                <Typography variant="h6" color="text.secondary">
-                    A carregar dados do Dashboard...
-                </Typography>
+                <CircularProgress size={64} thickness={3} />
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h6" color="text.secondary" fontWeight={500}>
+                        A carregar dados...
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, opacity: 0.7 }}>
+                        A preparar os gráficos
+                    </Typography>
+                </Box>
             </Box>
         );
     }
@@ -193,6 +213,11 @@ const DashboardModern = () => {
     }
 
     return (
+        <motion.div
+            initial={{ opacity: 1, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+        >
         <Box sx={{ p: 3, backgroundColor: theme.palette.background.default, minHeight: '100vh' }}>
             {/* Header */}
             <Box sx={{
@@ -212,19 +237,8 @@ const DashboardModern = () => {
                     </Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Filtro de Ano */}
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                        <InputLabel>Ano</InputLabel>
-                        <Select value={selectedYear} label="Ano" onChange={handleYearChange}>
-                            <MenuItem value="">Todos os anos</MenuItem>
-                            {years.map(year => (
-                                <MenuItem key={year} value={year}>{year}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    {/* Botões de ação */}
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    {/* Botão de atualizar */}
                     <Tooltip title={isFetching ? 'A atualizar...' : 'Atualizar dados'}>
                         <span>
                             <IconButton
@@ -242,17 +256,6 @@ const DashboardModern = () => {
                                 <RefreshIcon />
                             </IconButton>
                         </span>
-                    </Tooltip>
-
-                    <Tooltip title="Exportar dados">
-                        <IconButton
-                            sx={{
-                                backgroundColor: alpha(theme.palette.success.main, 0.1),
-                                '&:hover': { backgroundColor: alpha(theme.palette.success.main, 0.2) }
-                            }}
-                        >
-                            <FileDownloadIcon />
-                        </IconButton>
                     </Tooltip>
                 </Box>
             </Box>
@@ -315,6 +318,7 @@ const DashboardModern = () => {
                 </Alert>
             )}
         </Box>
+        </motion.div>
     );
 };
 
