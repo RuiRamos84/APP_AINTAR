@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     Paper,
     Typography,
@@ -7,13 +7,14 @@ import {
     alpha,
     Chip,
     IconButton,
-    Tooltip,
-    Divider
+    Tooltip
 } from '@mui/material';
 import {
     ShowChart as ShowChartIcon,
     TableChart as TableChartIcon,
-    FileDownload as FileDownloadIcon
+    FileDownload as FileDownloadIcon,
+    BarChart as BarChartIcon,
+    ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,7 +32,7 @@ const formatColumnName = (name) =>
  * Análise Detalhada: painel de chips com títulos dos gráficos.
  * Ao clicar num título: gráfico em cima + tabela de dados em baixo.
  */
-const DetailedChartView = ({ data, selectedCategory }) => {
+const DetailedChartView = ({ data, selectedCategory, initialChartId }) => {
     const theme = useTheme();
     const [activeViewId, setActiveViewId] = useState(null);
     const [activeName, setActiveName] = useState(null); // para modo agrupado (nível 1)
@@ -57,6 +58,23 @@ const DetailedChartView = ({ data, selectedCategory }) => {
         });
         return views;
     }, [data]);
+
+    // Scroll para o topo quando o componente monta (vindo da Visão Geral)
+    useEffect(() => {
+        const main = document.querySelector('main');
+        if (main) main.scrollTo({ top: 0, behavior: 'instant' });
+        else window.scrollTo({ top: 0, behavior: 'instant' });
+    }, []);
+
+    // Selecionar automaticamente o gráfico quando vindo da Visão Geral
+    useEffect(() => {
+        if (!initialChartId || !availableViews.length) return;
+        const view = availableViews.find(v => v.id === initialChartId);
+        if (!view) return;
+        setActiveViewId(initialChartId);
+        const cats = new Set(availableViews.map(v => v.category));
+        if (cats.size > 1) setActiveName(view.name);
+    }, [initialChartId, availableViews]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Detectar se há múltiplas categorias (modo agrupado)
     const categories = useMemo(() => {
@@ -210,42 +228,61 @@ const DetailedChartView = ({ data, selectedCategory }) => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
             <Paper sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
 
-                {/* Painel de títulos — 2 níveis (agrupado) ou flat (uma categoria) */}
+                {/* ── Barra de títulos no topo ── */}
                 {isGrouped ? (
                     <>
-                        {/* Nível 1 — nomes únicos */}
+                        {/* Nível 1 */}
                         <Box sx={{
                             borderBottom: 1, borderColor: 'divider',
                             backgroundColor: alpha(theme.palette.primary.main, 0.02),
                             px: 2, py: 1.5,
-                            display: 'flex', flexWrap: 'wrap', gap: 1
+                            display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center'
                         }}>
-                            {uniqueNames.map(name => (
-                                <Chip
-                                    key={name}
-                                    label={name}
-                                    size="small"
-                                    onClick={() => handleNameClick(name)}
-                                    variant={activeName === name ? 'filled' : 'outlined'}
-                                    sx={{
-                                        fontWeight: activeName === name ? 'bold' : 'normal',
-                                        borderColor: activeName === name
-                                            ? theme.palette.primary.main
-                                            : alpha(theme.palette.divider, 0.5),
-                                        backgroundColor: activeName === name
-                                            ? alpha(theme.palette.primary.main, 0.12)
-                                            : 'transparent',
-                                        color: activeName === name
-                                            ? theme.palette.primary.main
-                                            : theme.palette.text.secondary,
-                                        cursor: 'pointer',
-                                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
-                                    }}
-                                />
-                            ))}
+                            <BarChartIcon sx={{ fontSize: 15, color: theme.palette.text.disabled, mr: 0.5 }} />
+                            {uniqueNames.map((name, idx) => {
+                                const isActive = activeName === name;
+                                return (
+                                    <Box
+                                        key={name}
+                                        onClick={() => handleNameClick(name)}
+                                        sx={{
+                                            display: 'flex', alignItems: 'center', gap: 0.75,
+                                            px: 1.5, py: 0.6,
+                                            borderRadius: 2,
+                                            cursor: 'pointer',
+                                            border: `1px solid`,
+                                            borderColor: isActive ? theme.palette.primary.main : alpha(theme.palette.divider, 0.5),
+                                            backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                                            transition: 'all 0.15s ease',
+                                            '&:hover': {
+                                                borderColor: theme.palette.primary.main,
+                                                backgroundColor: alpha(theme.palette.primary.main, isActive ? 0.14 : 0.05),
+                                            }
+                                        }}
+                                    >
+                                        <Box sx={{
+                                            width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            backgroundColor: isActive ? theme.palette.primary.main : alpha(theme.palette.text.disabled, 0.2),
+                                            transition: 'background-color 0.15s'
+                                        }}>
+                                            <Typography sx={{ fontSize: 9, fontWeight: 700, color: isActive ? '#fff' : theme.palette.text.secondary, lineHeight: 1 }}>
+                                                {idx + 1}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant="body2" sx={{
+                                            fontWeight: isActive ? 600 : 400,
+                                            fontSize: '0.8rem',
+                                            color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                                        }}>
+                                            {name}
+                                        </Typography>
+                                    </Box>
+                                );
+                            })}
                         </Box>
 
-                        {/* Nível 2 — sub-botões por categoria (só quando o título existe em múltiplas) */}
+                        {/* Nível 2 */}
                         {activeName && viewsForActiveName.length > 1 && (
                             <Box sx={{
                                 borderBottom: 1, borderColor: 'divider',
@@ -253,79 +290,96 @@ const DetailedChartView = ({ data, selectedCategory }) => {
                                 px: 2, py: 1,
                                 display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center'
                             }}>
-                                <Typography variant="caption" color="text.secondary" sx={{
-                                    mr: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5
-                                }}>
+                                <Typography variant="caption" color="text.disabled" sx={{ mr: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                     {activeName}:
                                 </Typography>
                                 {viewsForActiveName.map(view => {
                                     const catInfo = DASHBOARD_CATEGORIES[view.category];
+                                    const isActiveSub = activeViewId === view.id;
                                     return (
-                                        <Chip
+                                        <Box
                                             key={view.id}
-                                            label={catInfo?.name || view.category}
-                                            size="small"
                                             onClick={() => setActiveViewId(view.id)}
-                                            variant={activeViewId === view.id ? 'filled' : 'outlined'}
                                             sx={{
-                                                fontWeight: activeViewId === view.id ? 'bold' : 'normal',
-                                                borderColor: activeViewId === view.id
-                                                    ? theme.palette.secondary.main
-                                                    : alpha(theme.palette.divider, 0.5),
-                                                backgroundColor: activeViewId === view.id
-                                                    ? alpha(theme.palette.secondary.main, 0.12)
-                                                    : 'transparent',
-                                                color: activeViewId === view.id
-                                                    ? theme.palette.secondary.main
-                                                    : theme.palette.text.secondary,
-                                                cursor: 'pointer',
-                                                '&:hover': { backgroundColor: alpha(theme.palette.secondary.main, 0.08) }
+                                                display: 'flex', alignItems: 'center', gap: 0.5,
+                                                px: 1.25, py: 0.5, borderRadius: 2, cursor: 'pointer',
+                                                border: '1px solid',
+                                                borderColor: isActiveSub ? theme.palette.secondary.main : alpha(theme.palette.divider, 0.5),
+                                                backgroundColor: isActiveSub ? alpha(theme.palette.secondary.main, 0.1) : 'transparent',
+                                                transition: 'all 0.15s',
+                                                '&:hover': { borderColor: theme.palette.secondary.main, backgroundColor: alpha(theme.palette.secondary.main, 0.06) }
                                             }}
-                                        />
+                                        >
+                                            <Typography variant="caption" sx={{
+                                                fontWeight: isActiveSub ? 600 : 400,
+                                                color: isActiveSub ? theme.palette.secondary.main : theme.palette.text.secondary
+                                            }}>
+                                                {catInfo?.name || view.category}
+                                            </Typography>
+                                        </Box>
                                     );
                                 })}
                             </Box>
                         )}
                     </>
                 ) : (
-                    // Modo flat: uma só categoria
                     <Box sx={{
-                        borderBottom: 1,
-                        borderColor: 'divider',
+                        borderBottom: 1, borderColor: 'divider',
                         backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                        px: 2,
-                        py: 1.5,
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 1
+                        px: 2, py: 1.5,
+                        display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center'
                     }}>
-                        {availableViews.map((view) => (
-                            <Chip
-                                key={view.id}
-                                label={view.name}
-                                size="small"
-                                onClick={() => setActiveViewId(prev => prev === view.id ? null : view.id)}
-                                variant={activeViewId === view.id ? 'filled' : 'outlined'}
-                                sx={{
-                                    fontWeight: activeViewId === view.id ? 'bold' : 'normal',
-                                    borderColor: activeViewId === view.id
-                                        ? theme.palette.primary.main
-                                        : alpha(theme.palette.divider, 0.5),
-                                    backgroundColor: activeViewId === view.id
-                                        ? alpha(theme.palette.primary.main, 0.12)
-                                        : 'transparent',
-                                    color: activeViewId === view.id
-                                        ? theme.palette.primary.main
-                                        : theme.palette.text.secondary,
-                                    cursor: 'pointer',
-                                    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
-                                }}
-                            />
-                        ))}
+                        <BarChartIcon sx={{ fontSize: 15, color: theme.palette.text.disabled, mr: 0.5 }} />
+                        {availableViews.map((view, idx) => {
+                            const isActive = activeViewId === view.id;
+                            return (
+                                <Box
+                                    key={view.id}
+                                    onClick={() => setActiveViewId(prev => prev === view.id ? null : view.id)}
+                                    sx={{
+                                        display: 'flex', alignItems: 'center', gap: 0.75,
+                                        px: 1.5, py: 0.6,
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: isActive ? theme.palette.primary.main : alpha(theme.palette.divider, 0.5),
+                                        backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                                        transition: 'all 0.15s ease',
+                                        '&:hover': {
+                                            borderColor: theme.palette.primary.main,
+                                            backgroundColor: alpha(theme.palette.primary.main, isActive ? 0.14 : 0.05),
+                                        }
+                                    }}
+                                >
+                                    <Box sx={{
+                                        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        backgroundColor: isActive ? theme.palette.primary.main : alpha(theme.palette.text.disabled, 0.2),
+                                        transition: 'background-color 0.15s'
+                                    }}>
+                                        <Typography sx={{ fontSize: 9, fontWeight: 700, color: isActive ? '#fff' : theme.palette.text.secondary, lineHeight: 1 }}>
+                                            {idx + 1}
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="body2" sx={{
+                                        fontWeight: isActive ? 600 : 400,
+                                        fontSize: '0.8rem',
+                                        color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                                    }}>
+                                        {view.name}
+                                    </Typography>
+                                    {view.viewData?.total != null && (
+                                        <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: '0.68rem' }}>
+                                            {view.viewData.total}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            );
+                        })}
                     </Box>
                 )}
 
-                {/* Conteúdo (gráfico + tabela) */}
+                {/* ── Conteúdo (gráfico + tabela) ── */}
                 <AnimatePresence mode="sync">
                     {activeViewId && singleViewData ? (
                         <motion.div
@@ -335,16 +389,26 @@ const DetailedChartView = ({ data, selectedCategory }) => {
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.12 }}
                         >
-                            {/* Gráfico */}
+                            {/* Cabeçalho do gráfico */}
                             <Box sx={{
-                                px: 2, pt: 1, pb: 0,
-                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
-                                display: 'flex', alignItems: 'center', gap: 1
+                                px: 2.5, py: 1.25,
+                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                backgroundColor: alpha(theme.palette.primary.main, 0.03),
+                                display: 'flex', alignItems: 'center', gap: 1.5
                             }}>
-                                <ShowChartIcon sx={{ fontSize: 16, color: theme.palette.primary.main }} />
-                                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                <ShowChartIcon sx={{ fontSize: 17, color: theme.palette.primary.main }} />
+                                <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
                                     {currentView?.name}
                                 </Typography>
+                                <Chip
+                                    label={`${currentView?.data?.length ?? 0} registos`}
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                        color: theme.palette.primary.main,
+                                        fontWeight: 600, fontSize: '0.7rem', height: 22
+                                    }}
+                                />
                             </Box>
 
                             <Box sx={{ p: 2 }}>
@@ -355,18 +419,16 @@ const DetailedChartView = ({ data, selectedCategory }) => {
                                 />
                             </Box>
 
-                            {/* Separador */}
-                            <Divider />
-
                             {/* Cabeçalho da tabela */}
                             <Box sx={{
-                                px: 2, py: 1,
-                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
-                                backgroundColor: alpha(theme.palette.background.default, 0.4),
+                                px: 2.5, py: 1.25,
+                                borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                backgroundColor: alpha(theme.palette.background.default, 0.5),
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <TableChartIcon sx={{ fontSize: 16, color: theme.palette.secondary.main }} />
+                                    <TableChartIcon sx={{ fontSize: 15, color: theme.palette.secondary.main }} />
                                     <Typography variant="body2" color="text.secondary">
                                         <strong>{currentView?.data?.length ?? 0}</strong> registos •{' '}
                                         <strong>{gridColumns.length}</strong> colunas
@@ -418,15 +480,13 @@ const DetailedChartView = ({ data, selectedCategory }) => {
                             transition={{ duration: 0.1 }}
                         >
                             <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
-                                <ShowChartIcon sx={{ fontSize: 48, opacity: 0.3, mb: 2 }} />
-                                <>
-                                        <Typography variant="body1" fontWeight={500}>
-                                            Selecione um gráfico acima para visualizar
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.7 }}>
-                                            {availableViews.length} gráfico{availableViews.length !== 1 ? 's' : ''} disponível{availableViews.length !== 1 ? 'is' : ''}
-                                        </Typography>
-                                    </>
+                                <ShowChartIcon sx={{ fontSize: 48, color: alpha(theme.palette.primary.main, 0.2), mb: 2 }} />
+                                <Typography variant="body1" fontWeight={500}>
+                                    Selecione um gráfico acima para visualizar
+                                </Typography>
+                                <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.7 }}>
+                                    {availableViews.length} gráfico{availableViews.length !== 1 ? 's' : ''} disponível{availableViews.length !== 1 ? 'is' : ''}
+                                </Typography>
                             </Box>
                         </motion.div>
                     )}

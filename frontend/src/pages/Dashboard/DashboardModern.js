@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -60,7 +61,6 @@ const DashboardModern = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [activeTab, setActiveTab] = useState(0);
     const [viewMode, setViewMode] = useState('overview'); // overview, detailed, table
-    const [dashboardStructure, setDashboardStructure] = useState(null);
 
     // Hook de dados
     const filters = useMemo(() => {
@@ -72,32 +72,16 @@ const DashboardModern = () => {
 
     const { dashboardData, isLoading, isFetching, isError, error, refetch } = useDashboardData(filters);
 
-    // Garantir loading mínimo de 600ms para as animações de entrada serem sempre visíveis
-    const [isReady, setIsReady] = useState(false);
-    const mountTimeRef = useRef(Date.now());
+    const isReady = !isLoading && !!dashboardData;
 
-    useEffect(() => {
-        if (!isLoading && dashboardData) {
-            const elapsed = Date.now() - mountTimeRef.current;
-            const minDelay = 600;
-            const remaining = Math.max(0, minDelay - elapsed);
-            const timer = setTimeout(() => setIsReady(true), remaining);
-            return () => clearTimeout(timer);
-        }
-    }, [isLoading, dashboardData]);
-
-    // Carregar estrutura
-    useEffect(() => {
-        const loadStructure = async () => {
-            try {
-                const structure = await getDashboardStructure();
-                setDashboardStructure(structure);
-            } catch (err) {
-                console.error('Erro ao carregar estrutura:', err);
-            }
-        };
-        loadStructure();
-    }, []);
+    // Carregar estrutura — com cache permanente (só busca uma vez por sessão)
+    useQuery({
+        queryKey: ['dashboardStructure'],
+        queryFn: getDashboardStructure,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+    });
 
     // Handlers
     const handleYearChange = (event) => setSelectedYear(event.target.value);
@@ -166,29 +150,7 @@ const DashboardModern = () => {
         return Array.from({ length: 5 }, (_, i) => currentYear - i);
     }, []);
 
-    // Loading — sempre visível enquanto os dados não estiverem prontos (mínimo 600ms)
-    if (!isReady) {
-        return (
-            <Box sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '80vh',
-                gap: 3
-            }}>
-                <CircularProgress size={64} thickness={3} />
-                <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" color="text.secondary" fontWeight={500}>
-                        A carregar dados...
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, opacity: 0.7 }}>
-                        A preparar os gráficos
-                    </Typography>
-                </Box>
-            </Box>
-        );
-    }
+    if (!isReady) return null;
 
     if (isError) {
         return (
@@ -260,7 +222,7 @@ const DashboardModern = () => {
                 </Box>
             </Box>
 
-            {/* KPIs - Clicáveis para filtrar por categoria */}
+            {/* KPIs - Clicáveis para navegar para categoria */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 {kpiData.map((kpi) => (
                     <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.id}>
@@ -272,51 +234,6 @@ const DashboardModern = () => {
                     </Grid>
                 ))}
             </Grid>
-
-            {/* Tabs de Visualização */}
-            <Paper sx={{ mb: 3, mt: 3 }}>
-                <Tabs
-                    value={activeTab}
-                    onChange={handleTabChange}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    sx={{ borderBottom: 1, borderColor: 'divider' }}
-                >
-                    <Tab icon={<BarChartIcon />} label="Visão Geral" iconPosition="start" />
-                    <Tab icon={<ShowChartIcon />} label="Análise Detalhada" iconPosition="start" />
-                </Tabs>
-            </Paper>
-
-            {/* Conteúdo das Tabs */}
-            <Box sx={{ minHeight: '600px' }}>
-                {activeTab === 0 && (
-                    <ChartContainer
-                        data={filteredData}
-                        viewMode="overview"
-                        selectedCategory={selectedCategory}
-                    />
-                )}
-
-                {activeTab === 1 && (
-                    <DetailedChartView
-                        data={filteredData}
-                        selectedCategory={selectedCategory}
-                    />
-                )}
-
-            </Box>
-
-            {/* Mensagem se não houver dados */}
-            {(!dashboardData?.data || Object.keys(dashboardData.data).length === 0) && (
-                <Alert severity="info" sx={{ mt: 3 }}>
-                    <Typography variant="body1" fontWeight="bold">
-                        Não há dados disponíveis
-                    </Typography>
-                    <Typography variant="body2">
-                        Selecione diferentes filtros ou verifique se as views do banco de dados estão configuradas corretamente.
-                    </Typography>
-                </Alert>
-            )}
         </Box>
         </motion.div>
     );

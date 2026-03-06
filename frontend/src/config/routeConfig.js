@@ -178,20 +178,6 @@ export const ROUTE_CONFIG = {
         icon: DashboardIcon,
         permissions: { required: 400 },
         showInSidebar: true,
-        submenu: {
-            '/dashboard': {
-                id: 'dashboard_resumo',
-                text: 'Resumo',
-                icon: DashboardIcon,
-                permissions: { required: 400 }
-            },
-            '/dashboard?tab=geral': {
-                id: 'dashboard_geral',
-                text: 'Geral',
-                icon: AssessmentIcon,
-                permissions: { required: 400 }
-            }
-        }
     },
 
     '/operation': {
