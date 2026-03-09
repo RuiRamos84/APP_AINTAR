@@ -57,6 +57,7 @@ const CategoryPage = () => {
     const theme = useTheme();
 
     const [activeTab, setActiveTab] = useState(0);
+    const [initialChartId, setInitialChartId] = useState(null);
     const [selectedYear, setSelectedYear] = useState('');
     const [selectedMonth, setSelectedMonth] = useState('');
 
@@ -147,16 +148,6 @@ const CategoryPage = () => {
 
                 {/* Filtros */}
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                        <InputLabel>Ano</InputLabel>
-                        <Select value={selectedYear} label="Ano" onChange={e => setSelectedYear(e.target.value)}>
-                            <MenuItem value="">Todos os anos</MenuItem>
-                            {years.map(year => (
-                                <MenuItem key={year} value={year}>{year}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
                     <Tooltip title={isFetching ? 'A atualizar...' : 'Atualizar dados'}>
                         <span>
                             <IconButton
@@ -192,16 +183,6 @@ const CategoryPage = () => {
                 </Tabs>
             </Paper>
 
-            {/* Loading */}
-            {isLoading && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '400px', gap: 2 }}>
-                    <CircularProgress size={60} />
-                    <Typography variant="h6" color="text.secondary">
-                        A carregar dados de {categoryInfo.name}...
-                    </Typography>
-                </Box>
-            )}
-
             {/* Erro */}
             {isError && (
                 <Alert
@@ -217,19 +198,21 @@ const CategoryPage = () => {
             )}
 
             {/* Conteúdo das Tabs */}
-            {!isLoading && !isError && (
+            {!isError && (
                 <Box sx={{ minHeight: '600px' }}>
                     {activeTab === 0 && (
                         <ChartContainer
                             data={categoryData}
                             viewMode="overview"
                             selectedCategory={category}
+                            onDetailClick={(chartId) => { setInitialChartId(chartId); setActiveTab(1); }}
                         />
                     )}
                     {activeTab === 1 && (
                         <DetailedChartView
                             data={categoryData}
                             selectedCategory={category}
+                            initialChartId={initialChartId}
                         />
                     )}
                 </Box>

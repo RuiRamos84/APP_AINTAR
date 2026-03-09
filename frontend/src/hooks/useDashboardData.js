@@ -28,8 +28,9 @@ export const useDashboardData = (filters = {}) => {
         // A queryKey inclui os filtros para que os dados sejam cacheados separadamente
         queryKey: ['dashboardData', normalizedFilters],
         queryFn: () => getAllDashboardData(normalizedFilters),
-        staleTime: 1000 * 60 * 15, // Considerar os dados "frescos" por 15 minutos.
-        refetchOnWindowFocus: true, // Atualiza os dados quando o utilizador volta à janela.
+        staleTime: Infinity,         // Dados nunca ficam obsoletos automaticamente.
+        refetchOnWindowFocus: false, // Não atualiza ao voltar à janela.
+        refetchOnMount: false,       // Não atualiza ao navegar de volta (usa cache existente).
     });
 
     return { dashboardData, isLoading, isFetching, isError, error, refetch };

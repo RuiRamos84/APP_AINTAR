@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Paper, Typography, Box, useTheme, alpha, Chip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Paper, Typography, Box, useTheme, alpha, Chip, Select, MenuItem, FormControl, InputLabel, Button } from '@mui/material';
+import { ShowChart as ShowChartIcon } from '@mui/icons-material';
 import Grid from '@mui/material/Grid';
 import {
     BarChart,
@@ -20,6 +21,33 @@ import {
     Sector
 } from 'recharts';
 import { motion } from 'framer-motion';
+
+const OverlayDetailBtn = ({ onDetailClick }) => {
+    if (!onDetailClick) return null;
+    return (
+        <Box sx={{ position: 'absolute', bottom: 10, right: 10, zIndex: 10 }}>
+            <Button
+                variant="contained"
+                size="small"
+                startIcon={<ShowChartIcon sx={{ fontSize: 12 }} />}
+                onClick={(e) => { e.stopPropagation(); onDetailClick(); }}
+                sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    py: 0.35,
+                    px: 1,
+                    boxShadow: 4,
+                    borderRadius: 1.5,
+                    opacity: 0.82,
+                    '&:hover': { opacity: 1 },
+                }}
+            >
+                Análise Detalhada
+            </Button>
+        </Box>
+    );
+};
 
 /**
  * Gráfico de duração — componente puro, recebe selectedYear via props
@@ -95,7 +123,7 @@ const DurationBarChart = ({ data, selectedYear, yAxisLabel = 'Dias', tooltipUnit
  * Card completo para gráficos de duração (vds_pedido_01$016, vds_pedido_01$017)
  * Estado local — clique nos botões de ano NÃO re-renderiza ChartContainer
  */
-const DurationChartCard = ({ chart, viewMode, index }) => {
+const DurationChartCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedYear, setSelectedYear] = useState(null);
 
@@ -127,7 +155,7 @@ const DurationChartCard = ({ chart, viewMode, index }) => {
                     sx={{
                         p: 3,
                         height: '100%',
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                         transition: 'all 0.3s ease',
                         '&:hover': {
                             boxShadow: theme.shadows[8],
@@ -141,11 +169,6 @@ const DurationChartCard = ({ chart, viewMode, index }) => {
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                <Chip
-                                    label={`${chart.total} registos`}
-                                    size="small"
-                                    variant="outlined"
-                                />
                                 <Chip
                                     label="Todos"
                                     size="small"
@@ -176,6 +199,7 @@ const DurationChartCard = ({ chart, viewMode, index }) => {
                         </Box>
                     </Box>
                     <DurationBarChart data={preparedData} selectedYear={selectedYear} isOverview={viewMode === 'overview'} smallXAxis={chart.id === 'vds_pedido_01$016'} />
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -186,7 +210,7 @@ const DurationChartCard = ({ chart, viewMode, index }) => {
  * Card para vds_tramitacao_01$002 — barras por utilizador com toggle de ano
  * Igual ao DurationChartCard mas sem limite de registos e com label Y "Tramitações"
  */
-const TramitacaoAnoCard = ({ chart, viewMode, index }) => {
+const TramitacaoAnoCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedYear, setSelectedYear] = useState(null);
 
@@ -209,13 +233,12 @@ const TramitacaoAnoCard = ({ chart, viewMode, index }) => {
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
-                                <Chip
+                                    <Chip
                                     label="Todos"
                                     size="small"
                                     onClick={() => handleYearClick(null)}
@@ -248,6 +271,7 @@ const TramitacaoAnoCard = ({ chart, viewMode, index }) => {
                         yAxisLabel="Tramitações"
                         tooltipUnit=""
                     />
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -258,7 +282,7 @@ const TramitacaoAnoCard = ({ chart, viewMode, index }) => {
  * Card para tramitações por utilizador/mês/ano (vds_tramitacao_01$003)
  * Botões de utilizador no header + gráfico de linhas mensal por ano
  */
-const TramitacaoUserCard = ({ chart, viewMode, index }) => {
+const TramitacaoUserCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedUser, setSelectedUser] = useState(null);
 
@@ -336,7 +360,7 @@ const TramitacaoUserCard = ({ chart, viewMode, index }) => {
                     sx={{
                         p: 3,
                         height: '100%',
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                         transition: 'all 0.3s ease',
                         '&:hover': {
                             boxShadow: theme.shadows[8],
@@ -350,11 +374,6 @@ const TramitacaoUserCard = ({ chart, viewMode, index }) => {
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
-                                <Chip
-                                    label={`${chart.total} registos`}
-                                    size="small"
-                                    variant="outlined"
-                                />
                                 <FormControl size="small" sx={{ minWidth: 180 }}>
                                     <InputLabel>Utilizador</InputLabel>
                                     <Select
@@ -415,6 +434,7 @@ const TramitacaoUserCard = ({ chart, viewMode, index }) => {
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -586,13 +606,54 @@ const FossaEstadoPieChart = ({ data, colors, total, zoomFilter, zoomNote, isOver
                 </Typography>
             )}
 
+            {/* Etiquetas com todas as percentagens — clicáveis para fixar */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center', mb: 2, px: 2 }}>
+                {displayData.map((item, index) => {
+                    const isActive = activeIndex === index;
+                    const isThisPinned = pinnedIndex === index;
+                    const originalIndex = data.findIndex(d => d.name === item.name);
+                    const itemColor = colors[(originalIndex >= 0 ? originalIndex : index) % colors.length];
+                    return (
+                        <Box
+                            key={index}
+                            onMouseEnter={() => { if (!isPinned) setHoveredIndex(index); }}
+                            onMouseLeave={() => { if (!isPinned) setHoveredIndex(null); }}
+                            onClick={() => handleChipClick(index)}
+                            sx={{
+                                display: 'flex', alignItems: 'center', gap: 0.5,
+                                px: 1.5, py: 0.5, borderRadius: 2,
+                                backgroundColor: alpha(itemColor, isThisPinned ? 0.3 : isActive ? 0.2 : 0.1),
+                                border: `${isThisPinned ? 2 : 1}px solid ${alpha(itemColor, isThisPinned ? 0.8 : isActive ? 0.6 : 0.25)}`,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: isThisPinned ? `0 2px 8px ${alpha(itemColor, 0.3)}` : 'none'
+                            }}
+                        >
+                            <Box sx={{
+                                width: 10, height: 10, borderRadius: '50%',
+                                backgroundColor: itemColor, flexShrink: 0
+                            }} />
+                            <Typography variant="caption" fontWeight="600" sx={{ color: itemColor }}>
+                                {item.name}:
+                            </Typography>
+                            <Typography variant="caption" fontWeight="bold" color="text.primary">
+                                {((item.value / total) * 100).toFixed(1)}%
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                ({item.value})
+                            </Typography>
+                        </Box>
+                    );
+                })}
+            </Box>
+
             <motion.div
                 key={zoomedIn ? 'zoomed' : 'normal'}
                 initial={{ scale: 0.82, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
             >
-                <ResponsiveContainer width="100%" height={zoomedIn ? 520 : (isOverview ? 360 : 480)}>
+                <ResponsiveContainer width="100%" height={zoomedIn ? 520 : (isOverview ? 420 : 480)}>
                     <PieChart margin={{ top: 10, right: isOverview ? 80 : 110, bottom: 10, left: isOverview ? 80 : 110 }}>
                         <Pie
                             data={displayData}
@@ -638,51 +699,11 @@ const FossaEstadoPieChart = ({ data, colors, total, zoomFilter, zoomNote, isOver
                                 ]}
                             />
                         )}
-                        {!isOverview && <Legend verticalAlign="bottom" height={36} />}
+                        {!isOverview && <Legend verticalAlign="top" height={36} />}
                     </PieChart>
                 </ResponsiveContainer>
             </motion.div>
 
-            {/* Etiquetas com todas as percentagens — clicáveis para fixar */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center', mt: 2, px: 2 }}>
-                {displayData.map((item, index) => {
-                    const isActive = activeIndex === index;
-                    const isThisPinned = pinnedIndex === index;
-                    const originalIndex = data.findIndex(d => d.name === item.name);
-                    const itemColor = colors[(originalIndex >= 0 ? originalIndex : index) % colors.length];
-                    return (
-                        <Box
-                            key={index}
-                            onMouseEnter={() => { if (!isPinned) setHoveredIndex(index); }}
-                            onMouseLeave={() => { if (!isPinned) setHoveredIndex(null); }}
-                            onClick={() => handleChipClick(index)}
-                            sx={{
-                                display: 'flex', alignItems: 'center', gap: 0.5,
-                                px: 1.5, py: 0.5, borderRadius: 2,
-                                backgroundColor: alpha(itemColor, isThisPinned ? 0.3 : isActive ? 0.2 : 0.1),
-                                border: `${isThisPinned ? 2 : 1}px solid ${alpha(itemColor, isThisPinned ? 0.8 : isActive ? 0.6 : 0.25)}`,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                boxShadow: isThisPinned ? `0 2px 8px ${alpha(itemColor, 0.3)}` : 'none'
-                            }}
-                        >
-                            <Box sx={{
-                                width: 10, height: 10, borderRadius: '50%',
-                                backgroundColor: itemColor, flexShrink: 0
-                            }} />
-                            <Typography variant="caption" fontWeight="600" sx={{ color: itemColor }}>
-                                {item.name}:
-                            </Typography>
-                            <Typography variant="caption" fontWeight="bold" color="text.primary">
-                                {((item.value / total) * 100).toFixed(1)}%
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                ({item.value})
-                            </Typography>
-                        </Box>
-                    );
-                })}
-            </Box>
         </Box>
     );
 };
@@ -693,7 +714,7 @@ const FossaEstadoPieChart = ({ data, colors, total, zoomFilter, zoomNote, isOver
  * X: número do mês; Linhas: municípios; Filtro: ano
  * APENAS usado por este gráfico específico
  */
-const FossaMesLineCard = ({ chart, viewMode, index }) => {
+const FossaMesLineCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedYear, setSelectedYear] = useState(null);
     
@@ -760,7 +781,7 @@ const FossaMesLineCard = ({ chart, viewMode, index }) => {
             >
                 <Paper sx={{
                     p: 3, height: '100%',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                     transition: 'all 0.3s ease',
                     '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' }
                 }}>
@@ -770,8 +791,7 @@ const FossaMesLineCard = ({ chart, viewMode, index }) => {
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
-                                {years.map((year, idx) => (
+                                    {years.map((year, idx) => (
                                     <Chip
                                         key={year}
                                         label={year}
@@ -825,6 +845,7 @@ const FossaMesLineCard = ({ chart, viewMode, index }) => {
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -836,7 +857,7 @@ const FossaMesLineCard = ({ chart, viewMode, index }) => {
  * X: semana (adaptada à semana máxima dos dados); Linhas: colunas numéricas; Filtro: ano
  * Paleta Tableau 10 (INCUMPRIMENTO_PALETTE)
  */
-const RamalSemanaLineCard = ({ chart, viewMode, index }) => {
+const RamalSemanaLineCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedYear, setSelectedYear] = useState(null);
 
@@ -898,13 +919,12 @@ const RamalSemanaLineCard = ({ chart, viewMode, index }) => {
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
-                                {years.map((year, idx) => (
+                                    {years.map((year, idx) => (
                                     <Chip
                                         key={year}
                                         label={year}
@@ -963,6 +983,7 @@ const RamalSemanaLineCard = ({ chart, viewMode, index }) => {
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -974,7 +995,7 @@ const RamalSemanaLineCard = ({ chart, viewMode, index }) => {
  * X: mês (adaptado ao mês máximo dos dados); Linhas: colunas numéricas; Filtro: ano
  * Paleta Tableau 10 (INCUMPRIMENTO_PALETTE)
  */
-const RamalMesLineCard = ({ chart, viewMode, index }) => {
+const RamalMesLineCard = ({ chart, viewMode, index, matchHeight = false, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedYear, setSelectedYear] = useState(null);
 
@@ -1031,15 +1052,14 @@ const RamalMesLineCard = ({ chart, viewMode, index }) => {
     const yearBtnColors = [theme.palette.primary.main, theme.palette.warning.main, theme.palette.success.main];
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={matchHeight ? { display: 'flex' } : {}}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={matchHeight ? { width: '100%' } : {}}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
-                                {years.map((year, idx) => (
+                                    {years.map((year, idx) => (
                                     <Chip
                                         key={year}
                                         label={year}
@@ -1058,7 +1078,7 @@ const RamalMesLineCard = ({ chart, viewMode, index }) => {
                             </Box>
                         </Box>
                     </Box>
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ResponsiveContainer width="100%" height={matchHeight ? 450 : 400}>
                         <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
                             <XAxis
@@ -1096,6 +1116,7 @@ const RamalMesLineCard = ({ chart, viewMode, index }) => {
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1165,7 +1186,7 @@ const buildIncumprimentoColorMap = (data, columns) => {
  * para garantir cores idênticas às dos gráficos 003 e 008
  * APENAS usado por este gráfico específico
  */
-const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMap }) => {
+const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMap, onDetailClick = null }) => {
     const theme = useTheme();
 
     const { paramCol, yearCols, params } = useMemo(() => {
@@ -1200,14 +1221,28 @@ const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMa
     }, [chart.data, paramCol, yearCols]);
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={{ display: 'flex' }}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={{ width: '100%' }}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                         </Box>
+                    </Box>
+                    {/* Legenda custom fora do gráfico — sem risco de sobreposição */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 2, mb: 2, px: 1 }}>
+                        {params.map((param) => (
+                            <Box key={param} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Box sx={{
+                                    width: 16, height: 4, borderRadius: 1,
+                                    backgroundColor: colorMap[param],
+                                    flexShrink: 0
+                                }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                    {param}
+                                </Typography>
+                            </Box>
+                        ))}
                     </Box>
                     <ResponsiveContainer width="100%" height={viewMode === 'overview' ? 560 : 420}>
                         <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
@@ -1216,11 +1251,6 @@ const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMa
                             <YAxis tick={{ fill: theme.palette.text.secondary }} allowDecimals={false} />
                             <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }}
                                 formatter={(value, name) => [value !== null ? value : 'Sem dados', name]} />
-                            <Legend
-                                verticalAlign={viewMode === 'overview' ? 'bottom' : 'top'}
-                                height={viewMode === 'overview' ? 140 : 36}
-                                wrapperStyle={viewMode === 'overview' ? { fontSize: '14px', lineHeight: '24px', paddingTop: '10px' } : {}}
-                            />
                             {params.map((param) => (
                                 <Line key={param} type="monotone" dataKey={param} name={param}
                                     stroke={colorMap[param]}
@@ -1229,6 +1259,7 @@ const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMa
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1240,7 +1271,7 @@ const IncumprimentoLineCard = ({ chart, viewMode, index, colorMap: globalColorMa
  * X: anos; Linhas: concelhos
  * APENAS usado por este gráfico específico
  */
-const FossaConcelhoLineCard = ({ chart, viewMode, index, colorPalette }) => {
+const FossaConcelhoLineCard = ({ chart, viewMode, index, colorPalette, onDetailClick = null }) => {
     const theme = useTheme();
 
     const LINE_COLORS = colorPalette || [
@@ -1295,15 +1326,16 @@ const FossaConcelhoLineCard = ({ chart, viewMode, index, colorPalette }) => {
     }, [chart.data, concelhoCol, yearCols]);
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={{ display: 'flex' }}>
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
+                style={{ width: '100%' }}
             >
                 <Paper sx={{
                     p: 3, height: '100%',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                     transition: 'all 0.3s ease',
                     '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' }
                 }}>
@@ -1312,8 +1344,22 @@ const FossaConcelhoLineCard = ({ chart, viewMode, index, colorPalette }) => {
                             {chart.name}
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                         </Box>
+                    </Box>
+                    {/* Legenda custom fora do gráfico — sem risco de sobreposição */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 2, mb: 2, px: 1 }}>
+                        {concelhos.map((concelho, idx) => (
+                            <Box key={concelho} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Box sx={{
+                                    width: 16, height: 4, borderRadius: 1,
+                                    backgroundColor: getMunicipioColor(concelho, LINE_COLORS[idx % LINE_COLORS.length]),
+                                    flexShrink: 0
+                                }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                    {concelho}
+                                </Typography>
+                            </Box>
+                        ))}
                     </Box>
                     <ResponsiveContainer width="100%" height={420}>
                         <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
@@ -1334,7 +1380,6 @@ const FossaConcelhoLineCard = ({ chart, viewMode, index, colorPalette }) => {
                                 }}
                                 formatter={(value, name) => [value !== null ? value : 'Sem dados', name]}
                             />
-                            <Legend verticalAlign="top" height={36} />
                             {concelhos.map((concelho, idx) => (
                                 <Line
                                     key={concelho}
@@ -1351,6 +1396,7 @@ const FossaConcelhoLineCard = ({ chart, viewMode, index, colorPalette }) => {
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1375,7 +1421,7 @@ const getFossaStateColor = (name, fallback) => {
     return fallback;
 };
 
-const FossaEstadoCard = ({ chart, viewMode, index }) => {
+const FossaEstadoCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
 
     const preparedData = useMemo(() => {
@@ -1390,15 +1436,16 @@ const FossaEstadoCard = ({ chart, viewMode, index }) => {
     const total = preparedData.reduce((sum, item) => sum + item.value, 0);
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={{ display: 'flex' }}>
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
+                style={{ width: '100%' }}
             >
                 <Paper sx={{
                     p: 3, height: '100%',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                     transition: 'all 0.3s ease',
                     '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' }
                 }}>
@@ -1407,10 +1454,10 @@ const FossaEstadoCard = ({ chart, viewMode, index }) => {
                             {chart.name}
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                         </Box>
                     </Box>
                     <FossaEstadoPieChart data={preparedData} colors={COLORS} total={total} isOverview={viewMode === 'overview'} />
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1428,7 +1475,7 @@ const repavZoomFilter = (item) => {
     return REPAV_ZOOM_NAMES.some(k => lower.includes(k));
 };
 
-const RepavEstadoCard = ({ chart, viewMode, index }) => {
+const RepavEstadoCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
 
     const BASE_COLORS = [
@@ -1457,11 +1504,10 @@ const RepavEstadoCard = ({ chart, viewMode, index }) => {
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                         </Box>
                     </Box>
                     <FossaEstadoPieChart
@@ -1472,6 +1518,7 @@ const RepavEstadoCard = ({ chart, viewMode, index }) => {
                         zoomNote='Apenas: "Entrada" e "Para Pagamento de Pavimentação"'
                         isOverview={viewMode === 'overview'}
                     />
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1485,7 +1532,7 @@ const RepavEstadoCard = ({ chart, viewMode, index }) => {
  * Total:   Total 2023, Total 2024, Total 2025
  * X: anos (2023/2024/2025); Linhas: municípios
  */
-const FossaDurationCard = ({ chart, viewMode, index }) => {
+const FossaDurationCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
     const [mode, setMode] = useState('duracao');
 
@@ -1530,7 +1577,7 @@ const FossaDurationCard = ({ chart, viewMode, index }) => {
             >
                 <Paper sx={{
                     p: 3, height: '100%',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                     transition: 'all 0.3s ease',
                     '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' }
                 }}>
@@ -1538,8 +1585,7 @@ const FossaDurationCard = ({ chart, viewMode, index }) => {
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
-                                <Chip
+                                    <Chip
                                     label="Duração (dias)"
                                     size="small"
                                     onClick={() => setMode('duracao')}
@@ -1584,6 +1630,7 @@ const FossaDurationCard = ({ chart, viewMode, index }) => {
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1595,7 +1642,7 @@ const FossaDurationCard = ({ chart, viewMode, index }) => {
  */
 const PEDIDO005_COLORS = ['#1565c0', '#388e3c', '#f57c00'];
 
-const Pedido005LineCard = ({ chart, viewMode, index }) => {
+const Pedido005LineCard = ({ chart, viewMode, index, matchHeight = false, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedSerie, setSelectedSerie] = useState(null); // null = Todos
 
@@ -1620,13 +1667,12 @@ const Pedido005LineCard = ({ chart, viewMode, index }) => {
     const dataKeys = getDataKeys(lineData, chart.columns);
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={matchHeight ? { display: 'flex' } : {}}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={matchHeight ? { width: '100%' } : {}}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                             {series.map((serie) => {
                                 const isSelected = selectedSerie === serie.key || (serie.key === null && !selectedSerie);
                                 const color = serie.color ?? theme.palette.primary.main;
@@ -1655,7 +1701,7 @@ const Pedido005LineCard = ({ chart, viewMode, index }) => {
                             <XAxis dataKey="name" tick={{ fill: theme.palette.text.secondary, fontSize: 11 }} angle={-45} textAnchor="end" height={70} interval={0} />
                             <YAxis tick={{ fill: theme.palette.text.secondary }} />
                             <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
-                            <Legend verticalAlign="bottom" height={40} wrapperStyle={{ fontSize: '14px', paddingTop: '6px' }} />
+                            <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: '14px', paddingBottom: '6px' }} />
                             {dataKeys.map((key, idx) => {
                                 const isActive = !selectedSerie || key === selectedSerie;
                                 return (
@@ -1674,6 +1720,7 @@ const Pedido005LineCard = ({ chart, viewMode, index }) => {
                             })}
                         </LineChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1685,7 +1732,7 @@ const Pedido005LineCard = ({ chart, viewMode, index }) => {
  */
 const TIPO_COLORS = ['#e53935', '#00838f', '#f9a825', '#7c4dff', '#00bcd4'];
 
-const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
+const Pedido008FilterCard = ({ chart, viewMode, index, compact = false, matchHeight = false, onDetailClick = null }) => {
     const theme = useTheme();
     const [selectedTipo, setSelectedTipo] = useState(null);
 
@@ -1714,11 +1761,10 @@ const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
     const CHART_COLORS = ['#e53935', '#00838f', '#f9a825'];
 
     const ColoredTick = ({ x, y, payload }) => {
-        const tickColor = getMunicipioColor(payload.value, theme.palette.text.secondary);
         return (
             <g transform={`translate(${x},${y})`}>
                 <text x={0} y={0} dy={4} textAnchor="end"
-                    fill={tickColor} fontSize={compact ? 10 : 15} fontWeight={600} transform="rotate(-45)">
+                    fill={theme.palette.text.secondary} fontSize={compact ? 10 : 15} fontWeight={400} transform="rotate(-45)">
                     {payload.value}
                 </text>
             </g>
@@ -1753,13 +1799,12 @@ const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
     };
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={matchHeight ? { display: 'flex' } : {}}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={matchHeight ? { width: '100%' } : {}}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                             {tipos.map((tipo) => (
                                 <Chip
                                     key={tipo.key ?? 'todos'}
@@ -1788,7 +1833,7 @@ const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
                                 <XAxis dataKey="name" tick={<ColoredTick />} height={compact ? 70 : 120} interval={0} />
                                 <YAxis tick={{ fill: theme.palette.text.secondary }} />
                                 <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
-                                <Legend verticalAlign={compact ? 'top' : 'bottom'} wrapperStyle={compact ? { paddingBottom: '10px' } : { paddingTop: '40px' }} />
+                                <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '10px' }} />
                                 {dataKeys.map((key, idx) => (
                                     <Bar key={key} dataKey={key} name={formatColumnName(key)}
                                         fill={TIPO_COLORS[idx % TIPO_COLORS.length]} radius={[8, 8, 0, 0]} />
@@ -1816,10 +1861,11 @@ const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
                                     ))}
                                 </Pie>
                                 <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
-                                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ paddingTop: '20px' }} />
+                                <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '10px' }} />
                             </PieChart>
                         </ResponsiveContainer>
                     )}
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1830,7 +1876,7 @@ const Pedido008FilterCard = ({ chart, viewMode, index, compact = false }) => {
  * Card para vds_incumprimento_01$003 / $006 — pizza com filtro por município (coluna)
  * Estrutura: cada linha = parâmetro/gravidade, cada coluna numérica = município (ou Total)
  */
-const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colorsProp }) => {
+const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colorsProp, matchHeight = false, onDetailClick = null }) => {
     const theme = useTheme();
 
     const { paramCol, municipioCols } = useMemo(() => {
@@ -1877,13 +1923,12 @@ const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colors
     };
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={matchHeight ? { display: 'flex' } : {}}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={matchHeight ? { width: '100%' } : {}}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                             {municipioCols.map(col => {
                                 const color = getMunicipioColor(col, theme.palette.primary.main);
                                 const isSelected = selectedCol === col;
@@ -1906,7 +1951,7 @@ const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colors
                             })}
                         </Box>
                     </Box>
-                    <ResponsiveContainer width="100%" height={calculateHeight()}>
+                    <ResponsiveContainer width="100%" height={matchHeight ? 450 : calculateHeight()}>
                         <PieChart>
                             <Pie
                                 data={pieData}
@@ -1927,9 +1972,10 @@ const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colors
                                 })}
                             </Pie>
                             <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
-                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ marginTop: '-30px' }} />
+                            <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '10px' }} />
                         </PieChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -1940,7 +1986,7 @@ const Incumprimento003Card = ({ chart, viewMode, index, colorMap, colors: colors
  * Card para vds_incumprimento_01$006 — pizza por gravidade com filtro por município (linha)
  * Estrutura: cada linha = município, cada coluna numérica = nível de gravidade
  */
-const Incumprimento006Card = ({ chart, viewMode, index }) => {
+const Incumprimento006Card = ({ chart, viewMode, index, matchHeight = false, onDetailClick = null }) => {
     const theme = useTheme();
 
     const { labelCol, gravityCols, municipios } = useMemo(() => {
@@ -1987,13 +2033,12 @@ const Incumprimento006Card = ({ chart, viewMode, index }) => {
     };
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={matchHeight ? { display: 'flex' } : {}}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={matchHeight ? { width: '100%' } : {}}>
+                <Paper sx={{ p: 3, position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' }, ...(matchHeight ? { height: '100%' } : {}) }}>
                     <Box sx={{ mb: 2 }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                             {municipios.map(m => {
                                 const color = getMunicipioColor(m, theme.palette.primary.main);
                                 const isSelected = selectedMunicipio === m;
@@ -2016,7 +2061,7 @@ const Incumprimento006Card = ({ chart, viewMode, index }) => {
                             })}
                         </Box>
                     </Box>
-                    <ResponsiveContainer width="100%" height={calculateHeight()}>
+                    <ResponsiveContainer width="100%" height={matchHeight && viewMode === 'overview' ? 480 : calculateHeight()}>
                         <PieChart>
                             <Pie
                                 data={pieData}
@@ -2033,9 +2078,10 @@ const Incumprimento006Card = ({ chart, viewMode, index }) => {
                                 ))}
                             </Pie>
                             <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }} />
-                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ marginTop: '-50px' }} />
+                            <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '10px' }} />
                         </PieChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -2045,7 +2091,7 @@ const Incumprimento006Card = ({ chart, viewMode, index }) => {
 /**
  * Card para vds_pedido_01$001 — barras horizontais
  */
-const Pedido001HBarCard = ({ chart, viewMode, index }) => {
+const Pedido001HBarCard = ({ chart, viewMode, index, matchHeight = false, onDetailClick = null }) => {
     const theme = useTheme();
 
     const { labelCol, valueCols, chartData } = useMemo(() => {
@@ -2063,12 +2109,11 @@ const Pedido001HBarCard = ({ chart, viewMode, index }) => {
     const height = Math.max(200, chartData.length * 26 + 60);
 
     return (
-        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={matchHeight ? { display: 'flex' } : {}}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }} style={matchHeight ? { width: '100%' } : {}}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <Typography variant="h6" fontWeight="bold" noWrap>{chart.name}</Typography>
-                        <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                     </Box>
                     <ResponsiveContainer width="100%" height={height}>
                         <BarChart
@@ -2097,6 +2142,7 @@ const Pedido001HBarCard = ({ chart, viewMode, index }) => {
                             ))}
                         </BarChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -2106,7 +2152,7 @@ const Pedido001HBarCard = ({ chart, viewMode, index }) => {
 /**
  * Card para vds_pedido_01$002 — barras horizontais com filtro por ano
  */
-const Pedido002HBarCard = ({ chart, viewMode, index }) => {
+const Pedido002HBarCard = ({ chart, viewMode, index, onDetailClick = null }) => {
     const theme = useTheme();
 
     const { labelCol, yearCols } = useMemo(() => {
@@ -2134,11 +2180,10 @@ const Pedido002HBarCard = ({ chart, viewMode, index }) => {
     return (
         <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}>
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: 'easeOut', delay: index * 0.12 }}>
-                <Paper sx={{ p: 3, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
+                <Paper sx={{ p: 3, height: '100%', position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, transition: 'all 0.3s ease', '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' } }}>
                     <Box sx={{ mb: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                             <Typography variant="h6" fontWeight="bold" noWrap>{chart.name}</Typography>
-                            <Chip label={`${chart.total} registos`} size="small" variant="outlined" />
                         </Box>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
                             {yearCols.map(year => (
@@ -2173,6 +2218,105 @@ const Pedido002HBarCard = ({ chart, viewMode, index }) => {
                             />
                         </BarChart>
                     </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
+                </Paper>
+            </motion.div>
+        </Grid>
+    );
+};
+
+/**
+ * Card para vds_incumprimento_01$007 — barras por município/parâmetro com toggle de ano
+ */
+const Incumprimento007Card = ({ chart, viewMode, index, onDetailClick = null }) => {
+    const theme = useTheme();
+    const [selectedYear, setSelectedYear] = useState(null);
+
+    const { yearCol, barCols, years } = useMemo(() => {
+        if (!chart.data || chart.data.length === 0 || !chart.columns) return { barCols: [], years: [] };
+        const cols = chart.columns;
+        // Coluna de ano: contém valores que são 4 dígitos (ex: 2023, 2024)
+        const yearCol = cols.find(c => chart.data.some(r => /^\d{4}$/.test(String(r[c]))));
+        // Restantes colunas = eixo das abcissas (barras)
+        const barCols = cols.filter(c => c !== yearCol);
+        // Anos distintos ordenados
+        const years = yearCol
+            ? [...new Set(chart.data.map(r => String(r[yearCol])))].filter(y => /^\d{4}$/.test(y)).sort()
+            : [];
+        return { yearCol, barCols, years };
+    }, [chart.data, chart.columns]);
+
+    const activeYear = selectedYear || (years.length > 0 ? years[years.length - 1] : null);
+
+    const barData = useMemo(() => {
+        if (!activeYear || !yearCol || barCols.length === 0) return [];
+        const row = chart.data.find(r => String(r[yearCol]) === activeYear);
+        if (!row) return [];
+        return barCols.map(col => ({
+            name: formatLabel(String(col)),
+            value: parseFloat(row[col]) || 0
+        }));
+    }, [chart.data, yearCol, barCols, activeYear]);
+
+    return (
+        <Grid size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }} sx={{ display: 'flex' }}>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                style={{ width: '100%' }}
+            >
+                <Paper sx={{
+                    p: 3, height: '100%',
+                    position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    transition: 'all 0.3s ease',
+                    '&:hover': { boxShadow: theme.shadows[8], transform: 'translateY(-4px)' }
+                }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>{chart.name}</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                            {years.map((year, idx) => (
+                                <Chip
+                                    key={year}
+                                    label={year}
+                                    size="small"
+                                    onClick={() => setSelectedYear(year)}
+                                    variant={activeYear === year ? 'filled' : 'outlined'}
+                                    sx={{
+                                        fontWeight: 'bold',
+                                        borderColor: REPAV_COLORS[idx % REPAV_COLORS.length],
+                                        color: activeYear === year ? '#fff' : REPAV_COLORS[idx % REPAV_COLORS.length],
+                                        backgroundColor: activeYear === year ? REPAV_COLORS[idx % REPAV_COLORS.length] : 'transparent',
+                                        '&:hover': { backgroundColor: alpha(REPAV_COLORS[idx % REPAV_COLORS.length], 0.15) },
+                                    }}
+                                />
+                            ))}
+                        </Box>
+                    </Box>
+                    <ResponsiveContainer width="100%" height={420}>
+                        <BarChart data={barData} margin={{ top: 10, right: 30, left: 20, bottom: 80 }} barCategoryGap="20%">
+                            <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
+                            <XAxis
+                                dataKey="name"
+                                tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+                                angle={-40}
+                                textAnchor="end"
+                                height={80}
+                                interval={0}
+                            />
+                            <YAxis tick={{ fill: theme.palette.text.secondary }} allowDecimals={false} />
+                            <Tooltip
+                                contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }}
+                                formatter={(value) => [value, activeYear]}
+                            />
+                            <Bar dataKey="value" name={activeYear} radius={[6, 6, 0, 0]} maxBarSize={40} animationDuration={400}>
+                                {barData.map((entry, idx) => (
+                                    <Cell key={`cell-${idx}`} fill={REPAV_COLORS[idx % REPAV_COLORS.length]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                    <OverlayDetailBtn onDetailClick={onDetailClick} />
                 </Paper>
             </motion.div>
         </Grid>
@@ -2182,7 +2326,7 @@ const Pedido002HBarCard = ({ chart, viewMode, index }) => {
 /**
  * Container de gráficos - Renderiza visualizações baseadas nos dados
  */
-const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) => {
+const ChartContainer = ({ data, viewMode, selectedCategory, compact = false, onDetailClick }) => {
     const theme = useTheme();
     const [yearSelections, setYearSelections] = useState({});
 
@@ -2324,7 +2468,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
 
         // Para $007 colorir os labels do eixo X com a cor do município
         const coloredXAxisTicks = chartId === 'vds_pedido_01$007' || chartId === 'vds_pedido_01$006';
-        const barHeightOverride = chartId === 'vds_incumprimento_01$001' ? 420 : null;
+        const barHeightOverride = (chartId === 'vds_incumprimento_01$001' || chartId === 'vds_incumprimento_01$002') ? 420 : null;
 
         switch (chartType) {
             case 'bar':
@@ -2386,7 +2530,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
                             borderRadius: 8
                         }}
                     />
-                    <Legend wrapperStyle={{ paddingTop: `${legendTopOffset}px` }} />
+                    <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: `${legendTopOffset}px` }} />
                     {dataKeys.map((key, index) => (
                         <Bar
                             key={key}
@@ -2435,9 +2579,9 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
                         }}
                     />
                     <Legend
-                        verticalAlign='bottom'
+                        verticalAlign='top'
                         height={40}
-                        wrapperStyle={{ fontSize: '14px', paddingTop: '6px' }}
+                        wrapperStyle={{ fontSize: '14px', paddingBottom: '6px' }}
                     />
                     {dataKeys.map((key, index) => (
                         <Line
@@ -2509,7 +2653,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
         };
 
         // Quando há muitos itens (>6), mover legenda para o topo
-        const legendPosition = data.length > 6 ? "top" : "bottom";
+        const legendPosition = "top";
         const legendHeight = data.length > 6 ? 100 : 36;
 
         return (
@@ -2541,12 +2685,9 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
                         }}
                     />
                     <Legend
-                        verticalAlign={legendPosition}
+                        verticalAlign="top"
                         height={legendHeight}
-                        wrapperStyle={{
-                            paddingTop: legendPosition === 'top' ? '0px' : '20px',
-                            paddingBottom: legendPosition === 'bottom' ? '0px' : '20px'
-                        }}
+                        wrapperStyle={{ paddingBottom: '10px' }}
                     />
                 </PieChart>
             </ResponsiveContainer>
@@ -2587,7 +2728,7 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
                             borderRadius: 8
                         }}
                     />
-                    <Legend />
+                    <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '10px' }} />
                     {dataKeys.map((key, index) => (
                         <Area
                             key={key}
@@ -2618,80 +2759,109 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
     }
 
     return (
+        <>
         <Grid container spacing={3}>
             {processedCharts.map((chart, index) => {
+                const showDetailBtn = viewMode === 'overview' && !!onDetailClick;
+                const detailFn = showDetailBtn ? () => onDetailClick(chart.id) : null;
+                const wrap = (el) => React.cloneElement(el, {
+                    key: chart.id,
+                    ...(typeof el.type === 'function' ? { onDetailClick: detailFn } : {}),
+                });
                 if (chart.chartType === 'duration_bar') {
-                    return <DurationChartCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<DurationChartCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_pedido_01$005') {
-                    return <Pedido005LineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<Pedido005LineCard chart={chart} viewMode={viewMode} index={index} matchHeight={selectedCategory === 'pedidos'} />);
                 }
-                if (['vds_pedido_01$006', 'vds_pedido_01$007', 'vds_pedido_01$008', 'vds_pedido_01$009'].includes(chart.id)) {
-                    return <Pedido008FilterCard key={chart.id} chart={chart} viewMode={viewMode} index={index} compact={compact} />;
+                if (chart.id === 'vds_pedido_01$006') {
+                    return wrap(<Pedido008FilterCard chart={chart} viewMode={viewMode} index={index} compact={compact} matchHeight={selectedCategory === 'pedidos'} />);
+                }
+                if (chart.id === 'vds_pedido_01$007') {
+                    return wrap(<Pedido008FilterCard chart={chart} viewMode={viewMode} index={index} compact={compact} />);
+                }
+                if (chart.id === 'vds_pedido_01$008') {
+                    return wrap(<Pedido008FilterCard chart={chart} viewMode={viewMode} index={index} compact={compact} matchHeight />);
+                }
+                if (chart.id === 'vds_pedido_01$009') {
+                    return wrap(<Pedido008FilterCard chart={chart} viewMode={viewMode} index={index} compact={compact} matchHeight />);
                 }
                 if (chart.id === 'vds_tramitacao_01$002') {
-                    return <TramitacaoAnoCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<TramitacaoAnoCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_tramitacao_01$003') {
-                    return <TramitacaoUserCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<TramitacaoUserCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_fossa_01$001') {
-                    return <FossaEstadoCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<FossaEstadoCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_repav_01$001') {
-                    return <RepavEstadoCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<RepavEstadoCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_fossa_01$002') {
-                    return <FossaConcelhoLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<FossaConcelhoLineCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_fossa_01$003') {
-                    return <FossaMesLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<FossaMesLineCard chart={chart} viewMode={viewMode} index={index} />);
                 }
-                if (chart.id === 'vds_ramal_01$003' || chart.id === 'vds_ramal_01$006' || chart.id === 'vds_repav_01$003') {
-                    return <RamalMesLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                if (chart.id === 'vds_ramal_01$003') {
+                    return wrap(<RamalMesLineCard chart={chart} viewMode={viewMode} index={index} matchHeight />);
+                }
+                if (chart.id === 'vds_ramal_01$006' || chart.id === 'vds_repav_01$003') {
+                    return wrap(<RamalMesLineCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_repav_01$004') {
-                    return <RamalSemanaLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<RamalSemanaLineCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_incumprimento_01$004') {
-                    return <FossaConcelhoLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<FossaConcelhoLineCard chart={chart} viewMode={viewMode} index={index} />);
                 }
-                if (chart.id === 'vds_pedido_01$001' || chart.id === 'vds_pedido_01$010') {
-                    return <Pedido001HBarCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                if (chart.id === 'vds_pedido_01$001') {
+                    return wrap(<Pedido001HBarCard chart={chart} viewMode={viewMode} index={index} />);
+                }
+                if (chart.id === 'vds_pedido_01$010') {
+                    return wrap(<Pedido001HBarCard chart={chart} viewMode={viewMode} index={index} matchHeight />);
                 }
                 if (['vds_pedido_01$002', 'vds_pedido_01$003', 'vds_pedido_01$004'].includes(chart.id)) {
-                    return <Pedido002HBarCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<Pedido002HBarCard chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_ramal_01$004') {
-                    return <Incumprimento003Card key={chart.id} chart={chart} viewMode={viewMode} index={index} colorMap={null} />;
+                    return wrap(<Incumprimento003Card chart={chart} viewMode={viewMode} index={index} colorMap={null} matchHeight />);
                 }
                 if (chart.id === 'vds_incumprimento_01$003' || chart.id === 'vds_incumprimento_01$008') {
-                    return <Incumprimento003Card key={chart.id} chart={chart} viewMode={viewMode} index={index} colorMap={incumprimentoColorMap} />;
+                    return wrap(<Incumprimento003Card chart={chart} viewMode={viewMode} index={index} colorMap={incumprimentoColorMap} />);
                 }
-                if (chart.id === 'vds_incumprimento_01$006' || chart.id === 'vds_incumprimento_01$009') {
-                    return <Incumprimento006Card key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                if (chart.id === 'vds_incumprimento_01$006') {
+                    return wrap(<Incumprimento006Card chart={chart} viewMode={viewMode} index={index} matchHeight />);
+                }
+                if (chart.id === 'vds_incumprimento_01$009') {
+                    return wrap(<Incumprimento006Card chart={chart} viewMode={viewMode} index={index} />);
                 }
                 if (chart.id === 'vds_incumprimento_01$005') {
-                    return <IncumprimentoLineCard key={chart.id} chart={chart} viewMode={viewMode} index={index} colorMap={incumprimentoColorMap} />;
+                    return wrap(<IncumprimentoLineCard chart={chart} viewMode={viewMode} index={index} colorMap={incumprimentoColorMap} />);
                 }
                 if (chart.id === 'vds_fossa_01$004') {
-                    return <FossaDurationCard key={chart.id} chart={chart} viewMode={viewMode} index={index} />;
+                    return wrap(<FossaDurationCard chart={chart} viewMode={viewMode} index={index} />);
                 }
-                return (
+                if (chart.id === 'vds_incumprimento_01$007') {
+                    return wrap(<Incumprimento007Card chart={chart} viewMode={viewMode} index={index} />);
+                }
+                return wrap(
                 <Grid
                     size={{ xs: 12, lg: viewMode === 'overview' ? 6 : 12 }}
-                    key={chart.id}
+                    sx={{ display: 'flex' }}
                 >
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
+                        style={{ width: '100%' }}
                     >
                         <Paper
                             sx={{
                                 p: 3,
                                 height: '100%',
-                                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                position: 'relative', border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                                 transition: 'all 0.3s ease',
                                 '&:hover': {
                                     boxShadow: theme.shadows[8],
@@ -2701,30 +2871,25 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false }) =
                         >
                             {/* Header do gráfico */}
                             <Box sx={{ mb: 2 }}>
-                                {/* Título — linha completa */}
                                 <Typography variant="h6" fontWeight="bold" gutterBottom noWrap>
                                     {chart.name}
                                 </Typography>
-                                {/* Segunda linha: chips à direita */}
                                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        <Chip
-                                            label={`${chart.total} registos`}
-                                            size="small"
-                                            variant="outlined"
-                                        />
                                     </Box>
                                 </Box>
                             </Box>
 
                             {/* Gráfico */}
                             {renderChart(chart)}
+                            <OverlayDetailBtn onDetailClick={detailFn} />
                         </Paper>
                     </motion.div>
                 </Grid>
                 );
             })}
         </Grid>
+        </>
     );
 };
 
