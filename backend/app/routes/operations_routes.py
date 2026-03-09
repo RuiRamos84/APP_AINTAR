@@ -17,7 +17,9 @@ from ..services.operations_service import (
     get_analysis_parameters,
     # Funções para criar/atualizar operações (execuções reais)
     create_operacao,
-    update_operacao
+    update_operacao,
+    # Criação direta via função PostgreSQL
+    create_operacao_direct
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..utils.utils import token_required, db_session_manager, set_session
@@ -330,8 +332,16 @@ def get_operacao():
     """
     current_user = get_jwt_identity()
     try:
+        filters = {}
+        from_date = request.args.get('from_date')
+        to_date = request.args.get('to_date')
+        if from_date:
+            filters['from_date'] = from_date
+        if to_date:
+            filters['to_date'] = to_date
+
         with db_session_manager(current_user):
-            data = get_operacao_data(current_user)
+            data = get_operacao_data(current_user, filters or None)
             return jsonify(data), 200
     except SQLAlchemyError as e:
         logger.error(f"Erro de banco de dados ao buscar operações: {str(e)}", exc_info=True)
@@ -545,6 +555,61 @@ def create_operacao_route():
 
     result, status_code = create_operacao(data, current_user)
     return jsonify(result), status_code
+
+
+@bp.route('/operacao_direct', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(310)  # operation.access
+@set_session
+@api_error_handler
+def create_operacao_direct_route():
+    """
+    Registar Operação Direta (ETAR / EE / REDE / CAIXA)
+    ---
+    tags:
+      - Operações
+    summary: Cria operação ad-hoc para instalações chamando diretamente a função fbo_operacao$createdirect.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [data, pk_instalacao, pk_operador, tt_operacaoaccao]
+          properties:
+            data:
+              type: string
+              format: date
+              description: Data da operação (YYYY-MM-DD)
+            pk_instalacao:
+              type: integer
+              description: PK da instalação (ETAR/EE dinâmico; CAIXA=3, REDE=4)
+            pk_operador:
+              type: integer
+              description: PK do operador
+            tt_operacaoaccao:
+              type: integer
+              description: Código da ação (ex 100 Limpeza, 101 Desobstrução)
+            memo:
+              type: string
+              description: Observações (opcional)
+    responses:
+      201:
+        description: Operação criada com sucesso, retorna pk gerado.
+      400:
+        description: Dados inválidos.
+    """
+    current_user = get_jwt_identity()
+    data = request.get_json()
+
+    result, status_code = create_operacao_direct(data, current_user)
+    return jsonify(result), status_code
+
 
 
 @bp.route('/operacao/<int:operacao_id>', methods=['PUT'])

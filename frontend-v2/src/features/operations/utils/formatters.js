@@ -86,8 +86,8 @@ export const getOperationActionName = (pk, metaData) => {
 };
 
 export const getOperationModeName = (pk, metaData) => {
-    if (!pk || !metaData?.operacamodo) return null;
-    const item = metaData.operacamodo.find(i => i.pk === Number(pk));
+    if (!pk || !metaData?.operacaomodo) return null;
+    const item = metaData.operacaomodo.find(i => i.pk === Number(pk));
     return item ? item.value : null;
 };
 

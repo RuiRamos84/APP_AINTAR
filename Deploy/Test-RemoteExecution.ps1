@@ -1,4 +1,4 @@
-# Test-RemoteExecution.ps1
+﻿# Test-RemoteExecution.ps1
 # Teste de execução remota via Task Scheduler
 # Versão: 2.0
 # Autor: Sistema Modular

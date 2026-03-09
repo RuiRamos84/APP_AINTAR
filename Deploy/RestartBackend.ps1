@@ -1,4 +1,4 @@
-# RestartBackend.ps1
+﻿# RestartBackend.ps1
 # Script de restart local do backend (executar diretamente no servidor)
 # Uso: powershell -ExecutionPolicy Bypass -File RestartBackend.ps1
 # Uso com janela oculta: RestartBackend.ps1 -Hidden

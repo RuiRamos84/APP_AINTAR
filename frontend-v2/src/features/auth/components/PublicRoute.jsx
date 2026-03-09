@@ -10,9 +10,9 @@ import { useAuth } from '@/core/contexts/AuthContext';
 export const PublicRoute = ({ children }) => {
   const { user } = useAuth();
 
-  // Se já está autenticado, redirecionar para dashboard
+  // Se já está autenticado, redirecionar para home
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   // Se não está autenticado, renderizar children

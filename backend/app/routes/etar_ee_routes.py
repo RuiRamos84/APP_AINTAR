@@ -16,6 +16,7 @@ from ..services.etar_ee_service import (
     create_instalacao_retirada_lamas,
     create_instalacao_reparacao,
     create_instalacao_vedacao,
+    create_instalacao_visita_tecnica,
     create_instalacao_qualidade_ambiental,
     # Funções compatibilidade - antigas
     create_etar_volume,
@@ -48,11 +49,13 @@ from ..services.etar_ee_service import (
     create_etar_retirada_lamas,
     create_etar_reparacao,
     create_etar_vedacao,
+    create_etar_visita_tecnica,
     create_etar_qualidade_ambiental,
     create_ee_desmatacao,
     create_ee_retirada_lamas,
     create_ee_reparacao,
     create_ee_vedacao,
+    create_ee_visita_tecnica,
     create_ee_qualidade_ambiental,
     create_rede_desobstrucao,
     create_rede_reparacao_colapso,
@@ -360,12 +363,13 @@ def add_instalacao_desmatacao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_desmatacao(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -401,12 +405,13 @@ def add_instalacao_retirada_lamas():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_retirada_lamas(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -442,12 +447,13 @@ def add_instalacao_reparacao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_reparacao(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -483,12 +489,13 @@ def add_instalacao_vedacao():
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_vedacao(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1183,26 +1190,17 @@ def add_ee_qualidade_ambiental():
 @set_session
 @api_error_handler
 def add_rede_desobstrucao():
-    """Criar pedido de desobstrução para Rede"""
+    """Registar desobstrução de rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_rede_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_rede_desobstrucao(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1213,26 +1211,17 @@ def add_rede_desobstrucao():
 @set_session
 @api_error_handler
 def add_rede_reparacao_colapso():
-    """Criar pedido de reparação/colapso para Rede"""
+    """Registar reparação de rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_rede_reparacao_colapso(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_rede_reparacao_colapso(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1243,26 +1232,17 @@ def add_rede_reparacao_colapso():
 @set_session
 @api_error_handler
 def add_caixa_desobstrucao():
-    """Criar pedido de desobstrução para Caixas"""
+    """Registar desobstrução de caixa"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_caixa_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_desobstrucao(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1273,26 +1253,17 @@ def add_caixa_desobstrucao():
 @set_session
 @api_error_handler
 def add_caixa_reparacao():
-    """Criar pedido de reparação para Caixas"""
+    """Registar reparação de caixa"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_caixa_reparacao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_reparacao(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1303,26 +1274,17 @@ def add_caixa_reparacao():
 @set_session
 @api_error_handler
 def add_caixa_reparacao_tampa():
-    """Criar pedido de reparação de tampa para Caixas"""
+    """Registar reparação de tampa de caixa"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_caixa_reparacao_tampa(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_reparacao_tampa(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 

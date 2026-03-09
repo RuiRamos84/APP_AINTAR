@@ -44,15 +44,28 @@ export const operationService = {
     return response;
   },
 
-  /** Todas as operações (supervisor) */
-  getOperacao: async () => {
-    const response = await apiClient.get('/operacao');
+  /** Todas as operações (supervisor) — aceita filtro de data opcional */
+  getOperacao: async ({ fromDate, toDate } = {}) => {
+    const params = {};
+    if (fromDate) params.from_date = fromDate;
+    if (toDate) params.to_date = toDate;
+    const response = await apiClient.get('/operacao', { params });
     return response;
   },
 
   /** Criar nova operação (execução real ad-hoc) */
   createOperacao: async (data) => {
     const response = await apiClient.post('/operacao', data);
+    return response;
+  },
+
+  /**
+   * Criar operação direta via fbo_operacao$createdirect.
+   * Usada para registos rápidos ETAR/EE/REDE/CAIXA.
+   * @param {{ data, pk_instalacao, pk_operador, tt_operacaoaccao, memo? }} data
+   */
+  createOperacaoDirect: async (data) => {
+    const response = await apiClient.post('/operacao_direct', data);
     return response;
   },
 
@@ -187,6 +200,26 @@ export const operationService = {
       `/operation_control/annex/${annexPk}/download`,
       { responseType: 'blob' }
     );
+    return response;
+  },
+
+  // ============================================================
+  // REQUISIÇÃO INTERNA
+  // ============================================================
+
+  /** Criar requisição interna (tipo 19) */
+  createRequisicaoInterna: async (pnmemo) => {
+    const response = await apiClient.post('/requisicao_interna', { pnmemo });
+    return response;
+  },
+
+  // ============================================================
+  // PEDIDOS - vbr_document_* views (supervisor)
+  // ============================================================
+
+  /** Pedidos agrupados por tipo (vbr_document_* views) */
+  fetchPedidosData: async () => {
+    const response = await apiClient.get('/operations');
     return response;
   },
 };

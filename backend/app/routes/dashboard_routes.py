@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app, request
+from flask import Blueprint, jsonify, current_app, request, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -139,6 +139,8 @@ def get_all_data():
         filters['month'] = request.args.get('month')
 
     data = dashboard_service.get_dashboard_data(current_user, filters if filters else None)
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
     return jsonify(data), 200
 
 
@@ -182,15 +184,14 @@ def get_category_data(category):
     if request.args.get('month'):
         filters['month'] = request.args.get('month')
 
-    try:
-        data = dashboard_service.get_dashboard_category_data(
-            current_user,
-            category,
-            filters if filters else None
-        )
-        return jsonify(data), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    data = dashboard_service.get_dashboard_category_data(
+        current_user,
+        category,
+        filters if filters else None
+    )
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
+    return jsonify(data), 200
 
 
 @bp.route('/dashboard/view/<view_name>', methods=['GET'])
@@ -232,12 +233,12 @@ def get_view_data(view_name):
     if request.args.get('month'):
         filters['month'] = request.args.get('month')
 
-    try:
-        data = dashboard_service.get_dashboard_view_data(
-            current_user,
-            view_name,
-            filters if filters else None
-        )
-        return jsonify(data), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    data = dashboard_service.get_dashboard_view_data(
+        current_user,
+        view_name,
+        filters if filters else None
+    )
+    # Service decorated with @api_error_handler returns (Response, status) on error
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
+    return jsonify(data), 200

@@ -146,6 +146,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/operation/supervisor': {
+    id: 'operation_supervisor',
+    text: 'Supervisão',
+    icon: AnalyticsIcon,
+    module: 'operacao',
+    permissions: { required: PERMISSIONS.OPERATIONS_CREATE },
+    showInSidebar: true,
+  },
+
   '/tasks/control': {
     id: 'tasks_control',
     text: 'Controlo de Tarefas',

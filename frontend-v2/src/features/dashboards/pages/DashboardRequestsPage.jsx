@@ -12,10 +12,10 @@ const VIEWS = [
   { name: 'vds_pedido_01$003', label: 'Total vs Concluídos por Tipo', chartType: 'bar' },
   { name: 'vds_pedido_01$005', label: 'Total vs Concluídos por Ano', chartType: 'line' },
   { name: 'vds_pedido_01$006', label: 'Por Município', chartType: 'bar' },
-  { name: 'vds_pedido_01$010', label: 'Por Estado Corrente', chartType: 'bar' },
-  { name: 'vds_pedido_01$012', label: 'Por Utilizador', chartType: 'bar' },
-  { name: 'vds_pedido_01$014', label: 'Tramitações por Utilizador', chartType: 'bar' },
-  { name: 'vds_pedido_01$016', label: 'Duração Média por Passo (Ano)', chartType: 'line' },
+  { name: 'vds_pedido_01$010', label: 'Por Estado Corrente', chartType: 'bar-h' },  // 23 linhas → horizontal
+  { name: 'vds_pedido_01$012', label: 'Por Utilizador', chartType: 'bar-h' },        // 26 linhas → horizontal
+  { name: 'vds_pedido_01$014', label: 'Tramitações por Utilizador', chartType: 'bar-h' }, // 30 linhas → horizontal
+  { name: 'vds_pedido_01$016', label: 'Duração Média por Passo (Ano)', chartType: 'bar' }, // pivot anos → bar não line
   { name: 'vds_pedido_01$017', label: 'Duração Média por Técnico', chartType: 'bar' },
 ];
 

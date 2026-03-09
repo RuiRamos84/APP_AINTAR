@@ -11,7 +11,8 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
-import { SearchBar } from '@/shared/components/data';
+import { SearchBar, SortableHeadCell } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
 import { operationService } from '../services/operationService';
 import { exportMetasToExcel } from '../services/exportService';
 import ExportButton from '../components/ExportButton';
@@ -61,6 +62,8 @@ const OperationMetadataPage = () => {
 
     const metas = response?.data || [];
     const totalCount = response?.total || 0;
+
+    const { sorted: sortedMetas, sortKey, sortDir, requestSort } = useSortable(metas, 'tb_instalacao');
 
     // Mutations (apenas criar e editar — delete removido por segurança)
     const createMutation = useMutation({
@@ -175,17 +178,17 @@ const OperationMetadataPage = () => {
                         <Table size="small">
                             <TableHead>
                                 <TableRow sx={{ '& th': { fontWeight: 600, bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
-                                    <TableCell>Instalação</TableCell>
-                                    <TableCell>Ação</TableCell>
-                                    <TableCell>Modo</TableCell>
-                                    <TableCell>Dia</TableCell>
-                                    <TableCell>Operador 1</TableCell>
-                                    <TableCell>Operador 2</TableCell>
+                                    <SortableHeadCell label="Instalação" field="tb_instalacao" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Ação" field="tt_operacaoaccao" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Modo" field="tt_operacaomodo" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Dia" field="tt_operacaodia" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Operador 1" field="ts_operador1" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Operador 2" field="ts_operador2" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                     <TableCell align="center" sx={{ width: 60 }}>Editar</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {metas.length === 0 && !isLoading ? (
+                                {sortedMetas.length === 0 && !isLoading ? (
                                     <TableRow>
                                         <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                                             <Typography variant="body2" color="text.secondary">
@@ -195,7 +198,7 @@ const OperationMetadataPage = () => {
                                             </Typography>
                                         </TableCell>
                                     </TableRow>
-                                ) : metas.map(meta => {
+                                ) : sortedMetas.map(meta => {
                                     const instType = getInstType(meta);
                                     return (
                                         <TableRow

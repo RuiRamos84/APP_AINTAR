@@ -1,30 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Stack, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Avatar, Chip, IconButton, Tooltip, Dialog, DialogTitle, DialogContent,
-    DialogActions, Button, TextField, FormControl, InputLabel, Select, MenuItem,
-    alpha, useTheme, Alert
+    Avatar, Chip, IconButton, Tooltip, alpha, useTheme, Alert
 } from '@mui/material';
 import {
-    People, CheckCircle, Schedule, Assignment,
-    Visibility, GppGood
+    People, CheckCircle, Schedule, Assignment, GppGood
 } from '@mui/icons-material';
+import { SortableHeadCell, SearchBar } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
 import { formatDate } from '../../utils/formatters';
+import ControlValidationDialog from '../ControlValidationDialog';
 
-const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaData }) => {
+const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValidating, metaData }) => {
     const theme = useTheme();
     const [validationOpen, setValidationOpen] = useState(false);
     const [selectedExecution, setSelectedExecution] = useState(null);
-    const [classification, setClassification] = useState('');
-    const [observations, setObservations] = useState('');
 
-    // Opções de classificação de controlo
-    const classificationOptions = metaData?.operacaocontrolo || [
-        { pk: 1, value: 'Conforme' },
-        { pk: 2, value: 'Com observações' },
-        { pk: 3, value: 'Não conforme' },
-    ];
+    const [searchOp, setSearchOp] = useState('');
+
+    const filteredOps = useMemo(() => {
+        if (!searchOp.trim()) return operatorStats;
+        return operatorStats.filter(op => (op.name || '').toLowerCase().includes(searchOp.toLowerCase()));
+    }, [operatorStats, searchOp]);
+
+    const { sorted: sortedActivity, sortKey, sortDir, requestSort } = useSortable(recentActivity, 'updt_time', 'desc');
 
     const totalOperators = operatorStats.length;
     const totalAssigned = operatorStats.reduce((sum, op) => sum + op.totalTasks, 0);
@@ -33,17 +33,10 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
 
     const handleOpenValidation = (execution) => {
         setSelectedExecution(execution);
-        setClassification('');
-        setObservations('');
         setValidationOpen(true);
     };
 
-    const handleSubmitValidation = () => {
-        if (!selectedExecution || !classification) return;
-        const formData = new FormData();
-        formData.append('pk', selectedExecution.pk);
-        formData.append('control_tt_operacaocontrolo', classification);
-        if (observations.trim()) formData.append('control_memo', observations.trim());
+    const handleSubmitValidation = (formData) => {
         onValidate?.(formData);
         setValidationOpen(false);
         setSelectedExecution(null);
@@ -82,11 +75,14 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
             {/* Operator Performance */}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
                 <CardContent>
-                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                        Desempenho por Operador
-                    </Typography>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                            Desempenho por Operador
+                        </Typography>
+                        <SearchBar searchTerm={searchOp} onSearch={setSearchOp} />
+                    </Stack>
                     <Stack spacing={2}>
-                        {operatorStats.map(op => (
+                        {filteredOps.map(op => (
                             <Box key={op.pk} sx={{
                                 p: 2, borderRadius: 2,
                                 border: 1, borderColor: 'divider',
@@ -134,8 +130,10 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                                 </Stack>
                             </Box>
                         ))}
-                        {operatorStats.length === 0 && (
-                            <Alert severity="info">Sem dados de operadores para os filtros selecionados</Alert>
+                        {filteredOps.length === 0 && (
+                            <Alert severity="info">
+                                {searchOp ? 'Nenhum operador encontrado.' : 'Sem dados de operadores para os filtros selecionados.'}
+                            </Alert>
                         )}
                     </Stack>
                 </CardContent>
@@ -152,15 +150,15 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                             <Table size="small">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>Operador</TableCell>
-                                        <TableCell>Tarefa</TableCell>
+                                        <SortableHeadCell label="Operador" field="operador_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                        <SortableHeadCell label="Tarefa" field="acao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                         <TableCell>Estado</TableCell>
-                                        <TableCell>Data</TableCell>
+                                        <SortableHeadCell label="Data" field="updt_time" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                         <TableCell align="center">Ações</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {recentActivity.slice(0, 10).map((exec, idx) => {
+                                    {sortedActivity.slice(0, 20).map((exec, idx) => {
                                         const isValidated = exec.control_tt_operacaocontrolo || exec.validated;
                                         return (
                                             <TableRow key={exec.pk || idx} hover>
@@ -187,7 +185,7 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                                                 </TableCell>
                                                 <TableCell>
                                                     <Typography variant="caption">
-                                                        {formatDate(exec.ts_exec || exec.data_execucao)}
+                                                        {formatDate(exec.updt_time)}
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell align="center">
@@ -209,44 +207,14 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                 </Card>
             )}
 
-            {/* Validation Dialog */}
-            <Dialog open={validationOpen} onClose={() => setValidationOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Validar Execução</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        {selectedExecution && (
-                            <Alert severity="info">
-                                Tarefa: {selectedExecution.acao_nome || selectedExecution.description || `#${selectedExecution.pk}`}
-                            </Alert>
-                        )}
-                        <FormControl fullWidth>
-                            <InputLabel>Classificação</InputLabel>
-                            <Select
-                                value={classification}
-                                onChange={(e) => setClassification(e.target.value)}
-                                label="Classificação"
-                            >
-                                {classificationOptions.map(opt => (
-                                    <MenuItem key={opt.pk} value={opt.pk}>{opt.value}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        <TextField
-                            fullWidth multiline rows={3}
-                            label="Observações"
-                            value={observations}
-                            onChange={(e) => setObservations(e.target.value)}
-                            placeholder="Adicione observações sobre a validação..."
-                        />
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setValidationOpen(false)}>Cancelar</Button>
-                    <Button variant="contained" onClick={handleSubmitValidation} disabled={!classification}>
-                        Validar
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <ControlValidationDialog
+                open={validationOpen}
+                onClose={() => { setValidationOpen(false); setSelectedExecution(null); }}
+                execution={selectedExecution}
+                metaData={metaData}
+                onSubmit={handleSubmitValidation}
+                isSubmitting={isValidating}
+            />
         </Stack>
     );
 };

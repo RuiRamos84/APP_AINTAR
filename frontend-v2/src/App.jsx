@@ -41,7 +41,7 @@ import {
 } from '@/features/admin/pages';
 
 // Módulos do sistema de navegação híbrida
-import { OperationPage, OperationMetadataPage, OperationControlPage } from '@/features/operations/pages';
+import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage } from '@/features/operations/pages';
 import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage } from '@/features/gestao/pages';
 import { ClientsPage, InvoicesPage, ClientContractsPage } from '@/features/payments/pages';
 import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
@@ -49,6 +49,7 @@ import {
   DashboardOverviewPage, DashboardRequestsPage, DashboardBranchesPage,
   DashboardSepticTanksPage, DashboardInstallationsPage,
   DashboardViolationsPage, DashboardAnalysesPage,
+  DashboardRepavPage, DashboardTramitacoesPage,
 } from '@/features/dashboards/pages';
 import { EmissoesPage } from '@/features/emissoes';
 import { EPIPage } from '@/features/administrativo/pages';
@@ -155,6 +156,7 @@ function App() {
         <Route path="/operation" element={<OperationPage />} />
         <Route path="/operation/control" element={<OperationControlPage />} />
         <Route path="/operation/metadata" element={<OperationMetadataPage />} />
+        <Route path="/operation/supervisor" element={<SupervisorPage />} />
 
         {/* ==================== MÓDULO: GESTÃO ==================== */}
         {/* Analyses */}
@@ -212,6 +214,8 @@ function App() {
         <Route path="/dashboards/installations" element={<DashboardInstallationsPage />} />
         <Route path="/dashboards/violations" element={<DashboardViolationsPage />} />
         <Route path="/dashboards/analyses" element={<DashboardAnalysesPage />} />
+        <Route path="/dashboards/repav" element={<DashboardRepavPage />} />
+        <Route path="/dashboards/tramitacoes" element={<DashboardTramitacoesPage />} />
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />

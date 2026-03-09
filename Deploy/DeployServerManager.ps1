@@ -1,4 +1,4 @@
-# DeployServerManager.ps1
+﻿# DeployServerManager.ps1
 # Gestão remota de servidor via Task Scheduler
 # Versão: 2.0
 # Autor: Sistema Modular

@@ -48,21 +48,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification/notificationService';
 import { operationService } from '../services/operationService';
 import metadataService from '@/services/metadataService';
+import { SearchBar, SortableHeadCell } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
 import {
     OPERATION_TYPES,
     formatBooleanValue,
 } from '../constants/operationTypes';
 import FileUploadControl from '../components/FileUploadControl';
 
-// Classificações possíveis para control_tt_operacaocontrolo (vbl_operacaocontrolo)
-const CONTROL_STATES = [
-    { value: 1, label: 'Conforme', color: 'success', icon: <CheckCircle fontSize="small" /> },
-    { value: 2, label: 'Incumprimento ligeiro', color: 'info', icon: <Warning fontSize="small" /> },
-    { value: 3, label: 'Incumprimento grave', color: 'warning', icon: <Warning fontSize="small" /> },
-    { value: 4, label: 'Incumprimento muito grave', color: 'error', icon: <Cancel fontSize="small" /> },
-];
-
-const getControlState = (value) => CONTROL_STATES.find(s => s.value === value) || null;
+// Mapeamento de cores/ícones por pk real da BD (tt_operacaocontrolo)
+// pk=1: Incumprimento ligeiro | pk=2: Incumprimento grave | pk=3: Incumprimento muito grave | pk=10: Conforme
+const CONTROL_COLOR_MAP = { 1: 'info', 2: 'warning', 3: 'error', 10: 'success' };
+const CONTROL_ICON_MAP = {
+    1: <Warning fontSize="small" />,
+    2: <Warning fontSize="small" />,
+    3: <Cancel fontSize="small" />,
+    10: <CheckCircle fontSize="small" />,
+};
 
 const getFileIcon = (filename) => {
     if (/\.(jpg|jpeg|png|gif|webp)$/i.test(filename)) return <ImageIcon fontSize="small" color="success" />;
@@ -85,12 +87,12 @@ const OperationControlPage = () => {
     const [viewMode, setViewMode] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [controlData, setControlData] = useState({
-        control_tt_operacaocontrolo: 1,
+        control_tt_operacaocontrolo: '',
         control_memo: '',
     });
     const [controlFiles, setControlFiles] = useState([]);
     const [downloading, setDownloading] = useState(null);
-    const [filePreview, setFilePreview] = useState(null); // { url, name, isPdf }
+    const [filePreview, setFilePreview] = useState(null);
 
     // Queries
     const { data: metaData, isLoading: loadingMetaData } = useQuery({
@@ -98,6 +100,19 @@ const OperationControlPage = () => {
         queryFn: metadataService.fetchMetaData,
         staleTime: 1000 * 60 * 30
     });
+
+    // Opções de controlo vindas da BD (tt_operacaocontrolo)
+    const controlOptions = metaData?.opcontrolo || [];
+
+    const getControlState = (pk) => {
+        const option = controlOptions.find(o => o.pk === pk);
+        if (!option) return null;
+        return {
+            label: option.value,
+            color: CONTROL_COLOR_MAP[pk] || 'default',
+            icon: CONTROL_ICON_MAP[pk] || <Warning fontSize="small" />,
+        };
+    };
 
     // Anexos da tarefa selecionada — carregados quando o diálogo abre
     const { data: annexesData, isLoading: loadingAnnexes } = useQuery({
@@ -115,6 +130,19 @@ const OperationControlPage = () => {
         }),
         enabled: false,
     });
+
+    // Pesquisa + ordenação na tabela de resultados
+    const [searchTerm, setSearchTerm] = useState('');
+    const rawTasks = tasksData?.data || [];
+    const filteredTasks = useMemo(() => {
+        if (!searchTerm.trim()) return rawTasks;
+        const q = searchTerm.toLowerCase();
+        return rawTasks.filter(t =>
+            (t.tt_operacaoaccao || '').toLowerCase().includes(q) ||
+            (t.updt_client || '').toLowerCase().includes(q)
+        );
+    }, [rawTasks, searchTerm]);
+    const { sorted: sortedTasks, sortKey, sortDir, requestSort } = useSortable(filteredTasks, 'data', 'desc');
 
     // Filtros derivados
     const entities = useMemo(() => {
@@ -138,10 +166,9 @@ const OperationControlPage = () => {
     // Mutation
     const updateControlMutation = useMutation({
         mutationFn: operationService.updateControl,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['operationControl'] });
+        onSuccess: async () => {
+            await searchTasks();
             queryClient.invalidateQueries({ queryKey: ['controlAnnexes'] });
-            searchTasks();
             handleCloseControlDialog();
             notification.success('Controlo guardado com sucesso');
         },
@@ -159,7 +186,7 @@ const OperationControlPage = () => {
         setSelectedTask(task);
         setViewMode(isViewMode);
         setControlData({
-            control_tt_operacaocontrolo: task.control_tt_operacaocontrolo ?? 1,
+            control_tt_operacaocontrolo: task.control_tt_operacaocontrolo || '',
             control_memo: task.control_memo || '',
         });
         setControlFiles([]);
@@ -364,22 +391,25 @@ const OperationControlPage = () => {
                 <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
             )}
 
-            {!loadingTasks && tasksData?.data?.length > 0 && (
+            {!loadingTasks && rawTasks.length > 0 && (
                 <Paper sx={{ ...glassCard, overflow: 'hidden' }}>
+                    <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+                        <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} placeholder="Pesquisar por ação ou executor..." />
+                    </Box>
                     <TableContainer>
                         <Table size="small">
                             <TableHead>
                                 <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                                    <TableCell sx={{ fontWeight: 600 }}>Data</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Ação</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Executado Por</TableCell>
+                                    <SortableHeadCell label="Data" field="data" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
+                                    <SortableHeadCell label="Ação" field="tt_operacaoaccao" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
+                                    <SortableHeadCell label="Executado Por" field="updt_client" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
                                     <TableCell sx={{ fontWeight: 600 }}>Valor</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
+                                    <SortableHeadCell label="Estado" field="control_tt_operacaocontrolo" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
                                     <TableCell align="center" sx={{ fontWeight: 600 }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {tasksData.data.map((task) => {
+                                {sortedTasks.map((task) => {
                                     const state = getControlState(task.control_tt_operacaocontrolo);
                                     const controlled = isAlreadyControlled(task);
                                     return (
@@ -426,10 +456,15 @@ const OperationControlPage = () => {
                 </Paper>
             )}
 
-            {!loadingTasks && tasksData?.data?.length === 0 && (
+            {!loadingTasks && rawTasks.length === 0 && (
                 <Box textAlign="center" py={8} sx={{ opacity: 0.6 }}>
                     <SearchIcon sx={{ fontSize: 64, mb: 2, color: 'text.disabled' }} />
                     <Typography>Nenhum registo encontrado para os filtros selecionados.</Typography>
+                </Box>
+            )}
+            {!loadingTasks && rawTasks.length > 0 && sortedTasks.length === 0 && (
+                <Box textAlign="center" py={4} sx={{ opacity: 0.6 }}>
+                    <Typography>Nenhum resultado para "{searchTerm}".</Typography>
                 </Box>
             )}
 
@@ -496,15 +531,19 @@ const OperationControlPage = () => {
                         <FormControl fullWidth disabled={viewMode} required>
                             <InputLabel>Classificação</InputLabel>
                             <Select
-                                value={controlData.control_tt_operacaocontrolo ?? 1}
+                                value={controlData.control_tt_operacaocontrolo}
                                 onChange={(e) => setControlData({ ...controlData, control_tt_operacaocontrolo: e.target.value })}
                                 label="Classificação"
+                                displayEmpty
                             >
-                                {CONTROL_STATES.map(s => (
-                                    <MenuItem key={s.value} value={s.value}>
+                                <MenuItem value="" disabled><em>Selecione uma classificação</em></MenuItem>
+                                {controlOptions.map((opt) => (
+                                    <MenuItem key={opt.pk} value={opt.pk}>
                                         <Stack direction="row" alignItems="center" spacing={1}>
-                                            <Box sx={{ color: `${s.color}.main`, display: 'flex' }}>{s.icon}</Box>
-                                            <span>{s.label}</span>
+                                            <Box sx={{ color: `${CONTROL_COLOR_MAP[opt.pk] || 'default'}.main`, display: 'flex' }}>
+                                                {CONTROL_ICON_MAP[opt.pk] || <Warning fontSize="small" />}
+                                            </Box>
+                                            <span>{opt.value}</span>
                                         </Stack>
                                     </MenuItem>
                                 ))}

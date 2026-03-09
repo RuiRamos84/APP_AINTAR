@@ -1,4 +1,4 @@
-# DeployConnection.ps1
+﻿# DeployConnection.ps1
 # Gestão de conexões ao servidor
 # Autor: Sistema Modular
 # Data: 2025

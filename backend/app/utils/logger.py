@@ -132,7 +132,7 @@ def get_logger(name):
             file_handler = RotatingFileHandler(
                 error_log_file,
                 maxBytes=10485760,  # 10MB
-                backupCount=5
+                backupCount=1       # Mantém apenas 1 ficheiro rotativo (+ ficheiro actual = 2 max)
             )
             file_handler.setLevel(logging.ERROR)
             file_handler.setFormatter(logging.Formatter(

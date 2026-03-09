@@ -25,7 +25,7 @@ def setup_logger():
     handler = RotatingFileHandler(
         'flask-socketio.log',
         maxBytes=10*1024*1024,  # 10MB por ficheiro
-        backupCount=5           # Mantém 5 ficheiros antigos
+        backupCount=1           # Mantém apenas 1 ficheiro rotativo (+ ficheiro actual = 2 max)
     )
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)

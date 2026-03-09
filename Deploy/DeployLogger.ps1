@@ -1,4 +1,4 @@
-# DeployLogger.ps1
+﻿# DeployLogger.ps1
 # Sistema de logging centralizado
 # Autor: Sistema Modular
 # Data: 2025

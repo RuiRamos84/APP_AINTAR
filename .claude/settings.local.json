@@ -49,7 +49,14 @@
       "Read(//c/Users/rui.ramos/.claude/**)",
       "Read(//c/Users/rui.ramos/Desktop/APP/**)",
       "Bash(done)",
-      "Read(//dev/**)"
+      "Read(//dev/**)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\fix-encoding.ps1\")",
+      "Bash(powershell -NoProfile -Command \"Remove-Item ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\fix-encoding.ps1''\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\scan-cleanup.ps1\")",
+      "Bash(powershell -NoProfile -Command \"Get-ChildItem ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend'' -Filter ''*.py'' | Where-Object { $_Name -match ''^\\(teste_|debug_|fix_|check_|add_|migrate_|convert_|test_\\)'' } | Select-Object Name, @{N=''Size'';E={''{0:N1} KB'' -f \\($_Length/1KB\\)}} | Format-Table -AutoSize\")",
+      "Bash(del \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\scan-cleanup.ps1\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\do-cleanup.ps1\")",
+      "Bash(node -e \"const p=require\\(''./node_modules/recharts/package.json''\\); console.log\\(''recharts'', p.version\\)\")"
     ],
     "deny": [],
     "ask": [],

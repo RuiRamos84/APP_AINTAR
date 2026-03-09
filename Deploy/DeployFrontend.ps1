@@ -1,4 +1,4 @@
-# DeployFrontend.ps1
+﻿# DeployFrontend.ps1
 # Módulo de deployment do frontend
 # Autor: Sistema Modular
 # Data: 2025

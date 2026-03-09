@@ -65,10 +65,17 @@ const SimpleTaskForm = ({ onSubmit, onCancel, initialData = null }) => {
         );
     }
 
-    const installations = metaData?.instalacoes || [];
+    // Chaves corretas conforme meta_data_service.py
+    const etarList  = metaData?.etar || [];
+    const eeList    = metaData?.ee || [];
+    // Combinar ETAR e EE numa lista unificada de instalações
+    const installations = [
+        ...etarList.map(i => ({ pk: i.pk, name: i.nome, type: 'ETAR' })),
+        ...eeList.map(i => ({ pk: i.pk, name: i.nome, type: 'EE' })),
+    ];
     const actions = metaData?.operacaoaccao || [];
-    const modes = metaData?.operacaomodo || [];
-    const operators = metaData?.operadores || [];
+    const modes = metaData?.operacamodo || [];     // nota: chave é 'operacamodo' (sem 'o')
+    const operators = metaData?.who || [];         // vst_document_step$who
 
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>

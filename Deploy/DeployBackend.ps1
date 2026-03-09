@@ -1,4 +1,4 @@
-# DeployBackend.ps1
+﻿# DeployBackend.ps1
 # Módulo de deployment do backend
 # Autor: Sistema Modular
 # Data: 2025
@@ -45,8 +45,10 @@ class BackendDeployer {
             ".DS_Store",
             "Thumbs.db",
             "*.log",
+            ".env",
             ".env.local",
             ".env.development",
+            ".env.production",
             "*.swp",
             "*.tmp"
         )
@@ -61,7 +63,7 @@ class BackendDeployer {
         }
         
         # Verificar arquivos essenciais
-        $essentialFiles = @("app.py", "main.py", "requirements.txt", "run.py")
+        $essentialFiles = @("app.py", "main.py", "run.py", "run_waitress.py", "config.py", "requirements.txt")
         $foundEssential = $false
         
         foreach ($file in $essentialFiles) {
@@ -117,22 +119,41 @@ class BackendDeployer {
             Write-DeployDebug "Cópia de segurança desativada na configuração" "BACKEND"
             return $true
         }
-        
-        if (-not (Test-Path $this.RemotePath)) {
+
+        # Converter para UNC (o backup é feito via caminho de rede)
+        $remoteBasePath = $this.RemotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+        if (-not (Test-Path $remoteBasePath)) {
             Write-DeployDebug "Caminho remoto não existe, backup desnecessário" "BACKEND"
             return $true
         }
-        
+
         try {
-            $backupPath = Get-BackupPath $this.RemotePath
+            $backupPath = Get-BackupPath $remoteBasePath
             Write-DeployInfo "A criar cópia de segurança do backend: $backupPath" "BACKEND"
 
-            Move-Item $this.RemotePath $backupPath -ErrorAction Stop
+            # Usar robocopy em vez de Move-Item: funciona mesmo com ficheiros bloqueados
+            # Excluir as mesmas pastas pesadas que o deploy (venv pode ter GB de ficheiros)
+            $robocopyArgs = @(
+                $remoteBasePath, $backupPath,
+                "/E",       # Subdirectórios incluindo vazios
+                "/MT:8",    # 8 threads paralelas
+                "/R:1",     # 1 tentativa em erro
+                "/W:1",     # 1 segundo entre tentativas
+                "/NFL", "/NDL", "/NJH", "/NJS",
+                "/XD", "venv", "__pycache__", ".git", "node_modules",
+                          ".pytest_cache", ".coverage", "htmlcov", "instance", "logs",
+                "/XF", "*.pyc", "*.pyo", "*.pyd", "*.log", "*.tmp", "*.swp"
+            )
+            & robocopy @robocopyArgs | Out-Null
+
+            if ($LASTEXITCODE -ge 8) {
+                Write-DeployWarning "Robocopy de backup falhou com código $LASTEXITCODE" "BACKEND"
+                return $false
+            }
+
             Write-DeployInfo "Cópia de segurança criada com sucesso!" "BACKEND"
-            
-            # Limpar backups antigos
             $this.CleanOldBackups()
-            
             return $true
         }
         catch {
@@ -249,9 +270,9 @@ class BackendDeployer {
         }
         
         # Verificar ficheiros essenciais
-        $essentialFiles = @("app.py", "main.py", "run.py")
+        $essentialFiles = @("app.py", "main.py", "run.py", "run_waitress.py", "config.py", "requirements.txt")
         $foundEssential = $false
-        
+
         foreach ($file in $essentialFiles) {
             $remoteFilePath = "$($remoteBasePath.TrimEnd('\'))\$file"
             if (Test-Path $remoteFilePath) {

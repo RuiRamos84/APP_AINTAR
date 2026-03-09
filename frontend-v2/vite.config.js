@@ -62,6 +62,7 @@ export default defineConfig({
           'utils-vendor': ['axios', 'date-fns', 'zod', 'sonner'],
           'socket-vendor': ['socket.io-client'],
           'animation-vendor': ['framer-motion'],
+          'charts-vendor': ['recharts'],
         },
       },
     },
@@ -91,6 +92,7 @@ export default defineConfig({
       'zod',
       'sonner',
       'framer-motion',
+      'recharts',
     ],
   },
   // Test configuration

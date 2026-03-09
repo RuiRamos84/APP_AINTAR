@@ -36,6 +36,8 @@ import {
   createInstalacaoReparacao, createInstalacaoVedacao,
   createInstalacaoQualidadeAmbiental,
 } from '../services/etarEeService';
+import DirectTaskForm from '../../operations/components/DirectTaskForm';
+import { operationService } from '../../operations/services/operationService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -824,6 +826,32 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
   );
 };
 
+// ─── TAB: Operações Diretas ──────────────────────────────────────────────────
+
+const OperacoesTab = ({ pk, type }) => {
+  const instType = type === 'etar' ? 'ETAR' : 'EE';
+
+  const handleSubmit = async (data) => {
+    // Pre-fill pk_instalacao from the selected installation
+    await operationService.createOperacaoDirect({
+      ...data,
+      pk_instalacao: pk,
+    });
+    toast.success('Operação registada com sucesso!');
+  };
+
+  return (
+    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+      <DirectTaskForm
+        fixedInstType={instType}
+        fixedPk={pk}
+        onSubmit={handleSubmit}
+        onCancel={() => {}}
+      />
+    </Box>
+  );
+};
+
 // ─── InstalacaoPage (principal) ───────────────────────────────────────────────
 
 const TABS_ETAR = [
@@ -832,10 +860,11 @@ const TABS_ETAR = [
   { label: 'Energia',        icon: EnergyIcon },
   { label: 'Despesas',       icon: ExpenseIcon },
   { label: 'Intervenções',   icon: IntervencoesIcon },
+  { label: 'Operações',      icon: AddIcon },
   { label: 'Incumprimentos', icon: IncumpIcon },
 ];
 
-const TABS_EE = TABS_ETAR.slice(0, 5);
+const TABS_EE = TABS_ETAR.slice(0, 6);  // sem Incumprimentos
 
 /**
  * @param {Object}   props
@@ -978,7 +1007,8 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
               addExpense={addExpense} isAdding={isAddingExpense} />
           )}
           {tab === 4 && <IntervencoesTab pk={pk} />}
-          {tab === 5 && type === 'etar' && (
+          {tab === 5 && <OperacoesTab pk={pk} type={type} />}
+          {tab === 6 && type === 'etar' && (
             <IncumprimentosTab pk={pk} color={color} data={incumprimentos} isLoading={isLoadingIncump}
               addIncumprimento={addIncumprimento} isAdding={isAddingIncump} />
           )}

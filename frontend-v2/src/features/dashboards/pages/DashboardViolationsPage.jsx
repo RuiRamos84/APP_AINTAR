@@ -12,7 +12,7 @@ const VIEWS = [
   { name: 'vds_incumprimento_01$003', label: 'Por Parâmetro e Município', chartType: 'bar' },
   { name: 'vds_incumprimento_01$004', label: 'Por Ano e Município', chartType: 'bar' },
   { name: 'vds_incumprimento_01$005', label: 'Por Ano e Parâmetro', chartType: 'bar' },
-  { name: 'vds_incumprimento_01$006', label: 'Por Gravidade', chartType: 'pie' },
+  { name: 'vds_incumprimento_01$006', label: 'Por Gravidade', chartType: 'bar' }, // 9 colunas multi-série → bar
   { name: 'vds_incumprimento_01$007', label: 'Por Ano e Gravidade', chartType: 'bar' },
   { name: 'vds_incumprimento_01$008', label: 'Por Parâmetro e Gravidade', chartType: 'bar' },
   { name: 'vds_incumprimento_01$009', label: 'Por Município e Gravidade', chartType: 'bar' },

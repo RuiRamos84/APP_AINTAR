@@ -14,17 +14,40 @@ class OperationsRepository(BaseRepository):
 
     def find_all(self, current_user: str, filters: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Buscar todas as operações/execuções
-        USA apenas vbl_operacao que já tem tudo (nomes + controlo)
+        Buscar operações/execuções com filtro de data opcional.
+        - Sem filtro: devolve apenas mês atual (pendentes + concluídas)
+        - Com from_date/to_date: filtra concluídas pelo intervalo, pendentes sempre incluídas
+        USA vbl_operacao (nomes + controlo já resolvidos)
         """
         try:
             with db_session_manager(current_user) as session:
-                query = text("""
-                    SELECT * FROM vbl_operacao
-                    ORDER BY pk DESC
-                """)
+                f = filters or {}
+                from_date = f.get('from_date')
+                to_date = f.get('to_date')
 
-                result = session.execute(query)
+                # Expor tt_operacaomodo: NULL = pontual/direta, valor preenchido = programada
+                if from_date and to_date:
+                    query = text("""
+                        SELECT v.*, o.tt_operacaomodo
+                        FROM vbl_operacao v
+                        LEFT JOIN tb_operacao o ON o.pk = v.pk
+                        WHERE v.updt_time IS NULL
+                           OR v.updt_time::date BETWEEN :from_date AND :to_date
+                        ORDER BY v.pk DESC
+                    """)
+                    result = session.execute(query, {'from_date': from_date, 'to_date': to_date})
+                else:
+                    # Default: mês atual
+                    query = text("""
+                        SELECT v.*, o.tt_operacaomodo
+                        FROM vbl_operacao v
+                        LEFT JOIN tb_operacao o ON o.pk = v.pk
+                        WHERE v.updt_time IS NULL
+                           OR v.updt_time::date >= DATE_TRUNC('month', CURRENT_DATE)
+                        ORDER BY v.pk DESC
+                    """)
+                    result = session.execute(query)
+
                 data = [dict(row) for row in result.mappings().all()]
 
                 return {
@@ -56,18 +79,23 @@ class OperationsRepository(BaseRepository):
         """
         try:
             with db_session_manager(current_user) as session:
-                # 1. Tarefas pendentes (view $self só retorna pendentes)
-                query = text("SELECT * FROM \"vbl_operacao$self\" ORDER BY pk")
+                # 1. Tarefas pendentes (sem updt_client = não concluídas)
+                query = text("""
+                    SELECT * FROM "vbl_operacao$self"
+                    WHERE updt_client IS NULL
+                    ORDER BY pk
+                """)
                 result = session.execute(query)
                 data = [dict(row) for row in result.mappings().all()]
                 columns = list(result.keys())
 
-                # 2. Tarefas concluídas (mesmas colunas, filtradas por operador)
+                # 2. Tarefas concluídas hoje pelo utilizador
                 completed_query = text("""
                     SELECT * FROM vbl_operacao
-                    WHERE (pk_operador1 = :user_id OR pk_operador2 = :user_id)
-                      AND valuetext IS NOT NULL AND valuetext != ''
-                    ORDER BY pk DESC
+                    WHERE pk_operador1 = :user_id
+                    AND updt_client IS NOT NULL
+                    AND updt_time::date = CURRENT_DATE
+                    ORDER BY updt_time DESC
                 """)
                 completed_result = session.execute(completed_query, {'user_id': user_id})
                 completed_data = [dict(row) for row in completed_result.mappings().all()]

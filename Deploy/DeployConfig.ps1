@@ -1,4 +1,4 @@
-# DeployConfig.ps1
+﻿# DeployConfig.ps1
 # Configurações centralizadas do sistema de deployment
 # Versão: 2.0
 # Autor: Sistema Modular
@@ -9,8 +9,10 @@
 # ============================================================================
 
 # Configurar encoding para UTF-8
+& "$env:SystemRoot\system32\chcp.com" 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Global:OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+$Global:OutputEncoding    = [System.Text.Encoding]::UTF8
 
 # ============================================================================
 # CONFIGURAÇÕES DE SERVIDOR E CREDENCIAIS

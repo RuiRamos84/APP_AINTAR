@@ -40,12 +40,12 @@ export const ProtectedRoute = ({ children, requiredPermission }) => {
     return <Loading fullScreen message="A verificar autenticação..." />;
   }
 
-  // 2. NOT AUTHENTICATED - Utilizador não está autenticado (acesso indevido)
+  // 2. NOT AUTHENTICATED - Redireciona para login (sessão expirada ou acesso indevido)
   if (!user) {
     return (
       <Navigate
-        to="/401"
-        state={{ from: location.pathname }}
+        to="/login"
+        state={{ sessionExpired: true, from: location.pathname }}
         replace
       />
     );

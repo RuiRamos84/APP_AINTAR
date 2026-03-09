@@ -1,4 +1,4 @@
-# Deploy-Main.ps1
+﻿# Deploy-Main.ps1
 # Script principal do sistema de deployment modular
 # Autor: Sistema Modular
 # Data: 2025
@@ -12,8 +12,11 @@ param(
 )
 
 # Configurar encoding para UTF-8 para garantir a exibição correta de caracteres especiais.
+# chcp 65001 muda o code page da consola Windows para UTF-8 (necessário para acentos/caracteres PT)
+& "$env:SystemRoot\system32\chcp.com" 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
 
 
 # ============================================================================
@@ -75,8 +78,8 @@ function Initialize-DeploymentSystem {
         
         if ($configErrors.Count -gt 0) {
             Write-DeployError "Erros de configuração encontrados:" "SYSTEM"
-            foreach ($error in $configErrors) {
-                Write-DeployError "  - $error" "SYSTEM"
+            foreach ($configError in $configErrors) {
+                Write-DeployError "  - $configError" "SYSTEM"
             }
             return $false
         }
@@ -99,146 +102,385 @@ function Initialize-DeploymentSystem {
 }
 
 # ============================================================================
-# OPERACOES DE DEPLOYMENT
+# HELPERS INTERNOS DE DEPLOYMENT
 # ============================================================================
 
-function Invoke-WithMaintenance {
+# Limpa logs locais de desenvolvimento antes do deployment.
+# - Ficheiros rotativos (.log.1, .log.2, ...) são sempre apagados (não estão em uso)
+# - Ficheiros activos (.log) são truncados se possível; se bloqueados, ignorados
+# - deployment.log é truncado para começar fresco
+function Clear-LocalDevLogs {
+    $backendPath = $Global:DeployConfig.CaminhoLocalBackend
+    $rootPath    = Split-Path $backendPath -Parent
+
+    Write-DeployInfo "A limpar logs de desenvolvimento locais..." "MAIN"
+    $removed = 0
+    $skipped = 0
+
+    # 1. Apagar ficheiros rotativos (.log.1, .log.2, etc.) — nunca estão bloqueados
+    $rotated = Get-ChildItem $backendPath -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '\.log\.\d+$' }
+    foreach ($f in $rotated) {
+        try {
+            Remove-Item $f.FullName -Force -ErrorAction Stop
+            $removed++
+        } catch {
+            $skipped++
+        }
+    }
+
+    # 2. Truncar logs activos se não estiverem bloqueados
+    $activeLogs = Get-ChildItem $backendPath -Recurse -File -Filter '*.log' -ErrorAction SilentlyContinue
+    foreach ($f in $activeLogs) {
+        try {
+            [System.IO.File]::WriteAllText($f.FullName, '') | Out-Null
+            $removed++
+        } catch {
+            Write-DeployDebug "Log bloqueado (backend em execução): $($f.Name)" "MAIN"
+            $skipped++
+        }
+    }
+
+    # 3. Truncar deployment.log (na raiz do projecto)
+    $deployLog = Join-Path $rootPath "deployment.log"
+    if (Test-Path $deployLog) {
+        try {
+            [System.IO.File]::WriteAllText($deployLog, '') | Out-Null
+            $removed++
+        } catch {
+            $skipped++
+        }
+    }
+
+    if ($skipped -gt 0) {
+        Write-DeployInfo "Logs limpos: $removed | Bloqueados (backend em execução): $skipped" "MAIN"
+    } else {
+        Write-DeployInfo "Logs limpos: $removed ficheiro(s)" "MAIN"
+    }
+}
+
+# Imprime o resumo de tempos no final de cada operação
+function Write-DeployTimingSummary {
     param(
-        [Parameter(Mandatory=$true)]
-        [ScriptBlock]$Action,
-        [string]$OperationName = "Operação de Deployment",
-        [array]$ArgumentList = @()
+        [string]$OperationName,
+        [System.Collections.Specialized.OrderedDictionary]$Timings,
+        [timespan]$TotalDuration,
+        [timespan]$MaintenanceDuration
     )
+    Write-DeployInfo "=== RESUMO DE TEMPOS: $OperationName ===" "MAIN"
+    foreach ($key in $Timings.Keys) {
+        $label = ($key + ":").PadRight(46)
+        $secs  = [Math]::Round($Timings[$key].TotalSeconds, 1)
+        Write-DeployInfo "  $label ${secs}s" "MAIN"
+    }
+    if ($MaintenanceDuration.TotalSeconds -gt 0) {
+        $mainLabel = "JANELA DE MANUTENÇÃO (indisponibilidade):".PadRight(46)
+        $mainSecs  = [Math]::Round($MaintenanceDuration.TotalSeconds, 1)
+        Write-DeployInfo "  $mainLabel ${mainSecs}s  ← tempo de downtime real" "MAIN"
+    }
+    $totalLabel = "TOTAL:".PadRight(46)
+    $totalSecs  = [Math]::Round($TotalDuration.TotalSeconds, 1)
+    Write-DeployInfo "  $totalLabel ${totalSecs}s" "MAIN"
+    Write-DeployInfo "=============================================" "MAIN"
+}
 
-    Write-DeployInfo "=== A INICIAR '$OperationName' COM GESTÃO DE MANUTENÇÃO ===" "MAIN"
-
-    # O bloco finally garante que a manutenção é desativada e o backend reiniciado,
-    # mesmo que o deployment falhe a meio.
-    $totalStart = Get-Date
-    $timings    = [ordered]@{}
+# Executa a janela de manutenção mínima: ativa manutenção, para/inicia backend, desativa manutenção.
+# Parâmetros Timings e MaintenanceDuration são passados por referência e preenchidos aqui.
+function Invoke-MaintenanceWindow {
+    param(
+        [ref]$Timings,
+        [ref]$MaintenanceDuration,
+        [bool]$RestartBackend = $true
+    )
+    $mainStart = Get-Date
+    $ok        = $false
 
     try {
-        # 1. Ativar modo de manutenção
         $t = Get-Date
         if (-not (Enable-MaintenanceMode)) { throw "Falha ao ativar modo de manutenção." }
-        $timings["Modo de manutenção (ativar)"] = (Get-Date) - $t
+        $Timings.Value["Modo de manutenção (ativar)"] = (Get-Date) - $t
 
-        # 2. Parar o processo do backend
-        $t = Get-Date
-        if (-not (Stop-BackendProcess)) { throw "Falha ao parar o backend." }
-        $timings["Parar backend"] = (Get-Date) - $t
+        if ($RestartBackend) {
+            $t = Get-Date
+            if (-not (Stop-BackendProcess)) { throw "Falha ao parar o backend." }
+            $Timings.Value["Parar backend"] = (Get-Date) - $t
 
-        Write-DeployInfo "A aguardar 5 segundos para o processo terminar..." "MAIN"
-        Start-Sleep -Seconds 5
-
-        # 3. Executar a ação de deployment principal
-        $t = Get-Date
-        $result = & $Action @ArgumentList
-        $timings[$OperationName] = (Get-Date) - $t
-
-        if (-not $result) {
-            throw "A operação de deployment '$OperationName' falhou durante a execução."
+            Write-DeployInfo "A aguardar 5 segundos para o processo terminar..." "MAIN"
+            Start-Sleep -Seconds 5
         }
 
-        Write-DeployInfo "=== '$OperationName' FINALIZADO COM SUCESSO ===" "MAIN"
+        $ok = $true
         return $true
     }
     catch {
-        Write-DeployError "Ocorreu um erro durante '$OperationName': $($_.Exception.Message)" "MAIN"
-        Write-DeployException $_.Exception $OperationName "MAIN"
+        Write-DeployError "Erro durante janela de manutenção: $($_.Exception.Message)" "MAIN"
         return $false
     }
     finally {
-        # 4. Iniciar o backend
-        $t = Get-Date
-        Write-DeployInfo "A iniciar o backend..." "MAIN"
-        Start-BackendProcess
-        Start-Sleep -Seconds 5
-        $timings["Iniciar backend"] = (Get-Date) - $t
+        if ($RestartBackend) {
+            $t = Get-Date
+            Write-DeployInfo "A iniciar o backend..." "MAIN"
+            Start-BackendProcess
+            Start-Sleep -Seconds 5
+            $Timings.Value["Iniciar backend"] = (Get-Date) - $t
+        }
 
-        # 5. Desativar modo de manutenção
         $t = Get-Date
         Write-DeployInfo "A desativar o modo de manutenção..." "MAIN"
         Disable-MaintenanceMode
-        $timings["Modo de manutenção (desativar)"] = (Get-Date) - $t
+        $Timings.Value["Modo de manutenção (desativar)"] = (Get-Date) - $t
 
-        # Resumo de tempos
-        $totalDuration = (Get-Date) - $totalStart
-        Write-DeployInfo "=== RESUMO DE TEMPOS: $OperationName ===" "MAIN"
-        foreach ($key in $timings.Keys) {
-            $label = ($key + ":").PadRight(42)
-            $secs  = [Math]::Round($timings[$key].TotalSeconds, 1)
-            Write-DeployInfo "  $label ${secs}s" "MAIN"
-        }
-        $totalLabel = "TOTAL:".PadRight(42)
-        $totalSecs  = [Math]::Round($totalDuration.TotalSeconds, 1)
-        Write-DeployInfo "  $totalLabel ${totalSecs}s" "MAIN"
-        Write-DeployInfo "=============================================" "MAIN"
+        $MaintenanceDuration.Value = (Get-Date) - $mainStart
     }
+}
+
+# ============================================================================
+# OPERACOES DE DEPLOYMENT
+# Estratégia em 2 fases:
+#   FASE 1 — Build + Cópia ANTES da manutenção (site em produção, sem downtime)
+#   FASE 2 — Manutenção mínima: apenas parar e reiniciar o backend (~148s)
+# ============================================================================
+
+function Invoke-FrontendBackendDeployment {
+    param([bool]$BuildFirst = $true)
+
+    Write-DeployInfo "=== DEPLOYMENT FRONTEND + BACKEND ===" "MAIN"
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (só reinício)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    # ── FASE 1: Build + Cópia (site em produção) ─────────────────────────────
+    Write-DeployInfo "--- FASE 1: Preparação (site em produção) ---" "MAIN"
+    Clear-LocalDevLogs
+
+    if ($BuildFirst) {
+        $t  = Get-Date
+        $fe = [FrontendDeployer]::new()
+        if (-not $fe.BuildProject()) {
+            Write-DeployError "Build do frontend falhou. Deployment cancelado." "MAIN"
+            return $false
+        }
+        $timings["Build frontend"] = (Get-Date) - $t
+    }
+
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $feDeployer = [FrontendDeployer]::new()
+        if (-not $feDeployer.Deploy()) { return $false }
+        $beDeployer = [BackendDeployer]::new()
+        return $beDeployer.Deploy()
+    } -OperationName "Cópia Frontend + Backend"
+    $timings["Cópia frontend + backend"] = (Get-Date) - $t
+
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia dos ficheiros. Manutenção NÃO foi ativada. Site mantém versão anterior." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Frontend + Backend" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
+    }
+    Write-DeployInfo "Ficheiros copiados com sucesso! A iniciar janela de manutenção mínima..." "MAIN"
+
+    # ── FASE 2: Manutenção mínima (apenas reiniciar backend) ─────────────────
+    Write-DeployInfo "--- FASE 2: Manutenção mínima (reinício do backend) ---" "MAIN"
+
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $true
+
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Frontend + Backend' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Frontend + Backend" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+
+    return $result
 }
 
 function Invoke-FullDeployment {
     param([bool]$BuildFirst = $true)
-    
+
     Write-DeployInfo "=== DEPLOYMENT COMPLETO ===" "MAIN"
-    
-    $results = @{
-        Frontend = $false
-        Backend = $false
-        Nginx = $false
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (só reinício)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    # ── FASE 1: Build + Cópia (site em produção) ─────────────────────────────
+    Write-DeployInfo "--- FASE 1: Preparação (site em produção) ---" "MAIN"
+    Clear-LocalDevLogs
+
+    if ($BuildFirst) {
+        $t  = Get-Date
+        $fe = [FrontendDeployer]::new()
+        if (-not $fe.BuildProject()) {
+            Write-DeployError "Build do frontend falhou. Deployment cancelado." "MAIN"
+            return $false
+        }
+        $timings["Build frontend"] = (Get-Date) - $t
     }
-    
-    # Usar o novo wrapper para executar a ação
-    return Invoke-WithMaintenance -OperationName "Deployment Completo" -Action {
-        param($BuildFirstParam)
 
-        $frontendOk = Deploy-Frontend -BuildFirst $BuildFirstParam
-        if (-not $frontendOk) { return $false }
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $feDeployer = [FrontendDeployer]::new()
+        if (-not $feDeployer.Deploy()) { return $false }
+        $beDeployer = [BackendDeployer]::new()
+        if (-not $beDeployer.Deploy()) { return $false }
+        return Deploy-NginxConfig
+    } -OperationName "Cópia Completa"
+    $timings["Cópia frontend + backend + nginx"] = (Get-Date) - $t
 
-        $backendOk = Deploy-Backend
-        if (-not $backendOk) { return $false }
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia dos ficheiros. Manutenção NÃO foi ativada. Site mantém versão anterior." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Completo" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
+    }
+    Write-DeployInfo "Ficheiros copiados com sucesso! A iniciar janela de manutenção mínima..." "MAIN"
 
-        $nginxOk = Deploy-NginxConfig
-        return $nginxOk
+    # ── FASE 2: Manutenção mínima ─────────────────────────────────────────────
+    Write-DeployInfo "--- FASE 2: Manutenção mínima (reinício do backend) ---" "MAIN"
 
-    } -ArgumentList @($BuildFirst)
-}
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $true
 
-function Invoke-FrontendBackendDeployment {
-    param([bool]$BuildFirst = $true)
-    
-    Write-DeployInfo "=== DEPLOYMENT FRONTEND + BACKEND ===" "MAIN"
-    
-    return Invoke-WithMaintenance -OperationName "Deployment Frontend + Backend" -Action {
-        param($BuildFirstParam)
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Completo' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Completo" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
 
-        $frontendOk = Deploy-Frontend -BuildFirst $BuildFirstParam
-        if (-not $frontendOk) { return $false }
-
-        $backendOk = Deploy-Backend
-        return $backendOk
-
-    } -ArgumentList @($BuildFirst)
+    return $result
 }
 
 function Invoke-FrontendDeployment {
     param([bool]$BuildFirst = $true)
-    return Invoke-WithMaintenance -OperationName "Deployment Frontend" -Action {
-        param($BuildFirstParam)
-        return Deploy-Frontend -BuildFirst $BuildFirstParam
-    } -ArgumentList @($BuildFirst)
+
+    Write-DeployInfo "=== DEPLOYMENT FRONTEND ===" "MAIN"
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção breve (sem reinício backend)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    # ── FASE 1: Build + Cópia (site em produção) ─────────────────────────────
+    Write-DeployInfo "--- FASE 1: Preparação (site em produção) ---" "MAIN"
+    Clear-LocalDevLogs
+
+    if ($BuildFirst) {
+        $t  = Get-Date
+        $fe = [FrontendDeployer]::new()
+        if (-not $fe.BuildProject()) {
+            Write-DeployError "Build do frontend falhou. Deployment cancelado." "MAIN"
+            return $false
+        }
+        $timings["Build frontend"] = (Get-Date) - $t
+    }
+
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $feDeployer = [FrontendDeployer]::new()
+        return $feDeployer.Deploy()
+    } -OperationName "Cópia Frontend"
+    $timings["Cópia frontend"] = (Get-Date) - $t
+
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia dos ficheiros. Manutenção NÃO foi ativada." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Frontend" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
+    }
+    Write-DeployInfo "Frontend copiado! A ativar manutenção brevemente..." "MAIN"
+
+    # ── FASE 2: Manutenção breve (sem reinício de backend — não necessário para frontend) ──
+    Write-DeployInfo "--- FASE 2: Manutenção breve (sem reinício do backend) ---" "MAIN"
+
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $false
+
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Frontend' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Frontend" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+
+    return $result
 }
 
 function Invoke-BackendDeployment {
-    return Invoke-WithMaintenance -OperationName "Deployment Backend" -Action {
-        return Deploy-Backend
+    Write-DeployInfo "=== DEPLOYMENT BACKEND ===" "MAIN"
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (só reinício)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    # ── FASE 1: Cópia (site em produção) ─────────────────────────────────────
+    Write-DeployInfo "--- FASE 1: Cópia do backend (site em produção) ---" "MAIN"
+    Clear-LocalDevLogs
+
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $beDeployer = [BackendDeployer]::new()
+        return $beDeployer.Deploy()
+    } -OperationName "Cópia Backend"
+    $timings["Cópia backend"] = (Get-Date) - $t
+
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia dos ficheiros. Manutenção NÃO foi ativada." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Backend" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
     }
+    Write-DeployInfo "Backend copiado! A iniciar janela de manutenção mínima..." "MAIN"
+
+    # ── FASE 2: Manutenção mínima ─────────────────────────────────────────────
+    Write-DeployInfo "--- FASE 2: Manutenção mínima (reinício do backend) ---" "MAIN"
+
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $true
+
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Backend' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Backend" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+
+    return $result
 }
 
 function Invoke-NginxDeployment {
-    return Invoke-WithMaintenance -OperationName "Deployment Configuração Nginx" -Action {
+    Write-DeployInfo "=== DEPLOYMENT CONFIGURAÇÃO NGINX ===" "MAIN"
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (reinício backend)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
         return Deploy-NginxConfig
+    } -OperationName "Cópia Nginx"
+    $timings["Cópia configuração nginx"] = (Get-Date) - $t
+
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia da configuração Nginx. Manutenção NÃO foi ativada." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Nginx" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
     }
+
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $true
+
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Configuração Nginx' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Configuração Nginx" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+
+    return $result
 }
 
 # ============================================================================

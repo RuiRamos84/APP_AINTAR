@@ -7,7 +7,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import DashboardCategoryPage from '../components/DashboardCategoryPage';
 
 const VIEWS = [
-  { name: 'vds_ramal_01$001', label: 'Por Estado', chartType: 'pie' },
+  { name: 'vds_ramal_01$001', label: 'Por Estado', chartType: 'bar-h' }, // 13 estados → horizontal
   { name: 'vds_ramal_01$002', label: 'Metros Construídos por Ano', chartType: 'bar' },
   { name: 'vds_ramal_01$003', label: 'Metros por Mês (Ano Corrente)', chartType: 'line' },
   { name: 'vds_ramal_01$004', label: 'Pedidos por Município', chartType: 'bar' },

@@ -1,4 +1,4 @@
-# DeployNginx.ps1
+﻿# DeployNginx.ps1
 # Módulo de configuração do Nginx
 # Autor: Sistema Modular
 # Data: 2025

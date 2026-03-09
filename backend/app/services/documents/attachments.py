@@ -11,9 +11,28 @@ from .utils import ensure_directories, sanitize_input
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
 
+# Mapeamento MIME → extensão (usado quando filename não tem extensão)
+MIME_TO_EXT = {
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/tiff': '.tif',
+    'image/bmp': '.bmp',
+    'image/heic': '.heic',
+    'image/heif': '.heif',
+    'application/pdf': '.pdf',
+    'text/plain': '.txt',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument'
+    '.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument'
+    '.spreadsheetml.sheet': '.xlsx',
+}
+
 logger = get_logger(__name__)
-
-
 
 
 def cache_result(timeout=120):
@@ -129,9 +148,13 @@ def add_document_annex(data, current_user):
                     # Escolher a primeira variação (original ou normalizada)
                     filename = variations[0] if variations else original_filename
 
-                    # Garantir que tem extensão
+                    # Garantir que tem extensão — usar MIME type como fallback
                     if not os.path.splitext(filename)[1]:
-                        filename = f"{pk_result}.bin"
+                        raw_mime = file.content_type or file.mimetype or ''
+                        mime = raw_mime.lower().split(';')[0].strip()
+                        ext = MIME_TO_EXT.get(mime, '.bin')
+                        filename = f"{pk_result}{ext}"
+                        logger.info(f"Extensão via MIME ({mime}): {ext}")
                     else:
                         name, ext = os.path.splitext(filename)
                         filename = f"{pk_result}{ext.lower()}"

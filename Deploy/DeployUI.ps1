@@ -1,4 +1,4 @@
-# DeployUI.ps1
+﻿# DeployUI.ps1
 # Interface de utilizador para o sistema de deployment
 # Autor: Sistema Modular
 # Data: 2025

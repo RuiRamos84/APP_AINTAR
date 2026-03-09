@@ -1,4 +1,4 @@
-# Test-RemoteCommands.ps1
+﻿# Test-RemoteCommands.ps1
 # Teste de comandos específicos de deployment
 # Versão: 2.0
 # Autor: Sistema Modular
