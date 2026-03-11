@@ -7,7 +7,7 @@ from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 from ..services import dashboard_service
-from .. import db
+from .. import db, cache
 
 logger = get_logger(__name__)
 
@@ -107,6 +107,7 @@ def get_structure():
 @jwt_required()
 @require_permission(400)  # dashboard.view
 @api_error_handler
+@cache.cached(timeout=300, key_prefix=lambda: f"dashboard_all_{request.args.get('year', '')}_{request.args.get('month', '')}")
 def get_all_data():
     """
     Obter Todos os Dados do Dashboard
@@ -189,6 +190,41 @@ def get_category_data(category):
         category,
         filters if filters else None
     )
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
+    return jsonify(data), 200
+
+
+@bp.route('/dashboard/cache/clear', methods=['POST'])
+@jwt_required()
+@require_permission(400)
+@api_error_handler
+def clear_dashboard_cache():
+    """Limpa o cache do dashboard, forçando nova leitura da base de dados."""
+    cache.clear()
+    return jsonify({'message': 'Cache do dashboard limpo com sucesso'}), 200
+
+
+@bp.route('/dashboard/landing', methods=['GET'])
+@jwt_required()
+@require_permission(400)  # dashboard.view
+@api_error_handler
+@cache.cached(timeout=300, key_prefix="dashboard_landing")
+def get_landing():
+    """
+    Dados da Landing Page do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Obtém dados agregados das 8 views da landing page (pedidos, ramais, fossas) num único pedido.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Dicionário indexado por view com data e columns.
+    """
+    current_user = get_jwt_identity()
+    data = dashboard_service.get_landing_data(current_user)
     if isinstance(data, tuple) or isinstance(data, Response):
         return data
     return jsonify(data), 200

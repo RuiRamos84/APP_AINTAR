@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Paper,
   Typography,
-  Tab,
-  Tabs,
   Button,
   IconButton,
   Tooltip,
@@ -17,6 +15,7 @@ import {
   ViewList as ViewListIcon,
   ViewModule as ViewModuleIcon,
   FileDownload as ExportIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useDocumentsStore } from '../store/documentsStore';
 import { SearchBar } from '@/shared/components/data';
@@ -25,29 +24,22 @@ import DocumentStats from '../components/stats/DocumentStats';
 
 /**
  * Main Layout for Documents Feature - Fully Responsive
+ * Cards act as tabs — no separate tabs row
  */
-const DocumentsLayout = ({ children, onOpenCreate, onExport }) => {
+const DocumentsLayout = ({ children, onOpenCreate, onExport, onRefresh, isRefreshing }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
-  const {
-    activeTab, setActiveTab,
-    viewMode, setViewMode,
-    searchTerm, setSearchTerm
-  } = useDocumentsStore();
+  const { viewMode, setViewMode, searchTerm, setSearchTerm } = useDocumentsStore();
 
   const [filtersOpen, setFiltersOpen] = useState(false);
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
   const toggleFilters = () => setFiltersOpen((prev) => !prev);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: { xs: 1, sm: 1.5, md: 2 } }}>
-      {/* Header Area */}
+
+      {/* Header: Title | Search + Filter + ViewToggle + Refresh + Export + Novo */}
       <Paper
         elevation={0}
         sx={{
@@ -57,10 +49,9 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport }) => {
           display: 'flex',
           flexDirection: 'column',
           background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.background.paper, 0.4)} 100%)`,
-          backdropFilter: 'blur(20px)'
+          backdropFilter: 'blur(20px)',
         }}
       >
-        {/* Row 1: Title (left) | Search + FilterToggle + Export + NovoPedido (right) */}
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
@@ -79,21 +70,62 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport }) => {
             )}
           </Box>
 
-          {/* Actions - all on same line */}
-          <Box sx={{
-            display: 'flex',
-            gap: { xs: 0.5, sm: 1 },
-            alignItems: 'center',
-            flexShrink: 0,
-          }}>
-            <SearchBar
-              searchTerm={searchTerm}
-              onSearch={setSearchTerm}
-            />
-            <FilterToggleButton
-              open={filtersOpen}
-              onToggle={toggleFilters}
-            />
+          {/* Actions */}
+          <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 0.75 }, alignItems: 'center', flexShrink: 0 }}>
+            <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+
+            <FilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
+
+            {/* View mode toggle — moved here from tabs row */}
+            <Box sx={{ display: 'flex', gap: 0, p: 0.5 }}>
+              <Tooltip title="Vista em lista">
+                <IconButton
+                  size="small"
+                  color={viewMode === 'list' ? 'primary' : 'default'}
+                  onClick={() => setViewMode('list')}
+                  sx={{
+                    borderRadius: 1.5,
+                    bgcolor: viewMode === 'list' ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                  }}
+                >
+                  <ViewListIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Vista em grelha">
+                <IconButton
+                  size="small"
+                  color={viewMode === 'grid' ? 'primary' : 'default'}
+                  onClick={() => setViewMode('grid')}
+                  sx={{
+                    borderRadius: 1.5,
+                    bgcolor: viewMode === 'grid' ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                  }}
+                >
+                  <ViewModuleIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            {onRefresh && (
+              <Tooltip title="Atualizar dados">
+                <IconButton
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  size="small"
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    '& svg': {
+                      transition: 'transform 0.6s ease',
+                      transform: isRefreshing ? 'rotate(360deg)' : 'none',
+                    },
+                  }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+
             {onExport && (
               isMobile ? (
                 <Tooltip title="Exportar">
@@ -113,6 +145,7 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport }) => {
                 </Button>
               )
             )}
+
             <Button
               variant="contained"
               startIcon={!isMobile && <AddIcon />}
@@ -133,84 +166,15 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport }) => {
           </Box>
         </Box>
 
-        {/* Row 2: Filter Panel (collapsible, full width below row 1) */}
-        <DocumentFilters
-          open={filtersOpen}
-          onToggle={toggleFilters}
-        />
+        {/* Filter Panel (collapsible) */}
+        <DocumentFilters open={filtersOpen} onToggle={toggleFilters} />
       </Paper>
 
-      {/* Statistics Dashboard */}
+      {/* Stats Cards — each card is a tab selector */}
       <DocumentStats />
 
-      {/* Controls & Tabs */}
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 1,
-      }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
-          sx={{
-            minHeight: { xs: 36, sm: 40 },
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 600,
-              borderRadius: 2,
-              minHeight: { xs: 36, sm: 40 },
-              fontSize: { xs: '0.75rem', sm: '0.85rem' },
-              px: { xs: 1.5, sm: 2 },
-              mr: 0.5,
-            },
-            '& .Mui-selected': {
-              color: theme.palette.primary.main,
-              bgcolor: alpha(theme.palette.primary.main, 0.1)
-            },
-            '& .MuiTabs-indicator': {
-              display: 'none'
-            }
-          }}
-        >
-          <Tab label={isMobile ? 'Todos' : 'Todos os Pedidos'} />
-          <Tab label={isMobile ? 'Meu Cargo' : 'A Meu Cargo'} />
-          <Tab label={isMobile ? 'Criados' : 'Criados por Mim'} />
-          <Tab label={isMobile ? 'Atraso' : 'Em Atraso'} sx={{ color: activeTab === 3 ? 'error.main' : 'text.secondary' }} />
-        </Tabs>
-
-        <Box sx={{ display: 'flex', gap: 0.5, bgcolor: 'background.paper', p: 0.5, borderRadius: 2 }}>
-          <IconButton
-            size="small"
-            color={viewMode === 'list' ? 'primary' : 'default'}
-            onClick={() => setViewMode('list')}
-            sx={{
-              borderRadius: 1.5,
-              bgcolor: viewMode === 'list' ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-            }}
-          >
-            <ViewListIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            color={viewMode === 'grid' ? 'primary' : 'default'}
-            onClick={() => setViewMode('grid')}
-            sx={{
-              borderRadius: 1.5,
-              bgcolor: viewMode === 'grid' ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-            }}
-          >
-            <ViewModuleIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* Main Content Area */}
-      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+      {/* Content Area */}
+      <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
         {children}
       </Box>
     </Box>

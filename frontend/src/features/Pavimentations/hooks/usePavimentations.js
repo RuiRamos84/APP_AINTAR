@@ -40,14 +40,15 @@ export const usePavimentations = (status, options = {}) => {
     const abortControllerRef = useRef(null);
     const retryCountRef = useRef(0);
 
-    // Configurações do hook
-    const config = {
+    // Configurações do hook — useMemo para evitar recriar o objecto a cada render
+    const config = useMemo(() => ({
         autoRefresh: true,
         refreshInterval: 5 * 60 * 1000, // 5 minutos
         maxRetries: 3,
         retryDelay: 1000,
         ...options
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [options.autoRefresh, options.refreshInterval, options.maxRetries, options.retryDelay]);
 
     /**
      * Buscar dados do servidor
@@ -207,15 +208,20 @@ export const usePavimentations = (status, options = {}) => {
      * Funções para manipular filtros
      */
     const updateFilters = useCallback((newFilters) => {
-        setFilters(prev => ({
-            ...prev,
-            ...newFilters,
-            // Reset page quando filtros mudam
-            page: newFilters.search !== prev.search ||
-                newFilters.groupBy !== prev.groupBy ||
-                newFilters.sortBy !== prev.sortBy ||
-                newFilters.sortOrder !== prev.sortOrder ? 0 : newFilters.page ?? prev.page
-        }));
+        setFilters(prev => {
+            // Só reseta a página se um filtro que afecta os resultados realmente mudou
+            const filtersChanged =
+                (newFilters.search ?? prev.search) !== prev.search ||
+                (newFilters.groupBy ?? prev.groupBy) !== prev.groupBy ||
+                (newFilters.sortBy ?? prev.sortBy) !== prev.sortBy ||
+                (newFilters.sortOrder ?? prev.sortOrder) !== prev.sortOrder;
+
+            return {
+                ...prev,
+                ...newFilters,
+                page: filtersChanged ? 0 : (newFilters.page ?? prev.page)
+            };
+        });
     }, []);
 
     const resetFilters = useCallback(() => {

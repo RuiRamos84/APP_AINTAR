@@ -21,8 +21,14 @@ const StatCard = ({
   onClick,
   loading = false,
   notificationCount,
+  active = false,
 }) => {
   const theme = useTheme();
+
+  // Resolve color token to actual hex (e.g. 'primary.main' → theme color)
+  const resolvedColor = color.includes('.')
+    ? color.split('.').reduce((obj, key) => obj?.[key], theme.palette) ?? color
+    : color;
 
   return (
     <Card
@@ -32,14 +38,20 @@ const StatCard = ({
         overflow: 'hidden',
         height: '100%',
         borderRadius: 3,
-        transition: 'transform 0.3s, box-shadow 0.3s, opacity 0.3s',
+        transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
         cursor: onClick ? 'pointer' : 'default',
         opacity: loading ? 0.7 : 1,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        border: active
+          ? `2px solid ${resolvedColor}`
+          : `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        boxShadow: active ? `0 0 0 3px ${alpha(resolvedColor, 0.15)}` : theme.shadows[1],
+        bgcolor: active ? alpha(resolvedColor, 0.04) : 'background.paper',
         '&:hover': onClick
           ? {
-              transform: 'translateY(-4px)',
-              boxShadow: theme.shadows[6],
+              transform: active ? 'none' : 'translateY(-3px)',
+              boxShadow: active
+                ? `0 0 0 3px ${alpha(resolvedColor, 0.2)}`
+                : theme.shadows[5],
             }
           : {},
       }}

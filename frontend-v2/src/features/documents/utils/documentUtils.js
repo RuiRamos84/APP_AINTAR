@@ -6,6 +6,7 @@ import { pt } from 'date-fns/locale';
  * Alinhado com a view vst_document_step$what do backend
  */
 const STATUS_COLOR_MAP = {
+  '-3': 'success',   // CONCLUIDO POR REPLICAÇÃO
   '-1': 'error',     // ANULADO
   '0': 'success',    // CONCLUIDO
   '1': 'grey',       // ENTRADA
@@ -27,6 +28,7 @@ const STATUS_COLOR_MAP = {
  * Nomes padrão dos status (fallback quando metadados não disponíveis)
  */
 const DEFAULT_STATUS_NAMES = {
+  '-3': 'Concluído por Replicação',
   '-1': 'Anulado',
   '0': 'Concluído',
   '1': 'Entrada',
@@ -118,6 +120,7 @@ export const filterDocuments = (documents, filters, searchTerm, dateRange) => {
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch =
                 (doc.regnumber && doc.regnumber.toLowerCase().includes(searchLower)) ||
+                (doc.origin && doc.origin.toLowerCase().includes(searchLower)) ||
                 (doc.address && doc.address.toLowerCase().includes(searchLower)) ||
                 (doc.memo && doc.memo.toLowerCase().includes(searchLower)) ||
                 (doc.ts_entity_name && doc.ts_entity_name.toLowerCase().includes(searchLower));

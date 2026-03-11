@@ -27,6 +27,7 @@ import ArticleIcon from '@mui/icons-material/Article';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import InfoIcon from '@mui/icons-material/Info';
 import CircleIcon from '@mui/icons-material/Circle';
+import EngineeringIcon from '@mui/icons-material/Engineering';
 import { useSocket } from '@/core/contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,33 +52,35 @@ export const NotificationCenter = () => {
   // Filter notifications based on tab
   const getFilteredNotifications = () => {
     switch (tabValue) {
-      case 0: // Todas
-        return notifications;
-      case 1: // Tarefas
-        return notifications.filter((n) => n.type === 'task');
-      case 2: // Documentos
-        return notifications.filter((n) => n.type === 'document');
-      default:
-        return notifications;
+      case 0: return notifications;
+      case 1: return notifications.filter((n) => n.type === 'task');
+      case 2: return notifications.filter((n) => n.type === 'operacao');
+      case 3: return notifications.filter((n) => n.type === 'document');
+      default: return notifications;
     }
   };
 
   const filteredNotifications = getFilteredNotifications();
   const unreadTasks = notifications.filter((n) => n.type === 'task' && !n.read).length;
+  const unreadOperacoes = notifications.filter((n) => n.type === 'operacao' && !n.read).length;
   const unreadDocs = notifications.filter((n) => n.type === 'document' && !n.read).length;
 
-  const handleNotificationClick = (notification) => {
-    markAsRead(notification.id);
+  const handleNotificationClick = (notif) => {
+    markAsRead(notif.id);
     handleClose();
 
-    // Navigate based on type
-    if (notification.type === 'task' && notification.taskId) {
-      // Navegar para tarefas com o ID da tarefa para abrir o modal
-      navigate(`/tasks?taskId=${notification.taskId}`, {
+    if (notif.type === 'task' && notif.taskId) {
+      navigate(`/tasks?taskId=${notif.taskId}`, {
         state: { refreshData: true, timestamp: Date.now() },
       });
-    } else if (notification.type === 'document' && notification.documentId) {
-      navigate('/documents'); // Can be updated to specific route
+    } else if (notif.type === 'operacao') {
+      // Supervisor: tab "Controlo de Tarefas" (index 1); operador: as suas tarefas
+      const route = notif.notification_type === 'nova_tarefa'
+        ? '/operation/tasks'
+        : '/operation/supervisor';
+      navigate(route, { state: { tab: 1, timestamp: Date.now() } });
+    } else if (notif.type === 'document' && notif.documentId) {
+      navigate('/documents');
     }
   };
 
@@ -85,6 +88,8 @@ export const NotificationCenter = () => {
     switch (type) {
       case 'task':
         return <AssignmentIcon color="primary" />;
+      case 'operacao':
+        return <EngineeringIcon sx={{ color: '#1565c0' }} />;
       case 'document':
         return <ArticleIcon color="secondary" />;
       case 'system':
@@ -179,7 +184,8 @@ export const NotificationCenter = () => {
           <Tabs
             value={tabValue}
             onChange={(e, v) => setTabValue(v)}
-            variant="fullWidth"
+            variant="scrollable"
+            scrollButtons="auto"
             sx={{
               minHeight: 36,
               '& .MuiTab-root': {
@@ -201,21 +207,29 @@ export const NotificationCenter = () => {
             }}
           >
             <Tab label={`Todas (${notifications.length})`} />
-            <Tab 
-                label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        Tarefas
-                        {unreadTasks > 0 && <Chip label={unreadTasks} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                    </Box>
-                } 
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Tarefas
+                  {unreadTasks > 0 && <Chip label={unreadTasks} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                </Box>
+              }
             />
-            <Tab 
-                label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        Docs
-                        {unreadDocs > 0 && <Chip label={unreadDocs} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                    </Box>
-                } 
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Operações
+                  {unreadOperacoes > 0 && <Chip label={unreadOperacoes} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                </Box>
+              }
+            />
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Docs
+                  {unreadDocs > 0 && <Chip label={unreadDocs} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                </Box>
+              }
             />
           </Tabs>
         </Box>

@@ -1,10 +1,12 @@
 import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
+import { useQueryClient, useIsFetching } from '@tanstack/react-query';
 import DocumentsLayout from './DocumentsLayout';
 import DocumentList from '../components/list/DocumentList';
+import DocumentGroupedList from '../components/list/DocumentGroupedList';
 import DocumentGrid from '../components/card/DocumentGrid';
 import { useDocumentsStore } from '../store/documentsStore';
-import { useDocuments, useClearNotification } from '../hooks/useDocuments';
+import { useDocuments, useClearNotification, documentKeys } from '../hooks/useDocuments';
 import { filterDocuments, sortDocuments } from '../utils/documentUtils';
 import LateDocumentsAlert from '../components/alerts/LateDocumentsAlert';
 import { exportDocumentsToExcel } from '../utils/excelExport';
@@ -21,6 +23,8 @@ const DocumentDetailsModal = lazy(() => import('../components/details/DocumentDe
  * Main Documents Page
  */
 const DocumentsPage = () => {
+  const queryClient = useQueryClient();
+  const isRefreshing = useIsFetching({ queryKey: ['documents'] }) > 0;
   const {
     activeTab,
     filters,
@@ -74,6 +78,15 @@ const DocumentsPage = () => {
     setSelectedDocument(null);
   };
 
+  const handleActionSuccess = () => {
+    setSelectedDocument(null);
+    queryClient.refetchQueries({ queryKey: documentKeys.lists() });
+  };
+
+  const handleRefresh = useCallback(() => {
+    queryClient.refetchQueries({ queryKey: ['documents'] });
+  }, [queryClient]);
+
   const TAB_NAMES = ['Todos', 'A_Meu_Cargo', 'Criados_por_Mim', 'Em_Atraso'];
 
   const handleExport = useCallback(() => {
@@ -90,7 +103,12 @@ const DocumentsPage = () => {
 
   return (
     <>
-      <DocumentsLayout onOpenCreate={handleOpenCreate} onExport={handleExport}>
+      <DocumentsLayout
+        onOpenCreate={handleOpenCreate}
+        onExport={handleExport}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+      >
         {error ? (
           <Alert severity="error">Erro ao carregar documentos: {error.message}</Alert>
         ) : isLoading ? (
@@ -99,26 +117,34 @@ const DocumentsPage = () => {
           </Box>
         ) : (
           <>
-              {/* Late Documents Alert — only on "Em Atraso" tab */}
-              {activeTab === 3 && queryType === 'late' && (
-                <LateDocumentsAlert documents={documents} />
-              )}
+            {/* Late Documents Alert — only on "Em Atraso" tab */}
+            {activeTab === 3 && queryType === 'late' && (
+              <LateDocumentsAlert documents={documents} />
+            )}
 
-              {viewMode === 'list' ? (
-                  <DocumentList 
-                      documents={processedDocuments} 
-                      loading={isLoading}
-                      metaData={metaData}
-                      onViewDetails={handleViewDetails}
-                  />
-              ) : (
-                  <DocumentGrid 
-                      documents={processedDocuments} 
-                      loading={isLoading}
-                      metaData={metaData}
-                      onViewDetails={handleViewDetails}
-                  />
-              )}
+            {/* Tab "A Meu Cargo" em modo lista → agrupado por estado */}
+            {activeTab === 1 && viewMode === 'list' ? (
+              <DocumentGroupedList
+                documents={processedDocuments}
+                loading={isLoading}
+                metaData={metaData}
+                onViewDetails={handleViewDetails}
+              />
+            ) : viewMode === 'list' ? (
+              <DocumentList
+                documents={processedDocuments}
+                loading={isLoading}
+                metaData={metaData}
+                onViewDetails={handleViewDetails}
+              />
+            ) : (
+              <DocumentGrid
+                documents={processedDocuments}
+                loading={isLoading}
+                metaData={metaData}
+                onViewDetails={handleViewDetails}
+              />
+            )}
           </>
         )}
       </DocumentsLayout>
@@ -138,6 +164,7 @@ const DocumentsPage = () => {
             documentData={selectedDocument}
             isOwner={activeTab === 1}
             isCreator={activeTab === 2}
+            onActionSuccess={handleActionSuccess}
           />
         )}
       </Suspense>

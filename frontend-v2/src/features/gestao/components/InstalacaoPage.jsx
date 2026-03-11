@@ -3,11 +3,12 @@
  * Inclui seletor de instalação + tabs: Volumes | Água | Energia | Despesas | Intervenções | Incumprimentos
  */
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Box, Tabs, Tab, Typography, TextField, Drawer, Tooltip,
   Button, Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, LinearProgress, Grid, Chip, InputAdornment,
-  MenuItem, Paper, Divider, Alert,
+  MenuItem, Paper, Divider, Alert, Stack,
 } from '@mui/material';
 import {
   Add as AddIcon, Close as CloseIcon,
@@ -17,6 +18,10 @@ import {
   Send as SendIcon, Person as PersonIcon,
   Category as CategoryIcon, CalendarMonth as CalendarIcon,
   Info as InfoIcon, Edit as EditIcon,
+  History as HistoryIcon,
+  Schedule as ScheduleIcon, FlashOn as FlashOnIcon,
+  CheckCircle as CheckCircleIcon,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -38,6 +43,7 @@ import {
 } from '../services/etarEeService';
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
+import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -852,9 +858,270 @@ const OperacoesTab = ({ pk, type }) => {
   );
 };
 
+// ─── Dialog: Detalhe de Tarefa ────────────────────────────────────────────────
+
+const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
+  if (!tarefa) return null;
+
+  const isPendente = !tarefa.updt_time;
+  const isProgramada = tarefa.tt_operacaomodo != null;
+  const hasPhoto = !!tarefa.photo;
+  const hasReported = tarefa.valuetext != null || tarefa.valuenumb != null || tarefa.valuememo;
+  const hasValidacao = !!tarefa.control_tt_operacaocontrolo;
+
+  const Row = ({ label, value }) => value == null || value === '' ? null : (
+    <Box sx={{ display: 'flex', gap: 1, py: 0.5 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 140, fontWeight: 500 }}>{label}</Typography>
+      <Typography variant="body2">{value}</Typography>
+    </Box>
+  );
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <HistoryIcon color="primary" />
+            <Typography variant="h6" fontWeight={700} noWrap>{tarefa.tt_operacaoaccao || 'Tarefa'}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              label={isPendente ? 'Pendente' : 'Concluída'}
+              size="small"
+              color={isPendente ? 'warning' : 'success'}
+              variant="outlined"
+            />
+            <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+          </Box>
+        </Box>
+      </DialogTitle>
+
+      <DialogContent dividers sx={{ pt: 2 }}>
+        <Stack spacing={2}>
+          {/* Identificação */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+              Identificação
+            </Typography>
+            <Divider sx={{ my: 0.5 }} />
+            <Row label="Tipo" value={isProgramada ? 'Programada' : 'Pontual'} />
+            <Row label="Data agendada" value={formatDate(tarefa.data)} />
+            <Row label="Operador" value={tarefa.ts_operador1} />
+            {tarefa.ts_operador2 && <Row label="Operador 2" value={tarefa.ts_operador2} />}
+            {tarefa.descr && <Row label="Descrição" value={tarefa.descr} />}
+          </Box>
+
+          {/* Dados reportados */}
+          {(hasReported || hasPhoto) && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                Dados Reportados
+              </Typography>
+              <Divider sx={{ my: 0.5 }} />
+              <Row label="Data conclusão" value={formatDate(tarefa.updt_time)} />
+              {tarefa.valuetext != null && <Row label="Valor (texto)" value={tarefa.valuetext} />}
+              {tarefa.valuenumb != null && <Row label="Valor (numérico)" value={String(tarefa.valuenumb)} />}
+              {tarefa.valuememo && <Row label="Observações" value={tarefa.valuememo} />}
+              {hasPhoto && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                  <ImageIcon fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">Fotografia anexada</Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* Validação */}
+          {hasValidacao && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                Validação
+              </Typography>
+              <Divider sx={{ my: 0.5 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                <CheckCircleIcon fontSize="small" color="success" />
+                <Typography variant="body2">{tarefa.control_tt_operacaocontrolo}</Typography>
+              </Box>
+              {tarefa.control_memo && <Row label="Nota" value={tarefa.control_memo} />}
+              {tarefa.control_client && <Row label="Validado por" value={tarefa.control_client} />}
+              {tarefa.control_time && <Row label="Data validação" value={formatDate(tarefa.control_time)} />}
+            </Box>
+          )}
+
+          {/* Estado pendente */}
+          {isPendente && !hasReported && (
+            <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+              Tarefa ainda não concluída — sem dados reportados.
+            </Alert>
+          )}
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose} size="small">Fechar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// ─── TAB: Histórico de Tarefas ────────────────────────────────────────────────
+
+const HistoricoTab = ({ pk, color }) => {
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [search, setSearch] = useState('');
+  const [detalhe, setDetalhe] = useState(null);
+
+  const { data: allTarefas = [], isLoading } = useQuery({
+    queryKey: ['instalacao', 'historico', pk, fromDate, toDate],
+    queryFn: () => operationService.getOperacao({
+      instalacaoPk: pk,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+    }),
+    enabled: !!pk,
+    select: (d) => (d?.data || []).map((r, i) => ({ ...r, id: r.pk ?? i })),
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const tarefas = useMemo(() => {
+    if (!search.trim()) return allTarefas;
+    const q = search.toLowerCase();
+    return allTarefas.filter(r =>
+      (r.tt_operacaoaccao || '').toLowerCase().includes(q) ||
+      (r.ts_operador1 || '').toLowerCase().includes(q) ||
+      (r.descr || '').toLowerCase().includes(q)
+    );
+  }, [allTarefas, search]);
+
+  const cols = [
+    {
+      field: 'data', headerName: 'Data Agendada', width: 130,
+      renderCell: ({ value }) => (
+        <Cell><Typography variant="body2">{value ? formatDate(value) : '—'}</Typography></Cell>
+      ),
+    },
+    {
+      field: 'updt_time', headerName: 'Data Conclusão', width: 130,
+      renderCell: ({ value }) => (
+        <Cell><Typography variant="body2">{value ? formatDate(value) : '—'}</Typography></Cell>
+      ),
+    },
+    {
+      field: 'tt_operacaoaccao', headerName: 'Ação / Tarefa', flex: 1, minWidth: 200,
+      renderCell: ({ value }) => (
+        <Cell><Typography variant="body2" noWrap>{value || '—'}</Typography></Cell>
+      ),
+    },
+    {
+      field: 'ts_operador1', headerName: 'Operador', width: 160,
+      renderCell: ({ value }) => (
+        <Cell><Typography variant="body2">{value || '—'}</Typography></Cell>
+      ),
+    },
+    {
+      field: 'tt_operacaomodo', headerName: 'Tipo', width: 130,
+      renderCell: ({ value }) => {
+        const isProgramada = value != null;
+        return (
+          <Cell>
+            <Chip
+              icon={isProgramada ? <ScheduleIcon fontSize="small" /> : <FlashOnIcon fontSize="small" />}
+              label={isProgramada ? 'Programada' : 'Pontual'}
+              size="small"
+              sx={isProgramada
+                ? { bgcolor: alpha('#9c27b0', 0.1), color: '#9c27b0', '& .MuiChip-icon': { color: '#9c27b0' } }
+                : { bgcolor: alpha('#ff9800', 0.1), color: '#ff9800', '& .MuiChip-icon': { color: '#ff9800' } }
+              }
+            />
+          </Cell>
+        );
+      },
+    },
+    {
+      field: '_estado', headerName: 'Estado', width: 120,
+      valueGetter: (_, row) => !!row.updt_time,
+      renderCell: ({ row }) => (
+        <Cell>
+          <Chip
+            label={row.updt_time ? 'Concluída' : 'Pendente'}
+            size="small"
+            color={row.updt_time ? 'success' : 'warning'}
+            variant="outlined"
+          />
+        </Cell>
+      ),
+    },
+    {
+      field: 'control_tt_operacaocontrolo', headerName: 'Validação', width: 110,
+      renderCell: ({ value }) => (
+        <Cell>
+          {value
+            ? <Chip label="Validada" size="small" color="success" variant="outlined" />
+            : <Typography variant="caption" color="text.disabled">—</Typography>}
+        </Cell>
+      ),
+    },
+  ];
+
+  return (
+    <Box>
+      {/* Toolbar: tudo à direita */}
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-end" sx={{ mb: 2, flexWrap: 'wrap' }}>
+        <SearchBar searchTerm={search} onSearch={setSearch} />
+        <TextField
+          label="Data início" type="date" size="small"
+          value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 150 }}
+        />
+        <TextField
+          label="Data fim" type="date" size="small"
+          value={toDate} onChange={(e) => setToDate(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 150 }}
+        />
+        <Typography variant="caption" color="text.secondary">
+          {tarefas.length} registo{tarefas.length !== 1 ? 's' : ''}
+        </Typography>
+        {(fromDate || toDate) && (
+          <Button size="small" color="inherit" onClick={() => { setFromDate(''); setToDate(''); }}>
+            Limpar
+          </Button>
+        )}
+      </Stack>
+
+      <DataGrid
+        rows={tarefas}
+        columns={cols}
+        loading={isLoading}
+        autoHeight
+        getRowHeight={() => 'auto'}
+        pageSizeOptions={[25, 50, 100]}
+        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        onRowClick={({ row }) => setDetalhe(row)}
+        sx={{
+          borderRadius: 2,
+          '& .MuiDataGrid-cell': { py: 1.5 },
+          '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 },
+          '& .MuiDataGrid-row': { cursor: 'pointer' },
+        }}
+        localeText={{ ...GRID_LOCALE, noRowsLabel: 'Sem tarefas registadas para esta instalação.' }}
+      />
+
+      <TarefaDetailDialog
+        tarefa={detalhe}
+        open={!!detalhe}
+        onClose={() => setDetalhe(null)}
+      />
+    </Box>
+  );
+};
+
 // ─── InstalacaoPage (principal) ───────────────────────────────────────────────
 
 const TABS_ETAR = [
+  { label: 'Histórico',      icon: HistoryIcon },
   { label: 'Volumes',        icon: VolumeIcon },
   { label: 'Água',           icon: WaterIcon },
   { label: 'Energia',        icon: EnergyIcon },
@@ -864,7 +1131,7 @@ const TABS_ETAR = [
   { label: 'Incumprimentos', icon: IncumpIcon },
 ];
 
-const TABS_EE = TABS_ETAR.slice(0, 6);  // sem Incumprimentos
+const TABS_EE = TABS_ETAR.slice(0, 7);  // sem Incumprimentos
 
 /**
  * @param {Object}   props
@@ -990,25 +1257,26 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
           </Box>
 
           {/* Conteúdo dos tabs */}
-          {tab === 0 && (
+          {tab === 0 && <HistoricoTab pk={pk} color={color} />}
+          {tab === 1 && (
             <VolumeTab pk={pk} color={color} data={volumes} isLoading={isLoadingVolumes}
               addVolume={addVolume} isAdding={isAddingVolume} />
           )}
-          {tab === 1 && (
+          {tab === 2 && (
             <WaterTab pk={pk} color={color} data={waterVolumes} isLoading={isLoadingWater}
               addWaterVolume={addWaterVolume} isAdding={isAddingWater} />
           )}
-          {tab === 2 && (
+          {tab === 3 && (
             <EnergyTab pk={pk} color={color} data={energy} isLoading={isLoadingEnergy}
               addEnergy={addEnergy} isAdding={isAddingEnergy} />
           )}
-          {tab === 3 && (
+          {tab === 4 && (
             <ExpensesTab pk={pk} color={color} data={expenses} isLoading={isLoadingExpenses}
               addExpense={addExpense} isAdding={isAddingExpense} />
           )}
-          {tab === 4 && <IntervencoesTab pk={pk} />}
-          {tab === 5 && <OperacoesTab pk={pk} type={type} />}
-          {tab === 6 && type === 'etar' && (
+          {tab === 5 && <IntervencoesTab pk={pk} />}
+          {tab === 6 && <OperacoesTab pk={pk} type={type} />}
+          {tab === 7 && type === 'etar' && (
             <IncumprimentosTab pk={pk} color={color} data={incumprimentos} isLoading={isLoadingIncump}
               addIncumprimento={addIncumprimento} isAdding={isAddingIncump} />
           )}

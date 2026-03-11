@@ -11,6 +11,24 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _emit_operacao_notif(notification_type: str, title: str, message: str,
+                         user_ids: list, meta_pk: int = None, operacao_pk: int = None):
+    """Helper para emitir notificação de operação via Socket.IO (falha silenciosamente)."""
+    try:
+        socketio_events = current_app.extensions.get('socketio_events')
+        if socketio_events:
+            socketio_events.emit_operacao_notification(
+                user_ids=[uid for uid in user_ids if uid],
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                meta_pk=meta_pk,
+                operacao_pk=operacao_pk,
+            )
+    except Exception as e:
+        logger.warning(f"[OperaçãoNotif] Falha ao emitir '{notification_type}': {e}")
+
+
 class OperationControlQuery(BaseModel):
     """Filtros para consulta de controlo de operações"""
     tb_instalacao: int
@@ -69,7 +87,17 @@ def update_operation_control(data: dict, current_user: str):
         control_memo = data.get('control_memo', '')
 
         # Atualizar dados de controlo via função 3-param
+        operador_pk = None
+        instalacao_nome = ''
         with db_session_manager(current_user) as session:
+            # Obter operador e instalação antes do update para notificação
+            op_row = session.execute(text(
+                "SELECT pk_operador1, tb_instalacao FROM vbl_operacao WHERE pk = :pk"
+            ), {'pk': pk}).fetchone()
+            if op_row:
+                operador_pk = op_row.pk_operador1
+                instalacao_nome = op_row.tb_instalacao or ''
+
             result = session.execute(
                 text("""
                     SELECT "fbo_operacao$controlupdate"(
@@ -87,6 +115,16 @@ def update_operation_control(data: dict, current_user: str):
             updated_pk = result.scalar()
             session.commit()
             logger.info(f"Controlo atualizado: tarefa {updated_pk}")
+
+        # Notificar operador após validação
+        if operador_pk:
+            _emit_operacao_notif(
+                notification_type='tarefa_validada',
+                title='Tarefa validada',
+                message=f'A sua execução em {instalacao_nome or "instalação"} foi validada pelo supervisor.',
+                user_ids=[operador_pk],
+                operacao_pk=pk,
+            )
 
         # Processar e registar ficheiros em tb_operacao_annex
         files = request.files.getlist('files')

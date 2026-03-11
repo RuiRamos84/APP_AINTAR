@@ -262,7 +262,7 @@ const SupervisorPage = () => {
                             operations={operations}
                             metaData={metaData}
                             onCreateTask={(data) => createTask.mutate(data)}
-                            onCreateDirect={(data) => createDirect.mutate(data)}
+                            onCreateDirect={(data) => createDirect.mutateAsync(data)}
                             onUpdateMeta={(id, data) => updateMeta.mutate({ id, data })}
                             onDeleteMeta={(id) => deleteMeta.mutate(id)}
                             onValidate={handleValidate}
@@ -274,9 +274,7 @@ const SupervisorPage = () => {
                         <OperatorMonitoring
                             operatorStats={operatorStats}
                             recentActivity={recentActivity}
-                            onValidate={handleValidate}
-                            isValidating={validateExecution.isPending}
-                            metaData={metaData}
+                            onNavigateToControl={() => setActiveTab(1)}
                         />
                     )}
 

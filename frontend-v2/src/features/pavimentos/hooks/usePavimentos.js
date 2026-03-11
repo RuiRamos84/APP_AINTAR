@@ -17,6 +17,7 @@ export const usePavimentos = (status) => {
     queryFn: () => getPavimentos(status),
     staleTime: STALE,
     enabled: !!status,
+    placeholderData: (prev) => prev, // mantém dados anteriores durante re-fetches
   });
 
   const advance = useMutation({
@@ -32,6 +33,7 @@ export const usePavimentos = (status) => {
   return {
     items: query.data ?? [],
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     isError: query.isError,
     refetch: query.refetch,
     advance: advance.mutate,

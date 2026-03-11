@@ -41,6 +41,7 @@ import {
   Groups as GroupsIcon,
   ExploreOff as ExploreOffIcon,
   ExpandMore as ExpandMoreIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import WorkflowViewer from './tabs/WorkflowViewer';
 import { useDocumentDetails, useDocumentSteps, useDownloadComprovativo } from '../../hooks/useDocuments';
@@ -50,9 +51,11 @@ import DocumentTimeline from './DocumentTimeline';
 import DocumentAnnexes from './DocumentAnnexes';
 import AddStepModal from '../modals/AddStepModal';
 import ReplicateDocumentModal from '../modals/ReplicateDocumentModal';
+import AddAnnexModal from '../modals/AddAnnexModal';
 import ParametersTab from './tabs/ParametersTab';
 import DocumentMap from './tabs/DocumentMap';
 import PaymentsTab from './tabs/PaymentsTab';
+import paymentService from '@/features/payments/services/paymentService';
 
 /**
  * Tab Panel Helper
@@ -116,14 +119,16 @@ const SectionHeader = ({ icon, title }) => {
 /**
  * Modal to view Document Details - Fully Responsive
  */
-const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, isCreator = false }) => {
+const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, isCreator = false, onActionSuccess }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   const [activeTab, setActiveTab] = useState(0);
   const [isAddStepOpen, setIsAddStepOpen] = useState(false);
   const [isReplicateOpen, setIsReplicateOpen] = useState(false);
+  const [isAddAnnexOpen, setIsAddAnnexOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [originOpen, setOriginOpen] = useState(false);
 
   // Extract identifiers
   const { pk: documentPk, regnumber: documentRegNumber } = documentData || {};
@@ -146,54 +151,262 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
     setActiveTab(newValue);
   };
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
+    const doc = document;
+    if (!doc) return;
+
+    // Fetch extra data async at print time
+    let params = [], annexes = [], payment = null;
+    try {
+      const { documentsService } = await import('../../api/documentsService');
+      [params, annexes] = await Promise.all([
+        documentsService.fetchParams(documentPk).catch(() => []),
+        documentsService.fetchAnnexes(documentPk).catch(() => []),
+      ]);
+    } catch (_) { /* continua sem dados extra */ }
+    try {
+      const res = await paymentService.getInvoiceAmount(documentPk);
+      if (res?.invoice_data?.invoice || res?.invoice_data?.amount) payment = res.invoice_data;
+    } catch (_) { /* sem pagamento */ }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const doc = document;
-    const statusLabel = getStatusLabel(doc.what);
-    const associate = findMetaValue(metaData?.associates, 'name', doc.ts_associate);
-    const creator = findMetaValue(metaData?.who, 'username', doc.creator);
+    // ── helpers ──────────────────────────────────────────────────────────
+    const esc = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const fv  = findMetaValue;
+    const fd  = formatDate;
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Pedido ${doc.regnumber}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-            h1 { font-size: 22px; margin-bottom: 4px; }
-            .status { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #e0e0e0; font-size: 13px; }
-            .section { margin-top: 24px; }
-            .section h2 { font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-            .field { margin: 8px 0; }
-            .label { font-weight: bold; font-size: 13px; color: #666; }
-            .value { font-size: 14px; }
-            .memo { white-space: pre-wrap; background: #f5f5f5; padding: 12px; border-radius: 4px; }
-            @media print { body { padding: 20px; } }
-          </style>
-        </head>
-        <body>
-          <h1>${doc.regnumber}</h1>
-          <span class="status">${statusLabel}</span>
-          <div class="section">
-            <h2>Informação Geral</h2>
-            <div class="field"><span class="label">Tipo:</span> <span class="value">${doc.tt_type || 'Geral'}</span></div>
-            <div class="field"><span class="label">Entidade:</span> <span class="value">${doc.ts_entity_name || doc.ts_entity || 'N/D'}</span></div>
-            <div class="field"><span class="label">Associado:</span> <span class="value">${associate || 'N/D'}</span></div>
-            <div class="field"><span class="label">Criado por:</span> <span class="value">${creator || 'N/D'}</span></div>
-            <div class="field"><span class="label">Data:</span> <span class="value">${formatDate(doc.submission)}</span></div>
-            ${doc.address ? `<div class="field"><span class="label">Morada:</span> <span class="value">${doc.address} ${doc.postal || ''}</span></div>` : ''}
-          </div>
-          <div class="section">
-            <h2>Descrição</h2>
-            <div class="memo">${doc.memo || 'Sem descrição.'}</div>
-          </div>
-          <script>window.onload = function() { window.print(); }</script>
-        </body>
-      </html>
-    `);
+    const statusLabel  = getStatusLabel(doc.what, metaData);
+    const creator      = fv(metaData?.who, 'username', doc.creator)   || '—';
+    const assigned     = fv(metaData?.who, 'username', doc.who)        || '—';
+    const associate    = fv(metaData?.associates, 'name', doc.ts_associate) || '—';
+    const presentation = fv(metaData?.presentation, 'name', doc.tt_presentation);
+    const nuts         = [doc.nut4, doc.nut3, doc.nut2, doc.nut1].filter(Boolean).join(' › ');
+    const printDate    = new Date().toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+    // ── card builder ─────────────────────────────────────────────────────
+    const card = (title, color, rows) => {
+      const cells = rows.filter(([,v]) => v != null && v !== '' && v !== '—').map(([l,v]) => `
+        <div class="kv">
+          <span class="kv-label">${esc(l)}</span>
+          <span class="kv-value">${esc(String(v))}</span>
+        </div>`).join('');
+      return cells ? `
+        <div class="card" style="border-top:3px solid ${color}">
+          <div class="card-title" style="color:${color}">${title}</div>
+          ${cells}
+        </div>` : '';
+    };
+
+    // ── section title ────────────────────────────────────────────────────
+    const section = (title, content) => content ? `
+      <div class="section">
+        <div class="section-title">${title}</div>
+        ${content}
+      </div>` : '';
+
+    // ── table builder ────────────────────────────────────────────────────
+    const table = (heads, rows) => `
+      <table>
+        <thead><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows || `<tr><td colspan="${heads.length}" class="empty">Sem dados</td></tr>`}</tbody>
+      </table>`;
+
+    // ── payment method label ──────────────────────────────────────────────
+    const payMethodLabel = (m) => {
+      if (!m) return '—';
+      const u = m.toUpperCase();
+      if (u === 'MBWAY') return 'MB WAY';
+      if (u === 'MULTIBANCO' || u === 'REFERENCE') return 'Referência Multibanco';
+      return m;
+    };
+    const payStatusLabel = (s) => {
+      if (!s) return 'Pendente';
+      const l = s.toLowerCase();
+      if (l.includes('success') || l === 'paid') return 'Pago ✓';
+      if (l.includes('pending') || l === 'processing') return 'Pendente';
+      if (l.includes('fail') || l.includes('error') || l === 'declined') return 'Falhado ✗';
+      return s;
+    };
+
+    // ── sections HTML ─────────────────────────────────────────────────────
+    const geral = card('Identificação', '#1976d2', [
+      ['Tipo de Pedido',   doc.tt_type || 'Geral'],
+      ['Apresentação',     presentation],
+      ['Data de Submissão', fd(doc.submission)],
+      ['Data de Execução', doc.exec_data ? fd(doc.exec_data) : null],
+      ['Pedidos Este Ano', doc.type_countyear],
+      ['Total de Pedidos', doc.type_countall],
+    ]);
+
+    const entidade = card('Entidade', '#0288d1', [
+      ['Nome',     doc.ts_entity_name || doc.ts_entity],
+      ['NIPC',     doc.nipc],
+      ['Telefone', doc.phone],
+    ]);
+
+    const responsaveis = card('Responsáveis', '#7b1fa2', [
+      ['Criado por', creator],
+      ['Assignado a', assigned],
+      ['Associado',   associate],
+    ]);
+
+    const localizacao = card('Localização', '#388e3c', [
+      ['Morada', [doc.address, doc.floor ? `Andar ${doc.floor}` : null, doc.postal, doc.door ? `Porta ${doc.door}` : null].filter(Boolean).join(', ')],
+      ['Localidade / Administrativa', nuts || null],
+      ['Coordenadas', (doc.glat && doc.glong) ? `${doc.glat}, ${doc.glong}` : null],
+    ]);
+
+    const cardsRow1 = `<div class="cards-row">${geral}${entidade}${responsaveis}${localizacao}</div>`;
+
+    const descricao = section('Descrição do Pedido',
+      `<div class="memo-box">${esc(doc.memo || 'Sem descrição.')}</div>`
+    );
+
+    const paramsSection = params.length > 0 ? section('Parâmetros', table(
+      ['Parâmetro', 'Valor'],
+      params.map((p, i) => {
+        let val = p.value;
+        if (p.type === 4 || p.type === '4') val = (val === '1' || val === 1) ? 'Sim' : 'Não';
+        return `<tr class="${i%2===1?'alt':''}"><td>${esc(p.name)}</td><td>${esc(String(val??'—'))}</td></tr>`;
+      }).join('')
+    )) : '';
+
+    const stepsRows = Array.isArray(steps) && steps.length > 0
+      ? steps.map((s, i) => {
+          const stepLabel = fv(metaData?.what, 'step', s.what) || s.step_label || `Passo ${i+1}`;
+          const stepWho   = fv(metaData?.who, 'username', s.who) || '—';
+          return `<tr class="${i%2===1?'alt':''}">
+            <td style="white-space:nowrap">${fd(s.when_start)}</td>
+            <td><strong>${esc(stepLabel)}</strong></td>
+            <td>${esc(stepWho)}</td>
+            <td class="memo-cell">${esc(s.memo || '—')}</td>
+          </tr>`;
+        }).join('')
+      : '';
+    const historicoSection = section('Histórico de Ações', table(
+      ['Data', 'Ação', 'Responsável', 'Observações'],
+      stepsRows
+    ));
+
+    const paymentSection = payment ? section('Pagamento', `
+      <div class="cards-row">
+        ${card('Dados da Fatura', '#f57c00', [
+          ['Valor',      `${payment.invoice || payment.amount || 0} €`],
+          ['Método',     payMethodLabel(payment.payment_method)],
+          ['Estado',     payStatusLabel(payment.payment_status)],
+          ['Ref. Interna', payment.order_id],
+        ])}
+        ${(() => {
+          let ref = payment.payment_reference;
+          if (typeof ref === 'string' && ref.startsWith('{')) { try { ref = JSON.parse(ref); } catch(_) {} }
+          const refObj  = (ref?.paymentReference || ref || {});
+          const entity  = refObj.entity || refObj.paymentEntity || '52791';
+          const refNum  = refObj.reference || ref?.reference || null;
+          const expiry  = payment.sibs_expiry || refObj.expireDate || null;
+          return card('Referência Multibanco', '#f57c00', [
+            ['Entidade',  entity],
+            ['Referência', refNum],
+            ['Válida até', expiry ? fd(expiry) : null],
+          ]);
+        })()}
+      </div>`) : '';
+
+    const annexesSection = annexes.length > 0 ? section('Anexos', table(
+      ['#', 'Ficheiro', 'Data'],
+      annexes.map((a, i) => `
+        <tr class="${i%2===1?'alt':''}">
+          <td>${i+1}</td>
+          <td>${esc(a.filename || a.name || a.file || '—')}</td>
+          <td>${fd(a.submission || a.created_at)}</td>
+        </tr>`).join('')
+    )) : '';
+
+    // ── final HTML ────────────────────────────────────────────────────────
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Pedido ${esc(doc.regnumber)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:28px 32px}
+    /* ── header ── */
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;margin-bottom:22px;border-bottom:3px solid #1976d2}
+    .hdr-left h1{font-size:22px;font-weight:800;color:#1976d2;letter-spacing:-0.5px}
+    .hdr-left .sub{font-size:12px;color:#555;margin-top:3px}
+    .badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px}
+    .b-status{background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
+    .b-urgent{background:#fff3e0;color:#bf360c;border:1px solid #ffcc80}
+    .b-origin{background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8}
+    .hdr-right{text-align:right;font-size:10px;color:#777;line-height:1.7}
+    .hdr-right strong{font-size:13px;color:#1976d2;display:block}
+    /* ── sections ── */
+    .section{margin-bottom:20px;page-break-inside:avoid}
+    .section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#1976d2;padding:5px 0 5px 10px;border-left:4px solid #1976d2;margin-bottom:10px;background:#f0f7ff}
+    /* ── cards grid ── */
+    .cards-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:4px}
+    .card{border:1px solid #e8eaf6;border-radius:6px;padding:10px 12px;background:#fafbff;page-break-inside:avoid}
+    .card-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px}
+    .kv{margin-bottom:6px}
+    .kv-label{display:block;font-size:9.5px;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:0.4px}
+    .kv-value{font-size:12px;color:#1a1a2e;font-weight:500}
+    /* ── memo ── */
+    .memo-box{background:#f8f9fa;border:1px solid #e0e0e0;border-radius:5px;padding:11px 14px;white-space:pre-wrap;line-height:1.7;font-size:12px;color:#333}
+    /* ── tables ── */
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{background:#1976d2;color:#fff;padding:7px 10px;text-align:left;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.4px}
+    td{padding:6px 10px;border-bottom:1px solid #f0f0f0;vertical-align:top;color:#333}
+    tr.alt td{background:#f5f8ff}
+    .memo-cell{max-width:280px;white-space:pre-wrap;color:#555}
+    .empty{text-align:center;color:#aaa;font-style:italic;padding:12px}
+    /* ── footer ── */
+    .footer{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;display:flex;justify-content:space-between;font-size:10px;color:#aaa}
+    /* ── print ── */
+    @page{size:A4 landscape;margin:12mm 14mm}
+    @media print{
+      body{padding:0}
+      .section{page-break-inside:avoid}
+      tr{page-break-inside:avoid}
+      .hdr{page-break-after:avoid}
+    }
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>${esc(doc.regnumber)}</h1>
+      <div class="sub">${esc(doc.tt_type || 'Pedido')}</div>
+      <div class="badges">
+        <span class="badge b-status">${esc(statusLabel)}</span>
+        ${doc.urgency && doc.urgency !== '0' ? `<span class="badge b-urgent">${doc.urgency === '2' ? 'Muito Urgente' : 'Urgente'}</span>` : ''}
+        ${doc.origin ? `<span class="badge b-origin">Origem: ${esc(doc.origin)}</span>` : ''}
+      </div>
+    </div>
+    <div class="hdr-right">
+      <strong>AINTAR</strong>
+      <span>Impresso em ${printDate}</span>
+    </div>
+  </div>
+
+  ${cardsRow1}
+  ${descricao}
+  ${paramsSection}
+  ${historicoSection}
+  ${paymentSection}
+  ${annexesSection}
+
+  <div class="footer">
+    <span>AINTAR — Sistema de Gestão de Pedidos</span>
+    <span>${esc(doc.regnumber)}</span>
+  </div>
+  <script>window.onload=function(){window.print()}</script>
+</body>
+</html>`);
     printWindow.document.close();
-  }, [document, metaData]);
+  }, [document, documentPk, metaData, steps]);
 
   if (!open) return null;
 
@@ -296,7 +509,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                 {document.regnumber}
               </Typography>
               <Chip
-                label={getStatusLabel(document.what)}
+                label={getStatusLabel(document.what, metaData)}
                 color={getStatusColor(document.what)}
                 size="small"
                 sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
@@ -312,6 +525,24 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                   sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
                 />
               )}
+              {document.origin && (
+                <Tooltip title={`Pedido de origem: ${document.origin} — clique para abrir`}>
+                  <Chip
+                    icon={<HistoryIcon sx={{ fontSize: '14px !important' }} />}
+                    label={`Origem: ${document.origin}`}
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    onClick={() => setOriginOpen(true)}
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: { xs: '0.68rem', sm: '0.75rem' },
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+                    }}
+                  />
+                </Tooltip>
+              )}
             </>
           ) : (
             <Typography color="error">Erro ao carregar</Typography>
@@ -319,18 +550,13 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         </Box>
 
         <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-          {!isMobile && (
-            <Button startIcon={<PrintIcon />} variant="outlined" size="small" disabled={!document} onClick={handlePrint}>
-              Imprimir
-            </Button>
-          )}
-          {isMobile && (
-            <Tooltip title="Imprimir">
+          <Tooltip title="Imprimir pedido">
+            <span>
               <IconButton size="small" disabled={!document} onClick={handlePrint}>
                 <PrintIcon fontSize="small" />
               </IconButton>
-            </Tooltip>
-          )}
+            </span>
+          </Tooltip>
           <IconButton onClick={onClose} size={isMobile ? 'small' : 'medium'}>
             <CloseIcon />
           </IconButton>
@@ -760,14 +986,25 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
           )}
         </Box>
         {isOwner && (
-          <Button
-            variant="contained"
-            size={isMobile ? 'small' : 'medium'}
-            onClick={() => setIsAddStepOpen(true)}
-            sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
-          >
-            Adicionar Ação
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size={isMobile ? 'small' : 'medium'}
+              onClick={() => setIsAddAnnexOpen(true)}
+              disabled={!document}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+            >
+              Adicionar Anexo
+            </Button>
+            <Button
+              variant="contained"
+              size={isMobile ? 'small' : 'medium'}
+              onClick={() => setIsAddStepOpen(true)}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+            >
+              Adicionar Ação
+            </Button>
+          </Box>
         )}
       </Box>
 
@@ -775,6 +1012,18 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
       <AddStepModal
         open={isAddStepOpen}
         onClose={() => setIsAddStepOpen(false)}
+        documentId={documentPk}
+        document={document}
+        onSuccess={() => {
+          setIsAddStepOpen(false);
+          onActionSuccess?.();
+        }}
+      />
+
+      {/* Add Annex Modal */}
+      <AddAnnexModal
+        open={isAddAnnexOpen}
+        onClose={() => setIsAddAnnexOpen(false)}
         documentId={documentPk}
         document={document}
       />
@@ -785,6 +1034,21 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
           open={isReplicateOpen}
           onClose={() => setIsReplicateOpen(false)}
           document={document}
+          onSuccess={() => {
+            setIsReplicateOpen(false);
+            onActionSuccess?.();
+          }}
+        />
+      )}
+
+      {/* Origin Document Modal — opens the linked/parent document (read-only) */}
+      {document?.origin && (
+        <DocumentDetailsModal
+          open={originOpen}
+          onClose={() => setOriginOpen(false)}
+          documentData={{ regnumber: document.origin }}
+          isOwner={false}
+          isCreator={false}
         />
       )}
     </Dialog>

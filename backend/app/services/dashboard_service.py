@@ -1,10 +1,11 @@
 from .. import db
 from sqlalchemy.sql import text
 from sqlalchemy.exc import ProgrammingError, OperationalError
-from flask import current_app
+from flask import current_app, has_app_context
 from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = get_logger(__name__)
 
@@ -94,14 +95,17 @@ DASHBOARD_VIEWS = {
         'vds_tramitacao_01$001': 'Por utilizador',
          'vds_tramitacao_01$002': 'Por utilizador e ano',
          'vds_tramitacao_01$003': 'Por utilizador, mes e ano',
-         
-
-    }
-       
-
-
-
-
+    },
+    'landing': {
+        'vds_landing_01$001': 'Pedidos - Top 10 tipos',
+        'vds_landing_01$002': 'Pedidos - Por município',
+        'vds_landing_01$003': 'Pedidos - Estado actual',
+        'vds_landing_01$004': 'Pedidos - Duração média (dias)',
+        'vds_landing_02$001': 'Ramais - Estado corrente vs anterior',
+        'vds_landing_02$002': 'Ramais - Por município',
+        'vds_landing_03$001': 'Fossas - Estado corrente vs anterior',
+        'vds_landing_03$002': 'Fossas - Por município',
+    },
 
 
 
@@ -177,16 +181,14 @@ def get_dashboard_view_data(current_user, view_name, filters=None):
 
     with db_session_manager(current_user) as session:
         try:
-            # NOTA: A passagem de nomes de tabelas/views como parâmetros não é suportada diretamente.
-            # A abordagem de f-string é aceitável aqui porque os nomes das views são controlados internamente.
-
-            # Primeiro, verificar quais colunas existem na view
-            check_query = f"SELECT * FROM aintar_server.{view_name} LIMIT 0"
-            check_result = session.execute(text(check_query))
-            available_columns = list(check_result.keys())
-
             # Construir query base
+            # NOTA: f-string é aceitável porque os nomes das views são validados contra DASHBOARD_VIEWS
             query = f"SELECT * FROM aintar_server.{view_name}"
+
+            # Executar primeiro sem filtros para obter as colunas disponíveis
+            result = session.execute(text(query))
+            columns = list(result.keys()) if result.returns_rows else []
+            available_columns = columns
 
             # Adicionar filtros apenas se as colunas existirem na view
             if filters:
@@ -198,7 +200,6 @@ def get_dashboard_view_data(current_user, view_name, filters=None):
                     where_clauses.append(f"ano = {int(filters['year'])}")
 
                 # Não aplicar filtro de mês em views que mostram tendências mensais
-                # Estas views são desenhadas para mostrar dados de TODOS os meses
                 should_skip_month_filter = (
                     friendly_name and (
                         'por ano e mês' in friendly_name.lower() or
@@ -215,10 +216,10 @@ def get_dashboard_view_data(current_user, view_name, filters=None):
                         where_clauses.append(f"mes = {int(filters['month'])}")
 
                 if where_clauses:
-                    query += " WHERE " + " AND ".join(where_clauses)
+                    filtered_query = query + " WHERE " + " AND ".join(where_clauses)
+                    result = session.execute(text(filtered_query))
+                    columns = list(result.keys()) if result.returns_rows else []
 
-            result = session.execute(text(query))
-            columns = list(result.keys()) if result.returns_rows else []
             data = [dict(row) for row in result.mappings().all()]
 
             return {
@@ -275,10 +276,54 @@ def get_dashboard_category_data(current_user, category, filters=None):
     return category_data
 
 
+LANDING_VIEWS = [
+    'vds_landing_01$001',
+    'vds_landing_01$002',
+    'vds_landing_01$003',
+    'vds_landing_01$004',
+    'vds_landing_02$001',
+    'vds_landing_02$002',
+    'vds_landing_03$001',
+    'vds_landing_03$002',
+]
+
+
+@api_error_handler
+def get_landing_data(current_user):
+    """
+    Obtém dados de todas as views da landing page em paralelo.
+
+    Returns:
+        Dicionário indexado por nome de view, cada um com 'data' e 'columns'.
+    """
+    app = current_app._get_current_object()
+
+    def fetch_view(view_name):
+        with app.app_context():
+            try:
+                with db_session_manager(current_user) as session:
+                    res = session.execute(text(f"SELECT * FROM aintar_server.{view_name}"))
+                    return view_name, {
+                        'data': [dict(r) for r in res.mappings().all()],
+                        'columns': list(res.keys()),
+                    }
+            except Exception as e:
+                logger.error(f"Erro ao carregar view landing {view_name}: {e}", exc_info=True)
+                return view_name, {'data': [], 'columns': [], 'error': str(e)}
+
+    result = {}
+    with ThreadPoolExecutor(max_workers=len(LANDING_VIEWS)) as executor:
+        futures = {executor.submit(fetch_view, v): v for v in LANDING_VIEWS}
+        for future in as_completed(futures):
+            view_name, data = future.result()
+            result[view_name] = data
+    return result
+
+
 @api_error_handler
 def get_dashboard_data(current_user, filters=None):
     """
-    Obtém dados de todas as views do dashboard (mantido por compatibilidade)
+    Obtém dados de todas as views do dashboard em paralelo.
 
     Args:
         current_user: Utilizador autenticado
@@ -292,16 +337,21 @@ def get_dashboard_data(current_user, filters=None):
         'data': {}
     }
 
-    for category in DASHBOARD_VIEWS.keys():
-        try:
-            category_data = get_dashboard_category_data(current_user, category, filters)
-            dashboard_data['data'][category] = category_data
-        except Exception as e:
-            logger.error(f"Erro ao processar categoria {category}: {str(e)}", exc_info=True)
-            dashboard_data['data'][category] = {
-                'category': category,
-                'views': {},
-                'error': str(e)
-            }
+    categories = list(DASHBOARD_VIEWS.keys())
+    app = current_app._get_current_object()
+
+    def fetch_category(category):
+        with app.app_context():
+            try:
+                return category, get_dashboard_category_data(current_user, category, filters)
+            except Exception as e:
+                logger.error(f"Erro ao processar categoria {category}: {str(e)}", exc_info=True)
+                return category, {'category': category, 'views': {}, 'error': str(e)}
+
+    with ThreadPoolExecutor(max_workers=len(categories)) as executor:
+        futures = {executor.submit(fetch_category, cat): cat for cat in categories}
+        for future in as_completed(futures):
+            category, data = future.result()
+            dashboard_data['data'][category] = data
 
     return dashboard_data

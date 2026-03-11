@@ -14,7 +14,6 @@ import {
 import { SearchBar, SortableHeadCell } from '@/shared/components/data';
 import { useSortable } from '@/shared/hooks/useSortable';
 import { formatDate, formatCompletedTaskValue, getUserNameByPk } from '../../utils/formatters';
-import SimpleTaskForm from '../SimpleTaskForm';
 import DirectTaskForm from '../DirectTaskForm';
 
 const OperationTaskManager = ({
@@ -25,7 +24,6 @@ const OperationTaskManager = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(50);
-    const [createOpen, setCreateOpen] = useState(false);
     const [directOpen, setDirectOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [selectedOp, setSelectedOp] = useState(null);
@@ -113,24 +111,14 @@ const OperationTaskManager = ({
                 <Box sx={{ flex: 1 }}>
                     <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
                 </Box>
-                <Tooltip title="Registo rápido ETAR / EE / Rede / Caixa">
+                <Tooltip title="Registar execução direta (ETAR / EE / Rede / Caixa)">
                     <Button
-                        variant="outlined"
+                        variant="contained"
                         startIcon={<Add />}
                         onClick={() => setDirectOpen(true)}
                         sx={{ whiteSpace: 'nowrap' }}
                     >
-                        Registo Rápido
-                    </Button>
-                </Tooltip>
-                <Tooltip title="Criar nova volta de operação">
-                    <Button
-                        variant="contained"
-                        startIcon={<Add />}
-                        onClick={() => setCreateOpen(true)}
-                        sx={{ whiteSpace: 'nowrap' }}
-                    >
-                        Nova Tarefa
+                        Registar Execução
                     </Button>
                 </Tooltip>
             </Stack>
@@ -477,40 +465,15 @@ const OperationTaskManager = ({
                 </DialogTitle>
                 <DialogContent dividers sx={{ p: 0 }}>
                     <DirectTaskForm
-                        onSubmit={(data) => {
-                            onCreateDirect?.(data);
-                            setDirectOpen(false);
+                        onSubmit={async (data) => {
+                            await onCreateDirect?.(data);
+                            setDirectOpen(false); // só fecha se não houver erro
                         }}
                         onCancel={() => setDirectOpen(false)}
                     />
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog — Criar Nova Tarefa */}
-            <Dialog
-                open={createOpen}
-                onClose={() => setCreateOpen(false)}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h6">Nova Volta de Operação</Typography>
-                        <IconButton onClick={() => setCreateOpen(false)} size="small">
-                            <Close />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent dividers sx={{ p: 0 }}>
-                    <SimpleTaskForm
-                        onSubmit={(data) => {
-                            onCreateTask?.(data);
-                            setCreateOpen(false);
-                        }}
-                        onCancel={() => setCreateOpen(false)}
-                    />
-                </DialogContent>
-            </Dialog>
         </Stack>
     );
 };

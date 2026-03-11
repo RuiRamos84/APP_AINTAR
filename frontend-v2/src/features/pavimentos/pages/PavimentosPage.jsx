@@ -7,7 +7,7 @@ import { useState, useMemo } from 'react';
 import {
   Box, Tab, Tabs, Typography, TextField, InputAdornment,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, Chip, Button, Skeleton, Alert, Tooltip,
+  Paper, Chip, Button, Skeleton, Alert, Tooltip, TablePagination,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
   Stack, Card, CardContent,
 } from '@mui/material';
@@ -53,9 +53,11 @@ const PavimentosPage = () => {
   const [tabIndex, setTabIndex] = useState(0);
   const [search, setSearch] = useState('');
   const [confirmItem, setConfirmItem] = useState(null); // item a confirmar
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const currentTab = TABS[tabIndex];
-  const { items, isLoading, isError, refetch, advance, isAdvancing } = usePavimentos(currentTab.status);
+  const { items, isLoading, isFetching, isError, refetch, advance, isAdvancing } = usePavimentos(currentTab.status);
 
   // Filtro de pesquisa
   const filtered = useMemo(() => {
@@ -97,7 +99,7 @@ const PavimentosPage = () => {
             size="small"
             startIcon={<RefreshIcon />}
             onClick={refetch}
-            disabled={isLoading}
+            disabled={isFetching}
           >
             Atualizar
           </Button>
@@ -108,7 +110,7 @@ const PavimentosPage = () => {
       <Paper variant="outlined" sx={{ borderRadius: 2, mb: 2.5 }}>
         <Tabs
           value={tabIndex}
-          onChange={(_, v) => { setTabIndex(v); setSearch(''); }}
+          onChange={(_, v) => { setTabIndex(v); setSearch(''); setPage(0); }}
           variant="fullWidth"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
@@ -144,7 +146,7 @@ const PavimentosPage = () => {
                 size="small"
                 placeholder="Pesquisar..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -197,7 +199,7 @@ const PavimentosPage = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filtered.map((row) => (
+                    filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
                       <TableRow key={row.pk} hover>
                         <TableCell>
                           <Chip
@@ -256,6 +258,21 @@ const PavimentosPage = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+          {/* Paginação - visível sempre que há dados, mesmo durante re-fetches */}
+          {!isError && filtered.length > 0 && (
+            <TablePagination
+              component="div"
+              count={filtered.length}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              labelRowsPerPage="Linhas por página:"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+              sx={{ borderTop: '1px solid', borderColor: 'divider', mt: -0.5 }}
+            />
           )}
         </Box>
       </Paper>

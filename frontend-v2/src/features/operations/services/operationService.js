@@ -44,11 +44,12 @@ export const operationService = {
     return response;
   },
 
-  /** Todas as operações (supervisor) — aceita filtro de data opcional */
-  getOperacao: async ({ fromDate, toDate } = {}) => {
+  /** Todas as operações (supervisor) — aceita filtros opcionais */
+  getOperacao: async ({ fromDate, toDate, instalacaoPk } = {}) => {
     const params = {};
     if (fromDate) params.from_date = fromDate;
     if (toDate) params.to_date = toDate;
+    if (instalacaoPk) params.instalacao_pk = instalacaoPk;
     const response = await apiClient.get('/operacao', { params });
     return response;
   },

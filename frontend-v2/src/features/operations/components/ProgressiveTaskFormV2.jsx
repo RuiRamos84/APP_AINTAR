@@ -176,8 +176,8 @@ const ProgressiveTaskFormV2 = ({ initialTask = null, onSubmit, onCancel }) => {
                 tt_operacaoaccao: formData.tt_operacaoaccao  ? parseInt(formData.tt_operacaoaccao, 10) : undefined,
                 tt_operacaomodo:  formData.tt_operacaomodo   ? parseInt(formData.tt_operacaomodo,  10) : undefined,
                 tt_operacaodia:   formData.tt_operacaodia    ? parseInt(formData.tt_operacaodia,   10) : undefined,
-                who1:             formData.who1              ? parseInt(formData.who1,             10) : undefined,
-                who2:             formData.who2              ? parseInt(formData.who2,             10) : undefined,
+                ts_operador1:     formData.who1              ? parseInt(formData.who1,             10) : undefined,
+                ts_operador2:     formData.who2              ? parseInt(formData.who2,             10) : undefined,
             };
             // remove undefined
             Object.keys(cleanData).forEach(k => cleanData[k] === undefined && delete cleanData[k]);

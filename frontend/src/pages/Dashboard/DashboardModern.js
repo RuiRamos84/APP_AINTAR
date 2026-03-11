@@ -17,25 +17,10 @@ import {
     Tab,
     Tabs,
     Button,
-    Chip,
-    IconButton,
-    Tooltip,
     useTheme,
     alpha
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import {
-    TrendingUp as TrendingUpIcon,
-    TrendingDown as TrendingDownIcon,
-    Refresh as RefreshIcon,
-    FileDownload as FileDownloadIcon,
-    FilterList as FilterListIcon,
-    Visibility as VisibilityIcon,
-    BarChart as BarChartIcon,
-    PieChart as PieChartIcon,
-    ShowChart as ShowChartIcon,
-    TableChart as TableChartIcon
-} from '@mui/icons-material';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { getDashboardStructure } from '../../services/dashboardService';
 import { DASHBOARD_CATEGORIES } from './constants';
@@ -70,7 +55,7 @@ const DashboardModern = () => {
         return f;
     }, [selectedYear, selectedMonth]);
 
-    const { dashboardData, isLoading, isFetching, isError, error, refetch } = useDashboardData(filters);
+    const { dashboardData, isLoading, isFetching, isError, error, refetch, forceRefetch } = useDashboardData(filters);
 
     const isReady = !isLoading && !!dashboardData;
 
@@ -88,7 +73,7 @@ const DashboardModern = () => {
     const handleMonthChange = (event) => setSelectedMonth(event.target.value);
     const handleCategoryChange = (category) => setSelectedCategory(category);
     const handleTabChange = (event, newValue) => setActiveTab(newValue);
-    const handleRefresh = () => refetch();
+    const handleRefresh = () => forceRefetch();
 
     // Processar dados para KPIs
     const kpiData = useMemo(() => {
@@ -97,8 +82,9 @@ const DashboardModern = () => {
         const kpis = [];
         const data = dashboardData.data;
 
-        // KPIs por categoria
+        // KPIs por categoria (excluir 'landing' — é a landing page, não um dashboard)
         Object.entries(data).forEach(([category, categoryData]) => {
+            if (category === 'landing') return;
             if (!categoryData?.views) return;
 
             const viewsArray = Object.values(categoryData.views);
@@ -150,7 +136,15 @@ const DashboardModern = () => {
         return Array.from({ length: 5 }, (_, i) => currentYear - i);
     }, []);
 
-    if (!isReady) return null;
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 2 }}>
+                <CircularProgress size={48} thickness={3} />
+                <Typography variant="body1" color="text.secondary" fontWeight={500}>A obter os dados mais recentes...</Typography>
+                <Typography variant="body2" color="text.disabled">Estamos a preparar tudo para lhe proporcionar a melhor experiência.</Typography>
+            </Box>
+        );
+    }
 
     if (isError) {
         return (
@@ -181,47 +175,6 @@ const DashboardModern = () => {
             transition={{ duration: 0.3, ease: 'easeOut' }}
         >
         <Box sx={{ p: 3, backgroundColor: theme.palette.background.default, minHeight: '100vh' }}>
-            {/* Header */}
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 3,
-                flexWrap: 'wrap',
-                gap: 2
-            }}>
-                <Box>
-                    <Typography variant="h4" fontWeight="bold" gutterBottom>
-                        Dashboard Operacional
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Análise completa de dados e métricas
-                    </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    {/* Botão de atualizar */}
-                    <Tooltip title={isFetching ? 'A atualizar...' : 'Atualizar dados'}>
-                        <span>
-                            <IconButton
-                                onClick={handleRefresh}
-                                disabled={isFetching}
-                                sx={{
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.2) },
-                                    '& svg': {
-                                        animation: isFetching ? 'spin 0.8s linear infinite' : 'none',
-                                        '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } }
-                                    }
-                                }}
-                            >
-                                <RefreshIcon />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
-                </Box>
-            </Box>
-
             {/* KPIs - Clicáveis para navegar para categoria */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 {kpiData.map((kpi) => (

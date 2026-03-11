@@ -335,10 +335,13 @@ def get_operacao():
         filters = {}
         from_date = request.args.get('from_date')
         to_date = request.args.get('to_date')
+        instalacao_pk = request.args.get('instalacao_pk', type=int)
         if from_date:
             filters['from_date'] = from_date
         if to_date:
             filters['to_date'] = to_date
+        if instalacao_pk:
+            filters['instalacao_pk'] = instalacao_pk
 
         with db_session_manager(current_user):
             data = get_operacao_data(current_user, filters or None)

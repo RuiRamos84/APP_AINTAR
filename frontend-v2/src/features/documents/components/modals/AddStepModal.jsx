@@ -68,7 +68,7 @@ const formatFileSize = (bytes) => {
  * Uses workflow validation to show only valid transitions
  * Supports multi-file upload with drag-and-drop
  */
-const AddStepModal = ({ open, onClose, documentId, document: propDocument, initialStep }) => {
+const AddStepModal = ({ open, onClose, documentId, document: propDocument, initialStep, onSuccess }) => {
   const theme = useTheme();
   const fileInputRef = useRef(null);
   const [files, setFiles] = useState([]);
@@ -232,6 +232,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
           setShowSuccess(true);
           setTimeout(() => {
             doClose();
+            onSuccess?.();
           }, 1200);
         },
       }

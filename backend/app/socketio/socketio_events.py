@@ -250,6 +250,47 @@ class SocketIOEvents(Namespace):
             logger.error(f"Erro ao emitir payment_status_update: {str(e)}", exc_info=True)
 
 
+    # =========================================================================
+    # OPERATION (OPERACAO) NOTIFICATION HANDLERS
+    # =========================================================================
+
+    def emit_operacao_notification(self, user_ids: list, notification_type: str,
+                                   title: str, message: str,
+                                   meta_pk: int = None, operacao_pk: int = None):
+        """
+        Emite notificação de operação para utilizadores específicos.
+
+        notification_type:
+          - 'nova_tarefa'      → nova meta atribuída ao operador
+          - 'tarefa_executada' → operador concluiu execução (notifica supervisor)
+          - 'tarefa_validada'  → supervisor validou execução (notifica operador)
+        """
+        import datetime
+        notification_data = {
+            'type': 'operacao',
+            'notification_type': notification_type,
+            'title': title,
+            'message': message,
+            'timestamp': datetime.datetime.now().isoformat(),
+            'meta_pk': meta_pk,
+            'operacao_pk': operacao_pk,
+            'route': '/operation/supervisor',
+        }
+        for user_id in user_ids:
+            if user_id is None:
+                continue
+            try:
+                room = f'user_{user_id}'
+                if int(user_id) in self.connected_users:
+                    self.socketio.emit('operacao_notification', notification_data,
+                                       room=room, namespace='/')
+                    logger.info(f"[OperaçãoNotif] {notification_type} → user {user_id}")
+                else:
+                    logger.info(f"[OperaçãoNotif] user {user_id} offline — notificação perdida")
+            except Exception as e:
+                logger.error(f"[OperaçãoNotif] Erro ao emitir para user {user_id}: {e}")
+
+
 def register_socket_events(socketio):
     # Criamos uma instância da classe e a registramos no socketio
     socket_events = SocketIOEvents('/')

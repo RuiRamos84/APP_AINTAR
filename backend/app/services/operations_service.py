@@ -13,6 +13,28 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _emit_operacao_notif(notification_type: str, title: str, message: str,
+                         user_ids: list, meta_pk: int = None, operacao_pk: int = None):
+    """Helper para emitir notificação de operação via Socket.IO (falha silenciosamente)."""
+    try:
+        socketio_events = current_app.extensions.get('socketio_events')
+        if not socketio_events:
+            logger.warning(f"[OperaçãoNotif] socketio_events não encontrado em extensions")
+            return
+        clean_ids = [uid for uid in user_ids if uid]
+        logger.info(f"[OperaçãoNotif] type={notification_type} | destinatários={clean_ids} | "
+                    f"conectados={list(socketio_events.connected_users.keys())}")
+        socketio_events.emit_operacao_notification(
+            user_ids=clean_ids,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            meta_pk=meta_pk,
+            operacao_pk=operacao_pk,
+        )
+    except Exception as e:
+        logger.warning(f"[OperaçãoNotif] Falha ao emitir '{notification_type}': {e}")
+
 
 # ===================================================================
 # MODELOS DE DADOS COM PYDANTIC
@@ -281,7 +303,19 @@ def create_operacao_meta(data: dict, current_user: str):
         result = meta_repo.create(meta_data.model_dump(), current_user)
 
         if result['success']:
-            return {'message': result['message'], 'pk': result['data']['pk']}, 201
+            meta_pk = result['data']['pk']
+            # Notificar operadores atribuídos
+            operators = [meta_data.ts_operador1]
+            if meta_data.ts_operador2:
+                operators.append(meta_data.ts_operador2)
+            _emit_operacao_notif(
+                notification_type='nova_tarefa',
+                title='Nova tarefa atribuída',
+                message=f'Foi-lhe atribuída uma nova tarefa programada.',
+                user_ids=operators,
+                meta_pk=meta_pk,
+            )
+            return {'message': result['message'], 'pk': meta_pk}, 201
         else:
             return {'error': result['error']}, 400
 
@@ -478,6 +512,19 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                     UPDATE vbf_operacao SET photo_path = :photo_path WHERE pk = :pk
                 """), {'photo_path': photo_path, 'pk': task_id})
 
+            # 5. Obter meta associada para notificar supervisor
+            meta_row = session.execute(text("""
+                SELECT tb_operacaometa, tb_instalacao FROM vbl_operacao WHERE pk = :pk
+            """), {'pk': task_id}).fetchone()
+            meta_pk_for_notif = meta_row.tb_operacaometa if meta_row else None
+            instalacao_nome = meta_row.tb_instalacao if meta_row else ''
+            supervisor_pk = None
+            if meta_pk_for_notif:
+                sup_row = session.execute(text(
+                    "SELECT ins_client FROM tb_operacaometa WHERE pk = :pk"
+                ), {'pk': meta_pk_for_notif}).fetchone()
+                supervisor_pk = sup_row.ins_client if sup_row else None
+
             session.commit()
 
             response_data = {
@@ -490,6 +537,17 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                 response_data['valuememo'] = valuememo
             if photo_path:
                 response_data['photo_path'] = photo_path
+
+            # Notificar supervisor após commit
+            if supervisor_pk:
+                _emit_operacao_notif(
+                    notification_type='tarefa_executada',
+                    title='Tarefa executada',
+                    message=f'Tarefa em {instalacao_nome or "instalação"} foi concluída pelo operador.',
+                    user_ids=[supervisor_pk],
+                    meta_pk=meta_pk_for_notif,
+                    operacao_pk=task_id,
+                )
 
             return {
                 'success': True,

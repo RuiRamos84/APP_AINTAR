@@ -14,9 +14,10 @@ class OperationsRepository(BaseRepository):
 
     def find_all(self, current_user: str, filters: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Buscar operações/execuções com filtro de data opcional.
-        - Sem filtro: devolve apenas mês atual (pendentes + concluídas)
-        - Com from_date/to_date: filtra concluídas pelo intervalo, pendentes sempre incluídas
+        Buscar operações/execuções com filtros opcionais.
+        - instalacao_pk: filtrar por instalação específica (histórico)
+        - from_date/to_date: filtrar concluídas pelo intervalo; pendentes sempre incluídas
+        - Sem filtros: devolve apenas mês atual
         USA vbl_operacao (nomes + controlo já resolvidos)
         """
         try:
@@ -24,30 +25,32 @@ class OperationsRepository(BaseRepository):
                 f = filters or {}
                 from_date = f.get('from_date')
                 to_date = f.get('to_date')
+                instalacao_pk = f.get('instalacao_pk')
 
-                # Expor tt_operacaomodo: NULL = pontual/direta, valor preenchido = programada
+                base = """
+                    SELECT v.*, o.tt_operacaomodo
+                    FROM vbl_operacao v
+                    LEFT JOIN tb_operacao o ON o.pk = v.pk
+                """
+                conditions = []
+                params = {}
+
+                if instalacao_pk:
+                    conditions.append("v.pk_instalacao = :instalacao_pk")
+                    params['instalacao_pk'] = instalacao_pk
+
                 if from_date and to_date:
-                    query = text("""
-                        SELECT v.*, o.tt_operacaomodo
-                        FROM vbl_operacao v
-                        LEFT JOIN tb_operacao o ON o.pk = v.pk
-                        WHERE v.updt_time IS NULL
-                           OR v.updt_time::date BETWEEN :from_date AND :to_date
-                        ORDER BY v.pk DESC
-                    """)
-                    result = session.execute(query, {'from_date': from_date, 'to_date': to_date})
-                else:
-                    # Default: mês atual
-                    query = text("""
-                        SELECT v.*, o.tt_operacaomodo
-                        FROM vbl_operacao v
-                        LEFT JOIN tb_operacao o ON o.pk = v.pk
-                        WHERE v.updt_time IS NULL
-                           OR v.updt_time::date >= DATE_TRUNC('month', CURRENT_DATE)
-                        ORDER BY v.pk DESC
-                    """)
-                    result = session.execute(query)
+                    conditions.append("(v.updt_time IS NULL OR v.updt_time::date BETWEEN :from_date AND :to_date)")
+                    params['from_date'] = from_date
+                    params['to_date'] = to_date
+                elif not instalacao_pk:
+                    # Default: mês atual (só quando não há filtro de instalação)
+                    conditions.append("(v.updt_time IS NULL OR v.updt_time::date >= DATE_TRUNC('month', CURRENT_DATE))")
 
+                where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+                query = text(base + where + " ORDER BY v.pk DESC")
+
+                result = session.execute(query, params)
                 data = [dict(row) for row in result.mappings().all()]
 
                 return {

@@ -276,9 +276,9 @@ const DirectTaskForm = ({ onSubmit, onCancel, fixedInstType = null, fixedPk = nu
           ? { clat: parseFloat(clat), clong: parseFloat(clong) }
           : {}),
       });
+      // sucesso — o modal é fechado pelo parent
     } catch (err) {
-      const msg = err?.response?.data?.error || 'Erro ao registar operação';
-      toast.error(msg);
+      // erro já notificado pela mutation (onError) — o modal permanece aberto
     } finally {
       setSaving(false);
     }

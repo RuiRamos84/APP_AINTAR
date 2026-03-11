@@ -300,6 +300,40 @@ export const SocketProvider = ({ children }) => {
     [handleNewNotification]
   );
 
+  /**
+   * Handler para notificações de operações (módulo de operação)
+   * nova_tarefa → operador recebe tarefa atribuída
+   * tarefa_executada → supervisor é notificado de execução
+   * tarefa_validada → operador é notificado de validação
+   */
+  const handleOperacaoNotification = useCallback(
+    (data) => {
+      const notifTypeMap = {
+        nova_tarefa: { title: 'Nova tarefa atribuída', priority: 'high' },
+        tarefa_executada: { title: 'Tarefa executada', priority: 'high' },
+        tarefa_validada: { title: 'Tarefa validada', priority: 'medium' },
+      };
+      const meta = notifTypeMap[data.notification_type] || { title: data.title || 'Operação', priority: 'medium' };
+
+      const notif = {
+        ...data,
+        type: 'operacao',
+        title: data.title || meta.title,
+        message: data.message || '',
+        priority: meta.priority,
+        meta_pk: data.meta_pk,
+        operacao_pk: data.operacao_pk,
+        route: data.route || '/operation/supervisor',
+      };
+
+      handleNewNotification(notif, true);
+
+      // Disparar task-refresh para atualizar listas em tempo real
+      window.dispatchEvent(new CustomEvent('task-refresh'));
+    },
+    [handleNewNotification]
+  );
+
   // ========================================================================
   // ACTIONS
   // ========================================================================
@@ -393,6 +427,7 @@ export const SocketProvider = ({ children }) => {
           handleDocumentTransferred
         );
         const removeTaskNotif = onEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleTaskNotification);
+        const removeOperacaoNotif = onEvent('operacao_notification', handleOperacaoNotification);
 
         // Event para atualização de conexão
         const removeConnect = onEvent(SOCKET_EVENTS.CONNECT, () => {
@@ -407,6 +442,7 @@ export const SocketProvider = ({ children }) => {
           removeNewNotif,
           removeDocTransfer,
           removeTaskNotif,
+          removeOperacaoNotif,
           removeConnect,
           removeDisconnect,
         ];
@@ -435,6 +471,7 @@ export const SocketProvider = ({ children }) => {
     handleNewNotification,
     handleDocumentTransferred,
     handleTaskNotification,
+    handleOperacaoNotification,
   ]);
 
   // Limpeza automática de notificações antigas (a cada hora)

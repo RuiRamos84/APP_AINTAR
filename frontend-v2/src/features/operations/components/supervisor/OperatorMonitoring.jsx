@@ -1,22 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Stack, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Avatar, Chip, IconButton, Tooltip, alpha, useTheme, Alert
+    Avatar, Chip, Tooltip, IconButton, alpha, useTheme, Alert
 } from '@mui/material';
 import {
-    People, CheckCircle, Schedule, Assignment, GppGood
+    People, CheckCircle, Schedule, Assignment, OpenInNew
 } from '@mui/icons-material';
 import { SortableHeadCell, SearchBar } from '@/shared/components/data';
 import { useSortable } from '@/shared/hooks/useSortable';
+import { useState } from 'react';
 import { formatDate } from '../../utils/formatters';
-import ControlValidationDialog from '../ControlValidationDialog';
 
-const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValidating, metaData }) => {
+/**
+ * OperatorMonitoring — Painel de equipa (read-only).
+ * Validação de execuções centralizada no tab "Controlo de Tarefas".
+ */
+const OperatorMonitoring = ({ operatorStats, recentActivity, onNavigateToControl }) => {
     const theme = useTheme();
-    const [validationOpen, setValidationOpen] = useState(false);
-    const [selectedExecution, setSelectedExecution] = useState(null);
-
     const [searchOp, setSearchOp] = useState('');
 
     const filteredOps = useMemo(() => {
@@ -30,17 +31,6 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValid
     const totalAssigned = operatorStats.reduce((sum, op) => sum + op.totalTasks, 0);
     const totalCompleted = operatorStats.reduce((sum, op) => sum + op.completedTasks, 0);
     const totalPending = operatorStats.reduce((sum, op) => sum + op.pendingTasks, 0);
-
-    const handleOpenValidation = (execution) => {
-        setSelectedExecution(execution);
-        setValidationOpen(true);
-    };
-
-    const handleSubmitValidation = (formData) => {
-        onValidate?.(formData);
-        setValidationOpen(false);
-        setSelectedExecution(null);
-    };
 
     return (
         <Stack spacing={3}>
@@ -143,18 +133,32 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValid
             {recentActivity.length > 0 && (
                 <Card variant="outlined" sx={{ borderRadius: 3 }}>
                     <CardContent>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            Atividade Recente
-                        </Typography>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                Atividade Recente
+                            </Typography>
+                            {onNavigateToControl && (
+                                <Tooltip title="Validar execuções no separador Controlo">
+                                    <Chip
+                                        icon={<OpenInNew fontSize="small" />}
+                                        label="Ir para Controlo"
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={onNavigateToControl}
+                                        sx={{ cursor: 'pointer' }}
+                                    />
+                                </Tooltip>
+                            )}
+                        </Stack>
                         <TableContainer>
                             <Table size="small">
                                 <TableHead>
                                     <TableRow>
                                         <SortableHeadCell label="Operador" field="operador_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                         <SortableHeadCell label="Tarefa" field="acao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
-                                        <TableCell>Estado</TableCell>
+                                        <TableCell>Validação</TableCell>
                                         <SortableHeadCell label="Data" field="updt_time" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
-                                        <TableCell align="center">Ações</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -177,9 +181,9 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValid
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
-                                                        label={isValidated ? 'Validada' : 'Concluída'}
+                                                        label={isValidated ? 'Validada' : 'Aguarda validação'}
                                                         size="small"
-                                                        color={isValidated ? 'success' : 'info'}
+                                                        color={isValidated ? 'success' : 'warning'}
                                                         variant="outlined"
                                                     />
                                                 </TableCell>
@@ -187,15 +191,6 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValid
                                                     <Typography variant="caption">
                                                         {formatDate(exec.updt_time)}
                                                     </Typography>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    {!isValidated && (
-                                                        <Tooltip title="Validar">
-                                                            <IconButton size="small" color="primary" onClick={() => handleOpenValidation(exec)}>
-                                                                <GppGood fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -206,15 +201,6 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, isValid
                     </CardContent>
                 </Card>
             )}
-
-            <ControlValidationDialog
-                open={validationOpen}
-                onClose={() => { setValidationOpen(false); setSelectedExecution(null); }}
-                execution={selectedExecution}
-                metaData={metaData}
-                onSubmit={handleSubmitValidation}
-                isSubmitting={isValidating}
-            />
         </Stack>
     );
 };
