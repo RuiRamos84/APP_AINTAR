@@ -40,6 +40,7 @@ import { EPIPage } from '@/features/administrativo/pages';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
+import TelemetryPage from '@/features/telemetry/pages/TelemetryPage';
 
 function App() {
   return (
@@ -164,7 +165,7 @@ function App() {
         <Route path="/expenses/equipment" element={<div>Equipment Expenses (Coming Soon)</div>} />
 
         {/* Telemetry - permissão 750 (TELEMETRY_VIEW) verificada automaticamente */}
-        <Route path="/telemetry" element={<div>Telemetry Page (Coming Soon)</div>} />
+        <Route path="/telemetry" element={<TelemetryPage />} />
 
         {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
         <Route path="/pavements" element={<div>Pavements Page (Coming Soon)</div>} />

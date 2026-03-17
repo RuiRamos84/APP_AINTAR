@@ -63,43 +63,60 @@ def insert_sensor_data(payload: dict):
 
 
 @api_error_handler
-def get_sensor_data(limit: int = 100, processed: bool = None):
+def get_sensor_data(limit: int = None, processed: bool = None, sensor_name: str = None, jsontag: str = None):
     """
-    Obtém dados de sensores da tabela tb_sensordataraw
+    Obtém dados de sensores da view vbl_sensordata
 
     Args:
-        limit: Número máximo de registos a retornar
-        processed: Filtrar por processado (True/False/None para todos)
+        jsontag: Filtrar pelo jsontag do parâmetro de telemetria
 
     Returns:
         tuple: (response_dict, status_code)
     """
     try:
-        # Construir query base
-        query_str = "SELECT pk, data, processed, value FROM tb_sensordataraw"
-        params = {"limit": limit}
+        # Construir query base usando a view de leitura
+        query_str = "SELECT * FROM vbl_sensordata"
+        params = {}
+        conditions = []
 
-        # Adicionar filtro de processado se especificado
+        # Filtro por estado de processamento
         if processed is not None:
             if processed:
-                query_str += " WHERE processed IS NOT NULL"
+                conditions.append("processed IS NOT NULL")
             else:
-                query_str += " WHERE processed IS NULL"
+                conditions.append("processed IS NULL")
 
-        query_str += " ORDER BY data DESC LIMIT :limit"
+        # Filtro por sensor
+        if sensor_name:
+            conditions.append("tb_sensor = :sensor_name")
+            params["sensor_name"] = sensor_name
+
+        # Filtro por parâmetro de telemetria
+        if jsontag:
+            conditions.append("tt_teleparam = :jsontag")
+            params["jsontag"] = jsontag
+
+        if conditions:
+            query_str += " WHERE " + " AND ".join(conditions)
+
+        query_str += " ORDER BY data DESC"
+        if limit is not None:
+            query_str += " LIMIT :limit"
+            params["limit"] = limit
 
         query = text(query_str)
         result = db.session.execute(query, params).mappings().all()
 
-        # Converter para lista de dicionários
+        # Converter para lista de dicionários serializando todos os campos
         data = []
         for row in result:
-            data.append({
-                "pk": row["pk"],
-                "data": row["data"].isoformat() if row["data"] else None,
-                "processed": row["processed"].isoformat() if row["processed"] else None,
-                "value": row["value"]
-            })
+            record = {}
+            for key, val in row.items():
+                if hasattr(val, 'isoformat'):
+                    record[key] = val.isoformat()
+                else:
+                    record[key] = val
+            data.append(record)
 
         return {
             "status": "ok",
@@ -112,6 +129,220 @@ def get_sensor_data(limit: int = 100, processed: bool = None):
         raise APIError("Erro ao consultar dados do sensor", 500, "ERR_DATABASE")
     except Exception as e:
         logger.error(f"Erro inesperado ao obter dados de sensor: {str(e)}")
+        raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")
+
+
+@api_error_handler
+def get_sensors():
+    """
+    Obtém todos os sensores da view vbl_sensor
+
+    Returns:
+        tuple: (response_dict, status_code)
+    """
+    try:
+        query = text("SELECT * FROM vbl_sensor ORDER BY name")
+        result = db.session.execute(query).mappings().all()
+
+        data = []
+        for row in result:
+            record = {}
+            for key, val in row.items():
+                if hasattr(val, 'isoformat'):
+                    record[key] = val.isoformat()
+                else:
+                    record[key] = val
+            data.append(record)
+
+        return {
+            "status": "ok",
+            "count": len(data),
+            "data": data
+        }, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de BD ao obter sensores: {str(e)}")
+        raise APIError("Erro ao consultar sensores", 500, "ERR_DATABASE")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao obter sensores: {str(e)}")
+        raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")
+
+
+@api_error_handler
+def get_sensor_types():
+    """
+    Obtém todos os tipos de sensor da view vbl_sensortype
+
+    Returns:
+        tuple: (response_dict, status_code)
+    """
+    try:
+        query = text("SELECT pk, value FROM vbl_sensortype WHERE value IS NOT NULL ORDER BY value")
+        result = db.session.execute(query).fetchall()
+        data = [{"pk": row[0], "value": row[1]} for row in result]
+        return {"status": "ok", "data": data}, 200
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de BD ao obter tipos de sensor: {str(e)}")
+        raise APIError("Erro ao consultar tipos de sensor", 500, "ERR_DATABASE")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao obter tipos de sensor: {str(e)}")
+        raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")
+
+
+@api_error_handler
+def query_stations(sensortype_pk, teleparam_pk, date_from, date_to):
+    """
+    Obtém estações/sensores via fbo_telemetry$querystation
+
+    Args:
+        sensortype_pk: PK do tipo de sensor (int ou None)
+        teleparam_pk: PK do parâmetro de telemetria (int ou None)
+        date_from: Data início (str YYYY-MM-DD ou None)
+        date_to: Data fim (str YYYY-MM-DD ou None)
+
+    Returns:
+        tuple: (response_dict, status_code)
+    """
+    try:
+        query = text("""
+            SELECT * FROM fbo_telemetry$querystation(
+                :sensortype_pk,
+                :teleparam_pk,
+                :date_from,
+                :date_to
+            )
+        """)
+        params = {
+            "sensortype_pk": sensortype_pk,
+            "teleparam_pk": teleparam_pk,
+            "date_from": date_from,
+            "date_to": date_to,
+        }
+        result = db.session.execute(query, params).mappings().all()
+        # A função PostgreSQL inicializa estado interno na 1ª chamada — retry sem rollback,
+        # depois com rollback se necessário (rollback desfaz a inicialização, por isso tenta sem primeiro)
+        if not result:
+            result = db.session.execute(query, params).mappings().all()
+        if not result:
+            db.session.rollback()
+            result = db.session.execute(query, params).mappings().all()
+
+        data = []
+        for row in result:
+            record = {}
+            for key, val in row.items():
+                if hasattr(val, 'isoformat'):
+                    record[key] = val.isoformat()
+                else:
+                    record[key] = val
+            data.append(record)
+
+        logger.info(f"Query estações: tipo={sensortype_pk}, param={teleparam_pk}, {date_from}→{date_to}: {len(data)} estação(ões)")
+
+        return {
+            "status": "ok",
+            "count": len(data),
+            "data": data
+        }, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de BD ao consultar estações: {str(e)}")
+        raise APIError("Erro ao consultar estações", 500, "ERR_DATABASE")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao consultar estações: {str(e)}")
+        raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")
+
+
+@api_error_handler
+def get_teleparams():
+    """
+    Obtém todos os parâmetros de telemetria da view vbl_teleparam (coluna value)
+
+    Returns:
+        tuple: (response_dict, status_code) — data é lista de strings
+    """
+    try:
+        query = text("SELECT pk, value FROM vbl_teleparam WHERE value IS NOT NULL ORDER BY value")
+        result = db.session.execute(query).fetchall()
+        params = [{"pk": row[0], "value": row[1]} for row in result]
+        return {"status": "ok", "data": params}, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de BD ao obter teleparams: {str(e)}")
+        raise APIError("Erro ao consultar parâmetros", 500, "ERR_DATABASE")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao obter teleparams: {str(e)}")
+        raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")
+
+
+@api_error_handler
+def query_sensor_data(sensor_pks: list, teleparam_pk: int, date_from: str, date_to: str):
+    """
+    Obtém dados de telemetria via fbo_telemetry$querydata.
+
+    Args:
+        sensor_pks: Lista de PKs de sensores
+        teleparam_pk: PK do parâmetro de telemetria
+        date_from: Data de início (YYYY-MM-DD) ou None
+        date_to: Data de fim (YYYY-MM-DD) ou None
+
+    Returns:
+        tuple: (response_dict, status_code)
+    """
+    try:
+        if not sensor_pks:
+            raise APIError("Lista de sensores vazia", 400, "ERR_MISSING_PARAMS")
+        if teleparam_pk is None:
+            raise APIError("Parâmetro de telemetria obrigatório", 400, "ERR_MISSING_PARAMS")
+
+        # Formatar array de PKs como literal PostgreSQL
+        pks_literal = "{" + ",".join(str(int(pk)) for pk in sensor_pks) + "}"
+
+        query = text("""
+            SELECT * FROM "fbo_telemetry$querydata"(
+                CAST(:sensor_pks AS integer[]),
+                :teleparam_pk,
+                CAST(:date_from AS date),
+                CAST(:date_to AS date)
+            )
+        """)
+
+        params = {
+            "sensor_pks": pks_literal,
+            "teleparam_pk": int(teleparam_pk),
+            "date_from": date_from or None,
+            "date_to": date_to or None,
+        }
+        result = db.session.execute(query, params).mappings().all()
+        # A função PostgreSQL inicializa estado interno na 1ª chamada — retry sem rollback,
+        # depois com rollback se necessário (rollback desfaz a inicialização, por isso tenta sem primeiro)
+        if not result:
+            result = db.session.execute(query, params).mappings().all()
+        if not result:
+            db.session.rollback()
+            result = db.session.execute(query, params).mappings().all()
+
+        data = []
+        for row in result:
+            record = {}
+            for key, val in row.items():
+                if hasattr(val, 'isoformat'):
+                    record[key] = val.isoformat()
+                else:
+                    record[key] = val
+            data.append(record)
+
+        logger.info(f"Query telemetria: {len(sensor_pks)} sensor(es), param pk={teleparam_pk}, {len(data)} registos")
+
+        return {"status": "ok", "count": len(data), "data": data}, 200
+
+    except APIError:
+        raise
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de BD ao consultar dados de telemetria: {str(e)}")
+        raise APIError("Erro ao consultar dados de telemetria", 500, "ERR_DATABASE")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao consultar dados de telemetria: {str(e)}")
         raise APIError(f"Erro interno: {str(e)}", 500, "ERR_INTERNAL")
 
 

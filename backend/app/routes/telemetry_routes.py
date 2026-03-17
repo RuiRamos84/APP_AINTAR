@@ -22,6 +22,11 @@ from app.utils.logger import get_logger
 from app.services.telemetry_service import (
     insert_sensor_data,
     get_sensor_data,
+    get_sensors,
+    get_teleparams,
+    get_sensor_types,
+    query_sensor_data,
+    query_stations,
     mark_as_processed,
     get_unprocessed_count
 )
@@ -153,8 +158,10 @@ def list_sensor_data():
         {"status": "ok", "count": N, "data": [...]}
     """
     try:
-        limit = request.args.get('limit', 100, type=int)
+        limit = request.args.get('limit', None, type=int)
         processed_param = request.args.get('processed', 'all')
+        sensor_name = request.args.get('sensor', None)
+        jsontag = request.args.get('jsontag', None)
 
         # Converter parâmetro processed
         processed = None
@@ -163,7 +170,7 @@ def list_sensor_data():
         elif processed_param == 'false':
             processed = False
 
-        return get_sensor_data(limit=limit, processed=processed)
+        return get_sensor_data(limit=limit, processed=processed, sensor_name=sensor_name, jsontag=jsontag)
 
     except Exception as e:
         logger.error(f"Erro ao listar dados de sensor: {str(e)}")
@@ -171,6 +178,23 @@ def list_sensor_data():
             "status": "error",
             "message": str(e)
         }), 500
+
+
+@bp.route('/params', methods=['GET'])
+@jwt_required()
+@api_error_handler
+def list_teleparams():
+    """
+    Lista todos os parâmetros de telemetria distintos.
+
+    Returns:
+        {"status": "ok", "data": ["param1", "param2", ...]}
+    """
+    try:
+        return get_teleparams()
+    except Exception as e:
+        logger.error(f"Erro ao listar parâmetros de telemetria: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @bp.route('/dados/<int:pk>/processed', methods=['PUT'])
@@ -197,6 +221,68 @@ def set_processed(pk):
         }), 500
 
 
+@bp.route('/sensores', methods=['GET'])
+@jwt_required()
+@api_error_handler
+def list_sensors():
+    """
+    Lista todos os sensores da view vbl_sensor.
+
+    Returns:
+        {"status": "ok", "count": N, "data": [...]}
+    """
+    try:
+        return get_sensors()
+    except Exception as e:
+        logger.error(f"Erro ao listar sensores: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route('/tiposensor', methods=['GET'])
+@jwt_required()
+@api_error_handler
+def list_sensor_types():
+    """
+    Lista todos os tipos de sensor da view vbl_sensortype.
+
+    Returns:
+        {"status": "ok", "data": [{"pk": N, "value": "..."}]}
+    """
+    try:
+        return get_sensor_types()
+    except Exception as e:
+        logger.error(f"Erro ao listar tipos de sensor: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route('/sensores/query', methods=['POST'])
+@jwt_required()
+@api_error_handler
+def query_stations_route():
+    """
+    Consulta estações/sensores via fbo_telemetry$querystation.
+
+    Body JSON:
+        sensortype_pk: int|null   — PK do tipo de sensor
+        teleparam_pk: int|null    — PK do parâmetro de telemetria
+        date_from: str|null       — Data início (YYYY-MM-DD)
+        date_to: str|null         — Data fim (YYYY-MM-DD)
+
+    Returns:
+        {"status": "ok", "count": N, "data": [...]}
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        sensortype_pk = body.get("sensortype_pk") or None
+        teleparam_pk = body.get("teleparam_pk") or None
+        date_from = body.get("date_from") or None
+        date_to = body.get("date_to") or None
+        return query_stations(sensortype_pk, teleparam_pk, date_from, date_to)
+    except Exception as e:
+        logger.error(f"Erro ao consultar estações: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @bp.route('/stats', methods=['GET'])
 @jwt_required()
 @api_error_handler
@@ -216,3 +302,41 @@ def get_stats():
             "status": "error",
             "message": str(e)
         }), 500
+
+
+@bp.route('/query', methods=['POST'])
+@jwt_required()
+@api_error_handler
+def query_data():
+    """
+    Consulta dados de telemetria via fbo_telemetry$querydata.
+
+    Body JSON:
+        sensor_pks: [int, ...]   — PKs dos sensores
+        teleparam: str           — Valor do parâmetro (ex: "temperatura")
+        date_from: str|null      — Data início (YYYY-MM-DD)
+        date_to: str|null        — Data fim (YYYY-MM-DD)
+
+    Returns:
+        {"status": "ok", "count": N, "data": [...]}
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        sensor_pks = body.get("sensor_pks", [])
+        teleparam = body.get("teleparam")
+        date_from = body.get("date_from") or None
+        date_to = body.get("date_to") or None
+
+        if not sensor_pks or teleparam is None:
+            return jsonify({"status": "error", "message": "sensor_pks e teleparam são obrigatórios"}), 400
+
+        try:
+            teleparam_pk = int(teleparam)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "message": "teleparam deve ser um inteiro (PK)"}), 400
+
+        return query_sensor_data(sensor_pks, teleparam_pk, date_from, date_to)
+
+    except Exception as e:
+        logger.error(f"Erro ao consultar dados de telemetria: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500

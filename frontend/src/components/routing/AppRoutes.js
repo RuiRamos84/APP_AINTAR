@@ -52,6 +52,7 @@ const EpiArea = lazy(() => import("../../pages/EPIs/EpiArea"));
 const DocumentPaymentFlow = lazy(() => import('../../features/Payment/modals/DocumentPaymentFlow'));
 const PaymentAdminPage = lazy(() => import('../../features/Payment/components/PaymentAdminPage'));
 const OldOperations = lazy(() => import("../../pages/Operation/OperationLegacy"));
+const TelemetryPage = lazy(() => import("../../pages/Telemetry/TelemetryPage"));
 
 // === CONFIGURAÇÃO DE ROTAS ===
 const PUBLIC_ROUTES = ["/", "/login", "/create-user", "/activation", "/password-recovery", "/reset-password"];
@@ -239,6 +240,13 @@ const AppRoutes = ({ user }) => (
         <Route path="/global" element={
             <PrivateRoute requiredPermission={10}>
                 <GlobalModule />
+            </PrivateRoute>
+        } />
+
+        {/* === TELEMETRIA === */}
+        <Route path="/telemetry" element={
+            <PrivateRoute requiredPermission={10}>
+                <TelemetryPage />
             </PrivateRoute>
         } />
     </Routes>

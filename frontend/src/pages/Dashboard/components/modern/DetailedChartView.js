@@ -46,12 +46,14 @@ const DetailedChartView = ({ data, selectedCategory, initialChartId }) => {
             Object.entries(categoryData.views).forEach(([viewId, viewData]) => {
                 if (!viewData?.data || viewData.data.length === 0) return;
                 // Verificar que existe pelo menos uma coluna com valor numérico não nulo
+                // (varrer todas as linhas para não excluir charts onde a 1ª linha tem nulos, ex: duration_bar)
                 const cols = viewData.columns || [];
-                const firstRow = viewData.data[0];
-                const hasChartData = cols.some(col => {
-                    const val = firstRow?.[col];
-                    return typeof val === 'number' || (val !== null && val !== undefined && !isNaN(parseFloat(val)));
-                });
+                const hasChartData = cols.some(col =>
+                    viewData.data.some(row => {
+                        const val = row[col];
+                        return typeof val === 'number' || (val !== null && val !== undefined && !isNaN(parseFloat(val)));
+                    })
+                );
                 if (!hasChartData) return;
                 views.push({ id: viewId, category, name: viewData?.name || viewId, viewData });
             });
