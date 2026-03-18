@@ -56,13 +56,7 @@ import { EPIPage } from '@/features/administrativo/pages';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
-import { FleetDashboard } from '@/features/fleet';
-import { PavimentosPage } from '@/features/pavimentos';
-import {
-  InternalDashboardPage, InventoryPage, RequisicaoInternaPage,
-  MaintenancePage, EquipmentPage, NetworkPage, BranchesPage,
-  ExpensesHubPage,
-} from '@/features/internal';
+import TelemetryPage from '@/features/telemetry/pages/TelemetryPage';
 
 function App() {
   return (
@@ -164,47 +158,41 @@ function App() {
 
         {/* ETAR */}
         <Route path="/etar" element={<ETARPage />} />
-        <Route path="/etar/characteristics" element={<Navigate to="/etar" replace />} />
-        <Route path="/etar/volumes" element={<Navigate to="/etar" replace />} />
-        <Route path="/etar/energy" element={<Navigate to="/etar" replace />} />
-        <Route path="/etar/expenses" element={<Navigate to="/etar" replace />} />
-        <Route path="/etar/violations" element={<Navigate to="/etar" replace />} />
+        <Route path="/etar/characteristics" element={<div>ETAR Characteristics (Coming Soon)</div>} />
+        <Route path="/etar/volumes" element={<div>ETAR Volumes (Coming Soon)</div>} />
+        <Route path="/etar/energy" element={<div>ETAR Energy (Coming Soon)</div>} />
+        <Route path="/etar/expenses" element={<div>ETAR Expenses (Coming Soon)</div>} />
+        <Route path="/etar/violations" element={<div>ETAR Violations (Coming Soon)</div>} />
 
-        {/* EE */}
-        <Route path="/ee" element={<EEPage />} />
-        <Route path="/ee/characteristics" element={<Navigate to="/ee" replace />} />
-        <Route path="/ee/volumes" element={<Navigate to="/ee" replace />} />
-        <Route path="/ee/energy" element={<Navigate to="/ee" replace />} />
-        <Route path="/ee/expenses" element={<Navigate to="/ee" replace />} />
+        {/* EE - permissão 660 (EE_VIEW) verificada automaticamente */}
+        <Route path="/ee" element={<div>EE Page (Coming Soon)</div>} />
+        <Route path="/ee/characteristics" element={<div>EE Characteristics (Coming Soon)</div>} />
+        <Route path="/ee/volumes" element={<div>EE Volumes (Coming Soon)</div>} />
+        <Route path="/ee/energy" element={<div>EE Energy (Coming Soon)</div>} />
+        <Route path="/ee/expenses" element={<div>EE Expenses (Coming Soon)</div>} />
 
-        {/* Telemetria */}
+        {/* Expenses - permissão 1250 (EXPENSES_VIEW) verificada automaticamente */}
+        <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
+        <Route path="/expenses/network" element={<div>Network Expenses (Coming Soon)</div>} />
+        <Route path="/expenses/branches" element={<div>Branches Expenses (Coming Soon)</div>} />
+        <Route path="/expenses/maintenance" element={<div>Maintenance Expenses (Coming Soon)</div>} />
+        <Route path="/expenses/equipment" element={<div>Equipment Expenses (Coming Soon)</div>} />
+
+        {/* Telemetry - permissão 750 (TELEMETRY_VIEW) verificada automaticamente */}
         <Route path="/telemetry" element={<TelemetryPage />} />
 
-        {/* Expedientes */}
-        <Route path="/offices" element={<OfficesPage />} />
-        <Route path="/offices-admin" element={<OfficesPage />} />
-        <Route path="/offices-admin/open" element={<OfficesPage />} />
-        <Route path="/offices-admin/close" element={<OfficesPage />} />
-        <Route path="/offices-admin/replicate" element={<OfficesPage />} />
+        {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
+        <Route path="/pavements" element={<div>Pavements Page (Coming Soon)</div>} />
 
-        {/* Pedidos */}
-        <Route path="/requests" element={<RequestsPage />} />
-        <Route path="/requests/open" element={<RequestsPage />} />
-        <Route path="/requests/close" element={<RequestsPage />} />
-        <Route path="/requests/replicate" element={<RequestsPage />} />
+        {/* ==================== MÓDULO: PAGAMENTOS ==================== */}
+        {/* Clients - permissão 950 (CLIENTS_VIEW) verificada automaticamente */}
+        <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/clients/contracts" element={<div>Client Contracts (Coming Soon)</div>} />
 
-        {/* Emissões */}
-        <Route path="/emissoes" element={<EmissoesPage />} />
-
-        {/* Pavimentos */}
-        <Route path="/pavements" element={<PavimentosPage />} />
-
-        {/* ==================== MÓDULO: DESPESAS ==================== */}
-        <Route path="/expenses" element={<ExpensesHubPage />} />
-        <Route path="/expenses/network" element={<NetworkPage />} />
-        <Route path="/expenses/branches" element={<BranchesPage />} />
-        <Route path="/expenses/maintenance" element={<MaintenancePage />} />
-        <Route path="/expenses/equipment" element={<EquipmentPage />} />
+        {/* Invoices - permissão 900 (INVOICES_VIEW) verificada automaticamente */}
+        <Route path="/invoices" element={<div>Invoices Page (Coming Soon)</div>} />
+        <Route path="/invoices/issued" element={<div>Issued Invoices (Coming Soon)</div>} />
+        <Route path="/invoices/payment-plans" element={<div>Payment Plans (Coming Soon)</div>} />
 
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
         <Route path="/dashboards/overview" element={<DashboardOverviewPage />} />
