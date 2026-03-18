@@ -1,99 +1,91 @@
 /**
  * MainLayout Component
- * Layout principal da aplicação com AppBar e Sidebar
+ * Layout principal da aplicação com AppBar, Sidebar e BottomNav (mobile)
  *
  * Features:
- * - Sidebar dinâmica (collapsed/expanded)
- * - Suporte completo mobile/tablet/desktop
+ * - Sidebar dinâmica (collapsed/expanded) em desktop
  * - Drawer temporário para mobile
- * - Drawer permanente para desktop
- * - Persistência de estado collapsed
- * - Transições suaves
+ * - BottomNavigation para troca de módulo em mobile
  * - Sincronização automática de módulo com rota
- * - Sidebar apenas visível quando há módulo ativo
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Box, Toolbar, useMediaQuery, useTheme } from '@mui/material';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AppBar } from './AppBar';
 import { Sidebar } from './Sidebar';
+import { ModuleBottomNav } from './ModuleBottomNav';
 import { PageTransition } from './PageTransition';
 import { useUIStore } from '@/core/store/uiStore';
-import { detectModuleFromPath } from '@/core/config/moduleConfig';
+import { detectModuleFromPath, getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
+import { usePermissionContext } from '@/core/contexts/PermissionContext';
 
 export const MainLayout = () => {
   const theme = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const currentModule = useUIStore((state) => state.currentModule);
   const setCurrentModule = useUIStore((state) => state.setCurrentModule);
 
-  // Metadata já é carregado globalmente pelo MetadataContext (AppProviders.jsx)
+  const { hasPermission, hasAnyPermission } = usePermissionContext();
 
-  // Estado collapsed da sidebar - partilhado entre MainLayout e Sidebar
+  // Módulos acessíveis para o BottomNav mobile
+  const accessibleModules = useMemo(
+    () => getAccessibleModules(hasPermission, hasAnyPermission),
+    [hasPermission, hasAnyPermission]
+  );
+
+  // Estado collapsed da sidebar — persiste preferência do utilizador
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar_collapsed');
-      return saved ? JSON.parse(saved) : true; // Collapsed por padrão
+      return saved !== null ? JSON.parse(saved) : false;
     }
-    return true;
+    return false;
   });
 
   // Auto-detectar e sincronizar módulo baseado na rota atual
   useEffect(() => {
     const detectedModule = detectModuleFromPath(location.pathname);
-
     if (detectedModule && detectedModule !== currentModule) {
-      // Rota pertence a um módulo específico -> selecionar esse módulo
       setCurrentModule(detectedModule);
     } else if (!detectedModule && location.pathname === '/home') {
-      // Na Home, limpar o módulo ativo (sidebar não deve aparecer)
       setCurrentModule(null);
     }
-    // Se detectedModule é null mas currentModule existe, manter o módulo atual
-    // (permite navegar para rotas globais como /profile sem perder contexto)
   }, [location.pathname, currentModule, setCurrentModule]);
 
   // Fechar drawer mobile quando mudar para desktop
   useEffect(() => {
-    if (!isMobile) {
-      setMobileOpen(false);
-    }
+    if (!isMobile) setMobileOpen(false);
   }, [isMobile]);
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+  const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
+
+  // Handler do BottomNav mobile: troca de módulo + navega
+  const handleBottomNavChange = (moduleId) => {
+    setCurrentModule(moduleId);
+    const module = getModuleById(moduleId);
+    if (module?.defaultRoute) navigate(module.defaultRoute);
   };
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* AppBar - ocupa todo o topo */}
+      {/* AppBar — ocupa todo o topo */}
       <AppBar onMenuClick={handleDrawerToggle} />
 
-      {/* Sidebar - Apenas quando há módulo ativo */}
+      {/* Sidebar — apenas quando há módulo ativo.
+          Uma única instância: permanent em desktop, temporary em mobile. */}
       {currentModule && (
-        <>
-          {/* Sidebar - Desktop */}
-          <Sidebar
-            variant="permanent"
-            collapsed={collapsed}
-            onToggleCollapse={() => setCollapsed(prev => !prev)}
-          />
-
-          {/* Sidebar - Mobile (sempre expandida) */}
-          <Sidebar
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-          />
-        </>
+        isMobile
+          ? <Sidebar variant="temporary" open={mobileOpen} onClose={handleDrawerToggle} />
+          : <Sidebar variant="permanent" collapsed={collapsed} onToggleCollapse={() => setCollapsed((prev) => !prev)} />
       )}
 
-      {/* Main Content - Responsivo e adaptativo */}
+      {/* Conteúdo principal */}
       <Box
         component="main"
         sx={{
@@ -101,6 +93,8 @@ export const MainLayout = () => {
           minHeight: '100vh',
           bgcolor: 'background.default',
           p: { xs: 2, sm: 3 },
+          // Padding-bottom extra em mobile para não ficar atrás do BottomNav
+          pb: { xs: '74px', sm: 3 },
           overflowX: 'hidden',
           position: 'relative',
         }}
@@ -112,6 +106,15 @@ export const MainLayout = () => {
           </PageTransition>
         </AnimatePresence>
       </Box>
+
+      {/* BottomNavigation mobile — troca de módulo */}
+      {isMobile && accessibleModules.length > 0 && (
+        <ModuleBottomNav
+          modules={accessibleModules}
+          currentModule={currentModule}
+          onModuleChange={handleBottomNavChange}
+        />
+      )}
     </Box>
   );
 };

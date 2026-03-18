@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useAuth } from '@/core/contexts/AuthContext';
 import { useMediaQuery, useTheme, Box, CircularProgress, Typography } from '@mui/material';
 import { useUserRole } from '../hooks/useUserRole';
 import OperationErrorBoundary from '../components/OperationErrorBoundary';

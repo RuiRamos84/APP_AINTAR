@@ -19,9 +19,12 @@ import { useAuth } from '@/core/contexts/AuthContext';
  *
  * NÃO existem: tt_operacaomodo, tt_operacaodia, phone, photo_path
  */
+// PKs negativos = instalações genéricas (REDE=-1, CAIXA=-2)
+const GENERIC_INSTALLATION_NAMES = { '-1': 'Rede', '-2': 'Caixa' };
+
 const mapTask = (raw, completed = false) => ({
     ...raw,
-    instalacao_nome: raw.tb_instalacao || '',
+    instalacao_nome: GENERIC_INSTALLATION_NAMES[String(raw.pk_instalacao)] || raw.tb_instalacao || '',
     acao_operacao: raw.tt_operacaoaccao || '',
     dia_operacao: raw.data || '',
     operacao_tipo: raw.tt_operacaoaccao_type,
@@ -67,9 +70,9 @@ export const useOperationTasks = (options = {}) => {
             };
         },
         enabled: enabled && !!user,
-        staleTime: 0,
-        refetchOnWindowFocus: true,
-        refetchInterval: 30_000, // polling a cada 30s (supervisor pode adicionar tarefas)
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchInterval: false,
     });
 
     // Tarefas pendentes

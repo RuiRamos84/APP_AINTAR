@@ -50,6 +50,7 @@ export const useSupervisorData = ({ activeTab = 0, pedidosVisited = false } = {}
         createTask,
         createDirect,
         validateExecution,
+        initMonth,
     } = useOperacaoExecutions(dateRange);
 
     // Filtrar metas por semana, dia e operador
@@ -72,41 +73,26 @@ export const useSupervisorData = ({ activeTab = 0, pedidosVisited = false } = {}
     }, [enrichedMetas, weekFilter, dayFilter, operatorFilter]);
 
     // Correlacionar metas com execuções
+    // Cada linha = uma tarefa individual (tb_operacao), com data real
     const operations = useMemo(() => {
-        const metaOps = filteredMetas.map(meta => {
-            const metaExecs = executionsByMeta.get(meta.pk) || [];
-            const lastExecution = metaExecs.length > 0
-                ? [...metaExecs].sort((a, b) => new Date(b.ts_exec || b.data_execucao) - new Date(a.ts_exec || a.data_execucao))[0]
-                : null;
+        return executions.map(exec => {
+            const modoItem = metaData?.operacamodo?.find(m => m.pk === exec.tt_operacaomodo);
+            const isPontual = exec.tb_operacaometa == null && exec.operacao_meta == null;
             return {
-                ...meta,
-                executions: metaExecs,
-                executionCount: metaExecs.length,
-                lastExecution,
-                hasExecutions: metaExecs.length > 0,
+                ...exec,
+                instalacao_nome: getInstallationName(exec.pk_instalacao, metaData) || exec.tb_instalacao || '',
+                acao_nome: exec.tt_operacaoaccao || '',
+                modo_nome: modoItem?.value || (isPontual ? 'Pontual' : '-'),
+                operador1_nome: exec.ts_operador1 || '',
+                operador2_nome: exec.ts_operador2 || '',
+                executions: [exec],
+                executionCount: exec.updt_time != null ? 1 : 0,
+                lastExecution: exec.updt_time != null ? exec : null,
+                hasExecutions: exec.updt_time != null,
+                isPontual,
             };
         });
-
-        // Tarefas pontuais (sem meta) — cada execução é autónoma
-        const pontualOps = executions
-            .filter(e => e.tb_operacaometa == null && e.operacao_meta == null)
-            .map(e => ({
-                pk: `pontual_${e.pk}`,
-                instalacao_nome: e.tb_instalacao || '',
-                acao_nome: e.tt_operacaoaccao || '',
-                modo_nome: 'Pontual',
-                dia_nome: '—',
-                operador1_nome: e.ts_operador1 || '',
-                operador2_nome: e.ts_operador2 || '',
-                executions: [e],
-                executionCount: 1,
-                lastExecution: e,
-                hasExecutions: true,
-                isPontual: true,
-            }));
-
-        return [...metaOps, ...pontualOps];
-    }, [filteredMetas, executionsByMeta, executions]);
+    }, [executions, metaData]);
 
     // Analytics computados
     const analytics = useMemo(() => {
@@ -156,7 +142,7 @@ export const useSupervisorData = ({ activeTab = 0, pedidosVisited = false } = {}
             .map(exec => ({
                 ...exec,
                 operador_nome: exec.ts_operador1 || getUserNameByPk(exec.pk_operador1, metaData),
-                instalacao_nome: exec.tb_instalacao || getInstallationName(exec.pk_instalacao, metaData),
+                instalacao_nome: getInstallationName(exec.pk_instalacao, metaData) || exec.tb_instalacao || '',
                 acao_nome: exec.tt_operacaoaccao || getOperationActionName(exec.pk_operacaoaccao, metaData),
             }));
     }, [executions, metaData]);
@@ -286,5 +272,6 @@ export const useSupervisorData = ({ activeTab = 0, pedidosVisited = false } = {}
         updateMeta,
         deleteMeta,
         validateExecution,
+        initMonth,
     };
 };

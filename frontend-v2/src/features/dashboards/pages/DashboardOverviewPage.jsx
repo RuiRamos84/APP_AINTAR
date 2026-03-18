@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Grid, Card, CardContent, Typography,
+  Box, Grid, Card, CardContent, Typography, Divider,
   Skeleton, Stack, Chip, Select, MenuItem, FormControl,
   useTheme, alpha,
 } from '@mui/material';
@@ -21,10 +21,12 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import HeartbeatIcon from '@mui/icons-material/MonitorHeart';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useDashboardView } from '../hooks/useDashboard';
 import ChartCard from '../components/charts/ChartCard';
 import { formatValue } from '../components/charts/chartUtils';
+import DashboardLanding from '../components/DashboardLanding';
 
 // ─── Category definitions ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -297,6 +299,20 @@ export const DashboardOverviewPage = () => {
         </Stack>
       }
     >
+
+      {/* ── Resumo operacional (landing views) ───────────────────────────── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <HeartbeatIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+        <Typography variant="caption" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', fontSize: 11 }}>
+          Resumo operacional
+        </Typography>
+        <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>
+          — Corrente vs Anterior, por município e por tipo
+        </Typography>
+      </Box>
+      <DashboardLanding />
+
+      <Divider sx={{ my: 3 }} />
 
       {/* ── Spotlights históricos ────────────────────────────────────────── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>

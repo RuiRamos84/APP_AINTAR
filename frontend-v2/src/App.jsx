@@ -41,7 +41,7 @@ import {
 } from '@/features/admin/pages';
 
 // Módulos do sistema de navegação híbrida
-import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage } from '@/features/operations/pages';
+import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage, TasksPage as OperationTasksPage } from '@/features/operations/pages';
 import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage } from '@/features/gestao/pages';
 import { ClientsPage, InvoicesPage, ClientContractsPage } from '@/features/payments/pages';
 import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
@@ -153,7 +153,8 @@ function App() {
         {/* ==================== MÓDULO: OPERAÇÃO ==================== */}
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/*" element={<TasksPage />} />
-        <Route path="/operation" element={<OperationPage />} />
+        <Route path="/operation" element={<Navigate to="/operation/tasks" replace />} />
+        <Route path="/operation/tasks" element={<OperationTasksPage />} />
         <Route path="/operation/control" element={<OperationControlPage />} />
         <Route path="/operation/metadata" element={<OperationMetadataPage />} />
         <Route path="/operation/supervisor" element={<SupervisorPage />} />

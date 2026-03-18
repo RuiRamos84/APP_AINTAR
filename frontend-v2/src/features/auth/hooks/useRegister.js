@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
-import { useAuth } from './useAuth';
+import { register as registerApi } from '@/services/auth/authService';
 
 // Schema de validação para registo
 const registerSchema = z
@@ -36,7 +36,7 @@ const registerSchema = z
   });
 
 export const useRegister = () => {
-  const { register, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -108,14 +108,17 @@ export const useRegister = () => {
     const { confirmPassword, ...userData } = formData;
 
     // Fazer registo
-    const result = await register(userData);
-
-    if (!result.success) {
-      setSubmitError(result.error);
-      return { success: false, error: result.error };
+    try {
+      setIsLoading(true);
+      await registerApi(userData);
+      return { success: true };
+    } catch (error) {
+      const msg = error.message || 'Erro ao fazer registo';
+      setSubmitError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setIsLoading(false);
     }
-
-    return { success: true };
   };
 
   /**

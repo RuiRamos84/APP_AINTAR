@@ -80,7 +80,7 @@ export const operationService = {
   completeTask: async (taskId, completionData) => {
     if (completionData.photo) {
       const formData = new FormData();
-      formData.append('valuetext', completionData.valuetext || '');
+      formData.append('valuetext', completionData.valuetext ?? '');
       if (completionData.valuememo) {
         formData.append('valuememo', completionData.valuememo);
       }
@@ -211,6 +211,28 @@ export const operationService = {
   /** Criar requisição interna (tipo 19) */
   createRequisicaoInterna: async (pnmemo) => {
     const response = await apiClient.post('/requisicao_interna', { pnmemo });
+    return response;
+  },
+
+  // ============================================================
+  // INICIALIZAÇÃO MENSAL (fbf_operacao$init)
+  // ============================================================
+
+  /**
+   * Gerar tarefas de um mês futuro a partir dos templates (tb_operacaometa).
+   * @param {{ tt_operacaomodo: number, month: number, year: number }} data
+   */
+  initOperacaoMonth: async (data) => {
+    const response = await apiClient.post('/operacao_init', data);
+    return response;
+  },
+
+  /**
+   * Gerar tarefas para os dias RESTANTES do mês corrente (aditivo, não apaga).
+   * @param {{ tt_operacaomodo: number }} data
+   */
+  initOperacaoRemaining: async (data) => {
+    const response = await apiClient.post('/operacao_init_remaining', data);
     return response;
   },
 

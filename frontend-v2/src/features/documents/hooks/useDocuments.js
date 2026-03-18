@@ -19,23 +19,20 @@ export const documentKeys = {
  * Hook to fetch documents based on access type
  * @param {string} type 'all' | 'assigned' | 'created' | 'late'
  */
-export const useDocuments = (type = 'all') => {
+export const useDocuments = (type = 'all', options = {}) => {
   return useQuery({
     queryKey: documentKeys.list(type),
     queryFn: async () => {
       switch (type) {
-        case 'assigned':
-          return documentsService.fetchAssigned();
-        case 'created':
-          return documentsService.fetchCreated();
-        case 'late':
-          return documentsService.fetchLate();
+        case 'assigned':  return documentsService.fetchAssigned();
+        case 'created':   return documentsService.fetchCreated();
+        case 'late':      return documentsService.fetchLate();
         case 'all':
-        default:
-          return documentsService.fetchAll();
+        default:          return documentsService.fetchAll();
       }
     },
     staleTime: 1000 * 60 * 2, // 2 minutes
+    ...options,
   });
 };
 
@@ -47,6 +44,8 @@ export const useDocumentDetails = (id) => {
     queryKey: documentKeys.detail(id),
     queryFn: () => documentsService.fetchById(id),
     enabled: !!id,
+    staleTime: 1000 * 30, // 30 seconds — details change rarely while viewing
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -58,6 +57,8 @@ export const useDocumentSteps = (id) => {
     queryKey: documentKeys.steps(id),
     queryFn: () => documentsService.fetchSteps(id),
     enabled: !!id,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -90,7 +91,7 @@ export const useAddStep = () => {
     onSuccess: (_, variables) => {
       toast.success('Passo adicionado com sucesso');
       queryClient.invalidateQueries({ queryKey: documentKeys.steps(variables.id) });
-      queryClient.invalidateQueries({ queryKey: documentKeys.details() });
+      queryClient.invalidateQueries({ queryKey: documentKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
@@ -128,24 +129,25 @@ export const useDocumentAnnexes = (id) => {
     queryKey: documentKeys.annexes(id),
     queryFn: () => documentsService.fetchAnnexes(id),
     enabled: !!id,
+    staleTime: 1000 * 60, // 1 minute — annexes are static once added
+    refetchOnWindowFocus: false,
   });
 };
 
 /**
  * Hook to add annex to document
+ * Variables: { docId: number, formData: FormData }
  */
 export const useAddAnnex = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (formData) => documentsService.addAnnex(formData),
-    onSuccess: (_, variables) => {
+    mutationFn: ({ docId: _id, formData }) => documentsService.addAnnex(formData),
+    onSuccess: (_, { docId }) => {
       toast.success('Anexo adicionado com sucesso');
-      // Extract docId from FormData — parse as Number to match query key type
-      const rawId = variables.get?.('tb_document') || variables.get?.('document_id') || variables.get?.('pk');
-      const docId = rawId ? Number(rawId) : null;
       if (docId) {
-        queryClient.invalidateQueries({ queryKey: documentKeys.annexes(docId) });
+        queryClient.invalidateQueries({ queryKey: documentKeys.annexes(Number(docId)) });
+        queryClient.invalidateQueries({ queryKey: documentKeys.detail(Number(docId)) });
       }
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
@@ -181,6 +183,8 @@ export const useDocumentParams = (id) => {
     queryKey: documentKeys.params(id),
     queryFn: () => documentsService.fetchParams(id),
     enabled: !!id,
+    staleTime: 1000 * 60 * 5, // 5 minutes — params are very static
+    refetchOnWindowFocus: false,
   });
 };
 

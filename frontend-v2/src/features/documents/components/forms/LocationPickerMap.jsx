@@ -56,8 +56,10 @@ const MapRecenter = ({ lat, lng }) => {
  * @param {string|number} lat - Latitude
  * @param {string|number} lng - Longitude
  * @param {function} onLocationSelect - Callback(lat, lng) when location is selected
+ * @param {boolean} readOnly - When true, disables click interaction (view-only mode)
+ * @param {number} height - Map height in px (default 280)
  */
-const LocationPickerMap = ({ lat, lng, onLocationSelect }) => {
+const LocationPickerMap = ({ lat, lng, onLocationSelect, readOnly = false, height = 280 }) => {
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
     const hasCoords = !isNaN(latitude) && !isNaN(longitude);
@@ -67,11 +69,13 @@ const LocationPickerMap = ({ lat, lng, onLocationSelect }) => {
 
     return (
         <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                Clique no mapa para definir ou ajustar a localização.
-            </Typography>
+            {!readOnly && (
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                    Clique no mapa para definir ou ajustar a localização.
+                </Typography>
+            )}
             <Box sx={{
-                height: 280,
+                height,
                 width: '100%',
                 borderRadius: 2,
                 overflow: 'hidden',
@@ -81,20 +85,21 @@ const LocationPickerMap = ({ lat, lng, onLocationSelect }) => {
                     height: '100%',
                     width: '100%',
                     zIndex: 1,
-                    cursor: 'crosshair',
+                    cursor: readOnly ? 'grab' : 'crosshair',
                 },
             }}>
                 <MapContainer
                     center={center}
                     zoom={zoom}
-                    scrollWheelZoom
+                    scrollWheelZoom={!readOnly}
+                    dragging={!readOnly}
                     style={{ height: '100%', width: '100%' }}
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <MapClickHandler onLocationSelect={onLocationSelect} />
+                    {!readOnly && <MapClickHandler onLocationSelect={onLocationSelect} />}
                     <MapRecenter lat={hasCoords ? latitude : null} lng={hasCoords ? longitude : null} />
                     {hasCoords && (
                         <Marker position={[latitude, longitude]}>

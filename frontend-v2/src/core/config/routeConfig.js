@@ -119,13 +119,22 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/operation/tasks': {
+    id: 'operation_tasks',
+    text: 'Minhas Tarefas',
+    icon: TasksIcon,
+    module: 'operacao',
+    permissions: { required: PERMISSIONS.OPERATIONS_VIEW },
+    showInSidebar: true,
+  },
+
   '/operation': {
     id: 'operation',
     text: 'Operação',
     icon: TasksIcon,
     module: 'operacao',
     permissions: { required: PERMISSIONS.OPERATIONS_VIEW },
-    showInSidebar: true,
+    showInSidebar: false,
   },
 
   '/operation/control': {
@@ -133,7 +142,7 @@ export const ROUTE_CONFIG = {
     text: 'Controlo Operacional',
     icon: ControlIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.TASKS_CONTROL },
+    permissions: { required: PERMISSIONS.OPERATIONS_SUPERVISE },
     showInSidebar: true,
   },
 
@@ -142,7 +151,7 @@ export const ROUTE_CONFIG = {
     text: 'Gestão de Voltas',
     icon: SettingsIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_CREATE },
+    permissions: { required: PERMISSIONS.OPERATIONS_SUPERVISE },
     showInSidebar: true,
   },
 
@@ -151,7 +160,7 @@ export const ROUTE_CONFIG = {
     text: 'Supervisão',
     icon: AnalyticsIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_CREATE },
+    permissions: { required: PERMISSIONS.OPERATIONS_SUPERVISE },
     showInSidebar: true,
   },
 

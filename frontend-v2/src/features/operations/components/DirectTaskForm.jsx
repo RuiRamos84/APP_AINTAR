@@ -79,7 +79,8 @@ const LocationSelector = ({ clat, clong, onLocationChange }) => {
           pos.coords.longitude.toFixed(6)
         );
         setGpsLoading(false);
-        toast.success('Localização GPS obtida com sucesso.');
+        toast.info('Localização GPS obtida. Confirme a posição no mapa.');
+        setMapOpen(true); // abrir mapa automáticamente para confirmação
       },
       (err) => {
         const messages = {

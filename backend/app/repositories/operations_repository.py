@@ -28,7 +28,7 @@ class OperationsRepository(BaseRepository):
                 instalacao_pk = f.get('instalacao_pk')
 
                 base = """
-                    SELECT v.*, o.tt_operacaomodo
+                    SELECT v.*, o.tt_operacaomodo, o.data
                     FROM vbl_operacao v
                     LEFT JOIN tb_operacao o ON o.pk = v.pk
                 """

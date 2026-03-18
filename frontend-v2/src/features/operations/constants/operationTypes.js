@@ -50,7 +50,7 @@ export const OPERATION_TYPE_CONFIG = {
     },
     [OPERATION_TYPES.BOOLEAN]: {
         id: 4,
-        name: 'Boolean',
+        name: 'Confirmação (Sim/Não)',
         description: 'Sim/Não (checkbox)',
         inputType: 'checkbox',
         label: 'Operação concluída com sucesso',

@@ -285,8 +285,8 @@ def create_app(config_class):
             "max_size_mb": max_mb
         }, 413
 
-    # Aplicação iniciada
-
-    # Sistema de permissões agora usa apenas IDs numéricos (não precisa de inicialização)
+    # Scheduler automático — geração mensal de tarefas no dia 25 às 10:00
+    from .scheduler import init_scheduler
+    init_scheduler(app)
 
     return app

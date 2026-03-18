@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
     Box,
-    Container,
     Paper,
     Typography,
     FormControl,
@@ -43,7 +42,9 @@ import {
     Image as ImageIcon,
     Description as DescriptionIcon,
     ZoomIn as PreviewIcon,
+    AccountTree as ControlIcon,
 } from '@mui/icons-material';
+import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification/notificationService';
 import { operationService } from '../services/operationService';
@@ -306,15 +307,16 @@ const OperationControlPage = () => {
     const isAlreadyControlled = (task) => task.control_tt_operacaocontrolo !== null && task.control_tt_operacaocontrolo !== undefined;
 
     return (
-        <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" fontWeight="bold" gutterBottom>
-                    Controlo Operacional
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    Verifique e valide as tarefas executadas nas instalações.
-                </Typography>
-            </Box>
+        <ModulePage
+            title="Controlo Operacional"
+            subtitle="Verifique e valide as tarefas executadas nas instalações"
+            icon={ControlIcon}
+            color="#1565c0"
+            breadcrumbs={[
+                { label: 'Operação', path: '/operation' },
+                { label: 'Controlo Operacional' },
+            ]}
+        >
 
             {/* Filtros */}
             <Paper sx={{ p: 3, mb: 3, ...glassCard }}>
@@ -687,7 +689,7 @@ const OperationControlPage = () => {
                     ) : null}
                 </DialogContent>
             </Dialog>
-        </Container>
+        </ModulePage>
     );
 };
 

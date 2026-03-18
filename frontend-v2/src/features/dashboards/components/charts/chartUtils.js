@@ -36,7 +36,7 @@ export const tooltipStyle = (theme) => ({
   },
   labelStyle: { color: theme.palette.text.primary, fontWeight: 600 },
   itemStyle: { color: theme.palette.text.secondary },
-  formatter: (val) => [formatValue(val)],
+  formatter: (val, name) => [formatValue(val), name],
 });
 
 /** Auto-detect best chart type based on data shape */

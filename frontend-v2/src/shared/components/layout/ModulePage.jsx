@@ -15,7 +15,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { useUIStore } from '@/core/store/uiStore';
 import { getModuleById } from '@/core/config/moduleConfig';
 
-export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, children }) => {
+export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, center, children, compact = false, fillHeight = false }) => {
   const navigate = useNavigate();
   const currentModule = useUIStore((state) => state.currentModule);
   const moduleConfig = currentModule ? getModuleById(currentModule) : null;
@@ -41,7 +41,7 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
   }, [breadcrumbs, moduleConfig]);
 
   return (
-    <Box>
+    <Box sx={fillHeight ? { display: 'flex', flexDirection: 'column', height: '100%' } : {}}>
       {/* Breadcrumbs */}
       {normalizedCrumbs.length > 0 && (
         <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 0.5 }}>
@@ -70,12 +70,14 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
       {title && (
         <Box
           sx={{
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
-            mb: 3,
-            pb: 2,
-            borderBottom: `3px solid ${color || 'primary.main'}`,
+            flexWrap: 'wrap',
+            gap: compact ? 1 : { xs: 1.5, sm: 2 },
+            mb: compact ? 1.5 : 3,
+            pb: compact ? 1 : 2,
+            borderBottom: `${compact ? 2 : 3}px solid ${color || 'primary.main'}`,
           }}
         >
           {Icon && (
@@ -84,32 +86,54 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: 48,
-                height: 48,
+                width: compact ? 32 : { xs: 40, sm: 48 },
+                height: compact ? 32 : { xs: 40, sm: 48 },
                 borderRadius: 2,
                 bgcolor: `${color}15`,
                 flexShrink: 0,
               }}
             >
-              <Icon sx={{ fontSize: 28, color: color || 'primary.main' }} />
+              <Icon sx={{ fontSize: compact ? 18 : { xs: 22, sm: 28 }, color: color || 'primary.main' }} />
             </Box>
           )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="h4" fontWeight={600} gutterBottom>
+            <Typography
+              variant={compact ? 'h6' : 'h4'}
+              fontWeight={600}
+              sx={compact ? {} : { fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' }, mb: 0.5 }}
+            >
               {title}
             </Typography>
-            {subtitle && (
+            {subtitle && !compact && (
               <Typography variant="body2" color="text.secondary">
                 {subtitle}
               </Typography>
             )}
           </Box>
-          {actions && <Box sx={{ ml: 'auto', flexShrink: 0 }}>{actions}</Box>}
+          {/* Centro absoluto — centrado em relação ao header independentemente das larguras laterais */}
+          {center && (
+            <Box sx={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              pointerEvents: 'none',
+              '& > *': { pointerEvents: 'auto' },
+            }}>
+              {center}
+            </Box>
+          )}
+          {actions && (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {actions}
+            </Box>
+          )}
         </Box>
       )}
 
       {/* Content */}
-      <Box>{children}</Box>
+      <Box sx={fillHeight ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}}>{children}</Box>
     </Box>
   );
 };

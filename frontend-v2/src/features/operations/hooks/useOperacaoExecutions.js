@@ -46,7 +46,7 @@ export const useOperacaoExecutions = (dateRange) => {
         return executions.map(exec => ({
             ...exec,
             operador_nome: exec.ts_operador1 || getUserNameByPk(exec.pk_operador1, metaData),
-            instalacao_nome: exec.tb_instalacao || getInstallationName(exec.pk_instalacao, metaData),
+            instalacao_nome: getInstallationName(exec.pk_instalacao, metaData) || exec.tb_instalacao || '',
             acao_nome: exec.tt_operacaoaccao || getOperationActionName(exec.pk_operacaoaccao, metaData),
         }));
     }, [executions, metaData]);
@@ -98,6 +98,19 @@ export const useOperacaoExecutions = (dateRange) => {
         onError: () => notification.error('Erro ao validar execução'),
     });
 
+    const initMonth = useMutation({
+        mutationFn: (data) => operationService.initOperacaoMonth(data),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey });
+            const total = res?.total ?? res?.data?.total ?? '?';
+            notification.success(`${total} tarefas geradas com sucesso!`);
+        },
+        onError: (error) => {
+            const msg = error?.response?.data?.error || error?.message || 'Erro ao gerar tarefas';
+            notification.error(msg);
+        },
+    });
+
     return {
         executions,
         enrichedExecutions,
@@ -107,5 +120,6 @@ export const useOperacaoExecutions = (dateRange) => {
         createTask,
         createDirect,
         validateExecution,
+        initMonth,
     };
 };

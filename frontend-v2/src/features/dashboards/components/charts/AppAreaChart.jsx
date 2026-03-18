@@ -38,7 +38,7 @@ const AppAreaChart = ({
         <XAxis
           dataKey={xKey}
           tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
-          tickFormatter={(v) => formatAxisTick(v, 8)}
+          tickFormatter={(v) => formatAxisTick(v, 14)}
           interval={0}
         />
         <YAxis

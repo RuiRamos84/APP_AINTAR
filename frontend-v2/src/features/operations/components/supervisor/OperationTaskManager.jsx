@@ -9,12 +9,14 @@ import {
 } from '@mui/material';
 import {
     Add, Edit, Delete, Visibility, CheckCircle, Schedule,
-    Close, PhotoCamera, GppGood, Download, ZoomIn
+    Close, PhotoCamera, GppGood, Download, ZoomIn,
+    Business, CalendarToday, Engineering, LocationOn, Map as MapIcon,
 } from '@mui/icons-material';
 import { SearchBar, SortableHeadCell } from '@/shared/components/data';
 import { useSortable } from '@/shared/hooks/useSortable';
-import { formatDate, formatCompletedTaskValue, getUserNameByPk } from '../../utils/formatters';
+import { formatDate, formatDateOnly, formatCompletedTaskValue, getUserNameByPk } from '../../utils/formatters';
 import DirectTaskForm from '../DirectTaskForm';
+import LocationPickerMap from '@/features/documents/components/forms/LocationPickerMap';
 
 const OperationTaskManager = ({
     operations, metaData, onCreateTask, onCreateDirect, onUpdateMeta, onDeleteMeta,
@@ -134,7 +136,7 @@ const OperationTaskManager = ({
                                 <SortableHeadCell label="Instalação" field="instalacao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <SortableHeadCell label="Ação" field="acao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <SortableHeadCell label="Modo" field="modo_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
-                                <SortableHeadCell label="Dia" field="tt_operacaodia" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <SortableHeadCell label="Data" field="data" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <SortableHeadCell label="Operador 1" field="operador1_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <SortableHeadCell label="Operador 2" field="operador2_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <TableCell align="center">Ações</TableCell>
@@ -181,7 +183,7 @@ const OperationTaskManager = ({
                                             <Typography variant="body2" noWrap>{op.modo_nome || '-'}</Typography>
                                         </TableCell>
                                         <TableCell>
-                                            <Typography variant="body2">{op.dia_nome || '-'}</Typography>
+                                            <Typography variant="body2">{op.data ? formatDateOnly(op.data) : '-'}</Typography>
                                         </TableCell>
                                         <TableCell>
                                             <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -223,95 +225,129 @@ const OperationTaskManager = ({
             </Card>
 
             {/* Details Dialog */}
-            <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
-                <DialogTitle>
+            <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ pb: 1 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h6">Detalhes da Tarefa</Typography>
+                        <Typography variant="h6" fontWeight={700}>Detalhes da Tarefa</Typography>
                         <IconButton onClick={() => setDetailsOpen(false)} size="small"><Close /></IconButton>
                     </Stack>
                 </DialogTitle>
-                <DialogContent dividers>
+                <DialogContent dividers sx={{ pt: 2 }}>
                     {selectedOp && (
-                        <Stack spacing={3}>
-                            {/* Installation Info */}
+                        <Stack spacing={2}>
+                            {/* ── Cabeçalho compacto ── */}
                             <Box>
-                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                                    {getInstallationType(selectedOp) && (
-                                        <Chip label={getInstallationType(selectedOp)} size="small"
-                                            color={getInstallationType(selectedOp) === 'ETAR' ? 'success' : 'primary'} />
-                                    )}
-                                    <Typography variant="h6" fontWeight={600}>
-                                        {selectedOp.instalacao_nome || '-'}
+                                {/* Linha 1: Ação + status */}
+                                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                                    <Typography variant="h6" fontWeight={700} sx={{ flex: 1, lineHeight: 1.3 }}>
+                                        {selectedOp.acao_nome || `Tarefa #${selectedOp.pk}`}
                                     </Typography>
+                                    <Box flexShrink={0}>{getStatusChip(selectedOp)}</Box>
                                 </Stack>
-                            </Box>
 
-                            {/* Operation Details */}
-                            <Grid container spacing={2}>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Typography variant="caption" color="text.secondary">Ação</Typography>
-                                    <Typography variant="body2" fontWeight={500}>{selectedOp.acao_nome || '-'}</Typography>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Typography variant="caption" color="text.secondary">Modo</Typography>
-                                    <Typography variant="body2" fontWeight={500}>{selectedOp.modo_nome || '-'}</Typography>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Typography variant="caption" color="text.secondary">Dia/Frequência</Typography>
-                                    <Typography variant="body2" fontWeight={500}>{selectedOp.dia_nome || '-'}</Typography>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Typography variant="caption" color="text.secondary">Descrição</Typography>
-                                    <Typography variant="body2" fontWeight={500}>{selectedOp.description || '-'}</Typography>
-                                </Grid>
-                            </Grid>
+                                {/* Linha 2: Instalação · Data · Modo */}
+                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 1 }}>
+                                    <Stack direction="row" spacing={0.5} alignItems="center">
+                                        <Business sx={{ fontSize: 14, color: 'text.disabled' }} />
+                                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                            {selectedOp.instalacao_nome || '-'}
+                                        </Typography>
+                                    </Stack>
+                                    {selectedOp.data && (
+                                        <>
+                                            <Typography variant="body2" color="text.disabled">·</Typography>
+                                            <Stack direction="row" spacing={0.5} alignItems="center">
+                                                <CalendarToday sx={{ fontSize: 14, color: 'text.disabled' }} />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {formatDateOnly(selectedOp.data)}
+                                                </Typography>
+                                            </Stack>
+                                        </>
+                                    )}
+                                    {selectedOp.modo_nome && selectedOp.modo_nome !== '-' && (
+                                        <>
+                                            <Typography variant="body2" color="text.disabled">·</Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {selectedOp.modo_nome}
+                                            </Typography>
+                                        </>
+                                    )}
+                                </Stack>
+
+                                {/* Descrição */}
+                                {selectedOp.descr && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                        {selectedOp.descr}
+                                    </Typography>
+                                )}
+                            </Box>
 
                             <Divider />
 
-                            {/* Operators */}
+                            {/* Operadores */}
                             <Box>
-                                <Typography variant="subtitle2" gutterBottom>Operadores Atribuídos</Typography>
-                                <Grid container spacing={2}>
-                                    <Grid size={{ xs: 12, sm: 6 }}>
-                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                            <Avatar sx={{ width: 32, height: 32, fontSize: 12 }}>
-                                                {selectedOp.operador1_nome?.charAt(0) || '?'}
-                                            </Avatar>
-                                            <Box>
-                                                <Typography variant="body2" fontWeight={500}>
-                                                    {selectedOp.operador1_nome || 'Não atribuído'}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">Operador Principal</Typography>
-                                            </Box>
-                                        </Stack>
-                                    </Grid>
-                                    {selectedOp.operador2_nome && selectedOp.operador2_nome !== 'Não atribuído' && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                <Avatar sx={{ width: 32, height: 32, fontSize: 12 }}>
-                                                    {selectedOp.operador2_nome?.charAt(0) || '?'}
-                                                </Avatar>
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {selectedOp.operador2_nome}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">Operador Secundário</Typography>
-                                                </Box>
-                                            </Stack>
-                                        </Grid>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                    Operadores
+                                </Typography>
+                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
+                                    <Engineering sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
+                                    <Typography variant="body2" fontWeight={500}>
+                                        {selectedOp.operador1_nome || '-'}
+                                    </Typography>
+                                    {selectedOp.operador2_nome && selectedOp.operador2_nome !== '-' && (
+                                        <>
+                                            <Typography variant="body2" color="text.disabled">·</Typography>
+                                            <Typography variant="body2" fontWeight={500}>
+                                                {selectedOp.operador2_nome}
+                                            </Typography>
+                                        </>
                                     )}
-                                </Grid>
+                                </Stack>
                             </Box>
 
-                            {/* Executions */}
+                            {/* Localização GPS */}
+                            {selectedOp.clat && selectedOp.clong && (
+                                <>
+                                    <Divider />
+                                    <Box>
+                                        <Typography variant="subtitle2" gutterBottom color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <LocationOn fontSize="small" /> Localização do Local
+                                        </Typography>
+                                        <LocationPickerMap
+                                            lat={selectedOp.clat}
+                                            lng={selectedOp.clong}
+                                            readOnly
+                                            height={200}
+                                        />
+                                        <Box
+                                            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedOp.clat},${selectedOp.clong}`, '_blank', 'noopener,noreferrer')}
+                                            sx={{
+                                                mt: 1, display: 'flex', alignItems: 'center', gap: 1.5,
+                                                p: 1.5, borderRadius: 2,
+                                                border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                                                bgcolor: alpha(theme.palette.success.main, 0.05),
+                                                cursor: 'pointer', transition: 'all 0.2s',
+                                                '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.12), borderColor: theme.palette.success.main },
+                                            }}
+                                        >
+                                            <MapIcon fontSize="small" color="success" />
+                                            <Typography variant="body2" fontWeight={600} color="success.main">
+                                                Navegar para este local (Google Maps)
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </>
+                            )}
+
+                            {/* Registos de Execução */}
                             {selectedOp.executions?.length > 0 && (
                                 <>
                                     <Divider />
                                     <Box>
-                                        <Typography variant="subtitle2" gutterBottom>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                             Registos de Execução ({selectedOp.executionCount})
                                         </Typography>
-                                        <Stack spacing={1.5}>
+                                        <Stack spacing={1.5} sx={{ mt: 1 }}>
                                             {selectedOp.executions.map((exec, idx) => {
                                                 const isValidated = !!exec.control_tt_operacaocontrolo;
                                                 const completedValue = formatCompletedTaskValue(exec);
@@ -320,10 +356,7 @@ const OperationTaskManager = ({
                                                         <Stack spacing={1}>
                                                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                                                 <Stack direction="row" alignItems="center" spacing={1}>
-                                                                    <Chip
-                                                                        label={`#${exec.pk || idx + 1}`}
-                                                                        size="small" variant="outlined"
-                                                                    />
+                                                                    <Chip label={`#${exec.pk || idx + 1}`} size="small" variant="outlined" />
                                                                     <Chip
                                                                         label={isValidated ? 'Validada' : 'Aguarda Validação'}
                                                                         size="small"
@@ -473,6 +506,7 @@ const OperationTaskManager = ({
                     />
                 </DialogContent>
             </Dialog>
+
 
         </Stack>
     );

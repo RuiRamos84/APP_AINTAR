@@ -27,6 +27,7 @@ import {
 import {
   connectSocket,
   disconnectSocket,
+  cleanupSocketSession,
   emitEvent,
   onEvent,
   offEvent,
@@ -438,6 +439,15 @@ export const SocketProvider = ({ children }) => {
           setIsConnected(false);
         });
 
+        // Heartbeat via socket a cada 10 minutos (evita HTTP poll quando socket está ligado)
+        // Guarda isSocketConnected() para não emitir durante janelas de reconnect
+        const HEARTBEAT_INTERVAL = 10 * 60 * 1000;
+        const heartbeatInterval = setInterval(() => {
+          if (isSocketConnected()) {
+            emitEvent('heartbeat', { userId: user.user_id, timestamp: Date.now() });
+          }
+        }, HEARTBEAT_INTERVAL);
+
         cleanupFunctions = [
           removeNewNotif,
           removeDocTransfer,
@@ -445,6 +455,7 @@ export const SocketProvider = ({ children }) => {
           removeOperacaoNotif,
           removeConnect,
           removeDisconnect,
+          () => clearInterval(heartbeatInterval),
         ];
       } catch (error) {
         console.error('[SocketContext] Error setting up socket:', error);
@@ -454,25 +465,37 @@ export const SocketProvider = ({ children }) => {
 
     setupSocket();
 
-    // Cleanup
+    // Cleanup — usa cleanupSocketSession() (síncrono) em vez de disconnectSocket() (Promise)
+    // Isto elimina a race condition onde o novo ciclo do effect começa antes do socket
+    // anterior estar completamente destruído, causando isConnected = false incorrectamente.
     return () => {
       cleanupFunctions.forEach((cleanup) => cleanup());
-
-      if (socketInstance) {
-        disconnectSocket();
-        setSocket(null);
-        setIsConnected(false);
-      }
+      cleanupSocketSession(); // síncrono: remove listeners + disconnect + null na mesma frame
+      setSocket(null);
+      setIsConnected(false);
     };
   }, [
     isAuthenticated,
-    user,
+    user?.user_id, // primitivo estável — evita re-conexão por re-render do AuthContext
     emit,
     handleNewNotification,
     handleDocumentTransferred,
     handleTaskNotification,
     handleOperacaoNotification,
   ]);
+
+  // Polling de fallback: corre continuamente enquanto autenticado.
+  // Não depende de `socket` (state) para evitar reinícios que criam janelas cegas.
+  // Intervalo de 3s garante correcção rápida em qualquer estado residual.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsConnected(false);
+      return;
+    }
+    setIsConnected(isSocketConnected());
+    const poll = setInterval(() => setIsConnected(isSocketConnected()), 3000);
+    return () => clearInterval(poll);
+  }, [isAuthenticated]); // só `isAuthenticated` — sem `socket` para evitar reinícios
 
   // Limpeza automática de notificações antigas (a cada hora)
   useEffect(() => {

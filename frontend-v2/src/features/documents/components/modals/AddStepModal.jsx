@@ -124,8 +124,9 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
 
   // Available users for selected step
   const availableUsers = useMemo(() => {
-    if (!selectedStep || !document || !metaData) return [];
-    return getAvailableUsersForStep(Number(selectedStep), document, metaData);
+    if ((selectedStep === null || selectedStep === undefined || selectedStep === '') || !document || !metaData) return [];
+    const stepNum = Number(selectedStep);
+    return getAvailableUsersForStep(stepNum, document, metaData);
   }, [selectedStep, document, metaData]);
 
   // --- File Handling ---
@@ -209,7 +210,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
       }
     }
 
-    if (!data.user) {
+    if (data.user === null || data.user === undefined || data.user === '') {
       toast.error('Deve selecionar um utilizador.');
       return;
     }
@@ -346,9 +347,9 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
                       select
                       label="Destinatário"
                       fullWidth
-                      disabled={!selectedStep || isSubmitting}
+                      disabled={(selectedStep === null || selectedStep === undefined || selectedStep === '') || isSubmitting}
                       helperText={
-                        !selectedStep
+                        (selectedStep === null || selectedStep === undefined || selectedStep === '')
                           ? 'Selecione um passo primeiro'
                           : availableUsers.length === 0
                             ? 'Nenhum utilizador disponível'
@@ -371,7 +372,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
               </Grid>
 
               {/* Vacation Warning */}
-              {watch('user') && (
+              {(watch('user') !== '' && watch('user') !== null && watch('user') !== undefined) && (
                 <Grid size={12}>
                   <VacationWarningBadge
                     userId={watch('user')}

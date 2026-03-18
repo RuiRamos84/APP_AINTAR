@@ -196,7 +196,7 @@ const AddAnnexModal = ({ open, onClose, documentId, document: docProp }) => {
       formData.append('descr', f.description);
     });
 
-    addAnnexMutation.mutate(formData, {
+    addAnnexMutation.mutate({ docId: documentId, formData }, {
       onSuccess: () => {
         setShowSuccess(true);
         setTimeout(() => {

@@ -30,7 +30,7 @@ export const useOperacaoMetas = () => {
         if (!rawMetas || !metaData) return [];
         return (Array.isArray(rawMetas) ? rawMetas : []).map(meta => ({
             ...meta,
-            instalacao_nome: meta.tb_instalacao || getInstallationName(meta.pk_instalacao, metaData),
+            instalacao_nome: getInstallationName(meta.pk_instalacao, metaData) || meta.tb_instalacao || '',
             acao_nome: meta.tt_operacaoaccao || getOperationActionName(meta.pk_operacaoaccao, metaData),
             modo_nome: meta.tt_operacaomodo || getOperationModeName(meta.pk_operacaomodo, metaData),
             dia_nome: meta.tt_operacaodia || getOperationDayName(meta.pk_operacaodia, metaData),

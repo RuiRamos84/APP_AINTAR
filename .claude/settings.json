@@ -18,7 +18,19 @@
       "Bash(rm:*)",
       "Bash(find:*)",
       "Bash(tree:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(powershell.exe -NoProfile -Command \"& { Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 20 Name,Id,@{Name=''RAM_MB'';Expression={[math]::Round\\($_WorkingSet64/1MB,1\\)}} | Format-Table -AutoSize }\")",
+      "Bash(wmic process:*)",
+      "Bash(sort -t',' -k3 -rn)",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/rui.ramos/AppData/Local/Temp/ramcheck.ps1\")",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/rui.ramos/AppData/Local/Temp/investigate.ps1\")",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/rui.ramos/AppData/Local/Temp/investigate2.ps1\")",
+      "Bash(\"c:/Users/rui.ramos/Desktop/APP/backend/app/routes/operations_routes.py\")",
+      "Bash(find /c/Users/rui.ramos/Desktop/APP -type f \\\\\\(-name *init*.sql -o -name *schema*.sql -o -name *view*.sql -o -name *.dump \\\\\\))",
+      "Bash(find /c/Users/rui.ramos/Desktop/APP -type f \\\\\\(-name *.md -o -name README* -o -name *.txt \\\\\\))"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"
     ]
   }
 }

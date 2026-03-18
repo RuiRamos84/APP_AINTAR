@@ -308,6 +308,149 @@ function Test-FrontendBuild {
     return $deployer.ValidateBuild()
 }
 
+# ============================================================================
+# FRONTEND V2 - BUILD E DEPLOY
+# ============================================================================
+
+function Build-FrontendV2 {
+    <#
+    .SYNOPSIS
+        Faz o build do frontend-v2 (Vite) com base '/v2/'
+    #>
+    $projectPath = $Global:DeployConfig.CaminhoProjetoFrontendV2
+    $buildPath   = $Global:DeployConfig.CaminhoLocalFrontendV2
+
+    if (-not (Test-Path $projectPath)) {
+        Write-DeployError "Diretório do projeto frontend-v2 não encontrado: $projectPath" "FRONTEND-V2"
+        return $false
+    }
+
+    $currentLocation = Get-Location
+
+    try {
+        Set-Location -Path $projectPath
+        Write-DeployInfo "A executar 'npm run build' em: $projectPath" "FRONTEND-V2"
+
+        $buildProcess = Start-Process `
+            -FilePath "C:\Program Files\nodejs\npm.cmd" `
+            -ArgumentList "run", "build" `
+            -Wait -PassThru -NoNewWindow `
+            -RedirectStandardOutput "build_v2_output.log" `
+            -RedirectStandardError "build_v2_error.log"
+
+        if ($buildProcess.ExitCode -eq 0) {
+            Write-DeployInfo "Build do frontend-v2 concluído com sucesso!" "FRONTEND-V2"
+
+            if (Test-Path $buildPath) {
+                $buildInfo = Get-ChildItem $buildPath -Recurse | Measure-Object
+                $buildSize = [Math]::Round(((Get-ChildItem $buildPath -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 2)
+                Write-DeployDebug "Build criado com $($buildInfo.Count) ficheiros ($buildSize MB)" "FRONTEND-V2"
+                return $true
+            } else {
+                Write-DeployError "Build concluído mas pasta dist não encontrada" "FRONTEND-V2"
+                return $false
+            }
+        } else {
+            Write-DeployError "Erro no build do frontend-v2 (Exit Code: $($buildProcess.ExitCode))" "FRONTEND-V2"
+            try {
+                $errorLog = Get-Content "build_v2_error.log" -Raw -ErrorAction SilentlyContinue
+                if (-not [string]::IsNullOrEmpty($errorLog)) {
+                    Write-DeployError "Detalhes do erro: $errorLog" "FRONTEND-V2"
+                }
+            } catch {}
+            return $false
+        }
+    }
+    catch {
+        Write-DeployException $_.Exception "Build do frontend-v2" "FRONTEND-V2"
+        return $false
+    }
+    finally {
+        Set-Location -Path $currentLocation
+        try {
+            Remove-Item "build_v2_output.log", "build_v2_error.log" -ErrorAction SilentlyContinue
+        } catch {}
+    }
+}
+
+function Deploy-FrontendV2 {
+    <#
+    .SYNOPSIS
+        Faz o deploy do frontend-v2 para build-v2/ no servidor
+    .PARAMETER BuildFirst
+        Se $true, executa o build antes do deploy
+    #>
+    param([bool]$BuildFirst = $true)
+
+    if ($BuildFirst) {
+        if (-not (Build-FrontendV2)) {
+            return $false
+        }
+    }
+
+    return Invoke-WithServerConnection -ScriptBlock {
+        $localBuildPath = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $remotePath     = $Global:DeployConfig.CaminhoRemotoFrontendV2
+
+        if (-not (Test-Path $localBuildPath)) {
+            Write-DeployError "Build local v2 não encontrado: $localBuildPath" "FRONTEND-V2"
+            return $false
+        }
+
+        # Verificar ficheiros essenciais
+        if (-not (Test-Path (Join-Path $localBuildPath "index.html"))) {
+            Write-DeployError "index.html não encontrado no build v2" "FRONTEND-V2"
+            return $false
+        }
+
+        # Converter para UNC
+        $remoteUNC = $remotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+        # Backup se já existir
+        if ((Test-Path $remoteUNC) -and $Global:DeployConfig.CriarBackup) {
+            $backupPath = Get-BackupPath $remoteUNC
+            Write-DeployInfo "A criar backup: $backupPath" "FRONTEND-V2"
+            try {
+                Move-Item $remoteUNC $backupPath -ErrorAction Stop
+
+                # Limpar backups antigos (manter apenas 5)
+                $remoteDir = Split-Path $remoteUNC -Parent
+                $backups = Get-ChildItem $remoteDir | Where-Object { $_.Name -like "build-v2-backup-*" } | Sort-Object LastWriteTime -Descending
+                if ($backups.Count -gt $Global:DeployConfig.ManterBackups) {
+                    $backups | Select-Object -Skip $Global:DeployConfig.ManterBackups | ForEach-Object {
+                        Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            } catch {
+                Write-DeployWarning "Não foi possível criar backup: $($_.Exception.Message)" "FRONTEND-V2"
+            }
+        }
+
+        # Deploy via robocopy
+        $copyStartTime = Get-Date
+        $robocopyArgs = @(
+            $localBuildPath,
+            $remoteUNC,
+            "/MIR", "/MT:8", "/R:2", "/W:3",
+            "/NFL", "/NDL", "/NJH", "/NJS"
+        )
+
+        Write-DeployDebug "robocopy: $localBuildPath -> $remoteUNC" "FRONTEND-V2"
+        & robocopy @robocopyArgs | Out-Null
+
+        if ($LASTEXITCODE -ge 8) {
+            Write-DeployError "robocopy falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            return $false
+        }
+
+        $duration = [Math]::Round(((Get-Date) - $copyStartTime).TotalSeconds, 1)
+        Write-DeployInfo "Frontend-v2 copiado em ${duration}s (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        Write-DeployInfo "Disponível em: https://app.aintar.pt/v2/" "FRONTEND-V2"
+        return $true
+
+    } -OperationName "Deploy Frontend-V2"
+}
+
 function Get-FrontendBuildInfo {
     $deployer = [FrontendDeployer]::new()
     

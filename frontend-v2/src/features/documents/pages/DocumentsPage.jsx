@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { useQueryClient, useIsFetching } from '@tanstack/react-query';
 import DocumentsLayout from './DocumentsLayout';
@@ -40,6 +40,8 @@ const DocumentsPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
 
+  // Defer search input to avoid blocking render on every keystroke
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   // Determine which API to call based on activeTab
   const queryType = useMemo(() => {
@@ -54,12 +56,12 @@ const DocumentsPage = () => {
   // Fetch Data
   const { data: documents, isLoading, error } = useDocuments(queryType);
 
-  // Client-side Filter & Sort
+  // Client-side Filter & Sort (deferredSearchTerm avoids blocking on every keystroke)
   const processedDocuments = useMemo(() => {
-    let result = filterDocuments(documents, filters, searchTerm, dateRange);
+    let result = filterDocuments(documents, filters, deferredSearchTerm, dateRange);
     result = sortDocuments(result, sortConfig);
     return result;
-  }, [documents, filters, searchTerm, dateRange, sortConfig]);
+  }, [documents, filters, deferredSearchTerm, dateRange, sortConfig]);
 
   const clearNotificationMutation = useClearNotification();
 

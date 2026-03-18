@@ -5,6 +5,7 @@
  */
 
 import apiClient from '@/services/api/client';
+import { isSocketConnected } from '@/services/websocket/socketService';
 import AuthState from './AuthState';
 import TokenManager from './TokenManager';
 import SessionManager from './SessionManager';
@@ -206,13 +207,15 @@ class AuthManager {
   }
 
   /**
-   * Send heartbeat to keep session alive
+   * Send heartbeat to keep session alive.
+   * Skips HTTP call when Socket.IO is connected (socket heartbeat handles it).
    */
   async sendHeartbeat() {
+    if (isSocketConnected()) return; // socket heartbeat already running
     try {
       await apiClient.post('/auth/heartbeat');
-    } catch (error) {
-      console.error('Heartbeat error:', error);
+    } catch {
+      // Silently ignore — não crítico
     }
   }
 

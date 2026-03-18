@@ -61,7 +61,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
             const initialValues = {};
             (params || []).forEach((param) => {
                 const key = `${param.tt_analiseponto}_${param.tt_analiseparam}`;
-                initialValues[key] = param.resultado || '';
+                initialValues[key] = param.resultado ?? '';
             });
             setAnalysisValues(initialValues);
         } catch (err) {
@@ -139,12 +139,12 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
                     break;
                 }
                 case OPERATION_TYPES.REFERENCE: {
-                    if (!selectedReference) {
+                    if (selectedReference == null) {
                         setError(MESSAGES.ERROR.INVALID_SELECTION);
                         setSubmitting(false);
                         return;
                     }
-                    completionData = { valuetext: selectedReference.pk, type: 3 };
+                    completionData = { valuetext: String(selectedReference.pk), type: 3 };
                     break;
                 }
                 case OPERATION_TYPES.BOOLEAN: {
@@ -171,7 +171,8 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
                             const key = `${p.tt_analiseponto}_${p.tt_analiseparam}`;
                             const hasResult = p.resultado !== null && p.resultado !== '';
                             const isLab = isLaboratoryParameter(p.tt_analiseforma);
-                            return !analysisValues[key] && !isLab && !hasResult;
+                            const hasInput = analysisValues[key] !== '' && analysisValues[key] != null;
+                            return !hasInput && !isLab && !hasResult;
                         });
 
                         if (emptyRequired.length > 0) {
@@ -182,8 +183,9 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
 
                         const analysisDataWithIds = analysisParams.map(p => {
                             const key = `${p.tt_analiseponto}_${p.tt_analiseparam}`;
-                            return { id_analise: p.id_analise, resultado: analysisValues[key] || null };
-                        }).filter(item => item.resultado);
+                            const val = analysisValues[key];
+                            return { id_analise: p.id_analise, resultado: (val !== '' && val != null) ? val : null };
+                        }).filter(item => item.resultado !== null);
 
                         const summary = analysisDataWithIds.map(i => i.resultado).join(', ');
                         completionData = { valuetext: summary, type: 5, analysisData: analysisDataWithIds };
@@ -273,9 +275,10 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
                     <FormControl fullWidth>
                         <InputLabel>{MESSAGES.FORMS.SELECT_OPTION}</InputLabel>
                         <Select
-                            value={selectedReference?.pk || ''}
+                            value={selectedReference?.pk ?? ''}
                             onChange={(e) => {
-                                const selected = referenceOptions.find(opt => opt.pk === parseInt(e.target.value));
+                                const val = parseInt(e.target.value, 10);
+                                const selected = referenceOptions.find(opt => opt.pk === val) ?? null;
                                 setSelectedReference(selected);
                             }}
                             label={MESSAGES.FORMS.SELECT_OPTION}
@@ -356,7 +359,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
                                         <TextField
                                             key={key} fullWidth
                                             label={`${param.tt_analiseponto} - ${param.tt_analiseparam}`}
-                                            value={analysisValues[key] || ''}
+                                            value={analysisValues[key] ?? ''}
                                             onChange={(e) => setAnalysisValues(prev => ({ ...prev, [key]: e.target.value }))}
                                             placeholder={placeholder}
                                             type="number"

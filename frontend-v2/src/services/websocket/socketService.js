@@ -194,6 +194,26 @@ export const disconnectSocket = () => {
 };
 
 /**
+ * Cleanup síncrono e determinístico da sessão socket.
+ *
+ * Usado pelo SocketContext no cleanup do useEffect para evitar race conditions:
+ * - Remove todos os listeners imediatamente (síncrono)
+ * - Desconecta o socket
+ * - Limpa as referências do módulo na mesma frame
+ *
+ * Ao contrário de disconnectSocket() (Promise), esta função é síncrona,
+ * o que garante que quando o novo ciclo do useEffect começa, não existe
+ * nenhum socket "zombie" com listeners pendentes.
+ */
+export const cleanupSocketSession = () => {
+  if (!socketInstance) return;
+  socketInstance.removeAllListeners();
+  socketInstance.disconnect();
+  socketInstance = null;
+  connectionPromise = null;
+};
+
+/**
  * Emitir evento para o servidor
  *
  * @param {string} eventName - Nome do evento

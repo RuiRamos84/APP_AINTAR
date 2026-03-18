@@ -8,8 +8,11 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+
+  // Base URL: produção serve em /v2/, dev serve em /
+  base: mode === 'production' ? '/v2/' : '/',
 
   // Path aliases
   resolve: {
@@ -107,4 +110,4 @@ export default defineConfig({
       }
     }
   },
-});
+}));

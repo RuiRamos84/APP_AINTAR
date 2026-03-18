@@ -12,7 +12,8 @@ export const formatDate = (value) => {
 
 export const formatDateOnly = (value) => {
     if (!value) return '';
-    return new Date(value).toLocaleDateString('pt-PT');
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-PT');
 };
 
 export const formatPhone = (phone) => {
@@ -69,9 +70,14 @@ export const getInstallationLicenseText = (licenseStatus) => {
     }
 };
 
-/** Nomes de instalação (ETAR ou EE) */
+const GENERIC_INSTALLATION_NAMES = { '-1': 'Rede', '-2': 'Caixa' };
+
+/** Nomes de instalação (ETAR, EE ou genérica REDE/CAIXA) */
 export const getInstallationName = (pk, metaData) => {
-    if (!pk || !metaData) return null;
+    if (pk == null) return null;
+    const generic = GENERIC_INSTALLATION_NAMES[String(pk)];
+    if (generic) return generic;
+    if (!metaData) return null;
     const etar = metaData.etar?.find(item => item.pk === Number(pk));
     if (etar) return etar.nome;
     const ee = metaData.ee?.find(item => item.pk === Number(pk));

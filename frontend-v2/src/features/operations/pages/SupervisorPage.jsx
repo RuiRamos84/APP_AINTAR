@@ -47,7 +47,7 @@ const SupervisorPage = () => {
         analytics, recentActivity, operatorStats, operations,
         weekDistribution, dayDistribution, metaData,
         weekFilter, setWeekFilter, dayFilter, setDayFilter,
-        operatorFilter, setOperatorFilter,
+        operatorFilter, setOperatorFilter, initMonth,
         availableWeeks, availableDays, filterInfo,
         dateRange, setDateRange,
         isLoading, hasError, error, refresh,
@@ -125,9 +125,15 @@ const SupervisorPage = () => {
         >
             {/* Filters - collapsible */}
             <Collapse in={showFilters}>
-                <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mb: 2, p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2 }}>
+                <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1.5}
+                    flexWrap="wrap"
+                    useFlexGap
+                    sx={{ mb: 2, p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2 }}
+                >
                     {/* Período das execuções */}
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                         <DateRangeIcon fontSize="small" color="action" />
                         <TextField
                             label="De"
@@ -136,7 +142,7 @@ const SupervisorPage = () => {
                             value={dateRange.fromDate}
                             onChange={(e) => setDateRange(prev => ({ ...prev, fromDate: e.target.value }))}
                             InputLabelProps={{ shrink: true }}
-                            sx={{ width: 150 }}
+                            sx={{ width: { xs: '100%', sm: 150 } }}
                         />
                         <TextField
                             label="Até"
@@ -145,10 +151,10 @@ const SupervisorPage = () => {
                             value={dateRange.toDate}
                             onChange={(e) => setDateRange(prev => ({ ...prev, toDate: e.target.value }))}
                             InputLabelProps={{ shrink: true }}
-                            sx={{ width: 150 }}
+                            sx={{ width: { xs: '100%', sm: 150 } }}
                         />
                     </Stack>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 120 } }}>
                         <InputLabel>Semana</InputLabel>
                         <Select value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} label="Semana">
                             <MenuItem value="all">Todas</MenuItem>
@@ -157,7 +163,7 @@ const SupervisorPage = () => {
                             ))}
                         </Select>
                     </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
                         <InputLabel>Dia</InputLabel>
                         <Select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} label="Dia">
                             <MenuItem value="all">Todos</MenuItem>
@@ -166,7 +172,7 @@ const SupervisorPage = () => {
                             ))}
                         </Select>
                     </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                    <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
                         <InputLabel>Operador</InputLabel>
                         <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)} label="Operador">
                             <MenuItem value="all">Todos</MenuItem>
@@ -293,6 +299,8 @@ const SupervisorPage = () => {
                             error={pedidosError}
                         />
                     )}
+
+
                 </>
             )}
         </ModulePage>

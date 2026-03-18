@@ -104,6 +104,13 @@ class OperationResponse(BaseModel):
     total: Optional[int] = None
 
 
+class OperacaoInitData(BaseModel):
+    """Dados para inicializar tarefas de um mês via fbf_operacao$init"""
+    tt_operacaomodo: int = Field(..., gt=0, description="ID do modo de operação")
+    month: int = Field(..., ge=1, le=12, description="Mês (1-12)")
+    year: int = Field(..., ge=2024, description="Ano (≥ 2024)")
+
+
 class OperacaoCreate(BaseModel):
     """Dados para criar operação (execução real) via vbf_operacao"""
     data: date = Field(..., description="Data da operação")
@@ -492,7 +499,7 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                     logger.error(f"Erro ao guardar foto: {str(photo_error)}")
                     photo_path = None
 
-            # 3. Concluir via fbf_operacao(pop=1) — trata updt_client, updt_time e leituras especiais
+            # 3. Concluir via fbf_operacao(pop=1, 13 params) — versão existente na BD
             session.execute(text("""
                 SELECT fbf_operacao(
                     1, :pk, NULL, NULL, :tb_instalacao, NULL, NULL, NULL,
@@ -512,20 +519,29 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                     UPDATE vbf_operacao SET photo_path = :photo_path WHERE pk = :pk
                 """), {'photo_path': photo_path, 'pk': task_id})
 
-            # 5. Obter meta associada para notificar supervisor
-            meta_row = session.execute(text("""
-                SELECT tb_operacaometa, tb_instalacao FROM vbl_operacao WHERE pk = :pk
-            """), {'pk': task_id}).fetchone()
-            meta_pk_for_notif = meta_row.tb_operacaometa if meta_row else None
-            instalacao_nome = meta_row.tb_instalacao if meta_row else ''
-            supervisor_pk = None
-            if meta_pk_for_notif:
-                sup_row = session.execute(text(
-                    "SELECT ins_client FROM tb_operacaometa WHERE pk = :pk"
-                ), {'pk': meta_pk_for_notif}).fetchone()
-                supervisor_pk = sup_row.ins_client if sup_row else None
-
+            # 5. Commit das alterações (fbf_operacao + foto)
             session.commit()
+
+            # 6. Obter info para notificar supervisor (sessão separada — não afeta o commit acima)
+            inst_row = session.execute(text(
+                "SELECT nome FROM tb_instalacao WHERE pk = :pk"
+            ), {'pk': pk_instalacao}).fetchone()
+            instalacao_nome = inst_row.nome if inst_row else ''
+            meta_pk_for_notif = None
+            supervisor_pk = None
+            try:
+                session.execute(text("SAVEPOINT sp_notif"))
+                meta_pk_for_notif = session.execute(text(
+                    "SELECT tb_operacaometa FROM tb_operacao WHERE pk = :pk"
+                ), {'pk': task_id}).scalar()
+                session.execute(text("RELEASE SAVEPOINT sp_notif"))
+                if meta_pk_for_notif:
+                    sup_row = session.execute(text(
+                        "SELECT ins_client FROM tb_operacaometa WHERE pk = :pk"
+                    ), {'pk': meta_pk_for_notif}).fetchone()
+                    supervisor_pk = sup_row.ins_client if sup_row else None
+            except Exception:
+                session.execute(text("ROLLBACK TO SAVEPOINT sp_notif"))
 
             response_data = {
                 'task_id': task_id,
@@ -697,6 +713,14 @@ def create_operacao_direct(data: dict, current_user: str):
                 f"acao={operacao_data.tt_operacaoaccao}, operador={operacao_data.pk_operador}{coords_info}"
             )
 
+            _emit_operacao_notif(
+                notification_type='nova_tarefa',
+                title='Nova tarefa atribuída',
+                message='Foi-lhe atribuída uma nova tarefa pontual.',
+                user_ids=[operacao_data.pk_operador],
+                operacao_pk=result,
+            )
+
             return {
                 'success': True,
                 'message': 'Operação registada com sucesso.',
@@ -717,6 +741,130 @@ def create_operacao_direct(data: dict, current_user: str):
         return {'success': False, 'error': 'Erro ao criar operação'}, 500
     except Exception as e:
         logger.error(f"Erro inesperado OperacaoDirect: {str(e)}")
+        return {'success': False, 'error': 'Erro interno do servidor'}, 500
+
+
+def init_operacao_month(data: dict, current_user: str):
+    """
+    Gerar tarefas operacionais para um mês futuro via fbf_operacao$init.
+
+    Chama o procedimento PostgreSQL que:
+      1. Apaga registos existentes em tb_operacao para o mês/modo indicado
+      2. Recria as tarefas com base nos templates em tb_operacaometa
+
+    Só é permitido para meses FUTUROS (a procedure levanta exceção para
+    o mês atual ou passado).
+    """
+    try:
+        init_data = OperacaoInitData.model_validate(data)
+
+        with db_session_manager(current_user) as session:
+            session.execute(
+                text('CALL "fbf_operacao$init"(:mode, :month, :year)'),
+                {
+                    'mode': init_data.tt_operacaomodo,
+                    'month': init_data.month,
+                    'year': init_data.year,
+                }
+            )
+
+            # Contar tarefas geradas
+            total = session.execute(
+                text("""
+                    SELECT COUNT(*) FROM tb_operacao
+                    WHERE EXTRACT(MONTH FROM data) = :month
+                      AND EXTRACT(YEAR  FROM data) = :year
+                      AND tt_operacaomodo = :mode
+                """),
+                {'month': init_data.month, 'year': init_data.year, 'mode': init_data.tt_operacaomodo}
+            ).scalar() or 0
+
+            logger.info(
+                f"Mês inicializado: modo={init_data.tt_operacaomodo}, "
+                f"período={init_data.month}/{init_data.year}, tarefas={total}"
+            )
+            return {
+                'success': True,
+                'message': f'{total} tarefas geradas para {init_data.month:02d}/{init_data.year}.',
+                'total': total,
+            }, 200
+
+    except ValueError as e:
+        logger.error(f"Validação OperacaoInit: {str(e)}")
+        return {'success': False, 'error': f'Dados inválidos: {str(e)}'}, 400
+    except SQLAlchemyError as e:
+        import re
+        msg_raw = str(e)
+        match = re.search(r'<error>(.*?)</error>', msg_raw)
+        if match:
+            msg = match.group(1)
+        elif 'operação inválida' in msg_raw.lower() or 'invalida' in msg_raw.lower():
+            msg = 'Só é possível gerar tarefas para meses futuros.'
+        else:
+            msg = 'Erro ao gerar tarefas.'
+        logger.warning(f"Regra de negócio OperacaoInit: {msg}")
+        return {'success': False, 'error': msg}, 409
+    except Exception as e:
+        logger.error(f"Erro inesperado OperacaoInit: {str(e)}")
+        return {'success': False, 'error': 'Erro interno do servidor'}, 500
+
+
+def init_operacao_remaining(data: dict, current_user: str):
+    """
+    Gerar tarefas para os dias RESTANTES do mês corrente via fbf_operacao$init_remaining.
+
+    Diferente do init_operacao_month:
+      - Não apaga registos existentes (aditivo)
+      - Começa a partir de amanhã (current_date + 1)
+      - Salta dias que já têm tarefa para a mesma instalação+ação+modo
+      - Funciona apenas para o mês corrente
+
+    Ver: backend/sql/fbf_operacao_init_remaining.sql
+    """
+    try:
+        tt_operacaomodo = data.get('tt_operacaomodo')
+        if not tt_operacaomodo or int(tt_operacaomodo) <= 0:
+            return {'success': False, 'error': 'Modo de operação inválido'}, 400
+
+        with db_session_manager(current_user) as session:
+            session.execute(
+                text('CALL "fbf_operacao$init_remaining"(:mode)'),
+                {'mode': int(tt_operacaomodo)}
+            )
+
+            # Contar tarefas geradas (datas > hoje no mês corrente)
+            total = session.execute(
+                text("""
+                    SELECT COUNT(*) FROM tb_operacao
+                    WHERE data > current_date
+                      AND EXTRACT(MONTH FROM data) = EXTRACT(MONTH FROM current_date)
+                      AND EXTRACT(YEAR  FROM data) = EXTRACT(YEAR  FROM current_date)
+                      AND tt_operacaomodo = :mode
+                """),
+                {'mode': int(tt_operacaomodo)}
+            ).scalar() or 0
+
+            logger.info(f"Dias restantes inicializados: modo={tt_operacaomodo}, tarefas={total}")
+            return {
+                'success': True,
+                'message': f'{total} tarefas geradas para os dias restantes do mês.',
+                'total': total,
+            }, 200
+
+    except SQLAlchemyError as e:
+        import re
+        msg_raw = str(e)
+        match = re.search(r'<error>(.*?)</error>', msg_raw)
+        if match:
+            msg = match.group(1)
+        elif 'sem dias restantes' in msg_raw.lower():
+            msg = 'Não há dias restantes no mês corrente.'
+        else:
+            msg = 'Erro ao gerar tarefas para os dias restantes.'
+        logger.warning(f"Regra de negócio OperacaoRemaining: {msg}")
+        return {'success': False, 'error': msg}, 409
+    except Exception as e:
+        logger.error(f"Erro inesperado OperacaoRemaining: {str(e)}")
         return {'success': False, 'error': 'Erro interno do servidor'}, 500
 
 

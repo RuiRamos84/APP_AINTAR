@@ -1,10 +1,11 @@
 /**
- * AppBar Component - Modern & Glassmorphism
+ * AppBar Component - Modern & Contextual
  * Features:
- * - Glassmorphism effect
- * - Clean navigation tabs
- * - Modern user menu
- * - Responsive design
+ * - Glassmorphism com borda colorida pelo módulo ativo
+ * - Tabs com cor própria de cada módulo
+ * - "AINTAR" brandmark em desktop
+ * - Mobile: chip indicador do módulo atual (módulo switching via BottomNav)
+ * - NotificationCenter sempre visível
  */
 
 import {
@@ -23,8 +24,7 @@ import {
   useTheme,
   Tabs,
   Tab,
-  Select,
-  FormControl,
+  Chip,
   alpha,
 } from '@mui/material';
 import { useState, useMemo } from 'react';
@@ -45,7 +45,7 @@ import { NotificationCenter } from './NotificationCenter';
 export const AppBar = ({ onMenuClick }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md')); // mostra labels a partir de tablet (≥900px)
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
   const themeMode = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
@@ -59,48 +59,31 @@ export const AppBar = ({ onMenuClick }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const openMenu = Boolean(anchorEl);
 
-  const accessibleModules = useMemo(() => {
-    return getAccessibleModules(hasPermission, hasAnyPermission);
-  }, [hasPermission, hasAnyPermission]);
+  const accessibleModules = useMemo(
+    () => getAccessibleModules(hasPermission, hasAnyPermission),
+    [hasPermission, hasAnyPermission]
+  );
+
+  // Módulo ativo com cor própria
+  const activeModule = useMemo(
+    () => (currentModule ? getModuleById(currentModule) : null),
+    [currentModule]
+  );
 
   const handleOpenMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
 
-  const handleNavigateToProfile = () => {
-    handleCloseMenu();
-    navigate('/profile');
-  };
-
-  const handleNavigateToChangePassword = () => {
-    handleCloseMenu();
-    navigate('/change-password');
-  };
-
-  const handleNavigateToSettings = () => {
-    handleCloseMenu();
-    navigate('/settings');
-  };
+  const handleNavigateToProfile = () => { handleCloseMenu(); navigate('/profile'); };
+  const handleNavigateToChangePassword = () => { handleCloseMenu(); navigate('/change-password'); };
+  const handleNavigateToSettings = () => { handleCloseMenu(); navigate('/settings'); };
 
   const handleLogout = async () => {
     handleCloseMenu();
-    try {
-      await logoutUser();
-    } catch (error) {
-      console.error('[AppBar] Logout error:', error);
-    }
+    try { await logoutUser(); } catch (error) { console.error('[AppBar] Logout error:', error); }
   };
 
   const handleModuleChange = (_event, newModuleId) => {
     if (newModuleId !== null && newModuleId !== currentModule) {
-      setCurrentModule(newModuleId);
-      const module = getModuleById(newModuleId);
-      if (module?.defaultRoute) navigate(module.defaultRoute);
-    }
-  };
-
-  const handleMobileModuleChange = (event) => {
-    const newModuleId = event.target.value;
-    if (newModuleId && newModuleId !== currentModule) {
       setCurrentModule(newModuleId);
       const module = getModuleById(newModuleId);
       if (module?.defaultRoute) navigate(module.defaultRoute);
@@ -112,12 +95,13 @@ export const AppBar = ({ onMenuClick }) => {
     return name.split(' ').map((word) => word[0]).join('').toUpperCase().substring(0, 2);
   };
 
-  // Glassmorphism Styles
+  // Glassmorphism com borda inferior colorida pelo módulo ativo
+  const accentColor = activeModule?.color;
   const glassStyles = {
-    backgroundColor: alpha(theme.palette.background.paper, 0.7),
-    backdropFilter: 'blur(12px)',
-    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-    boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.05)}`,
+    backgroundColor: alpha(theme.palette.background.paper, 0.72),
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    boxShadow: `0 2px 24px ${alpha(theme.palette.common.black, 0.08)}`,
   };
 
   return (
@@ -126,164 +110,150 @@ export const AppBar = ({ onMenuClick }) => {
       elevation={0}
       sx={{
         width: '100%',
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+        zIndex: (t) => t.zIndex.drawer + 1,
         ...glassStyles,
         color: theme.palette.text.primary,
       }}
     >
-      <Toolbar sx={{ minHeight: { xs: 64, sm: 72 }, px: { xs: 2, sm: 3 } }}>
+      <Toolbar sx={{ minHeight: { xs: 64, sm: 72 }, px: { xs: 1.5, sm: 3 }, gap: 1 }}>
+
+        {/* Mobile: hamburger quando há módulo ativo */}
         {isMobile && currentModule && (
-          <IconButton color="inherit" edge="start" onClick={onMenuClick} sx={{ mr: 1 }}>
+          <IconButton color="inherit" edge="start" onClick={onMenuClick} sx={{ flexShrink: 0 }}>
             <MenuIcon />
           </IconButton>
         )}
 
-        {isMobile && !currentModule && (
-          <IconButton color="inherit" edge="start" onClick={() => navigate('/home')} sx={{ mr: 1, p: 0.5 }}>
-            <Box component="img" src="/logo.png" alt="AINTAR" sx={{ height: 32, width: 'auto' }} />
+        {/* Logo */}
+        <Tooltip title="Ir para Home">
+          <IconButton
+            onClick={() => navigate('/home')}
+            sx={{ p: 0.5, flexShrink: 0, transition: 'all 0.2s', '&:hover': { transform: 'scale(1.05)' } }}
+          >
+            <Box
+              component="img"
+              src="/logo.png"
+              alt="AINTAR"
+              sx={{ height: { xs: 32, sm: 40 }, width: 'auto' }}
+            />
           </IconButton>
+        </Tooltip>
+
+
+        {/* Spacer */}
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* Desktop/Tablet: tabs de módulos com cor própria */}
+        {!isMobile && accessibleModules.length > 0 && (
+          <Tabs
+            value={currentModule || false}
+            onChange={handleModuleChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            TabIndicatorProps={{
+              style: {
+                backgroundColor: accentColor || theme.palette.primary.main,
+                height: 3,
+                borderRadius: '3px 3px 0 0',
+              },
+            }}
+            sx={{
+              minHeight: 64,
+              mr: 2,
+              '& .MuiTab-root': {
+                minHeight: 64,
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                minWidth: { sm: 60, md: 100 },
+                px: { sm: 1.5, md: 2 },
+                color: theme.palette.text.secondary,
+                transition: 'all 0.2s',
+              },
+            }}
+          >
+            {accessibleModules.map((module) => (
+              <Tab
+                key={module.id}
+                value={module.id}
+                sx={{
+                  '&.Mui-selected': { color: module.color, fontWeight: 600 },
+                  '&:hover': {
+                    color: module.color,
+                    backgroundColor: alpha(module.color, 0.06),
+                  },
+                }}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <module.icon sx={{ fontSize: 20 }} />
+                    {isDesktop && <span>{module.label}</span>}
+                  </Box>
+                }
+              />
+            ))}
+          </Tabs>
         )}
 
+        {/* Mobile: chip indicador do módulo atual (apenas informativo) */}
+        {isMobile && activeModule && (
+          <Chip
+            icon={
+              <activeModule.icon
+                sx={{ fontSize: '18px !important', color: `${activeModule.color} !important` }}
+              />
+            }
+            label={activeModule.label}
+            size="small"
+            sx={{
+              backgroundColor: alpha(activeModule.color, 0.12),
+              color: activeModule.color,
+              fontWeight: 600,
+              fontSize: '0.78rem',
+              border: `1px solid ${alpha(activeModule.color, 0.3)}`,
+              mr: 1,
+            }}
+          />
+        )}
+
+        {/* Notificações — sempre visível */}
+        <NotificationCenter />
+
+        {/* Tema — apenas desktop/tablet */}
         {!isMobile && (
-          <Tooltip title="Ir para Home">
+          <Tooltip title={`Alternar para tema ${themeMode === 'light' ? 'escuro' : 'claro'}`}>
             <IconButton
-              onClick={() => navigate('/home')}
+              onClick={toggleTheme}
               sx={{
-                p: 0.5,
-                mr: 2,
-                transition: 'all 0.2s',
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                },
+                color: theme.palette.text.secondary,
+                mr: 1,
+                '&:hover': { color: theme.palette.primary.main, bgcolor: alpha(theme.palette.primary.main, 0.1) },
               }}
             >
-              <Box component="img" src="/logo.png" alt="AINTAR" sx={{ height: 40, width: 'auto' }} />
+              {themeMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
             </IconButton>
           </Tooltip>
         )}
 
-        {!isMobile && <Box sx={{ flexGrow: 1 }} />}
-
-        {!isMobile && accessibleModules.length > 0 && (
-          <Box sx={{ display: 'flex', mr: 3 }}>
-            <Tabs
-              value={currentModule || false}
-              onChange={handleModuleChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                minHeight: 64,
-                '& .MuiTab-root': {
-                  minHeight: 64,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  fontSize: '0.95rem',
-                  minWidth: 100,
-                  px: 2,
-                  color: theme.palette.text.secondary,
-                  transition: 'all 0.2s',
-                  '&.Mui-selected': {
-                    color: theme.palette.primary.main,
-                    fontWeight: 600,
-                  },
-                  '&:hover': {
-                    color: theme.palette.primary.main,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                  },
-                },
-                '& .MuiTabs-indicator': {
-                  height: 3,
-                  borderRadius: '3px 3px 0 0',
-                  backgroundColor: theme.palette.primary.main,
-                },
-              }}
-            >
-              {accessibleModules.map((module) => (
-                <Tab
-                  key={module.id}
-                  value={module.id}
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <module.icon sx={{ fontSize: 20 }} />
-                      {isDesktop && <Typography variant="inherit">{module.label}</Typography>}
-                    </Box>
-                  }
-                />
-              ))}
-            </Tabs>
-          </Box>
-        )}
-
-        {isMobile && accessibleModules.length > 0 && (
-          <FormControl size="small" fullWidth sx={{ maxWidth: '200px' }}>
-            <Select
-              value={currentModule || ''}
-              onChange={handleMobileModuleChange}
-              displayEmpty
-              variant="outlined"
-              sx={{
-                borderRadius: 2,
-                backgroundColor: alpha(theme.palette.background.paper, 0.5),
-              }}
-              renderValue={(selected) => {
-                if (!selected) return <em style={{ fontSize: '0.875rem' }}>Selecionar área</em>;
-                const module = getModuleById(selected);
-                return (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <module.icon sx={{ fontSize: 18, color: module.color }} />
-                    <Typography variant="body2" noWrap>{module?.label}</Typography>
-                  </Box>
-                );
-              }}
-            >
-              <MenuItem value="" disabled><em>Selecionar área</em></MenuItem>
-              {accessibleModules.map((module) => (
-                <MenuItem key={module.id} value={module.id}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <module.icon sx={{ fontSize: 20, color: module.color }} />
-                    <Typography variant="body2">{module.label}</Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-
-        {!isMobile && (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <NotificationCenter />
-            <Tooltip title={`Alternar para tema ${themeMode === 'light' ? 'escuro' : 'claro'}`}>
-              <IconButton
-                onClick={toggleTheme}
-                sx={{
-                  mr: 2,
-                  color: theme.palette.text.secondary,
-                  '&:hover': { color: theme.palette.primary.main, bgcolor: alpha(theme.palette.primary.main, 0.1) },
-                }}
-              >
-                {themeMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
-
+        {/* Avatar / menu utilizador */}
         <Tooltip title="Conta">
           <IconButton
             onClick={handleOpenMenu}
             sx={{
               p: 0.5,
-              border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              transition: 'all 0.2s',
-              '&:hover': { borderColor: theme.palette.primary.main },
+              border: `2px solid ${accentColor ? alpha(accentColor, 0.4) : alpha(theme.palette.primary.main, 0.2)}`,
+              borderRadius: '50%',
+              transition: 'all 0.3s',
+              '&:hover': { borderColor: accentColor || theme.palette.primary.main },
             }}
           >
             <Avatar
               sx={{
                 width: 36,
                 height: 36,
-                bgcolor: theme.palette.primary.main,
-                fontSize: '0.9rem',
+                bgcolor: accentColor || theme.palette.primary.main,
+                fontSize: '0.85rem',
                 fontWeight: 'bold',
+                transition: 'background-color 0.3s',
               }}
             >
               {getInitials(user?.user_name)}
@@ -291,6 +261,7 @@ export const AppBar = ({ onMenuClick }) => {
           </IconButton>
         </Tooltip>
 
+        {/* Menu de utilizador */}
         <Menu
           anchorEl={anchorEl}
           open={openMenu}
@@ -300,19 +271,18 @@ export const AppBar = ({ onMenuClick }) => {
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           PaperProps={{
             elevation: 0,
-            sx: {
-              mt: 1.5,
-              minWidth: 220,
-              borderRadius: 3,
-              boxShadow: theme.shadows[10],
-              ...glassStyles,
-            },
+            sx: { mt: 1.5, minWidth: 220, borderRadius: 3, boxShadow: theme.shadows[10], ...glassStyles },
           }}
         >
           <Box sx={{ px: 2.5, py: 2 }}>
             <Typography variant="subtitle2" fontWeight="bold" noWrap>
               {user?.user_name}
             </Typography>
+            {activeModule && (
+              <Typography variant="caption" sx={{ color: activeModule.color, fontWeight: 500 }}>
+                {activeModule.label}
+              </Typography>
+            )}
           </Box>
           <Divider sx={{ my: 1 }} />
           <MenuItem onClick={handleNavigateToProfile} sx={{ borderRadius: 1, mx: 1 }}>

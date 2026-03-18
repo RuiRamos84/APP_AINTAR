@@ -8,7 +8,7 @@ import {
   Box, Grid, Paper, Typography, TextField, Button, Chip, Stack,
   IconButton, InputAdornment, Collapse, Card, CardContent,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, Skeleton, Divider, Tooltip, useTheme, useMediaQuery, alpha,
+  Alert, Divider, Tooltip, useTheme, useMediaQuery, alpha, Autocomplete,
 } from '@mui/material';
 import {
   Search as SearchIcon, FilterList as FilterIcon,
@@ -50,8 +50,10 @@ const AnalysisPage = () => {
 
   // Advanced filters
   const [showFilters, setShowFilters] = useState(false);
+  const [entityObj, setEntityObj] = useState(null);
+  const [instalacaoObj, setInstalacaoObj] = useState(null);
   const [filters, setFilters] = useState({
-    instalacao: '', tipo: '', dataInicio: '', dataFim: '',
+    instalacao: '', dataInicio: '', dataFim: '',
   });
 
   // Data
@@ -72,6 +74,23 @@ const AnalysisPage = () => {
     ...eeList.map((e) => ({ ...e, tipo: 'EE' })),
   ], [etarList, eeList]);
 
+  // Unique entities sorted
+  const entities = useMemo(() => {
+    const seen = new Set();
+    return allInstalacoes
+      .map((i) => i.ts_entity)
+      .filter((e) => e && !seen.has(e) && seen.add(e))
+      .sort((a, b) => a.localeCompare(b, 'pt'));
+  }, [allInstalacoes]);
+
+  // Installations filtered by selected entity, sorted by name
+  const filteredInstalacoes = useMemo(() => {
+    if (!entityObj) return [];
+    return allInstalacoes
+      .filter((i) => i.ts_entity === entityObj)
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt'));
+  }, [allInstalacoes, entityObj]);
+
   // Quick search handler
   const handleQuickSearch = async () => {
     if (!quickPK.trim()) return;
@@ -79,11 +98,19 @@ const AnalysisPage = () => {
     setError(null);
     try {
       const res = await searchAnalysisByPK(quickPK.trim());
-      const data = res?.data ?? (Array.isArray(res) ? res : [res].filter(Boolean));
+      const raw = res?.data ?? res;
+      const data = Array.isArray(raw) ? raw : raw ? [raw] : [];
       setRows(data);
       setSearched(true);
     } catch (e) {
-      setError(e.message);
+      const status = e.response?.status ?? e.status;
+      if (status === 404) {
+        toast.info(`Nenhuma análise encontrada para o nº ${quickPK.trim()}`);
+        setRows([]);
+        setSearched(true);
+      } else {
+        setError(e.response?.data?.message || e.message || 'Erro ao pesquisar análise');
+      }
     } finally {
       setQuickLoading(false);
     }
@@ -226,18 +253,49 @@ const AnalysisPage = () => {
         <Collapse in={showFilters}>
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <TextField
-                fullWidth size="small" select label="Instalação"
-                value={filters.instalacao}
-                onChange={(e) => setFilters((p) => ({ ...p, instalacao: e.target.value }))}
-              >
-                <option value="">Todas</option>
-                {allInstalacoes.map((i) => (
-                  <option key={i.pk} value={i.pk}>{i.name || i.tt_instalacao || `#${i.pk}`} ({i.tipo})</option>
-                ))}
-              </TextField>
+              <Autocomplete
+                size="small"
+                options={entities}
+                getOptionLabel={(option) => option}
+                value={entityObj}
+                onChange={(_, newValue) => {
+                  setEntityObj(newValue);
+                  setInstalacaoObj(null);
+                  setFilters((p) => ({ ...p, instalacao: '' }));
+                }}
+                noOptionsText="Nenhuma entidade encontrada"
+                clearText="Limpar"
+                openText="Abrir"
+                closeText="Fechar"
+                ListboxProps={{ style: { maxHeight: 300 } }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Entidade" placeholder="Pesquisar entidade..." />
+                )}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <Autocomplete
+                size="small"
+                options={filteredInstalacoes}
+                getOptionLabel={(option) => `${option.nome || `#${option.pk}`} (${option.tipo})`}
+                value={instalacaoObj}
+                onChange={(_, newValue) => {
+                  setInstalacaoObj(newValue);
+                  setFilters((p) => ({ ...p, instalacao: newValue?.pk || '' }));
+                }}
+                isOptionEqualToValue={(option, value) => option.pk === value?.pk}
+                disabled={!entityObj}
+                noOptionsText="Nenhuma instalação encontrada"
+                clearText="Limpar"
+                openText="Abrir"
+                closeText="Fechar"
+                ListboxProps={{ style: { maxHeight: 300 } }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Instalação" placeholder="Pesquisar instalação..." />
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
               <TextField
                 fullWidth size="small" type="date" label="Data Início"
                 value={filters.dataInicio}
@@ -245,7 +303,7 @@ const AnalysisPage = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
               <TextField
                 fullWidth size="small" type="date" label="Data Fim"
                 value={filters.dataFim}
@@ -253,10 +311,11 @@ const AnalysisPage = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 12, md: 2 }}>
               <Button
                 fullWidth variant="contained" onClick={handleQuery}
                 disabled={loading} startIcon={<SearchIcon />}
+                sx={{ height: 40 }}
               >
                 {loading ? 'A pesquisar...' : 'Pesquisar'}
               </Button>
@@ -313,6 +372,7 @@ const AnalysisPage = () => {
               disableRowSelectionOnClick
               pageSizeOptions={[25, 50, 100]}
               initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+              localeText={{ noRowsLabel: 'Nenhuma análise encontrada' }}
               sx={{ border: 0 }}
             />
           )}

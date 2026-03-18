@@ -11,21 +11,20 @@ class TokenManager {
   }
 
   /**
-   * Validate if token is still valid
-   * Access tokens expire after 1 hour (backend: ACCESS_TOKEN_EXPIRES = 1 hour)
+   * Validate if token is still valid using the standard JWT `exp` claim.
+   * Backend is the single source of truth for token lifetime.
    */
   isTokenValid(token) {
     try {
       if (!token) return false;
 
-      // Decode JWT payload (without verification - backend handles that)
+      // Decode JWT payload (without verification — backend handles signature)
       const payload = JSON.parse(atob(token.split('.')[1]));
 
-      // Token expires at created_at + 1 hour (60 minutes)
-      const expirationTime = payload.created_at * 1000 + (60 * 60 * 1000);
-      return Date.now() < expirationTime;
-    } catch (error) {
-      console.error('[TokenManager] Error validating token:', error);
+      // `exp` is a standard JWT claim: Unix timestamp (seconds) of expiration
+      if (!payload?.exp) return false;
+      return payload.exp * 1000 > Date.now();
+    } catch {
       return false;
     }
   }

@@ -155,8 +155,8 @@ export const NotificationCenter = () => {
           elevation: 0,
           sx: {
             mt: 1.5,
-            width: 360,
-            maxWidth: '100vw',
+            width: { xs: 'calc(100vw - 32px)', sm: 360 },
+            maxWidth: { xs: 'calc(100vw - 32px)', sm: 360 },
             borderRadius: 3,
             boxShadow: theme.shadows[10],
             ...glassStyles,
@@ -234,7 +234,7 @@ export const NotificationCenter = () => {
           </Tabs>
         </Box>
 
-        <List sx={{ p: 0, maxHeight: 400, overflowY: 'auto' }}>
+        <List sx={{ p: 0, maxHeight: { xs: '50vh', sm: 400 }, overflowY: 'auto' }}>
           {filteredNotifications.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
               <NotificationsIcon sx={{ fontSize: 48, opacity: 0.2, mb: 1 }} />

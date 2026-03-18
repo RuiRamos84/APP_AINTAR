@@ -11,6 +11,9 @@ const WARNING_TIMEOUT = 5 * 60 * 1000;           // 5 minutes (shows warning at 
 const TOKEN_REFRESH_INTERVAL = 50 * 60 * 1000;   // Refresh token every 50 min
 const HEARTBEAT_INTERVAL = 10 * 60 * 1000;       // Send heartbeat every 10 min
 
+// Throttle: timers são recriados no máximo 1x/minuto, mesmo com centenas de eventos de rato/scroll
+const TIMER_RESET_THROTTLE = 60 * 1000; // 1 minute
+
 class SessionManager {
   constructor(authState, tokenManager, logoutCallback, heartbeatCallback) {
     this.authState = authState;
@@ -18,6 +21,7 @@ class SessionManager {
     this.logoutCallback = logoutCallback;
     this.heartbeatCallback = heartbeatCallback;
     this.alertManager = new AlertManager();
+    this.lastTimerResetTime = 0; // Timestamp do último reset de timers
 
     // Bind methods
     this.updateActivity = this.updateActivity.bind(this);
@@ -84,7 +88,15 @@ class SessionManager {
    */
   async handleVisibilityChange() {
     if (!document.hidden) {
-      const lastActivity = this.authState.getState().lastActivity;
+      // Ignorar se o utilizador não está autenticado.
+      // localStorage.lastActivityTime persiste entre sessões do browser — sem
+      // este guard, um timestamp antigo poderia disparar handleSessionExpired()
+      // numa visita nova sem sessão activa.
+      if (!this.authState.getState().user) return;
+
+      // Ler do localStorage (fonte de verdade — atualizado em cada evento, sem throttle)
+      const stored = localStorage.getItem('lastActivityTime');
+      const lastActivity = stored ? parseInt(stored, 10) : this.authState.getState().lastActivity;
       const inactiveTime = Date.now() - lastActivity;
 
       if (inactiveTime >= INACTIVITY_TIMEOUT) {
@@ -109,15 +121,25 @@ class SessionManager {
   }
 
   /**
-   * Update last activity timestamp
+   * Update last activity timestamp.
+   *
+   * Chamado em cada evento de utilizador (mousemove, scroll, click, etc.).
+   * Operação barata (localStorage) corre sempre.
+   * Reset de timers é throttled a 1x/minuto para evitar destruição/criação
+   * massiva de timers em eventos de alta frequência como mousemove.
    */
   updateActivity() {
     const now = Date.now();
 
-    this.authState.setState({ lastActivity: now });
+    // Sempre guardar timestamp (operação barata)
     localStorage.setItem('lastActivityTime', now.toString());
 
-    this.resetTimers();
+    // Reset de timers throttled: no máximo 1x por TIMER_RESET_THROTTLE
+    if (now - this.lastTimerResetTime >= TIMER_RESET_THROTTLE) {
+      this.lastTimerResetTime = now;
+      this.authState.setState({ lastActivity: now });
+      this.resetTimers();
+    }
   }
 
   /**

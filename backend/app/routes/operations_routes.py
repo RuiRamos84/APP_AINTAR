@@ -19,7 +19,10 @@ from ..services.operations_service import (
     create_operacao,
     update_operacao,
     # Criação direta via função PostgreSQL
-    create_operacao_direct
+    create_operacao_direct,
+    # Inicialização de tarefas mensais
+    init_operacao_month,
+    init_operacao_remaining,
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..utils.utils import token_required, db_session_manager, set_session
@@ -682,3 +685,51 @@ def download_operation_photo_route(photo_path):
     except Exception as e:
         logger.error(f"Erro ao fazer download da foto: {str(e)}")
         return jsonify({"error": "Erro ao fazer download da foto"}), 500
+
+
+# ---------------------------------------------------------------------------
+# Inicialização de tarefas mensais (fbf_operacao$init)
+# ---------------------------------------------------------------------------
+
+@bp.route('/operacao_init', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(312)  # operation.supervise
+@api_error_handler
+def operacao_init_route():
+    """
+    Gerar tarefas operacionais para um mês futuro.
+
+    Chama fbf_operacao$init(modo, mês, ano) que materializa os templates
+    (tb_operacaometa) em registos reais (tb_operacao).
+
+    Body JSON:
+      - tt_operacaomodo (int): modo de operação
+      - month (int): mês 1-12
+      - year  (int): ano >= 2024
+
+    Apenas meses FUTUROS são permitidos.
+    """
+    data = request.get_json()
+    result, status = init_operacao_month(data, get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_init_remaining', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(312)  # operation.supervise
+@api_error_handler
+def operacao_init_remaining_route():
+    """
+    Gerar tarefas para os dias RESTANTES do mês corrente.
+
+    Chama fbf_operacao$init_remaining(modo) — aditivo, não apaga existentes.
+    Ver: backend/sql/fbf_operacao_init_remaining.sql
+
+    Body JSON:
+      - tt_operacaomodo (int): modo de operação
+    """
+    data = request.get_json()
+    result, status = init_operacao_remaining(data, get_jwt_identity())
+    return jsonify(result), status

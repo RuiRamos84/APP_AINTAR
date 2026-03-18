@@ -113,6 +113,16 @@ export const getAvailableUsersForStep = (stepId, document, metaData) => {
 
   const stepTransitions = validTransitions.filter((t) => t.to_step_pk === stepId);
 
+  // Se alguma transição tem client=null significa "qualquer utilizador"
+  const hasAnyUserTransition = stepTransitions.some(
+    (t) => t.client === null || t.client === undefined ||
+      (Array.isArray(t.client) && t.client.every((c) => c === null || c === undefined))
+  );
+
+  if (hasAnyUserTransition) {
+    return metaData.who || [];
+  }
+
   // Extrair user IDs das transições (client pode ser array ou valor único)
   const userIds = [];
   stepTransitions.forEach((t) => {
@@ -128,6 +138,11 @@ export const getAvailableUsersForStep = (stepId, document, metaData) => {
   });
 
   const uniqueUserIds = [...new Set(userIds)];
+
+  // Se não foram extraídos IDs específicos, mostrar todos os utilizadores
+  if (uniqueUserIds.length === 0) {
+    return metaData.who || [];
+  }
 
   // Comparação robusta (aceita 0, '0' e conversões)
   return uniqueUserIds

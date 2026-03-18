@@ -21,3 +21,13 @@ export const getDashboardCategoryData = (category, filters = {}) => {
   if (filters.month) params.month = filters.month;
   return apiClient.get(`/dashboard/category/${category}`, { params });
 };
+
+export const getLandingData = () =>
+  apiClient.get('/dashboard/landing');
+
+export const clearDashboardCache = () =>
+  apiClient.post('/dashboard/cache/clear');
+
+/** Lookup pk → nome dos municípios abrangidos */
+export const getMunicipalities = () =>
+  apiClient.get('/municipalities');

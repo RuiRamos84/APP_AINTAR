@@ -292,19 +292,48 @@ LANDING_VIEWS = [
 def get_landing_data(current_user):
     """
     Obtém dados de todas as views da landing page em paralelo.
+    Enriquece as views de município com o nome real (lookup via vbl_instalacao_municipio).
 
     Returns:
         Dicionário indexado por nome de view, cada um com 'data' e 'columns'.
     """
     app = current_app._get_current_object()
 
+    # Lookup pk → nome do município (feito uma vez, partilhado por todas as views)
+    mun_map = {}
+    try:
+        with db_session_manager(current_user) as session:
+            rows = session.execute(
+                text("SELECT DISTINCT pk, value FROM aintar_server.vbl_instalacao_municipio ORDER BY value")
+            ).fetchall()
+            mun_map = {str(r[0]): r[1] for r in rows}
+    except Exception as e:
+        logger.warning(f"Não foi possível obter lookup de municípios: {e}")
+
+    # Colunas de município em cada view (nome exacto da coluna na view)
+    MUN_VIEWS = {
+        'vds_landing_01$002': 'Município',
+        'vds_landing_02$002': 'Municipio',
+        'vds_landing_03$002': 'Municipio',
+    }
+
     def fetch_view(view_name):
         with app.app_context():
             try:
                 with db_session_manager(current_user) as session:
                     res = session.execute(text(f"SELECT * FROM aintar_server.{view_name}"))
+                    rows = [dict(r) for r in res.mappings().all()]
+
+                    # Substituir pk numérico pelo nome do município
+                    mun_col = MUN_VIEWS.get(view_name)
+                    if mun_col and mun_map:
+                        for row in rows:
+                            raw = row.get(mun_col)
+                            if raw is not None:
+                                row[mun_col] = mun_map.get(str(raw), str(raw))
+
                     return view_name, {
-                        'data': [dict(r) for r in res.mappings().all()],
+                        'data': rows,
                         'columns': list(res.keys()),
                     }
             except Exception as e:

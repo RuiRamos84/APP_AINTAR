@@ -66,14 +66,17 @@ export function PermissionProvider({ children }) {
 /**
  * Hook to use permission context
  */
-export function usePermissionContext() {
+export function usePermissions() {
   const context = useContext(PermissionContext);
 
   if (!context) {
-    throw new Error('usePermissionContext must be used within PermissionProvider');
+    throw new Error('usePermissions must be used within PermissionProvider');
   }
 
   return context;
 }
+
+// Alias backward-compat para imports existentes
+export const usePermissionContext = usePermissions;
 
 export default PermissionContext;

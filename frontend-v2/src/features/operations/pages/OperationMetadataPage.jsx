@@ -7,16 +7,19 @@ import {
 } from '@mui/material';
 import {
     Settings as SettingsIcon,
-    Add, Edit, Close, Refresh, AdminPanelSettings
+    Add, Edit, Close, Refresh, AdminPanelSettings, CalendarMonth as CalendarIcon
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar, SortableHeadCell } from '@/shared/components/data';
 import { useSortable } from '@/shared/hooks/useSortable';
+import { useMetaData } from '@/core/hooks/useMetaData';
 import { operationService } from '../services/operationService';
 import { exportMetasToExcel } from '../services/exportService';
 import ExportButton from '../components/ExportButton';
 import ProgressiveTaskFormV2 from '../components/ProgressiveTaskFormV2';
+import GenerateTasksPanel from '../components/supervisor/GenerateTasksPanel';
+import notification from '@/core/services/notification/notificationService';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
@@ -33,6 +36,9 @@ const OperationMetadataPage = () => {
     // Form state
     const [formOpen, setFormOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null); // null = criar, object = editar
+    const [generateOpen, setGenerateOpen] = useState(false);
+
+    const { data: metaData } = useMetaData();
 
     // Debounce da pesquisa (400ms)
     const debounceRef = useRef(null);
@@ -79,6 +85,30 @@ const OperationMetadataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['operacaoMeta'] });
             handleCloseForm();
+        },
+    });
+
+    const initMonthMutation = useMutation({
+        mutationFn: (data) => operationService.initOperacaoMonth(data),
+        onSuccess: (res) => {
+            const total = res?.total ?? res?.data?.total ?? '?';
+            notification.success(`${total} tarefas geradas com sucesso!`);
+        },
+        onError: (error) => {
+            const msg = error?.response?.data?.error || error?.message || 'Erro ao gerar tarefas';
+            notification.error(msg);
+        },
+    });
+
+    const initRemainingMutation = useMutation({
+        mutationFn: (data) => operationService.initOperacaoRemaining(data),
+        onSuccess: (res) => {
+            const total = res?.total ?? res?.data?.total ?? '?';
+            notification.success(`${total} tarefas geradas para os dias restantes!`);
+        },
+        onError: (error) => {
+            const msg = error?.response?.data?.error || error?.message || 'Erro ao gerar tarefas';
+            notification.error(msg);
         },
     });
 
@@ -144,6 +174,18 @@ const OperationMetadataPage = () => {
                     />
                     <Chip label={`${totalCount} voltas`} size="small" variant="outlined" />
                     {isFetching && !isLoading && <CircularProgress size={18} />}
+                    <Tooltip title="Gerar tarefas para um mês a partir das voltas configuradas">
+                        <span>
+                            <Fab
+                                color="secondary"
+                                size="small"
+                                onClick={() => setGenerateOpen(true)}
+                                disabled={isLoading}
+                            >
+                                <CalendarIcon />
+                            </Fab>
+                        </span>
+                    </Tooltip>
                     <Tooltip title="Atualizar">
                         <span>
                             <Fab color="primary" size="small" onClick={refetch} disabled={isLoading}>
@@ -264,6 +306,17 @@ const OperationMetadataPage = () => {
                     A eliminação de registos operacionais requer autorização especial.
                 </Alert>
             </Stack>
+
+            {/* Dialog — Gerar Tarefas do Mês */}
+            <GenerateTasksPanel
+                open={generateOpen}
+                onClose={() => setGenerateOpen(false)}
+                metaData={metaData}
+                onGenerate={(data) => initMonthMutation.mutate(data)}
+                isGenerating={initMonthMutation.isPending}
+                onGenerateRemaining={(data) => initRemainingMutation.mutate(data)}
+                isGeneratingRemaining={initRemainingMutation.isPending}
+            />
 
             {/* Dialog com stepper — Criar / Editar */}
             <Dialog

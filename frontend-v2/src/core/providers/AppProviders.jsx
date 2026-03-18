@@ -60,7 +60,7 @@ function AppThemeProvider({ children }) {
  */
 export function AppProviders({ children }) {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.PROD ? '/v2' : '/'}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <PermissionProvider>

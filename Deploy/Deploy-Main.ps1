@@ -8,7 +8,8 @@ param(
     [string]$Operation,
     [switch]$BuildFirst,
     [switch]$Verbose,
-    [switch]$SkipValidation
+    [switch]$SkipValidation,
+    [switch]$BumpMajor
 )
 
 # Configurar encoding para UTF-8 para garantir a exibição correta de caracteres especiais.
@@ -29,13 +30,14 @@ $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Carregar modulos do sistema
 $ModulesToLoad = @(
     "DeployConfig.ps1",
-    "DeployLogger.ps1", 
+    "DeployLogger.ps1",
     "DeployConnection.ps1",
+    "DeployVersion.ps1",
     "DeployFrontend.ps1",
     "DeployBackend.ps1",
     "DeployNginx.ps1",
     "DeployUI.ps1",
-    "DeployServerManager.ps1" # <-- Adicionar o novo módulo
+    "DeployServerManager.ps1"
 )
 
 Write-Host "A inicializar o Sistema de Deployment Modular..." -ForegroundColor Cyan
@@ -408,6 +410,154 @@ function Invoke-FrontendDeployment {
     return $result
 }
 
+function Invoke-BackendFrontendV2Deployment {
+    param([bool]$BuildFirst = $true)
+
+    Write-DeployInfo "=== DEPLOYMENT BACKEND + FRONTEND-V2 ===" "MAIN"
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (reinício backend)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    # ── FASE 1: Build + Cópia (site em produção) ─────────────────────────────
+    Write-DeployInfo "--- FASE 1: Preparação (site em produção) ---" "MAIN"
+    Clear-LocalDevLogs
+
+    if ($BuildFirst) {
+        $t = Get-Date
+        if (-not (Build-FrontendV2)) {
+            Write-DeployError "Build do frontend-v2 falhou. Deployment cancelado." "MAIN"
+            return $false
+        }
+        $timings["Build frontend-v2"] = (Get-Date) - $t
+    }
+
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $beDeployer = [BackendDeployer]::new()
+        if (-not $beDeployer.Deploy()) { return $false }
+
+        # Copiar frontend-v2 diretamente (sem build, já foi feito acima)
+        $localBuildPath = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $remoteUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        if (-not (Test-Path $localBuildPath)) {
+            Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"
+            return $false
+        }
+        $robocopyArgs = @($localBuildPath, $remoteUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        & robocopy @robocopyArgs | Out-Null
+        if ($LASTEXITCODE -ge 8) {
+            Write-DeployError "robocopy v2 falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            return $false
+        }
+        Write-DeployInfo "Frontend-v2 copiado (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        return $true
+    } -OperationName "Cópia Backend + Frontend-V2"
+    $timings["Cópia backend + frontend-v2"] = (Get-Date) - $t
+
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia dos ficheiros. Manutenção NÃO foi ativada." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Backend + Frontend-V2" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
+    }
+    Write-DeployInfo "Ficheiros copiados! A iniciar janela de manutenção mínima..." "MAIN"
+
+    # ── FASE 2: Manutenção mínima ─────────────────────────────────────────────
+    Write-DeployInfo "--- FASE 2: Manutenção mínima (reinício do backend) ---" "MAIN"
+
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $true
+
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Backend + Frontend-V2' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Backend + Frontend-V2" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+
+    return $result
+}
+
+function Invoke-FrontendAllDeployment {
+    param([bool]$BuildFirst = $true)
+
+    Write-DeployInfo "=== DEPLOYMENT FRONTEND (LEGACY) + BACKEND + FRONTEND-V2 ===" "MAIN"
+    Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (reinício backend)" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+    $mainDur    = [timespan]::Zero
+
+    # ── FASE 1: Build + Cópia (site em produção) ─────────────────────────────
+    Write-DeployInfo "--- FASE 1: Preparação (site em produção) ---" "MAIN"
+    Clear-LocalDevLogs
+
+    if ($BuildFirst) {
+        $t  = Get-Date
+        $fe = [FrontendDeployer]::new()
+        if (-not $fe.BuildProject()) {
+            Write-DeployError "Build do frontend falhou. Deployment cancelado." "MAIN"
+            return $false
+        }
+        $timings["Build frontend (legacy)"] = (Get-Date) - $t
+
+        $t = Get-Date
+        if (-not (Build-FrontendV2)) {
+            Write-DeployError "Build do frontend-v2 falhou. Deployment cancelado." "MAIN"
+            return $false
+        }
+        $timings["Build frontend-v2"] = (Get-Date) - $t
+    }
+
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $feDeployer = [FrontendDeployer]::new()
+        if (-not $feDeployer.Deploy()) { return $false }
+        $beDeployer = [BackendDeployer]::new()
+        if (-not $beDeployer.Deploy()) { return $false }
+
+        # Copiar frontend-v2 diretamente (sem build, já foi feito acima)
+        $localBuildPath = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $remoteUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        if (-not (Test-Path $localBuildPath)) {
+            Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"
+            return $false
+        }
+        $robocopyArgs = @($localBuildPath, $remoteUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        & robocopy @robocopyArgs | Out-Null
+        if ($LASTEXITCODE -ge 8) {
+            Write-DeployError "robocopy v2 falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            return $false
+        }
+        Write-DeployInfo "Frontend-v2 copiado (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        return $true
+    } -OperationName "Cópia Frontend + Backend + Frontend-V2"
+    $timings["Cópia frontend + backend + frontend-v2"] = (Get-Date) - $t
+
+    if (-not $copyOk) {
+        Write-DeployError "Falha na cópia dos ficheiros. Manutenção NÃO foi ativada." "MAIN"
+        Write-DeployTimingSummary -OperationName "Deployment Frontend All" `
+            -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+        return $false
+    }
+    Write-DeployInfo "Ficheiros copiados! A iniciar janela de manutenção mínima..." "MAIN"
+
+    # ── FASE 2: Manutenção mínima ─────────────────────────────────────────────
+    Write-DeployInfo "--- FASE 2: Manutenção mínima (reinício do backend) ---" "MAIN"
+
+    $result = Invoke-MaintenanceWindow -Timings ([ref]$timings) `
+        -MaintenanceDuration ([ref]$mainDur) -RestartBackend $true
+
+    if ($result) {
+        Write-DeployInfo "=== 'Deployment Frontend All' FINALIZADO COM SUCESSO ===" "MAIN"
+    }
+    Write-DeployTimingSummary -OperationName "Deployment Frontend All" `
+        -Timings $timings -TotalDuration ((Get-Date) - $totalStart) -MaintenanceDuration $mainDur
+
+    return $result
+}
+
 function Invoke-BackendDeployment {
     Write-DeployInfo "=== DEPLOYMENT BACKEND ===" "MAIN"
     Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (só reinício)" "MAIN"
@@ -491,13 +641,28 @@ function Invoke-NonInteractiveMode {
     param(
         [string]$Operation,
         [bool]$BuildFirst,
-        [bool]$SkipValidation
+        [bool]$SkipValidation,
+        [bool]$BumpMajor = $false
     )
-    
+
     Write-DeployInfo "A executar em modo não interativo: $Operation" "MAIN"
-    
+
+    # Operações que fazem deploy real — bump de versão automático antes dos builds
+    $versionedOps = @(
+        "full", "frontend", "frontend-nobuild", "backend",
+        "frontend-backend", "frontend-v2", "frontend-v2-nobuild",
+        "backend-v2", "backend-v2-nobuild", "frontend-all", "frontend-all-nobuild"
+    )
+    if ($versionedOps -contains $Operation.ToLower()) {
+        $vInfo = Invoke-VersionBump -Operation $Operation -ForceMajor $BumpMajor
+        if ($null -eq $vInfo) {
+            Write-DeployError "Falha ao calcular versão. Deployment cancelado." "MAIN"
+            exit 1
+        }
+    }
+
     $result = $false
-    
+
     switch ($Operation.ToLower()) {
         "full" {
             $result = Invoke-FullDeployment -BuildFirst $BuildFirst
@@ -514,6 +679,24 @@ function Invoke-NonInteractiveMode {
         "frontend-backend" {
             $result = Invoke-FrontendBackendDeployment -BuildFirst $BuildFirst
         }
+        "frontend-v2" {
+            $result = Deploy-FrontendV2 -BuildFirst $BuildFirst
+        }
+        "frontend-v2-nobuild" {
+            $result = Deploy-FrontendV2 -BuildFirst $false
+        }
+        "backend-v2" {
+            $result = Invoke-BackendFrontendV2Deployment -BuildFirst $BuildFirst
+        }
+        "backend-v2-nobuild" {
+            $result = Invoke-BackendFrontendV2Deployment -BuildFirst $false
+        }
+        "frontend-all" {
+            $result = Invoke-FrontendAllDeployment -BuildFirst $BuildFirst
+        }
+        "frontend-all-nobuild" {
+            $result = Invoke-FrontendAllDeployment -BuildFirst $false
+        }
         "nginx" {
             $result = Invoke-NginxDeployment
         }
@@ -527,9 +710,13 @@ function Invoke-NonInteractiveMode {
         "validate-build" {
             $result = Test-FrontendBuild
         }
+        "version" {
+            Show-VersionStatus
+            $result = $true
+        }
         default {
             Write-DeployError "Operação não reconhecida: $Operation" "MAIN"
-            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, nginx, test-connection, build-only, validate-build" "MAIN"
+            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, frontend-v2, frontend-v2-nobuild, backend-v2, backend-v2-nobuild, frontend-all, frontend-all-nobuild, nginx, test-connection, build-only, validate-build" "MAIN"
             return $false
         }
     }
@@ -567,6 +754,11 @@ function Start-InteractiveMode {
         "4" = @{ Name = "Deployment Backend"; Action = { Invoke-BackendDeployment } }
         "5" = @{ Name = "Deployment Frontend + Backend (sem Nginx)"; Action = { Invoke-FrontendBackendDeployment -BuildFirst $true } }
         "6" = @{ Name = "Deployment Configuração Nginx"; Action = { Invoke-NginxDeployment } }
+        "13" = @{ Name = "Deployment Frontend-V2 (com build)"; Action = { Deploy-FrontendV2 -BuildFirst $true } }
+        "14" = @{ Name = "Deployment Frontend-V2 (sem build)"; Action = { Deploy-FrontendV2 -BuildFirst $false } }
+        "15" = @{ Name = "Deployment Backend + Frontend-V2 (com build)"; Action = { Invoke-BackendFrontendV2Deployment -BuildFirst $true } }
+        "16" = @{ Name = "Deployment Frontend (legacy) + Backend + Frontend-V2 (com build)"; Action = { Invoke-FrontendAllDeployment -BuildFirst $true } }
+        "17" = @{ Name = "Ver versões e histórico de deploys"; Action = { Show-VersionStatus; return $null } }
         "7" = @{ Name = "Ver ficheiros em estado relevante"; Action = { Show-FileStatus; return $null } }
         "8" = @{ Name = "Ver informações do sistema"; Action = { Show-SystemInfo; return $null } }
         "9" = @{ Name = "Testar conectividade com o servidor"; Action = { Show-ConnectivityTest; return $null } }
@@ -651,7 +843,8 @@ function Main {
         [string]$Operation = "",
         [switch]$BuildFirst = $false,
         [switch]$Verbose = $false,
-        [switch]$SkipValidation = $false
+        [switch]$SkipValidation = $false,
+        [switch]$BumpMajor = $false
     )
     
     try {
@@ -663,7 +856,7 @@ function Main {
         
         # Executar modo apropriado
         if ($NonInteractive -and -not [string]::IsNullOrEmpty($Operation)) {
-            Invoke-NonInteractiveMode -Operation $Operation -BuildFirst $BuildFirst -SkipValidation $SkipValidation
+            Invoke-NonInteractiveMode -Operation $Operation -BuildFirst $BuildFirst -SkipValidation $SkipValidation -BumpMajor $BumpMajor
         } else {
             Start-InteractiveMode
         }
@@ -701,19 +894,28 @@ USO:
 
 OPERACOES DISPONIVEIS (Modo nao interativo):
     full                 - Deployment completo (Frontend + Backend + Nginx)
-    frontend             - Deployment do frontend (com build)
-    frontend-nobuild     - Deployment do frontend (sem build)
+    frontend             - Deployment do frontend legacy (com build)
+    frontend-nobuild     - Deployment do frontend legacy (sem build)
     backend              - Deployment apenas do backend
-    frontend-backend     - Deployment do frontend e backend (sem Nginx)
+    frontend-backend     - Deployment do frontend legacy + backend (sem Nginx)
+    frontend-v2          - Deployment apenas do frontend-v2 (com build)
+    frontend-v2-nobuild  - Deployment apenas do frontend-v2 (sem build)
+    backend-v2           - Deployment do backend + frontend-v2 (com build)
+    backend-v2-nobuild   - Deployment do backend + frontend-v2 (sem build)
+    frontend-all         - Deployment frontend legacy + backend + frontend-v2 (com build)
+    frontend-all-nobuild - Deployment frontend legacy + backend + frontend-v2 (sem build)
     nginx                - Deployment apenas da configuracao Nginx
     test-connection      - Testar conectividade com o servidor
-    build-only           - Apenas fazer build do frontend
-    validate-build       - Validar build existente do frontend
+    build-only           - Apenas fazer build do frontend legacy
+    validate-build       - Validar build existente do frontend legacy
+
+    version              - Mostrar versão actual e histórico de deploys
 
 PARAMETROS:
     -NonInteractive      - Executar em modo nao interativo
     -Operation           - Operacao a executar (obrigatorio com -NonInteractive)
-    -BuildFirst          - Fazer build do frontend antes do deployment
+    -BuildFirst          - Fazer build antes do deployment
+    -BumpMajor           - Forcar bump de versao major (ex: breaking changes)
     -Verbose             - Habilitar logging detalhado
     -SkipValidation      - Pular validacoes (use com cuidado)
 
@@ -747,4 +949,4 @@ if ($args -contains "-h" -or $args -contains "--help" -or $args -contains "help"
 }
 
 # Executar funcao principal com parametros
-Main -NonInteractive:$NonInteractive -Operation $Operation -BuildFirst:$BuildFirst -Verbose:$Verbose -SkipValidation:$SkipValidation
+Main -NonInteractive:$NonInteractive -Operation $Operation -BuildFirst:$BuildFirst -Verbose:$Verbose -SkipValidation:$SkipValidation -BumpMajor:$BumpMajor

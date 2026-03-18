@@ -89,7 +89,7 @@ const AppBarChart = ({
                 radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
                 maxBarSize={40}
               >
-                {showLabels && <LabelList dataKey={key} position={horizontal ? 'right' : 'top'} formatter={formatValue} style={{ fontSize: 10, fill: theme.palette.text.secondary }} />}
+                {showLabels && <LabelList dataKey={key} position={horizontal ? 'right' : 'top'} formatter={(v) => v > 0 ? formatValue(v) : ''} style={{ fontSize: 10, fill: theme.palette.text.secondary }} />}
               </Bar>
             ))
           : (
@@ -105,7 +105,7 @@ const AppBarChart = ({
                 <LabelList
                   dataKey={yKeys?.[0] ?? 'value'}
                   position={horizontal ? 'right' : 'top'}
-                  formatter={formatValue}
+                  formatter={(v) => v > 0 ? formatValue(v) : ''}
                   style={{ fontSize: 10, fill: theme.palette.text.secondary }}
                 />
               )}

@@ -1,10 +1,11 @@
 /**
- * Sidebar Component - Modern & Responsive
+ * Sidebar Component - Modern & Contextual
  * Features:
- * - Glassmorphism effect
- * - Smooth transitions
- * - Dynamic module filtering
- * - Collapsible state persistence
+ * - Borda lateral colorida com a cor do módulo ativo
+ * - Header de módulo proeminente com cor do módulo
+ * - Itens ativos na cor do módulo (não genérico primary)
+ * - Botão de collapse compacto e elegante
+ * - Indicador de conectividade minimalista
  */
 
 import { getSidebarRoutesForModule } from '@/core/config/routeConfig';
@@ -14,8 +15,6 @@ import { useUIStore } from '@/core/store/uiStore';
 import { getModuleById } from '@/core/config/moduleConfig';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import WifiIcon from '@mui/icons-material/Wifi';
-import WifiOffIcon from '@mui/icons-material/WifiOff';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -34,9 +33,7 @@ import {
   Toolbar,
   Tooltip,
   Typography,
-  useMediaQuery,
   useTheme,
-  Chip,
   alpha,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
@@ -53,7 +50,6 @@ export const Sidebar = ({
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { hasPermission } = usePermissionContext();
   const { isConnected } = useSocket();
 
@@ -64,27 +60,26 @@ export const Sidebar = ({
   const currentModule = useUIStore((state) => state.currentModule);
 
   useEffect(() => {
-    if (!isMobile && collapsedProp !== undefined) {
+    if (variant !== 'temporary' && collapsedProp !== undefined) {
       localStorage.setItem('sidebar_collapsed', JSON.stringify(collapsedProp));
     }
-  }, [collapsedProp, isMobile]);
+  }, [collapsedProp, variant]);
 
   const visibleRoutes = useMemo(() => {
-    if (!currentModule) {
-      return [];
-    }
+    if (!currentModule) return [];
     return getSidebarRoutesForModule(currentModule, hasPermission);
   }, [currentModule, hasPermission]);
 
-  const activeModule = useMemo(() => {
-    return currentModule ? getModuleById(currentModule) : null;
-  }, [currentModule]);
+  const activeModule = useMemo(
+    () => (currentModule ? getModuleById(currentModule) : null),
+    [currentModule]
+  );
+
+  // Cor do módulo para theming consistente
+  const moduleColor = activeModule?.color || theme.palette.primary.main;
 
   const handleToggleCollapse = () => onToggleCollapse?.();
-
-  const handleToggleSubmenu = (routeId) => {
-    setOpenSubmenus(prev => ({ ...prev, [routeId]: !prev[routeId] }));
-  };
+  const handleToggleSubmenu = (routeId) => setOpenSubmenus(prev => ({ ...prev, [routeId]: !prev[routeId] }));
 
   const handleOpenPopover = (event, route) => {
     setAnchorEl(event.currentTarget);
@@ -106,11 +101,11 @@ export const Sidebar = ({
   const isSubmenuActive = (submenu) => submenu && Object.keys(submenu).some(path => location.pathname.startsWith(path));
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
-  // Styles for Glassmorphism
   const glassStyles = {
-    backgroundColor: alpha(theme.palette.background.paper, 0.8),
-    backdropFilter: 'blur(12px)',
-    borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+    backgroundColor: alpha(theme.palette.background.paper, 0.72),
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    boxShadow: `2px 0 24px ${alpha(theme.palette.common.black, 0.06)}`,
   };
 
   const renderMenuItem = (route) => {
@@ -130,25 +125,25 @@ export const Sidebar = ({
           else handleNavigation(route.path);
         }}
         sx={{
-          minHeight: 48,
+          minHeight: 44,
           justifyContent: collapsed ? 'center' : 'initial',
-          px: collapsed ? 2.5 : 2.5, // Remove padding when collapsed to allow centering
-          mx: 1, // Keep margin as requested
-          borderRadius: 2, // Keep rounded corners as requested
+          px: 2.5,
+          mx: 1,
+          borderRadius: 2,
           mb: 0.5,
           transition: 'all 0.2s ease-in-out',
           '&.Mui-selected': {
-            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+            background: `linear-gradient(135deg, ${moduleColor}, ${alpha(moduleColor, 0.75)})`,
             color: 'white',
-            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+            boxShadow: `0 4px 12px ${alpha(moduleColor, 0.35)}`,
             '&:hover': {
-              background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+              background: `linear-gradient(135deg, ${alpha(moduleColor, 0.85)}, ${moduleColor})`,
             },
             '& .MuiListItemIcon-root': { color: 'white' },
           },
-          '&:hover': {
-            backgroundColor: alpha(theme.palette.primary.main, 0.08),
-            transform: 'translateX(4px)',
+          '&:not(.Mui-selected):hover': {
+            backgroundColor: alpha(moduleColor, 0.08),
+            transform: 'translateX(3px)',
           },
         }}
       >
@@ -159,25 +154,19 @@ export const Sidebar = ({
             justifyContent: 'center',
             color: active ? 'white' : theme.palette.text.secondary,
             transition: 'margin 0.2s',
-            display: 'flex',
-            alignItems: 'center',
           }}
         >
           <Icon />
         </ListItemIcon>
         <ListItemText
           primary={route.text}
-          primaryTypographyProps={{
-            fontWeight: active ? 600 : 400,
-            fontSize: '0.9rem',
-            noWrap: true, // Prevent text wrapping
-          }}
+          primaryTypographyProps={{ fontWeight: active ? 600 : 400, fontSize: '0.88rem', noWrap: true }}
           sx={{
             opacity: collapsed ? 0 : 1,
-            width: collapsed ? 0 : 'auto', // Collapse width
-            overflow: 'hidden', // Hide overflow
+            width: collapsed ? 0 : 'auto',
+            overflow: 'hidden',
             transition: 'all 0.2s',
-            m: 0, // Reset margin
+            m: 0,
           }}
         />
         {hasSubmenu && !collapsed && (
@@ -216,18 +205,21 @@ export const Sidebar = ({
                       borderRadius: 2,
                       mb: 0.5,
                       '&.Mui-selected': {
-                        color: theme.palette.primary.main,
-                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        color: moduleColor,
+                        bgcolor: alpha(moduleColor, 0.1),
                         fontWeight: 600,
+                      },
+                      '&:not(.Mui-selected):hover': {
+                        bgcolor: alpha(moduleColor, 0.06),
                       },
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 0, mr: 2 }}>
+                    <ListItemIcon sx={{ minWidth: 0, mr: 2, color: subActive ? moduleColor : 'inherit' }}>
                       <SubIcon fontSize="small" sx={{ fontSize: 18 }} />
                     </ListItemIcon>
-                    <ListItemText 
-                      primary={subRoute.text} 
-                      primaryTypographyProps={{ fontSize: '0.85rem' }}
+                    <ListItemText
+                      primary={subRoute.text}
+                      primaryTypographyProps={{ fontSize: '0.83rem' }}
                     />
                   </ListItemButton>
                 );
@@ -242,16 +234,20 @@ export const Sidebar = ({
   };
 
   const drawerContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflowX: 'hidden', pt: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflowX: 'hidden', pt: 1.5 }}>
+
+      {/* Header do módulo — colorido e proeminente */}
       {activeModule && (
         <Box
           sx={{
             px: 2,
-            py: 2,
+            py: 1.5,
             mx: 1,
-            mb: 2,
-            borderRadius: 3,
-            backgroundColor: alpha(activeModule.color, 0.1),
+            mb: 1.5,
+            borderRadius: 2.5,
+            backgroundColor: alpha(moduleColor, 0.1),
+            backdropFilter: 'blur(12px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(12px) saturate(160%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
@@ -259,12 +255,17 @@ export const Sidebar = ({
             transition: 'all 0.3s ease',
           }}
         >
-          <activeModule.icon sx={{ color: activeModule.color }} />
+          <activeModule.icon sx={{ color: moduleColor, fontSize: 22, flexShrink: 0 }} />
           {!collapsed && (
             <Typography
-              variant="subtitle2"
-              fontWeight={700}
-              sx={{ color: activeModule.color, textTransform: 'uppercase', letterSpacing: 1 }}
+              variant="caption"
+              fontWeight={800}
+              sx={{
+                color: moduleColor,
+                textTransform: 'uppercase',
+                letterSpacing: 1.2,
+                lineHeight: 1,
+              }}
             >
               {activeModule.label}
             </Typography>
@@ -272,40 +273,64 @@ export const Sidebar = ({
         </Box>
       )}
 
+      {/* Lista de navegação */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 0.5 }}>
-        <List>{visibleRoutes.map(renderMenuItem)}</List>
+        <List disablePadding>{visibleRoutes.map(renderMenuItem)}</List>
       </Box>
 
-      {variant === 'permanent' && !isMobile && (
-        <Box sx={{ p: 2 }}>
-          <Divider sx={{ mb: 2 }} />
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mb: 2 }}>
-            {collapsed ? (
-              <Tooltip title={isConnected ? 'Online' : 'Offline'}>
-                {isConnected ? <WifiIcon color="success" fontSize="small" /> : <WifiOffIcon color="error" fontSize="small" />}
-              </Tooltip>
-            ) : (
-              <Chip
-                icon={isConnected ? <WifiIcon fontSize="small" /> : <WifiOffIcon fontSize="small" />}
-                label={isConnected ? 'Online' : 'Offline'}
-                size="small"
-                color={isConnected ? 'success' : 'default'}
-                variant="outlined"
-                sx={{ width: '100%' }}
-              />
+      {/* Rodapé: versão + conectividade + colapso — flexShrink:0 garante que nunca é comprimido */}
+      {variant === 'permanent' && (
+        <Box sx={{ p: 1.5, flexShrink: 0 }}>
+          <Divider sx={{ mb: 1.5, opacity: 0.4 }} />
+
+          {/* Linha única: estado de conexão + versão + botão colapso */}
+          <Box sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'space-between', alignItems: 'center', px: 0.5 }}>
+            {!collapsed && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'default' }}>
+                <Tooltip title={isConnected ? 'Ligação ao servidor ativa' : 'Sem ligação ao servidor'} placement="top">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: isConnected ? 'success.main' : 'error.main', fontWeight: 500, pl: 0.5 }}
+                  >
+                    {isConnected ? 'Online' : 'Offline'}
+                  </Typography>
+                </Tooltip>
+                <Typography variant="caption" sx={{ color: 'text.disabled', opacity: 0.5 }}>·</Typography>
+                <Tooltip title={`Versão da aplicação · Build #${import.meta.env.VITE_APP_BUILD || '0'}`} placement="top">
+                  <Typography
+                    variant="caption"
+                    sx={{ fontSize: '0.68rem', color: 'text.disabled', opacity: 0.6, letterSpacing: 0.3 }}
+                  >
+                    v{import.meta.env.VITE_APP_VERSION || '—'}
+                  </Typography>
+                </Tooltip>
+              </Box>
             )}
+            <Tooltip
+              title={`${isConnected ? 'Online' : 'Offline'} · ${collapsed ? 'Expandir' : 'Recolher'}`}
+              placement="right"
+            >
+              <IconButton
+                onClick={handleToggleCollapse}
+                size="small"
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: `2px solid ${isConnected ? '#4caf50' : '#f44336'}`,
+                  bgcolor: alpha(isConnected ? '#4caf50' : '#f44336', 0.08),
+                  color: isConnected ? 'success.main' : 'error.main',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    bgcolor: alpha(isConnected ? '#4caf50' : '#f44336', 0.18),
+                    transform: 'scale(1.1)',
+                  },
+                }}
+              >
+                {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
           </Box>
-          <IconButton
-            onClick={handleToggleCollapse}
-            sx={{
-              width: '100%',
-              borderRadius: 2,
-              bgcolor: alpha(theme.palette.divider, 0.05),
-              '&:hover': { bgcolor: alpha(theme.palette.divider, 0.1) },
-            }}
-          >
-            {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-          </IconButton>
         </Box>
       )}
     </Box>
@@ -355,7 +380,7 @@ export const Sidebar = ({
             width: variant === 'temporary' ? DRAWER_WIDTH_EXPANDED : drawerWidth,
             boxSizing: 'border-box',
             ...glassStyles,
-            marginTop: variant === 'permanent' ? '72px' : 0, // Começa abaixo da AppBar
+            marginTop: variant === 'permanent' ? '72px' : 0,
             height: variant === 'permanent' ? 'calc(100vh - 72px)' : '100vh',
             transition: theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
@@ -366,6 +391,7 @@ export const Sidebar = ({
           },
         }}
       >
+        {/* Sem Toolbar spacer: a sidebar começa com marginTop, não precisa de offset interno */}
         {drawerContent}
       </Drawer>
       {popoverMenu}

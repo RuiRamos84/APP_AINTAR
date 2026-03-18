@@ -32,6 +32,9 @@ export const PERMISSIONS = {
   // ==================== OPERATIONS (300-399) ====================
   OPERATIONS_VIEW: 300,
   OPERATIONS_CREATE: 310,
+  OPERATIONS_EXECUTE: 311,  // Executar tarefas (operador)
+  OPERATIONS_SUPERVISE: 312, // Supervisão de operações
+  OPERATIONS_MANAGE: 313,   // Gestão avançada
   OPERATIONS_ETAR: 320,
   OPERATIONS_EE: 330,
   OPERATIONS_NETWORK: 340,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -36,6 +36,15 @@ const LocationPickerDialog = ({ open, onClose, onConfirm, initialLat, initialLng
   const [lng, setLng] = useState(initialLng || '');
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
+
+  // Sync coords whenever dialog opens (GPS pode ter sido obtido antes de abrir)
+  useEffect(() => {
+    if (open) {
+      setLat(initialLat ? String(initialLat) : '');
+      setLng(initialLng ? String(initialLng) : '');
+      setGpsError('');
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasCoords = lat !== '' && lng !== '';
 

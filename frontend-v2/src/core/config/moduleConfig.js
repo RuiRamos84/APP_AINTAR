@@ -29,7 +29,7 @@ export const MODULES = {
       ]
     },
     description: 'Operações de campo e controlo operacional',
-    defaultRoute: '/operation',
+    defaultRoute: '/operation/tasks',
   },
 
   GESTAO: {

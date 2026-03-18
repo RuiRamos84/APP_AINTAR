@@ -65,11 +65,13 @@ const ChartCard = ({
       );
     }
 
-    const props = { data, xKey, yKeys, colors: color ? [color] : undefined, height };
+    const multiSeries = yKeys.length > 1;
+    // Cor única só para série única — multi-série usa paleta completa para distinção visual
+    const props = { data, xKey, yKeys, colors: (color && !multiSeries) ? [color] : undefined, height };
 
     switch (chartType) {
-      case 'bar': return <AppBarChart {...props} showLabels={data.length <= 8} />;
-      case 'bar-h': return <AppBarChart {...props} horizontal showLabels={data.length <= 12} />;
+      case 'bar': return <AppBarChart {...props} showLabels={data.length <= 8} showLegend={multiSeries} />;
+      case 'bar-h': return <AppBarChart {...props} horizontal showLabels={data.length <= 12} showLegend={multiSeries} />;
       case 'area': return <AppAreaChart {...props} showLegend={yKeys.length > 1} />;
       case 'line': return <AppLineChart {...props} showLegend={yKeys.length > 1} />;
       case 'pie': return <AppPieChart data={data} nameKey={xKey} valueKey={yKeys[0]} height={height} />;

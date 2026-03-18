@@ -26,10 +26,14 @@ import {
 } from '@mui/icons-material';
 import { formatDateOnly, getInstallationLicenseText, getInstallationLicenseColor } from '../utils/formatters';
 import { getOperationTypeConfig } from '../constants/operationTypes';
+import LocationPickerMap from '@/features/documents/components/forms/LocationPickerMap';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const buildMapsUrl = (item) => {
+    if (item.clat && item.clong) {
+        return `https://www.google.com/maps/dir/?api=1&destination=${item.clat},${item.clong}`;
+    }
     const parts = [item.address, item.door, item.nut4, item.nut2].filter(Boolean);
     if (!parts.length) return null;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(', '))}`;
@@ -53,9 +57,10 @@ const DetailsDrawer = ({
         return config?.name || `Tipo ${type}`;
     };
 
-    const mapsUrl   = buildMapsUrl(item);
-    const hasPhone  = !!item.phone;
-    const hasAddress = !!mapsUrl;
+    const mapsUrl    = buildMapsUrl(item);
+    const hasGps     = !!(item.clat && item.clong);
+    const hasPhone   = !!item.phone;
+    const hasAddress = !hasGps && !!mapsUrl;
 
     const handleCall = () => {
         if (!item.phone) return;
@@ -86,101 +91,131 @@ const DetailsDrawer = ({
 
             {/* Body */}
             <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
-                <Stack spacing={3}>
-                    {/* Título + badges */}
+                <Stack spacing={2}>
+                    {/* ── Cabeçalho compacto ── */}
                     <Box>
-                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                            {item.requer_foto && (
-                                <Chip
-                                    icon={<CameraAlt sx={{ fontSize: 14 }} />}
-                                    label="Requer Foto"
-                                    size="small"
-                                    variant="outlined"
-                                    color="info"
-                                />
-                            )}
-                            {item.completed && (
-                                <Chip
-                                    icon={<CheckCircle sx={{ fontSize: 14 }} />}
-                                    label="Concluída"
-                                    size="small"
-                                    color="success"
-                                />
+                        {/* Linha 1: Título + badges */}
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                            <Typography variant="h6" fontWeight={700} sx={{ flex: 1, lineHeight: 1.3 }}>
+                                {item.acao_operacao || item.tt_operacaoaccao || `Tarefa #${item.pk}`}
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} flexShrink={0}>
+                                {item.requer_foto && (
+                                    <Chip icon={<CameraAlt sx={{ fontSize: 14 }} />} label="Foto" size="small" variant="outlined" color="info" />
+                                )}
+                                {item.completed && (
+                                    <Chip icon={<CheckCircle sx={{ fontSize: 14 }} />} label="Concluída" size="small" color="success" />
+                                )}
+                            </Stack>
+                        </Stack>
+
+                        {/* Linha 2: Instalação · Data */}
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 1 }}>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                                <Business sx={{ fontSize: 14, color: 'text.disabled' }} />
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                    {item.instalacao_nome || item.tb_instalacao || '-'}
+                                </Typography>
+                            </Stack>
+                            {(item.dia_operacao || item.data) && (
+                                <>
+                                    <Typography variant="body2" color="text.disabled">·</Typography>
+                                    <Stack direction="row" spacing={0.5} alignItems="center">
+                                        <CalendarToday sx={{ fontSize: 14, color: 'text.disabled' }} />
+                                        <Typography variant="body2" color="text.secondary">
+                                            {formatDateOnly(item.dia_operacao || item.data)}
+                                        </Typography>
+                                    </Stack>
+                                </>
                             )}
                         </Stack>
-                        <Typography variant="h5" fontWeight="bold" gutterBottom>
-                            {item.acao_operacao || item.tt_operacaoaccao || `Tarefa #${item.pk}`}
-                        </Typography>
-                    </Box>
 
-                    <Divider />
-
-                    {/* Instalação */}
-                    <Box>
-                        <Typography variant="subtitle2" gutterBottom color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Business fontSize="small" /> Instalação
-                        </Typography>
-                        <Typography variant="body1" fontWeight={500}>
-                            {item.instalacao_nome || item.tb_instalacao || '-'}
-                        </Typography>
+                        {/* Chip de licença */}
                         {item.tt_instalacaolicenciamento && (
                             <Chip
                                 label={getInstallationLicenseText(item.tt_instalacaolicenciamento)}
                                 size="small"
                                 sx={{
-                                    mt: 1,
+                                    mt: 0.75,
                                     bgcolor: alpha(getInstallationLicenseColor(item.tt_instalacaolicenciamento), 0.1),
                                     color: getInstallationLicenseColor(item.tt_instalacaolicenciamento),
                                     fontWeight: 600,
                                 }}
                             />
                         )}
+
+                        {/* Descrição */}
+                        {item.descr && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                {item.descr}
+                            </Typography>
+                        )}
                     </Box>
-
-                    {/* Data */}
-                    {(item.dia_operacao || item.data) && (
-                        <Box>
-                            <Typography variant="subtitle2" gutterBottom color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CalendarToday fontSize="small" /> Data
-                            </Typography>
-                            <Typography variant="body1" fontWeight={500}>
-                                {formatDateOnly(item.dia_operacao || item.data)}
-                            </Typography>
-                        </Box>
-                    )}
-
-                    {/* Descrição */}
-                    {item.descr && (
-                        <Box>
-                            <Typography variant="subtitle2" gutterBottom color="text.secondary">
-                                Descrição
-                            </Typography>
-                            <Typography variant="body2">{item.descr}</Typography>
-                        </Box>
-                    )}
 
                     <Divider />
 
                     {/* Operadores */}
                     <Box>
-                        <Typography variant="subtitle2" gutterBottom color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Engineering fontSize="small" /> Operadores
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            Operadores
                         </Typography>
-                        <Grid container spacing={2}>
-                            <Grid size={{ xs: 6 }}>
-                                <Typography variant="caption" color="text.secondary">Operador 1</Typography>
-                                <Typography variant="body2" fontWeight={500}>
-                                    {item.operador1_nome || item.ts_operador1 || '-'}
-                                </Typography>
-                            </Grid>
-                            <Grid size={{ xs: 6 }}>
-                                <Typography variant="caption" color="text.secondary">Operador 2</Typography>
-                                <Typography variant="body2" fontWeight={500}>
-                                    {item.operador2_nome || item.ts_operador2 || '—'}
-                                </Typography>
-                            </Grid>
-                        </Grid>
+                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
+                            <Engineering sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
+                            <Typography variant="body2" fontWeight={500}>
+                                {item.operador1_nome || item.ts_operador1 || '-'}
+                            </Typography>
+                            {(item.operador2_nome || item.ts_operador2) &&
+                                item.operador2_nome !== '—' && item.ts_operador2 !== '—' && (
+                                <>
+                                    <Typography variant="body2" color="text.disabled">·</Typography>
+                                    <Typography variant="body2" fontWeight={500}>
+                                        {item.operador2_nome || item.ts_operador2}
+                                    </Typography>
+                                </>
+                            )}
+                        </Stack>
                     </Box>
+
+                    {/* Localização GPS (Rede / Caixa) */}
+                    {hasGps && (
+                        <>
+                            <Divider />
+                            <Box>
+                                <Typography variant="subtitle2" gutterBottom color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <LocationOn fontSize="small" /> Localização do Local
+                                </Typography>
+                                <LocationPickerMap
+                                    lat={item.clat}
+                                    lng={item.clong}
+                                    readOnly
+                                    height={220}
+                                />
+                                <Tooltip title="Iniciar navegação até ao local" placement="top">
+                                    <Box
+                                        onClick={() => window.open(mapsUrl, '_blank', 'noopener,noreferrer')}
+                                        sx={{
+                                            mt: 1,
+                                            display: 'flex', alignItems: 'center', gap: 1.5,
+                                            p: 1.5, borderRadius: 2,
+                                            border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                                            bgcolor: alpha(theme.palette.success.main, 0.05),
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                bgcolor: alpha(theme.palette.success.main, 0.12),
+                                                borderColor: theme.palette.success.main,
+                                            },
+                                        }}
+                                    >
+                                        <MapIcon fontSize="small" color="success" />
+                                        <Typography variant="body2" fontWeight={600} color="success.main">
+                                            Navegar para este local (Google Maps)
+                                        </Typography>
+                                    </Box>
+                                </Tooltip>
+                            </Box>
+                        </>
+                    )}
 
                     {/* Contacto + Morada */}
                     {(hasPhone || hasAddress) && (

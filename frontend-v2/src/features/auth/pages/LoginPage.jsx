@@ -15,13 +15,14 @@ import {
   Stack,
   Divider,
 } from '@mui/material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useLogin } from '../hooks';
 import { useEffect, useState } from 'react';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
 export const LoginPage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState(null);
 
   const {
@@ -34,21 +35,30 @@ export const LoginPage = () => {
     hasError,
   } = useLogin();
 
-  // Verificar se vem de sessão expirada
+  // Verificar se vem de sessão expirada — corre só no mount.
+  // Dep [] evita re-disparo quando o browser back button restaura location.state.
+  // A limpeza do state do histórico garante que refrescar a página ou voltar atrás
+  // não re-mostra o alerta de forma espúria.
   useEffect(() => {
-    const expired = sessionStorage.getItem('session_expired');
+    const expiredInStorage = sessionStorage.getItem('session_expired');
+    const expiredInState = location.state?.sessionExpired;
 
-    if (expired || location.state?.sessionExpired) {
+    if (expiredInStorage || expiredInState) {
       setSessionExpiredMessage('A sua sessão expirou por inatividade. Por favor, faça login novamente.');
 
-      // Limpar flag
+      // Limpar ambas as fontes para não re-aparecer em navegações futuras
       sessionStorage.removeItem('session_expired');
+      if (expiredInState) {
+        // Substitui a entrada de histórico sem o state — impede que o botão
+        // "back" do browser re-mostre o alerta ao regressar a esta página
+        navigate('/login', { replace: true, state: null });
+      }
 
-      // Auto-remover mensagem após 8 segundos
       const timer = setTimeout(() => setSessionExpiredMessage(null), 8000);
       return () => clearTimeout(timer);
     }
-  }, [location.state]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount only
 
   return (
     <Box
