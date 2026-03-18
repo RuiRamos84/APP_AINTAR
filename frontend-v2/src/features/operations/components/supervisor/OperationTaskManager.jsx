@@ -4,21 +4,27 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
     FormControl, InputLabel, Select, MenuItem, Grid, Avatar, Alert,
-    Paper, Divider, alpha, useTheme, CircularProgress
+    Paper, Divider, alpha, useTheme, CircularProgress,
+    TablePagination
 } from '@mui/material';
 import {
     Add, Edit, Delete, Visibility, CheckCircle, Schedule,
     Close, PhotoCamera, GppGood, Download, ZoomIn
 } from '@mui/icons-material';
-import { SearchBar } from '@/shared/components/data';
+import { SearchBar, SortableHeadCell } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
 import { formatDate, formatCompletedTaskValue, getUserNameByPk } from '../../utils/formatters';
+import DirectTaskForm from '../DirectTaskForm';
 
 const OperationTaskManager = ({
-    operations, metaData, onCreateMeta, onUpdateMeta, onDeleteMeta,
+    operations, metaData, onCreateTask, onCreateDirect, onUpdateMeta, onDeleteMeta,
     onValidate, isLoading
 }) => {
     const theme = useTheme();
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(50);
+    const [directOpen, setDirectOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [selectedOp, setSelectedOp] = useState(null);
     const [validationOpen, setValidationOpen] = useState(false);
@@ -27,14 +33,11 @@ const OperationTaskManager = ({
     const [controlMemo, setControlMemo] = useState('');
     const [imagePreview, setImagePreview] = useState(null);
 
-    const classificationOptions = metaData?.operacaocontrolo || [
-        { pk: 1, value: 'Conforme' },
-        { pk: 2, value: 'Com observações' },
-        { pk: 3, value: 'Não conforme' },
-    ];
+    const classificationOptions = metaData?.opcontrolo || [];
 
-    // Filtrar operações
+    // Filtrar operações — reset de página ao mudar pesquisa
     const filteredOps = useMemo(() => {
+        setPage(0);
         if (!searchTerm) return operations;
         const lower = searchTerm.toLowerCase();
         return operations.filter(op =>
@@ -45,6 +48,15 @@ const OperationTaskManager = ({
         );
     }, [operations, searchTerm]);
 
+    // Ordenação
+    const { sorted: sortedOps, sortKey, sortDir, requestSort } = useSortable(filteredOps, 'instalacao_nome');
+
+    // Slice da página atual (após ordenação)
+    const pagedOps = useMemo(
+        () => sortedOps.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+        [sortedOps, page, rowsPerPage]
+    );
+
     const handleOpenDetails = (op) => {
         setSelectedOp(op);
         setDetailsOpen(true);
@@ -52,8 +64,8 @@ const OperationTaskManager = ({
 
     const handleOpenValidation = (exec) => {
         setSelectedExec(exec);
-        setClassification(exec.control_tt_operacaocontrolo || '');
-        setControlMemo(exec.control_memo || '');
+        setClassification('');
+        setControlMemo('');
         setValidationOpen(true);
     };
 
@@ -66,6 +78,8 @@ const OperationTaskManager = ({
         onValidate?.(formData);
         setValidationOpen(false);
         setSelectedExec(null);
+        setDetailsOpen(false);
+        setSelectedOp(null);
     };
 
     const getStatusChip = (op) => {
@@ -92,8 +106,22 @@ const OperationTaskManager = ({
 
     return (
         <Stack spacing={2}>
-            {/* Search */}
-            <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+            {/* Header: search + create buttons */}
+            <Stack direction="row" spacing={2} alignItems="center">
+                <Box sx={{ flex: 1 }}>
+                    <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+                </Box>
+                <Tooltip title="Registar execução direta (ETAR / EE / Rede / Caixa)">
+                    <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={() => setDirectOpen(true)}
+                        sx={{ whiteSpace: 'nowrap' }}
+                    >
+                        Registar Execução
+                    </Button>
+                </Tooltip>
+            </Stack>
 
             {/* Table */}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
@@ -103,12 +131,12 @@ const OperationTaskManager = ({
                             <TableRow>
                                 <TableCell>Estado</TableCell>
                                 <TableCell>Validação</TableCell>
-                                <TableCell>Instalação</TableCell>
-                                <TableCell>Ação</TableCell>
-                                <TableCell>Modo</TableCell>
-                                <TableCell>Dia</TableCell>
-                                <TableCell>Operador 1</TableCell>
-                                <TableCell>Operador 2</TableCell>
+                                <SortableHeadCell label="Instalação" field="instalacao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <SortableHeadCell label="Ação" field="acao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <SortableHeadCell label="Modo" field="modo_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <SortableHeadCell label="Dia" field="tt_operacaodia" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <SortableHeadCell label="Operador 1" field="operador1_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <SortableHeadCell label="Operador 2" field="operador2_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <TableCell align="center">Ações</TableCell>
                             </TableRow>
                         </TableHead>
@@ -127,7 +155,7 @@ const OperationTaskManager = ({
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
-                            ) : filteredOps.map((op) => {
+                            ) : pagedOps.map((op) => {
                                 const instType = getInstallationType(op);
                                 return (
                                     <TableRow key={op.pk} hover sx={{ cursor: 'pointer' }} onClick={() => handleOpenDetails(op)}>
@@ -180,11 +208,17 @@ const OperationTaskManager = ({
                     </Table>
                 </TableContainer>
                 {filteredOps.length > 0 && (
-                    <Box sx={{ px: 2, py: 1, borderTop: 1, borderColor: 'divider' }}>
-                        <Typography variant="caption" color="text.secondary">
-                            {filteredOps.length} tarefa{filteredOps.length !== 1 ? 's' : ''}
-                        </Typography>
-                    </Box>
+                    <TablePagination
+                        component="div"
+                        count={filteredOps.length}
+                        page={page}
+                        onPageChange={(_, newPage) => setPage(newPage)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                        rowsPerPageOptions={[25, 50, 100]}
+                        labelRowsPerPage="Por página:"
+                        labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+                    />
                 )}
             </Card>
 
@@ -371,7 +405,8 @@ const OperationTaskManager = ({
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <FormControl fullWidth required>
                             <InputLabel>Classificação</InputLabel>
-                            <Select value={classification} onChange={(e) => setClassification(e.target.value)} label="Classificação">
+                            <Select value={classification} onChange={(e) => setClassification(e.target.value)} label="Classificação" displayEmpty>
+                                <MenuItem value="" disabled><em>Selecione uma classificação</em></MenuItem>
                                 {classificationOptions.map(opt => (
                                     <MenuItem key={opt.pk} value={opt.pk}>{opt.value}</MenuItem>
                                 ))}
@@ -414,6 +449,31 @@ const OperationTaskManager = ({
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Dialog — Registo Rápido (DirectTaskForm) */}
+            <Dialog
+                open={directOpen}
+                onClose={() => setDirectOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6">Registo Rápido de Operação</Typography>
+                        <IconButton onClick={() => setDirectOpen(false)} size="small"><Close /></IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers sx={{ p: 0 }}>
+                    <DirectTaskForm
+                        onSubmit={async (data) => {
+                            await onCreateDirect?.(data);
+                            setDirectOpen(false); // só fecha se não houver erro
+                        }}
+                        onCancel={() => setDirectOpen(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+
         </Stack>
     );
 };

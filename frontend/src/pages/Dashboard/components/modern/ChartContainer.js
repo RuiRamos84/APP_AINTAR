@@ -2760,7 +2760,14 @@ const ChartContainer = ({ data, viewMode, selectedCategory, compact = false, onD
 
     return (
         <>
-        <Grid container spacing={3}>
+        <Grid container spacing={3} sx={{
+            alignItems: 'stretch',
+            '& > div': { display: 'flex' },
+            '& > div > div': { width: '100%' },
+            '& .MuiPaper-root': { display: 'flex', flexDirection: 'column' },
+            '& .MuiPaper-root > *:first-of-type': { flexShrink: 0 },
+            '& .MuiPaper-root > *:nth-of-type(2)': { marginTop: 'auto', marginBottom: 'auto' },
+        }}>
             {processedCharts.map((chart, index) => {
                 const showDetailBtn = viewMode === 'overview' && !!onDetailClick;
                 const detailFn = showDetailBtn ? () => onDetailClick(chart.id) : null;

@@ -135,6 +135,37 @@ class PaymentService {
         const response = await api.get(`/payments/history?${queryParams}`);
         return response;
     }
+
+    /**
+     * DEVOLUÇÕES
+     */
+    async refundPayment(paymentPk, reason = '') {
+        const response = await api.post(`/payments/refund/${paymentPk}`, { reason });
+        return response;
+    }
+
+    /**
+     * ISENÇÕES
+     */
+    async submitExemption(documentId) {
+        const response = await api.post('/payments/exemptions/submit', { document_id: documentId });
+        return response;
+    }
+
+    async getPendingExemptions() {
+        const response = await api.get('/payments/exemptions/pending');
+        return response;
+    }
+
+    async approveExemption(paymentPk) {
+        const response = await api.put(`/payments/exemptions/${paymentPk}/approve`);
+        return response;
+    }
+
+    async rejectExemption(paymentPk) {
+        const response = await api.put(`/payments/exemptions/${paymentPk}/reject`);
+        return response;
+    }
 }
 
 export default new PaymentService();

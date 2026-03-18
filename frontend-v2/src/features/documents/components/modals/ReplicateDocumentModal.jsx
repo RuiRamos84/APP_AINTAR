@@ -30,7 +30,7 @@ import { useMetaData } from '@/core/hooks/useMetaData';
 /**
  * Modal to replicate/duplicate a document with a new type
  */
-const ReplicateDocumentModal = ({ open, onClose, document }) => {
+const ReplicateDocumentModal = ({ open, onClose, document, onSuccess }) => {
   const theme = useTheme();
   const [selectedType, setSelectedType] = useState('');
   const [showInternalOnly, setShowInternalOnly] = useState(false);
@@ -66,6 +66,7 @@ const ReplicateDocumentModal = ({ open, onClose, document }) => {
       {
         onSuccess: () => {
           handleClose();
+          onSuccess?.();
         },
       }
     );

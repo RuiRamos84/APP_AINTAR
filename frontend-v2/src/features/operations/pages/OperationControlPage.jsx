@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
     Box,
     Container,
@@ -22,15 +22,9 @@ import {
     DialogContent,
     DialogActions,
     Stack,
-    Alert,
     CircularProgress,
     Grid,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemSecondaryAction,
     IconButton,
-    Divider,
     useTheme,
     alpha,
     Card
@@ -42,17 +36,41 @@ import {
     Edit,
     Download as DownloadIcon,
     Visibility as VisibilityIcon,
-    Close as CloseIcon
+    Close as CloseIcon,
+    LockOpen as UnlockIcon,
+    Warning,
+    PictureAsPdf as PdfIcon,
+    Image as ImageIcon,
+    Description as DescriptionIcon,
+    ZoomIn as PreviewIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import notification from '@/core/services/notification/notificationService';
 import { operationService } from '../services/operationService';
 import metadataService from '@/services/metadataService';
+import { SearchBar, SortableHeadCell } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
 import {
     OPERATION_TYPES,
     formatBooleanValue,
-    getOperationTypeConfig
 } from '../constants/operationTypes';
 import FileUploadControl from '../components/FileUploadControl';
+
+// Mapeamento de cores/ícones por pk real da BD (tt_operacaocontrolo)
+// pk=1: Incumprimento ligeiro | pk=2: Incumprimento grave | pk=3: Incumprimento muito grave | pk=10: Conforme
+const CONTROL_COLOR_MAP = { 1: 'info', 2: 'warning', 3: 'error', 10: 'success' };
+const CONTROL_ICON_MAP = {
+    1: <Warning fontSize="small" />,
+    2: <Warning fontSize="small" />,
+    3: <Cancel fontSize="small" />,
+    10: <CheckCircle fontSize="small" />,
+};
+
+const getFileIcon = (filename) => {
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(filename)) return <ImageIcon fontSize="small" color="success" />;
+    if (/\.pdf$/i.test(filename)) return <PdfIcon fontSize="small" color="error" />;
+    return <DescriptionIcon fontSize="small" color="info" />;
+};
 
 const OperationControlPage = () => {
     const theme = useTheme();
@@ -69,32 +87,62 @@ const OperationControlPage = () => {
     const [viewMode, setViewMode] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [controlData, setControlData] = useState({
-        control_check: 0,
-        control_tt_operacaocontrolo: null,
+        control_tt_operacaocontrolo: '',
         control_memo: '',
-        control_foto: ''
     });
     const [controlFiles, setControlFiles] = useState([]);
-
-    // Estado do Preview
-    const [previewDialog, setPreviewDialog] = useState(false);
-    const [previewFile, setPreviewFile] = useState(null);
+    const [downloading, setDownloading] = useState(null);
+    const [filePreview, setFilePreview] = useState(null);
 
     // Queries
     const { data: metaData, isLoading: loadingMetaData } = useQuery({
         queryKey: ['metadata'],
         queryFn: metadataService.fetchMetaData,
-        staleTime: 1000 * 60 * 30 // 30 mins
+        staleTime: 1000 * 60 * 30
     });
 
-    const { data: tasksData, isLoading: loadingTasks, error: tasksError, refetch: searchTasks } = useQuery({
+    // Opções de controlo vindas da BD (tt_operacaocontrolo)
+    const controlOptions = metaData?.opcontrolo || [];
+
+    const getControlState = (pk) => {
+        const option = controlOptions.find(o => o.pk === pk);
+        if (!option) return null;
+        return {
+            label: option.value,
+            color: CONTROL_COLOR_MAP[pk] || 'default',
+            icon: CONTROL_ICON_MAP[pk] || <Warning fontSize="small" />,
+        };
+    };
+
+    // Anexos da tarefa selecionada — carregados quando o diálogo abre
+    const { data: annexesData, isLoading: loadingAnnexes } = useQuery({
+        queryKey: ['controlAnnexes', selectedTask?.pk],
+        queryFn: () => operationService.getControlAnnexes(selectedTask.pk),
+        enabled: !!selectedTask?.pk && controlDialog,
+        staleTime: 0,
+    });
+
+    const { data: tasksData, isLoading: loadingTasks, refetch: searchTasks } = useQuery({
         queryKey: ['operationControl', selectedInstalacao, lastDays],
         queryFn: () => operationService.queryControl({
             tb_instalacao: selectedInstalacao,
             last_days: parseInt(lastDays)
         }),
-        enabled: false, // Só busca quando usuario clica em pesquisar
+        enabled: false,
     });
+
+    // Pesquisa + ordenação na tabela de resultados
+    const [searchTerm, setSearchTerm] = useState('');
+    const rawTasks = tasksData?.data || [];
+    const filteredTasks = useMemo(() => {
+        if (!searchTerm.trim()) return rawTasks;
+        const q = searchTerm.toLowerCase();
+        return rawTasks.filter(t =>
+            (t.tt_operacaoaccao || '').toLowerCase().includes(q) ||
+            (t.updt_client || '').toLowerCase().includes(q)
+        );
+    }, [rawTasks, searchTerm]);
+    const { sorted: sortedTasks, sortKey, sortDir, requestSort } = useSortable(filteredTasks, 'data', 'desc');
 
     // Filtros derivados
     const entities = useMemo(() => {
@@ -111,43 +159,35 @@ const OperationControlPage = () => {
         if (!source) return [];
         return source
             .filter(inst => inst.ts_entity === selectedEntity)
-            .map(inst => ({
-                pk: inst.pk,
-                nome: inst.nome,
-                subsistema: inst.subsistema
-            }))
+            .map(inst => ({ pk: inst.pk, nome: inst.nome, subsistema: inst.subsistema }))
             .sort((a, b) => a.nome.localeCompare(b.nome));
     }, [metaData, selectedEntity, selectedTipo]);
 
-    // Mutations
+    // Mutation
     const updateControlMutation = useMutation({
         mutationFn: operationService.updateControl,
-        onSuccess: () => {
-            queryClient.invalidateQueries(['operationControl']);
-            searchTasks();
+        onSuccess: async () => {
+            await searchTasks();
+            queryClient.invalidateQueries({ queryKey: ['controlAnnexes'] });
             handleCloseControlDialog();
+            notification.success('Controlo guardado com sucesso');
         },
-        onError: (error) => {
-            console.error('Erro ao guardar controlo:', error);
-            // Mostrar toast de erro
+        onError: () => {
+            notification.error('Erro ao guardar controlo');
         }
     });
 
     // Handlers
     const handleSearch = () => {
-        if (selectedInstalacao && lastDays) {
-            searchTasks();
-        }
+        if (selectedInstalacao && lastDays) searchTasks();
     };
 
     const handleOpenControlDialog = (task, isViewMode = false) => {
         setSelectedTask(task);
         setViewMode(isViewMode);
         setControlData({
-            control_check: task.control_check !== null ? task.control_check : 1,
-            control_tt_operacaocontrolo: task.control_tt_operacaocontrolo || null,
+            control_tt_operacaocontrolo: task.control_tt_operacaocontrolo || '',
             control_memo: task.control_memo || '',
-            control_foto: task.control_foto || ''
         });
         setControlFiles([]);
         setControlDialog(true);
@@ -161,41 +201,86 @@ const OperationControlPage = () => {
     };
 
     const handleSaveControl = () => {
+        if (!controlData.control_tt_operacaocontrolo) {
+            notification.warning('Selecione uma classificação antes de guardar');
+            return;
+        }
         const formData = new FormData();
         formData.append('pk', selectedTask.pk);
-        formData.append('control_check', controlData.control_check);
-        formData.append('control_tt_operacaocontrolo', controlData.control_tt_operacaocontrolo || '');
+        formData.append('control_tt_operacaocontrolo', controlData.control_tt_operacaocontrolo);
         formData.append('control_memo', controlData.control_memo || '');
-        
         controlFiles.forEach((fileItem) => {
             formData.append('files', fileItem.file);
         });
-
         updateControlMutation.mutate(formData);
     };
+
+    const fetchAnnexBlob = useCallback(async (annexPk) => {
+        // O interceptor do apiClient já devolve response.data diretamente
+        return await operationService.downloadControlAnnex(annexPk);
+    }, []);
+
+    const handleDownloadFile = useCallback(async (annex) => {
+        setDownloading(annex.pk);
+        try {
+            const blob = await fetchAnnexBlob(annex.pk);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = annex.descr || annex.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('[handleDownloadFile]', error);
+            notification.error('Erro ao descarregar ficheiro');
+        } finally {
+            setDownloading(null);
+        }
+    }, [fetchAnnexBlob]);
+
+    const handlePreviewFile = useCallback(async (annex) => {
+        setDownloading(annex.pk);
+        try {
+            const blob = await fetchAnnexBlob(annex.pk);
+            const url = window.URL.createObjectURL(blob);
+            const isPdfFile = /\.pdf$/i.test(annex.filename);
+            setFilePreview({ url, name: annex.descr || annex.filename, isPdf: isPdfFile });
+        } catch (error) {
+            console.error('[handlePreviewFile]', error);
+            notification.error('Erro ao carregar pré-visualização');
+        } finally {
+            setDownloading(null);
+        }
+    }, [fetchAnnexBlob]);
+
+    const handleCloseFilePreview = () => {
+        if (filePreview?.url) window.URL.revokeObjectURL(filePreview.url);
+        setFilePreview(null);
+    };
+
+    const existingAnnexes = annexesData?.data?.data || annexesData?.data || [];
 
     // Render Helpers
     const formatValueByType = (task) => {
         const type = task.tt_operacaoaccao_type;
         const value = task.valuetext;
-
         if (!value) return '-';
-
         switch (type) {
             case OPERATION_TYPES.NUMBER:
                 return <Typography fontWeight={600} color="primary.main">{value}</Typography>;
             case OPERATION_TYPES.BOOLEAN:
-                const isChecked = value === '1';
                 return (
-                    <Chip 
-                        label={formatBooleanValue(value)} 
-                        color={isChecked ? 'success' : 'default'} 
-                        size="small" 
-                        variant="outlined" 
+                    <Chip
+                        label={formatBooleanValue(value)}
+                        color={value === '1' ? 'success' : 'default'}
+                        size="small"
+                        variant="outlined"
                     />
                 );
             case OPERATION_TYPES.ANALYSIS:
-                 if (value === '1' || value === '0') {
+                if (value === '1' || value === '0') {
                     return (
                         <Chip
                             label={value === '1' ? 'Recolha realizada' : 'Não realizada'}
@@ -210,7 +295,6 @@ const OperationControlPage = () => {
         }
     };
 
-    // Glass styles
     const glassCard = {
         background: alpha(theme.palette.background.paper, 0.7),
         backdropFilter: 'blur(10px)',
@@ -218,6 +302,8 @@ const OperationControlPage = () => {
         boxShadow: theme.shadows[2],
         borderRadius: 3
     };
+
+    const isAlreadyControlled = (task) => task.control_tt_operacaocontrolo !== null && task.control_tt_operacaocontrolo !== undefined;
 
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -239,10 +325,7 @@ const OperationControlPage = () => {
                                 <InputLabel>Município/Associado</InputLabel>
                                 <Select
                                     value={selectedEntity}
-                                    onChange={(e) => {
-                                        setSelectedEntity(e.target.value);
-                                        setSelectedInstalacao('');
-                                    }}
+                                    onChange={(e) => { setSelectedEntity(e.target.value); setSelectedInstalacao(''); }}
                                     label="Município/Associado"
                                 >
                                     {entities.map(e => <MenuItem key={e} value={e}>{e}</MenuItem>)}
@@ -254,10 +337,7 @@ const OperationControlPage = () => {
                                 <InputLabel>Tipo Instalação</InputLabel>
                                 <Select
                                     value={selectedTipo}
-                                    onChange={(e) => {
-                                        setSelectedTipo(e.target.value);
-                                        setSelectedInstalacao('');
-                                    }}
+                                    onChange={(e) => { setSelectedTipo(e.target.value); setSelectedInstalacao(''); }}
                                     label="Tipo Instalação"
                                 >
                                     <MenuItem value="ETAR">ETAR</MenuItem>
@@ -266,7 +346,7 @@ const OperationControlPage = () => {
                             </FormControl>
                         </Grid>
                         <Grid size={{ xs: 12, md: 4 }}>
-                             <FormControl fullWidth size="small">
+                            <FormControl fullWidth size="small">
                                 <InputLabel>Instalação</InputLabel>
                                 <Select
                                     value={selectedInstalacao}
@@ -283,7 +363,7 @@ const OperationControlPage = () => {
                             </FormControl>
                         </Grid>
                         <Grid size={{ xs: 12, md: 2 }}>
-                             <TextField
+                            <TextField
                                 fullWidth
                                 size="small"
                                 label="Dias atrás"
@@ -294,9 +374,9 @@ const OperationControlPage = () => {
                         </Grid>
                     </Grid>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button 
-                            variant="contained" 
-                            startIcon={<SearchIcon />} 
+                        <Button
+                            variant="contained"
+                            startIcon={<SearchIcon />}
                             onClick={handleSearch}
                             disabled={!selectedInstalacao || loadingMetaData}
                         >
@@ -306,80 +386,117 @@ const OperationControlPage = () => {
                 </Stack>
             </Paper>
 
-            {/* Conteúdo */}
+            {/* Tabela de resultados */}
             {loadingTasks && (
                 <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
             )}
 
-            {!loadingTasks && tasksData?.data?.length > 0 && (
+            {!loadingTasks && rawTasks.length > 0 && (
                 <Paper sx={{ ...glassCard, overflow: 'hidden' }}>
+                    <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+                        <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} placeholder="Pesquisar por ação ou executor..." />
+                    </Box>
                     <TableContainer>
                         <Table size="small">
                             <TableHead>
                                 <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                                    <TableCell sx={{ fontWeight: 600 }}>Data</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Ação</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Executado Por</TableCell>
+                                    <SortableHeadCell label="Data" field="data" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
+                                    <SortableHeadCell label="Ação" field="tt_operacaoaccao" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
+                                    <SortableHeadCell label="Executado Por" field="updt_client" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
                                     <TableCell sx={{ fontWeight: 600 }}>Valor</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
+                                    <SortableHeadCell label="Estado" field="control_tt_operacaocontrolo" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} sx={{ fontWeight: 600 }} />
                                     <TableCell align="center" sx={{ fontWeight: 600 }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {tasksData.data.map((task) => (
-                                    <TableRow key={task.pk} hover>
-                                        <TableCell>{new Date(task.data).toLocaleDateString('pt-PT')}</TableCell>
-                                        <TableCell>{task.tt_operacaoaccao}</TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2">{task.updt_client || '-'}</Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {task.updt_time && new Date(task.updt_time).toLocaleTimeString('pt-PT', {hour: '2-digit', minute:'2-digit'})}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>{formatValueByType(task)}</TableCell>
-                                        <TableCell>
-                                            {task.control_check === 1 ? (
-                                                <Chip icon={<CheckCircle />} label="Verificado" color="success" size="small" variant="outlined" />
-                                            ) : task.control_check === 0 ? (
-                                                <Chip icon={<Cancel />} label="Não conforme" color="error" size="small" variant="outlined" />
-                                            ) : (
-                                                <Chip label="Pendente" size="small" variant="outlined" />
-                                            )}
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            <Button
-                                                size="small"
-                                                variant={task.control_check !== null ? "outlined" : "contained"}
-                                                color={task.control_check !== null ? "inherit" : "primary"}
-                                                startIcon={task.control_check !== null ? <VisibilityIcon /> : <Edit />}
-                                                onClick={() => handleOpenControlDialog(task, task.control_check !== null)}
-                                            >
-                                                {task.control_check !== null ? "Ver" : "Controlar"}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {sortedTasks.map((task) => {
+                                    const state = getControlState(task.control_tt_operacaocontrolo);
+                                    const controlled = isAlreadyControlled(task);
+                                    return (
+                                        <TableRow key={task.pk} hover>
+                                            <TableCell>{new Date(task.data).toLocaleDateString('pt-PT')}</TableCell>
+                                            <TableCell>{task.tt_operacaoaccao}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">{task.updt_client || '-'}</Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {task.updt_time && new Date(task.updt_time).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>{formatValueByType(task)}</TableCell>
+                                            <TableCell>
+                                                {state ? (
+                                                    <Chip
+                                                        icon={state.icon}
+                                                        label={state.label}
+                                                        color={state.color}
+                                                        size="small"
+                                                        variant="outlined"
+                                                    />
+                                                ) : (
+                                                    <Chip label="Pendente" size="small" variant="outlined" />
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Button
+                                                    size="small"
+                                                    variant={controlled ? 'outlined' : 'contained'}
+                                                    color={controlled ? 'inherit' : 'primary'}
+                                                    startIcon={controlled ? <VisibilityIcon /> : <Edit />}
+                                                    onClick={() => handleOpenControlDialog(task, controlled)}
+                                                >
+                                                    {controlled ? 'Ver' : 'Controlar'}
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </TableContainer>
                 </Paper>
             )}
 
-            {!loadingTasks && tasksData?.data?.length === 0 && (
+            {!loadingTasks && rawTasks.length === 0 && (
                 <Box textAlign="center" py={8} sx={{ opacity: 0.6 }}>
                     <SearchIcon sx={{ fontSize: 64, mb: 2, color: 'text.disabled' }} />
                     <Typography>Nenhum registo encontrado para os filtros selecionados.</Typography>
                 </Box>
             )}
+            {!loadingTasks && rawTasks.length > 0 && sortedTasks.length === 0 && (
+                <Box textAlign="center" py={4} sx={{ opacity: 0.6 }}>
+                    <Typography>Nenhum resultado para "{searchTerm}".</Typography>
+                </Box>
+            )}
 
             {/* Dialog de Controlo */}
-            <Dialog 
-                open={controlDialog} 
+            <Dialog
+                open={controlDialog}
                 onClose={handleCloseControlDialog}
                 maxWidth="sm"
                 fullWidth
+                slotProps={{ paper: { sx: { borderRadius: 3 } } }}
             >
-                <DialogTitle>{viewMode ? 'Detalhes do Controlo' : 'Validar Tarefa'}</DialogTitle>
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Typography variant="h6">
+                            {viewMode ? 'Detalhes do Controlo' : 'Validar Tarefa'}
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            {viewMode && (
+                                <Chip
+                                    label="Modo leitura"
+                                    size="small"
+                                    variant="outlined"
+                                    icon={<VisibilityIcon />}
+                                />
+                            )}
+                            <IconButton onClick={handleCloseControlDialog} size="small">
+                                <CloseIcon />
+                            </IconButton>
+                        </Stack>
+                    </Box>
+                </DialogTitle>
+
                 <DialogContent dividers>
                     <Stack spacing={3}>
                         {/* Info da Tarefa */}
@@ -393,21 +510,47 @@ const OperationControlPage = () => {
                                     <Typography variant="caption" color="text.secondary">Valor Registado</Typography>
                                     <Box>{selectedTask && formatValueByType(selectedTask)}</Box>
                                 </Grid>
+                                {selectedTask?.data && (
+                                    <Grid size={6}>
+                                        <Typography variant="caption" color="text.secondary">Data</Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                            {new Date(selectedTask.data).toLocaleDateString('pt-PT')}
+                                        </Typography>
+                                    </Grid>
+                                )}
+                                {selectedTask?.updt_client && (
+                                    <Grid size={6}>
+                                        <Typography variant="caption" color="text.secondary">Executado por</Typography>
+                                        <Typography variant="body2" fontWeight={600}>{selectedTask.updt_client}</Typography>
+                                    </Grid>
+                                )}
                             </Grid>
                         </Box>
 
-                        <FormControl fullWidth disabled={viewMode}>
-                            <InputLabel>Estado da Validação</InputLabel>
+                        {/* Classificação — 3 valores */}
+                        <FormControl fullWidth disabled={viewMode} required>
+                            <InputLabel>Classificação</InputLabel>
                             <Select
-                                value={controlData.control_check}
-                                onChange={(e) => setControlData({ ...controlData, control_check: e.target.value })}
-                                label="Estado da Validação"
+                                value={controlData.control_tt_operacaocontrolo}
+                                onChange={(e) => setControlData({ ...controlData, control_tt_operacaocontrolo: e.target.value })}
+                                label="Classificação"
+                                displayEmpty
                             >
-                                <MenuItem value={1}>Conforme / Verificado</MenuItem>
-                                <MenuItem value={0}>Não Conforme</MenuItem>
+                                <MenuItem value="" disabled><em>Selecione uma classificação</em></MenuItem>
+                                {controlOptions.map((opt) => (
+                                    <MenuItem key={opt.pk} value={opt.pk}>
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                            <Box sx={{ color: `${CONTROL_COLOR_MAP[opt.pk] || 'default'}.main`, display: 'flex' }}>
+                                                {CONTROL_ICON_MAP[opt.pk] || <Warning fontSize="small" />}
+                                            </Box>
+                                            <span>{opt.value}</span>
+                                        </Stack>
+                                    </MenuItem>
+                                ))}
                             </Select>
                         </FormControl>
 
+                        {/* Observações */}
                         <TextField
                             label="Observações"
                             multiline
@@ -418,26 +561,131 @@ const OperationControlPage = () => {
                             fullWidth
                         />
 
+                        {/* Ficheiros já anexados */}
+                        {loadingAnnexes && (
+                            <Box display="flex" justifyContent="center" py={1}>
+                                <CircularProgress size={20} />
+                            </Box>
+                        )}
+                        {!loadingAnnexes && existingAnnexes.length > 0 && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                                    Ficheiros já anexados ({existingAnnexes.length})
+                                </Typography>
+                                <Stack spacing={1}>
+                                    {existingAnnexes.map((annex) => {
+                                        const displayName = annex.descr || annex.filename;
+                                        const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(annex.filename);
+                                        const isPdfFile = /\.pdf$/i.test(annex.filename);
+                                        const canPreview = isImg || isPdfFile;
+                                        const busy = downloading === annex.pk;
+                                        return (
+                                            <Card
+                                                key={annex.pk}
+                                                variant="outlined"
+                                                sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}
+                                            >
+                                                {getFileIcon(annex.filename)}
+                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                    <Typography variant="body2" noWrap title={displayName}>
+                                                        {displayName}
+                                                    </Typography>
+                                                    {annex.data && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {annex.data}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                                <Stack direction="row" spacing={0.5}>
+                                                    {canPreview && (
+                                                        <IconButton
+                                                            size="small"
+                                                            title="Pré-visualizar"
+                                                            onClick={() => handlePreviewFile(annex)}
+                                                            disabled={busy}
+                                                            sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                                                        >
+                                                            {busy ? <CircularProgress size={16} /> : <PreviewIcon fontSize="small" />}
+                                                        </IconButton>
+                                                    )}
+                                                    <IconButton
+                                                        size="small"
+                                                        title="Descarregar"
+                                                        onClick={() => handleDownloadFile(annex)}
+                                                        disabled={busy}
+                                                        sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                                                    >
+                                                        {busy && !canPreview ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                                                    </IconButton>
+                                                </Stack>
+                                            </Card>
+                                        );
+                                    })}
+                                </Stack>
+                            </Box>
+                        )}
+
+                        {/* Upload novos ficheiros — apenas em modo edição */}
                         {!viewMode && (
-                            <FileUploadControl 
+                            <FileUploadControl
                                 files={controlFiles}
                                 setFiles={setControlFiles}
                             />
                         )}
                     </Stack>
                 </DialogContent>
+
                 <DialogActions>
-                    <Button onClick={handleCloseControlDialog}>Cancelar</Button>
-                    {!viewMode && (
-                        <Button 
-                            onClick={handleSaveControl} 
+                    <Button onClick={handleCloseControlDialog}>Fechar</Button>
+                    {viewMode ? (
+                        <Button
+                            onClick={() => setViewMode(false)}
+                            variant="outlined"
+                            startIcon={<UnlockIcon />}
+                        >
+                            Editar Validação
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handleSaveControl}
                             variant="contained"
                             disabled={updateControlMutation.isPending}
+                            startIcon={updateControlMutation.isPending ? <CircularProgress size={16} color="inherit" /> : null}
                         >
-                            {updateControlMutation.isPending ? 'Guardando...' : 'Guardar Validação'}
+                            {updateControlMutation.isPending ? 'A guardar...' : 'Guardar Validação'}
                         </Button>
                     )}
                 </DialogActions>
+            </Dialog>
+            {/* Modal de pré-visualização de ficheiros guardados */}
+            <Dialog
+                open={!!filePreview}
+                onClose={handleCloseFilePreview}
+                maxWidth="md"
+                fullWidth
+                slotProps={{ paper: { sx: { borderRadius: 2 } } }}
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5 }}>
+                    <Typography variant="subtitle1" component="div" noWrap sx={{ maxWidth: '80%' }} title={filePreview?.name}>
+                        {filePreview?.name}
+                    </Typography>
+                    <IconButton size="small" onClick={handleCloseFilePreview}><CloseIcon /></IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                    {filePreview?.isPdf ? (
+                        <iframe
+                            src={filePreview.url}
+                            title={filePreview.name}
+                            style={{ width: '100%', height: '70vh', border: 'none' }}
+                        />
+                    ) : filePreview?.url ? (
+                        <img
+                            src={filePreview.url}
+                            alt={filePreview?.name}
+                            style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 4 }}
+                        />
+                    ) : null}
+                </DialogContent>
             </Dialog>
         </Container>
     );

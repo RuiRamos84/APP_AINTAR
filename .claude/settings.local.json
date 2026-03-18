@@ -33,9 +33,37 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "WebFetch(domain:sileo.aaryan.design)"
+      "WebFetch(domain:sileo.aaryan.design)",
+      "Bash(powershell.exe -ExecutionPolicy:*)",
+      "Bash(/tmp/check_heredoc.ps1:*)",
+      "Bash(/tmp/check_heredoc2.ps1:*)",
+      "Bash(/tmp/check_heredoc3.ps1:*)",
+      "Bash(/tmp/check_syntax2.ps1:*)",
+      "Bash(/tmp/check_line168.ps1:*)",
+      "Bash(/tmp/test_timing.ps1:*)",
+      "Bash(powershell -ExecutionPolicy ByPass -Command \":*)",
+      "Bash(powershell -ExecutionPolicy ByPass -File \"Deploy/Deploy-Main.ps1\" -Help)",
+      "Bash(powershell -ExecutionPolicy ByPass -File \"Deploy/Deploy-Main.ps1\")",
+      "Read(//c/Users/rui.ramos/AppData/Roaming/Code/User/**)",
+      "Read(//c/Users/rui.ramos/Desktop/APP/backend/app/**)",
+      "Read(//c/Users/rui.ramos/.claude/**)",
+      "Read(//c/Users/rui.ramos/Desktop/APP/**)",
+      "Bash(done)",
+      "Read(//dev/**)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\fix-encoding.ps1\")",
+      "Bash(powershell -NoProfile -Command \"Remove-Item ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\fix-encoding.ps1''\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\scan-cleanup.ps1\")",
+      "Bash(powershell -NoProfile -Command \"Get-ChildItem ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend'' -Filter ''*.py'' | Where-Object { $_Name -match ''^\\(teste_|debug_|fix_|check_|add_|migrate_|convert_|test_\\)'' } | Select-Object Name, @{N=''Size'';E={''{0:N1} KB'' -f \\($_Length/1KB\\)}} | Format-Table -AutoSize\")",
+      "Bash(del \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\scan-cleanup.ps1\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\do-cleanup.ps1\")",
+      "Bash(node -e \"const p=require\\(''./node_modules/recharts/package.json''\\); console.log\\(''recharts'', p.version\\)\")"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\rui.ramos\\AppData\\Roaming\\Code\\User",
+      "c:\\Users\\rui.ramos\\Desktop\\APP\\.claude",
+      "c:\\Users\\rui.ramos\\.claude\\projects\\c--Users-rui-ramos-Desktop-APP\\memory"
+    ]
   }
 }

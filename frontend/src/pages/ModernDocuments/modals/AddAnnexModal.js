@@ -19,6 +19,7 @@ import {
     DialogContentText
 } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
+import imageCompression from 'browser-image-compression';
 import {
     Close as CloseIcon,
     CloudUpload as UploadIcon,
@@ -27,7 +28,8 @@ import {
     PictureAsPdf as PdfIcon,
     Image as ImageIcon,
     TableChart as TableIcon,
-    Email as EmailIcon
+    Email as EmailIcon,
+    VideoFile as VideoIcon
 } from '@mui/icons-material';
 
 import { addDocumentAnnex } from '../../../services/documentService';
@@ -50,8 +52,24 @@ const AddAnnexModal = ({ open, onClose, document }) => {
         { type: 'Imagens', icon: <ImageIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'success' },
         { type: 'Word', icon: <DescriptionIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' },
         { type: 'Excel', icon: <TableIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'primary' },
-        { type: 'Email', icon: <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' }
+        { type: 'Email', icon: <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'info' },
+        { type: 'Vídeo', icon: <VideoIcon fontSize="small" sx={{ mr: 0.5 }} />, color: 'secondary' }
     ];
+
+    // Compressão de imagens (máx 2MB, 1920px)
+    const compressImage = async (file) => {
+        if (!file.type.startsWith('image/')) return file;
+        try {
+            return await imageCompression(file, {
+                maxSizeMB: 2,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
+                fileType: file.type,
+            });
+        } catch {
+            return file; // fallback: usar original se falhar
+        }
+    };
 
     // Reset quando o modal abre
     useEffect(() => {
@@ -64,15 +82,25 @@ const AddAnnexModal = ({ open, onClose, document }) => {
     // Configuração do dropzone
     const onDrop = useCallback(async (acceptedFiles) => {
         if (acceptedFiles.length + files.length > 5) {
-            setError('Você pode adicionar no máximo 5 arquivos por vez.');
+            setError('Pode adicionar no máximo 5 ficheiros por vez.');
+            return;
+        }
+
+        // Validar tamanho de vídeos (máx 200MB)
+        const oversized = acceptedFiles.find(
+            f => f.type.startsWith('video/') && f.size > 200 * 1024 * 1024
+        );
+        if (oversized) {
+            setError(`O vídeo "${oversized.name}" excede o limite de 200 MB.`);
             return;
         }
 
         const newFiles = await Promise.all(
             acceptedFiles.map(async (file) => {
-                const preview = await generateFilePreview(file);
+                const compressed = await compressImage(file);
+                const preview = await generateFilePreview(compressed);
                 return {
-                    file,
+                    file: compressed,
                     preview,
                     description: '',
                 };
@@ -81,7 +109,7 @@ const AddAnnexModal = ({ open, onClose, document }) => {
 
         setFiles(prev => [...prev, ...newFiles]);
         setError('');
-    }, [files.length]);
+    }, [files.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -94,7 +122,12 @@ const AddAnnexModal = ({ open, onClose, document }) => {
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
             'message/rfc822': ['.eml'],
             'application/vnd.ms-outlook': ['.msg'],
-            'application/vnd.ms-officetheme': ['.oft']
+            'application/vnd.ms-officetheme': ['.oft'],
+            'video/mp4': ['.mp4'],
+            'video/webm': ['.webm'],
+            'video/quicktime': ['.mov'],
+            'video/x-msvideo': ['.avi'],
+            'video/x-matroska': ['.mkv'],
         }
     });
 

@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { operationService } from '../services/operationService';
 import { notification } from '@/core/services/notification';
+import { useAuth } from '@/core/contexts/AuthContext';
 
 /**
  * Mapear campos da view vbl_operacao$self / vbl_operacao.
@@ -26,9 +27,11 @@ const mapTask = (raw, completed = false) => ({
     operacao_tipo: raw.tt_operacaoaccao_type,
     operador1_nome: raw.ts_operador1 || '',
     operador2_nome: raw.ts_operador2 || '',
-    requer_foto: raw.photo,
+    requer_foto: !!raw.photo,
     completed,
     description: raw.descr || raw.tt_operacaoaccao || '',
+    clat: raw.clat ?? null,
+    clong: raw.clong ?? null,
 });
 
 /**
@@ -42,6 +45,7 @@ const mapTask = (raw, completed = false) => ({
 export const useOperationTasks = (options = {}) => {
     const { enabled = true } = options;
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
     const {
         data: queryData,
@@ -49,7 +53,7 @@ export const useOperationTasks = (options = {}) => {
         error,
         refetch
     } = useQuery({
-        queryKey: ['operacaoSelf'],
+        queryKey: ['operacaoSelf', user?.pk],
         queryFn: async () => {
             const response = await operationService.getOperacaoSelf();
             const pending = response?.data || response || [];
@@ -62,9 +66,10 @@ export const useOperationTasks = (options = {}) => {
                 stats,
             };
         },
-        enabled,
-        staleTime: 1000 * 60 * 5,
+        enabled: enabled && !!user,
+        staleTime: 0,
         refetchOnWindowFocus: true,
+        refetchInterval: 30_000, // polling a cada 30s (supervisor pode adicionar tarefas)
     });
 
     // Tarefas pendentes
@@ -130,11 +135,11 @@ export const useOperationTasks = (options = {}) => {
         mutationFn: ({ taskId, completionData }) =>
             operationService.completeTask(taskId, completionData),
         onMutate: async ({ taskId }) => {
-            await queryClient.cancelQueries({ queryKey: ['operacaoSelf'] });
-            const previous = queryClient.getQueryData(['operacaoSelf']);
+            await queryClient.cancelQueries({ queryKey: ['operacaoSelf', user?.pk] });
+            const previous = queryClient.getQueryData(['operacaoSelf', user?.pk]);
 
             // Optimistic: mover tarefa de pending para completed
-            queryClient.setQueryData(['operacaoSelf'], (old) => {
+            queryClient.setQueryData(['operacaoSelf', user?.pk], (old) => {
                 if (!old) return old;
                 const task = (old.pending || []).find(t => t.pk === taskId);
                 return {
@@ -155,18 +160,34 @@ export const useOperationTasks = (options = {}) => {
         },
         onError: (_err, _variables, context) => {
             if (context?.previous) {
-                queryClient.setQueryData(['operacaoSelf'], context.previous);
+                queryClient.setQueryData(['operacaoSelf', user?.pk], context.previous);
             }
             notification.error('Erro ao concluir tarefa');
         },
         onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['operacaoSelf'] });
+            queryClient.invalidateQueries({ queryKey: ['operacaoSelf', user?.pk] });
         },
     });
 
     const completeTask = useCallback(async (taskId, completionData) => {
         return completeTaskMutation.mutateAsync({ taskId, completionData });
     }, [completeTaskMutation]);
+
+    // Mutation para criar tarefa directa
+    const createTaskMutation = useMutation({
+        mutationFn: (data) => operationService.createOperacaoDirect(data),
+        onSuccess: () => {
+            notification.success('Tarefa registada com sucesso');
+            queryClient.invalidateQueries({ queryKey: ['operacaoSelf', user?.pk] });
+        },
+        onError: () => {
+            notification.error('Erro ao registar tarefa');
+        },
+    });
+
+    const createTask = useCallback(async (data) => {
+        return createTaskMutation.mutateAsync(data);
+    }, [createTaskMutation]);
 
     return {
         tasks: pendingTasks,
@@ -183,5 +204,7 @@ export const useOperationTasks = (options = {}) => {
         completeTask,
         isCompleting: completeTaskMutation.isPending,
         completeError: completeTaskMutation.error,
+        createTask,
+        isCreating: createTaskMutation.isPending,
     };
 };

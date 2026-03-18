@@ -1,10 +1,10 @@
-# DeployUI.ps1
-# Interface de usuário para o sistema de deployment
+﻿# DeployUI.ps1
+# Interface de utilizador para o sistema de deployment
 # Autor: Sistema Modular
 # Data: 2025
 
 # ============================================================================
-# CLASSE DE INTERFACE DO USUÁRIO
+# CLASSE DE INTERFACE DO UTILIZADOR
 # ============================================================================
 
 class DeploymentUI {
@@ -45,7 +45,7 @@ class DeploymentUI {
             @{Number="4"; Text="Deployment apenas do Backend"; Color="Green"},
             @{Number="5"; Text="Deployment Frontend + Backend (sem Nginx)"; Color="Green"},
             @{Number="6"; Text="Criar/Atualizar apenas configuração Nginx"; Color="Green"},
-            @{Number="7"; Text="Ver estado dos arquivos"; Color="Green"},
+            @{Number="7"; Text="Ver estado dos ficheiros"; Color="Green"},
             @{Number="8"; Text="Informações do sistema"; Color="Blue"},
             @{Number="9"; Text="DIAGNOSTICO - Testar conectividade"; Color="Blue"},
             @{Number="10"; Text="DIAGNOSTICO - Ver estrutura do servidor"; Color="Blue"},
@@ -83,7 +83,7 @@ class DeploymentUI {
     
     [void] ShowFileStatus() {
         $this.ShowHeader()
-        $this.WriteColorLine("ESTADO DOS ARQUIVOS", "Cyan")
+        $this.WriteColorLine("ESTADO DOS FICHEIROS", "Cyan")
         $this.WriteColorLine("=" * 50, "Cyan")
         Write-Host ""
         
@@ -92,7 +92,7 @@ class DeploymentUI {
         Write-Host "Frontend Local:" -ForegroundColor Yellow
         if ($frontendInfo.LocalBuildExists) {
             $this.ShowStatus("Build existe: $($frontendInfo.LocalBuildPath)", "Success")
-            $this.ShowStatus("Arquivos: $($frontendInfo.LocalFileCount)", "Info")
+            $this.ShowStatus("Ficheiros: $($frontendInfo.LocalFileCount)", "Info")
             $this.ShowStatus("Tamanho: $([Math]::Round($frontendInfo.LocalBuildSize / 1MB, 2)) MB", "Info")
             if ($frontendInfo.LastBuildTime) {
                 $this.ShowStatus("Última modificação: $($frontendInfo.LastBuildTime)", "Info")
@@ -108,8 +108,8 @@ class DeploymentUI {
         Write-Host "Backend Local:" -ForegroundColor Yellow
         if ($backendInfo.LocalExists) {
             $this.ShowStatus("Diretório existe: $($backendInfo.LocalPath)", "Success")
-            $this.ShowStatus("Arquivos: $($backendInfo.LocalFileCount)", "Info")
-            $this.ShowStatus("Arquivos Python: $($backendInfo.LocalPythonFiles)", "Info")
+            $this.ShowStatus("Ficheiros: $($backendInfo.LocalFileCount)", "Info")
+            $this.ShowStatus("Ficheiros Python: $($backendInfo.LocalPythonFiles)", "Info")
         } else {
             $this.ShowStatus("Diretório não encontrado", "Error")
         }
@@ -123,15 +123,15 @@ class DeploymentUI {
             
             if ($backendInfo.RemoteExists) {
                 $this.ShowStatus("Backend remoto existe", "Success")
-                $this.ShowStatus("Arquivos remotos: $($backendInfo.RemoteFileCount)", "Info")
+                $this.ShowStatus("Ficheiros remotos: $($backendInfo.RemoteFileCount)", "Info")
             } else {
                 $this.ShowStatus("Backend remoto não encontrado", "Warning")
             }
         } else {
-            $this.ShowStatus("Não conectado - tentando conectar...", "Warning")
-            
+            $this.ShowStatus("Sem ligação - a tentar ligar...", "Warning")
+
             if (Connect-DeployServer) {
-                $this.ShowStatus("Conexão estabelecida!", "Success")
+                $this.ShowStatus("Ligação estabelecida!", "Success")
                 
                 # Reobter informações com conexão ativa
                 $backendInfo = Get-BackendDeploymentInfo
@@ -160,8 +160,8 @@ class DeploymentUI {
         # Configurações
         Write-Host "Configurações:" -ForegroundColor Yellow
         $this.ShowStatus("Servidor: $($Global:DeployConfig.ServerIP)", "Info")
-        $this.ShowStatus("Compartilhamento: $($Global:DeployConfig.CompartilhamentoNome)", "Info")
-        $this.ShowStatus("Usuário: $($Global:DeployConfig.Usuario)", "Info")
+        $this.ShowStatus("Partilha: $($Global:DeployConfig.CompartilhamentoNome)", "Info")
+        $this.ShowStatus("Utilizador: $($Global:DeployConfig.Usuario)", "Info")
         $this.ShowStatus("Backup habilitado: $($Global:DeployConfig.CriarBackup)", "Info")
         $this.ShowStatus("Verbose logging: $($Global:DeployConfig.VerboseLogging)", "Info")
         
@@ -200,7 +200,7 @@ class DeploymentUI {
         $results = Test-ServerConnectivity
         
         # Exibir resultados
-        Write-Host "Conectividade de Rede:" -ForegroundColor Yellow
+        Write-Host "Conectividade de rede:" -ForegroundColor Yellow
         if ($results.NetworkReachable) {
             $this.ShowStatus("Servidor acessível na porta 445", "Success")
         } else {
@@ -208,12 +208,12 @@ class DeploymentUI {
         }
         
         Write-Host ""
-        Write-Host "Acesso ao Compartilhamento:" -ForegroundColor Yellow
+        Write-Host "Acesso à Partilha:" -ForegroundColor Yellow
         if ($results.ShareAccessible) {
-            $this.ShowStatus("Compartilhamento acessível", "Success")
+            $this.ShowStatus("Partilha acessível", "Success")
             $this.ShowStatus("Credenciais válidas", "Success")
         } else {
-            $this.ShowStatus("Falha ao acessar compartilhamento", "Error")
+            $this.ShowStatus("Falha ao aceder à partilha", "Error")
         }
         
         Write-Host ""
@@ -236,7 +236,7 @@ class DeploymentUI {
         $this.WriteColorLine("=" * 50, "Cyan")
         Write-Host ""
         
-        $this.ShowStatus("Conectando ao servidor...", "Info")
+        $this.ShowStatus("A ligar ao servidor...", "Info")
         
         # USAR O SISTEMA MODULAR:
         Invoke-WithServerConnection -ScriptBlock {
@@ -249,7 +249,7 @@ class DeploymentUI {
                 $driveName = if (Get-PSDrive -Name "ServerDrive" -ErrorAction SilentlyContinue) { "ServerDrive:" } else { $Global:DeployConfig.Compartilhamento }
                 $rootItems = Get-ChildItem $driveName -ErrorAction Stop | Sort-Object -Property @('PSIsContainer','Name') -Descending
                                 foreach ($item in $rootItems) {
-                    $type = if ($item.PSIsContainer) { "[PASTA]" } else { "[ARQUIVO]" }
+                    $type = if ($item.PSIsContainer) { "[PASTA]" } else { "[FICHEIRO]" }
                     Write-Host "  $type $($item.Name)" -ForegroundColor $(if ($item.PSIsContainer) { "Cyan" } else { "White" })
                 }
                 
@@ -290,7 +290,7 @@ class DeploymentUI {
             
             foreach ($item in $items) {
                 if ($item -is [System.IO.FileSystemInfo]) {
-                    $type = if ($item.PSIsContainer) { "[PASTA]" } else { "[ARQUIVO]" }
+                    $type = if ($item.PSIsContainer) { "[PASTA]" } else { "[FICHEIRO]" }
                     $color = if ($item.PSIsContainer) { "Cyan" } else { "White" }
                     Write-Host "$indent$type $($item.Name)" -ForegroundColor $color
 
@@ -299,7 +299,7 @@ class DeploymentUI {
                         $this.ShowDirectoryStructure($item.FullName, $currentDepth + 1, $maxDepth)
                     }
                 } else {
-                    Write-Host "$indent[ARQUIVO] $item" -ForegroundColor White
+                    Write-Host "$indent[FICHEIRO] $item" -ForegroundColor White
                 }
             }
         }
@@ -332,7 +332,7 @@ class DeploymentUI {
                     $exclusions = Get-BackendExclusions
                     Write-Host "`nPastas excluídas:" -ForegroundColor Yellow
                     $exclusions.ExcludedFolders | ForEach-Object { Write-Host "  - $_" }
-                    Write-Host "`nArquivos excluídos:" -ForegroundColor Yellow
+                    Write-Host "`nFicheiros excluídos:" -ForegroundColor Yellow
                     $exclusions.ExcludedFiles | ForEach-Object { Write-Host "  - $_" }
                     $this.PauseForUser()
                 }
@@ -359,7 +359,7 @@ class DeploymentUI {
                         Write-Host "`nÚltimas 50 linhas do log:" -ForegroundColor Yellow
                         Get-Content $Global:DeployConfig.LogFile -Tail 50 | Write-Host
                     } else {
-                        $this.ShowStatus("Arquivo de log não encontrado", "Warning")
+                        $this.ShowStatus("Ficheiro de log não encontrado", "Warning")
                     }
                     $this.PauseForUser()
                 }
@@ -392,7 +392,7 @@ class DeploymentUI {
     }
     
     [string] GetUserChoice() {
-        return Read-Host "Digite a opção desejada"
+        return Read-Host "Introduza a opção pretendida"
     }
     
     [bool] ConfirmAction([string]$message) {

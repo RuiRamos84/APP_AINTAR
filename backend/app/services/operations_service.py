@@ -13,6 +13,28 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _emit_operacao_notif(notification_type: str, title: str, message: str,
+                         user_ids: list, meta_pk: int = None, operacao_pk: int = None):
+    """Helper para emitir notificação de operação via Socket.IO (falha silenciosamente)."""
+    try:
+        socketio_events = current_app.extensions.get('socketio_events')
+        if not socketio_events:
+            logger.warning(f"[OperaçãoNotif] socketio_events não encontrado em extensions")
+            return
+        clean_ids = [uid for uid in user_ids if uid]
+        logger.info(f"[OperaçãoNotif] type={notification_type} | destinatários={clean_ids} | "
+                    f"conectados={list(socketio_events.connected_users.keys())}")
+        socketio_events.emit_operacao_notification(
+            user_ids=clean_ids,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            meta_pk=meta_pk,
+            operacao_pk=operacao_pk,
+        )
+    except Exception as e:
+        logger.warning(f"[OperaçãoNotif] Falha ao emitir '{notification_type}': {e}")
+
 
 # ===================================================================
 # MODELOS DE DADOS COM PYDANTIC
@@ -103,6 +125,24 @@ class OperacaoUpdate(BaseModel):
     """Dados para atualizar operação - APENAS valuetext e valuememo permitidos"""
     valuetext: Optional[str] = Field(None, description="Texto de resposta/resultado")
     valuememo: Optional[str] = Field(None, description="Observações adicionais (facultativo)")
+
+
+class OperacaoDirect(BaseModel):
+    """Dados para criar operação direta via fbo_operacao$createdirect.
+
+    pk_instalacao: PK da ETAR ou EE (dinâmico), ou fixo: CAIXA=-2, REDE=-1
+    tt_operacaoaccao: Código da ação (100=Limpeza lamas, 101=Desobstrução,
+                      102=Reparação, 104=Vedação, 105=Desmatação,
+                      106=Rep. tampa, 6=Visita técnica)
+    clat/clong: Coordenadas GPS (obrigatórias para REDE=-1 e CAIXA=-2)
+    """
+    data: date = Field(..., description="Data da operação")
+    pk_instalacao: int = Field(..., description="PK da instalação (negativo para REDE/CAIXA)")
+    pk_operador: int = Field(..., gt=0, description="PK do operador")
+    tt_operacaoaccao: int = Field(..., gt=0, description="Código da ação")
+    memo: Optional[str] = Field(None, description="Observações/descrição")
+    clat: Optional[float] = Field(None, description="Latitude GPS")
+    clong: Optional[float] = Field(None, description="Longitude GPS")
 
 @api_error_handler
 def get_operations_data(current_user):
@@ -211,7 +251,6 @@ def get_operacao_data(current_user, filters: Dict[str, Any] = None):
         return {'name': 'Operações', 'total': 0, 'data': [], 'columns': []}
 
 
-@api_error_handler
 def get_operacao_self_data(user_id: int, current_user: str):
     """
     Obtém tarefas do utilizador - USA vbl_operacao$self
@@ -264,7 +303,19 @@ def create_operacao_meta(data: dict, current_user: str):
         result = meta_repo.create(meta_data.model_dump(), current_user)
 
         if result['success']:
-            return {'message': result['message'], 'pk': result['data']['pk']}, 201
+            meta_pk = result['data']['pk']
+            # Notificar operadores atribuídos
+            operators = [meta_data.ts_operador1]
+            if meta_data.ts_operador2:
+                operators.append(meta_data.ts_operador2)
+            _emit_operacao_notif(
+                notification_type='nova_tarefa',
+                title='Nova tarefa atribuída',
+                message=f'Foi-lhe atribuída uma nova tarefa programada.',
+                user_ids=operators,
+                meta_pk=meta_pk,
+            )
+            return {'message': result['message'], 'pk': meta_pk}, 201
         else:
             return {'error': result['error']}, 400
 
@@ -408,60 +459,71 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
         photo = completion_data.get('photo', None)
 
         with db_session_manager(current_user) as session:
-            # 1. Verificar permissão e obter dados da tarefa
-            check_query = text("""
-                SELECT pk, tb_instalacao
+            # 1. Verificar permissão e obter PKs brutos da tarefa
+            # vbl_operacao$self aplica lógica correcta de updatedelay (inclui tarefas de dias anteriores não concluídas)
+            task = session.execute(text("""
+                SELECT pk, pk_instalacao, pk_operacaoaccao
                 FROM "vbl_operacao$self"
                 WHERE pk = :task_id
-            """)
-            task = session.execute(check_query, {'task_id': task_id}).fetchone()
+            """), {'task_id': task_id}).fetchone()
 
             if not task:
                 return {'success': False, 'error': 'Tarefa não encontrada ou sem permissão'}
 
-            instalacao_nome = task.tb_instalacao
+            pk_instalacao = task.pk_instalacao
+            pk_accao = task.pk_operacaoaccao
             photo_path = None
 
             # 2. Guardar foto se fornecida
             if photo:
                 try:
+                    # Obter nome da instalação para o path da foto
+                    inst = session.execute(text(
+                        "SELECT nome FROM tb_instalacao WHERE pk = :pk"
+                    ), {'pk': pk_instalacao}).fetchone()
                     photo_path = save_operation_photo(
                         photo_file=photo,
                         operation_pk=task_id,
-                        instalacao_nome=instalacao_nome,
+                        instalacao_nome=inst.nome if inst else str(pk_instalacao),
                         current_user=current_user
                     )
                     logger.info(f"Foto guardada para operação {task_id}: {photo_path}")
                 except Exception as photo_error:
                     logger.error(f"Erro ao guardar foto: {str(photo_error)}")
-                    # Continuar sem a foto - não deve bloquear a conclusão
                     photo_path = None
 
-            # 3. Atualizar tarefa com resultado, comentário e caminho da foto
-            update_fields = ['valuetext = :valuetext']
-            params = {'valuetext': valuetext, 'task_id': task_id}
+            # 3. Concluir via fbf_operacao(pop=1) — trata updt_client, updt_time e leituras especiais
+            session.execute(text("""
+                SELECT fbf_operacao(
+                    1, :pk, NULL, NULL, :tb_instalacao, NULL, NULL, NULL,
+                    :tt_operacaoaccao, :valuetext, :valuememo, NULL, NULL
+                )
+            """), {
+                'pk': task_id,
+                'tb_instalacao': pk_instalacao,
+                'tt_operacaoaccao': pk_accao,
+                'valuetext': valuetext or '',
+                'valuememo': valuememo or None,
+            })
 
-            if valuememo:
-                update_fields.append('valuememo = :valuememo')
-                params['valuememo'] = valuememo
-
+            # 4. Guardar path da foto se existir (campo não coberto pelo fbf)
             if photo_path:
-                update_fields.append('photo_path = :photo_path')
-                params['photo_path'] = photo_path
+                session.execute(text("""
+                    UPDATE vbf_operacao SET photo_path = :photo_path WHERE pk = :pk
+                """), {'photo_path': photo_path, 'pk': task_id})
 
-            update_query = text(f"""
-                UPDATE vbf_operacao
-                SET {', '.join(update_fields)}
-                WHERE pk = :task_id
-            """)
-
-            result = session.execute(update_query, params)
-            rows_affected = result.rowcount
-            logger.info(f"UPDATE vbf_operacao pk={task_id}: {rows_affected} linhas afetadas, valuetext='{valuetext}'")
-
-            if rows_affected == 0:
-                logger.warning(f"UPDATE vbf_operacao não afetou nenhuma linha para pk={task_id}")
-                return {'success': False, 'error': 'Tarefa não pôde ser atualizada'}
+            # 5. Obter meta associada para notificar supervisor
+            meta_row = session.execute(text("""
+                SELECT tb_operacaometa, tb_instalacao FROM vbl_operacao WHERE pk = :pk
+            """), {'pk': task_id}).fetchone()
+            meta_pk_for_notif = meta_row.tb_operacaometa if meta_row else None
+            instalacao_nome = meta_row.tb_instalacao if meta_row else ''
+            supervisor_pk = None
+            if meta_pk_for_notif:
+                sup_row = session.execute(text(
+                    "SELECT ins_client FROM tb_operacaometa WHERE pk = :pk"
+                ), {'pk': meta_pk_for_notif}).fetchone()
+                supervisor_pk = sup_row.ins_client if sup_row else None
 
             session.commit()
 
@@ -475,6 +537,17 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
                 response_data['valuememo'] = valuememo
             if photo_path:
                 response_data['photo_path'] = photo_path
+
+            # Notificar supervisor após commit
+            if supervisor_pk:
+                _emit_operacao_notif(
+                    notification_type='tarefa_executada',
+                    title='Tarefa executada',
+                    message=f'Tarefa em {instalacao_nome or "instalação"} foi concluída pelo operador.',
+                    user_ids=[supervisor_pk],
+                    meta_pk=meta_pk_for_notif,
+                    operacao_pk=task_id,
+                )
 
             return {
                 'success': True,
@@ -560,6 +633,92 @@ def get_operations_by_operator(operator_id: int, current_user: str):
 # ===================================================================
 # FUNÇÕES PARA CRIAR/ATUALIZAR OPERAÇÕES (EXECUÇÕES REAIS)
 # ===================================================================
+
+@api_error_handler
+def create_operacao_direct(data: dict, current_user: str):
+    """
+    Criar operação direta via fbo_operacao$createdirect.
+
+    Chama a função PostgreSQL que cria a operação e aplica o updatedelay.
+    Retorna o PK criado.
+
+    Campos obrigatórios:
+    - data: Data da operação
+    - pk_instalacao: PK da instalação (ETAR/EE dinâmico, CAIXA=3, REDE=4)
+    - pk_operador: PK do operador
+    - tt_operacaoaccao: Código da ação
+
+    Campos opcionais:
+    - memo: Notas/descrição
+    """
+    try:
+        operacao_data = OperacaoDirect.model_validate(data)
+
+        with db_session_manager(current_user) as session:
+            has_coords = operacao_data.clat is not None and operacao_data.clong is not None
+
+            if has_coords:
+                query = text("""
+                    SELECT "fbo_operacao$createdirect"(
+                        :data, :pk_instalacao, :pk_operador, :tt_operacaoaccao, :memo,
+                        :clat, :clong
+                    )
+                """)
+                params = {
+                    'data': operacao_data.data,
+                    'pk_instalacao': operacao_data.pk_instalacao,
+                    'pk_operador': operacao_data.pk_operador,
+                    'tt_operacaoaccao': operacao_data.tt_operacaoaccao,
+                    'memo': operacao_data.memo or '',
+                    'clat': operacao_data.clat,
+                    'clong': operacao_data.clong,
+                }
+            else:
+                query = text("""
+                    SELECT "fbo_operacao$createdirect"(
+                        :data, :pk_instalacao, :pk_operador, :tt_operacaoaccao, :memo
+                    )
+                """)
+                params = {
+                    'data': operacao_data.data,
+                    'pk_instalacao': operacao_data.pk_instalacao,
+                    'pk_operador': operacao_data.pk_operador,
+                    'tt_operacaoaccao': operacao_data.tt_operacaoaccao,
+                    'memo': operacao_data.memo or '',
+                }
+
+            result = session.execute(query, params).scalar()
+
+            session.commit()
+
+            coords_info = f", coords=({operacao_data.clat},{operacao_data.clong})" if has_coords else ""
+            logger.info(
+                f"Operação direta criada: pk={result}, instalacao={operacao_data.pk_instalacao}, "
+                f"acao={operacao_data.tt_operacaoaccao}, operador={operacao_data.pk_operador}{coords_info}"
+            )
+
+            return {
+                'success': True,
+                'message': 'Operação registada com sucesso.',
+                'pk': result
+            }, 201
+
+    except ValueError as e:
+        logger.error(f"Validação OperacaoDirect: {str(e)}")
+        return {'success': False, 'error': f'Dados inválidos: {str(e)}'}, 400
+    except SQLAlchemyError as e:
+        import re
+        match = re.search(r'<error>(.*?)</error>', str(e))
+        if match:
+            msg = match.group(1)
+            logger.warning(f"Regra de negócio OperacaoDirect: {msg}")
+            return {'success': False, 'error': msg}, 409
+        logger.error(f"BD OperacaoDirect: {str(e)}")
+        return {'success': False, 'error': 'Erro ao criar operação'}, 500
+    except Exception as e:
+        logger.error(f"Erro inesperado OperacaoDirect: {str(e)}")
+        return {'success': False, 'error': 'Erro interno do servidor'}, 500
+
 
 @api_error_handler
 def create_operacao(data: dict, current_user: str):

@@ -43,6 +43,7 @@ class Config:
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
 
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER')
+    MAX_CONTENT_LENGTH = 210 * 1024 * 1024  # 210 MB (vídeos)
 
     # Configurações do Limiter
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
@@ -56,8 +57,7 @@ class Config:
     CACHE_DEFAULT_TIMEOUT = 300
 
     # Configurações SIBS
-    SIBS_BASE_URL = os.getenv(
-        'SIBS_BASE_URL', 'https://api.qly.sibspayments.com/sibs/spg/v2/payments')
+    SIBS_BASE_URL = os.getenv('SIBS_BASE_URL')
     SIBS_TERMINAL_ID = os.getenv('SIBS_TERMINAL_ID')
     SIBS_CLIENT_ID = os.getenv('SIBS_CLIENT_ID')
     SIBS_MERCHANT_ID = os.getenv('SIBS_MERCHANT_ID')

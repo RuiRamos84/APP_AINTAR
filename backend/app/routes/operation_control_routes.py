@@ -20,13 +20,29 @@ bp = Blueprint('operation_control', __name__, url_prefix='/api/v1/operation_cont
 @set_session
 def query_control():
     """
-    Consultar tarefas de operação para controlo
-
-    Body:
-    {
-        "tb_instalacao": 123,
-        "last_days": 10
-    }
+    Consultar Controlo de Tarefas
+    ---
+    tags:
+      - Operações Instalações (Controlo)
+    summary: Avalia as tarefas agendadas face ao report diário das Instalações filtrando a pesquisa.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tb_instalacao:
+              type: integer
+            last_days:
+              type: integer
+    responses:
+      200:
+        description: Listagem de operações.
     """
     current_user = get_jwt_identity()
     data = request.get_json()
@@ -42,15 +58,36 @@ def query_control():
 @set_session
 def update_control():
     """
-    Atualizar controlo de uma tarefa (suporta multipart/form-data para arquivos)
-
-    FormData:
-        pk: int
-        control_check: int
-        control_tt_operacaocontrolo: int (opcional)
-        control_memo: str (opcional)
-        control_foto: str (opcional)
-        files: File[] (até 5 arquivos)
+    Atualizar Tarefa (Com Anexos)
+    ---
+    tags:
+      - Operações Instalações (Controlo)
+    summary: Edita ou finaliza a verificação de controlo da Instalação/Rota. Suporta form-data com array de ficheiros.
+    security:
+      - BearerAuth: []
+    consumes:
+      - multipart/form-data
+      - application/json
+    parameters:
+      - in: formData
+        name: pk
+        type: integer
+      - in: formData
+        name: control_check
+        type: integer
+      - in: formData
+        name: control_memo
+        type: string
+      - in: formData
+        name: files
+        type: file
+      - in: body
+        name: body
+        schema:
+          type: object
+    responses:
+      200:
+        description: Registo e anexos guardados.
     """
     current_user = get_jwt_identity()
 
@@ -70,7 +107,18 @@ def update_control():
 @require_permission(310)
 @set_session
 def get_municipalities():
-    """Obter lista de municípios/associados"""
+    """
+    Obter Municípios Abrangidos
+    ---
+    tags:
+      - Core (Sistema e Metadados)
+    summary: Tabela de lookup para municípios com instalações do sistema associadas aplicáveis.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Lista de IDs/Nomes.
+    """
     current_user = get_jwt_identity()
 
     result, status_code = operation_control_service.get_municipalities(current_user)
@@ -83,7 +131,18 @@ def get_municipalities():
 @require_permission(310)
 @set_session
 def get_installation_types():
-    """Obter tipos de instalação"""
+    """
+    Obter Tipologias de Instalação
+    ---
+    tags:
+      - Core (Sistema e Metadados)
+    summary: Exemplos incluem ETAR, EE, Reservatório, Furo, etc. Lookup Array.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Tipos.
+    """
     current_user = get_jwt_identity()
 
     result, status_code = operation_control_service.get_installation_types(current_user)
@@ -97,11 +156,25 @@ def get_installation_types():
 @set_session
 def get_installations():
     """
-    Obter instalações filtradas
-
-    Query params:
-    - municipio_pk: int
-    - tipo_pk: int
+    Filtrar Instalações (Hierarquia Combinada)
+    ---
+    tags:
+      - Operações Instalações (Controlo)
+    summary: Cruza dados de Municípios e Tipologias para listar de forma dependente as estruturas.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: municipio_pk
+        type: integer
+        required: true
+      - in: query
+        name: tipo_pk
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Conjunto de Instalações.
     """
     current_user = get_jwt_identity()
 
@@ -117,15 +190,106 @@ def get_installations():
     return jsonify(result), status_code
 
 
+@bp.route('/annexes/<int:pk>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission(310)
+@set_session
+def get_annexes(pk):
+    """
+    Listar Anexos de Operação (tb_operacao_annex)
+    ---
+    tags:
+      - Operações Instalações (Controlo)
+    summary: Puxa o conjunto de files associado ao detalhe da Operação ID.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Array de IDs de anexos/nomes.
+    """
+    current_user = get_jwt_identity()
+    result, status_code = operation_control_service.get_control_annexes(pk, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/annex/<int:annex_pk>/download', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission(310)
+@set_session
+def download_annex(annex_pk):
+    """
+    Download Direto de Anexo Controlado
+    ---
+    tags:
+      - Operações Instalações (Controlo)
+    summary: Obtém em stream o arquivo correspondente na Storage.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: annex_pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: File.
+    """
+    current_user = get_jwt_identity()
+
+    info_result, status_code = operation_control_service.get_annex_file_info(annex_pk, current_user)
+    if status_code != 200:
+        return jsonify(info_result), status_code
+
+    tb_operacao = info_result['tb_operacao']
+    filename = info_result['filename']
+    descr = info_result['descr']
+
+    base_path = current_app.config.get('FILES_DIR', '/app/files')
+    operation_folder = os.path.join(base_path, f'Operação_{tb_operacao}')
+    file_path = os.path.join(operation_folder, filename)
+
+    if not os.path.exists(file_path):
+        logger.error(f"Ficheiro não encontrado: {file_path}")
+        return jsonify({'error': 'Ficheiro não encontrado'}), 404
+
+    if not os.path.abspath(file_path).startswith(os.path.abspath(base_path)):
+        return jsonify({'error': 'Acesso negado'}), 403
+
+    return send_file(file_path, as_attachment=False, download_name=descr)
+
+
 @bp.route('/download/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
 @require_permission(310)
 def download_attachment(pk):
     """
-    Download de anexo de operação
-
-    URL: /operation_control/download/{pk}?filename={filename}
+    Ponto de Partilha/Acesso Seguro ao Storage
+    ---
+    tags:
+      - Operações Instalações (Controlo)
+    summary: Valida acesso HTTP com base na Path original associada à operação submetida.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+      - in: query
+        name: filename
+        type: string
+        required: true
+    responses:
+      200:
+        description: Emissão do anexo descarregado.
     """
     try:
         logger.info(f"Download solicitado para pk={pk}")

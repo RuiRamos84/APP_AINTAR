@@ -44,9 +44,35 @@ export const operationService = {
     return response;
   },
 
-  /** Todas as operações (supervisor) */
-  getOperacao: async () => {
-    const response = await apiClient.get('/operacao');
+  /** Todas as operações (supervisor) — aceita filtros opcionais */
+  getOperacao: async ({ fromDate, toDate, instalacaoPk } = {}) => {
+    const params = {};
+    if (fromDate) params.from_date = fromDate;
+    if (toDate) params.to_date = toDate;
+    if (instalacaoPk) params.instalacao_pk = instalacaoPk;
+    const response = await apiClient.get('/operacao', { params });
+    return response;
+  },
+
+  /** Criar nova operação (execução real ad-hoc) */
+  createOperacao: async (data) => {
+    const response = await apiClient.post('/operacao', data);
+    return response;
+  },
+
+  /**
+   * Criar operação direta via fbo_operacao$createdirect.
+   * Usada para registos rápidos ETAR/EE/REDE/CAIXA.
+   * @param {{ data, pk_instalacao, pk_operador, tt_operacaoaccao, memo? }} data
+   */
+  createOperacaoDirect: async (data) => {
+    const response = await apiClient.post('/operacao_direct', data);
+    return response;
+  },
+
+  /** Atualizar operação existente (execução real) */
+  updateOperacao: async (id, data) => {
+    const response = await apiClient.put(`/operacao/${id}`, data);
     return response;
   },
 
@@ -161,5 +187,40 @@ export const operationService = {
       { responseType: 'blob' }
     );
     return response;
-  }
+  },
+
+  /** Listar anexos de uma operação (tb_operacao_annex) */
+  getControlAnnexes: async (operationPk) => {
+    const response = await apiClient.get(`/operation_control/annexes/${operationPk}`);
+    return response;
+  },
+
+  /** Download/preview de um anexo pelo seu pk */
+  downloadControlAnnex: async (annexPk) => {
+    const response = await apiClient.get(
+      `/operation_control/annex/${annexPk}/download`,
+      { responseType: 'blob' }
+    );
+    return response;
+  },
+
+  // ============================================================
+  // REQUISIÇÃO INTERNA
+  // ============================================================
+
+  /** Criar requisição interna (tipo 19) */
+  createRequisicaoInterna: async (pnmemo) => {
+    const response = await apiClient.post('/requisicao_interna', { pnmemo });
+    return response;
+  },
+
+  // ============================================================
+  // PEDIDOS - vbr_document_* views (supervisor)
+  // ============================================================
+
+  /** Pedidos agrupados por tipo (vbr_document_* views) */
+  fetchPedidosData: async () => {
+    const response = await apiClient.get('/operations');
+    return response;
+  },
 };

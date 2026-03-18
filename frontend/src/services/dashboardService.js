@@ -5,11 +5,21 @@ import api from "./api";
  * Integração com a nova estrutura de categorias e views
  */
 
+// Limpar cache do dashboard no backend (força nova leitura da BD)
+export const clearDashboardCache = async () => {
+    try {
+        const response = await api.post('/dashboard/cache/clear');
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao limpar cache do dashboard:', error);
+        throw error;
+    }
+};
+
 // Buscar estrutura do dashboard (categorias e views disponíveis)
 export const getDashboardStructure = async () => {
     try {
         const response = await api.get('/dashboard/structure');
-        console.log('Estrutura do dashboard:', response.data);
         return response.data;
     } catch (error) {
         console.error('Erro ao buscar estrutura do dashboard:', error);
@@ -26,7 +36,6 @@ export const getDashboardViewData = async (viewName, filters = {}) => {
 
         const url = `/dashboard/view/${viewName}${params.toString() ? '?' + params.toString() : ''}`;
         const response = await api.get(url);
-        console.log(`Dados da view ${viewName}:`, response.data);
         return response.data;
     } catch (error) {
         console.error(`Erro ao buscar dados da view ${viewName}:`, error);
@@ -43,7 +52,6 @@ export const getDashboardCategoryData = async (category, filters = {}) => {
 
         const url = `/dashboard/category/${category}${params.toString() ? '?' + params.toString() : ''}`;
         const response = await api.get(url);
-        console.log(`Dados da categoria ${category}:`, response.data);
         return response.data;
     } catch (error) {
         console.error(`Erro ao buscar dados da categoria ${category}:`, error);
@@ -60,10 +68,20 @@ export const getAllDashboardData = async (filters = {}) => {
 
         const url = `/dashboard/all${params.toString() ? '?' + params.toString() : ''}`;
         const response = await api.get(url);
-        console.log('Todos os dados do dashboard:', response.data);
         return response.data;
     } catch (error) {
         console.error('Erro ao buscar todos os dados do dashboard:', error);
+        throw error;
+    }
+};
+
+// Buscar dados da landing page do dashboard (todas as views de resumo)
+export const getLandingData = async () => {
+    try {
+        const response = await api.get('/dashboard/landing');
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar dados da landing page:', error);
         throw error;
     }
 };

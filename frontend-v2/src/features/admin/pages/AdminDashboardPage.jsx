@@ -1,216 +1,139 @@
 /**
  * AdminDashboardPage
- * Dashboard administrativo com estatísticas e métricas do sistema
- *
- * Features:
- * - Visão geral de utilizadores, tarefas, documentos
- * - Gráficos e estatísticas
- * - Ações rápidas de administração
+ * Dashboard administrativo com estatísticas reais do sistema
  */
 
 import {
-  Box,
-  Container,
-  Grid,
-  Paper,
-  Typography,
-  Card,
-  CardContent,
-  CardHeader,
-  useMediaQuery,
-  useTheme,
+  Box, Grid, Card, CardContent, Typography, Button,
+  Stack, Chip, Skeleton, useTheme, alpha,
 } from '@mui/material';
 import {
   People as PeopleIcon,
   Assignment as TasksIcon,
   Description as DocumentsIcon,
   AdminPanelSettings as AdminIcon,
+  Settings as ConfigIcon,
+  History as LogsIcon,
+  Build as ActionsIcon,
+  VpnKey as PermissionsIcon,
+  ArrowForward as ArrowIcon,
 } from '@mui/icons-material';
-import { FadeIn } from '@/shared/components/animation';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { ModulePage } from '@/shared/components/layout/ModulePage';
+import apiClient from '@/services/api/client';
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+const useAdminStats = () =>
+  useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: () => apiClient.get('/admin/stats'),
+    staleTime: 60 * 1000,
+    select: (res) => res?.stats ?? res ?? null,
+    retry: 1,
+  });
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+const StatCard = ({ title, value, icon: Icon, color, loading }) => {
+  const theme = useTheme();
+  return (
+    <Card variant="outlined" sx={{ bgcolor: alpha(theme.palette[color]?.main || '#000', 0.04) }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette[color]?.main || '#000', 0.15) }}>
+            <Icon sx={{ color: `${color}.main`, fontSize: 22 }} />
+          </Box>
+        </Box>
+        {loading ? (
+          <Skeleton variant="text" width={60} height={40} />
+        ) : (
+          <Typography variant="h4" fontWeight={800} color={`${color}.main`}>{value ?? '—'}</Typography>
+        )}
+        <Typography variant="caption" color="text.secondary">{title}</Typography>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ─── Quick Link ───────────────────────────────────────────────────────────────
+
+const QuickLink = ({ title, description, path, icon: Icon, color }) => {
+  const navigate = useNavigate();
+  const theme = useTheme();
+  return (
+    <Card
+      variant="outlined"
+      onClick={() => navigate(path)}
+      sx={{
+        cursor: 'pointer',
+        transition: '0.2s',
+        '&:hover': { boxShadow: 2, borderColor: color, transform: 'translateY(-2px)' },
+      }}
+    >
+      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(color, 0.12), flexShrink: 0 }}>
+          <Icon sx={{ color, fontSize: 20 }} />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={600} noWrap>{title}</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>{description}</Typography>
+        </Box>
+        <ArrowIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+      </CardContent>
+    </Card>
+  );
+};
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
 
 const AdminDashboardPage = () => {
-  // Responsividade
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { data: stats, isLoading } = useAdminStats();
 
-  // TODO: Fetch real statistics from API
-  const stats = [
-    {
-      title: 'Total de Utilizadores',
-      value: '127',
-      icon: PeopleIcon,
-      color: 'primary.main',
-      change: '+12%',
-    },
-    {
-      title: 'Tarefas Ativas',
-      value: '43',
-      icon: TasksIcon,
-      color: 'success.main',
-      change: '+5%',
-    },
-    {
-      title: 'Documentos',
-      value: '892',
-      icon: DocumentsIcon,
-      color: 'info.main',
-      change: '+23%',
-    },
-    {
-      title: 'Admins Ativos',
-      value: '8',
-      icon: AdminIcon,
-      color: 'warning.main',
-      change: '0%',
-    },
+  const statCards = [
+    { title: 'Utilizadores', value: stats?.total_users,   icon: PeopleIcon,   color: 'primary' },
+    { title: 'Tarefas Ativas', value: stats?.active_tasks, icon: TasksIcon,    color: 'success' },
+    { title: 'Documentos',    value: stats?.total_docs,    icon: DocumentsIcon, color: 'info' },
+    { title: 'Administradores', value: stats?.admin_count, icon: AdminIcon,    color: 'warning' },
+  ];
+
+  const quickLinks = [
+    { title: 'Utilizadores', description: 'Gerir contas e permissões', path: '/admin/users', icon: PeopleIcon, color: '#2196f3' },
+    { title: 'Permissões', description: 'Configurar acessos por perfil', path: '/admin/permissions', icon: PermissionsIcon, color: '#9c27b0' },
+    { title: 'Configurações', description: 'Parâmetros e estado do sistema', path: '/admin/config', icon: ConfigIcon, color: '#f44336' },
+    { title: 'Logs de Atividade', description: 'Auditoria de ações', path: '/admin/activity-logs', icon: LogsIcon, color: '#ff9800' },
+    { title: 'Logs de Sessões', description: 'Histórico de autenticações', path: '/admin/session-logs', icon: LogsIcon, color: '#607d8b' },
+    { title: 'Ações', description: 'Manutenção e ferramentas', path: '/admin/actions', icon: ActionsIcon, color: '#795548' },
   ];
 
   return (
-      <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
-        {/* Header */}
-        <FadeIn direction="down">
-          <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-            <Typography
-              variant={isMobile ? 'h5' : 'h4'}
-              component="h1"
-              fontWeight="bold"
-              gutterBottom
-            >
-              Dashboard Admin
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Visão geral do sistema e estatísticas administrativas
-            </Typography>
-          </Box>
-        </FadeIn>
-
-        {/* Statistics Cards */}
-        <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Grid size={{ xs: 6, sm: 6, md: 3 }} key={stat.title}>
-                <FadeIn delay={0.1 * (index + 1)}>
-                  <Card
-                    sx={{
-                      height: '100%',
-                      transition: 'transform 0.2s, box-shadow 0.2s',
-                      '&:hover': {
-                        transform: isMobile ? 'none' : 'translateY(-4px)',
-                        boxShadow: isMobile ? 1 : 4,
-                      },
-                    }}
-                  >
-                    <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 1, sm: 2 } }}>
-                        <Box
-                          sx={{
-                            bgcolor: stat.color,
-                            color: 'white',
-                            p: { xs: 1, sm: 1.5 },
-                            borderRadius: 2,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Icon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                        </Box>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            ml: 'auto',
-                            color: stat.change.startsWith('+') ? 'success.main' : 'text.secondary',
-                            fontWeight: 'bold',
-                            fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                          }}
-                        >
-                          {stat.change}
-                        </Typography>
-                      </Box>
-                      <Typography
-                        variant={isMobile ? 'h5' : 'h4'}
-                        fontWeight="bold"
-                        gutterBottom
-                        sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
-                      >
-                        {stat.value}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                      >
-                        {stat.title}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </FadeIn>
-              </Grid>
-            );
-          })}
-        </Grid>
-
-        {/* Content Areas */}
-        <Grid container spacing={{ xs: 2, sm: 3 }}>
-          {/* Recent Activity */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <FadeIn delay={0.5}>
-              <Paper sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
-                <Typography
-                  variant={isMobile ? 'subtitle1' : 'h6'}
-                  fontWeight="bold"
-                  gutterBottom
-                >
-                  Atividade Recente
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Últimas ações no sistema (Em desenvolvimento)
-                </Typography>
-                {/* TODO: Add activity timeline */}
-              </Paper>
-            </FadeIn>
+    <ModulePage
+      title="Sistema"
+      subtitle="Dashboard administrativo — visão geral e acesso rápido"
+      icon={AdminIcon}
+      color="#f44336"
+      breadcrumbs={[{ label: 'Sistema', path: '/admin' }, { label: 'Dashboard' }]}
+    >
+      {/* Stats */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {statCards.map((s) => (
+          <Grid key={s.title} size={{ xs: 6, sm: 3 }}>
+            <StatCard {...s} loading={isLoading} />
           </Grid>
+        ))}
+      </Grid>
 
-          {/* System Status */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <FadeIn delay={0.6}>
-              <Paper sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
-                <Typography
-                  variant={isMobile ? 'subtitle1' : 'h6'}
-                  fontWeight="bold"
-                  gutterBottom
-                >
-                  Estado do Sistema
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Status dos serviços e recursos (Em desenvolvimento)
-                </Typography>
-                {/* TODO: Add system status indicators */}
-              </Paper>
-            </FadeIn>
+      {/* Quick links */}
+      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Acesso Rápido</Typography>
+      <Grid container spacing={2}>
+        {quickLinks.map((link) => (
+          <Grid key={link.path} size={{ xs: 12, sm: 6, md: 4 }}>
+            <QuickLink {...link} />
           </Grid>
-
-          {/* Quick Actions */}
-          <Grid size={{ xs: 12 }}>
-            <FadeIn delay={0.7}>
-              <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography
-                  variant={isMobile ? 'subtitle1' : 'h6'}
-                  fontWeight="bold"
-                  gutterBottom
-                >
-                  Ações Rápidas
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Atalhos para tarefas administrativas comuns (Em desenvolvimento)
-                </Typography>
-                {/* TODO: Add quick action buttons */}
-              </Paper>
-            </FadeIn>
-          </Grid>
-        </Grid>
-      </Container>
+        ))}
+      </Grid>
+    </ModulePage>
   );
 };
 

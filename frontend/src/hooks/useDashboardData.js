@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { getAllDashboardData } from '../services/dashboardService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getAllDashboardData, clearDashboardCache } from '../services/dashboardService';
 
 /**
  * Hook para buscar e gerir os dados do Dashboard principal.
@@ -9,6 +9,8 @@ import { getAllDashboardData } from '../services/dashboardService';
  * @returns {object} - O estado da query, incluindo `data`, `isLoading`, `error`, e `refetch`.
  */
 export const useDashboardData = (filters = {}) => {
+    const queryClient = useQueryClient();
+
     // Normalizar year para o formato esperado
     let normalizedFilters = { ...filters };
 
@@ -25,13 +27,18 @@ export const useDashboardData = (filters = {}) => {
         error,
         refetch
     } = useQuery({
-        // A queryKey inclui os filtros para que os dados sejam cacheados separadamente
         queryKey: ['dashboardData', normalizedFilters],
         queryFn: () => getAllDashboardData(normalizedFilters),
-        staleTime: Infinity,         // Dados nunca ficam obsoletos automaticamente.
-        refetchOnWindowFocus: false, // Não atualiza ao voltar à janela.
-        refetchOnMount: false,       // Não atualiza ao navegar de volta (usa cache existente).
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
     });
 
-    return { dashboardData, isLoading, isFetching, isError, error, refetch };
+    const forceRefetch = async () => {
+        await clearDashboardCache();
+        queryClient.removeQueries({ queryKey: ['dashboardData'] });
+        return refetch();
+    };
+
+    return { dashboardData, isLoading, isFetching, isError, error, refetch, forceRefetch };
 };

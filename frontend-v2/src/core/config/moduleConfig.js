@@ -22,15 +22,14 @@ export const MODULES = {
     permissions: {
       // Acesso ao módulo (pelo menos UMA dessas permissões)
       required: [
-        PERMISSIONS.TASKS_VIEW,
         PERMISSIONS.TASKS_MY,
         PERMISSIONS.OPERATIONS_VIEW,
         PERMISSIONS.BRANCHES_VIEW,
         PERMISSIONS.SEPTIC_TANKS_VIEW,
       ]
     },
-    description: 'Gestão de tarefas e operações de campo',
-    defaultRoute: '/tasks',
+    description: 'Operações de campo e controlo operacional',
+    defaultRoute: '/operation',
   },
 
   GESTAO: {
@@ -87,7 +86,7 @@ export const MODULES = {
 
   ADMINISTRACAO: {
     id: 'administracao',
-    label: 'Administração',
+    label: 'Sistema',
     icon: AdminPanelSettings,
     color: '#f44336', // Vermelho
     order: 5,
@@ -98,25 +97,26 @@ export const MODULES = {
         PERMISSIONS.SYSTEM_CONFIG,
       ]
     },
-    description: 'Administração do sistema',
+    description: 'Administração do sistema, utilizadores e logs',
     defaultRoute: '/admin',
   },
 
   ADMINISTRATIVO: {
     id: 'administrativo',
-    label: 'Administrativo',
+    label: 'Interno',
     icon: Description,
     color: '#607d8b', // Cinza azulado
     order: 6,
     permissions: {
       required: [
+        PERMISSIONS.TASKS_VIEW,
         PERMISSIONS.EPI_MANAGEMENT,
         PERMISSIONS.INVENTORY_VIEW,
         PERMISSIONS.OFFICES_VIEW,
       ]
     },
-    description: 'Gestão administrativa e inventário',
-    defaultRoute: '/epi',
+    description: 'Tarefas administrativas, EPI, frota e inventário',
+    defaultRoute: '/tasks',
   },
 };
 
@@ -165,8 +165,7 @@ export const detectModuleFromPath = (pathname) => {
   // Mapeamento de prefixos de rota para módulos
   const pathModuleMap = {
     // OPERAÇÃO
-    '/tasks': 'operacao',
-    '/operations': 'operacao',
+    '/operation': 'operacao',
 
     // GESTÃO
     '/etar': 'gestao',
@@ -175,6 +174,7 @@ export const detectModuleFromPath = (pathname) => {
     '/telemetry': 'gestao',
     '/expenses': 'gestao',
     '/pavements': 'gestao',
+    '/emissoes': 'gestao',
 
     // PAGAMENTOS
     '/clients': 'pagamentos',
@@ -197,7 +197,10 @@ export const detectModuleFromPath = (pathname) => {
     '/requests': 'administracao',
 
     // ADMINISTRATIVO
+    '/tasks': 'administrativo',
+    '/internal': 'administrativo',
     '/epi': 'administrativo',
+    '/fleet': 'administrativo',
     '/inventory': 'administrativo',
     '/offices': 'administrativo',
     '/pedidos': 'administrativo',

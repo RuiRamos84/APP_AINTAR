@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app, request
+from flask import Blueprint, jsonify, current_app, request, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -7,7 +7,7 @@ from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 from ..services import dashboard_service
-from .. import db
+from .. import db, cache
 
 logger = get_logger(__name__)
 
@@ -20,7 +20,18 @@ bp = Blueprint('dashboard_routes', __name__)
 @require_permission(400)  # dashboard.view
 @api_error_handler
 def test_dashboard():
-    """Rota de teste para verificar disponibilidade das views"""
+    """
+    Testar Disponibilidade do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Rota de teste para verificar a acessibilidade das principais views do Data Warehouse reportadas no Dashboard.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Resultados do teste por view (Existe Sim/Não) e View count total.
+    """
     current_user = get_jwt_identity()
 
     test_views = [
@@ -76,7 +87,18 @@ def test_dashboard():
 @require_permission(400)  # dashboard.view
 @api_error_handler
 def get_structure():
-    """Obtém a estrutura completa do dashboard (categorias e views disponíveis)"""
+    """
+    Estrutura do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Obtém a árvore completa de configuração do dashboard (Grupos, Categorias, Metricas e Views associadas disponíveis).
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Estrutura em JSON hierárquico.
+    """
     structure = dashboard_service.get_dashboard_structure()
     return jsonify(structure), 200
 
@@ -85,10 +107,28 @@ def get_structure():
 @jwt_required()
 @require_permission(400)  # dashboard.view
 @api_error_handler
+@cache.cached(timeout=300, key_prefix=lambda: f"dashboard_all_{request.args.get('year', '')}_{request.args.get('month', '')}")
 def get_all_data():
     """
-    Obtém dados de todas as views do dashboard
-    Query params opcionais: year, month
+    Obter Todos os Dados do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Compila massivamente TODAS as estatísticas e views pre-computadas disponíveis no momento para exibição geral.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: year
+        type: string
+        description: Ano fiscal
+      - in: query
+        name: month
+        type: string
+        description: Mês fiscal
+    responses:
+      200:
+        description: Matriz com o total de dados renderizados para frontend dashboard components.
     """
     current_user = get_jwt_identity()
 
@@ -100,6 +140,8 @@ def get_all_data():
         filters['month'] = request.args.get('month')
 
     data = dashboard_service.get_dashboard_data(current_user, filters if filters else None)
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
     return jsonify(data), 200
 
 
@@ -109,9 +151,30 @@ def get_all_data():
 @api_error_handler
 def get_category_data(category):
     """
-    Obtém dados de todas as views de uma categoria específica
-    Categories: pedidos, ramais, fossas, instalacoes, analises, incumprimentos, repavimentacoes, transmitacoes
-    Query params opcionais: year, month
+    Obter Dados por Categoria de Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Solicita a extração e cálculo de widgets apenas para uma categoria em específico (pedidos, ramais, fossas, instalacoes).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: category
+        in: path
+        type: string
+        required: true
+        description: Slug da categoria
+      - in: query
+        name: year
+        type: string
+      - in: query
+        name: month
+        type: string
+    responses:
+      200:
+        description: Dados seccionados devolvidos.
+      400:
+        description: Categoria inválida.
     """
     current_user = get_jwt_identity()
 
@@ -122,15 +185,49 @@ def get_category_data(category):
     if request.args.get('month'):
         filters['month'] = request.args.get('month')
 
-    try:
-        data = dashboard_service.get_dashboard_category_data(
-            current_user,
-            category,
-            filters if filters else None
-        )
-        return jsonify(data), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    data = dashboard_service.get_dashboard_category_data(
+        current_user,
+        category,
+        filters if filters else None
+    )
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
+    return jsonify(data), 200
+
+
+@bp.route('/dashboard/cache/clear', methods=['POST'])
+@jwt_required()
+@require_permission(400)
+@api_error_handler
+def clear_dashboard_cache():
+    """Limpa o cache do dashboard, forçando nova leitura da base de dados."""
+    cache.clear()
+    return jsonify({'message': 'Cache do dashboard limpo com sucesso'}), 200
+
+
+@bp.route('/dashboard/landing', methods=['GET'])
+@jwt_required()
+@require_permission(400)  # dashboard.view
+@api_error_handler
+@cache.cached(timeout=300, key_prefix="dashboard_landing")
+def get_landing():
+    """
+    Dados da Landing Page do Dashboard
+    ---
+    tags:
+      - Dashboard
+    summary: Obtém dados agregados das 8 views da landing page (pedidos, ramais, fossas) num único pedido.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Dicionário indexado por view com data e columns.
+    """
+    current_user = get_jwt_identity()
+    data = dashboard_service.get_landing_data(current_user)
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
+    return jsonify(data), 200
 
 
 @bp.route('/dashboard/view/<view_name>', methods=['GET'])
@@ -139,14 +236,29 @@ def get_category_data(category):
 @api_error_handler
 def get_view_data(view_name):
     """
-    Obtém dados de uma view específica do dashboard
-    Query params opcionais: year, month
-
-    Exemplos de view_name:
-    - vds_pedido_01$001
-    - vds_ramal_01$002
-    - vds_fossa_01$003
-    - vds_instalacao_01$001
+    Consultar Gráfico Específico (Por View)
+    ---
+    tags:
+      - Dashboard
+    summary: Otimiza chamadas focando apenas na View desejada (Ex. vds_pedido_01$001) aplicando filtros sazonais.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: view_name
+        in: path
+        type: string
+        required: true
+      - in: query
+        name: year
+        type: string
+      - in: query
+        name: month
+        type: string
+    responses:
+      200:
+        description: Resultados da Base de Dados da Query View.
+      400:
+        description: View Name não catalogado no dicionário.
     """
     current_user = get_jwt_identity()
 
@@ -157,12 +269,12 @@ def get_view_data(view_name):
     if request.args.get('month'):
         filters['month'] = request.args.get('month')
 
-    try:
-        data = dashboard_service.get_dashboard_view_data(
-            current_user,
-            view_name,
-            filters if filters else None
-        )
-        return jsonify(data), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    data = dashboard_service.get_dashboard_view_data(
+        current_user,
+        view_name,
+        filters if filters else None
+    )
+    # Service decorated with @api_error_handler returns (Response, status) on error
+    if isinstance(data, tuple) or isinstance(data, Response):
+        return data
+    return jsonify(data), 200

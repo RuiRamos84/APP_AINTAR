@@ -31,7 +31,18 @@ bp = Blueprint('tasks_routes', __name__)
 @set_session
 @api_error_handler
 def get_tasks():
-    """Listar todas as tarefas ativas"""
+    """
+    Listar Todas as Tarefas
+    ---
+    tags:
+      - Tarefas
+    summary: Retorna a coleção de todas as tarefas ativas do utilizador autenticado (dependendo das permissões).
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Lista de tarefas retornada com sucesso.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return list_tasks(current_user)
@@ -44,7 +55,26 @@ def get_tasks():
 @set_session
 @api_error_handler
 def new_task():
-    """Criar uma nova tarefa"""
+    """
+    Criar Nova Tarefa
+    ---
+    tags:
+      - Tarefas
+    summary: Regista uma nova tarefa no sistema (Pydantic validado no Serviço).
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Tarefa criada.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     # A validação dos campos é feita pelo Pydantic no serviço
@@ -58,7 +88,28 @@ def new_task():
 @set_session
 @api_error_handler
 def add_note(task_id):
-    """Adicionar nota a uma tarefa"""
+    """
+    Adicionar Nota à Tarefa
+    ---
+    tags:
+      - Tarefas
+    summary: Anexa uma anotação de Follow-up (Memo) a uma tarefa existente.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: note_data
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Nota anexada.
+    """
     current_user = get_jwt_identity()
     data = request.json
     # A validação do campo 'memo' é feita pelo Pydantic no serviço
@@ -73,7 +124,28 @@ def add_note(task_id):
 @set_session
 @api_error_handler
 def update_task_route(task_id):
-    """Atualizar detalhes de uma tarefa"""
+    """
+    Atualizar Tarefa
+    ---
+    tags:
+      - Tarefas
+    summary: Edita os atributos de configuração de uma determinada tarefa.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: update_data
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Tarefa Modificada.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     # A validação dos campos é feita pelo Pydantic no serviço
@@ -87,7 +159,23 @@ def update_task_route(task_id):
 @set_session
 @api_error_handler
 def close_task_route(task_id):
-    """Fechar uma tarefa"""
+    """
+    Concluir / Fechar Tarefa
+    ---
+    tags:
+      - Tarefas
+    summary: Altera o estado da tarefa para Concluída (Closed).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Tarefa fechada.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return close_task(task_id, current_user)
@@ -100,7 +188,23 @@ def close_task_route(task_id):
 @set_session
 @api_error_handler
 def reopen_task_route(task_id):
-    """Reabrir uma tarefa fechada"""
+    """
+    Reabrir Tarefa Antiga
+    ---
+    tags:
+      - Tarefas
+    summary: Restaura uma tarefa previamente fechada para o modo ativo.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Tarefa reaberta.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return reopen_task(task_id, current_user)
@@ -113,7 +217,31 @@ def reopen_task_route(task_id):
 @set_session
 @api_error_handler
 def update_task_status_route(task_id):
-    """Atualizar status de uma tarefa"""
+    """
+    Atualizar Status de Workflow
+    ---
+    tags:
+      - Tarefas
+    summary: Altera a label de progresso de uma tarefa específica.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: status_payload
+        required: true
+        schema:
+          type: object
+          properties:
+            status_id:
+              type: integer
+    responses:
+      200:
+        description: Estado atualizado.
+    """
     current_user = get_jwt_identity()
     user_id = get_jwt()["user_id"]
     data = request.json
@@ -133,7 +261,23 @@ def update_task_status_route(task_id):
 @set_session
 @api_error_handler
 def get_task_history_route(task_id):
-    """Consultar histórico de notas de uma tarefa"""
+    """
+    Timeline / Histórico da Tarefa
+    ---
+    tags:
+      - Tarefas
+    summary: Visualizar todos os eventos (criação, anotações, status updates) de uma tarefa.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Histórico carregado.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return get_task_history(task_id, current_user)
@@ -146,7 +290,23 @@ def get_task_history_route(task_id):
 @set_session
 @api_error_handler
 def update_task_notification(task_id):
-    """Atualiza a notificação da tarefa (por exemplo, marca como lida)."""
+    """
+    Marcar Notificação como Lida
+    ---
+    tags:
+      - Tarefas
+    summary: Oculta a flag de notificação visual do utilizador.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Flag Lida aplicada.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return update_task_note_notification(task_id, current_user)
@@ -158,7 +318,18 @@ def update_task_notification(task_id):
 @set_session
 @api_error_handler
 def get_notifications():
-    """Obter a contagem de notificações não lidas."""
+    """
+    Contagem de Notificações Unread
+    ---
+    tags:
+      - Tarefas
+    summary: Pede a Badge notification count para o header da UI.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Devolve 'count' (Inteiro).
+    """
     current_user = get_jwt_identity()
     user_id = get_jwt()["user_id"]
     with db_session_manager(current_user):

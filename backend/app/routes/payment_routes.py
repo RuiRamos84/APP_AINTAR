@@ -124,7 +124,23 @@ def check_payment_admin_permission():
 @set_session
 @api_error_handler
 def get_invoice_data(document_id):
-    """Obter dados da fatura"""
+    """
+    Obter Dados para Faturação / Cobrança
+    ---
+    tags:
+      - Pagamentos
+    summary: Puxa o valor em dívida de um determinado pedido/documento associado através de interceção em SIBS / Tarifários.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: document_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Devolve dados base de pagamento do documento.
+    """
     user = get_jwt_identity()
     try:
         data = payment_service.get_invoice_data(document_id, user)
@@ -152,7 +168,33 @@ def get_invoice_data(document_id):
 @set_session
 @api_error_handler
 def create_checkout():
-    """Criar checkout - validação de permissão implícita"""
+    """
+    Criar Nova Transação de Checkout
+    ---
+    tags:
+      - Pagamentos
+    summary: Configura internamente uma Sessão de Pagamento com intenção declarada de utilizar um método especificamente.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            document_id:
+              type: integer
+            amount:
+              type: number
+            payment_method:
+              type: string
+    responses:
+      200:
+        description: Sessão de compra autorizada.
+    """
     data = request.json or {}
     required = ["document_id", "amount", "payment_method"]
 
@@ -185,7 +227,24 @@ def create_checkout():
 @require_permission(700)  # payments.mbway
 @api_error_handler
 def process_mbway():
-    """Processar MBWay com verificação de permissão"""
+    """
+    Processar Pagamento (Integração SIBS MBWay)
+    ---
+    tags:
+      - Pagamentos
+    summary: Dispara uma notificação para a SIBS cobrar um token telefone indicado, associado ao checkout.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Requisitado via SIBS.
+    """
     # A validação dos campos é agora feita pelo Pydantic no serviço
     data = request.get_json()
     user = get_jwt_identity()
@@ -200,7 +259,24 @@ def process_mbway():
 @require_permission(710)  # payments.multibanco
 @api_error_handler
 def process_multibanco():
-    """Processar Multibanco com verificação de permissão"""
+    """
+    Processar Pagamento (Ref. MULTIBANCO)
+    ---
+    tags:
+      - Pagamentos
+    summary: Pede à SIBS a emissão de uma Entidade, Referência de Valor Fixo limitados à transação local do Utilizador.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Referências geradas (Entidade/Referência/Valor).
+    """
     data = request.get_json()
     user = get_jwt_identity()
     result = payment_service.process_multibanco_from_checkout(data, user)
@@ -213,7 +289,24 @@ def process_multibanco():
 @set_session
 @api_error_handler
 def register_manual_payment():
-    """Registar pagamento manual - ATUALIZADO PARA NOVO SISTEMA"""
+    """
+    Registar Pagamento (Métodos Manuais / Backoffice)
+    ---
+    tags:
+      - Pagamentos
+    summary: Informa o sistema que um pagamento via Transferência, Caixa Física ou Isenção Municipalística foi recebido com sucesso.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Registo interno concretizado.
+    """
     data = request.get_json()
     # ✅ USAR NOVO SISTEMA DE PERMISSÕES
     payment_method = data.get("payment_type")
@@ -236,7 +329,18 @@ def register_manual_payment():
 @set_session
 @api_error_handler
 def get_pending_payments():
-    """Listar pagamentos pendentes"""
+    """
+    Listar Pagamentos Pendentes de Validação (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Visão geral de faturas que aguardam confirmação do backoffice financeiro.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Matriz de registos e talões de pagamento entregues.
+    """
     user = get_jwt_identity()
     payments = payment_service.get_pending_payments(user)
     return jsonify({"success": True, "payments": payments}), 200
@@ -249,7 +353,23 @@ def get_pending_payments():
 @set_session
 @api_error_handler
 def get_payment_details(payment_pk):
-    """Detalhes do pagamento"""
+    """
+    Detalhes de Transação (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Carrega detalhadamente o log operacional, metadados SIBS e talão físico (quando existr) alocado na PK Transação.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: payment_pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Informação extensa sobre a transação.
+    """
     user = get_jwt_identity()
     details = payment_service.get_payment_details(payment_pk, user)
     if not details:
@@ -264,7 +384,23 @@ def get_payment_details(payment_pk):
 @set_session
 @api_error_handler
 def approve_payment(payment_pk):
-    """Aprovar pagamento"""
+    """
+    Confirmar / Aprovar Conciliação Bancaria (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Dá entrada à receita. Liberta eventuais passos bloqueados aguardando pagamento no Documento.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: payment_pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Operação concilida validamente com os parâmetros do Documento.
+    """
     user = get_jwt_identity()
     user_id, _, _, _ = get_user_permissions_from_jwt()
 
@@ -279,7 +415,37 @@ def approve_payment(payment_pk):
 @set_session
 @api_error_handler
 def get_payment_history():
-    """Histórico de pagamentos"""
+    """
+    Histórico Exaustivo (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Procura transações por método, datas e status (Com Paginação).
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: page_size
+        type: integer
+      - in: query
+        name: start_date
+        type: string
+      - in: query
+        name: end_date
+        type: string
+      - in: query
+        name: method
+        type: string
+      - in: query
+        name: status
+        type: string
+    responses:
+      200:
+        description: Tabelas devolvidas com totais gerais incluídos na resposta.
+    """
     user = get_jwt_identity()
     page = int(request.args.get('page', 1))
     page_size = min(int(request.args.get('page_size', 10)), 50)
@@ -294,6 +460,42 @@ def get_payment_history():
     result = payment_service.get_payment_history(user, page, page_size, filters)
     return jsonify(result), 200
 
+@bp.route("/payments/refund/<int:payment_pk>", methods=["POST"])
+@jwt_required()
+@require_permission(30)  # admin.payments
+@token_required
+@set_session
+@api_error_handler
+def refund_payment(payment_pk):
+    """
+    Efetuar Reembolso Parcial / Total (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Regista nota de crédito e extorno físico (Quando compatível via API SIBS/Entidades).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: payment_pk
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Extorno processado (nota devolvida com UUID transação).
+    """
+    data = request.get_json() or {}
+    reason = data.get("reason", "").strip()
+    user = get_jwt_identity()
+    result = payment_service.refund_payment(payment_pk, reason, user)
+    return jsonify(result), 200
+
+
 # ===== ENDPOINTS SEM RESTRIÇÕES =====
 
 
@@ -303,7 +505,23 @@ def get_payment_history():
 @set_session
 @api_error_handler
 def check_payment_status(transaction_id):
-    """Status da transação - sem restrições especiais"""
+    """
+    Verificar Estado da Transação (Póling)
+    ---
+    tags:
+      - Pagamentos
+    summary: Utilizada fundamentalmente nos ecrãs de Spinner para validar alterações de estado SIBS passivas (Via App MBWay user action).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: transaction_id
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Info (Status Concluído = 2/Paid).
+    """
     user = get_jwt_identity()
     result = payment_service.check_payment_status(transaction_id, user)
     return jsonify(result), 200
@@ -318,6 +536,130 @@ def webhook():
     """
     from app.routes.webhook_routes import sibs_webhook
     return sibs_webhook()
+
+
+# ===== ENDPOINTS DE ISENÇÕES =====
+
+
+@bp.route("/payments/exemptions/submit", methods=["POST"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def submit_exemption():
+    """
+    Declarar Isenção de Taxa / Tarifa
+    ---
+    tags:
+      - Pagamentos
+    summary: Formulação oficial de requerimento em fluxo para validar como Isento a liquidação (Apenas Entidades Municipais com Acordo).
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Pedido registado e entregue aos Admins (Tesouraria).
+    """
+    data = request.get_json() or {}
+    document_id = data.get("document_id")
+    if not document_id:
+        return jsonify({"error": "document_id é obrigatório"}), 400
+
+    user = get_jwt_identity()
+    result = payment_service.submit_exemption(document_id, user)
+    return jsonify(result), 200
+
+
+@bp.route("/payments/exemptions/pending", methods=["GET"])
+@jwt_required()
+@require_permission(30)  # admin.payments
+@token_required
+@set_session
+@api_error_handler
+def get_pending_exemptions():
+    """
+    Listar Pedidos de Isenção Pendentes (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Monitor Tesouraria com lista e dados de fundamentação das recusas operadas aos emolumentos base de um Pedido.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Array list.
+    """
+    user = get_jwt_identity()
+    exemptions = payment_service.get_pending_exemptions(user)
+    return jsonify({"success": True, "exemptions": exemptions}), 200
+
+
+@bp.route("/payments/exemptions/<int:payment_pk>/approve", methods=["PUT"])
+@jwt_required()
+@require_permission(30)  # admin.payments
+@token_required
+@set_session
+@api_error_handler
+def approve_exemption(payment_pk):
+    """
+    Aprovar/Dar Aval à Isenção de Custo (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Termina a transação a cêntimos/euros Zero prosseguindo o workflow de Documento formalmente (Ações Gratuitas Institucionais).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: payment_pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Sucesso.
+    """
+    user = get_jwt_identity()
+    user_id, _, _, _ = get_user_permissions_from_jwt()
+    result = payment_service.approve_exemption(payment_pk, user_id, user)
+    return jsonify(result), (200 if result.get("success") else 400)
+
+
+@bp.route("/payments/exemptions/<int:payment_pk>/reject", methods=["PUT"])
+@jwt_required()
+@require_permission(30)  # admin.payments
+@token_required
+@set_session
+@api_error_handler
+def reject_exemption(payment_pk):
+    """
+    Não Aprovar Isenção Tarifária (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Reabre o checkout obrigando efetivamente o requerente final a desembolsar/cobrar a Entidade os emolumentos pendentes sem desconto Instituição Município.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: payment_pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Sucesso.
+    """
+    user = get_jwt_identity()
+    user_id, _, _, _ = get_user_permissions_from_jwt()
+    result = payment_service.reject_exemption(payment_pk, user_id, user)
+    return jsonify(result), (200 if result.get("success") else 400)
+
 
 # ===== ENDPOINTS DE DEBUG =====
 

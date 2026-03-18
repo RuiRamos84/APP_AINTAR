@@ -19,14 +19,36 @@ bp = Blueprint('analysis', __name__, url_prefix='/api/v1/analysis')
 @set_session
 def query_analysis():
     """
-    Consultar análises de instalações
-
-    Body:
-    {
-        "tb_instalacao": 123 (opcional),
-        "data_inicio": "2025-01-01" (opcional),
-        "data_fim": "2025-12-31" (opcional)
-    }
+    Consultar Análises Laboratoriais (Instalações)
+    ---
+    tags:
+      - Intervenções (Análises)
+    summary: Procura resultados ou pedidos de análise cruzando dados por Instalação e intervalo de datas.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tb_instalacao:
+              type: integer
+              description: ID da instalação (opcional)
+            data_inicio:
+              type: string
+              format: date
+              description: 2025-01-01 (opcional)
+            data_fim:
+              type: string
+              format: date
+              description: 2025-12-31 (opcional)
+    responses:
+      200:
+        description: Resultados da query de análises.
     """
     current_user = get_jwt_identity()
     data = request.get_json() or {}
@@ -42,13 +64,29 @@ def query_analysis():
 @set_session
 def update_analysis():
     """
-    Atualizar resultado de análise
-
-    Body:
-    {
-        "pk": 123,
-        "resultado": "texto do resultado"
-    }
+    Atualizar Resultado / Registo de Análise
+    ---
+    tags:
+      - Intervenções (Análises)
+    summary: Anexa ou altera o veredito descritivo do relatório da amostra correspondente.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            pk:
+              type: integer
+            resultado:
+              type: string
+    responses:
+      200:
+        description: Atualizado.
     """
     current_user = get_jwt_identity()
     data = request.get_json()
@@ -64,9 +102,21 @@ def update_analysis():
 @set_session
 def search_analysis(pk):
     """
-    Pesquisa rápida de análise por PK (número da amostra)
-
-    URL: /analysis/search/{pk}
+    Pesquisar Análise Rápida
+    ---
+    tags:
+      - Intervenções (Análises)
+    summary: Localiza um registo de análise laboratorial diretamente pelo seu número de amostra/identificador (PK).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Elemento devolvido.
     """
     current_user = get_jwt_identity()
 
@@ -81,9 +131,21 @@ def search_analysis(pk):
 @set_session
 def get_analysis(pk):
     """
-    Obter análise por PK
-
-    URL: /analysis/{pk}
+    Obter Detalhes Completos da Análise
+    ---
+    tags:
+      - Intervenções (Análises)
+    summary: Visualização detalhada de um registo de recolha.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Dados da análise.
     """
     current_user = get_jwt_identity()
 

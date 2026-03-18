@@ -127,8 +127,8 @@ export function AuthProvider({ children }) {
     try {
       await authManager.logout();
 
-      // Limpar cache de metadata ao fazer logout
-      queryClient.removeQueries({ queryKey: ['metadata'] });
+      // Limpar todo o cache ao fazer logout (evitar dados de sessão anterior)
+      queryClient.clear();
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[AuthContext] Logout error:', error);

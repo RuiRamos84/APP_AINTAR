@@ -245,9 +245,8 @@ const DocumentCard = ({ document, onViewDetails, metaData }) => {
             height: { xs: 22, sm: 24 },
             fontSize: { xs: '0.65rem', sm: '0.7rem' },
             borderColor: alpha(theme.palette.divider, 0.3),
-            '& .MuiChip-label': { px: 0.75 },
+            '& .MuiChip-label': { px: 0.75, overflow: 'hidden', textOverflow: 'ellipsis' },
             maxWidth: '60%',
-            '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' },
           }}
         />
 

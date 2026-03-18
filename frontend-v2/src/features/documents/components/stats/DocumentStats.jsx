@@ -3,85 +3,81 @@ import { Grid, Box } from '@mui/material';
 import {
   Description as DocumentIcon,
   Assignment as AssignmentIcon,
-  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
   Timeline as TimelineIcon,
 } from '@mui/icons-material';
 import StatCard from './StatCard';
 import { useDocuments } from '../../hooks/useDocuments';
 import { useDocumentsStore } from '../../store/documentsStore';
-import { useMetaData } from '@/core/hooks/useMetaData';
-import { getStatusName } from '../../utils/statusUtils';
 
 /**
  * Statistics Dashboard for Documents
- * Shows 4 stat cards: Total, Assigned, Completed, Created by user
+ * Each card acts as a tab selector (4 cards = 4 tabs)
  */
 const DocumentStats = () => {
-  const { setActiveTab } = useDocumentsStore();
-  const { data: metaData } = useMetaData();
+  const { activeTab, setActiveTab } = useDocumentsStore();
 
   const { data: allDocs, isLoading: loadingAll } = useDocuments('all');
   const { data: assignedDocs, isLoading: loadingAssigned } = useDocuments('assigned');
   const { data: createdDocs, isLoading: loadingCreated } = useDocuments('created');
+  const { data: lateDocs, isLoading: loadingLate } = useDocuments('late');
 
-  // Safely extract arrays (API may return object with results key)
   const allDocsArr = Array.isArray(allDocs) ? allDocs : (allDocs?.results ?? []);
   const assignedDocsArr = Array.isArray(assignedDocs) ? assignedDocs : (assignedDocs?.results ?? []);
   const createdDocsArr = Array.isArray(createdDocs) ? createdDocs : (createdDocs?.results ?? []);
+  const lateDocsArr = Array.isArray(lateDocs) ? lateDocs : (lateDocs?.results ?? []);
 
-  const notificationCount = useMemo(() => {
-    return assignedDocsArr.filter((doc) => doc.notification === 1).length;
-  }, [assignedDocsArr]);
-
-  const completedCount = useMemo(() => {
-    return allDocsArr.filter((doc) => doc.what === 0).length;
-  }, [allDocsArr]);
-
-  const completedLabel = useMemo(() => {
-    return getStatusName(0, metaData?.what) || 'Concluídos';
-  }, [metaData]);
+  const notificationCount = useMemo(
+    () => assignedDocsArr.filter((doc) => doc.notification === 1).length,
+    [assignedDocsArr]
+  );
 
   const stats = [
     {
+      tabIndex: 0,
       title: 'Total de Pedidos',
       value: allDocsArr.length,
       icon: <DocumentIcon />,
       color: 'primary.main',
-      onClick: () => setActiveTab(0),
       loading: loadingAll,
     },
     {
+      tabIndex: 1,
       title: 'Para Tratamento',
       value: assignedDocsArr.length,
       icon: <AssignmentIcon />,
       color: 'secondary.main',
       notificationCount,
-      onClick: () => setActiveTab(1),
       loading: loadingAssigned,
     },
     {
-      title: completedLabel,
-      value: completedCount,
-      icon: <CheckCircleIcon />,
-      color: 'success.main',
-      loading: loadingAll,
-    },
-    {
+      tabIndex: 2,
       title: 'Criados por Mim',
       value: createdDocsArr.length,
       icon: <TimelineIcon />,
       color: 'info.main',
-      onClick: () => setActiveTab(2),
       loading: loadingCreated,
+    },
+    {
+      tabIndex: 3,
+      title: 'Em Atraso',
+      value: lateDocsArr.length,
+      icon: <WarningIcon />,
+      color: 'error.main',
+      loading: loadingLate,
     },
   ];
 
   return (
-    <Box sx={{ mb: 2 }}>
+    <Box>
       <Grid container spacing={2}>
-        {stats.map((stat, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard {...stat} />
+        {stats.map(({ tabIndex, ...stat }) => (
+          <Grid key={tabIndex} size={{ xs: 6, sm: 6, md: 3 }}>
+            <StatCard
+              {...stat}
+              active={activeTab === tabIndex}
+              onClick={() => setActiveTab(tabIndex)}
+            />
           </Grid>
         ))}
       </Grid>

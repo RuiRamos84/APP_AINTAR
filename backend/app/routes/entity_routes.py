@@ -25,7 +25,26 @@ bp = Blueprint('entity_routes', __name__)
 @require_permission(800)  # entities.view # Protege a visualização de detalhes
 @api_error_handler
 def get_entity(pk):
-    """Obter detalhes da entidade"""
+    """
+    Obter Detalhes da Entidade
+    ---
+    tags:
+      - Entidades
+    summary: Retorna a ficha completa de uma Entidade pesquisando pela Primary Key (PK).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+        description: ID único da Entidade
+    responses:
+      200:
+        description: Detalhes da Entidade.
+      404:
+        description: Entidade não encontrada.
+    """
     current_user = get_jwt_identity()
     result, status_code = get_entity_detail(pk, current_user)
     return jsonify(result), status_code
@@ -37,7 +56,26 @@ def get_entity(pk):
 @set_session
 @api_error_handler
 def get_entity_nipc(nipc):
-    """Obter detalhes da entidade"""
+    """
+    Pesquisa Entidade por NIPC
+    ---
+    tags:
+      - Entidades
+    summary: Procura uma Entidade usando o seu Número de Identificação de Pessoa Coletiva / Contribuinte.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: nipc
+        in: path
+        type: integer
+        required: true
+        description: NIPC da entidade
+    responses:
+      200:
+        description: Detalhes da entidade.
+      404:
+        description: Nenhuma entidade corresponde a este NIPC.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         entity_detail, status_code = get_entity_detail_nipc(nipc, current_user)
@@ -51,7 +89,27 @@ def get_entity_nipc(nipc):
 @set_session
 @api_error_handler
 def create_new_entity():
-    """Criar uma nova entidade"""
+    """
+    Criar Nova Entidade
+    ---
+    tags:
+      - Entidades
+    summary: Regista uma nova entidade no sistema (Cliente, Instalação, etc.).
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: entity_data
+        description: Objeto com dados da entidade
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Entidade criada com sucesso.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         referrer = request.referrer
@@ -73,7 +131,31 @@ def create_new_entity():
 @set_session
 @api_error_handler
 def update_entity(pk):
-    """Atualizar detalhes da entidade"""
+    """
+    Atualizar Entidade Existente
+    ---
+    tags:
+      - Entidades
+    summary: Modifica os dados de uma entidade residente referenciada pela sua PK.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+        description: ID da entidade
+      - in: body
+        name: update_data
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Entidade modificada.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         data = request.get_json()
@@ -87,7 +169,18 @@ def update_entity(pk):
 @set_session
 @api_error_handler
 def list_all_entities():
-    """Listar todas as entidades"""
+    """
+    Listar Entidades
+    ---
+    tags:
+      - Entidades
+    summary: Retorna a coleção geral de entidades ativas no sistema.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Lista de entidades retornada.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return list_entities(current_user)

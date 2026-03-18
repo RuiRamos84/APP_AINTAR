@@ -20,7 +20,18 @@ bp = Blueprint('meta_data_routes', __name__)
 @set_session
 @api_error_handler
 def get_meta_data_route():
-    """Obtém metadados"""
+    """
+    Obter Coleção de Metadados
+    ---
+    tags:
+      - Core (Sistema e Metadados)
+    summary: Devolve dicionários tipificados usados globalmente pela UI para selects/dropdowns ou lógicas estáticas da BD.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Objeto de metadados.
+    """
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         metadata, status_code = fetch_meta_data(current_user)
@@ -32,6 +43,18 @@ def get_meta_data_route():
 @token_required
 @require_permission(110)  # admin.cache.manage # Apenas admins podem limpar o cache
 def clear_metadata_cache():
+    """
+    Limpar Cache de Metadados
+    ---
+    tags:
+      - Core (Sistema e Metadados)
+    summary: Força a base de dados a reler os dados de tabelas de domínio globais. Acesso reservado a administradores.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Cache limpo.
+    """
     clear_meta_data_cache()
     return jsonify({'message': 'Cache limpo com sucesso'}), 200
 

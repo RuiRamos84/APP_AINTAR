@@ -19,13 +19,29 @@ bp = Blueprint('operation_metadata', __name__, url_prefix='/api/v1/operation_met
 @set_session
 def query_metadata():
     """
-    Consultar metadata de operações
-
-    Body:
-    {
-        "tb_instalacao": 123 (opcional),
-        "tt_operacaomodo": 1 (opcional)
-    }
+    Consultar Operações Custom (Eventos/Metadados)
+    ---
+    tags:
+      - Operações Instalações (Metadados)
+    summary: Pesquisa os metadados registados para os vários controlos e atividades diárias das instalações.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tb_instalacao:
+              type: integer
+            tt_operacaomodo:
+              type: integer
+    responses:
+      200:
+        description: Listagem obtida.
     """
     current_user = get_jwt_identity()
     data = request.get_json() or {}
@@ -41,17 +57,37 @@ def query_metadata():
 @set_session
 def create_metadata():
     """
-    Criar nova metadata de operação
-
-    Body:
-    {
-        "tt_operacaomodo": 1,
-        "tb_instalacao": 123,
-        "tt_operacaodia": 1,
-        "tt_operacaoaccao": 456,
-        "ts_operador1": 789,
-        "ts_operador2": 790 (opcional)
-    }
+    Criar Cabeçalho de Operação (Metadado Diário)
+    ---
+    tags:
+      - Operações Instalações (Metadados)
+    summary: Abre a folha de registo para início de lançamento de controlos do dia/operação.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tt_operacaomodo:
+              type: integer
+            tb_instalacao:
+              type: integer
+            tt_operacaodia:
+              type: integer
+            tt_operacaoaccao:
+              type: integer
+            ts_operador1:
+              type: integer
+            ts_operador2:
+              type: integer
+    responses:
+      201:
+        description: Registo de metadado efetuado.
     """
     current_user = get_jwt_identity()
     data = request.get_json()
@@ -67,15 +103,27 @@ def create_metadata():
 @set_session
 def update_metadata():
     """
-    Atualizar metadata de operação
-
-    Body:
-    {
-        "pk": 123,
-        "tt_operacaomodo": 1 (opcional),
-        "tb_instalacao": 123 (opcional),
-        ... outros campos opcionais
-    }
+    Atualizar Meta de Operação (Atributos Diários)
+    ---
+    tags:
+      - Operações Instalações (Metadados)
+    summary: Configura atributos como os operadores do dia, modos, etc após abertura da sheet diária.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            pk:
+              type: integer
+    responses:
+      200:
+        description: Atualizado.
     """
     current_user = get_jwt_identity()
     data = request.get_json()
@@ -91,9 +139,21 @@ def update_metadata():
 @set_session
 def delete_metadata(pk):
     """
-    Eliminar metadata de operação - DESABILITADO POR SEGURANÇA
-
-    URL: /operation_metadata/delete/{pk}
+    Eliminar Metadados [Bloqueado]
+    ---
+    tags:
+      - Operações Instalações (Metadados)
+    summary: Anular logs é proibido para a maioria dos utilizadores por compliance.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      403:
+        description: Ação proibida sem admin request.
     """
     return jsonify({
         'success': False,
@@ -108,9 +168,21 @@ def delete_metadata(pk):
 @set_session
 def get_metadata(pk):
     """
-    Obter metadata de operação por PK
-
-    URL: /operation_metadata/{pk}
+    Ler Metadado por ID
+    ---
+    tags:
+      - Operações Instalações (Metadados)
+    summary: Obtém detalhe da cabimentação do dia.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Dados da folha.
     """
     current_user = get_jwt_identity()
 

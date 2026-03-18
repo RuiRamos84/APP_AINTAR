@@ -18,7 +18,8 @@ import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useOperationTasks } from '../hooks/useOperationTasks';
 import { useOffline } from '../hooks/useOffline';
-import { getInstallationLicenseColor, formatCompletedTaskValue, formatDate } from '../utils/formatters';
+import { getInstallationLicenseColor, formatCompletedTaskValue, formatDateOnly } from '../utils/formatters';
+import { textIncludes } from '../utils/textUtils';
 import { exportTasksToExcel } from '../services/exportService';
 import MESSAGES from '../constants/messages';
 import ExportButton from '../components/ExportButton';
@@ -52,13 +53,13 @@ const TasksPage = () => {
     // Pesquisa
     const filteredInstallations = useMemo(() => {
         if (!searchTerm) return tasksByInstallation;
-        const lower = searchTerm.toLowerCase();
         return tasksByInstallation
             .map(([name, data]) => {
                 const filtered = data.tasks.filter(t =>
-                    (t.instalacao_nome || '').toLowerCase().includes(lower) ||
-                    (t.acao_operacao || '').toLowerCase().includes(lower) ||
-                    (t.modo_operacao || '').toLowerCase().includes(lower)
+                    textIncludes(t.instalacao_nome, searchTerm) ||
+                    textIncludes(t.acao_operacao, searchTerm) ||
+                    textIncludes(t.modo_operacao, searchTerm) ||
+                    textIncludes(t.operador1_nome, searchTerm)
                 );
                 return filtered.length > 0 ? [name, { ...data, tasks: filtered }] : null;
             })
@@ -255,7 +256,7 @@ const TasksPage = () => {
                                                         <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" sx={{ mt: 0.25, gap: 0.5 }}>
                                                             {task.dia_operacao && (
                                                                 <Typography variant="caption" color="text.secondary">
-                                                                    {formatDate(task.dia_operacao)}
+                                                                    {formatDateOnly(task.dia_operacao)}
                                                                 </Typography>
                                                             )}
                                                             {task.descr && (
@@ -364,14 +365,6 @@ const TasksPage = () => {
                 item={selectedTask}
                 canExecuteActions={true}
                 onComplete={handleOpenCompletion}
-                onNavigate={(item) => {
-                    const target = item || selectedTask;
-                    if (!target) return;
-                    if (target.latitude && target.longitude) {
-                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}`);
-                    }
-                }}
-                getAddressString={(i) => `${i?.address || ''}, ${i?.postal || ''}`}
             />
 
             <TaskCompletionDialog

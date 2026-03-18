@@ -2,37 +2,27 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Box, Typography, Stack, Card, Chip, IconButton, Tooltip,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Dialog, DialogTitle, DialogContent, DialogActions, Button,
-    FormControl, InputLabel, Select, MenuItem, Grid, TablePagination,
+    Dialog, DialogTitle, DialogContent, Button,
     CircularProgress, Alert, Fab, alpha, useTheme
 } from '@mui/material';
 import {
     Settings as SettingsIcon,
-    Add, Edit, Delete, Close, Refresh, Save
+    Add, Edit, Close, Refresh, AdminPanelSettings
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
-import { SearchBar } from '@/shared/components/data';
+import { SearchBar, SortableHeadCell } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
 import { operationService } from '../services/operationService';
 import { exportMetasToExcel } from '../services/exportService';
-import { useMetaData } from '@/core/hooks/useMetaData';
 import ExportButton from '../components/ExportButton';
+import ProgressiveTaskFormV2 from '../components/ProgressiveTaskFormV2';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-
-const EMPTY_FORM = {
-    tb_instalacao: '',
-    tt_operacaoaccao: '',
-    tt_operacaomodo: '',
-    tt_operacaodia: '',
-    who1: '',
-    who2: '',
-};
 
 const OperationMetadataPage = () => {
     const theme = useTheme();
     const queryClient = useQueryClient();
-    const { data: metaData } = useMetaData();
 
     // Paginação
     const [page, setPage] = useState(0);
@@ -42,10 +32,7 @@ const OperationMetadataPage = () => {
 
     // Form state
     const [formOpen, setFormOpen] = useState(false);
-    const [formData, setFormData] = useState(EMPTY_FORM);
-    const [editingId, setEditingId] = useState(null);
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [deletingId, setDeletingId] = useState(null);
+    const [editingTask, setEditingTask] = useState(null); // null = criar, object = editar
 
     // Debounce da pesquisa (400ms)
     const debounceRef = useRef(null);
@@ -76,7 +63,9 @@ const OperationMetadataPage = () => {
     const metas = response?.data || [];
     const totalCount = response?.total || 0;
 
-    // Mutations
+    const { sorted: sortedMetas, sortKey, sortDir, requestSort } = useSortable(metas, 'tb_instalacao');
+
+    // Mutations (apenas criar e editar — delete removido por segurança)
     const createMutation = useMutation({
         mutationFn: (data) => operationService.createOperacaoMeta(data),
         onSuccess: () => {
@@ -93,86 +82,46 @@ const OperationMetadataPage = () => {
         },
     });
 
-    const deleteMutation = useMutation({
-        mutationFn: (id) => operationService.deleteOperacaoMeta(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['operacaoMeta'] });
-            setDeleteConfirmOpen(false);
-            setDeletingId(null);
-        },
-    });
-
-    // Listas para selects
-    const installations = useMemo(() => {
-        const etars = (metaData?.etar || []).map(e => ({ pk: e.pk, nome: e.nome, tipo: 'ETAR' }));
-        const ees = (metaData?.ee || []).map(e => ({ pk: e.pk, nome: e.nome, tipo: 'EE' }));
-        return [...etars, ...ees].sort((a, b) => a.nome?.localeCompare(b.nome));
-    }, [metaData]);
-
-    const actions = metaData?.operacaoaccao || [];
-    const modes = metaData?.operacamodo || [];
-    const days = metaData?.operacaodia || [];
-    const operators = metaData?.who || [];
-
+    // Handlers
     const handleOpenCreate = () => {
-        setFormData(EMPTY_FORM);
-        setEditingId(null);
+        setEditingTask(null);
         setFormOpen(true);
     };
 
     const handleOpenEdit = (meta) => {
-        setFormData({
-            tb_instalacao: meta.pk_instalacao || '',
-            tt_operacaoaccao: meta.pk_operacaoaccao || '',
-            tt_operacaomodo: meta.pk_operacaomodo || '',
-            tt_operacaodia: meta.pk_operacaodia || '',
-            who1: meta.pk_operador1 || '',
-            who2: meta.pk_operador2 || '',
-        });
-        setEditingId(meta.pk);
+        setEditingTask(meta);
         setFormOpen(true);
     };
 
     const handleCloseForm = () => {
         setFormOpen(false);
-        setFormData(EMPTY_FORM);
-        setEditingId(null);
+        setEditingTask(null);
     };
 
-    const handleSubmit = () => {
-        const payload = { ...formData };
-        Object.keys(payload).forEach(k => {
-            if (payload[k] === '') delete payload[k];
-        });
-
-        if (editingId) {
-            updateMutation.mutate({ id: editingId, data: payload });
+    const handleFormSubmit = async (cleanData) => {
+        if (editingTask) {
+            await updateMutation.mutateAsync({ id: editingTask.pk, data: cleanData });
         } else {
-            createMutation.mutate(payload);
+            await createMutation.mutateAsync(cleanData);
         }
-    };
-
-    const handleField = (field) => (e) => {
-        setFormData(prev => ({ ...prev, [field]: e.target.value }));
-    };
-
-    const handleChangePage = (_, newPage) => setPage(newPage);
-    const handleChangeRowsPerPage = (e) => {
-        setRowsPerPage(parseInt(e.target.value, 10));
-        setPage(0);
     };
 
     const handleExportExcel = () => {
         exportMetasToExcel(metas, { filename: 'Voltas_Operacao' });
     };
 
-    const isSaving = createMutation.isPending || updateMutation.isPending;
-
     const getInstType = (meta) => {
         const name = meta.tb_instalacao || '';
         if (name.toLowerCase().includes('etar')) return 'ETAR';
         if (name.toLowerCase().includes('ee')) return 'EE';
         return null;
+    };
+
+    // Paginação manual (client-side) para manter compatibilidade
+    const handleChangePage = (_, newPage) => setPage(newPage);
+    const handleChangeRowsPerPage = (e) => {
+        setRowsPerPage(parseInt(e.target.value, 10));
+        setPage(0);
     };
 
     return (
@@ -229,25 +178,27 @@ const OperationMetadataPage = () => {
                         <Table size="small">
                             <TableHead>
                                 <TableRow sx={{ '& th': { fontWeight: 600, bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
-                                    <TableCell>Instalação</TableCell>
-                                    <TableCell>Ação</TableCell>
-                                    <TableCell>Modo</TableCell>
-                                    <TableCell>Dia</TableCell>
-                                    <TableCell>Operador 1</TableCell>
-                                    <TableCell>Operador 2</TableCell>
-                                    <TableCell align="center" sx={{ width: 100 }}>Ações</TableCell>
+                                    <SortableHeadCell label="Instalação" field="tb_instalacao" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Ação" field="tt_operacaoaccao" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Modo" field="tt_operacaomodo" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Dia" field="tt_operacaodia" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Operador 1" field="ts_operador1" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <SortableHeadCell label="Operador 2" field="ts_operador2" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                    <TableCell align="center" sx={{ width: 60 }}>Editar</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {metas.length === 0 && !isLoading ? (
+                                {sortedMetas.length === 0 && !isLoading ? (
                                     <TableRow>
                                         <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                                             <Typography variant="body2" color="text.secondary">
-                                                {debouncedSearch ? 'Nenhuma volta encontrada para a pesquisa' : 'Nenhuma volta disponível'}
+                                                {debouncedSearch
+                                                    ? 'Nenhuma volta encontrada para a pesquisa'
+                                                    : 'Nenhuma volta disponível'}
                                             </Typography>
                                         </TableCell>
                                     </TableRow>
-                                ) : metas.map(meta => {
+                                ) : sortedMetas.map(meta => {
                                     const instType = getInstType(meta);
                                     return (
                                         <TableRow
@@ -262,12 +213,13 @@ const OperationMetadataPage = () => {
                                             <TableCell>
                                                 <Stack direction="row" alignItems="center" spacing={0.5}>
                                                     {instType && (
-                                                        <Chip label={instType} size="small"
-                                                            sx={{
-                                                                fontSize: 10, height: 20,
-                                                                bgcolor: instType === 'ETAR' ? alpha('#4caf50', 0.15) : alpha('#2196f3', 0.15),
-                                                                fontWeight: 600
-                                                            }} />
+                                                        <Chip label={instType} size="small" sx={{
+                                                            fontSize: 10, height: 20,
+                                                            bgcolor: instType === 'ETAR'
+                                                                ? alpha('#4caf50', 0.15)
+                                                                : alpha('#2196f3', 0.15),
+                                                            fontWeight: 600
+                                                        }} />
                                                     )}
                                                     <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
                                                         {meta.tb_instalacao || '-'}
@@ -278,21 +230,13 @@ const OperationMetadataPage = () => {
                                             <TableCell><Typography variant="body2" noWrap>{meta.tt_operacaomodo || '-'}</Typography></TableCell>
                                             <TableCell><Typography variant="body2">{meta.tt_operacaodia || '-'}</Typography></TableCell>
                                             <TableCell><Typography variant="body2" noWrap>{meta.ts_operador1 || 'Não atribuído'}</Typography></TableCell>
-                                            <TableCell><Typography variant="body2" noWrap>{meta.ts_operador2 || 'Não atribuído'}</Typography></TableCell>
-                                            <TableCell align="center" onClick={(e) => e.stopPropagation()}>
-                                                <Stack direction="row" spacing={0.5} justifyContent="center">
-                                                    <Tooltip title="Editar">
-                                                        <IconButton size="small" onClick={() => handleOpenEdit(meta)}>
-                                                            <Edit fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Eliminar">
-                                                        <IconButton size="small" color="error"
-                                                            onClick={() => { setDeletingId(meta.pk); setDeleteConfirmOpen(true); }}>
-                                                            <Delete fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Stack>
+                                            <TableCell><Typography variant="body2" noWrap>{meta.ts_operador2 || '—'}</Typography></TableCell>
+                                            <TableCell align="center" onClick={e => e.stopPropagation()}>
+                                                <Tooltip title="Editar volta">
+                                                    <IconButton size="small" onClick={() => handleOpenEdit(meta)}>
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
                                             </TableCell>
                                         </TableRow>
                                     );
@@ -300,128 +244,52 @@ const OperationMetadataPage = () => {
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <TablePagination
-                        component="div"
-                        count={totalCount}
-                        page={page}
-                        onPageChange={handleChangePage}
-                        rowsPerPage={rowsPerPage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                        rowsPerPageOptions={PAGE_SIZE_OPTIONS}
-                        labelRowsPerPage="Linhas por página:"
-                        labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-                    />
+
+                    {/* Paginação manual */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+                        <Typography variant="caption" color="text.secondary">
+                            {totalCount} volta{totalCount !== 1 ? 's' : ''} no total
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" color="text.secondary">Página {page + 1}</Typography>
+                            <Button size="small" disabled={page === 0} onClick={() => handleChangePage(null, page - 1)}>‹</Button>
+                            <Button size="small" disabled={(page + 1) * rowsPerPage >= totalCount} onClick={() => handleChangePage(null, page + 1)}>›</Button>
+                        </Stack>
+                    </Box>
                 </Card>
+
+                {/* Nota de segurança */}
+                <Alert severity="info" icon={<AdminPanelSettings fontSize="inherit" />} sx={{ borderRadius: 2 }}>
+                    Para <strong>eliminar</strong> uma volta, contacte o administrador do sistema.
+                    A eliminação de registos operacionais requer autorização especial.
+                </Alert>
             </Stack>
 
-            {/* Create/Edit Dialog */}
-            <Dialog open={formOpen} onClose={handleCloseForm} maxWidth="sm" fullWidth>
+            {/* Dialog com stepper — Criar / Editar */}
+            <Dialog
+                open={formOpen}
+                onClose={handleCloseForm}
+                maxWidth="md"
+                fullWidth
+                slotProps={{ paper: { sx: { borderRadius: 3 } } }}
+            >
                 <DialogTitle>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h6">{editingId ? 'Editar Volta' : 'Nova Volta'}</Typography>
-                        <IconButton onClick={handleCloseForm} size="small"><Close /></IconButton>
+                        <Typography variant="h6">
+                            {editingTask ? 'Editar Volta' : 'Nova Volta'}
+                        </Typography>
+                        <IconButton onClick={handleCloseForm} size="small">
+                            <Close />
+                        </IconButton>
                     </Stack>
                 </DialogTitle>
-                <DialogContent dividers>
-                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                        {/* Instalação (3/4) + Ação (1/4) */}
-                        <Grid size={{ xs: 12, sm: 9 }}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Instalação</InputLabel>
-                                <Select value={formData.tb_instalacao} onChange={handleField('tb_instalacao')} label="Instalação">
-                                    {installations.map(inst => (
-                                        <MenuItem key={inst.pk} value={inst.pk}>
-                                            [{inst.tipo}] {inst.nome}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 3 }}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Ação</InputLabel>
-                                <Select value={formData.tt_operacaoaccao} onChange={handleField('tt_operacaoaccao')} label="Ação">
-                                    {actions.map(a => (
-                                        <MenuItem key={a.pk} value={a.pk}>{a.name}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        {/* Modo (1/2) + Dia (1/2) */}
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth>
-                                <InputLabel>Modo</InputLabel>
-                                <Select value={formData.tt_operacaomodo} onChange={handleField('tt_operacaomodo')} label="Modo">
-                                    <MenuItem value="">Nenhum</MenuItem>
-                                    {modes.map(m => (
-                                        <MenuItem key={m.pk} value={m.pk}>{m.value}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth>
-                                <InputLabel>Dia</InputLabel>
-                                <Select value={formData.tt_operacaodia} onChange={handleField('tt_operacaodia')} label="Dia">
-                                    <MenuItem value="">Nenhum</MenuItem>
-                                    {days.map(d => (
-                                        <MenuItem key={d.pk} value={d.pk}>{d.value}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        {/* Operador 1 (1/2) + Operador 2 (1/2) */}
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Operador Principal</InputLabel>
-                                <Select value={formData.who1} onChange={handleField('who1')} label="Operador Principal">
-                                    {operators.map(op => (
-                                        <MenuItem key={op.pk} value={op.pk}>{op.name}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth>
-                                <InputLabel>Operador Secundário</InputLabel>
-                                <Select value={formData.who2} onChange={handleField('who2')} label="Operador Secundário">
-                                    <MenuItem value="">Nenhum</MenuItem>
-                                    {operators.map(op => (
-                                        <MenuItem key={op.pk} value={op.pk}>{op.name}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                    </Grid>
+                <DialogContent dividers sx={{ pt: 3 }}>
+                    <ProgressiveTaskFormV2
+                        initialTask={editingTask}
+                        onSubmit={handleFormSubmit}
+                        onCancel={handleCloseForm}
+                    />
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseForm} disabled={isSaving}>Cancelar</Button>
-                    <Button
-                        variant="contained" onClick={handleSubmit}
-                        disabled={isSaving || !formData.tb_instalacao || !formData.tt_operacaoaccao || !formData.who1}
-                        startIcon={isSaving ? <CircularProgress size={16} /> : <Save />}
-                    >
-                        {isSaving ? 'A guardar...' : editingId ? 'Atualizar' : 'Criar'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Delete Confirmation */}
-            <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-                <DialogTitle>Eliminar Volta</DialogTitle>
-                <DialogContent>
-                    <Typography>Tem a certeza que deseja eliminar esta volta? Esta ação não pode ser desfeita.</Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteConfirmOpen(false)}>Cancelar</Button>
-                    <Button
-                        variant="contained" color="error"
-                        onClick={() => deleteMutation.mutate(deletingId)}
-                        disabled={deleteMutation.isPending}
-                    >
-                        {deleteMutation.isPending ? 'A eliminar...' : 'Eliminar'}
-                    </Button>
-                </DialogActions>
             </Dialog>
         </ModulePage>
     );

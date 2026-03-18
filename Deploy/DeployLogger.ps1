@@ -1,4 +1,4 @@
-# DeployLogger.ps1
+﻿# DeployLogger.ps1
 # Sistema de logging centralizado
 # Autor: Sistema Modular
 # Data: 2025
@@ -116,7 +116,7 @@ class DeployLogger {
     
     # Métodos para operações específicas
     [void] StartOperation([string]$operation, [string]$component = "MAIN") {
-        $this.Info("Iniciando operação: $operation", $component)
+        $this.Info("A iniciar operação: $operation", $component)
     }
     
     [void] EndOperation([string]$operation, [bool]$success, [string]$component = "MAIN") {

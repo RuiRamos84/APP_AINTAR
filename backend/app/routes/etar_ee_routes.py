@@ -16,6 +16,7 @@ from ..services.etar_ee_service import (
     create_instalacao_retirada_lamas,
     create_instalacao_reparacao,
     create_instalacao_vedacao,
+    create_instalacao_visita_tecnica,
     create_instalacao_qualidade_ambiental,
     # Funções compatibilidade - antigas
     create_etar_volume,
@@ -48,11 +49,13 @@ from ..services.etar_ee_service import (
     create_etar_retirada_lamas,
     create_etar_reparacao,
     create_etar_vedacao,
+    create_etar_visita_tecnica,
     create_etar_qualidade_ambiental,
     create_ee_desmatacao,
     create_ee_retirada_lamas,
     create_ee_reparacao,
     create_ee_vedacao,
+    create_ee_visita_tecnica,
     create_ee_qualidade_ambiental,
     create_rede_desobstrucao,
     create_rede_reparacao_colapso,
@@ -89,7 +92,26 @@ bp = Blueprint('etar_ee_routes', __name__)
 @set_session
 @api_error_handler
 def add_instalacao_volume():
-    """Registar volume de instalação (ETAR ou EE)"""
+    """
+    Registar Volumes Tratados (ETAR / EE)
+    ---
+    tags:
+      - Operações Instalações
+    summary: Inserir volumes gerais de uma Instalação por PK.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Informação persistida.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     return create_instalacao_volume(data.get('pnpk'), data, current_user)
@@ -102,7 +124,23 @@ def add_instalacao_volume():
 @set_session
 @api_error_handler
 def get_instalacao_volumes(tb_instalacao):
-    """Listar volumes de uma instalação"""
+    """
+    Listar Volumes Tratados
+    ---
+    tags:
+      - Operações Instalações
+    summary: Puxar relatórios de processamento base (Caudais).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: tb_instalacao
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Listagem de caudais / volumes registados.
+    """
     current_user = get_jwt_identity()
     result, status_code = list_instalacao_volumes(tb_instalacao, current_user)
     return jsonify(result), status_code
@@ -115,7 +153,26 @@ def get_instalacao_volumes(tb_instalacao):
 @set_session
 @api_error_handler
 def add_instalacao_water_volume():
-    """Registar volume de água de instalação"""
+    """
+    Registar Volume de Água Faturada
+    ---
+    tags:
+      - Operações Instalações
+    summary: Insere o volume de água de rede consumido pela instalação.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Leitura registada.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     return create_instalacao_water_volume(data.get('pnpk'), data, current_user)
@@ -128,7 +185,23 @@ def add_instalacao_water_volume():
 @set_session
 @api_error_handler
 def get_instalacao_water_volumes(tb_instalacao):
-    """Listar volumes de água de uma instalação"""
+    """
+    Listar Volumes de Água Consumida
+    ---
+    tags:
+      - Operações Instalações
+    summary: Obtém os registos inseridos para a água consumida na instalação.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: tb_instalacao
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Sucesso.
+    """
     current_user = get_jwt_identity()
     result, status_code = list_instalacao_water_volumes(
         tb_instalacao, current_user)
@@ -142,7 +215,26 @@ def get_instalacao_water_volumes(tb_instalacao):
 @set_session
 @api_error_handler
 def add_instalacao_energy():
-    """Registar energia de instalação"""
+    """
+    Registar Leituras de Energia
+    ---
+    tags:
+      - Operações Instalações
+    summary: Submete parâmetros energéticos inerentes ao funcionamento das máquinas/bombas.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Criado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     return create_instalacao_energy(data.get('pnpk'), data, current_user)
@@ -155,7 +247,23 @@ def add_instalacao_energy():
 @set_session
 @api_error_handler
 def get_instalacao_energy(tb_instalacao):
-    """Listar energia de uma instalação"""
+    """
+    Listar Consumos de Energia
+    ---
+    tags:
+      - Operações Instalações
+    summary: Puxar histórico de leitura elétricas (KW/h, Vazio, etc) de uma estação.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: tb_instalacao
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Tabela gerencial devolvida.
+    """
     current_user = get_jwt_identity()
     result, status_code = list_instalacao_energy(tb_instalacao, current_user)
     return jsonify(result), status_code
@@ -168,7 +276,26 @@ def get_instalacao_energy(tb_instalacao):
 @set_session
 @api_error_handler
 def add_instalacao_expense():
-    """Registar despesa em instalação"""
+    """
+    Registar Despesa Manual
+    ---
+    tags:
+      - Operações Instalações
+    summary: Log de faturas (ex via adin, química, infraestrutura).
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Gasto adicionado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     return create_instalacao_expense(data, current_user)
@@ -181,7 +308,23 @@ def add_instalacao_expense():
 @set_session
 @api_error_handler
 def get_instalacao_expenses(tb_instalacao):
-    """Listar despesas de uma instalação"""
+    """
+    Listar Despesas Financeiras da Obra/ETAR
+    ---
+    tags:
+      - Operações Instalações
+    summary: Painel para apurar PnVals dos variados inputs de operação.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: tb_instalacao
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Dados financeiros listados.
+    """
     current_user = get_jwt_identity()
     result, status_code = list_instalacao_expenses(tb_instalacao, current_user)
     return jsonify(result), status_code
@@ -195,18 +338,38 @@ def get_instalacao_expenses(tb_instalacao):
 @set_session
 @api_error_handler
 def add_instalacao_desmatacao():
-    """Criar pedido de desmatação para instalação"""
+    """
+    Subordinar Pedido de Desmatação
+    ---
+    tags:
+      - Operações Instalações (Intervenções)
+    summary: Gera ordem/documento de manutenção e intervenção no perímetro da instalação - Tipo Desmatação.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Pedido de desmatação criado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_desmatacao(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -217,18 +380,38 @@ def add_instalacao_desmatacao():
 @set_session
 @api_error_handler
 def add_instalacao_retirada_lamas():
-    """Criar pedido de retirada de lamas para instalação"""
+    """
+    Subordinar Pedido de Retirada de Lamas
+    ---
+    tags:
+      - Operações Instalações (Intervenções)
+    summary: Inicia fluxo para encaminhamento / recolha de lamas dos reatores ou tanques.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Workflow de pedido registado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_retirada_lamas(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -239,18 +422,38 @@ def add_instalacao_retirada_lamas():
 @set_session
 @api_error_handler
 def add_instalacao_reparacao():
-    """Criar pedido de reparação para instalação"""
+    """
+    Subordinar Pedido de Reparação Civil/Mecânica
+    ---
+    tags:
+      - Operações Instalações (Intervenções)
+    summary: Pede arranjo de dano/avaria verificado na estrutura do complexo.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Assistência técnica/reparação sinalizada.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_reparacao(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -261,18 +464,38 @@ def add_instalacao_reparacao():
 @set_session
 @api_error_handler
 def add_instalacao_vedacao():
-    """Criar pedido de vedação para instalação"""
+    """
+    Subordinar Reposição / Manutenção Vedação
+    ---
+    tags:
+      - Operações Instalações (Intervenções)
+    summary: Alerta de vulnerabilidade / obras no gradeamento do perímetro.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Criado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
     pnpk_instalacao = data.get('pnpk_instalacao')
+    pndata = data.get('pndata')
 
     if not all([pnmemo, pnpk_instalacao]):
         return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
 
     result, status_code = create_instalacao_vedacao(
-        pnts_associate, pnmemo, pnpk_instalacao, current_user)
+        pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -283,7 +506,26 @@ def add_instalacao_vedacao():
 @set_session
 @api_error_handler
 def add_instalacao_qualidade_ambiental():
-    """Criar pedido de controlo de qualidade ambiental para instalação"""
+    """
+    Subordinar Controlo Qualidade Ambiental / Análises
+    ---
+    tags:
+      - Operações Instalações (Intervenções)
+    summary: Análises laboratoriais pedidas para certificação ou auditoria de lamas / lixiviados / águas.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Registado para emissão a laboratório/agência.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     pnts_associate = data.get('pnts_associate')
@@ -948,26 +1190,17 @@ def add_ee_qualidade_ambiental():
 @set_session
 @api_error_handler
 def add_rede_desobstrucao():
-    """Criar pedido de desobstrução para Rede"""
+    """Registar desobstrução de rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_rede_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_rede_desobstrucao(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -978,26 +1211,17 @@ def add_rede_desobstrucao():
 @set_session
 @api_error_handler
 def add_rede_reparacao_colapso():
-    """Criar pedido de reparação/colapso para Rede"""
+    """Registar reparação de rede"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_rede_reparacao_colapso(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_rede_reparacao_colapso(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1008,26 +1232,17 @@ def add_rede_reparacao_colapso():
 @set_session
 @api_error_handler
 def add_caixa_desobstrucao():
-    """Criar pedido de desobstrução para Caixas"""
+    """Registar desobstrução de caixa"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_caixa_desobstrucao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_desobstrucao(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1038,26 +1253,17 @@ def add_caixa_desobstrucao():
 @set_session
 @api_error_handler
 def add_caixa_reparacao():
-    """Criar pedido de reparação para Caixas"""
+    """Registar reparação de caixa"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_caixa_reparacao(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_reparacao(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 
@@ -1068,26 +1274,17 @@ def add_caixa_reparacao():
 @set_session
 @api_error_handler
 def add_caixa_reparacao_tampa():
-    """Criar pedido de reparação de tampa para Caixas"""
+    """Registar reparação de tampa de caixa"""
     current_user = get_jwt_identity()
     data = request.get_json()
-
     pnts_associate = data.get('pnts_associate')
     pnmemo = data.get('pnmemo')
-    pnaddress = data.get('pnaddress')
-    pnpostal = data.get('pnpostal')
-    pndoor = data.get('pndoor')
-    pnfloor = data.get('pnfloor')
-    pnnut1 = data.get('pnnut1')
-    pnnut2 = data.get('pnnut2')
-    pnnut3 = data.get('pnnut3')
-    pnnut4 = data.get('pnnut4')
-    pnglat = data.get('pnglat')
-    pnglong = data.get('pnglong')
+    pndata = data.get('pndata')
 
-    result, status_code = create_caixa_reparacao_tampa(
-        pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor,
-        pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user)
+    if not pnmemo:
+        return jsonify({'error': 'Parâmetros obrigatórios em falta'}), 400
+
+    result, status_code = create_caixa_reparacao_tampa(pnts_associate, pnmemo, current_user, pndata)
     return jsonify(result), status_code
 
 

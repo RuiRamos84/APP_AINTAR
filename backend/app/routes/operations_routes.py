@@ -17,7 +17,9 @@ from ..services.operations_service import (
     get_analysis_parameters,
     # Funções para criar/atualizar operações (execuções reais)
     create_operacao,
-    update_operacao
+    update_operacao,
+    # Criação direta via função PostgreSQL
+    create_operacao_direct
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..utils.utils import token_required, db_session_manager, set_session
@@ -46,7 +48,20 @@ ALLOWED_OPERATION_REFS = [
 @set_session
 @api_error_handler
 def get_operations():
-    """Obter dados de operações (antiga funcionalidade de dashboard)"""
+    """
+    Dashboard de Operações
+    ---
+    tags:
+      - Operações
+    summary: Retorna os dados agregados para o dashboard base de Operações.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Coleção de dados estatísticos diários (Views com dados).
+      419:
+        description: A sessão atual expirou.
+    """
     current_user = get_jwt_identity()
     try:
         with db_session_manager(current_user):
@@ -76,7 +91,26 @@ def get_operations():
 @set_session
 @api_error_handler
 def add_internal_document():
-    """Criar um documento interno utilizando fbo_document_createintern"""
+    """
+    Criar Documento Interno (Operações)
+    ---
+    tags:
+      - Operações
+    summary: Injeta/Cria um documento interno a partir da página de Operações usando fbo_document_createintern.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Documento interno operado com sucesso.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
     
@@ -104,7 +138,28 @@ def cleanup_session(response):
 @set_session
 @api_error_handler
 def get_operacao_meta():
-    """Obter dados das metas de operação com paginação"""
+    """
+    Metadados das Operações (Lista)
+    ---
+    tags:
+      - Operações
+    summary: Lista as Metas e rotinas globais de operações, suporta paginação e pesquisa.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: limit
+        type: integer
+      - in: query
+        name: offset
+        type: integer
+      - in: query
+        name: search
+        type: string
+    responses:
+      200:
+        description: Dados da grelha de Metadados carregados com paginação.
+    """
     current_user = get_jwt_identity()
     try:
         filters = {
@@ -133,7 +188,26 @@ def get_operacao_meta():
 @set_session
 @api_error_handler
 def create_operacao_meta_route():
-    """Criar nova meta de operação"""
+    """
+    Criar Metadados de Operação
+    ---
+    tags:
+      - Operações
+    summary: Salva as regras e referências das Rotinas (Metas).
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: params
+        required: true
+        schema:
+          type: object
+    responses:
+      201:
+        description: Metadado guardado (Sucesso).
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
 
@@ -148,7 +222,23 @@ def create_operacao_meta_route():
 @set_session
 @api_error_handler
 def get_operacao_meta_by_id_route(meta_id):
-    """Obter meta de operação específica"""
+    """
+    Obter Detalhe de Metadado de Operação
+    ---
+    tags:
+      - Operações
+    summary: Puxa parâmetros exclusivos associados a uma Meta Específica.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: meta_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Entidade localizada.
+    """
     current_user = get_jwt_identity()
 
     result, status_code = get_operacao_meta_by_id(meta_id, current_user)
@@ -162,7 +252,28 @@ def get_operacao_meta_by_id_route(meta_id):
 @set_session
 @api_error_handler
 def update_operacao_meta_route(meta_id):
-    """Atualizar meta de operação"""
+    """
+    Atualizar Metadado de Operação
+    ---
+    tags:
+      - Operações
+    summary: Modifica os campos e periodicidade de uma Rotina Operacional.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: meta_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Metadado alterado.
+    """
     current_user = get_jwt_identity()
     data = request.get_json()
 
@@ -177,7 +288,23 @@ def update_operacao_meta_route(meta_id):
 @set_session
 @api_error_handler
 def delete_operacao_meta_route(meta_id):
-    """Eliminar meta de operação"""
+    """
+    Remover / Desativar Metadado de Operação
+    ---
+    tags:
+      - Operações
+    summary: Apaga a hierarquia de metadados referentes a esta Meta Operacional.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: meta_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Meta apagada (Ou Hard-delete ou Soft-remove).
+    """
     current_user = get_jwt_identity()
 
     result, status_code = delete_operacao_meta(meta_id, current_user)
@@ -191,11 +318,33 @@ def delete_operacao_meta_route(meta_id):
 @set_session
 @api_error_handler
 def get_operacao():
-    """Obter dados de todas as operações"""
+    """
+    Listar Todo O Histórico Operacional
+    ---
+    tags:
+      - Operações
+    summary: View principal das atuações / inspeções no tereno registadas.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Coleção Histórica.
+    """
     current_user = get_jwt_identity()
     try:
+        filters = {}
+        from_date = request.args.get('from_date')
+        to_date = request.args.get('to_date')
+        instalacao_pk = request.args.get('instalacao_pk', type=int)
+        if from_date:
+            filters['from_date'] = from_date
+        if to_date:
+            filters['to_date'] = to_date
+        if instalacao_pk:
+            filters['instalacao_pk'] = instalacao_pk
+
         with db_session_manager(current_user):
-            data = get_operacao_data(current_user)
+            data = get_operacao_data(current_user, filters or None)
             return jsonify(data), 200
     except SQLAlchemyError as e:
         logger.error(f"Erro de banco de dados ao buscar operações: {str(e)}", exc_info=True)
@@ -212,7 +361,18 @@ def get_operacao():
 @set_session
 @api_error_handler
 def get_operacao_self():
-    """Obter tarefas do utilizador autenticado para o dia atual"""
+    """
+    As Minhas Tarefas de Operação Diária
+    ---
+    tags:
+      - Operações
+    summary: Baseado na hierarquia de Rotinas (Metadados), lista que tarefas recaem hoje sobre quem executou o pedido (O Próprio).
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Todo-List para as ETAR/E.E./Reservatórios.
+    """
     current_user = get_jwt_identity()  # Session ID (para db_session_manager)
     user_id = get_jwt()["user_id"]     # PK do utilizador (para filtrar tarefas)
 
@@ -236,11 +396,24 @@ def get_operacao_self():
 @api_error_handler
 def complete_task(task_id):
     """
-    Marcar uma tarefa como concluída
-
-    Suporta:
-    - Form data: valuetext, valuememo
-    - File: photo (imagem)
+    Submeter Formulário de Conclusão da Operação (Mobile)
+    ---
+    tags:
+      - Operações
+    summary: Marca uma tarefa cíclica como preenchida. Aceita campos Text, Memo e Upload the Fotografia no Payload (formData Multi-part).
+    security:
+      - BearerAuth: []
+    consumes:
+      - multipart/form-data
+      - application/json
+    parameters:
+      - name: task_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Tarefa registada e foto guardada (se aplicável).
     """
     current_user = get_jwt_identity()  # Session ID (para db_session_manager)
     user_id = get_jwt()["user_id"]     # PK do utilizador (para verificação de permissões)
@@ -361,24 +534,85 @@ def get_operation_reference_options(ref_obj):
 @api_error_handler
 def create_operacao_route():
     """
-    Criar nova operação (execução real) via vbf_operacao
-
-    Body:
-    {
-        "data": "2025-10-09",
-        "descr": "Descrição opcional",
-        "tt_operacaomodo": 1,
-        "tb_instalacao": 123,
-        "ts_operador1": 456,
-        "ts_operador2": 789,  // opcional
-        "tt_operacaoaccao": 101
-    }
+    Registar Execução Ad-hoc (Fornecedor/Operação)
+    ---
+    tags:
+      - Operações
+    summary: Ponto de entrada RAW para injetar operações ad-hoc fora da grelha diária de tarefas cíclicas (Ex. Reparações imprevistas).
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Comando efetuado com sucesso (criado).
     """
     current_user = get_jwt_identity()
     data = request.get_json()
 
     result, status_code = create_operacao(data, current_user)
     return jsonify(result), status_code
+
+
+@bp.route('/operacao_direct', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(310)  # operation.access
+@set_session
+@api_error_handler
+def create_operacao_direct_route():
+    """
+    Registar Operação Direta (ETAR / EE / REDE / CAIXA)
+    ---
+    tags:
+      - Operações
+    summary: Cria operação ad-hoc para instalações chamando diretamente a função fbo_operacao$createdirect.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [data, pk_instalacao, pk_operador, tt_operacaoaccao]
+          properties:
+            data:
+              type: string
+              format: date
+              description: Data da operação (YYYY-MM-DD)
+            pk_instalacao:
+              type: integer
+              description: PK da instalação (ETAR/EE dinâmico; CAIXA=3, REDE=4)
+            pk_operador:
+              type: integer
+              description: PK do operador
+            tt_operacaoaccao:
+              type: integer
+              description: Código da ação (ex 100 Limpeza, 101 Desobstrução)
+            memo:
+              type: string
+              description: Observações (opcional)
+    responses:
+      201:
+        description: Operação criada com sucesso, retorna pk gerado.
+      400:
+        description: Dados inválidos.
+    """
+    current_user = get_jwt_identity()
+    data = request.get_json()
+
+    result, status_code = create_operacao_direct(data, current_user)
+    return jsonify(result), status_code
+
 
 
 @bp.route('/operacao/<int:operacao_id>', methods=['PUT'])
@@ -389,15 +623,26 @@ def create_operacao_route():
 @api_error_handler
 def update_operacao_route(operacao_id):
     """
-    Atualizar operação (execução real) via vbf_operacao
-
-    APENAS permite atualizar valuetext e valuememo
-
-    Body:
-    {
-        "valuetext": "Resultado da operação",
-        "valuememo": "Observações adicionais"  // opcional
-    }
+    Correção Manual de Operação
+    ---
+    tags:
+      - Operações
+    summary: Atualiza relatórios prévios registados erradamente num log do Terreno (Exclusivo para ValueText/ValueMemo).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: operacao_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Valuetext transcrito com sucesso.
     """
     current_user = get_jwt_identity()
     data = request.get_json()

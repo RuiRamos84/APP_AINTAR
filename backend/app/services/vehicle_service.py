@@ -22,21 +22,15 @@ logger = get_logger(__name__)
 
 
 @api_error_handler
-
 def list_vehicle(current_user: str):
     with db_session_manager(current_user) as session:
         query = text("SELECT * FROM vbl_vehicle order by hist_time desc")
         vehicle_result = session.execute(query).mappings().all()
-        vehicle_list=[]
-        for vehicle in vehicle_result:
-            vehicle_dict=dict(vehicle)
-            vehicle_list.append(vehicle_dict)
-        
-        print("✅ Veículo LIDO COM SUCESSO")
-        
+        vehicle_list = [dict(v) for v in vehicle_result]
+        logger.info("Veículos listados com sucesso")
+        return {'vehicle': vehicle_list}, 200
 
-        return{'vehicle': vehicle_list}, 200
-
+@api_error_handler
 def add_vehicle(current_user: str, data: dict):
     with db_session_manager(current_user) as session:
 
@@ -154,7 +148,7 @@ def list_vehicle_assign(current_user: str):
                 assign_dict["data"] = assign_dict["data"].isoformat()
             vehicle_assign_list.append(assign_dict)
 
-        print("✅ Veículos atribuídos LIDOS COM SUCESSO")
+        logger.info("Atribuições de veículos listadas com sucesso")
         return {"vehicle_assign": vehicle_assign_list}, 200
 
 
@@ -207,52 +201,46 @@ def add_vehicle_assign(current_user: str, data: dict):
 
 
 @api_error_handler
-def update_vehicle_assign(current_user: str, data: dict):
+def update_vehicle_assign(current_user: str, pk: int, data: dict):
     """
     Atualiza um registro na tabela vbf_vehicle_assign.
 
-    Parâmetros esperados em data:
-      - pk: int (obrigatório)
-      - tb_vehicle: int4 (opcional)
-      - data: date ou string ISO (opcional)
-      - ts_client: text (opcional)
+    Parâmetros:
+      - pk: int (chave primária da URL)
+      - data: dict com os campos a atualizar:
+          - tb_vehicle: int4 (opcional)
+          - data: date ou string ISO (opcional)
+          - ts_client: text (opcional)
     """
+    allowed_fields = ["tb_vehicle", "data", "ts_client"]
+    update_fields = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if not update_fields:
+        return {"message": "Nenhum campo válido para atualizar"}, 400
+
+    # Converter data se vier como string
+    if "data" in update_fields and isinstance(update_fields["data"], str):
+        update_fields["data"] = datetime.fromisoformat(update_fields["data"])
+
+    set_clause = ", ".join([f"{key} = :{key}" for key in update_fields.keys()])
+    query = text(f"""
+        UPDATE vbf_vehicle_assign
+        SET {set_clause}
+        WHERE pk = :pk
+    """)
+
+    params = update_fields.copy()
+    params["pk"] = pk
 
     with db_session_manager(current_user) as session:
-
-        pk = data.get("pk")
-        tb_vehicle = data.get("tb_vehicle")
-        assign_date = data.get("data")
-        ts_client = data.get("ts_client")
-
-        if not pk:
-            return {"error": "pk é obrigatório para atualizar"}, 400
-
-        # Converter data se vier como string
-        if isinstance(assign_date, str):
-            assign_date = datetime.fromisoformat(assign_date)
-
-        query = text("""
-            UPDATE vbf_vehicle_assign
-            SET
-                tb_vehicle = :tb_vehicle,
-                data = :data,
-                ts_client = :ts_client
-            WHERE pk = :pk
-        """)
-
-        params = {
-            "pk": pk,
-            "tb_vehicle": tb_vehicle,
-            "data": assign_date,
-            "ts_client": ts_client
-        }
-
-        session.execute(query, params)
+        result = session.execute(query, params)
         session.commit()
 
+    if result.rowcount == 0:
+        return {"message": f"Registo com pk={pk} não encontrado"}, 404
+
     return {
-        "message": "Registro de veículo atribuído atualizado com sucesso",
+        "message": "Atribuição de veículo atualizada com sucesso",
         "pk": pk
     }, 200
 @api_error_handler
@@ -269,7 +257,7 @@ def list_vehicle_maintenance(current_user: str):
                 maint_dict["data"] = maint_dict["data"].isoformat()
             maintenance_list.append(maint_dict)
 
-        print("✅ Manutenções LIDAS COM SUCESSO")
+        logger.info("Manutenções de veículos listadas com sucesso")
         return {"vehicle_maintenance": maintenance_list}, 200
 
 

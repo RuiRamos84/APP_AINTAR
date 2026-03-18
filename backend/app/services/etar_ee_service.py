@@ -371,221 +371,122 @@ def list_equip_expenses(current_user):
 # DOCUMENTOS - Funções unificadas para usar pnpk_instalacao
 
 
-@api_error_handler
-def create_instalacao_desmatacao(pnts_associate, pnmemo, pnpk_instalacao, current_user):
-    """Criar pedido de desmatação para instalação"""
+# ── Helper interno ────────────────────────────────────────────────────────────
+# Chama fbf_operacao directamente (bypass de fbo_operacao$createdirect que tem bug interno)
+# Parâmetros de fbf_operacao:
+#   $1=pop(0=INSERT), $2=pnpk, $3=pndata, $4=pndescr, $5=pntb_instalacao,
+#   $6=pntt_operacaomodo, $7=pnts_operador1, $8=pnts_operador2,
+#   $9=pntt_operacaoaccao, $10=pnvalue, $11=pnvaluememo
+_SQL_OPERACAO = """
+    SELECT fbf_operacao(
+        0,
+        nextval('sq_codes'),
+        :pndata,
+        :pnmemo,
+        :pk_entidade,
+        NULL,
+        :pk_operador,
+        NULL,
+        :tt_operacao,
+        NULL,
+        NULL
+    )
+"""
+
+
+def _exec_operacao(session, pndata, pk_entidade, pk_operador, tt_operacao, pnmemo):
+    from datetime import date
+    result = session.execute(text(_SQL_OPERACAO), {
+        'pndata': pndata or date.today(),
+        'pk_entidade': pk_entidade,
+        'pk_operador': pk_operador,
+        'tt_operacao': tt_operacao,
+        'pnmemo': pnmemo,
+    }).scalar()
+    return result
+
+
+# ── Instalação ────────────────────────────────────────────────────────────────
+
+def create_instalacao_desmatacao(pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata=None):
+    """Registar operação de desmatação numa instalação (tt=105)"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(20, :pnts_associate, :pnmemo, :pnpk_instalacao)")
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnpk_instalacao': pnpk_instalacao
-        }).scalar()
-        return {'message': 'Pedido de desmatação para instalação criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, pnpk_instalacao, pnts_associate, 105, pnmemo)
+        return {'message': 'Desmatação registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_instalacao_retirada_lamas(pnts_associate, pnmemo, pnpk_instalacao, current_user):
-    """Criar pedido de retirada de lamas para instalação"""
+def create_instalacao_retirada_lamas(pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata=None):
+    """Registar operação de limpeza/retirada de lamas numa instalação (tt=100)"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(40, :pnts_associate, :pnmemo, :pnpk_instalacao)")
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnpk_instalacao': pnpk_instalacao
-        }).scalar()
-        return {'message': 'Pedido de retirada de lamas para instalação criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, pnpk_instalacao, pnts_associate, 100, pnmemo)
+        return {'message': 'Limpeza de lamas registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_instalacao_reparacao(pnts_associate, pnmemo, pnpk_instalacao, current_user):
-    """Criar pedido de reparação para instalação"""
+def create_instalacao_reparacao(pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata=None):
+    """Registar operação de reparação numa instalação (tt=102)"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(45, :pnts_associate, :pnmemo, :pnpk_instalacao)")
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnpk_instalacao': pnpk_instalacao
-        }).scalar()
-        return {'message': 'Pedido de reparação para instalação criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, pnpk_instalacao, pnts_associate, 102, pnmemo)
+        return {'message': 'Reparação registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_instalacao_vedacao(pnts_associate, pnmemo, pnpk_instalacao, current_user):
-    """Criar pedido de vedação para instalação"""
+def create_instalacao_vedacao(pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata=None):
+    """Registar operação de vedação numa instalação (tt=104)"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(47, :pnts_associate, :pnmemo, :pnpk_instalacao)")
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnpk_instalacao': pnpk_instalacao
-        }).scalar()
-        return {'message': 'Pedido de vedação para instalação criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, pnpk_instalacao, pnts_associate, 104, pnmemo)
+        return {'message': 'Vedação registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_instalacao, current_user):
-    """Criar pedido de controlo de qualidade ambiental para instalação"""
+def create_instalacao_visita_tecnica(pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata=None):
+    """Registar visita técnica numa instalação (tt=6)"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(49, :pnts_associate, :pnmemo, :pnpk_instalacao)")
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnpk_instalacao': pnpk_instalacao
-        }).scalar()
-        return {'message': 'Pedido de controlo de qualidade ambiental para instalação criado com sucesso', 'document_id': result}, 201
-
-# DOCUMENTOS REDE/CAIXAS/RAMAIS - Simplificados para usar pnpk_instalacao
+        result = _exec_operacao(session, pndata, pnpk_instalacao, pnts_associate, 6, pnmemo)
+        return {'message': 'Visita técnica registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_rede_desobstrucao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
-    """Criar pedido de desobstrução para Rede"""
+def create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_instalacao, current_user, pndata=None):
+    """Registar controlo de qualidade ambiental numa instalação (tt=49 — mantido por compatibilidade)"""
     with db_session_manager(current_user) as session:
-        query = text("""
-            SELECT fbo_document_createintern(
-                28, :pnts_associate, :pnmemo, NULL,
-                :pnaddress, :pnpostal, :pndoor, :pnfloor,
-                :pnnut1, :pnnut2, :pnnut3, :pnnut4,
-                :pnglat, :pnglong
-            )
-        """)
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnaddress': pnaddress,
-            'pnpostal': pnpostal,
-            'pndoor': pndoor,
-            'pnfloor': pnfloor,
-            'pnnut1': pnnut1,
-            'pnnut2': pnnut2,
-            'pnnut3': pnnut3,
-            'pnnut4': pnnut4,
-            'pnglat': float(pnglat) if pnglat else None,
-            'pnglong': float(pnglong) if pnglong else None
-        }).scalar()
-        return {'message': 'Pedido de desobstrução para Rede criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, pnpk_instalacao, pnts_associate, 49, pnmemo)
+        return {'message': 'Controlo de qualidade ambiental registado com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_rede_reparacao_colapso(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
-    """Criar pedido de reparação/colapso para Rede"""
+# ── Rede (pk_entidade = 4) ────────────────────────────────────────────────────
+
+def create_rede_desobstrucao(pnts_associate, pnmemo, current_user, pndata=None):
+    """Registar desobstrução de rede (tt=101)"""
     with db_session_manager(current_user) as session:
-        query = text("""
-            SELECT fbo_document_createintern(
-                27, :pnts_associate, :pnmemo, NULL,
-                :pnaddress, :pnpostal, :pndoor, :pnfloor,
-                :pnnut1, :pnnut2, :pnnut3, :pnnut4,
-                :pnglat, :pnglong
-            )
-        """)
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnaddress': pnaddress,
-            'pnpostal': pnpostal,
-            'pndoor': pndoor,
-            'pnfloor': pnfloor,
-            'pnnut1': pnnut1,
-            'pnnut2': pnnut2,
-            'pnnut3': pnnut3,
-            'pnnut4': pnnut4,
-            'pnglat': float(pnglat) if pnglat else None,
-            'pnglong': float(pnglong) if pnglong else None
-        }).scalar()
-        return {'message': 'Pedido de reparação/colapso para Rede criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, 4, pnts_associate, 101, pnmemo)
+        return {'message': 'Desobstrução de rede registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_caixa_desobstrucao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
-    """Criar pedido de desobstrução para Caixas"""
+def create_rede_reparacao_colapso(pnts_associate, pnmemo, current_user, pndata=None):
+    """Registar reparação/colapso de rede (tt=102)"""
     with db_session_manager(current_user) as session:
-        query = text("""
-            SELECT fbo_document_createintern(
-                23, :pnts_associate, :pnmemo, NULL,
-                :pnaddress, :pnpostal, :pndoor, :pnfloor,
-                :pnnut1, :pnnut2, :pnnut3, :pnnut4,
-                :pnglat, :pnglong
-            )
-        """)
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnaddress': pnaddress,
-            'pnpostal': pnpostal,
-            'pndoor': pndoor,
-            'pnfloor': pnfloor,
-            'pnnut1': pnnut1,
-            'pnnut2': pnnut2,
-            'pnnut3': pnnut3,
-            'pnnut4': pnnut4,
-            'pnglat': float(pnglat) if pnglat else None,
-            'pnglong': float(pnglong) if pnglong else None
-        }).scalar()
-        return {'message': 'Pedido de desobstrução para Caixas criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, 4, pnts_associate, 102, pnmemo)
+        return {'message': 'Reparação de rede registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_caixa_reparacao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
-    """Criar pedido de reparação para Caixas"""
+# ── Caixas (pk_entidade = 3) ──────────────────────────────────────────────────
+
+def create_caixa_desobstrucao(pnts_associate, pnmemo, current_user, pndata=None):
+    """Registar desobstrução de caixa (tt=101)"""
     with db_session_manager(current_user) as session:
-        query = text("""
-            SELECT fbo_document_createintern(
-                22, :pnts_associate, :pnmemo, NULL,
-                :pnaddress, :pnpostal, :pndoor, :pnfloor,
-                :pnnut1, :pnnut2, :pnnut3, :pnnut4,
-                :pnglat, :pnglong
-            )
-        """)
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnaddress': pnaddress,
-            'pnpostal': pnpostal,
-            'pndoor': pndoor,
-            'pnfloor': pnfloor,
-            'pnnut1': pnnut1,
-            'pnnut2': pnnut2,
-            'pnnut3': pnnut3,
-            'pnnut4': pnnut4,
-            'pnglat': float(pnglat) if pnglat else None,
-            'pnglong': float(pnglong) if pnglong else None
-        }).scalar()
-        return {'message': 'Pedido de reparação para Caixas criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, 3, pnts_associate, 101, pnmemo)
+        return {'message': 'Desobstrução de caixa registada com sucesso', 'operacao_id': result}, 201
 
 
-@api_error_handler
-def create_caixa_reparacao_tampa(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, pnfloor, pnnut1, pnnut2, pnnut3, pnnut4, pnglat, pnglong, current_user):
-    """Criar pedido de reparação de tampa para Caixas"""
+def create_caixa_reparacao(pnts_associate, pnmemo, current_user, pndata=None):
+    """Registar reparação de caixa (tt=102)"""
     with db_session_manager(current_user) as session:
-        query = text("""
-            SELECT fbo_document_createintern(
-                29, :pnts_associate, :pnmemo, NULL,
-                :pnaddress, :pnpostal, :pndoor, :pnfloor,
-                :pnnut1, :pnnut2, :pnnut3, :pnnut4,
-                :pnglat, :pnglong
-            )
-        """)
-        result = session.execute(query, {
-            'pnts_associate': pnts_associate,
-            'pnmemo': pnmemo,
-            'pnaddress': pnaddress,
-            'pnpostal': pnpostal,
-            'pndoor': pndoor,
-            'pnfloor': pnfloor,
-            'pnnut1': pnnut1,
-            'pnnut2': pnnut2,
-            'pnnut3': pnnut3,
-            'pnnut4': pnnut4,
-            'pnglat': float(pnglat) if pnglat else None,
-            'pnglong': float(pnglong) if pnglong else None
-        }).scalar()
-        return {'message': 'Pedido de reparação de tampa para Caixas criado com sucesso', 'document_id': result}, 201
+        result = _exec_operacao(session, pndata, 3, pnts_associate, 102, pnmemo)
+        return {'message': 'Reparação de caixa registada com sucesso', 'operacao_id': result}, 201
+
+
+def create_caixa_reparacao_tampa(pnts_associate, pnmemo, current_user, pndata=None):
+    """Registar reparação de tampa de caixa (tt=106)"""
+    with db_session_manager(current_user) as session:
+        result = _exec_operacao(session, pndata, 3, pnts_associate, 106, pnmemo)
+        return {'message': 'Reparação de tampa registada com sucesso', 'operacao_id': result}, 201
 
 
 @api_error_handler
@@ -820,66 +721,53 @@ def list_ee_expenses(tb_ee, current_user):
     """Função de compatibilidade - usar list_instalacao_expenses"""
     return list_instalacao_expenses(tb_ee, current_user)
 
-# Funções de compatibilidade para documentos ETAR
+# ── ETAR — aliases diretos ────────────────────────────────────────────────────
+
+def create_etar_desmatacao(pnts_associate, pnmemo, pnpk_etar, current_user, pndata=None):
+    return create_instalacao_desmatacao(pnts_associate, pnmemo, pnpk_etar, current_user, pndata)
 
 
-@api_error_handler
-def create_etar_desmatacao(pnts_associate, pnmemo, pnpk_etar, current_user):
-    """Função de compatibilidade - usar create_instalacao_desmatacao"""
-    return create_instalacao_desmatacao(pnts_associate, pnmemo, pnpk_etar, current_user)
+def create_etar_retirada_lamas(pnts_associate, pnmemo, pnpk_etar, current_user, pndata=None):
+    return create_instalacao_retirada_lamas(pnts_associate, pnmemo, pnpk_etar, current_user, pndata)
 
 
-@api_error_handler
-def create_etar_retirada_lamas(pnts_associate, pnmemo, pnpk_etar, current_user):
-    """Função de compatibilidade - usar create_instalacao_retirada_lamas"""
-    return create_instalacao_retirada_lamas(pnts_associate, pnmemo, pnpk_etar, current_user)
+def create_etar_reparacao(pnts_associate, pnmemo, pnpk_etar, current_user, pndata=None):
+    return create_instalacao_reparacao(pnts_associate, pnmemo, pnpk_etar, current_user, pndata)
 
 
-@api_error_handler
-def create_etar_reparacao(pnts_associate, pnmemo, pnpk_etar, current_user):
-    """Função de compatibilidade - usar create_instalacao_reparacao"""
-    return create_instalacao_reparacao(pnts_associate, pnmemo, pnpk_etar, current_user)
+def create_etar_vedacao(pnts_associate, pnmemo, pnpk_etar, current_user, pndata=None):
+    return create_instalacao_vedacao(pnts_associate, pnmemo, pnpk_etar, current_user, pndata)
 
 
-@api_error_handler
-def create_etar_vedacao(pnts_associate, pnmemo, pnpk_etar, current_user):
-    """Função de compatibilidade - usar create_instalacao_vedacao"""
-    return create_instalacao_vedacao(pnts_associate, pnmemo, pnpk_etar, current_user)
+def create_etar_visita_tecnica(pnts_associate, pnmemo, pnpk_etar, current_user, pndata=None):
+    return create_instalacao_visita_tecnica(pnts_associate, pnmemo, pnpk_etar, current_user, pndata)
 
 
-@api_error_handler
-def create_etar_qualidade_ambiental(pnts_associate, pnmemo, pnpk_etar, current_user):
-    """Função de compatibilidade - usar create_instalacao_qualidade_ambiental"""
-    return create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_etar, current_user)
-
-# Funções de compatibilidade para documentos EE
+def create_etar_qualidade_ambiental(pnts_associate, pnmemo, pnpk_etar, current_user, pndata=None):
+    return create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_etar, current_user, pndata)
 
 
-@api_error_handler
-def create_ee_desmatacao(pnts_associate, pnmemo, pnpk_ee, current_user):
-    """Função de compatibilidade - usar create_instalacao_desmatacao"""
-    return create_instalacao_desmatacao(pnts_associate, pnmemo, pnpk_ee, current_user)
+# ── EE — aliases diretos ──────────────────────────────────────────────────────
+
+def create_ee_desmatacao(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
+    return create_instalacao_desmatacao(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)
 
 
-@api_error_handler
-def create_ee_retirada_lamas(pnts_associate, pnmemo, pnpk_ee, current_user):
-    """Função de compatibilidade - usar create_instalacao_retirada_lamas"""
-    return create_instalacao_retirada_lamas(pnts_associate, pnmemo, pnpk_ee, current_user)
+def create_ee_retirada_lamas(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
+    return create_instalacao_retirada_lamas(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)
 
 
-@api_error_handler
-def create_ee_reparacao(pnts_associate, pnmemo, pnpk_ee, current_user):
-    """Função de compatibilidade - usar create_instalacao_reparacao"""
-    return create_instalacao_reparacao(pnts_associate, pnmemo, pnpk_ee, current_user)
+def create_ee_reparacao(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
+    return create_instalacao_reparacao(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)
 
 
-@api_error_handler
-def create_ee_vedacao(pnts_associate, pnmemo, pnpk_ee, current_user):
-    """Função de compatibilidade - usar create_instalacao_vedacao"""
-    return create_instalacao_vedacao(pnts_associate, pnmemo, pnpk_ee, current_user)
+def create_ee_vedacao(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
+    return create_instalacao_vedacao(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)
 
 
-@api_error_handler
-def create_ee_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user):
-    """Função de compatibilidade - usar create_instalacao_qualidade_ambiental"""
-    return create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user)
+def create_ee_visita_tecnica(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
+    return create_instalacao_visita_tecnica(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)
+
+
+def create_ee_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
+    return create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)

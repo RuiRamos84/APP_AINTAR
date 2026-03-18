@@ -43,6 +43,8 @@ import {
   Inventory as InventoryIcon,
   Work as EPIIcon,
   Cable as NetworkIcon,
+  DirectionsCar as FleetIcon,
+  GridView as InternalIcon,
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
 
@@ -112,13 +114,9 @@ export const ROUTE_CONFIG = {
     id: 'tasks',
     text: 'Tarefas',
     icon: TasksIcon,
-    module: 'operacao',
+    module: 'administrativo',
     permissions: { required: PERMISSIONS.TASKS_VIEW },
     showInSidebar: true,
-    // Nota: Sub-rotas agora são tabs na página unificada TasksPage
-    // - Todas (apenas admin perfil 0)
-    // - Minhas Tarefas (atribuídas ao utilizador)
-    // - Criadas por Mim (criadas pelo utilizador)
   },
 
   '/operation': {
@@ -143,6 +141,15 @@ export const ROUTE_CONFIG = {
     id: 'operation_metadata',
     text: 'Gestão de Voltas',
     icon: SettingsIcon,
+    module: 'operacao',
+    permissions: { required: PERMISSIONS.OPERATIONS_CREATE },
+    showInSidebar: true,
+  },
+
+  '/operation/supervisor': {
+    id: 'operation_supervisor',
+    text: 'Supervisão',
+    icon: AnalyticsIcon,
     module: 'operacao',
     permissions: { required: PERMISSIONS.OPERATIONS_CREATE },
     showInSidebar: true,
@@ -177,43 +184,6 @@ export const ROUTE_CONFIG = {
     module: 'gestao',
     permissions: { required: PERMISSIONS.ETAR_VIEW },
     showInSidebar: true,
-    submenu: {
-      '/etar/characteristics': {
-        id: 'etar_characteristics',
-        text: 'Características',
-        icon: SettingsIcon,
-        permissions: { required: PERMISSIONS.ETAR_VIEW_CHARACTERISTICS },
-        showInSidebar: true,
-      },
-      '/etar/volumes': {
-        id: 'etar_volumes',
-        text: 'Volumes',
-        icon: BarChartIcon,
-        permissions: { required: PERMISSIONS.ETAR_VIEW_VOLUMES },
-        showInSidebar: true,
-      },
-      '/etar/energy': {
-        id: 'etar_energy',
-        text: 'Energia',
-        icon: ElectricBoltIcon,
-        permissions: { required: PERMISSIONS.ETAR_VIEW_ENERGY },
-        showInSidebar: true,
-      },
-      '/etar/expenses': {
-        id: 'etar_expenses',
-        text: 'Despesas',
-        icon: ExpensesIcon,
-        permissions: { required: PERMISSIONS.ETAR_VIEW_EXPENSES },
-        showInSidebar: true,
-      },
-      '/etar/violations': {
-        id: 'etar_violations',
-        text: 'Incumprimentos',
-        icon: ReportsIcon,
-        permissions: { required: PERMISSIONS.ETAR_VIEW_VIOLATIONS },
-        showInSidebar: true,
-      },
-    },
   },
 
   '/ee': {
@@ -223,36 +193,6 @@ export const ROUTE_CONFIG = {
     module: 'gestao',
     permissions: { required: PERMISSIONS.EE_VIEW },
     showInSidebar: true,
-    submenu: {
-      '/ee/characteristics': {
-        id: 'ee_characteristics',
-        text: 'Características',
-        icon: SettingsIcon,
-        permissions: { required: PERMISSIONS.EE_VIEW_CHARACTERISTICS },
-        showInSidebar: true,
-      },
-      '/ee/volumes': {
-        id: 'ee_volumes',
-        text: 'Volumes',
-        icon: BarChartIcon,
-        permissions: { required: PERMISSIONS.EE_VIEW_VOLUMES },
-        showInSidebar: true,
-      },
-      '/ee/energy': {
-        id: 'ee_energy',
-        text: 'Energia',
-        icon: ElectricBoltIcon,
-        permissions: { required: PERMISSIONS.EE_VIEW_ENERGY },
-        showInSidebar: true,
-      },
-      '/ee/expenses': {
-        id: 'ee_expenses',
-        text: 'Despesas',
-        icon: ExpensesIcon,
-        permissions: { required: PERMISSIONS.EE_VIEW_EXPENSES },
-        showInSidebar: true,
-      },
-    },
   },
 
   '/expenses': {
@@ -312,6 +252,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+
+  '/emissoes': {
+    id: 'emissoes',
+    text: 'Emissões',
+    icon: DocumentsIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.EMISSIONS_VIEW },
+    showInSidebar: true,
+  },
   // ==================== MÓDULO: PAGAMENTOS ====================
 
   '/clients': {
@@ -613,6 +562,35 @@ export const ROUTE_CONFIG = {
 
   // ==================== MÓDULO: ADMINISTRATIVO ====================
 
+  // ==================== MÓDULO: ÁREA INTERNA ====================
+
+  '/internal': {
+    id: 'internal',
+    text: 'Área Interna',
+    icon: InternalIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.INVENTORY_VIEW },
+    showInSidebar: false,
+  },
+
+  '/internal/inventario': {
+    id: 'internal_inventario',
+    text: 'Inventário',
+    icon: InventoryIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.INVENTORY_VIEW },
+    showInSidebar: true,
+  },
+
+  '/internal/requisicao': {
+    id: 'internal_requisicao',
+    text: 'Requisição Interna',
+    icon: RequestsIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.INVENTORY_VIEW },
+    showInSidebar: true,
+  },
+
   '/epi': {
     id: 'epi',
     text: 'Gestão de EPI',
@@ -622,29 +600,22 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/fleet': {
+    id: 'fleet',
+    text: 'Gestão de Frota',
+    icon: FleetIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.ADMIN_USERS }, // Temp permission until we define a specific Fleet one (PERMISSIONS.FLEET_VIEW)
+    showInSidebar: true,
+  },
+
   '/inventory': {
     id: 'inventory',
     text: 'Inventário',
     icon: InventoryIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.INVENTORY_VIEW },
-    showInSidebar: true,
-    submenu: {
-      '/inventory/stocks': {
-        id: 'inventory_stocks',
-        text: 'Stocks',
-        icon: InventoryIcon,
-        permissions: { required: PERMISSIONS.INVENTORY_VIEW },
-        showInSidebar: true,
-      },
-      '/inventory/movements': {
-        id: 'inventory_movements',
-        text: 'Movimentos',
-        icon: PaymentsIcon,
-        permissions: { required: PERMISSIONS.INVENTORY_MOVEMENTS },
-        showInSidebar: true,
-      },
-    },
+    showInSidebar: false, // Duplicado — usar /internal/inventario
   },
 
   '/offices': {
@@ -653,7 +624,7 @@ export const ROUTE_CONFIG = {
     icon: OfficesIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.OFFICES_VIEW },
-    showInSidebar: true,
+    showInSidebar: false, // Consolidado em /offices-admin (módulo Sistema)
   },
 
   '/pedidos': {

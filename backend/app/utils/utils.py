@@ -206,7 +206,14 @@ def db_session_manager(session_id):
         session.commit()
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"Erro na transação do banco de dados: {str(e)}")
+        error_str = str(e)
+        if "<error>" in error_str:
+            import re
+            match = re.search(r'<error>(.*?)</error>', error_str)
+            msg = match.group(1) if match else error_str
+            logger.warning(f"Erro de negócio na BD: {msg}")
+        else:
+            logger.error(f"Erro na transação do banco de dados: {error_str}", exc_info=True)
         raise
     finally:
         session.close()

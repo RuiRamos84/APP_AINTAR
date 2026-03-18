@@ -1,4 +1,4 @@
-# DeployBackend.ps1
+﻿# DeployBackend.ps1
 # Módulo de deployment do backend
 # Autor: Sistema Modular
 # Data: 2025
@@ -45,15 +45,17 @@ class BackendDeployer {
             ".DS_Store",
             "Thumbs.db",
             "*.log",
+            ".env",
             ".env.local",
             ".env.development",
+            ".env.production",
             "*.swp",
             "*.tmp"
         )
     }
     
     [bool] ValidateLocalBackend() {
-        Write-DeployDebug "Validando backend local..." "BACKEND"
+        Write-DeployDebug "A validar o backend local..." "BACKEND"
         
         if (-not (Test-Path $this.LocalPath)) {
             Write-DeployError "Diretório do backend não encontrado: $($this.LocalPath)" "BACKEND"
@@ -61,13 +63,13 @@ class BackendDeployer {
         }
         
         # Verificar arquivos essenciais
-        $essentialFiles = @("app.py", "main.py", "requirements.txt", "run.py")
+        $essentialFiles = @("app.py", "main.py", "run.py", "run_waitress.py", "config.py", "requirements.txt")
         $foundEssential = $false
         
         foreach ($file in $essentialFiles) {
             $filePath = Join-Path $this.LocalPath $file
             if (Test-Path $filePath) {
-                Write-DeployDebug "Arquivo essencial encontrado: $file" "BACKEND"
+                Write-DeployDebug "Ficheiro essencial encontrado: $file" "BACKEND"
                 $foundEssential = $true
                 break
             }
@@ -82,10 +84,10 @@ class BackendDeployer {
             $this.ShouldIncludeFile($_.FullName)
         }
         
-        Write-DeployInfo "Backend validado: $($pythonFiles.Count) arquivos Python encontrados" "BACKEND"
-        
+        Write-DeployInfo "Backend validado: $($pythonFiles.Count) ficheiros Python encontrados" "BACKEND"
+
         if ($pythonFiles.Count -eq 0) {
-            Write-DeployWarning "Nenhum arquivo Python encontrado no backend!" "BACKEND"
+            Write-DeployWarning "Nenhum ficheiro Python encontrado no backend!" "BACKEND"
         }
         
         return $true
@@ -114,25 +116,44 @@ class BackendDeployer {
     
     [bool] CreateRemoteBackup() {
         if (-not $this.CreateBackup) {
-            Write-DeployDebug "Backup desabilitado na configuração" "BACKEND"
+            Write-DeployDebug "Cópia de segurança desativada na configuração" "BACKEND"
             return $true
         }
-        
-        if (-not (Test-Path $this.RemotePath)) {
+
+        # Converter para UNC (o backup é feito via caminho de rede)
+        $remoteBasePath = $this.RemotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+        if (-not (Test-Path $remoteBasePath)) {
             Write-DeployDebug "Caminho remoto não existe, backup desnecessário" "BACKEND"
             return $true
         }
-        
+
         try {
-            $backupPath = Get-BackupPath $this.RemotePath
-            Write-DeployInfo "Criando backup do backend: $backupPath" "BACKEND"
-            
-            Move-Item $this.RemotePath $backupPath -ErrorAction Stop
-            Write-DeployInfo "Backup criado com sucesso!" "BACKEND"
-            
-            # Limpar backups antigos
+            $backupPath = Get-BackupPath $remoteBasePath
+            Write-DeployInfo "A criar cópia de segurança do backend: $backupPath" "BACKEND"
+
+            # Usar robocopy em vez de Move-Item: funciona mesmo com ficheiros bloqueados
+            # Excluir as mesmas pastas pesadas que o deploy (venv pode ter GB de ficheiros)
+            $robocopyArgs = @(
+                $remoteBasePath, $backupPath,
+                "/E",       # Subdirectórios incluindo vazios
+                "/MT:8",    # 8 threads paralelas
+                "/R:1",     # 1 tentativa em erro
+                "/W:1",     # 1 segundo entre tentativas
+                "/NFL", "/NDL", "/NJH", "/NJS",
+                "/XD", "venv", "__pycache__", ".git", "node_modules",
+                          ".pytest_cache", ".coverage", "htmlcov", "instance", "logs",
+                "/XF", "*.pyc", "*.pyo", "*.pyd", "*.log", "*.tmp", "*.swp"
+            )
+            & robocopy @robocopyArgs | Out-Null
+
+            if ($LASTEXITCODE -ge 8) {
+                Write-DeployWarning "Robocopy de backup falhou com código $LASTEXITCODE" "BACKEND"
+                return $false
+            }
+
+            Write-DeployInfo "Cópia de segurança criada com sucesso!" "BACKEND"
             $this.CleanOldBackups()
-            
             return $true
         }
         catch {
@@ -158,7 +179,7 @@ class BackendDeployer {
                 $backupsToRemove = $backups | Select-Object -Skip $Global:DeployConfig.ManterBackups
                 
                 foreach ($backup in $backupsToRemove) {
-                    Write-DeployDebug "Removendo backup antigo do backend: $($backup.Name)" "BACKEND"
+                    Write-DeployDebug "A remover cópia de segurança antiga do backend: $($backup.Name)" "BACKEND"
                     Remove-Item $backup.FullName -Recurse -Force -ErrorAction SilentlyContinue
                 }
             }
@@ -168,79 +189,54 @@ class BackendDeployer {
         }
     }
     
-    # Fix para o método DeployFiles() em DeployBackend.ps1
-
     [bool] DeployFiles() {
-        Write-DeployInfo "Iniciando deployment do backend..." "BACKEND"
-        
+        Write-DeployInfo "A iniciar o deployment do backend (robocopy)..." "BACKEND"
+
         try {
             # Converter caminho ServerDrive para UNC
             $remoteBasePath = $this.RemotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
-            
-            # Garantir que o diretório remoto existe
-            if (-not (Test-Path $remoteBasePath)) {
-                Write-DeployDebug "Criando diretório remoto: $remoteBasePath" "BACKEND"
-                New-Item -Path $remoteBasePath -ItemType Directory -Force | Out-Null
-            }
-            
-            # Obter lista de ficheiros para copiar
-            $filesToCopy = Get-ChildItem -Path $this.LocalPath -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
-                if ($null -eq $_ -or $null -eq $_.FullName -or [string]::IsNullOrWhiteSpace($_.FullName)) { return $false }
-                if (-not (Test-Path $_.FullName -ErrorAction SilentlyContinue)) { return $false }
-                return $this.ShouldIncludeFile($_.FullName)
-            }
-            
-            Write-DeployInfo "Copiando $($filesToCopy.Count) ficheiros/pastas..." "BACKEND"
-            
-            $copiedFiles = 0
+
             $copyStartTime = Get-Date
-            
-            foreach ($item in $filesToCopy) {
-                try {
-                    # Calcular caminho relativo
-                    $localPathLength = $this.LocalPath.TrimEnd('\').Length
-                    if ($item.FullName.Length -le $localPathLength) {
-                        Write-DeployWarning "Item ignorado - caminho inválido: $($item.Name)" "BACKEND"
-                        continue
-                    }
-                    
-                    $relativePath = $item.FullName.Substring($localPathLength).TrimStart('\', '/')
-                    if ([string]::IsNullOrWhiteSpace($relativePath)) {
-                        $relativePath = $item.Name
-                    }
-                    
-                    # Construir caminho UNC directo
-                    $targetPath = "$($remoteBasePath.TrimEnd('\'))\$relativePath"
-                    
-                    Write-DeployDebug "Copiando: $($item.Name) -> $relativePath" "BACKEND"
-                    
-                    if ($item.PSIsContainer) {
-                        if (-not (Test-Path $targetPath)) {
-                            New-Item -Path $targetPath -ItemType Directory -Force | Out-Null
-                        }
-                    } else {
-                        $targetDir = Split-Path $targetPath -Parent
-                        if (-not (Test-Path $targetDir)) {
-                            New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
-                        }
-                        
-                        Copy-Item -Path $item.FullName -Destination $targetPath -Force -ErrorAction Stop
-                        $copiedFiles++
-                        
-                        if ($copiedFiles % 50 -eq 0) {
-                            Write-DeployDebug "Progresso: $copiedFiles ficheiros copiados..." "BACKEND"
-                        }
-                    }
-                }
-                catch {
-                    Write-DeployWarning "Erro ao processar $($item.Name): $($_.Exception.Message)" "BACKEND"
-                    continue
-                }
+
+            # Construir argumentos do robocopy
+            $robocopyArgs = @(
+                $this.LocalPath,
+                $remoteBasePath,
+                "/E",       # Subdirectórios incluindo vazios
+                "/PURGE",   # Remove no destino o que não existe na origem
+                "/MT:8",    # 8 threads paralelas
+                "/R:2",     # 2 tentativas em erro
+                "/W:3",     # 3 segundos entre tentativas
+                "/NFL",     # Sem lista de ficheiros no output
+                "/NDL",     # Sem lista de directórios no output
+                "/NJH",     # Sem cabeçalho
+                "/NJS"      # Sem sumário
+            )
+
+            # Adicionar exclusões de pastas
+            if ($this.ExcludedFolders.Count -gt 0) {
+                $robocopyArgs += "/XD"
+                $robocopyArgs += $this.ExcludedFolders
             }
-            
+
+            # Adicionar exclusões de ficheiros
+            if ($this.ExcludedFiles.Count -gt 0) {
+                $robocopyArgs += "/XF"
+                $robocopyArgs += $this.ExcludedFiles
+            }
+
+            Write-DeployDebug "robocopy: $($this.LocalPath) -> $remoteBasePath" "BACKEND"
+            & robocopy @robocopyArgs | Out-Null
+
+            # robocopy: códigos 0-7 são sucesso; 8+ são erros
+            if ($LASTEXITCODE -ge 8) {
+                Write-DeployError "robocopy falhou com código $LASTEXITCODE" "BACKEND"
+                return $false
+            }
+
             $copyDuration = (Get-Date) - $copyStartTime
-            Write-DeployInfo "Deployment concluído: $copiedFiles ficheiros em $([Math]::Round($copyDuration.TotalSeconds, 2)) segundos" "BACKEND"
-            
+            Write-DeployInfo "Backend copiado em $([Math]::Round($copyDuration.TotalSeconds, 1))s (código robocopy: $LASTEXITCODE)" "BACKEND"
+
             return $this.ValidateRemoteDeployment()
         }
         catch {
@@ -250,7 +246,7 @@ class BackendDeployer {
     }
     
     [bool] ValidateRemoteDeployment() {
-        Write-DeployDebug "Validando deployment remoto do backend..." "BACKEND"
+        Write-DeployDebug "A validar o deployment remoto do backend..." "BACKEND"
         
         # Converter path para UNC
         $remoteBasePath = $this.RemotePath -replace "^ServerDrive:", "\\172.16.2.35\app"
@@ -274,9 +270,9 @@ class BackendDeployer {
         }
         
         # Verificar ficheiros essenciais
-        $essentialFiles = @("app.py", "main.py", "run.py")
+        $essentialFiles = @("app.py", "main.py", "run.py", "run_waitress.py", "config.py", "requirements.txt")
         $foundEssential = $false
-        
+
         foreach ($file in $essentialFiles) {
             $remoteFilePath = "$($remoteBasePath.TrimEnd('\'))\$file"
             if (Test-Path $remoteFilePath) {
@@ -295,7 +291,7 @@ class BackendDeployer {
     }
     
     [bool] Deploy() {
-        Write-DeployInfo "Iniciando deployment do backend..." "BACKEND"
+        Write-DeployInfo "A iniciar o deployment do backend..." "BACKEND"
         
         # Validar backend local
         if (-not $this.ValidateLocalBackend()) {

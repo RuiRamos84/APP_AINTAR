@@ -1,53 +1,36 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Stack, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Avatar, Chip, IconButton, Tooltip, Dialog, DialogTitle, DialogContent,
-    DialogActions, Button, TextField, FormControl, InputLabel, Select, MenuItem,
-    alpha, useTheme, Alert
+    Avatar, Chip, Tooltip, IconButton, alpha, useTheme, Alert
 } from '@mui/material';
 import {
-    People, CheckCircle, Schedule, Assignment,
-    Visibility, GppGood
+    People, CheckCircle, Schedule, Assignment, OpenInNew
 } from '@mui/icons-material';
+import { SortableHeadCell, SearchBar } from '@/shared/components/data';
+import { useSortable } from '@/shared/hooks/useSortable';
+import { useState } from 'react';
 import { formatDate } from '../../utils/formatters';
 
-const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaData }) => {
+/**
+ * OperatorMonitoring — Painel de equipa (read-only).
+ * Validação de execuções centralizada no tab "Controlo de Tarefas".
+ */
+const OperatorMonitoring = ({ operatorStats, recentActivity, onNavigateToControl }) => {
     const theme = useTheme();
-    const [validationOpen, setValidationOpen] = useState(false);
-    const [selectedExecution, setSelectedExecution] = useState(null);
-    const [classification, setClassification] = useState('');
-    const [observations, setObservations] = useState('');
+    const [searchOp, setSearchOp] = useState('');
 
-    // Opções de classificação de controlo
-    const classificationOptions = metaData?.operacaocontrolo || [
-        { pk: 1, value: 'Conforme' },
-        { pk: 2, value: 'Com observações' },
-        { pk: 3, value: 'Não conforme' },
-    ];
+    const filteredOps = useMemo(() => {
+        if (!searchOp.trim()) return operatorStats;
+        return operatorStats.filter(op => (op.name || '').toLowerCase().includes(searchOp.toLowerCase()));
+    }, [operatorStats, searchOp]);
+
+    const { sorted: sortedActivity, sortKey, sortDir, requestSort } = useSortable(recentActivity, 'updt_time', 'desc');
 
     const totalOperators = operatorStats.length;
     const totalAssigned = operatorStats.reduce((sum, op) => sum + op.totalTasks, 0);
     const totalCompleted = operatorStats.reduce((sum, op) => sum + op.completedTasks, 0);
     const totalPending = operatorStats.reduce((sum, op) => sum + op.pendingTasks, 0);
-
-    const handleOpenValidation = (execution) => {
-        setSelectedExecution(execution);
-        setClassification('');
-        setObservations('');
-        setValidationOpen(true);
-    };
-
-    const handleSubmitValidation = () => {
-        if (!selectedExecution || !classification) return;
-        const formData = new FormData();
-        formData.append('pk', selectedExecution.pk);
-        formData.append('control_tt_operacaocontrolo', classification);
-        if (observations.trim()) formData.append('control_memo', observations.trim());
-        onValidate?.(formData);
-        setValidationOpen(false);
-        setSelectedExecution(null);
-    };
 
     return (
         <Stack spacing={3}>
@@ -82,11 +65,14 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
             {/* Operator Performance */}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
                 <CardContent>
-                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                        Desempenho por Operador
-                    </Typography>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                            Desempenho por Operador
+                        </Typography>
+                        <SearchBar searchTerm={searchOp} onSearch={setSearchOp} />
+                    </Stack>
                     <Stack spacing={2}>
-                        {operatorStats.map(op => (
+                        {filteredOps.map(op => (
                             <Box key={op.pk} sx={{
                                 p: 2, borderRadius: 2,
                                 border: 1, borderColor: 'divider',
@@ -134,8 +120,10 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                                 </Stack>
                             </Box>
                         ))}
-                        {operatorStats.length === 0 && (
-                            <Alert severity="info">Sem dados de operadores para os filtros selecionados</Alert>
+                        {filteredOps.length === 0 && (
+                            <Alert severity="info">
+                                {searchOp ? 'Nenhum operador encontrado.' : 'Sem dados de operadores para os filtros selecionados.'}
+                            </Alert>
                         )}
                     </Stack>
                 </CardContent>
@@ -145,22 +133,36 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
             {recentActivity.length > 0 && (
                 <Card variant="outlined" sx={{ borderRadius: 3 }}>
                     <CardContent>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            Atividade Recente
-                        </Typography>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                Atividade Recente
+                            </Typography>
+                            {onNavigateToControl && (
+                                <Tooltip title="Validar execuções no separador Controlo">
+                                    <Chip
+                                        icon={<OpenInNew fontSize="small" />}
+                                        label="Ir para Controlo"
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={onNavigateToControl}
+                                        sx={{ cursor: 'pointer' }}
+                                    />
+                                </Tooltip>
+                            )}
+                        </Stack>
                         <TableContainer>
                             <Table size="small">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>Operador</TableCell>
-                                        <TableCell>Tarefa</TableCell>
-                                        <TableCell>Estado</TableCell>
-                                        <TableCell>Data</TableCell>
-                                        <TableCell align="center">Ações</TableCell>
+                                        <SortableHeadCell label="Operador" field="operador_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                        <SortableHeadCell label="Tarefa" field="acao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                        <TableCell>Validação</TableCell>
+                                        <SortableHeadCell label="Data" field="updt_time" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {recentActivity.slice(0, 10).map((exec, idx) => {
+                                    {sortedActivity.slice(0, 20).map((exec, idx) => {
                                         const isValidated = exec.control_tt_operacaocontrolo || exec.validated;
                                         return (
                                             <TableRow key={exec.pk || idx} hover>
@@ -179,25 +181,16 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
-                                                        label={isValidated ? 'Validada' : 'Concluída'}
+                                                        label={isValidated ? 'Validada' : 'Aguarda validação'}
                                                         size="small"
-                                                        color={isValidated ? 'success' : 'info'}
+                                                        color={isValidated ? 'success' : 'warning'}
                                                         variant="outlined"
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Typography variant="caption">
-                                                        {formatDate(exec.ts_exec || exec.data_execucao)}
+                                                        {formatDate(exec.updt_time)}
                                                     </Typography>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    {!isValidated && (
-                                                        <Tooltip title="Validar">
-                                                            <IconButton size="small" color="primary" onClick={() => handleOpenValidation(exec)}>
-                                                                <GppGood fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -208,45 +201,6 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onValidate, metaDat
                     </CardContent>
                 </Card>
             )}
-
-            {/* Validation Dialog */}
-            <Dialog open={validationOpen} onClose={() => setValidationOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Validar Execução</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        {selectedExecution && (
-                            <Alert severity="info">
-                                Tarefa: {selectedExecution.acao_nome || selectedExecution.description || `#${selectedExecution.pk}`}
-                            </Alert>
-                        )}
-                        <FormControl fullWidth>
-                            <InputLabel>Classificação</InputLabel>
-                            <Select
-                                value={classification}
-                                onChange={(e) => setClassification(e.target.value)}
-                                label="Classificação"
-                            >
-                                {classificationOptions.map(opt => (
-                                    <MenuItem key={opt.pk} value={opt.pk}>{opt.value}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        <TextField
-                            fullWidth multiline rows={3}
-                            label="Observações"
-                            value={observations}
-                            onChange={(e) => setObservations(e.target.value)}
-                            placeholder="Adicione observações sobre a validação..."
-                        />
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setValidationOpen(false)}>Cancelar</Button>
-                    <Button variant="contained" onClick={handleSubmitValidation} disabled={!classification}>
-                        Validar
-                    </Button>
-                </DialogActions>
-            </Dialog>
         </Stack>
     );
 };

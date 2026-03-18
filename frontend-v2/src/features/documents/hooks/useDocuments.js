@@ -90,8 +90,8 @@ export const useAddStep = () => {
     onSuccess: (_, variables) => {
       toast.success('Passo adicionado com sucesso');
       queryClient.invalidateQueries({ queryKey: documentKeys.steps(variables.id) });
-      // Also invalidate lists as status might have changed
-      queryClient.invalidateQueries({ queryKey: documentKeys.lists() }); 
+      queryClient.invalidateQueries({ queryKey: documentKeys.details() });
+      queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
       const backendMsg = error.response?.data?.error;

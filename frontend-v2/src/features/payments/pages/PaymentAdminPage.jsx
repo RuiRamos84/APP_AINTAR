@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
     CheckCircle, Visibility, Refresh, Assignment, Schedule,
-    Euro, History, Close as CloseIcon
+    Euro, History, Close as CloseIcon, Cancel, VerifiedUser, Undo
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/core/contexts/AuthContext';
@@ -28,6 +28,9 @@ const PaymentAdminPage = () => {
     const [selectedPayment, setSelectedPayment] = useState(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [rejectOpen, setRejectOpen] = useState(false);
+    const [refundOpen, setRefundOpen] = useState(false);
+    const [refundReason, setRefundReason] = useState('');
     const [filters, setFilters] = useState({
         startDate: '', endDate: '', method: '', status: ''
     });
@@ -54,7 +57,21 @@ const PaymentAdminPage = () => {
 
     const payments = useMemo(() => Array.isArray(rawPayments) ? rawPayments : [], [rawPayments]);
 
-    // Mutation aprovar
+    // Query isenções pendentes
+    const { data: rawExemptions = [], isLoading: isLoadingExemptions, refetch: fetchExemptions } = useQuery({
+        queryKey: ['pendingExemptions'],
+        queryFn: async () => {
+            const result = await paymentService.getPendingExemptions();
+            if (result?.exemptions && Array.isArray(result.exemptions)) return result.exemptions;
+            if (Array.isArray(result)) return result;
+            return [];
+        },
+        enabled: tab === 2,
+    });
+
+    const exemptions = useMemo(() => Array.isArray(rawExemptions) ? rawExemptions : [], [rawExemptions]);
+
+    // Mutation aprovar pagamento
     const { mutate: approvePayment, isLoading: isApproving } = useMutation({
         mutationFn: (paymentPk) => paymentService.approvePayment(paymentPk),
         onSuccess: () => {
@@ -64,6 +81,40 @@ const PaymentAdminPage = () => {
             setSelectedPayment(null);
         },
         onError: (err) => setError(err.message || 'Erro na aprovação'),
+    });
+
+    // Mutation aprovar isenção
+    const { mutate: approveExemption, isLoading: isApprovingExemption } = useMutation({
+        mutationFn: (paymentPk) => paymentService.approveExemption(paymentPk),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['pendingExemptions'] });
+            setConfirmOpen(false);
+            setSelectedPayment(null);
+        },
+        onError: (err) => setError(err.message || 'Erro na aprovação da isenção'),
+    });
+
+    // Mutation devolução
+    const { mutate: refundPayment, isLoading: isRefunding } = useMutation({
+        mutationFn: ({ pk, reason }) => paymentService.refundPayment(pk, reason),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
+            setRefundOpen(false);
+            setRefundReason('');
+            setSelectedPayment(null);
+        },
+        onError: (err) => setError(err.response?.data?.erro || err.message || 'Erro na devolução'),
+    });
+
+    // Mutation rejeitar isenção
+    const { mutate: rejectExemption, isLoading: isRejecting } = useMutation({
+        mutationFn: (paymentPk) => paymentService.rejectExemption(paymentPk),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['pendingExemptions'] });
+            setRejectOpen(false);
+            setSelectedPayment(null);
+        },
+        onError: (err) => setError(err.message || 'Erro na rejeição da isenção'),
     });
 
     // Query histórico
@@ -117,15 +168,16 @@ const PaymentAdminPage = () => {
         }
     };
 
-    const currentData = tab === 0 ? payments : historyData?.payments ?? [];
-    const isLoading = (tab === 0 && isLoadingPending) || (tab === 1 && isLoadingHistory);
+    const currentData = tab === 0 ? payments : tab === 1 ? (historyData?.payments ?? []) : exemptions;
+    const isLoading = (tab === 0 && isLoadingPending) || (tab === 1 && isLoadingHistory) || (tab === 2 && isLoadingExemptions);
 
     const getMethodLabel = (method) => PAYMENT_METHOD_LABELS[method] || method;
 
     const getStatusLabel = (status) => {
         const labels = {
             PENDING_VALIDATION: 'Pendente', SUCCESS: 'Aprovado',
-            DECLINED: 'Rejeitado', PENDING: 'Pendente', EXPIRED: 'Expirado'
+            DECLINED: 'Rejeitado', REJECTED: 'Rejeitado',
+            PENDING: 'Pendente', EXPIRED: 'Expirado', REFUNDED: 'Devolvido'
         };
         return labels[status] || status;
     };
@@ -147,6 +199,7 @@ const PaymentAdminPage = () => {
                 <Tabs value={tab} onChange={(_, v) => { setTab(v); setPage(1); }} variant={isMobile ? 'fullWidth' : 'standard'}>
                     <Tab icon={<Schedule />} label={`Pendentes (${payments.length})`} iconPosition="start" />
                     <Tab icon={<History />} label="Histórico" iconPosition="start" />
+                    <Tab icon={<VerifiedUser />} label={`Isenções (${exemptions.length})`} iconPosition="start" />
                 </Tabs>
             </Paper>
 
@@ -175,6 +228,7 @@ const PaymentAdminPage = () => {
                                     <MenuItem value="MUNICIPALITY">Municípios</MenuItem>
                                     <MenuItem value="MBWAY">MB WAY</MenuItem>
                                     <MenuItem value="MULTIBANCO">Multibanco</MenuItem>
+                                    <MenuItem value="ISENCAO">Isenção</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -185,8 +239,10 @@ const PaymentAdminPage = () => {
                                     onChange={(e) => handleFilterChange('status', e.target.value)}>
                                     <MenuItem value="">Todos</MenuItem>
                                     <MenuItem value="SUCCESS">Aprovado</MenuItem>
-                                    <MenuItem value="DECLINED">Rejeitado</MenuItem>
+                                    <MenuItem value="DECLINED">Recusado</MenuItem>
+                                    <MenuItem value="REJECTED">Rejeitado</MenuItem>
                                     <MenuItem value="PENDING_VALIDATION">Pendente</MenuItem>
+                                    <MenuItem value="REFUNDED">Devolvido</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -202,15 +258,19 @@ const PaymentAdminPage = () => {
                 </Paper>
             )}
 
-            {/* Stats (pendentes) */}
-            {tab === 0 && (
+            {/* Stats (pendentes e isenções) */}
+            {(tab === 0 || tab === 2) && (
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid size={{ xs: 12, sm: 4 }}>
                         <Card>
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
                                 <Schedule sx={{ fontSize: 36, color: 'warning.main', mb: 0.5 }} />
-                                <Typography variant="h4">{payments.length}</Typography>
-                                <Typography variant="body2" color="text.secondary">Pendentes</Typography>
+                                <Typography variant="h4">
+                                    {tab === 0 ? payments.length : exemptions.length}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    {tab === 0 ? 'Pendentes' : 'Isenções Pendentes'}
+                                </Typography>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -219,9 +279,14 @@ const PaymentAdminPage = () => {
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
                                 <Euro sx={{ fontSize: 36, color: 'success.main', mb: 0.5 }} />
                                 <Typography variant="h4">
-                                    €{payments.reduce((sum, p) => sum + Number(p.amount || 0), 0).toFixed(2)}
+                                    {tab === 0
+                                        ? `€${payments.reduce((sum, p) => sum + Number(p.amount || 0), 0).toFixed(2)}`
+                                        : exemptions.length
+                                    }
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">Total Pendente</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    {tab === 0 ? 'Total Pendente' : 'Pedidos a validar'}
+                                </Typography>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -230,11 +295,12 @@ const PaymentAdminPage = () => {
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
                                 <Button
                                     variant="contained" fullWidth
-                                    startIcon={isLoadingPending ? null : <Refresh />}
-                                    onClick={fetchPending} disabled={isLoadingPending}
+                                    startIcon={(isLoadingPending || isLoadingExemptions) ? null : <Refresh />}
+                                    onClick={tab === 0 ? fetchPending : fetchExemptions}
+                                    disabled={isLoadingPending || isLoadingExemptions}
                                     sx={{ mt: 1 }}
                                 >
-                                    {isLoadingPending ? 'A carregar...' : 'Actualizar'}
+                                    {(isLoadingPending || isLoadingExemptions) ? 'A carregar...' : 'Actualizar'}
                                 </Button>
                             </CardContent>
                         </Card>
@@ -269,7 +335,9 @@ const PaymentAdminPage = () => {
                                 <TableRow>
                                     <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                                         <Typography color="text.secondary">
-                                            {tab === 0 ? 'Nenhum pagamento pendente' : 'Nenhum registo encontrado'}
+                                            {tab === 0 ? 'Nenhum pagamento pendente'
+                                                : tab === 1 ? 'Nenhum registo encontrado'
+                                                    : 'Nenhuma isenção pendente'}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
@@ -297,7 +365,9 @@ const PaymentAdminPage = () => {
                                     )}
                                     <TableCell align="right">
                                         <Typography variant="body2" fontWeight={600}>
-                                            €{Number(payment.amount || 0).toFixed(2)}
+                                            {tab === 2
+                                                ? <Chip label="Gratuito" size="small" color="secondary" />
+                                                : `€${Number(payment.amount || 0).toFixed(2)}`}
                                         </Typography>
                                     </TableCell>
                                     {!isMobile && (
@@ -316,6 +386,32 @@ const PaymentAdminPage = () => {
                                             }}>
                                                 <CheckCircle fontSize="small" />
                                             </IconButton>
+                                        )}
+                                        {tab === 1 && payment.payment_status === 'SUCCESS' && (
+                                            <IconButton size="small" color="secondary" title="Devolver pagamento"
+                                                onClick={() => {
+                                                    setSelectedPayment(payment);
+                                                    setRefundReason('');
+                                                    setRefundOpen(true);
+                                                }}>
+                                                <Undo fontSize="small" />
+                                            </IconButton>
+                                        )}
+                                        {tab === 2 && (
+                                            <>
+                                                <IconButton size="small" color="success" onClick={() => {
+                                                    setSelectedPayment(payment);
+                                                    setConfirmOpen(true);
+                                                }}>
+                                                    <CheckCircle fontSize="small" />
+                                                </IconButton>
+                                                <IconButton size="small" color="error" onClick={() => {
+                                                    setSelectedPayment(payment);
+                                                    setRejectOpen(true);
+                                                }}>
+                                                    <Cancel fontSize="small" />
+                                                </IconButton>
+                                            </>
                                         )}
                                     </TableCell>
                                 </TableRow>
@@ -348,7 +444,11 @@ const PaymentAdminPage = () => {
                             <Paper sx={{ p: 2, mb: 2, bgcolor: 'success.light', color: 'white', borderRadius: 2 }}>
                                 <Grid container spacing={2}>
                                     <Grid size={{ xs: 12, sm: 6 }}>
-                                        <Typography variant="body2"><strong>Valor:</strong> €{Number(selectedPayment.amount || 0).toFixed(2)}</Typography>
+                                        <Typography variant="body2">
+                                            <strong>Valor:</strong> {selectedPayment.payment_method === 'ISENCAO'
+                                                ? 'Gratuito'
+                                                : `€${Number(selectedPayment.amount || 0).toFixed(2)}`}
+                                        </Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                                             <Typography variant="body2"><strong>Método:</strong></Typography>
                                             <Chip label={getMethodLabel(selectedPayment.payment_method)} size="small" />
@@ -410,28 +510,106 @@ const PaymentAdminPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDetailsOpen(false)}>Fechar</Button>
-                    {tab === 0 && selectedPayment && (
-                        <Button variant="contained" color="success" startIcon={<CheckCircle />}
-                            onClick={() => { setDetailsOpen(false); setConfirmOpen(true); }}>
-                            Aprovar
+                    {tab === 1 && selectedPayment?.payment_status === 'SUCCESS' && (
+                        <Button variant="outlined" color="secondary" startIcon={<Undo />}
+                            onClick={() => { setDetailsOpen(false); setRefundReason(''); setRefundOpen(true); }}>
+                            Devolver
                         </Button>
+                    )}
+                    {(tab === 0 || tab === 2) && selectedPayment && (
+                        <>
+                            <Button variant="contained" color="success" startIcon={<CheckCircle />}
+                                onClick={() => { setDetailsOpen(false); setConfirmOpen(true); }}>
+                                Aprovar
+                            </Button>
+                            {tab === 2 && (
+                                <Button variant="outlined" color="error" startIcon={<Cancel />}
+                                    onClick={() => { setDetailsOpen(false); setRejectOpen(true); }}>
+                                    Rejeitar
+                                </Button>
+                            )}
+                        </>
                     )}
                 </DialogActions>
             </Dialog>
 
-            {/* Modal Confirmação */}
+            {/* Modal Confirmação Aprovação */}
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-                <DialogTitle>Confirmar Aprovação</DialogTitle>
+                <DialogTitle>
+                    {tab === 2 ? 'Confirmar Aprovação de Isenção' : 'Confirmar Aprovação'}
+                </DialogTitle>
                 <DialogContent>
                     <Typography>
-                        Aprovar pagamento de <strong>€{Number(selectedPayment?.amount || 0).toFixed(2)}</strong>?
+                        {tab === 2
+                            ? <>Aprovar a isenção para o pedido <strong>{selectedPayment?.regnumber}</strong>?</>
+                            : <>Aprovar pagamento de <strong>€{Number(selectedPayment?.amount || 0).toFixed(2)}</strong>?</>
+                        }
                     </Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-                    <Button variant="contained" color="success" disabled={isApproving}
-                        onClick={() => approvePayment(selectedPayment.pk)}>
-                        {isApproving ? 'A aprovar...' : 'Aprovar'}
+                    <Button variant="contained" color="success"
+                        disabled={isApproving || isApprovingExemption}
+                        onClick={() => {
+                            if (tab === 2) approveExemption(selectedPayment.pk);
+                            else approvePayment(selectedPayment.pk);
+                        }}>
+                        {(isApproving || isApprovingExemption) ? 'A aprovar...' : 'Aprovar'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Modal Confirmação Devolução */}
+            <Dialog open={refundOpen} onClose={() => { setRefundOpen(false); setRefundReason(''); }} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Undo color="secondary" /> Confirmar Devolução
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Esta acção é irreversível. O pagamento será marcado como devolvido
+                        {selectedPayment?.payment_method === 'MBWAY' || selectedPayment?.payment_method === 'MULTIBANCO'
+                            ? ' e a devolução será processada junto da SIBS.'
+                            : '.'}
+                    </Alert>
+                    <Typography sx={{ mb: 2 }}>
+                        Devolver pagamento de <strong>€{Number(selectedPayment?.amount || 0).toFixed(2)}</strong>{' '}
+                        referente ao pedido <strong>{selectedPayment?.regnumber || selectedPayment?.order_id}</strong>?
+                    </Typography>
+                    <TextField
+                        label="Motivo da devolução"
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        fullWidth multiline rows={2} size="small"
+                        placeholder="Opcional — descreva o motivo da devolução"
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setRefundOpen(false); setRefundReason(''); }}>Cancelar</Button>
+                    <Button variant="contained" color="secondary" startIcon={<Undo />}
+                        disabled={isRefunding}
+                        onClick={() => refundPayment({ pk: selectedPayment.pk, reason: refundReason })}>
+                        {isRefunding ? 'A processar...' : 'Confirmar Devolução'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Modal Confirmação Rejeição (isenções) */}
+            <Dialog open={rejectOpen} onClose={() => setRejectOpen(false)}>
+                <DialogTitle>Confirmar Rejeição de Isenção</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Rejeitar a isenção do pedido <strong>{selectedPayment?.regnumber}</strong>?
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        O pedido voltará a estar pendente de pagamento e o utilizador será notificado.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setRejectOpen(false)}>Cancelar</Button>
+                    <Button variant="contained" color="error" startIcon={<Cancel />}
+                        disabled={isRejecting}
+                        onClick={() => rejectExemption(selectedPayment.pk)}>
+                        {isRejecting ? 'A rejeitar...' : 'Rejeitar'}
                     </Button>
                 </DialogActions>
             </Dialog>

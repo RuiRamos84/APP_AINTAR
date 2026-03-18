@@ -10,7 +10,6 @@ export const EPIPage = () => {
   return (
     <ModulePage
       breadcrumbs={[
-        { label: 'Administrativo', path: '/administrativo' },
         { label: 'Gestão de EPI', path: '/epi' },
       ]}
     >

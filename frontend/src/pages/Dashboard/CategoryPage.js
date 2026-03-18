@@ -68,7 +68,7 @@ const CategoryPage = () => {
         return f;
     }, [selectedYear, selectedMonth]);
 
-    const { dashboardData, isLoading, isFetching, isError, error, refetch } = useDashboardData(filters);
+    const { dashboardData, isLoading, isFetching, isError, error, refetch, forceRefetch } = useDashboardData(filters);
 
     const categoryInfo = DASHBOARD_CATEGORIES[category];
     const color = getCategoryColor(category, theme);
@@ -99,6 +99,16 @@ const CategoryPage = () => {
         );
     }
 
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 2 }}>
+                <CircularProgress size={48} thickness={3} />
+                <Typography variant="body1" color="text.secondary" fontWeight={500}>A obter os dados mais recentes...</Typography>
+                <Typography variant="body2" color="text.disabled">Estamos a preparar os gráficos de {categoryInfo.name} para si.</Typography>
+            </Box>
+        );
+    }
+
     return (
         <Box sx={{ p: 3, backgroundColor: theme.palette.background.default, minHeight: '100vh' }}>
             {/* Header */}
@@ -110,48 +120,34 @@ const CategoryPage = () => {
                 flexWrap: 'wrap',
                 gap: 2
             }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Tooltip title="Voltar ao Dashboard">
-                        <IconButton
-                            onClick={() => navigate(-1)}
-                            sx={{
-                                backgroundColor: alpha(color, 0.1),
-                                '&:hover': { backgroundColor: alpha(color, 0.2) }
-                            }}
-                        >
-                            <ArrowBackIcon sx={{ color }} />
-                        </IconButton>
-                    </Tooltip>
-
-                    <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <Typography variant="h4" fontWeight="bold">
-                                {categoryInfo.name}
-                            </Typography>
-                            {viewCount > 0 && (
-                                <Chip
-                                    label={`${viewCount} gráfico${viewCount !== 1 ? 's' : ''}`}
-                                    size="small"
-                                    sx={{
-                                        backgroundColor: alpha(color, 0.15),
-                                        color,
-                                        fontWeight: 600
-                                    }}
-                                />
-                            )}
-                        </Box>
-                        <Typography variant="body2" color="text.secondary">
-                            {categoryInfo.description}
+                <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="h4" fontWeight="bold">
+                            {categoryInfo.name}
                         </Typography>
+                        {viewCount > 0 && (
+                            <Chip
+                                label={`${viewCount} gráfico${viewCount !== 1 ? 's' : ''}`}
+                                size="small"
+                                sx={{
+                                    backgroundColor: alpha(color, 0.15),
+                                    color,
+                                    fontWeight: 600
+                                }}
+                            />
+                        )}
                     </Box>
+                    <Typography variant="body2" color="text.secondary">
+                        {categoryInfo.description}
+                    </Typography>
                 </Box>
 
-                {/* Filtros */}
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* Botões direita */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Tooltip title={isFetching ? 'A atualizar...' : 'Atualizar dados'}>
                         <span>
                             <IconButton
-                                onClick={() => refetch()}
+                                onClick={() => forceRefetch()}
                                 disabled={isFetching}
                                 sx={{
                                     backgroundColor: alpha(theme.palette.primary.main, 0.1),
@@ -165,6 +161,17 @@ const CategoryPage = () => {
                                 <RefreshIcon />
                             </IconButton>
                         </span>
+                    </Tooltip>
+                    <Tooltip title="Voltar ao Dashboard">
+                        <IconButton
+                            onClick={() => navigate(-1)}
+                            sx={{
+                                backgroundColor: alpha(color, 0.1),
+                                '&:hover': { backgroundColor: alpha(color, 0.2) }
+                            }}
+                        >
+                            <ArrowBackIcon sx={{ color }} />
+                        </IconButton>
                     </Tooltip>
                 </Box>
             </Box>

@@ -54,6 +54,7 @@ export const useOffline = () => {
     return {
         isOnline,
         pendingActions,
+        pendingCount: pendingActions.length,
         hasPendingActions: pendingActions.length > 0,
         addAction,
         removeAction,

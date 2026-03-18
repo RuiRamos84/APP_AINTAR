@@ -93,23 +93,32 @@ def require_api_key(f):
 @api_error_handler
 def receive_sensor_data():
     """
-    Recebe dados de sensores IoT.
-
-    Requer autenticação via API Key no header X-API-Key.
-
-    Headers:
-        X-API-Key: Chave de API válida (obrigatório)
-
-    Body:
-        JSON com dados do sensor (formato livre)
-
-    Returns:
-        {"status": "ok", "message": "...", "pk": <id>}
-
-    Errors:
-        401: API Key não fornecida ou inválida
-        400: Payload inválido
-        500: Erro interno
+    Receber Dados de Sensores (Telemetria IoT)
+    ---
+    tags:
+      - Telemetria
+    summary: Ingestão de métricas e status enviados por PLCs, Data-Loggers e Sensores Remotos.
+    security:
+      - ApiKeyAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: header
+        name: X-API-Key
+        type: string
+        required: true
+        description: Chave estática de ingestão IoT
+      - in: body
+        name: sensor_payload
+        description: Dados lidos do sensor
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: Leitura guardada.
+      401:
+        description: API Key inválida.
     """
     try:
         # Obter payload
@@ -148,14 +157,24 @@ def receive_sensor_data():
 @api_error_handler
 def list_sensor_data():
     """
-    Lista dados de sensores.
-
-    Query params:
-        limit: Número máximo de registos (default: 100)
-        processed: Filtrar por estado (true/false/all)
-
-    Returns:
-        {"status": "ok", "count": N, "data": [...]}
+    Listar Dados de Sensores (Telemetria IoT)
+    ---
+    tags:
+      - Telemetria
+    summary: Retorna listagem serializada com leituras reportadas por sensores (com filtros opcionais).
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: limit
+        type: integer
+      - in: query
+        name: processed
+        type: string
+        description: "'true', 'false' ou 'all'"
+    responses:
+      200:
+        description: Dados exportados com sucesso.
     """
     try:
         limit = request.args.get('limit', None, type=int)
@@ -202,13 +221,21 @@ def list_teleparams():
 @api_error_handler
 def set_processed(pk):
     """
-    Marca um registo de sensor como processado.
-
-    Args:
-        pk: ID do registo
-
-    Returns:
-        {"status": "ok", "message": "...", "pk": <id>}
+    Processar Registo de Sensor
+    ---
+    tags:
+      - Telemetria
+    summary: Assinala uma entrada IoT na base de dados como recebida/processada, flag boolean update.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Update confirmando processamento.
     """
     try:
         return mark_as_processed(pk)
@@ -288,10 +315,16 @@ def query_stations_route():
 @api_error_handler
 def get_stats():
     """
-    Obtém estatísticas de dados de sensores.
-
-    Returns:
-        {"status": "ok", "unprocessed_count": N}
+    Estatísticas de Telemetria
+    ---
+    tags:
+      - Telemetria
+    summary: Retorna a contagem de pacotes e transações IoT que aguardam tratamento/processamento.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Número total devolvido na key unprocessed_count.
     """
     try:
         return get_unprocessed_count()

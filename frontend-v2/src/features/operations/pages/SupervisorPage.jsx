@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-    Box, Typography, Tab, Tabs, Stack, Chip, Fab, IconButton, Tooltip,
+    Box, Typography, Tab, Tabs, Stack, Chip, Fab, IconButton, Tooltip, Button,
     FormControl, InputLabel, Select, MenuItem, CircularProgress, Alert,
-    alpha, useTheme, Collapse
+    alpha, useTheme, Collapse, Badge, TextField
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
@@ -11,7 +11,8 @@ import {
     Analytics as AnalyticsIcon,
     Refresh as RefreshIcon,
     FilterList,
-    KeyboardArrowDown
+    Folder as FolderIcon,
+    DateRange as DateRangeIcon,
 } from '@mui/icons-material';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
@@ -22,6 +23,7 @@ import SupervisorDashboard from '../components/supervisor/SupervisorDashboard';
 import OperatorMonitoring from '../components/supervisor/OperatorMonitoring';
 import OperationTaskManager from '../components/supervisor/OperationTaskManager';
 import AnalyticsPanel from '../components/supervisor/AnalyticsPanel';
+import PedidosPanel from '../components/supervisor/PedidosPanel';
 
 const TABS = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
@@ -34,15 +36,26 @@ const SupervisorPage = () => {
     const theme = useTheme();
     const [activeTab, setActiveTab] = useState(0);
     const [showFilters, setShowFilters] = useState(false);
+    const [pedidosVisited, setPedidosVisited] = useState(false);
+
+    const handleTabChange = useCallback((_, val) => {
+        setActiveTab(val);
+        if (val === 4) setPedidosVisited(true);
+    }, []);
 
     const {
         analytics, recentActivity, operatorStats, operations,
         weekDistribution, dayDistribution, metaData,
         weekFilter, setWeekFilter, dayFilter, setDayFilter,
+        operatorFilter, setOperatorFilter,
         availableWeeks, availableDays, filterInfo,
+        dateRange, setDateRange,
         isLoading, hasError, error, refresh,
-        createMeta, updateMeta, deleteMeta, validateExecution
-    } = useSupervisorData();
+        createTask, createDirect, createMeta, updateMeta, deleteMeta, validateExecution,
+        pedidos, pedidosLoading, pedidosError,
+    } = useSupervisorData({ activeTab, pedidosVisited });
+
+    const unvalidatedCount = analytics?.overview?.unvalidatedCount ?? 0;
 
     const handleValidate = (formData) => {
         validateExecution.mutate(formData);
@@ -54,7 +67,7 @@ const SupervisorPage = () => {
         });
     };
 
-    const hasActiveFilters = weekFilter !== 'all' || dayFilter !== 'all';
+    const hasActiveFilters = weekFilter !== 'all' || dayFilter !== 'all' || operatorFilter !== 'all';
 
     return (
         <ModulePage
@@ -68,6 +81,14 @@ const SupervisorPage = () => {
             ]}
             actions={
                 <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                        icon={<DateRangeIcon />}
+                        label={`${dateRange.fromDate} → ${dateRange.toDate}`}
+                        size="small"
+                        variant="outlined"
+                        color="default"
+                        onClick={() => setShowFilters(true)}
+                    />
                     {filterInfo && (
                         <Chip
                             label={`${filterInfo.showing} de ${filterInfo.totalInDatabase}`}
@@ -104,7 +125,29 @@ const SupervisorPage = () => {
         >
             {/* Filters - collapsible */}
             <Collapse in={showFilters}>
-                <Stack direction="row" spacing={2} sx={{ mb: 2, p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2 }}>
+                <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mb: 2, p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2 }}>
+                    {/* Período das execuções */}
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <DateRangeIcon fontSize="small" color="action" />
+                        <TextField
+                            label="De"
+                            type="date"
+                            size="small"
+                            value={dateRange.fromDate}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, fromDate: e.target.value }))}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ width: 150 }}
+                        />
+                        <TextField
+                            label="Até"
+                            type="date"
+                            size="small"
+                            value={dateRange.toDate}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, toDate: e.target.value }))}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ width: 150 }}
+                        />
+                    </Stack>
                     <FormControl size="small" sx={{ minWidth: 120 }}>
                         <InputLabel>Semana</InputLabel>
                         <Select value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} label="Semana">
@@ -123,10 +166,19 @@ const SupervisorPage = () => {
                             ))}
                         </Select>
                     </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel>Operador</InputLabel>
+                        <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)} label="Operador">
+                            <MenuItem value="all">Todos</MenuItem>
+                            {(operatorStats || []).map(op => (
+                                <MenuItem key={op.pk} value={String(op.pk)}>{op.name}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                     {hasActiveFilters && (
                         <Chip
                             label="Limpar"
-                            onDelete={() => { setWeekFilter('all'); setDayFilter('all'); }}
+                            onDelete={() => { setWeekFilter('all'); setDayFilter('all'); setOperatorFilter('all'); }}
                             size="small" variant="outlined" color="primary"
                         />
                     )}
@@ -147,20 +199,50 @@ const SupervisorPage = () => {
                 </Alert>
             )}
 
+            {/* Alerta de validações pendentes */}
+            {!isLoading && !hasError && unvalidatedCount > 0 && (
+                <Alert
+                    severity="warning"
+                    sx={{ mb: 2 }}
+                    action={
+                        <Button color="inherit" size="small" onClick={() => setActiveTab(1)}>
+                            Ver Agora
+                        </Button>
+                    }
+                >
+                    <strong>{unvalidatedCount}</strong> execução{unvalidatedCount !== 1 ? 'ões' : ''} por validar.
+                    Aceda ao separador <strong>Controlo de Tarefas</strong>.
+                </Alert>
+            )}
+
             {/* Tabs */}
             {!isLoading && !hasError && (
                 <>
                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                         <Tabs
                             value={activeTab}
-                            onChange={(_, val) => setActiveTab(val)}
+                            onChange={handleTabChange}
                             variant="scrollable"
                             scrollButtons="auto"
                         >
-                            {TABS.map(tab => (
-                                <Tab key={tab.id} icon={tab.icon} label={tab.label} iconPosition="start"
-                                    sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
-                            ))}
+                            <Tab icon={<DashboardIcon />} label="Dashboard" iconPosition="start"
+                                sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+                            <Tab
+                                icon={
+                                    <Badge badgeContent={unvalidatedCount || 0} color="error" max={99}>
+                                        <AssignmentIcon />
+                                    </Badge>
+                                }
+                                label="Controlo de Tarefas"
+                                iconPosition="start"
+                                sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }}
+                            />
+                            <Tab icon={<PeopleIcon />} label="Equipa" iconPosition="start"
+                                sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+                            <Tab icon={<AnalyticsIcon />} label="Analytics" iconPosition="start"
+                                sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+                            <Tab icon={<FolderIcon />} label="Pedidos" iconPosition="start"
+                                sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
                         </Tabs>
                     </Box>
 
@@ -179,7 +261,8 @@ const SupervisorPage = () => {
                         <OperationTaskManager
                             operations={operations}
                             metaData={metaData}
-                            onCreateMeta={(data) => createMeta.mutate(data)}
+                            onCreateTask={(data) => createTask.mutate(data)}
+                            onCreateDirect={(data) => createDirect.mutateAsync(data)}
                             onUpdateMeta={(id, data) => updateMeta.mutate({ id, data })}
                             onDeleteMeta={(id) => deleteMeta.mutate(id)}
                             onValidate={handleValidate}
@@ -191,8 +274,7 @@ const SupervisorPage = () => {
                         <OperatorMonitoring
                             operatorStats={operatorStats}
                             recentActivity={recentActivity}
-                            onValidate={handleValidate}
-                            metaData={metaData}
+                            onNavigateToControl={() => setActiveTab(1)}
                         />
                     )}
 
@@ -200,6 +282,15 @@ const SupervisorPage = () => {
                         <AnalyticsPanel
                             analytics={analytics}
                             operatorStats={operatorStats}
+                        />
+                    )}
+
+                    {activeTab === 4 && (
+                        <PedidosPanel
+                            pedidos={pedidos}
+                            metaData={metaData}
+                            isLoading={pedidosLoading}
+                            error={pedidosError}
                         />
                     )}
                 </>

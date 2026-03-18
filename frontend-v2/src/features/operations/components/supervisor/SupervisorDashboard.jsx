@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Stack, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Paper, Avatar, Chip, alpha, useTheme
+    Avatar, Chip, alpha, useTheme, InputAdornment, TextField
 } from '@mui/material';
 import {
-    Assignment, CheckCircle, Schedule, TrendingUp,
-    People, CalendarMonth, Today
+    Assignment, Warning, TrendingUp,
+    People, CalendarMonth, Today, CheckCircle, Search
 } from '@mui/icons-material';
+import SortableHeadCell from '@/shared/components/data/SortableHeadCell';
+import { useSortable } from '@/shared/hooks/useSortable';
 
 const StatCard = ({ label, value, icon, color, subtitle }) => {
     const theme = useTheme();
@@ -80,35 +82,46 @@ const DistributionBar = ({ data, title, icon, colorFn }) => {
 const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDistribution, filterInfo }) => {
     const theme = useTheme();
     const { overview } = analytics;
+    const [search, setSearch] = useState('');
 
     const weekColors = { W1: '#2196f3', W2: '#4caf50', W3: '#ff9800', W4: '#9c27b0' };
 
+    // Filtrar por pesquisa
+    const filteredStats = search.trim()
+        ? operatorStats.filter(op => (op.name || '').toLowerCase().includes(search.toLowerCase()))
+        : operatorStats;
+
+    const { sorted, sortKey, sortDir, requestSort } = useSortable(filteredStats, 'completedTasks', 'desc');
+
     return (
         <Stack spacing={3}>
-            {/* KPI Cards */}
+            {/* KPI Row 1 — Estado das tarefas */}
             <Grid container spacing={2}>
-                <Grid size={{ xs: 6, md: 3 }}>
-                    <StatCard
-                        label="Total de Voltas"
-                        value={overview.totalOperations}
-                        icon={<Assignment />}
-                        color={theme.palette.primary.main}
-                    />
-                </Grid>
                 <Grid size={{ xs: 6, md: 3 }}>
                     <StatCard
                         label="Concluídas"
                         value={overview.completedTasks}
                         icon={<CheckCircle />}
                         color={theme.palette.success.main}
+                        subtitle="Tarefas com resultado registado"
                     />
                 </Grid>
                 <Grid size={{ xs: 6, md: 3 }}>
                     <StatCard
                         label="Pendentes"
                         value={overview.pendingTasks}
-                        icon={<Schedule />}
-                        color={theme.palette.warning.main}
+                        icon={<Warning />}
+                        color={overview.pendingTasks > 0 ? theme.palette.warning.main : theme.palette.success.main}
+                        subtitle="Tarefas por completar"
+                    />
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                    <StatCard
+                        label="Metas Programadas"
+                        value={overview.totalOperations}
+                        icon={<Assignment />}
+                        color={theme.palette.primary.main}
+                        subtitle="Rotinas mensais agendadas"
                     />
                 </Grid>
                 <Grid size={{ xs: 6, md: 3 }}>
@@ -117,15 +130,16 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                         value={`${overview.completionRate}%`}
                         icon={<TrendingUp />}
                         color={overview.completionRate >= 75 ? theme.palette.success.main : theme.palette.warning.main}
+                        subtitle="Concluídas / Total de tarefas"
                     />
                 </Grid>
             </Grid>
 
-            {/* Progress Bar */}
+            {/* Barra de progresso */}
             <Box>
                 <Box display="flex" justifyContent="space-between" mb={0.5}>
                     <Typography variant="body2" color="text.secondary">
-                        Progresso Geral
+                        Taxa de Conclusão ({overview.completedTasks} concluídas / {overview.totalExecutions} tarefas)
                     </Typography>
                     <Typography variant="body2" fontWeight={600}>
                         {overview.completionRate}%
@@ -145,7 +159,7 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                 />
             </Box>
 
-            {/* Additional Stats */}
+            {/* KPI Row 2 */}
             <Grid container spacing={2}>
                 <Grid size={{ xs: 6, md: 3 }}>
                     <StatCard
@@ -153,30 +167,34 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                         value={overview.activeOperators}
                         icon={<People />}
                         color="#2196f3"
+                        subtitle="Com execuções registadas"
                     />
                 </Grid>
                 <Grid size={{ xs: 6, md: 3 }}>
                     <StatCard
-                        label="Total Execuções"
-                        value={overview.totalExecutions}
-                        icon={<CheckCircle />}
-                        color="#00bcd4"
-                    />
-                </Grid>
-                <Grid size={{ xs: 6, md: 3 }}>
-                    <StatCard
-                        label="Semanas Config."
-                        value={4}
-                        icon={<CalendarMonth />}
+                        label="Operadores com Metas"
+                        value={operatorStats.filter(op => op.totalTasks > 0).length}
+                        icon={<Assignment />}
                         color="#9c27b0"
+                        subtitle="Com tarefas de rotina atribuídas"
                     />
                 </Grid>
                 <Grid size={{ xs: 6, md: 3 }}>
                     <StatCard
-                        label="Dias Config."
-                        value={7}
+                        label="Semanas com Metas"
+                        value={Object.values(weekDistribution).filter(v => v > 0).length}
+                        icon={<CalendarMonth />}
+                        color="#00897b"
+                        subtitle="Das 4 semanas mensais"
+                    />
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                    <StatCard
+                        label="Dias com Metas"
+                        value={Object.values(dayDistribution).filter(v => v > 0).length}
                         icon={<Today />}
-                        color="#ff5722"
+                        color="#e65100"
+                        subtitle="Dos 7 dias da semana"
                     />
                 </Grid>
             </Grid>
@@ -186,7 +204,7 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                 <Grid size={{ xs: 12, md: 6 }}>
                     <DistributionBar
                         data={weekDistribution}
-                        title="Distribuição por Semana"
+                        title="Metas por Semana do Mês"
                         icon={<CalendarMonth color="primary" />}
                         colorFn={(key) => weekColors[key] || theme.palette.primary.main}
                     />
@@ -194,33 +212,49 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                 <Grid size={{ xs: 12, md: 6 }}>
                     <DistributionBar
                         data={dayDistribution}
-                        title="Distribuição por Dia"
+                        title="Metas por Dia da Semana"
                         icon={<Today color="primary" />}
                     />
                 </Grid>
             </Grid>
 
-            {/* Operator Workload Table */}
+            {/* Tabela de carga por operador */}
             {operatorStats.length > 0 && (
                 <Card variant="outlined" sx={{ borderRadius: 3 }}>
                     <CardContent>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            Carga de Trabalho por Operador
-                        </Typography>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                Atividade por Operador
+                            </Typography>
+                            <TextField
+                                size="small"
+                                placeholder="Pesquisar operador..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                sx={{ width: 220 }}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Search fontSize="small" color="action" />
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+                        </Stack>
                         <TableContainer>
                             <Table size="small">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>Operador</TableCell>
-                                        <TableCell align="center">Programadas</TableCell>
-                                        <TableCell align="center">Concluídas</TableCell>
-                                        <TableCell align="center">Pendentes</TableCell>
-                                        <TableCell align="center">Eficiência</TableCell>
+                                        <SortableHeadCell label="Operador" field="name" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                        <SortableHeadCell label="Programadas" field="scheduledTasks" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} align="center" />
+                                        <SortableHeadCell label="Realizadas" field="completedTasks" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} align="center" />
+                                        <SortableHeadCell label="Pendentes" field="pendingTasks" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} align="center" />
+                                        <SortableHeadCell label="Atividade" field="efficiency" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} align="center" />
                                         <TableCell sx={{ minWidth: 120 }}>Progresso</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {operatorStats.map((op) => (
+                                    {sorted.map((op) => (
                                         <TableRow key={op.pk} hover>
                                             <TableCell>
                                                 <Stack direction="row" alignItems="center" spacing={1}>
@@ -232,12 +266,23 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                                                     </Typography>
                                                 </Stack>
                                             </TableCell>
-                                            <TableCell align="center">{op.totalTasks}</TableCell>
                                             <TableCell align="center">
-                                                <Chip label={op.completedTasks} size="small" color="success" variant="outlined" />
+                                                <Typography variant="body2">{op.scheduledTasks || '—'}</Typography>
                                             </TableCell>
                                             <TableCell align="center">
-                                                <Chip label={op.pendingTasks} size="small" color={op.pendingTasks > 0 ? 'warning' : 'default'} variant="outlined" />
+                                                <Chip
+                                                    label={op.completedTasks}
+                                                    size="small"
+                                                    color={op.completedTasks > 0 ? 'success' : 'default'}
+                                                    variant="outlined"
+                                                    icon={op.completedTasks > 0 ? <CheckCircle /> : undefined}
+                                                />
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Typography variant="body2"
+                                                    color={op.pendingTasks > 0 ? 'warning.main' : 'text.secondary'}>
+                                                    {op.pendingTasks > 0 ? op.pendingTasks : '—'}
+                                                </Typography>
                                             </TableCell>
                                             <TableCell align="center">
                                                 <Typography variant="body2" fontWeight={600}
@@ -254,13 +299,20 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                                                         bgcolor: alpha(theme.palette.success.main, 0.1),
                                                         '& .MuiLinearProgress-bar': {
                                                             borderRadius: 3,
-                                                            bgcolor: op.efficiency >= 75 ? 'success.main' : op.efficiency >= 50 ? 'warning.main' : 'error.main'
+                                                            bgcolor: op.efficiency >= 75 ? theme.palette.success.main : op.efficiency >= 50 ? theme.palette.warning.main : theme.palette.error.main
                                                         }
                                                     }}
                                                 />
                                             </TableCell>
                                         </TableRow>
                                     ))}
+                                    {sorted.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                                                <Typography variant="body2" color="text.secondary">Nenhum operador encontrado</Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </TableContainer>
@@ -268,11 +320,11 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                 </Card>
             )}
 
-            {/* Filter Info */}
+            {/* Rodapé informativo */}
             {filterInfo && (
                 <Typography variant="caption" color="text.secondary" textAlign="center">
-                    A mostrar {filterInfo.showing} de {filterInfo.totalInDatabase} tarefas programadas
-                    {filterInfo.totalExecutions > 0 && ` | ${filterInfo.totalExecutions} execuções registadas`}
+                    A mostrar {filterInfo.showing} de {filterInfo.totalInDatabase} metas programadas
+                    {filterInfo.totalExecutions > 0 && ` · ${filterInfo.totalExecutions} execuções registadas no total`}
                 </Typography>
             )}
         </Stack>

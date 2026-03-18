@@ -24,6 +24,36 @@ bp = Blueprint('auth', __name__)
 @limiter.limit("10 per minute", key_func=get_remote_address)
 @api_error_handler
 def login():
+    """
+    Autenticar Utilizador
+    ---
+    tags:
+      - Autenticação
+    summary: Inicia sessão com as credenciais do utilizador.
+    description: Autentica utilizador via LDAP/Base de Dados, gerando tokens JWT.
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: credentials
+        required: true
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+              example: rui.ramos
+            password:
+              type: string
+              example: secret
+    responses:
+      200:
+        description: Autenticação bem sucedida. Retorna tokens e dados do utilizador.
+      401:
+        description: Credenciais inválidas.
+      500:
+        description: Erro interno do servidor.
+    """
     # logger.info("Tentativa de login iniciada")
     username = request.json.get("username")
     password = request.json.get("password")
@@ -37,6 +67,19 @@ def login():
 @jwt_required(optional=True)  # Permite logout mesmo com token expirado
 @api_error_handler
 def logout():
+    """
+    Terminar Sessão
+    ---
+    tags:
+      - Autenticação
+    summary: Invalida a sessão atual do utilizador.
+    description: Adiciona o token JWT atual à blacklist (se aplicável) e liberta a sessão no backend.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Logout efetuado ou sessão terminada.
+    """
     user_identity = get_jwt_identity()
     if user_identity:
         logout_user(user_identity)
@@ -51,6 +94,35 @@ def logout():
 @limiter.limit("5 per minute", key_func=get_remote_address)
 @api_error_handler
 def refresh():
+    """
+    Atualizar Tokens de Acesso
+    ---
+    tags:
+      - Autenticação
+    summary: Emite um novo Access Token baseado no Refresh Token.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            current_time:
+              type: integer
+              description: Timestamp do cliente em milissegundos.
+              example: 1735689600000
+    responses:
+      200:
+        description: Tokens renovados com sucesso.
+      400:
+        description: Bad Request (Payload inválido ou token ausente).
+      401:
+        description: Não autorizado (Refresh Token inválido ou expirado).
+    """
     logger.info("Tentativa de refresh de token")
     # Verificar e obter os dados da requisição
     data = request.get_json()
@@ -107,6 +179,37 @@ def refresh():
 @set_session
 @api_error_handler
 def update_dark_mode():
+    """
+    Atualizar Preferência de Tema (Dark Mode)
+    ---
+    tags:
+      - Autenticação
+    summary: Define se o modo escuro está ativo para o utilizador atual.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: preferences
+        required: true
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 1
+            dark_mode:
+              type: boolean
+              example: true
+    responses:
+      200:
+        description: Preferência atualizada com sucesso.
+      400:
+        description: Faltam parâmetros requeridos.
+      401:
+        description: Não autorizado.
+    """
     current_user_session = get_jwt_identity()
     data = request.get_json()
     user_id = data.get('user_id')
@@ -130,6 +233,22 @@ def update_dark_mode():
 @limiter.limit("360 per hour")
 @api_error_handler
 def heartbeat():
+    """
+    Heartbeat de Atividade
+    ---
+    tags:
+      - Autenticação
+    summary: Sinaliza atividade do utilizador para manter a sessão viva.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Atividade registada (Sessão mantida ativa).
+      401:
+        description: Não autorizado.
+      429:
+        description: Rate limit atingido.
+    """
     current_user = get_jwt_identity()
     update_last_activity(current_user)
     logger.info(f"Heartbeat recebido para o utilizador {current_user}")
@@ -141,6 +260,20 @@ def heartbeat():
 @set_session
 @api_error_handler
 def check_session():
+    """
+    Verificar Estado da Sessão
+    ---
+    tags:
+      - Autenticação
+    summary: Analisa o decorrer de inatividade para alertar ou terminar sessão.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Sessão válida ou aviso emitido de timeout próximo.
+      401:
+        description: Sessão expirou por inatividade ou token não é válido.
+    """
     current_user = get_jwt_identity()
     if check_inactivity(current_user):
         return jsonify({"error": "Sessão expirada por inatividade"}), 401
@@ -158,6 +291,20 @@ def check_session():
 @set_session
 @api_error_handler
 def get_cached_activities():
+    """
+    Buscar Atividades em Cache
+    ---
+    tags:
+      - Autenticação
+    summary: Retorna a lista de atividades registadas e retidas em Cache para o utilizador.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Array de atividades recém-executadas.
+      401:
+        description: Não autorizado.
+    """
     current_user = get_jwt_identity()
     activities = list_cached_activities(current_user)
     return jsonify(activities), 200

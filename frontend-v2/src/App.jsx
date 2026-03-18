@@ -16,26 +16,42 @@
  */
 
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { LoginPage, RegisterPage, ProtectedRoute, PublicRoute } from '@/features/auth';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { pt } from 'date-fns/locale';
+import {
+  LoginPage, RegisterPage, ProtectedRoute, PublicRoute,
+  ForgotPasswordPage, ResetPasswordPage, ActivationPage,
+} from '@/features/auth';
 import { DashboardPage } from '@/features/dashboard';
 import { HomePage, HomeRedirect } from '@/features/home';
 import { MainLayout, PublicLayout } from '@/shared/components/layout';
 import { ForbiddenPage, UnauthorizedPage } from '@/features/errors/pages';
-import { UserProfilePage, ChangePasswordPage } from '@/features/user/pages';
+import { UserProfilePage, ChangePasswordPage, SettingsPage } from '@/features/user/pages';
 import {
   UserListPage,
   UserDetailPage,
   UserCreatePage,
   AdminDashboardPage,
   PermissionsListPage,
+  SystemConfigPage,
+  ActivityLogsPage,
+  SessionLogsPage,
+  AdminActionsPage,
 } from '@/features/admin/pages';
 
 // Módulos do sistema de navegação híbrida
-import { OperationPage, OperationMetadataPage, OperationControlPage } from '@/features/operations/pages';
-import { ETARPage } from '@/features/gestao/pages';
-import { ClientsPage } from '@/features/payments/pages';
+import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage } from '@/features/operations/pages';
+import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage } from '@/features/gestao/pages';
+import { ClientsPage, InvoicesPage, ClientContractsPage } from '@/features/payments/pages';
 import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
-import { DashboardOverviewPage } from '@/features/dashboards/pages';
+import {
+  DashboardOverviewPage, DashboardRequestsPage, DashboardBranchesPage,
+  DashboardSepticTanksPage, DashboardInstallationsPage,
+  DashboardViolationsPage, DashboardAnalysesPage,
+  DashboardRepavPage, DashboardTramitacoesPage,
+} from '@/features/dashboards/pages';
+import { EmissoesPage } from '@/features/emissoes';
 import { EPIPage } from '@/features/administrativo/pages';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
@@ -44,9 +60,9 @@ import TelemetryPage from '@/features/telemetry/pages/TelemetryPage';
 
 function App() {
   return (
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={pt}>
     <Routes>
       {/* ==================== HOME PAGE ==================== */}
-      {/* Rota raiz - redireciona para /home se autenticado, ou mostra página pública */}
       <Route path="/" element={<HomeRedirect />} />
 
       {/* ==================== ROTAS PÚBLICAS ==================== */}
@@ -72,6 +88,9 @@ function App() {
           </PublicRoute>
         }
       />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/activation/:id/:activation_code" element={<ActivationPage />} />
 
       {/* ==================== PÁGINAS DE ERRO ==================== */}
       <Route path="/401" element={<UnauthorizedPage />} />
@@ -92,57 +111,52 @@ function App() {
         {/* Dashboard - sem permissão específica (definido em routeConfig) */}
         <Route path="/dashboard" element={<DashboardPage />} />
 
-        {/* Settings - sem permissão específica (definido em routeConfig) */}
-        <Route path="/settings" element={<div>Settings Page (Coming Soon)</div>} />
+        {/* Settings */}
+        <Route path="/settings" element={<SettingsPage />} />
 
         {/* ==================== PERFIL DO UTILIZADOR ==================== */}
-        {/* Perfil - qualquer utilizador autenticado pode aceder */}
         <Route path="/profile" element={<UserProfilePage />} />
-
-        {/* Alterar Password - qualquer utilizador autenticado pode aceder */}
         <Route path="/change-password" element={<ChangePasswordPage />} />
 
         {/* ==================== ADMINISTRAÇÃO ==================== */}
-        {/* Admin Root - permissão 10 (ADMIN_DASHBOARD) verificada automaticamente */}
         <Route path="/admin" element={<AdminDashboardPage />} />
-
-        {/* Admin Dashboard - permissão 10 (ADMIN_DASHBOARD) verificada automaticamente */}
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-
-        {/* Admin Users - permissão 20 (ADMIN_USERS) verificada automaticamente */}
         <Route path="/admin/users" element={<UserListPage />} />
         <Route path="/admin/users/list" element={<UserListPage />} />
         <Route path="/admin/users/new" element={<UserCreatePage />} />
         <Route path="/admin/users/:userId/edit" element={<UserDetailPage />} />
-
-        {/* Admin Permissions - permissão 20 (ADMIN_USERS) verificada automaticamente */}
         <Route path="/admin/permissions" element={<PermissionsListPage />} />
+        <Route path="/admin/config" element={<SystemConfigPage />} />
+        <Route path="/admin/activity-logs" element={<ActivityLogsPage />} />
+        <Route path="/admin/session-logs" element={<SessionLogsPage />} />
+        <Route path="/admin/actions" element={<AdminActionsPage />} />
+        <Route path="/users" element={<Navigate to="/admin/users" replace />} />
 
-        {/* Users (deprecated) - mantido para compatibilidade */}
-        <Route path="/users" element={<div>Users Page (Coming Soon)</div>} />
-
-        {/* Payments - permissão 850 (PAYMENTS_VIEW) verificada automaticamente */}
+        {/* ==================== MÓDULO: PAGAMENTOS ==================== */}
         <Route path="/payments" element={<PaymentAdminPage />} />
 
+        {/* Clients */}
+        <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/clients/contracts" element={<ClientContractsPage />} />
+
+        {/* Invoices */}
+        <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/invoices/issued" element={<Navigate to="/invoices" replace />} />
+        <Route path="/invoices/payment-plans" element={<Navigate to="/invoices" replace />} />
+
         {/* ==================== MÓDULO: OPERAÇÃO ==================== */}
-        {/* Tasks - permissão 200 (TASKS_VIEW) verificada automaticamente */}
-        {/* Página unificada com tabs: Todas (admin) | Minhas Tarefas | Criadas por Mim */}
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/*" element={<TasksPage />} />
-
-        {/* Operation - permissão 310 (OPERATIONS_ACCESS) verificada automaticamente */}
-        {/* Vista adaptativa: mobile → OperatorMobilePage, desktop → TasksPage/SupervisorPage */}
         <Route path="/operation" element={<OperationPage />} />
         <Route path="/operation/control" element={<OperationControlPage />} />
         <Route path="/operation/metadata" element={<OperationMetadataPage />} />
-
-        {/* /branches e /septic-tanks removidos - não implementados */}
+        <Route path="/operation/supervisor" element={<SupervisorPage />} />
 
         {/* ==================== MÓDULO: GESTÃO ==================== */}
-        {/* Analyses - permissão 700 (ANALYSES_VIEW) verificada automaticamente */}
-        <Route path="/analyses" element={<div>Analyses Page (Coming Soon)</div>} />
+        {/* Analyses */}
+        <Route path="/analyses" element={<AnalysisPage />} />
 
-        {/* ETAR - permissão 600 (ETAR_VIEW) verificada automaticamente */}
+        {/* ETAR */}
         <Route path="/etar" element={<ETARPage />} />
         <Route path="/etar/characteristics" element={<div>ETAR Characteristics (Coming Soon)</div>} />
         <Route path="/etar/volumes" element={<div>ETAR Volumes (Coming Soon)</div>} />
@@ -181,44 +195,37 @@ function App() {
         <Route path="/invoices/payment-plans" element={<div>Payment Plans (Coming Soon)</div>} />
 
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
-        {/* Dashboard Overview - permissão 1000 (DASHBOARD_VIEW) verificada automaticamente */}
         <Route path="/dashboards/overview" element={<DashboardOverviewPage />} />
-        <Route path="/dashboards/requests" element={<div>Requests Dashboard (Coming Soon)</div>} />
-        <Route path="/dashboards/branches" element={<div>Branches Dashboard (Coming Soon)</div>} />
-        <Route path="/dashboards/septic-tanks" element={<div>Septic Tanks Dashboard (Coming Soon)</div>} />
-        <Route path="/dashboards/installations" element={<div>Installations Dashboard (Coming Soon)</div>} />
-        <Route path="/dashboards/violations" element={<div>Violations Dashboard (Coming Soon)</div>} />
-        <Route path="/dashboards/analyses" element={<div>Analyses Dashboard (Coming Soon)</div>} />
+        <Route path="/dashboards/requests" element={<DashboardRequestsPage />} />
+        <Route path="/dashboards/branches" element={<DashboardBranchesPage />} />
+        <Route path="/dashboards/septic-tanks" element={<DashboardSepticTanksPage />} />
+        <Route path="/dashboards/installations" element={<DashboardInstallationsPage />} />
+        <Route path="/dashboards/violations" element={<DashboardViolationsPage />} />
+        <Route path="/dashboards/analyses" element={<DashboardAnalysesPage />} />
+        <Route path="/dashboards/repav" element={<DashboardRepavPage />} />
+        <Route path="/dashboards/tramitacoes" element={<DashboardTramitacoesPage />} />
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
-        {/* EPI - permissão 1100 (EPI_MANAGEMENT) verificada automaticamente */}
         <Route path="/epi" element={<EPIPage />} />
 
-        {/* Inventory - permissão 1150 (INVENTORY_VIEW) verificada automaticamente */}
-        <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
-        <Route path="/inventory/stocks" element={<div>Inventory Stocks (Coming Soon)</div>} />
-        <Route path="/inventory/movements" element={<div>Inventory Movements (Coming Soon)</div>} />
+        {/* ==================== ÁREA INTERNA ==================== */}
+        <Route path="/internal" element={<InternalDashboardPage />} />
+        <Route path="/internal/inventario" element={<InventoryPage />} />
+        <Route path="/internal/requisicao" element={<RequisicaoInternaPage />} />
 
-        {/* Offices - permissão 1300 (OFFICES_VIEW) verificada automaticamente */}
-        <Route path="/offices" element={<div>Offices Page (Coming Soon)</div>} />
-        <Route path="/offices-admin" element={<div>Offices Admin (Coming Soon)</div>} />
-        <Route path="/offices-admin/open" element={<div>Open Office (Coming Soon)</div>} />
-        <Route path="/offices-admin/close" element={<div>Close Office (Coming Soon)</div>} />
-        <Route path="/offices-admin/replicate" element={<div>Replicate Office (Coming Soon)</div>} />
+        {/* Inventory - redireciona para área interna */}
+        <Route path="/inventory" element={<Navigate to="/internal/inventario" replace />} />
+        <Route path="/inventory/stocks" element={<Navigate to="/internal/inventario" replace />} />
+        <Route path="/inventory/movements" element={<Navigate to="/internal/inventario" replace />} />
 
-        {/* Requests - permissão 1350 (REQUESTS_VIEW) verificada automaticamente */}
-        <Route path="/requests" element={<div>Requests Page (Coming Soon)</div>} />
-        <Route path="/requests/open" element={<div>Open Request (Coming Soon)</div>} />
-        <Route path="/requests/close" element={<div>Close Request (Coming Soon)</div>} />
-        <Route path="/requests/replicate" element={<div>Replicate Request (Coming Soon)</div>} />
+        {/* Frota */}
+        <Route path="/fleet" element={<FleetDashboard />} />
 
-        {/* ==================== DOCUMENTOS (LEGACY) ==================== */}
-        {/* Documents - permissão 500 (DOCS_VIEW_ALL) verificada automaticamente */}
+        {/* ==================== DOCUMENTOS ==================== */}
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/pedidos" element={<DocumentsPage />} />
 
         {/* ==================== ENTIDADES ==================== */}
-        {/* Entities - permissão 800 (ENTITIES_VIEW) verificada automaticamente */}
         <Route path="/entities" element={<EntitiesPage />} />
         <Route path="/entities/*" element={<EntitiesPage />} />
       </Route>
@@ -226,6 +233,7 @@ function App() {
       {/* ==================== 404 ==================== */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </LocalizationProvider>
   );
 }
 

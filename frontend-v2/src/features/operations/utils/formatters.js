@@ -10,6 +10,11 @@ export const formatDate = (value) => {
     });
 };
 
+export const formatDateOnly = (value) => {
+    if (!value) return '';
+    return new Date(value).toLocaleDateString('pt-PT');
+};
+
 export const formatPhone = (phone) => {
     if (!phone) return '';
     const cleaned = phone.replace(/\D/g, '');
@@ -81,8 +86,8 @@ export const getOperationActionName = (pk, metaData) => {
 };
 
 export const getOperationModeName = (pk, metaData) => {
-    if (!pk || !metaData?.operacamodo) return null;
-    const item = metaData.operacamodo.find(i => i.pk === Number(pk));
+    if (!pk || !metaData?.operacaomodo) return null;
+    const item = metaData.operacaomodo.find(i => i.pk === Number(pk));
     return item ? item.value : null;
 };
 
