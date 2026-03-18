@@ -26,7 +26,8 @@ import {
     ViewModule as ViewModuleIcon,
     Security as SecurityIcon,
     Science as ScienceIcon,
-    Mail as EmissionIcon
+    Mail as EmissionIcon,
+    Sensors as SensorsIcon
 } from "@mui/icons-material";
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import { AccountBalance as PaymentBalanceIcon } from '@mui/icons-material';
@@ -269,6 +270,14 @@ export const ROUTE_CONFIG = {
         text: 'Internal Area',
         icon: AppsIcon, // COMPONENTE
         permissions: { required: 300 }, // internal.access
+        showInSidebar: true
+    },
+
+    '/telemetry': {
+        id: 'telemetry',
+        text: 'Telemetria',
+        icon: SensorsIcon,
+        permissions: { required: 10 }, // admin
         showInSidebar: true
     }
 };

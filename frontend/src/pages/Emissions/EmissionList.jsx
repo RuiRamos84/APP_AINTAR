@@ -46,7 +46,8 @@ import {
   Close as CloseIcon,
   PictureAsPdf as PdfIcon,
   Email as EmailIcon,
-  Print as PrintIcon
+  Print as PrintIcon,
+  HistoryEdu as SignIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { format } from 'date-fns';
@@ -54,6 +55,7 @@ import { pt } from 'date-fns/locale';
 import { getEmissions, generatePDF, uploadPDF, downloadPDF, STATUS_CONFIG, formatEmissionNumber, getEmissionById } from '../../services/emission_service';
 import pdfService from '../../services/pdf_service';
 import EmissionPreview from '../../components/Emissions/EmissionPreview';
+import DigitalSignatureModal from '../../components/common/DigitalSignatureModal';
 import { useMetaData } from '../../contexts/MetaDataContext';
 
 /**
@@ -87,6 +89,9 @@ const EmissionList = ({ selectedType, selectedTypeData, onCreateNew }) => {
   const [viewDialog, setViewDialog] = useState({ open: false, emission: null });
   const [viewTab, setViewTab] = useState(0); // 0 = dados, 1 = preview
   const [loadingFullEmission, setLoadingFullEmission] = useState(false);
+
+  // Modal de assinatura digital
+  const [signDialog, setSignDialog] = useState({ open: false, emission: null });
 
   // Modal de edição
   const [editDialog, setEditDialog] = useState({ open: false, emission: null });
@@ -673,6 +678,18 @@ const EmissionList = ({ selectedType, selectedTypeData, onCreateNew }) => {
 
 
 
+  const handleSign = (emission) => {
+    setSignDialog({ open: true, emission });
+  };
+
+  const handleSignClose = () => {
+    setSignDialog({ open: false, emission: null });
+  };
+
+  const handleSigned = () => {
+    loadEmissions();
+  };
+
   const handlePrint = () => {
     if (viewDialog.emission) {
       window.print();
@@ -807,6 +824,18 @@ const EmissionList = ({ selectedType, selectedTypeData, onCreateNew }) => {
             </Tooltip>
           )}
 
+          {emission.filename && emission.status !== 'signed' && (
+            <Tooltip title="Assinar Digitalmente">
+              <IconButton
+                size="small"
+                onClick={() => handleSign(emission)}
+                color="secondary"
+              >
+                <SignIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           <Tooltip title="Editar">
             <span>
               <IconButton
@@ -928,7 +957,7 @@ const EmissionList = ({ selectedType, selectedTypeData, onCreateNew }) => {
     {
       field: 'actions',
       headerName: 'Ações',
-      width: 150,
+      width: 180,
       sortable: false,
       renderCell: (params) => (
         <Box>
@@ -963,6 +992,19 @@ const EmissionList = ({ selectedType, selectedTypeData, onCreateNew }) => {
                 color="success"
               >
                 <DownloadIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Botão "Assinar" - só para emissões COM PDF e NÃO assinadas */}
+          {params.row.filename && params.row.status !== 'signed' && (
+            <Tooltip title="Assinar Digitalmente">
+              <IconButton
+                size="small"
+                onClick={() => handleSign(params.row)}
+                color="secondary"
+              >
+                <SignIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
@@ -1635,6 +1677,18 @@ const EmissionList = ({ selectedType, selectedTypeData, onCreateNew }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal de Assinatura Digital */}
+      {signDialog.emission && (
+        <DigitalSignatureModal
+          open={signDialog.open}
+          onClose={handleSignClose}
+          documentType="emission"
+          documentId={signDialog.emission.pk}
+          documentLabel={signDialog.emission.emission_number}
+          onSigned={handleSigned}
+        />
+      )}
     </Box>
   );
 };

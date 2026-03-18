@@ -59,10 +59,10 @@ def fetch_meta_data(current_user):
         'inventory_type': "SELECT * FROM tt_inventorytype ORDER BY pk",
         'maintenancetype': "SELECT * FROM vbl_maintenancetype ORDER BY pk",
         'vehicle': "SELECT * FROM vbl_vehicle ORDER BY pk",
-        
-        
+        'sensor_types': "SELECT * FROM vbl_sensortype ORDER BY pk",
+        'teleparams': "SELECT * FROM vbl_teleparam ORDER BY pk",
 
-    
+
 
     }
 
