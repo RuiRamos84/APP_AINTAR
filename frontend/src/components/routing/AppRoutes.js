@@ -53,6 +53,7 @@ const DocumentPaymentFlow = lazy(() => import('../../features/Payment/modals/Doc
 const PaymentAdminPage = lazy(() => import('../../features/Payment/components/PaymentAdminPage'));
 const OldOperations = lazy(() => import("../../pages/Operation/OperationLegacy"));
 const TelemetryPage = lazy(() => import("../../pages/Telemetry/TelemetryPage"));
+const AlertaWhatsAppPage = lazy(() => import("../../pages/Alertas/AlertaWhatsAppPage"));
 
 // === CONFIGURAÇÃO DE ROTAS ===
 const PUBLIC_ROUTES = ["/", "/login", "/create-user", "/activation", "/password-recovery", "/reset-password"];
@@ -247,6 +248,13 @@ const AppRoutes = ({ user }) => (
         <Route path="/telemetry" element={
             <PrivateRoute requiredPermission={10}>
                 <TelemetryPage />
+            </PrivateRoute>
+        } />
+
+        {/* === ALERTAS WHATSAPP === */}
+        <Route path="/alertas/whatsapp" element={
+            <PrivateRoute>
+                <AlertaWhatsAppPage />
             </PrivateRoute>
         } />
     </Routes>
