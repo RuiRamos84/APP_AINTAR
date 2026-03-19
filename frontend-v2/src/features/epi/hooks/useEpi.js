@@ -123,12 +123,16 @@ export const useEpi = (options = {}) => {
     async (employeeId, type = 'all') => {
       if (!employeeId) return;
 
+      // A view retorna o NOME do colaborador em tb_epi — necessário para filtrar corretamente
+      const employee = getEmployeeById(employeeId);
+
       setLoadingDeliveries(true);
       clearError();
 
       try {
         const result = await epiService.getDeliveries({
           employeeId,
+          employeeName: employee?.name,
           type,
           page,
           pageSize: rowsPerPage,
@@ -140,7 +144,7 @@ export const useEpi = (options = {}) => {
         toast.error(errorMsg);
       }
     },
-    [page, rowsPerPage, setLoadingDeliveries, clearError, setDeliveries, setError]
+    [getEmployeeById, page, rowsPerPage, setLoadingDeliveries, clearError, setDeliveries, setError]
   );
 
   /**
