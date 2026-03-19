@@ -1,11 +1,10 @@
 # app/services/alert_whatsapp_service.py
 """
-Serviço de alertas via WhatsApp (CallMeBot)
+Serviço de alertas via WhatsApp (Twilio)
 Lê o alerta mais recente de tb_sensordataraw e envia via WhatsApp
 """
 
 import requests
-from urllib.parse import quote
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
@@ -39,6 +38,8 @@ def get_latest_alert(pk: int = None):
             query = text("""
                 SELECT pk, data, value
                 FROM tb_sensordataraw
+                WHERE value::jsonb ? 'alerts'
+                  AND value::jsonb -> 'alerts' ->> 'alert_message' IS NOT NULL
                 ORDER BY data DESC
                 LIMIT 1
             """)
@@ -87,13 +88,14 @@ def get_latest_alert(pk: int = None):
 
 
 @api_error_handler
-def send_whatsapp_alert(phone: str, apikey: str, pk: int = None):
+def send_whatsapp_alert(phone: str, account_sid: str, auth_token: str, pk: int = None):
     """
-    Envia o alerta via WhatsApp usando a API CallMeBot.
+    Envia o alerta via WhatsApp usando a API Twilio.
 
     Args:
-        phone: Número de telefone com código de país (ex: +351912345678)
-        apikey: API key do CallMeBot
+        phone: Número de destino com código de país (ex: +351912345678)
+        account_sid: Account SID do Twilio
+        auth_token: Auth Token do Twilio
         pk: PK do registo (opcional, usa o mais recente se None)
 
     Returns:
@@ -116,18 +118,22 @@ def send_whatsapp_alert(phone: str, apikey: str, pk: int = None):
         # Montar mensagem
         mensagem = f"[AINTAR ALERTA]\nSensor: {sensor_id}\nSeveridade: {alert_severity.upper()}\n\n{alert_message}"
 
-        # Chamar API CallMeBot
-        url = (
-            f"https://api.callmebot.com/whatsapp.php"
-            f"?phone={quote(phone)}"
-            f"&text={quote(mensagem)}"
-            f"&apikey={quote(apikey)}"
+        # Chamar API Twilio
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+
+        response = requests.post(
+            url,
+            auth=(account_sid, auth_token),
+            data={
+                "From": "whatsapp:+14155238886",  # número sandbox Twilio
+                "To": f"whatsapp:{phone}",
+                "Body": mensagem,
+            },
+            timeout=15,
         )
 
-        response = requests.get(url, timeout=15)
-
-        if response.status_code == 200:
-            logger.info(f"Alerta WhatsApp enviado para {phone[:6]}*** — sensor {sensor_id}")
+        if response.status_code in (200, 201):
+            logger.info(f"Alerta WhatsApp Twilio enviado para {phone[:6]}*** — sensor {sensor_id}")
             return {
                 "status": "ok",
                 "message": "Alerta enviado com sucesso via WhatsApp",
@@ -136,17 +142,14 @@ def send_whatsapp_alert(phone: str, apikey: str, pk: int = None):
                 "alert_severity": alert_severity,
             }, 200
         else:
-            logger.warning(f"CallMeBot respondeu {response.status_code}: {response.text}")
-            raise APIError(
-                f"Erro ao enviar WhatsApp (CallMeBot): {response.text}",
-                502,
-                "ERR_CALLMEBOT"
-            )
+            erro = response.json().get("message", response.text)
+            logger.warning(f"Twilio respondeu {response.status_code}: {erro}")
+            raise APIError(f"Erro ao enviar WhatsApp (Twilio): {erro}", 502, "ERR_TWILIO")
 
     except APIError:
         raise
     except requests.exceptions.Timeout:
-        raise APIError("Timeout ao contactar CallMeBot", 504, "ERR_TIMEOUT")
+        raise APIError("Timeout ao contactar Twilio", 504, "ERR_TIMEOUT")
     except requests.exceptions.RequestException as e:
         logger.error(f"Erro de rede ao enviar WhatsApp: {str(e)}")
         raise APIError("Erro de rede ao enviar WhatsApp", 502, "ERR_NETWORK")
