@@ -148,4 +148,28 @@ export const useAnaliseParams = () => {
   return { data: metaData?.analiseParams || [], isLoading, error };
 };
 
+/**
+ * Hook para tipos de equipamento
+ */
+export const useEquipTipos = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.equiptipo || [], isLoading, error };
+};
+
+/**
+ * Hook para localizações de equipamento
+ */
+export const useEquipLocalizacoes = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.equiplocalizacao || [], isLoading, error };
+};
+
+/**
+ * Hook para lista de instalações (ETAR + EE)
+ */
+export const useInstalacaoList = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.instalacao || [], isLoading, error };
+};
+
 export default useMetaData;

@@ -22,6 +22,7 @@ import {
   Schedule as ScheduleIcon, FlashOn as FlashOnIcon,
   CheckCircle as CheckCircleIcon,
   Image as ImageIcon,
+  Settings as EquipIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -44,6 +45,7 @@ import {
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
+import { EquipamentoModule } from '@/features/equipamento';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1129,9 +1131,19 @@ const TABS_ETAR = [
   { label: 'Intervenções',   icon: IntervencoesIcon },
   { label: 'Operações',      icon: AddIcon },
   { label: 'Incumprimentos', icon: IncumpIcon },
+  { label: 'Equipamentos',   icon: EquipIcon },
 ];
 
-const TABS_EE = TABS_ETAR.slice(0, 7);  // sem Incumprimentos
+const TABS_EE = [
+  { label: 'Histórico',      icon: HistoryIcon },
+  { label: 'Volumes',        icon: VolumeIcon },
+  { label: 'Água',           icon: WaterIcon },
+  { label: 'Energia',        icon: EnergyIcon },
+  { label: 'Despesas',       icon: ExpenseIcon },
+  { label: 'Intervenções',   icon: IntervencoesIcon },
+  { label: 'Operações',      icon: AddIcon },
+  { label: 'Equipamentos',   icon: EquipIcon },
+];
 
 /**
  * @param {Object}   props
@@ -1279,6 +1291,9 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
           {tab === 7 && type === 'etar' && (
             <IncumprimentosTab pk={pk} color={color} data={incumprimentos} isLoading={isLoadingIncump}
               addIncumprimento={addIncumprimento} isAdding={isAddingIncump} />
+          )}
+          {((tab === 8 && type === 'etar') || (tab === 7 && type === 'ee')) && (
+            <EquipamentoModule tbInstalacao={pk} color={color} />
           )}
         </Box>
       )}

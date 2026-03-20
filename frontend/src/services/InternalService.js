@@ -447,3 +447,142 @@ export const getVehicleMaintenance = async () => {
         throw error;
     }
 };
+
+// ==================== EQUIPAMENTOS INSTALADOS ====================
+
+export const getEquipamentosByInstalacao = async (tbInstalacao) => {
+    try {
+        const response = await api.get(`/equipamento_list/${tbInstalacao}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar equipamentos:", error);
+        throw error;
+    }
+};
+
+export const createEquipamento = async (formData) => {
+    try {
+        const response = await api.post("/equipamento_create", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar equipamento:", error);
+        throw error;
+    }
+};
+
+export const updateEquipamento = async (pk, formData) => {
+    try {
+        const response = await api.put(`/equipamento_update/${pk}`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar equipamento:", error);
+        throw error;
+    }
+};
+
+export const deleteEquipamento = async (pk) => {
+    try {
+        const response = await api.delete(`/equipamento_delete/${pk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao eliminar equipamento:", error);
+        throw error;
+    }
+};
+
+
+// ==================== OBRAS ====================
+export const getObrasRecords = async () => {
+    try {
+        const response = await api.get("/obras_list");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar obras:", error);
+        throw error;
+    }
+};
+
+export const addObra = async (data) => {
+    try {
+        const response = await api.post("/obra_create", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao registar obra:", error);
+        throw error;
+    }
+};
+
+export const updateObra = async (pk, data) => {
+    try {
+        const response = await api.put(`/obra_update/${pk}`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar obra:", error);
+        throw error;
+    }
+};
+
+export const deleteObra = async (pk) => {
+    try {
+        const response = await api.delete(`/obra_delete/${pk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao eliminar obra:", error);
+        throw error;
+    }
+};
+
+// ==================== DESPESAS DE OBRA ====================
+export const getObraDespesaByInstalacao = async (instalacaoPk) => {
+    try {
+        const response = await api.get(`/obra_despesa_list_by_instalacao/${instalacaoPk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar despesas por instalação:", error);
+        throw error;
+    }
+};
+
+export const getObraDespesaRecords = async () => {
+    try {
+        const response = await api.get("/obra_despesa_list");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar despesas de obra:", error);
+        throw error;
+    }
+};
+
+export const addObraDespesa = async (data) => {
+    try {
+        const response = await api.post("/obra_despesa_create", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao registar despesa de obra:", error);
+        throw error;
+    }
+};
+
+export const updateObraDespesa = async (pk, data) => {
+    try {
+        const response = await api.put(`/obra_despesa_update/${pk}`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar despesa de obra:", error);
+        throw error;
+    }
+};
+
+export const getObrasInstalacaoRecords = async (tbInstalacao) => {
+    try {
+        const response = await api.get(`/obras_list/${tbInstalacao}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar obras da instalação:", error);
+        throw error;
+    }
+};

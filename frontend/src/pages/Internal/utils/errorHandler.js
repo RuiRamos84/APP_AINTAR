@@ -8,8 +8,8 @@ export const handleApiError = (error, defaultMessage = "Ocorreu um erro") => {
 
     if (error.response) {
         // O servidor respondeu com um status diferente de 2xx
-        if (error.response.data && error.response.data.error) {
-            errorMessage = error.response.data.error;
+        if (error.response.data && (error.response.data.erro || error.response.data.error || error.response.data.message)) {
+            errorMessage = error.response.data.erro || error.response.data.error || error.response.data.message;
         } else {
             errorMessage = `Erro ${error.response.status}: ${error.response.statusText}`;
         }
