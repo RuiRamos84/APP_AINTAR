@@ -47,6 +47,7 @@ import {
   DirectionsCar as FleetIcon,
   GridView as InternalIcon,
   Build as EquipamentosIcon,
+  Settings as EquipamentoIcon,
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
 
@@ -636,6 +637,15 @@ export const ROUTE_CONFIG = {
     icon: AvalIcon,
     module: 'administracao',
     permissions: { required: PERMISSIONS.ADMIN_USERS },
+    showInSidebar: true,
+  },
+
+  '/internal/equipamento': {
+    id: 'internal_equipamento',
+    text: 'Equipamentos Instalados',
+    icon: EquipamentoIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.INVENTORY_VIEW },
     showInSidebar: true,
   },
 

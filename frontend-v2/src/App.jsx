@@ -58,8 +58,9 @@ import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
-import { InternalDashboardPage, InventoryPage, RequisicaoInternaPage } from '@/features/internal/pages';
-import FleetDashboard from '@/features/fleet/pages/FleetDashboard';
+import { InternalDashboardPage, InventoryPage, RequisicaoInternaPage } from '@/features/internal';
+import { FleetDashboard } from '@/features/fleet';
+import { EquipamentoInstalacaoPage } from '@/features/equipamento';
 
 function App() {
   return (
@@ -212,6 +213,8 @@ function App() {
         <Route path="/internal" element={<InternalDashboardPage />} />
         <Route path="/internal/inventario" element={<InventoryPage />} />
         <Route path="/internal/requisicao" element={<RequisicaoInternaPage />} />
+        <Route path="/internal/equipamento" element={<EquipamentoInstalacaoPage />} />
+        <Route path="/equipamento" element={<EquipamentoInstalacaoPage />} />
 
         {/* Inventory - redireciona para área interna */}
         <Route path="/inventory" element={<Navigate to="/internal/inventario" replace />} />

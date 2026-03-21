@@ -19,17 +19,20 @@ import BuildIcon from '@mui/icons-material/Build';
 import SecurityIcon from '@mui/icons-material/Security';
 import OpacityIcon from '@mui/icons-material/Opacity';
 import EditIcon from '@mui/icons-material/Edit';
+import ConstructionIcon from '@mui/icons-material/Construction';
 
 import { useMetaData } from "../../../contexts/MetaDataContext";
 import EntityDetailsView from '../components/EntityDetailsView';
 import DetailsModal from "../components/DetailsModal";
 import IncumprimentosTable from '../components/IncumprimentosTable';
+import EquipamentoInstalacaoTable from '../components/EquipamentoInstalacaoTable';
 import VolumeRecordsTable from "../components/VolumeRecordsTable";
 import WaterVolumeRecordsTable from "../components/WaterVolumeRecordsTable";
 import EnergyRecordsTable from "../components/EnergyRecordsTable";
 import ExpenseRecordsTable from "../components/ExpenseRecordsTable";
 import { useEntityDetails } from "../hooks/useEntityDetails";
 import { updateEntityDetails, createInternalRequest } from "../../../services/InternalService";
+import ObrasInstalacaoTable from '../components/ObrasInstalacaoTable';
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster";
 
 const SUB_AREAS = [
@@ -43,7 +46,9 @@ const SUB_AREAS = [
     { id: 'retirada_lamas', name: 'Retirada de Lamas', icon: <LayersIcon />, requiresEntity: false, massRequest: true },
     { id: 'reparacao', name: 'Reparação', icon: <BuildIcon />, requiresEntity: true },
     { id: 'vedacao', name: 'Vedação', icon: <SecurityIcon />, requiresEntity: true },
-    { id: 'qualidade_ambiental', name: 'Qualidade Ambiental', icon: <OpacityIcon />, requiresEntity: true }
+    { id: 'qualidade_ambiental', name: 'Qualidade Ambiental', icon: <OpacityIcon />, requiresEntity: true },
+    { id: 'equipamentos', name: 'Equipamentos Instalados', icon: <BuildIcon />, requiresEntity: true },
+    { id: 'obras', name: 'Obras', icon: <ConstructionIcon />, requiresEntity: true },
 ];
 
 const EtarEeView = ({ areaId }) => {
@@ -205,6 +210,10 @@ const EtarEeView = ({ areaId }) => {
                 return <ExpenseRecordsTable selectedEntity={selectedEntity} selectedArea={areaId} metaData={metaData} />;
             case 'incumprimentos':
                 return <IncumprimentosTable selectedEntity={selectedEntity} metaData={metaData} />;
+            case 'equipamentos':
+                return <EquipamentoInstalacaoTable selectedEntity={selectedEntity} metaData={metaData} />;
+            case 'obras':
+                return <ObrasInstalacaoTable selectedEntity={selectedEntity} areaId={areaId} metaData={metaData} />;
             case 'reparacao':
             case 'vedacao':
             case 'qualidade_ambiental':

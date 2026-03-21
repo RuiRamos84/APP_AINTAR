@@ -96,6 +96,7 @@ export default defineConfig(({ mode }) => ({
       'sonner',
       'framer-motion',
       'recharts',
+      'browser-image-compression',
     ],
   },
   // Test configuration

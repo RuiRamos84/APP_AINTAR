@@ -22,6 +22,9 @@ from .vehicle_routes import bp as vehicle_bp
 from .alert_whatsapp_routes import bp as alert_whatsapp_bp
 from .aval_routes import bp as aval_bp
 from .equipamentos_routes import bp as equipamentos_bp
+from .equipamento_routes import bp as equipamento_bp
+from .obras_routes import bp as obras_bp
+from .obra_despesa_routes import bp as obra_despesa_bp
 
 __all__ = [
     'auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp',
@@ -29,4 +32,5 @@ __all__ = [
     'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp',
     'analysis_bp', 'operation_metadata_bp', 'telemetry_bp', 'inventory_bp',
     'vehicle_bp', 'alert_whatsapp_bp', 'aval_bp', 'equipamentos_bp',
+    'equipamento_bp', 'obras_bp', 'obra_despesa_bp',
 ]

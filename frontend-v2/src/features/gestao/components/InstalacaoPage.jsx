@@ -48,6 +48,7 @@ import {
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
+import { EquipamentoModule } from '@/features/equipamento';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

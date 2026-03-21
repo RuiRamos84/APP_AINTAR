@@ -17,6 +17,8 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import InventarioView from "./views/InventoryView";
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import VeiculoView from "./views/VeiculoView";
+import ObrasView from "./views/ObrasView";
+import ConstructionIcon from '@mui/icons-material/Construction';
 
 
 
@@ -29,8 +31,8 @@ const areas = [
     { id: 6, name: "Equipamento Básico", description: "Gestão de Equipamento Básico" },
     { id: 7, name: "Requisição Interna", description: "Gestão de Requisições Internas" },
     { id: 8, name: "Inventário", description: "Gestão Inventário de Material Interno"},
-    { id: 9, name: "Veículos", description: "Gestão de Veículos internos"}
-
+    { id: 9, name: "Veículos", description: "Gestão de Veículos internos"},
+    { id: 10, name: "Obras", description: "Gestão de Obras" },
   ];
 
 const InternalArea = () => {
@@ -62,11 +64,8 @@ const InternalArea = () => {
                 return <InventarioView />;
             case 9:
                 return <VeiculoView />;
-            
-                
-            
-
-                
+            case 10:
+                return <ObrasView />;
             default:
                 return null;
         }
@@ -81,8 +80,9 @@ const InternalArea = () => {
             case 5: return <BuildIcon sx={{ fontSize: 40 }} />;
             case 6: return <HandymanIcon sx={{ fontSize: 40 }} />;
             case 7: return <DescriptionIcon sx={{ fontSize: 40 }} />;
-            case 8: return <Inventory2Icon sx={{ fontSize: 40 }} />; // <- Ícone do Inventário
-            
+            case 8: return <Inventory2Icon sx={{ fontSize: 40 }} />;
+            case 9: return null;
+            case 10: return <ConstructionIcon sx={{ fontSize: 40 }} />;
             default: return null;
         }
       };
