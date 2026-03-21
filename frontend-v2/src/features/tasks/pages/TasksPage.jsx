@@ -32,6 +32,15 @@ import {
   Badge,
   Paper,
   Typography,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Avatar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,6 +55,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Archive as ArchiveIcon,
   GroupWork as GroupIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -57,11 +67,15 @@ import TaskModal from '../components/TaskModal';
 import QuickFilters from '../components/QuickFilters';
 import ExportButton from '../components/ExportButton';
 import AdvancedFilters from '../components/AdvancedFilters';
+import BulkActionToolbar from '../components/BulkActionToolbar';
+import BulkPriorityDialog from '../components/BulkPriorityDialog';
+import BulkStatusDialog from '../components/BulkStatusDialog';
 import { ModulePage } from '@/shared/components/layout';
 import { Loading } from '@/shared/components/feedback';
 
 // Hooks & Context
 import { useTasks } from '../hooks/useTasks';
+import { useTaskSocket } from '../hooks/useTaskSocket';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 
@@ -79,6 +93,107 @@ const TAB_TYPES = {
   ASSIGNED: 'assigned', // Tarefas atribuídas ao utilizador
   CREATED: 'created', // Tarefas criadas pelo utilizador
   CLOSED: 'closed', // Tarefas encerradas (arquivadas)
+};
+
+// ============================================
+// ACORDEÃO: TAREFAS AGRUPADAS POR PESSOA
+// ============================================
+
+const TasksGroupedByPerson = ({
+  tasks,
+  onTaskClick,
+  canEdit,
+  loading,
+  selectedTasks,
+  onSelectTask,
+  onSelectAll,
+}) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Agrupar tarefas por cliente (pessoa a quem está atribuída)
+  const groups = useMemo(() => {
+    const map = {};
+    tasks.forEach((task) => {
+      const key = task.client_name || task.ts_client_name || 'Sem atribuição';
+      if (!map[key]) map[key] = [];
+      map[key].push(task);
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, 'pt'));
+  }, [tasks]);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <Stack spacing={1}>
+      {groups.map(([personName, personTasks]) => (
+        <Accordion
+          key={personName}
+          defaultExpanded
+          disableGutters
+          elevation={0}
+          sx={{
+            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            borderRadius: 2,
+            '&:before': { display: 'none' },
+            '&.Mui-expanded': { margin: 0 },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.03),
+              borderRadius: 2,
+              minHeight: 48,
+              '& .MuiAccordionSummary-content': { my: 1 },
+            }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Avatar
+                sx={{
+                  width: 28,
+                  height: 28,
+                  fontSize: '0.75rem',
+                  bgcolor: 'primary.main',
+                }}
+              >
+                {personName.charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {personName}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 10,
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  color: 'primary.main',
+                  fontWeight: 600,
+                }}
+              >
+                {personTasks.length}
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+
+          <AccordionDetails sx={{ p: 0 }}>
+            <ListView
+              tasks={personTasks}
+              onTaskClick={onTaskClick}
+              canEdit={canEdit}
+              loading={loading}
+              selectedTasks={selectedTasks}
+              onSelectTask={onSelectTask}
+              onSelectAll={onSelectAll}
+              selectionEnabled={!isMobile}
+            />
+          </AccordionDetails>
+        </Accordion>
+      ))}
+    </Stack>
+  );
 };
 
 // ============================================
@@ -106,6 +221,12 @@ export const TasksPage = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [groupBy, setGroupBy] = useState('status'); // 'status' | 'client' - agrupamento (só admin)
 
+  // Estado dos dialogs de bulk actions
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [pendingBulkAction, setPendingBulkAction] = useState(null); // 'close' | 'reopen'
+  const [bulkPriorityOpen, setBulkPriorityOpen] = useState(false);
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+
   // Hook de tarefas
   const {
     tasks,
@@ -117,20 +238,42 @@ export const TasksPage = () => {
     refresh,
     getTaskStats,
     updateStatus,
+    // Bulk
+    selectedTasks,
+    selectedCount,
+    hasSelection,
+    bulkLoading,
+    bulkAction,
+    selectTask,
+    deselectTask,
+    selectAllVisible,
+    clearSelection,
   } = useTasks({
     autoFetch: true,
     fetchOnMount: true,
   });
 
-  // Listener para eventos de refresh (quando notificação é marcada como lida)
-  useEffect(() => {
-    const handleTaskRefresh = () => {
-      refresh();
-    };
+  // ID do utilizador atual (backend usa user_id)
+  const userId = user?.user_id || user?.pk || user?.id;
 
+  // Listener para eventos de refresh (quando notificação é marcada como lida ou socket legacy)
+  useEffect(() => {
+    const handleTaskRefresh = () => refresh();
     window.addEventListener('task-refresh', handleTaskRefresh);
     return () => window.removeEventListener('task-refresh', handleTaskRefresh);
   }, [refresh]);
+
+  // Socket.IO: atualizações em tempo real de tarefas
+  useTaskSocket({
+    selectedTaskId: selectedTask?.pk ?? selectedTask?.id ?? null,
+    currentUserId: userId,
+    onTaskUpdated: (taskId) => {
+      if (selectedTask && (selectedTask.pk === taskId || selectedTask.id === taskId)) {
+        setSelectedTask((prev) => prev ? { ...prev, _socketRefresh: Date.now() } : prev);
+      }
+      refresh();
+    },
+  });
 
   // Abrir modal se taskId estiver na URL (vindo de notificação)
   useEffect(() => {
@@ -140,14 +283,10 @@ export const TasksPage = () => {
       if (task) {
         setSelectedTask(task);
         setTaskModalOpen(true);
-        // Limpar o parâmetro da URL
         setSearchParams({}, { replace: true });
       }
     }
   }, [searchParams, tasks, setSearchParams]);
-
-  // ID do utilizador atual (backend usa user_id)
-  const userId = user?.user_id || user?.pk || user?.id;
 
   // Filtrar tarefas baseado na tab ativa
   // IMPORTANTE: Tarefas encerradas (when_stop != null) só aparecem na tab "Encerradas"
@@ -216,9 +355,65 @@ export const TasksPage = () => {
   }, [tasks, userId, isAdmin]);
 
   // Handlers
-  const handleTabChange = useCallback((_, newTab) => {
-    setActiveTab(newTab);
+  const handleTabChange = useCallback(
+    (_, newTab) => {
+      setActiveTab(newTab);
+      clearSelection();
+    },
+    [clearSelection]
+  );
+
+  // Handlers de seleção para bulk
+  const handleSelectTask = useCallback(
+    (taskId) => {
+      if (selectedTasks.includes(taskId)) {
+        deselectTask(taskId);
+      } else {
+        selectTask(taskId);
+      }
+    },
+    [selectedTasks, selectTask, deselectTask]
+  );
+
+  const handleSelectAllVisible = useCallback(
+    (ids) => {
+      selectAllVisible(ids);
+    },
+    [selectAllVisible]
+  );
+
+  // Handlers de bulk actions
+  const handleBulkClose = useCallback(() => {
+    setPendingBulkAction('close');
+    setBulkConfirmOpen(true);
   }, []);
+
+  const handleBulkReopen = useCallback(() => {
+    setPendingBulkAction('reopen');
+    setBulkConfirmOpen(true);
+  }, []);
+
+  const handleBulkConfirm = useCallback(async () => {
+    await bulkAction(pendingBulkAction);
+    setBulkConfirmOpen(false);
+    setPendingBulkAction(null);
+  }, [bulkAction, pendingBulkAction]);
+
+  const handleBulkPriorityConfirm = useCallback(
+    async ({ priorityId }) => {
+      await bulkAction('priority', { priorityId });
+      setBulkPriorityOpen(false);
+    },
+    [bulkAction]
+  );
+
+  const handleBulkStatusConfirm = useCallback(
+    async ({ statusId }) => {
+      await bulkAction('status', { statusId });
+      setBulkStatusOpen(false);
+    },
+    [bulkAction]
+  );
 
   const handleTaskClick = useCallback((task) => {
     setSelectedTask(task);
@@ -561,6 +756,20 @@ export const TasksPage = () => {
           )}
         </AnimatePresence>
 
+        {/* Barra de ações em massa (ListView + desktop + seleção ativa) */}
+        {viewMode === VIEW_MODES.LIST && (
+          <BulkActionToolbar
+            selectedCount={selectedCount}
+            onClose={clearSelection}
+            onBulkClose={handleBulkClose}
+            onBulkReopen={handleBulkReopen}
+            onBulkPriority={() => setBulkPriorityOpen(true)}
+            onBulkStatus={() => setBulkStatusOpen(true)}
+            loading={bulkLoading}
+            activeTab={activeTab}
+          />
+        )}
+
         {/* Loading */}
         {loading && filteredTasks.length === 0 ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -612,12 +821,27 @@ export const TasksPage = () => {
                   loading={loading}
                   groupBy={groupBy}
                 />
+              ) : activeTab === TAB_TYPES.ALL ? (
+                /* Tab "Todas": acordeão agrupado por pessoa atribuída */
+                <TasksGroupedByPerson
+                  tasks={filteredTasks}
+                  onTaskClick={handleTaskClick}
+                  canEdit={canEditTask}
+                  loading={loading}
+                  selectedTasks={selectedTasks}
+                  onSelectTask={handleSelectTask}
+                  onSelectAll={handleSelectAllVisible}
+                />
               ) : (
                 <ListView
                   tasks={filteredTasks}
                   onTaskClick={handleTaskClick}
                   canEdit={canEditTask}
                   loading={loading}
+                  selectedTasks={selectedTasks}
+                  onSelectTask={handleSelectTask}
+                  onSelectAll={handleSelectAllVisible}
+                  selectionEnabled={!isMobile}
                 />
               )}
             </motion.div>
@@ -665,6 +889,51 @@ export const TasksPage = () => {
           onClose={() => setShowAdvancedFilters(false)}
           onFilterChange={handleFiltersChange}
           filters={filters}
+        />
+
+        {/* Dialog de confirmação: encerrar / reabrir em massa */}
+        <Dialog open={bulkConfirmOpen} onClose={() => setBulkConfirmOpen(false)} maxWidth="xs">
+          <DialogTitle>
+            {pendingBulkAction === 'close' ? 'Encerrar tarefas?' : 'Reabrir tarefas?'}
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Esta ação irá{' '}
+              {pendingBulkAction === 'close' ? 'encerrar' : 'reabrir'}{' '}
+              {selectedCount} tarefa{selectedCount !== 1 ? 's' : ''}.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBulkConfirmOpen(false)} disabled={bulkLoading}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color={pendingBulkAction === 'close' ? 'warning' : 'info'}
+              onClick={handleBulkConfirm}
+              disabled={bulkLoading}
+            >
+              {pendingBulkAction === 'close' ? 'Encerrar' : 'Reabrir'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog: alterar prioridade em massa */}
+        <BulkPriorityDialog
+          open={bulkPriorityOpen}
+          onClose={() => setBulkPriorityOpen(false)}
+          onConfirm={handleBulkPriorityConfirm}
+          selectedCount={selectedCount}
+          loading={bulkLoading}
+        />
+
+        {/* Dialog: alterar estado em massa */}
+        <BulkStatusDialog
+          open={bulkStatusOpen}
+          onClose={() => setBulkStatusOpen(false)}
+          onConfirm={handleBulkStatusConfirm}
+          selectedCount={selectedCount}
+          loading={bulkLoading}
         />
       </Container>
     </ModulePage>

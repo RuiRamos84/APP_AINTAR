@@ -497,6 +497,25 @@ export const filterTasks = (tasks, filters = {}) => {
   return filtered;
 };
 
+// ==================== BULK ACTIONS ====================
+
+/**
+ * Executar ação em massa sobre tarefas
+ *
+ * @param {number[]} taskIds - IDs das tarefas
+ * @param {'close'|'reopen'|'status'|'priority'} action - Tipo de ação
+ * @param {{ statusId?: number, priorityId?: number }} options
+ * @returns {Promise<{ message: string, succeeded: number[], failed: number[] }>}
+ */
+export const bulkTaskAction = async (taskIds, action, options = {}) => {
+  const payload = { task_ids: taskIds, action };
+  if (action === 'status') payload.status_id = options.statusId;
+  if (action === 'priority') payload.priority_id = options.priorityId;
+
+  const response = await apiClient.post('/tasks/bulk-action', payload);
+  return response;
+};
+
 // ==================== DEFAULT EXPORT ====================
 
 const taskService = {
@@ -510,6 +529,7 @@ const taskService = {
   updateTaskStatus,
   closeTask,
   reopenTask,
+  bulkTaskAction,
 
   // Notes & History
   addTaskNote,

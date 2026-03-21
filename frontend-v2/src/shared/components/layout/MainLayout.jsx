@@ -20,6 +20,8 @@ import { PageTransition } from './PageTransition';
 import { useUIStore } from '@/core/store/uiStore';
 import { detectModuleFromPath, getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
+import { useAvalPending } from '@/features/aval/hooks/useAvalPending';
+import { AvalPendingModal } from '@/features/aval/components/AvalPendingModal';
 
 export const MainLayout = () => {
   const theme = useTheme();
@@ -32,6 +34,7 @@ export const MainLayout = () => {
   const setCurrentModule = useUIStore((state) => state.setCurrentModule);
 
   const { hasPermission, hasAnyPermission } = usePermissionContext();
+  const { data: pendingData, open: pendingOpen, dismiss: dismissPending } = useAvalPending();
 
   // Módulos acessíveis para o BottomNav mobile
   const accessibleModules = useMemo(
@@ -106,6 +109,9 @@ export const MainLayout = () => {
           </PageTransition>
         </AnimatePresence>
       </Box>
+
+      {/* Modal de avaliações pendentes */}
+      <AvalPendingModal open={pendingOpen} data={pendingData} onDismiss={dismissPending} />
 
       {/* BottomNavigation mobile — troca de módulo */}
       {isMobile && accessibleModules.length > 0 && (

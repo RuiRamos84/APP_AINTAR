@@ -29,6 +29,7 @@ export const useTasks = (options = {}) => {
     tasks,
     currentTask,
     loading,
+    bulkLoading,
     error,
     page,
     rowsPerPage,
@@ -47,6 +48,7 @@ export const useTasks = (options = {}) => {
     setCurrentTask,
     clearCurrentTask,
     setLoading,
+    setBulkLoading,
     setError,
     clearError,
     setPage,
@@ -55,6 +57,9 @@ export const useTasks = (options = {}) => {
     setFilters,
     resetFilters,
     setSelectedTasks,
+    selectTask,
+    deselectTask,
+    selectAllVisible,
     clearSelection,
     setViewMode,
     isCacheValid,
@@ -342,6 +347,48 @@ export const useTasks = (options = {}) => {
     [updateTaskInStore]
   );
 
+  // ==================== BULK ACTIONS ====================
+
+  /**
+   * Executar ação em massa sobre as tarefas selecionadas
+   * @param {'close'|'reopen'|'status'|'priority'} action
+   * @param {{ statusId?: number, priorityId?: number }} options
+   */
+  const bulkAction = useCallback(
+    async (action, options = {}) => {
+      if (selectedTasks.length === 0) return;
+      setBulkLoading(true);
+      clearError();
+
+      try {
+        const result = await taskService.bulkTaskAction(selectedTasks, action, options);
+        const count = result.succeeded?.length ?? selectedTasks.length;
+        const failedCount = result.failed?.length ?? 0;
+
+        if (failedCount > 0) {
+          toast.warning(`${count} tarefa(s) processada(s), ${failedCount} com erro.`);
+        } else {
+          const labels = {
+            close: 'encerradas',
+            reopen: 'reabertas',
+            status: 'atualizadas',
+            priority: 'atualizadas',
+          };
+          toast.success(`${count} tarefa(s) ${labels[action] ?? 'processadas'} com sucesso.`);
+        }
+
+        clearSelection();
+        invalidateCache();
+        await fetchTasks(true);
+      } catch (err) {
+        toast.error(err.message || 'Erro na ação em massa');
+      } finally {
+        setBulkLoading(false);
+      }
+    },
+    [selectedTasks, setBulkLoading, clearError, clearSelection, invalidateCache, fetchTasks]
+  );
+
   // ==================== EFFECTS ====================
 
   // Auto-fetch on mount
@@ -402,6 +449,9 @@ export const useTasks = (options = {}) => {
     setFilters,
     resetFilters,
     setSelectedTasks,
+    selectTask,
+    deselectTask,
+    selectAllVisible,
     clearSelection,
     setViewMode,
     clearError,
@@ -411,6 +461,10 @@ export const useTasks = (options = {}) => {
     getFilteredTasks,
     getTaskStats,
     getTasksByStatus,
+
+    // Bulk actions
+    bulkAction,
+    bulkLoading,
 
     // Utilities
     refresh: () => fetchTasks(true),

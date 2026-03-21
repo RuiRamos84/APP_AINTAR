@@ -12,6 +12,7 @@ from ..services.tasks_service import (
     get_task_history,
     get_notification_count,
     update_task_note_notification,
+    bulk_task_action_service,
 )
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
@@ -79,6 +80,50 @@ def new_task():
     data = request.get_json()
     # A validação dos campos é feita pelo Pydantic no serviço
     return create_task(data, current_user)
+
+
+@bp.route('/tasks/bulk-action', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(750)  # tasks.manage
+@set_session
+@api_error_handler
+def bulk_task_action():
+    """
+    Ação em Massa sobre Tarefas
+    ---
+    tags:
+      - Tarefas
+    summary: Executa close, reopen, status ou priority sobre um conjunto de tarefas.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            task_ids:
+              type: array
+              items:
+                type: integer
+            action:
+              type: string
+              enum: [close, reopen, status, priority]
+            status_id:
+              type: integer
+            priority_id:
+              type: integer
+    responses:
+      200:
+        description: Resultado da ação em massa com listas de succeeded e failed.
+    """
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    return bulk_task_action_service(data, current_user)
 
 
 @bp.route('/tasks/<int:task_id>/notes', methods=['POST'])

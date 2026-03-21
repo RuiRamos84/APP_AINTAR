@@ -7,7 +7,7 @@
  * @page /tasks/my
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Container,
   Button,
@@ -138,7 +138,7 @@ export const MyTasksPage = () => {
   });
 
   // Carregar minhas tarefas ao montar
-  useState(() => {
+  useEffect(() => {
     fetchMyTasks();
   }, []);
 

@@ -198,7 +198,13 @@ def create_app(config_class):
 
     with app.app_context():
         # Registro dos blueprints
-        from .routes import auth_bp, user_bp, entity_bp, document_bp, meta_data_bp, dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp, tasks_bp, operations_bp, permissions_bp, operation_control_bp, analysis_bp, operation_metadata_bp, telemetry_bp, inventory_bp, vehicle_bp, alert_whatsapp_bp
+        from .routes import (
+            auth_bp, user_bp, entity_bp, document_bp, meta_data_bp,
+            dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp,
+            tasks_bp, operations_bp, permissions_bp, operation_control_bp,
+            analysis_bp, operation_metadata_bp, telemetry_bp, inventory_bp,
+            vehicle_bp, alert_whatsapp_bp, aval_bp, equipamentos_bp,
+        )
         from .routes.emission_routes import emission_bp
         from .routes.signature_routes import signature_bp
 
@@ -224,6 +230,8 @@ def create_app(config_class):
         app.register_blueprint(inventory_bp, url_prefix='/api/v1')
         app.register_blueprint(vehicle_bp, url_prefix='/api/v1')
         app.register_blueprint(alert_whatsapp_bp, url_prefix='/api/v1/alertas')
+        app.register_blueprint(aval_bp, url_prefix='/api/v1')
+        app.register_blueprint(equipamentos_bp, url_prefix='/api/v1')
 
 
         # Configuração do search_path para o PostgreSQL

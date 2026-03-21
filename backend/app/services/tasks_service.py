@@ -27,6 +27,12 @@ class TaskUpdate(TaskCreate):
 class TaskNoteAdd(BaseModel):
     memo: str
 
+class BulkTaskAction(BaseModel):
+    task_ids: list[int]
+    action: str  # 'close' | 'reopen' | 'status' | 'priority'
+    status_id: Optional[int] = None
+    priority_id: Optional[int] = None
+
 
 @api_error_handler
 def list_tasks(current_user):
@@ -235,3 +241,81 @@ def update_task_note_notification(task_id: int, current_user: str):
             logger.warning(f"Falha ao enviar atualização de contagem de notificação via Socket.IO: {str(e)}")
         
         return {'message': 'Notificações atualizadas com sucesso'}, 200
+
+
+def bulk_task_action_service(data: dict, current_user: str):
+    """Executa uma ação em massa sobre um conjunto de tarefas."""
+    bulk_data = BulkTaskAction.model_validate(data)
+
+    if bulk_data.action not in ('close', 'reopen', 'status', 'priority'):
+        return {'message': 'Ação inválida', 'succeeded': [], 'failed': []}, 400
+
+    if bulk_data.action == 'status' and bulk_data.status_id is None:
+        return {'message': 'status_id obrigatório para ação "status"', 'succeeded': [], 'failed': []}, 400
+
+    if bulk_data.action == 'priority' and bulk_data.priority_id is None:
+        return {'message': 'priority_id obrigatório para ação "priority"', 'succeeded': [], 'failed': []}, 400
+
+    succeeded = []
+    failed = []
+
+    _notification_type_map = {
+        'close': 'task_closed',
+        'reopen': 'task_reopened',
+        'status': 'status_update',
+        'priority': 'task_update',
+    }
+
+    for task_id in bulk_data.task_ids:
+        try:
+            with db_session_manager(current_user) as session:
+                if bulk_data.action == 'close':
+                    session.execute(text("SELECT fbo_task_close(:pnpk)"), {"pnpk": task_id})
+                    session.execute(text("SELECT fbo_task_note_new(:pnpk, :pnmemo)"),
+                                    {"pnpk": task_id, "pnmemo": "Tarefa encerrada (ação em massa)"})
+
+                elif bulk_data.action == 'reopen':
+                    session.execute(text("SELECT fbo_task_open(:pnpk)"), {"pnpk": task_id})
+                    session.execute(text("SELECT fbo_task_note_new(:pnpk, :pnmemo)"),
+                                    {"pnpk": task_id, "pnmemo": "Tarefa reaberta (ação em massa)"})
+
+                elif bulk_data.action == 'status':
+                    session.execute(text("SELECT fbo_task_status(:pnpk, :status_id)"),
+                                    {"pnpk": task_id, "status_id": bulk_data.status_id})
+
+                elif bulk_data.action == 'priority':
+                    task = session.execute(
+                        text("SELECT name, ts_client, memo FROM vbl_task WHERE pk = :pk"),
+                        {"pk": task_id}
+                    ).fetchone()
+                    if not task:
+                        failed.append(task_id)
+                        continue
+                    session.execute(
+                        text("SELECT fbo_task_update(:pnpk, :name, :ts_client, :ts_priority, :memo)"),
+                        {"pnpk": task_id, "name": task.name, "ts_client": task.ts_client,
+                         "ts_priority": bulk_data.priority_id, "memo": task.memo}
+                    )
+
+            succeeded.append(task_id)
+
+            try:
+                socketio_events = current_app.extensions.get('socketio_events')
+                if socketio_events:
+                    socketio_events.emit_task_notification(
+                        task_id, current_user,
+                        notification_type=_notification_type_map[bulk_data.action]
+                    )
+            except Exception as e:
+                logger.warning(f"Falha ao enviar notificação Socket.IO para task {task_id}: {str(e)}")
+
+        except Exception as e:
+            logger.error(f"Erro na ação em massa para task {task_id}: {str(e)}")
+            failed.append(task_id)
+
+    total = len(succeeded)
+    return {
+        'message': f'{total} tarefa(s) processada(s) com sucesso',
+        'succeeded': succeeded,
+        'failed': failed,
+    }, 200

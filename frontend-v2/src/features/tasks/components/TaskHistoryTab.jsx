@@ -113,7 +113,9 @@ export const TaskHistoryTab = ({ task, canAddNote = false, onNoteAdded }) => {
     };
 
     loadHistory();
-  }, [task?.pk, task?.id]);
+  // _socketRefresh é um timestamp injetado por TasksPage quando outro utilizador altera a tarefa
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.pk, task?.id, task?._socketRefresh]);
 
   // Inicializar notas destacadas quando o modal abre
   // Se a tarefa tem notificação não lida, destacar a nota mais recente

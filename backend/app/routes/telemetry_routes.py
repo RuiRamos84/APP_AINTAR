@@ -36,6 +36,14 @@ logger = get_logger(__name__)
 bp = Blueprint('telemetry', __name__)
 
 
+@bp.before_request
+def log_telemetry_request():
+    """Log de todos os pedidos que chegam ao blueprint de telemetria."""
+    if request.path.endswith('/dados') and request.method == 'POST':
+        ip = request.headers.get('X-Real-IP') or request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or request.remote_addr
+        logger.warning(f"[TELEMETRY ENTRADA] IP={ip} | Path={request.path} | Method={request.method}")
+
+
 # ============================================
 # AUTENTICAÇÃO POR API KEY
 # ============================================
@@ -60,10 +68,20 @@ def require_api_key(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        ip = request.headers.get('X-Real-IP') or request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or request.remote_addr
         api_key = request.headers.get('X-API-Key')
 
+        # Debug: registar todos os detalhes do pedido recebido
+        logger.warning(
+            f"[TELEMETRY DEBUG] IP={ip} | Method={request.method} | "
+            f"Content-Type={request.content_type} | "
+            f"Content-Length={request.content_length} | "
+            f"Has-API-Key={'SIM ('+api_key[:8]+'***)' if api_key else 'NÃO'} | "
+            f"Headers={dict(request.headers)}"
+        )
+
         if not api_key:
-            logger.warning(f"Tentativa de acesso sem API Key - IP: {request.remote_addr}")
+            logger.warning(f"[TELEMETRY] REJEITADO - Sem API Key | IP: {ip}")
             return jsonify({
                 "status": "error",
                 "message": "API Key não fornecida",
@@ -73,13 +91,14 @@ def require_api_key(f):
         valid_keys = get_valid_api_keys()
 
         if api_key not in valid_keys:
-            logger.warning(f"API Key inválida - IP: {request.remote_addr}")
+            logger.warning(f"[TELEMETRY] REJEITADO - API Key inválida '{api_key[:8]}***' | IP: {ip}")
             return jsonify({
                 "status": "error",
                 "message": "API Key inválida",
                 "codigo": "ERR_INVALID_API_KEY"
             }), 401
 
+        logger.info(f"[TELEMETRY] ACEITE | IP: {ip} | Key: {api_key[:8]}***")
         return f(*args, **kwargs)
     return decorated_function
 

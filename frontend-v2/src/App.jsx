@@ -52,7 +52,9 @@ import {
   DashboardRepavPage, DashboardTramitacoesPage,
 } from '@/features/dashboards/pages';
 import { EmissoesPage } from '@/features/emissoes';
+import { EquipamentosPage } from '@/features/equipamentos';
 import { EPIPage } from '@/features/administrativo/pages';
+import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
@@ -180,6 +182,9 @@ function App() {
         <Route path="/expenses/maintenance" element={<div>Maintenance Expenses (Coming Soon)</div>} />
         <Route path="/expenses/equipment" element={<div>Equipment Expenses (Coming Soon)</div>} />
 
+        {/* Equipamentos - permissão 1500 (EQUIPAMENTOS_VIEW) */}
+        <Route path="/equipamentos" element={<EquipamentosPage />} />
+
         {/* Telemetry - permissão 750 (TELEMETRY_VIEW) verificada automaticamente */}
         <Route path="/telemetry" element={<TelemetryPage />} />
 
@@ -198,6 +203,9 @@ function App() {
         <Route path="/dashboards/tramitacoes" element={<DashboardTramitacoesPage />} />
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
+        <Route path="/aval" element={<AvalPage />} />
+        <Route path="/aval/admin" element={<AvalAdminPage />} />
+        <Route path="/aval/analytics" element={<AvalAnalyticsPage />} />
         <Route path="/epi" element={<EPIPage />} />
 
         {/* ==================== ÁREA INTERNA ==================== */}

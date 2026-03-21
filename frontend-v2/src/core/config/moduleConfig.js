@@ -46,6 +46,7 @@ export const MODULES = {
         PERMISSIONS.TELEMETRY_VIEW,
         PERMISSIONS.EXPENSES_VIEW,
         PERMISSIONS.PAVEMENTS_VIEW,
+        PERMISSIONS.EQUIPAMENTOS_VIEW,
       ]
     },
     description: 'Gestão de infraestruturas e análises técnicas',
@@ -175,6 +176,7 @@ export const detectModuleFromPath = (pathname) => {
     '/expenses': 'gestao',
     '/pavements': 'gestao',
     '/emissoes': 'gestao',
+    '/equipamentos': 'gestao',
 
     // PAGAMENTOS
     '/clients': 'pagamentos',

@@ -27,7 +27,14 @@
       "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/rui.ramos/AppData/Local/Temp/investigate2.ps1\")",
       "Bash(\"c:/Users/rui.ramos/Desktop/APP/backend/app/routes/operations_routes.py\")",
       "Bash(find /c/Users/rui.ramos/Desktop/APP -type f \\\\\\(-name *init*.sql -o -name *schema*.sql -o -name *view*.sql -o -name *.dump \\\\\\))",
-      "Bash(find /c/Users/rui.ramos/Desktop/APP -type f \\\\\\(-name *.md -o -name README* -o -name *.txt \\\\\\))"
+      "Bash(find /c/Users/rui.ramos/Desktop/APP -type f \\\\\\(-name *.md -o -name README* -o -name *.txt \\\\\\))",
+      "Bash(pip show:*)",
+      "Bash(powershell -NoProfile -Command \"& { $null = [System.Management.Automation.Language.Parser]::ParseFile\\(''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\Deploy-Main.ps1'', [ref]$null, [ref]$errors\\); if \\($errors.Count -gt 0\\) { $errors | ForEach-Object { Write-Host $_.Message } } else { Write-Host ''OK - sem erros de sintaxe'' } }\")",
+      "Bash(powershell -NoProfile -Command \"& { $errs = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile\\(''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\DeployVersion.ps1'', [ref]$null, [ref]$errs\\); if \\($errs.Count -gt 0\\) { $errs | ForEach-Object { Write-Host $_.Message } } else { Write-Host ''OK - sem erros de sintaxe'' } }\")",
+      "Bash(powershell -NoProfile -Command \"& { $utf8 = [System.Text.UTF8Encoding]::new\\($false\\); [System.IO.File]::WriteAllText\\(''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\.env.production.local'', \"\"VITE_APP_VERSION=3.1.0\\\\`r\\\\`nVITE_APP_BUILD=1\\\\`r\\\\`n\"\", $utf8\\); Write-Host ''Escrito sem BOM'' }\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\_fix_env.ps1\")",
+      "Bash(powershell -NoProfile -Command \"Remove-Item ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\_fix_env.ps1''\")",
+      "Bash(node -e \"const p=require\\(''./package.json''\\); [''react-leaflet'',''leaflet'',''html2canvas''].forEach\\(k => console.log\\(k+'':'', p.dependencies[k] || p.devDependencies?.[k] || ''NÃO INSTALADO''\\)\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"

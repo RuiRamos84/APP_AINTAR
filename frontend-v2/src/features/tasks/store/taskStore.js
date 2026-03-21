@@ -37,6 +37,7 @@ const initialState = {
 
   // UI State
   loading: false,
+  bulkLoading: false,
   error: null,
   selectedTasks: [],
   viewMode: 'list', // 'list' | 'kanban' | 'calendar'
@@ -185,6 +186,14 @@ export const useTaskStore = create(
             state.selectedTasks = state.tasks.map((t) => t.id);
           }),
 
+        // Selecionar apenas as tarefas visíveis na vista atual (tab + filtros)
+        selectAllVisible: (visibleTaskIds) =>
+          set((state) => {
+            const existing = new Set(state.selectedTasks);
+            visibleTaskIds.forEach((id) => existing.add(id));
+            state.selectedTasks = Array.from(existing);
+          }),
+
         clearSelection: () =>
           set((state) => {
             state.selectedTasks = [];
@@ -209,6 +218,11 @@ export const useTaskStore = create(
         setLoading: (loading) =>
           set((state) => {
             state.loading = loading;
+          }),
+
+        setBulkLoading: (loading) =>
+          set((state) => {
+            state.bulkLoading = loading;
           }),
 
         setError: (error) =>

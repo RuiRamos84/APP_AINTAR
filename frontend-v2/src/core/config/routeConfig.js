@@ -8,6 +8,7 @@
 
 import {
   Dashboard as DashboardIcon,
+  HowToVote as AvalIcon,
   People as PeopleIcon,
   Assignment as TasksIcon,
   Settings as SettingsIcon,
@@ -45,6 +46,7 @@ import {
   Cable as NetworkIcon,
   DirectionsCar as FleetIcon,
   GridView as InternalIcon,
+  Build as EquipamentosIcon,
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
 
@@ -270,6 +272,16 @@ export const ROUTE_CONFIG = {
     permissions: { required: PERMISSIONS.EMISSIONS_VIEW },
     showInSidebar: true,
   },
+
+  '/equipamentos': {
+    id: 'equipamentos',
+    text: 'Equipamentos',
+    icon: EquipamentosIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.EQUIPAMENTOS_VIEW },
+    showInSidebar: true,
+  },
+
   // ==================== MÓDULO: PAGAMENTOS ====================
 
   '/clients': {
@@ -597,6 +609,33 @@ export const ROUTE_CONFIG = {
     icon: RequestsIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.INVENTORY_VIEW },
+    showInSidebar: true,
+  },
+
+  '/aval': {
+    id: 'aval',
+    text: 'Avaliação',
+    icon: AvalIcon,
+    module: 'administrativo',
+    permissions: null, // Todos os utilizadores autenticados
+    showInSidebar: true,
+  },
+
+  '/aval/analytics': {
+    id: 'aval_analytics',
+    text: 'Análise de Avaliações',
+    icon: AnalyticsIcon,
+    module: 'administrativo',
+    permissions: null,
+    showInSidebar: true,
+  },
+
+  '/aval/admin': {
+    id: 'aval_admin',
+    text: 'Configuração de Avaliações',
+    icon: AvalIcon,
+    module: 'administracao',
+    permissions: { required: PERMISSIONS.ADMIN_USERS },
     showInSidebar: true,
   },
 

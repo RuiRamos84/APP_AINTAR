@@ -2,7 +2,7 @@
  * ListView - Vista em Lista de Tarefas
  *
  * Componente reutilizável para mostrar tarefas em formato de tabela/lista
- * com paginação, ordenação e responsividade.
+ * com paginação, ordenação, responsividade e seleção bulk.
  *
  * @component
  */
@@ -20,6 +20,7 @@ import {
   TablePagination,
   TableSortLabel,
   Chip,
+  Checkbox,
   IconButton,
   Tooltip,
   Typography,
@@ -84,6 +85,8 @@ const formatDate = (dateString) => {
   }
 };
 
+const getTaskId = (task) => task.pk ?? task.id;
+
 // ============================================
 // COMPONENTE MOBILE CARD
 // ============================================
@@ -134,15 +137,12 @@ const TaskMobileCard = ({ task, onTaskClick }) => {
 
             {/* Info Row */}
             <Stack direction="row" spacing={2} flexWrap="wrap">
-              {/* Status */}
               <Chip
                 label={statusConfig.label}
                 color={statusConfig.color}
                 size="small"
                 variant="outlined"
               />
-
-              {/* Owner */}
               {task.owner_name && (
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <PersonIcon fontSize="small" color="action" />
@@ -151,8 +151,6 @@ const TaskMobileCard = ({ task, onTaskClick }) => {
                   </Typography>
                 </Stack>
               )}
-
-              {/* Data */}
               {task.when_start && (
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <TimeIcon fontSize="small" color="action" />
@@ -178,6 +176,11 @@ const ListView = ({
   onTaskClick,
   canEdit,
   loading = false,
+  // Bulk selection (desktop only)
+  selectedTasks = [],
+  onSelectTask,
+  onSelectAll,
+  selectionEnabled = false,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -194,11 +197,9 @@ const ListView = ({
       let aValue = a[orderBy];
       let bValue = b[orderBy];
 
-      // Handle null/undefined
       if (aValue == null) return order === 'asc' ? 1 : -1;
       if (bValue == null) return order === 'asc' ? -1 : 1;
 
-      // String comparison
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue?.toLowerCase() || '';
@@ -208,7 +209,6 @@ const ListView = ({
       if (aValue > bValue) return order === 'asc' ? 1 : -1;
       return 0;
     });
-
     return sorted;
   }, [tasks, orderBy, order]);
 
@@ -218,12 +218,21 @@ const ListView = ({
     return sortedTasks.slice(start, start + rowsPerPage);
   }, [sortedTasks, page, rowsPerPage]);
 
+  // Tarefas selecionadas na página atual
+  const selectedOnPage = useMemo(
+    () => paginatedTasks.filter((t) => selectedTasks.includes(getTaskId(t))),
+    [paginatedTasks, selectedTasks]
+  );
+
   // Handlers
-  const handleSort = useCallback((columnId) => {
-    const isAsc = orderBy === columnId && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(columnId);
-  }, [orderBy, order]);
+  const handleSort = useCallback(
+    (columnId) => {
+      const isAsc = orderBy === columnId && order === 'asc';
+      setOrder(isAsc ? 'desc' : 'asc');
+      setOrderBy(columnId);
+    },
+    [orderBy, order]
+  );
 
   const handleChangePage = useCallback((_, newPage) => {
     setPage(newPage);
@@ -234,19 +243,33 @@ const ListView = ({
     setPage(0);
   }, []);
 
+  const handleSelectAllOnPage = useCallback(() => {
+    const pageIds = paginatedTasks.map(getTaskId);
+    const allSelected = selectedOnPage.length === paginatedTasks.length;
+
+    if (allSelected) {
+      // Desselecionar todos da página
+      pageIds.forEach((id) => onSelectTask?.(id, false));
+    } else {
+      // Selecionar todos da página via selectAllVisible
+      onSelectAll?.(pageIds);
+    }
+  }, [paginatedTasks, selectedOnPage, onSelectTask, onSelectAll]);
+
+  const showCheckboxes = selectionEnabled && !isMobile;
+  const totalCols = TABLE_COLUMNS.length + (showCheckboxes ? 1 : 0);
+
   // Mobile: Lista de Cards
   if (isMobile) {
     return (
       <Box>
         {paginatedTasks.map((task) => (
           <TaskMobileCard
-            key={task.pk || task.id}
+            key={getTaskId(task)}
             task={task}
             onTaskClick={onTaskClick}
           />
         ))}
-
-        {/* Paginação Mobile */}
         <TablePagination
           component="div"
           count={tasks.length}
@@ -256,9 +279,7 @@ const ListView = ({
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={[5, 10, 25]}
           labelRowsPerPage=""
-          labelDisplayedRows={({ from, to, count }) =>
-            `${from}-${to} de ${count}`
-          }
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           sx={{
             '& .MuiTablePagination-toolbar': {
               justifyContent: 'center',
@@ -284,6 +305,27 @@ const ListView = ({
         <Table stickyHeader size="medium">
           <TableHead>
             <TableRow>
+              {/* Checkbox de seleção global (página atual) */}
+              {showCheckboxes && (
+                <TableCell
+                  padding="checkbox"
+                  sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03) }}
+                >
+                  <Checkbox
+                    size="small"
+                    indeterminate={
+                      selectedOnPage.length > 0 &&
+                      selectedOnPage.length < paginatedTasks.length
+                    }
+                    checked={
+                      paginatedTasks.length > 0 &&
+                      selectedOnPage.length === paginatedTasks.length
+                    }
+                    onChange={handleSelectAllOnPage}
+                  />
+                </TableCell>
+              )}
+
               {TABLE_COLUMNS.map((column) => (
                 <TableCell
                   key={column.id}
@@ -311,21 +353,42 @@ const ListView = ({
 
           <TableBody>
             {paginatedTasks.map((task) => {
+              const taskId = getTaskId(task);
+              const isSelected = selectedTasks.includes(taskId);
               const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
               const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.media;
 
               return (
                 <TableRow
-                  key={task.pk || task.id}
+                  key={taskId}
                   hover
+                  selected={isSelected}
                   onClick={() => onTaskClick(task)}
                   sx={{
                     cursor: 'pointer',
+                    bgcolor: isSelected
+                      ? alpha(theme.palette.primary.main, 0.06)
+                      : undefined,
                     '&:hover': {
-                      bgcolor: alpha(theme.palette.primary.main, 0.03),
+                      bgcolor: isSelected
+                        ? alpha(theme.palette.primary.main, 0.1)
+                        : alpha(theme.palette.primary.main, 0.03),
                     },
                   }}
                 >
+                  {/* Checkbox por linha */}
+                  {showCheckboxes && (
+                    <TableCell
+                      padding="checkbox"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectTask?.(taskId);
+                      }}
+                    >
+                      <Checkbox size="small" checked={isSelected} />
+                    </TableCell>
+                  )}
+
                   {/* Título */}
                   <TableCell>
                     <Typography
@@ -391,9 +454,7 @@ const ListView = ({
                         >
                           {task.owner_name.charAt(0).toUpperCase()}
                         </Avatar>
-                        <Typography variant="body2">
-                          {task.owner_name}
-                        </Typography>
+                        <Typography variant="body2">{task.owner_name}</Typography>
                       </Stack>
                     ) : (
                       <Typography variant="body2" color="text.secondary">
@@ -404,9 +465,7 @@ const ListView = ({
 
                   {/* Data */}
                   <TableCell>
-                    <Typography variant="body2">
-                      {formatDate(task.when_start)}
-                    </Typography>
+                    <Typography variant="body2">{formatDate(task.when_start)}</Typography>
                   </TableCell>
 
                   {/* Ações */}
@@ -430,7 +489,7 @@ const ListView = ({
             {/* Empty state */}
             {paginatedTasks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={TABLE_COLUMNS.length} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={totalCols} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
                     Nenhuma tarefa encontrada
                   </Typography>
@@ -464,6 +523,10 @@ ListView.propTypes = {
   onTaskClick: PropTypes.func.isRequired,
   canEdit: PropTypes.func,
   loading: PropTypes.bool,
+  selectedTasks: PropTypes.array,
+  onSelectTask: PropTypes.func,
+  onSelectAll: PropTypes.func,
+  selectionEnabled: PropTypes.bool,
 };
 
 export default ListView;

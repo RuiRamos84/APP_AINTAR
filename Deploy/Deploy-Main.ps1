@@ -9,6 +9,7 @@ param(
     [switch]$BuildFirst,
     [switch]$Verbose,
     [switch]$SkipValidation,
+    [switch]$BumpMinor,
     [switch]$BumpMajor
 )
 
@@ -642,6 +643,7 @@ function Invoke-NonInteractiveMode {
         [string]$Operation,
         [bool]$BuildFirst,
         [bool]$SkipValidation,
+        [bool]$BumpMinor = $false,
         [bool]$BumpMajor = $false
     )
 
@@ -654,7 +656,7 @@ function Invoke-NonInteractiveMode {
         "backend-v2", "backend-v2-nobuild", "frontend-all", "frontend-all-nobuild"
     )
     if ($versionedOps -contains $Operation.ToLower()) {
-        $vInfo = Invoke-VersionBump -Operation $Operation -ForceMajor $BumpMajor
+        $vInfo = Invoke-VersionBump -Operation $Operation -ForceMajor $BumpMajor -ForceMinor $BumpMinor
         if ($null -eq $vInfo) {
             Write-DeployError "Falha ao calcular versão. Deployment cancelado." "MAIN"
             exit 1
@@ -730,35 +732,81 @@ function Invoke-NonInteractiveMode {
     }
 }
 
-# ============================================================================  
-# MODO INTERATIVO  
-# ============================================================================  
+# ============================================================================
+# HELPER: VERSION BUMP + DEPLOY (para modo interativo)
+# ============================================================================
+
+# Estado global do bump type para o modo interativo
+$Script:BumpState = "patch"  # patch | minor | major
+
+function Toggle-BumpState {
+    switch ($Script:BumpState) {
+        "patch" { $Script:BumpState = "minor" }
+        "minor" { $Script:BumpState = "major" }
+        "major" { $Script:BumpState = "patch" }
+    }
+}
+
+function Get-BumpStateLabel {
+    switch ($Script:BumpState) {
+        "patch" { return "PATCH  (bugfix / correcao)" }
+        "minor" { return "MINOR  (nova funcionalidade)" }
+        "major" { return "MAJOR  (mudanca significativa)" }
+    }
+}
+
+function Get-BumpStateColor {
+    switch ($Script:BumpState) {
+        "patch" { return "Green" }
+        "minor" { return "Yellow" }
+        "major" { return "Red" }
+    }
+}
+
+function Invoke-BumpedDeploy {
+    param([string]$Operation, [scriptblock]$DeployFn)
+    $isMinor = ($Script:BumpState -eq "minor")
+    $isMajor = ($Script:BumpState -eq "major")
+    $vInfo = Invoke-VersionBump -Operation $Operation -ForceMinor $isMinor -ForceMajor $isMajor
+    if ($null -eq $vInfo) {
+        Write-DeployError "Falha ao calcular versão. Deployment cancelado." "MAIN"
+        return $false
+    }
+    # Repor para patch após deploy
+    $Script:BumpState = "patch"
+    return & $DeployFn
+}
+
+# ============================================================================
+# MODO INTERATIVO
+# ============================================================================
 
 function Start-InteractiveMode {
     Write-DeployInfo "A iniciar modo interativo" "MAIN"
 
     $menuActions = @{
-        "1" = @{ Name = "Deployment Completo (Frontend + Backend + Nginx)"; Action = { Invoke-FullDeployment -BuildFirst $true } }
-        "2" = @{ Name = "Deployment Frontend (com build)"; Action = { Invoke-FrontendDeployment -BuildFirst $true } }
-        "3" = @{ Name = "Deployment Frontend (sem build)"; Action = { 
+        "1" = @{ Name = "Deployment Completo (Frontend + Backend + Nginx)"; Action = { Invoke-BumpedDeploy -Operation "full" -DeployFn { Invoke-FullDeployment -BuildFirst $true } } }
+        "2" = @{ Name = "Deployment Frontend (com build)"; Action = { Invoke-BumpedDeploy -Operation "frontend" -DeployFn { Invoke-FrontendDeployment -BuildFirst $true } } }
+        "3" = @{ Name = "Deployment Frontend (sem build)"; Action = {
                 if (-not (Test-FrontendBuild)) {
                     Show-DeployStatus "Build não encontrado ou inválido!" "Error"
                     if (Confirm-Action "Deseja fazer o build antes do deployment?") {
-                        return Invoke-FrontendDeployment -BuildFirst $true
+                        return Invoke-BumpedDeploy -Operation "frontend" -DeployFn { Invoke-FrontendDeployment -BuildFirst $true }
                     }
                     Show-DeployStatus "Deployment cancelado pelo utilizador" "Warning"
-                    return $null # Indica que nenhuma ação foi tomada
+                    return $null
                 }
-                return Invoke-FrontendDeployment -BuildFirst $false
+                return Invoke-BumpedDeploy -Operation "frontend-nobuild" -DeployFn { Invoke-FrontendDeployment -BuildFirst $false }
             } }
-        "4" = @{ Name = "Deployment Backend"; Action = { Invoke-BackendDeployment } }
-        "5" = @{ Name = "Deployment Frontend + Backend (sem Nginx)"; Action = { Invoke-FrontendBackendDeployment -BuildFirst $true } }
+        "4" = @{ Name = "Deployment Backend"; Action = { Invoke-BumpedDeploy -Operation "backend" -DeployFn { Invoke-BackendDeployment } } }
+        "5" = @{ Name = "Deployment Frontend + Backend (sem Nginx)"; Action = { Invoke-BumpedDeploy -Operation "frontend-backend" -DeployFn { Invoke-FrontendBackendDeployment -BuildFirst $true } } }
         "6" = @{ Name = "Deployment Configuração Nginx"; Action = { Invoke-NginxDeployment } }
-        "13" = @{ Name = "Deployment Frontend-V2 (com build)"; Action = { Deploy-FrontendV2 -BuildFirst $true } }
-        "14" = @{ Name = "Deployment Frontend-V2 (sem build)"; Action = { Deploy-FrontendV2 -BuildFirst $false } }
-        "15" = @{ Name = "Deployment Backend + Frontend-V2 (com build)"; Action = { Invoke-BackendFrontendV2Deployment -BuildFirst $true } }
-        "16" = @{ Name = "Deployment Frontend (legacy) + Backend + Frontend-V2 (com build)"; Action = { Invoke-FrontendAllDeployment -BuildFirst $true } }
+        "13" = @{ Name = "Deployment Frontend-V2 (com build)"; Action = { Invoke-BumpedDeploy -Operation "frontend-v2" -DeployFn { Deploy-FrontendV2 -BuildFirst $true } } }
+        "14" = @{ Name = "Deployment Frontend-V2 (sem build)"; Action = { Invoke-BumpedDeploy -Operation "frontend-v2-nobuild" -DeployFn { Deploy-FrontendV2 -BuildFirst $false } } }
+        "15" = @{ Name = "Deployment Backend + Frontend-V2 (com build)"; Action = { Invoke-BumpedDeploy -Operation "backend-v2" -DeployFn { Invoke-BackendFrontendV2Deployment -BuildFirst $true } } }
+        "16" = @{ Name = "Deployment Frontend (legacy) + Backend + Frontend-V2 (com build)"; Action = { Invoke-BumpedDeploy -Operation "frontend-all" -DeployFn { Invoke-FrontendAllDeployment -BuildFirst $true } } }
         "17" = @{ Name = "Ver versões e histórico de deploys"; Action = { Show-VersionStatus; return $null } }
+        "B"  = @{ Name = "Alterar tipo de bump (atual: ver cabeçalho)"; Action = { Toggle-BumpState; return $null } }
         "7" = @{ Name = "Ver ficheiros em estado relevante"; Action = { Show-FileStatus; return $null } }
         "8" = @{ Name = "Ver informações do sistema"; Action = { Show-SystemInfo; return $null } }
         "9" = @{ Name = "Testar conectividade com o servidor"; Action = { Show-ConnectivityTest; return $null } }
@@ -812,10 +860,15 @@ function Show-DeployMenu {
     Write-Host "===============================================" -ForegroundColor Cyan
     Write-Host "         SISTEMA DE DEPLOYMENT MODULAR         " -ForegroundColor Cyan
     Write-Host "===============================================" -ForegroundColor Cyan
+    $bumpColor = Get-BumpStateColor
+    $bumpLabel = Get-BumpStateLabel
+    Write-Host "  Tipo de bump: " -NoNewline -ForegroundColor Gray
+    Write-Host $bumpLabel -ForegroundColor $bumpColor
+    Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
 
-    # Obter e ordenar as chaves do menu
-    $menuKeys = $MenuActions.Keys | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } else { 999 } }
+    # Obter e ordenar as chaves do menu (B fica no fim)
+    $menuKeys = $MenuActions.Keys | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } elseif ($_ -eq 'B') { 998 } else { 999 } }
 
     foreach ($key in $menuKeys) {
         # Adicionar a linha de separação
@@ -823,8 +876,13 @@ function Show-DeployMenu {
             Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
         }
         
-        $padding = if ([int]$key -lt 10) { " " } else { "" }
-        Write-Host "$padding$key. $($MenuActions[$key].Name)"
+        if ($key -eq "B") {
+            $label = "Alterar tipo de bump  (atual: $(Get-BumpStateLabel))"
+            Write-Host " B. $label" -ForegroundColor $(Get-BumpStateColor)
+        } else {
+            $padding = if ([int]$key -lt 10) { " " } else { "" }
+            Write-Host "$padding$key. $($MenuActions[$key].Name)"
+        }
     }
     
     Write-Host ""
@@ -856,7 +914,7 @@ function Main {
         
         # Executar modo apropriado
         if ($NonInteractive -and -not [string]::IsNullOrEmpty($Operation)) {
-            Invoke-NonInteractiveMode -Operation $Operation -BuildFirst $BuildFirst -SkipValidation $SkipValidation -BumpMajor $BumpMajor
+            Invoke-NonInteractiveMode -Operation $Operation -BuildFirst $BuildFirst -SkipValidation $SkipValidation -BumpMinor $BumpMinor -BumpMajor $BumpMajor
         } else {
             Start-InteractiveMode
         }

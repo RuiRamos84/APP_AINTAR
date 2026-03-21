@@ -20,5 +20,13 @@ from .telemetry_routes import bp as telemetry_bp
 from .inventory_routes import bp as inventory_bp
 from .vehicle_routes import bp as vehicle_bp
 from .alert_whatsapp_routes import bp as alert_whatsapp_bp
+from .aval_routes import bp as aval_bp
+from .equipamentos_routes import bp as equipamentos_bp
 
-__all__ = ['auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp', 'dashboard_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp', 'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp', 'analysis_bp', 'operation_metadata_bp', 'telemetry_bp', 'inventory_bp', 'vehicle_bp', 'alert_whatsapp_bp']
+__all__ = [
+    'auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp',
+    'dashboard_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp',
+    'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp',
+    'analysis_bp', 'operation_metadata_bp', 'telemetry_bp', 'inventory_bp',
+    'vehicle_bp', 'alert_whatsapp_bp', 'aval_bp', 'equipamentos_bp',
+]

@@ -22,7 +22,11 @@ import {
   Schedule as ScheduleIcon, FlashOn as FlashOnIcon,
   CheckCircle as CheckCircleIcon,
   Image as ImageIcon,
+  PrecisionManufacturing as EquipamentosTabIcon,
 } from '@mui/icons-material';
+import { InstalacaoEquipamentosTab } from '@/features/equipamentos';
+import { getMeta as getEquipamentosMeta } from '@/features/equipamentos/services/equipamentoService';
+import { useEffect, useRef } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useForm, Controller } from 'react-hook-form';
@@ -1129,9 +1133,14 @@ const TABS_ETAR = [
   { label: 'Intervenções',   icon: IntervencoesIcon },
   { label: 'Operações',      icon: AddIcon },
   { label: 'Incumprimentos', icon: IncumpIcon },
+  { label: 'Equipamentos',   icon: EquipamentosTabIcon },
 ];
 
-const TABS_EE = TABS_ETAR.slice(0, 7);  // sem Incumprimentos
+// EE = sem Incumprimentos mas com Equipamentos
+const TABS_EE = [
+  ...TABS_ETAR.slice(0, 7),
+  { label: 'Equipamentos', icon: EquipamentosTabIcon },
+];
 
 /**
  * @param {Object}   props
@@ -1147,7 +1156,16 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [equipamentosMeta, setEquipamentosMeta] = useState(null);
+  const metaLoaded = useRef(false);
   const pk = selected?.pk ?? null;
+
+  // Carrega meta de equipamentos uma única vez (lazy)
+  useEffect(() => {
+    if (metaLoaded.current) return;
+    metaLoaded.current = true;
+    getEquipamentosMeta().then(setEquipamentosMeta).catch(() => {});
+  }, []);
 
   const {
     volumes, waterVolumes, energy, expenses, incumprimentos,
@@ -1279,6 +1297,14 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
           {tab === 7 && type === 'etar' && (
             <IncumprimentosTab pk={pk} color={color} data={incumprimentos} isLoading={isLoadingIncump}
               addIncumprimento={addIncumprimento} isAdding={isAddingIncump} />
+          )}
+          {/* Equipamentos: tab 8 para ETAR, tab 7 para EE */}
+          {((tab === 8 && type === 'etar') || (tab === 7 && type === 'ee')) && (
+            <InstalacaoEquipamentosTab
+              pk={pk}
+              meta={equipamentosMeta}
+              canEdit
+            />
           )}
         </Box>
       )}
