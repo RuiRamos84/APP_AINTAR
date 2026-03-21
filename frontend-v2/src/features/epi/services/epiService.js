@@ -16,6 +16,7 @@ import api from '@/services/api/client';
  */
 export const getDeliveries = async ({
   employeeId,
+  employeeName,
   type = 'all',
   page = 0,
   pageSize = 10,
@@ -29,20 +30,21 @@ export const getDeliveries = async ({
     },
   });
 
-  if (!employeeId) {
+  if (!employeeId && !employeeName) {
     return response;
   }
 
-  // Filtrar por colaborador e tipo
-  const empId = String(employeeId).trim();
+  // A view vbl_epi_deliver retorna o NOME do colaborador em tb_epi (não o ID)
+  const empName = employeeName ? String(employeeName).trim() : null;
   const filteredDeliveries = response.deliveries.filter((delivery) => {
-    const deliveryEmpId = String(delivery.tb_epi).trim();
+    const deliveryEmpName = String(delivery.tb_epi).trim();
+    const empMatch = empName ? deliveryEmpName === empName : true;
     const typeMatch =
       type === 'all' ||
       (type === 'epi' && delivery.what === 1) ||
       (type === 'uniform' && delivery.what === 2);
 
-    return deliveryEmpId === empId && typeMatch;
+    return empMatch && typeMatch;
   });
 
   return {

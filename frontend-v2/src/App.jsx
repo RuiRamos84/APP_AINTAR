@@ -187,16 +187,6 @@ function App() {
         {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
         <Route path="/pavements" element={<div>Pavements Page (Coming Soon)</div>} />
 
-        {/* ==================== MÓDULO: PAGAMENTOS ==================== */}
-        {/* Clients - permissão 950 (CLIENTS_VIEW) verificada automaticamente */}
-        <Route path="/clients" element={<ClientsPage />} />
-        <Route path="/clients/contracts" element={<div>Client Contracts (Coming Soon)</div>} />
-
-        {/* Invoices - permissão 900 (INVOICES_VIEW) verificada automaticamente */}
-        <Route path="/invoices" element={<div>Invoices Page (Coming Soon)</div>} />
-        <Route path="/invoices/issued" element={<div>Issued Invoices (Coming Soon)</div>} />
-        <Route path="/invoices/payment-plans" element={<div>Payment Plans (Coming Soon)</div>} />
-
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
         <Route path="/dashboards/overview" element={<DashboardOverviewPage />} />
         <Route path="/dashboards/requests" element={<DashboardRequestsPage />} />
