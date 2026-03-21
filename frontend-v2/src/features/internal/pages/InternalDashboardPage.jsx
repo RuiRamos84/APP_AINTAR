@@ -8,6 +8,7 @@ import {
   Work as EPIIcon,
   DirectionsCar as FleetIcon,
   Description as RequestIcon,
+  Settings as EquipIcon,
 } from '@mui/icons-material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
@@ -47,6 +48,15 @@ const AREAS = [
     icon: FleetIcon,
     color: '#6a1b9a',
     path: '/fleet',
+    ready: true,
+  },
+  {
+    id: 'equipamento',
+    label: 'Equipamentos Instalados',
+    description: 'Registo de equipamentos em ETAR e estações elevatórias',
+    icon: EquipIcon,
+    color: '#5c6bc0',
+    path: '/internal/equipamento',
     ready: true,
   },
 ];

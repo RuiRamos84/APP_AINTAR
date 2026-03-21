@@ -61,9 +61,12 @@ def fetch_meta_data(current_user):
         'vehicle': "SELECT * FROM vbl_vehicle ORDER BY pk",
         'sensor_types': "SELECT * FROM vbl_sensortype ORDER BY pk",
         'teleparams': "SELECT * FROM vbl_teleparam ORDER BY pk",
-
-
-
+        #'equiptipo': "SELECT * FROM vbl_equiptipo ORDER BY pk",
+        #'equiplocalizacao': "SELECT * FROM vbl_equiplocalizacao ORDER BY pk",
+        'instalacao': "SELECT * FROM vbl_instalacao ORDER BY nome",
+        'tipo_obra': "SELECT * FROM vbl_tipoobra ORDER BY pk",
+        'urgencia': "SELECT * FROM tt_urgencia ORDER BY code",
+        'despesaobra': "SELECT * FROM vbl_despesaobra ORDER BY pk",
     }
 
     response_data = {}

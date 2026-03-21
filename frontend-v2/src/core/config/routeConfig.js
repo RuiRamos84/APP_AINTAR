@@ -45,6 +45,7 @@ import {
   Cable as NetworkIcon,
   DirectionsCar as FleetIcon,
   GridView as InternalIcon,
+  Settings as EquipamentoIcon,
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
 
@@ -595,6 +596,15 @@ export const ROUTE_CONFIG = {
     id: 'internal_requisicao',
     text: 'Requisição Interna',
     icon: RequestsIcon,
+    module: 'administrativo',
+    permissions: { required: PERMISSIONS.INVENTORY_VIEW },
+    showInSidebar: true,
+  },
+
+  '/internal/equipamento': {
+    id: 'internal_equipamento',
+    text: 'Equipamentos Instalados',
+    icon: EquipamentoIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.INVENTORY_VIEW },
     showInSidebar: true,

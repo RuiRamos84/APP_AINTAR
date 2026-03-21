@@ -19,7 +19,7 @@ export function useRecords(recordType) {
     const [submitting, setSubmitting] = useState(false);
 
     const fetchRecords = async () => {
-        if (recordType !== "inventario" && recordType!=="veiculos" && recordType!="veiculoAtribuido" && recordType!= "manutencaoVeiculos" && !selectedEntity && !["rede", "ramal", "manutencao", "equip"].includes(getTypeByArea(selectedArea))) return;
+        if (recordType !== "inventario" && recordType !== "veiculos" && recordType !== "veiculoAtribuido" && recordType !== "manutencaoVeiculos" && recordType !== "obras" && !selectedEntity && !["rede", "ramal", "manutencao", "equip"].includes(getTypeByArea(selectedArea))) return;
 
         dispatch({ type: "FETCH_START" });
         try {
@@ -90,6 +90,10 @@ export function useRecords(recordType) {
                 // Opcional: se quiser manter state.records com algo
                 dispatch({ type: "FETCH_SUCCESS", payload: response1.vehicle_assign || [] });
                 break;
+                case "obras":
+                    response = await InternalService.getObrasRecords();
+                    dispatch({ type: "FETCH_SUCCESS", payload: response.obras || [] });
+                    break;
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
@@ -162,7 +166,9 @@ export function useRecords(recordType) {
                 case "veiculoAtribuido":
                     await InternalService.addVehicleAssignRegister(data);
                     break;
-                
+                case "obras":
+                    await InternalService.addObra(data);
+                    break;
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
@@ -185,11 +191,12 @@ export function useRecords(recordType) {
                 case "inventario":
                     await InternalService.updateInventoryRecord(id, data);
                     break;
-                 case "veiculos":
-                    await InternalService.updateVehicleAssignRegister(id,data);
+                case "veiculos":
+                    await InternalService.updateVehicleAssignRegister(id, data);
                     break;
-                
-
+                case "obras":
+                    await InternalService.updateObra(id, data);
+                    break;
                 default:
                     throw new Error(`Tipo de registo inválido: ${recordType}`);
             }
@@ -215,6 +222,7 @@ export function useRecords(recordType) {
             case 6: return "equip";
             case 8: return "inventario";
             case 9: return "Veiculo";
+            case 10: return "obras";
             default: return "";
         }
     };
@@ -229,9 +237,8 @@ export function useRecords(recordType) {
             case "inventario": return "inventário";
             case "veiculos" : return "Veiculo";
             case "manutencaoVeiculos" : return "Manutenção de Veículos";
-            case "veiculoAtribuido" : return "Veículo Atribuído";
-
-            
+            case "veiculoAtribuido": return "Veículo Atribuído";
+            case "obras": return "obra";
             default: return type;
         }
     };

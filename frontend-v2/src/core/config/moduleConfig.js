@@ -199,6 +199,7 @@ export const detectModuleFromPath = (pathname) => {
     // ADMINISTRATIVO
     '/tasks': 'administrativo',
     '/internal': 'administrativo',
+    '/equipamento': 'administrativo',
     '/epi': 'administrativo',
     '/fleet': 'administrativo',
     '/inventory': 'administrativo',
