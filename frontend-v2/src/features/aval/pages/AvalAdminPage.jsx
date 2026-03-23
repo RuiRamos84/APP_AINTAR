@@ -242,6 +242,17 @@ function AssignmentsTab({ assignments, users, selectedPeriod, onGenerate }) {
 }
 
 // ── Tab: Resultados ───────────────────────────────────────────────────────────
+const RESULT_DIMS = [
+  { label: 'Colaboração',    field: 'media_personal_colab', color: 'primary'   },
+  { label: 'Relacionamento', field: 'media_personal_rel',   color: 'warning'   },
+  { label: 'Desempenho',     field: 'media_profissional',   color: 'success'   },
+];
+
+function ScoreChip({ value, color }) {
+  if (!value && value !== 0) return <Typography variant="body2" color="text.secondary">—</Typography>;
+  return <Chip label={`★ ${Number(value).toFixed(1)}`} size="small" color={color} variant="outlined" />;
+}
+
 function ResultsTab({ results }) {
   if (results.length === 0) {
     return (
@@ -256,10 +267,11 @@ function ResultsTab({ results }) {
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>Colaborador</TableCell>
-            <TableCell align="center">Avaliações</TableCell>
-            <TableCell align="center">Média Pessoal</TableCell>
-            <TableCell align="center">Média Profissional</TableCell>
+            <TableCell><b>Colaborador</b></TableCell>
+            <TableCell align="center"><b>Avaliações</b></TableCell>
+            {RESULT_DIMS.map((d) => (
+              <TableCell key={d.field} align="center"><b>{d.label}</b></TableCell>
+            ))}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -267,22 +279,11 @@ function ResultsTab({ results }) {
             <TableRow key={r.colaborador} hover>
               <TableCell>{r.colaborador}</TableCell>
               <TableCell align="center">{r.total_avaliacoes}</TableCell>
-              <TableCell align="center">
-                <Chip
-                  label={`★ ${r.media_pessoal}`}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-              </TableCell>
-              <TableCell align="center">
-                <Chip
-                  label={`★ ${r.media_profissional}`}
-                  size="small"
-                  color="secondary"
-                  variant="outlined"
-                />
-              </TableCell>
+              {RESULT_DIMS.map((d) => (
+                <TableCell key={d.field} align="center">
+                  <ScoreChip value={r[d.field]} color={d.color} />
+                </TableCell>
+              ))}
             </TableRow>
           ))}
         </TableBody>
