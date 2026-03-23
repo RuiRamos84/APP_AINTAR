@@ -6,6 +6,7 @@ import EtarEeView from "./views/EtarEeView";
 import RedeRamalView from "./views/RedeRamalView";
 import ManutencaoView from "./views/ManutencaoView";
 import EquipamentoView from "./views/EquipamentoView";
+import EquipamentoGeralView from "./views/EquipamentoGeralView";
 import RequisicaoInternaView from './views/RequisicaoInternaView';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import OpacityIcon from '@mui/icons-material/Opacity';
@@ -19,6 +20,7 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import VeiculoView from "./views/VeiculoView";
 import ObrasView from "./views/ObrasView";
 import ConstructionIcon from '@mui/icons-material/Construction';
+import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
 
 
 
@@ -33,6 +35,7 @@ const areas = [
     { id: 8, name: "Inventário", description: "Gestão Inventário de Material Interno"},
     { id: 9, name: "Veículos", description: "Gestão de Veículos internos"},
     { id: 10, name: "Obras", description: "Gestão de Obras" },
+    { id: 11, name: "Equipamentos", description: "Gestão de Equipamentos" },
   ];
 
 const InternalArea = () => {
@@ -66,6 +69,8 @@ const InternalArea = () => {
                 return <VeiculoView />;
             case 10:
                 return <ObrasView />;
+            case 11:
+                return <EquipamentoGeralView />;
             default:
                 return null;
         }
@@ -83,6 +88,7 @@ const InternalArea = () => {
             case 8: return <Inventory2Icon sx={{ fontSize: 40 }} />;
             case 9: return null;
             case 10: return <ConstructionIcon sx={{ fontSize: 40 }} />;
+            case 11: return <PrecisionManufacturingIcon sx={{ fontSize: 40 }} />;
             default: return null;
         }
       };
