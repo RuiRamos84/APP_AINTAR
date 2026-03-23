@@ -10,15 +10,70 @@ logger = get_logger(__name__)
 
 class SubmitAvalModel(BaseModel):
     pk: int
-    aval_personal: int
+    aval_personal_colab: int
+    aval_personal_rel: int
     aval_professional: int
 
-    @field_validator('aval_personal', 'aval_professional')
+    @field_validator('aval_personal_colab', 'aval_personal_rel', 'aval_professional')
     @classmethod
     def check_range(cls, v):
         if not (1 <= v <= 10):
             raise ValueError('Avaliação deve estar entre 1 e 10')
         return v
+
+
+@api_error_handler
+def get_analytics_enriched(current_user: str):
+    """Dados enriquecidos: global por período + por utilizador com rankings + utilizador atual."""
+    with db_session_manager(current_user) as session:
+
+        global_rows = session.execute(text("""
+            SELECT
+                periodo_data, periodo, total_avaliacoes,
+                media_personal_colab, media_personal_rel, media_profissional
+            FROM vbl_aval_results_global
+            ORDER BY periodo_data
+        """)).mappings().all()
+
+        user_rows = session.execute(text("""
+            WITH base AS (
+                SELECT
+                    p.pk                                AS period_pk,
+                    p.hist_time                         AS periodo_data,
+                    p.descr                             AS periodo,
+                    c.name                              AS colaborador,
+                    COUNT(*)::integer                   AS total_avaliacoes,
+                    ROUND(AVG(r.aval_personal_colab), 2)  AS media_personal_colab,
+                    ROUND(AVG(r.aval_personal_rel),   2)  AS media_personal_rel,
+                    ROUND(AVG(r.aval_professional),   2)  AS media_profissional,
+                    ROUND((AVG(r.aval_personal_colab)
+                         + AVG(r.aval_personal_rel)
+                         + AVG(r.aval_professional)) / 3, 2) AS media_global
+                FROM tb_aval r
+                JOIN tb_aval_period p ON p.pk = r.tb_aval_period
+                JOIN ts_client c      ON c.pk = r.ts_target
+                GROUP BY p.pk, p.hist_time, p.descr, c.name
+            )
+            SELECT
+                *,
+                RANK() OVER (PARTITION BY period_pk ORDER BY media_global         DESC)::integer AS rank_global,
+                RANK() OVER (PARTITION BY period_pk ORDER BY media_personal_colab DESC)::integer AS rank_colab,
+                RANK() OVER (PARTITION BY period_pk ORDER BY media_personal_rel   DESC)::integer AS rank_rel,
+                RANK() OVER (PARTITION BY period_pk ORDER BY media_profissional   DESC)::integer AS rank_prof,
+                COUNT(*) OVER (PARTITION BY period_pk)::integer                                 AS total_users
+            FROM base
+            ORDER BY period_pk, colaborador
+        """)).mappings().all()
+
+        my_name = session.execute(
+            text("SELECT name FROM ts_client WHERE pk = fs_client()")
+        ).scalar()
+
+        return {
+            "global": [dict(r) for r in global_rows],
+            "users":  [dict(r) for r in user_rows],
+            "me":     my_name,
+        }
 
 
 @api_error_handler
@@ -32,9 +87,10 @@ def get_analytics(current_user: str):
                     p.year,
                     p.descr                            AS periodo,
                     c.name                             AS colaborador,
-                    COUNT(*)::integer                  AS total_avaliacoes,
-                    ROUND(AVG(r.aval_personal), 2)     AS media_pessoal,
-                    ROUND(AVG(r.aval_professional), 2) AS media_profissional
+                    COUNT(*)::integer                       AS total_avaliacoes,
+                    ROUND(AVG(r.aval_personal_colab), 2)   AS media_personal_colab,
+                    ROUND(AVG(r.aval_personal_rel), 2)     AS media_personal_rel,
+                    ROUND(AVG(r.aval_professional), 2)     AS media_profissional
                 FROM tb_aval r
                 JOIN tb_aval_period p ON p.pk = r.tb_aval_period
                 JOIN ts_client c      ON c.pk  = r.ts_target
@@ -121,10 +177,11 @@ def submit_evaluation(data: dict, current_user: str):
 
     with db_session_manager(current_user) as session:
         session.execute(
-            text('SELECT "fbo_aval$submit"(:pk, :personal, :professional)'),
+            text('SELECT "fbo_aval$submit"(:pk, :colab, :rel, :professional)'),
             {
-                "pk": validated.pk,
-                "personal": validated.aval_personal,
+                "pk":           validated.pk,
+                "colab":        validated.aval_personal_colab,
+                "rel":          validated.aval_personal_rel,
                 "professional": validated.aval_professional,
             }
         )
@@ -263,9 +320,10 @@ def admin_get_results(period_pk: int, current_user: str):
             text("""
                 SELECT
                     c.name                           AS colaborador,
-                    COUNT(*)::integer                AS total_avaliacoes,
-                    ROUND(AVG(r.aval_personal), 2)   AS media_pessoal,
-                    ROUND(AVG(r.aval_professional), 2) AS media_profissional
+                    COUNT(*)::integer                       AS total_avaliacoes,
+                    ROUND(AVG(r.aval_personal_colab), 2)   AS media_personal_colab,
+                    ROUND(AVG(r.aval_personal_rel), 2)     AS media_personal_rel,
+                    ROUND(AVG(r.aval_professional), 2)     AS media_profissional
                 FROM tb_aval r
                 JOIN ts_client c ON c.pk = r.ts_target
                 WHERE r.tb_aval_period = :period

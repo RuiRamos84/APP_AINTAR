@@ -3,18 +3,24 @@ import { toast } from 'sonner';
 import avalService from '../services/avalService';
 
 export function useAvalAnalytics() {
-  const [rawData, setRawData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [rawData,  setRawData]  = useState([]);
+  const [enriched, setEnriched] = useState({ global: [], users: [], me: null });
+  const [loading,  setLoading]  = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    avalService.getAnalytics()
-      .then((res) => setRawData(Array.isArray(res) ? res : []))
+    Promise.all([
+      avalService.getAnalytics(),
+      avalService.getAnalyticsEnriched(),
+    ])
+      .then(([analytics, enrichedRes]) => {
+        setRawData(Array.isArray(analytics) ? analytics : []);
+        setEnriched(enrichedRes ?? { global: [], users: [], me: null });
+      })
       .catch(() => toast.error('Erro ao carregar dados de análise'))
       .finally(() => setLoading(false));
   }, []);
 
-  // Períodos únicos ordenados cronologicamente pelo pk
   const periods = useMemo(() => {
     const seen = new Set();
     const list = [];
@@ -29,11 +35,10 @@ export function useAvalAnalytics() {
     return list;
   }, [rawData]);
 
-  // Lista de colaboradores únicos
   const people = useMemo(
     () => [...new Set(rawData.map((d) => d.colaborador))].sort(),
     [rawData]
   );
 
-  return { rawData, periods, people, loading };
+  return { rawData, periods, people, enriched, loading };
 }

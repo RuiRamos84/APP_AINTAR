@@ -3,6 +3,7 @@ import api from '@/services/api/client';
 const BASE = '/aval';
 
 const avalService = {
+  getAnalyticsEnriched: () => api.get(`${BASE}/analytics/enriched`),
   getAnalytics: () => api.get(`${BASE}/analytics`),
   getPending: () => api.get(`${BASE}/pending`),
   getPeriods: () => api.get(`${BASE}/periods`),

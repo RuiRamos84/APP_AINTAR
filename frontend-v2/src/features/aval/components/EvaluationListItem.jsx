@@ -1,24 +1,33 @@
 import { useState } from 'react';
 import {
-  Paper, Box, Avatar, Typography, Rating, Button,
-  CircularProgress, useMediaQuery, useTheme,
+  Paper, Box, Avatar, Typography, Rating, Button, CircularProgress,
+  Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Person as PersonIcon, Work as WorkIcon } from '@mui/icons-material';
+import {
+  Groups as ColabIcon,
+  Forum as RelIcon,
+  Work as WorkIcon,
+} from '@mui/icons-material';
+
+const DIMS = [
+  { key: 'colab', Icon: ColabIcon, tip: 'Colaboração',    color: '#1976d2' },
+  { key: 'rel',   Icon: RelIcon,   tip: 'Relacionamento', color: '#ed6c02' },
+  { key: 'prof',  Icon: WorkIcon,  tip: 'Desempenho',     color: '#2e7d32' },
+];
 
 function EvaluationListItem({ assignment, onSubmit, isSubmitting }) {
-  const [personal, setPersonal] = useState(0);
-  const [professional, setProfessional] = useState(0);
+  const [scores, setScores] = useState({ colab: 0, rel: 0, prof: 0 });
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const initials = assignment.target_name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0].toUpperCase())
-    .join('');
+    .split(' ').filter(Boolean).slice(0, 2)
+    .map((n) => n[0].toUpperCase()).join('');
 
-  const canSubmit = personal > 0 && professional > 0 && !isSubmitting;
+  const canSubmit = Object.values(scores).every((v) => v > 0) && !isSubmitting;
+
+  const handleSubmit = () =>
+    onSubmit(assignment.pk, scores.colab, scores.rel, scores.prof);
 
   return (
     <Paper
@@ -32,8 +41,8 @@ function EvaluationListItem({ assignment, onSubmit, isSubmitting }) {
       }}
     >
       {/* Avatar + Nome */}
-      <Box display="flex" alignItems="center" gap={1.5} sx={{ flex: 1, minWidth: 0 }}>
-        <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: 14, flexShrink: 0 }}>
+      <Box display="flex" alignItems="center" gap={1.5} sx={{ flex: 1, minWidth: 140 }}>
+        <Avatar sx={{ bgcolor: 'primary.main', width: 34, height: 34, fontSize: 13, flexShrink: 0 }}>
           {initials}
         </Avatar>
         <Typography variant="body2" fontWeight={600} noWrap>
@@ -42,33 +51,21 @@ function EvaluationListItem({ assignment, onSubmit, isSubmitting }) {
       </Box>
 
       {/* Ratings */}
-      <Box
-        display="flex"
-        gap={isMobile ? 2 : 3}
-        flexWrap="nowrap"
-        alignItems="center"
-        sx={{ flexShrink: 0 }}
-      >
-        <Box display="flex" alignItems="center" gap={0.75}>
-          <PersonIcon fontSize="small" color="action" />
-          <Rating
-            value={personal}
-            onChange={(_, v) => setPersonal(v ?? 0)}
-            size="small"
-            max={10}
-            precision={1}
-          />
-        </Box>
-        <Box display="flex" alignItems="center" gap={0.75}>
-          <WorkIcon fontSize="small" color="action" />
-          <Rating
-            value={professional}
-            onChange={(_, v) => setProfessional(v ?? 0)}
-            size="small"
-            max={10}
-            precision={1}
-          />
-        </Box>
+      <Box display="flex" gap={2} flexWrap="nowrap" alignItems="center" sx={{ flexShrink: 0 }}>
+        {DIMS.map(({ key, Icon, tip, color }) => (
+          <Tooltip key={key} title={tip} placement="top">
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Icon fontSize="small" sx={{ color, flexShrink: 0 }} />
+              <Rating
+                value={scores[key]}
+                onChange={(_, v) => setScores((s) => ({ ...s, [key]: v ?? 0 }))}
+                size="small"
+                max={10}
+                precision={1}
+              />
+            </Box>
+          </Tooltip>
+        ))}
       </Box>
 
       {/* Botão */}
@@ -76,7 +73,7 @@ function EvaluationListItem({ assignment, onSubmit, isSubmitting }) {
         variant="contained"
         size="small"
         disabled={!canSubmit}
-        onClick={() => onSubmit(assignment.pk, personal, professional)}
+        onClick={handleSubmit}
         startIcon={isSubmitting ? <CircularProgress size={14} color="inherit" /> : null}
         sx={{ flexShrink: 0, minWidth: 100 }}
       >

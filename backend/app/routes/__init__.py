@@ -1,5 +1,6 @@
 # app/routes/__init__.py
 
+from .admin_routes import bp as admin_bp
 from .auth_routes import bp as auth_bp
 from .user_routes import bp as user_bp
 from .entity_routes import bp as entity_bp
@@ -27,7 +28,7 @@ from .obras_routes import bp as obras_bp
 from .obra_despesa_routes import bp as obra_despesa_bp
 
 __all__ = [
-    'auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp',
+    'admin_bp', 'auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp',
     'dashboard_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp',
     'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp',
     'analysis_bp', 'operation_metadata_bp', 'telemetry_bp', 'inventory_bp',

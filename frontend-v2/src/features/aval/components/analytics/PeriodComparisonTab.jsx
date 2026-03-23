@@ -4,9 +4,15 @@ import {
   Table, TableHead, TableBody, TableRow, TableCell,
   Typography, Chip, Skeleton, Avatar,
 } from '@mui/material';
-import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon  from '@mui/icons-material/TrendingDown';
-import TrendingFlatIcon  from '@mui/icons-material/TrendingFlat';
+import TrendingUpIcon   from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
+
+const DIMS = [
+  { key: 'colab', label: 'Colaboração',    fieldA: 'cA', fieldB: 'cB', deltaKey: 'dc' },
+  { key: 'rel',   label: 'Relacionamento', fieldA: 'rA', fieldB: 'rB', deltaKey: 'dr' },
+  { key: 'prof',  label: 'Desempenho',     fieldA: 'pA', fieldB: 'pB', deltaKey: 'dp' },
+];
 
 const initials = (name) =>
   name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join('');
@@ -46,16 +52,18 @@ export default function PeriodComparisonTab({ rawData, periods, loading }) {
     const dataB = periodB ? rawData.filter((d) => d.period_pk === periodB) : [];
 
     return dataA.map((a) => {
-      const b   = dataB.find((d) => d.colaborador === a.colaborador);
-      const pA  = Number(a.media_pessoal);
-      const prA = Number(a.media_profissional);
-      const pB  = b ? Number(b.media_pessoal) : null;
-      const prB = b ? Number(b.media_profissional) : null;
+      const b  = dataB.find((d) => d.colaborador === a.colaborador);
+      const cA = Number(a.media_personal_colab);
+      const rA = Number(a.media_personal_rel);
+      const pA = Number(a.media_profissional);
+      const cB = b ? Number(b.media_personal_colab) : null;
+      const rB = b ? Number(b.media_personal_rel)   : null;
+      const pB = b ? Number(b.media_profissional)   : null;
+      const d  = (vB, vA) => vB !== null ? Math.round((vB - vA) * 10) / 10 : null;
       return {
-        colaborador:    a.colaborador,
-        pA, prA, pB, prB,
-        deltaPes:  pB  !== null ? Math.round((pB  - pA)  * 10) / 10 : null,
-        deltaProf: prB !== null ? Math.round((prB - prA) * 10) / 10 : null,
+        colaborador: a.colaborador,
+        cA, rA, pA, cB, rB, pB,
+        dc: d(cB, cA), dr: d(rB, rA), dp: d(pB, pA),
       };
     }).sort((a, b) => a.colaborador.localeCompare(b.colaborador));
   }, [rawData, periodA, periodB]);
@@ -63,11 +71,10 @@ export default function PeriodComparisonTab({ rawData, periods, loading }) {
   const labelA = periods.find((p) => p.pk === periodA)?.label ?? '—';
   const labelB = periods.find((p) => p.pk === periodB)?.label ?? '—';
 
-  if (loading) return <Skeleton variant="rectangular" height={360} sx={{ borderRadius: 2 }} />;
+  if (loading) return <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />;
 
   return (
     <Box>
-      {/* Seletores de período */}
       <Box display="flex" gap={2} mb={3} flexWrap="wrap">
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <InputLabel>Período base</InputLabel>
@@ -87,16 +94,24 @@ export default function PeriodComparisonTab({ rawData, periods, loading }) {
         <Typography color="text.secondary">Sem dados para os períodos selecionados.</Typography>
       ) : (
         <Paper variant="outlined" sx={{ overflow: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 700 }}>
+          <Table size="small" sx={{ minWidth: 900 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>
-                <TableCell><b>Colaborador</b></TableCell>
-                <TableCell align="center"><b>Pessoal</b><br /><Typography variant="caption" color="text.secondary">{labelA}</Typography></TableCell>
-                <TableCell align="center"><b>Profissional</b><br /><Typography variant="caption" color="text.secondary">{labelA}</Typography></TableCell>
-                <TableCell align="center"><b>Pessoal</b><br /><Typography variant="caption" color="text.secondary">{labelB}</Typography></TableCell>
-                <TableCell align="center"><b>Profissional</b><br /><Typography variant="caption" color="text.secondary">{labelB}</Typography></TableCell>
-                <TableCell align="center"><b>Δ Pessoal</b></TableCell>
-                <TableCell align="center"><b>Δ Profissional</b></TableCell>
+                <TableCell rowSpan={2}><b>Colaborador</b></TableCell>
+                {DIMS.map(({ label }) => (
+                  <TableCell key={label} align="center" colSpan={3}>
+                    <b>{label}</b>
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
+                {DIMS.map(({ key }) => (
+                  [
+                    <TableCell key={`${key}A`} align="center"><Typography variant="caption" color="text.secondary">{labelA}</Typography></TableCell>,
+                    <TableCell key={`${key}B`} align="center"><Typography variant="caption" color="text.secondary">{labelB}</Typography></TableCell>,
+                    <TableCell key={`${key}d`} align="center"><Typography variant="caption" color="text.secondary">Δ</Typography></TableCell>,
+                  ]
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -110,12 +125,18 @@ export default function PeriodComparisonTab({ rawData, periods, loading }) {
                       <Typography variant="body2">{row.colaborador}</Typography>
                     </Box>
                   </TableCell>
+                  {/* Colaboração */}
+                  <TableCell align="center">{row.cA.toFixed(1)}</TableCell>
+                  <TableCell align="center">{row.cB?.toFixed(1) ?? '—'}</TableCell>
+                  <TableCell align="center"><DeltaChip value={row.dc} /></TableCell>
+                  {/* Relacionamento */}
+                  <TableCell align="center">{row.rA.toFixed(1)}</TableCell>
+                  <TableCell align="center">{row.rB?.toFixed(1) ?? '—'}</TableCell>
+                  <TableCell align="center"><DeltaChip value={row.dr} /></TableCell>
+                  {/* Desempenho */}
                   <TableCell align="center">{row.pA.toFixed(1)}</TableCell>
-                  <TableCell align="center">{row.prA.toFixed(1)}</TableCell>
                   <TableCell align="center">{row.pB?.toFixed(1) ?? '—'}</TableCell>
-                  <TableCell align="center">{row.prB?.toFixed(1) ?? '—'}</TableCell>
-                  <TableCell align="center"><DeltaChip value={row.deltaPes} /></TableCell>
-                  <TableCell align="center"><DeltaChip value={row.deltaProf} /></TableCell>
+                  <TableCell align="center"><DeltaChip value={row.dp} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>

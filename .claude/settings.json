@@ -36,7 +36,8 @@
       "Bash(powershell -NoProfile -Command \"Remove-Item ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\_fix_env.ps1''\")",
       "Bash(node -e \"const p=require\\(''./package.json''\\); [''react-leaflet'',''leaflet'',''html2canvas''].forEach\\(k => console.log\\(k+'':'', p.dependencies[k] || p.devDependencies?.[k] || ''NÃO INSTALADO''\\)\\)\")",
       "Bash(npx tsc:*)",
-      "Bash(grep -E \"\\\\.\\(py\\)$\")"
+      "Bash(grep -E \"\\\\.\\(py\\)$\")",
+      "Bash(npx --no tsc --noEmit --skipLibCheck)"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"

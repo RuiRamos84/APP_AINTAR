@@ -199,7 +199,7 @@ def create_app(config_class):
     with app.app_context():
         # Registro dos blueprints
         from .routes import (
-            auth_bp, user_bp, entity_bp, document_bp, meta_data_bp,
+            admin_bp, auth_bp, user_bp, entity_bp, document_bp, meta_data_bp,
             dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp,
             tasks_bp, operations_bp, permissions_bp, operation_control_bp,
             analysis_bp, operation_metadata_bp, telemetry_bp, inventory_bp,
@@ -209,6 +209,7 @@ def create_app(config_class):
         from .routes.emission_routes import emission_bp
         from .routes.signature_routes import signature_bp
 
+        app.register_blueprint(admin_bp, url_prefix='/api/v1/admin')
         app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
         app.register_blueprint(user_bp, url_prefix='/api/v1/user')
         app.register_blueprint(entity_bp, url_prefix='/api/v1')

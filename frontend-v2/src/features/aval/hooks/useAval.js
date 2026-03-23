@@ -58,10 +58,10 @@ export function useAval() {
   }, [selectedPeriod, fetchEvalData]);
 
   const submitEvaluation = useCallback(
-    async (pk, aval_personal, aval_professional) => {
+    async (pk, aval_personal_colab, aval_personal_rel, aval_professional) => {
       setSubmitting(pk);
       try {
-        await avalService.submit({ pk, aval_personal, aval_professional });
+        await avalService.submit({ pk, aval_personal_colab, aval_personal_rel, aval_professional });
         toast.success('Avaliação submetida com sucesso');
         await fetchEvalData(selectedPeriod);
       } catch (err) {

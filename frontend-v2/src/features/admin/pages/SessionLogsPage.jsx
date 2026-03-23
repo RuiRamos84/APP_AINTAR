@@ -96,10 +96,7 @@ const SessionLogsPage = () => {
       subtitle="Histórico de autenticações e sessões ativas"
       icon={SessionIcon}
       color="#f44336"
-      breadcrumbs={[
-        { label: 'Administração', path: '/admin' },
-        { label: 'Logs de Sessões', path: '/admin/session-logs' },
-      ]}
+      breadcrumbs={[{ label: 'Logs de Sessões' }]}
       actions={
         <Tooltip title="Atualizar"><IconButton onClick={refetch}><RefreshIcon /></IconButton></Tooltip>
       }

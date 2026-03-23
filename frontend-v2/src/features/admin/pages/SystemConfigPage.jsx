@@ -115,10 +115,7 @@ const SystemConfigPage = () => {
       subtitle="Parâmetros globais, estado dos serviços e manutenção"
       icon={SettingsIcon}
       color="#f44336"
-      breadcrumbs={[
-        { label: 'Administração', path: '/admin' },
-        { label: 'Configurações', path: '/admin/config' },
-      ]}
+      breadcrumbs={[{ label: 'Configurações' }]}
       actions={
         <Stack direction="row" spacing={1}>
           <Tooltip title="Atualizar estado"><IconButton onClick={refetch}><RefreshIcon /></IconButton></Tooltip>

@@ -177,10 +177,7 @@ const AdminActionsPage = () => {
       subtitle="Ferramentas de manutenção, otimização e gestão do sistema"
       icon={ActionsIcon}
       color="#f44336"
-      breadcrumbs={[
-        { label: 'Administração', path: '/admin' },
-        { label: 'Ações', path: '/admin/actions' },
-      ]}
+      breadcrumbs={[{ label: 'Ações' }]}
     >
       {loading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 

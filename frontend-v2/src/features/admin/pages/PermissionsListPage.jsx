@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -18,8 +18,6 @@ import {
   Divider,
   Tooltip,
   IconButton,
-  ToggleButtonGroup,
-  ToggleButton,
   Tab,
   Tabs,
   Button,
@@ -31,7 +29,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  InputAdornment,
   alpha,
   useTheme,
   useMediaQuery,
@@ -53,10 +50,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   People as PeopleIcon,
-  Search as SearchIcon,
-  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { ModulePage } from '@/shared/components/layout';
+import { SearchBar } from '@/shared/components/data';
 import { Loading } from '@/shared/components/feedback';
 import { useInterfaces } from '@/core/contexts/MetadataContext';
 import {
@@ -177,7 +173,7 @@ const PermissionCard = ({ perm, interfaces }) => {
         </Stack>
       )}
       {perm.requires?.length > 0 && (
-        <Box sx={{ mt: 0.75, pt: 0.75, borderTop: `1px solid ${useTheme().palette.divider}` }}>
+        <Box sx={{ mt: 0.75, pt: 0.75, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Stack direction="row" flexWrap="wrap" sx={{ gap: 0.5 }}>
             {perm.requires.map(d => <DepChip key={d} permId={d} interfaces={interfaces} />)}
           </Stack>
@@ -264,7 +260,6 @@ const PermissionsListPage = () => {
 
   // ── Tab Permissões ────────────────────────────────────────────────────────
   const [searchTerm,     setSearchTerm]     = useState('');
-  const [filter,         setFilter]         = useState('all');
   const [expandedPanels, setExpandedPanels] = useState(new Set());
 
   // ── Tab Grupos ────────────────────────────────────────────────────────────
@@ -288,6 +283,9 @@ const PermissionsListPage = () => {
     }
   }, []);
 
+  // Carregar grupos na montagem para o stat do header ficar correcto
+  useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
   const handleTabChange = (_, v) => {
     setTab(v);
     if (v === 1 && groups.length === 0) fetchGroups();
@@ -304,21 +302,16 @@ const PermissionsListPage = () => {
 
   // ── Filtrar permissões ────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    let r = interfaces;
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase();
-      r = r.filter(p =>
-        p.label?.toLowerCase().includes(s) ||
-        p.value?.toLowerCase().includes(s) ||
-        p.description?.toLowerCase().includes(s) ||
-        p.category?.toLowerCase().includes(s) ||
-        String(p.pk).includes(s)
-      );
-    }
-    if (filter === 'critical')  r = r.filter(p => p.is_critical);
-    if (filter === 'sensitive') r = r.filter(p => p.is_sensitive);
-    return r;
-  }, [interfaces, searchTerm, filter]);
+    if (!searchTerm) return interfaces;
+    const s = searchTerm.toLowerCase();
+    return interfaces.filter(p =>
+      p.label?.toLowerCase().includes(s) ||
+      p.value?.toLowerCase().includes(s) ||
+      p.description?.toLowerCase().includes(s) ||
+      p.category?.toLowerCase().includes(s) ||
+      String(p.pk).includes(s)
+    );
+  }, [interfaces, searchTerm]);
 
   const grouped    = useMemo(() => groupPermissionsByCategory(filtered), [filtered]);
   const categories = useMemo(() => Object.keys(grouped), [grouped]);
@@ -407,120 +400,67 @@ const PermissionsListPage = () => {
       breadcrumbs={[{ label: 'Permissões' }]}
       actions={headerActions}
     >
-      {/* ── Barra tabs + controlos ────────────────────────────────────────── */}
+      {/* ── Barra tabs (esq) + controlos (dir) ──────────────────────────────── */}
       <Paper
         variant="outlined"
         sx={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           mb: 2,
-          px: 1,
-          flexWrap: 'wrap',
-          gap: 1,
+          pl: 1,
+          pr: 1.5,
+          minHeight: 50,
+          overflow: 'hidden',
         }}
       >
-        {/* Tabs — lado esquerdo */}
+        {/* Tabs — esquerda */}
         <Tabs
           value={tab}
           onChange={handleTabChange}
-          sx={{ flexShrink: 0, '& .MuiTab-root': { minHeight: 48, fontSize: '0.875rem' } }}
+          sx={{ '& .MuiTab-root': { minHeight: 50, fontSize: '0.875rem' } }}
         >
+          <Tab icon={<SecurityIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Permissões" />
           <Tab
-            icon={<SecurityIcon sx={{ fontSize: 17 }} />}
-            iconPosition="start"
-            label="Permissões"
-          />
-          <Tab
-            icon={<GroupIcon sx={{ fontSize: 17 }} />}
-            iconPosition="start"
+            icon={<GroupIcon sx={{ fontSize: 17 }} />} iconPosition="start"
             label={`Grupos${groups.length ? ` (${groups.length})` : ''}`}
           />
         </Tabs>
 
-        {/* Separador vertical */}
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        {/* Controlos — direita */}
+        {tab === 0 && (
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+              {filtered.length} perm · {categories.length} cat.
+            </Typography>
+            <Tooltip title="Expandir todas">
+              <IconButton size="small" onClick={() => setExpandedPanels(new Set(categories))}>
+                <UnfoldMoreIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Recolher todas">
+              <IconButton size="small" onClick={() => setExpandedPanels(new Set())}>
+                <UnfoldLessIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        )}
 
-        {/* Controlos — lado direito */}
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', py: 0.75 }}>
-          {tab === 0 && (
-            <>
-              <ToggleButtonGroup
-                value={filter} exclusive size="small"
-                onChange={(_, v) => v && setFilter(v)}
-                sx={{ height: 34 }}
-              >
-                <ToggleButton value="all"       sx={{ px: 1.25, fontSize: '0.75rem' }}>Todas</ToggleButton>
-                <ToggleButton value="critical"  sx={{ px: 1.25, fontSize: '0.75rem' }}>
-                  <WarningIcon sx={{ fontSize: 13, mr: 0.5, color: 'error.main' }} />Críticas
-                </ToggleButton>
-                <ToggleButton value="sensitive" sx={{ px: 1.25, fontSize: '0.75rem' }}>
-                  <LockIcon sx={{ fontSize: 13, mr: 0.5, color: 'warning.main' }} />Sensíveis
-                </ToggleButton>
-              </ToggleButtonGroup>
-
-              <TextField
-                size="small" placeholder="Pesquisar permissões…"
-                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                sx={{ width: { xs: '100%', sm: 220 } }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17 }} /></InputAdornment>,
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setSearchTerm('')}>
-                        <ClearIcon sx={{ fontSize: 15 }} />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, whiteSpace: 'nowrap' }}>
-                {filtered.length} · {categories.length} cat.
-              </Typography>
-
-              <Box sx={{ ml: 'auto', display: 'flex', gap: 0.25 }}>
-                <Tooltip title="Expandir todas">
-                  <IconButton size="small" onClick={() => setExpandedPanels(new Set(categories))}>
-                    <UnfoldMoreIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Recolher todas">
-                  <IconButton size="small" onClick={() => setExpandedPanels(new Set())}>
-                    <UnfoldLessIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </>
-          )}
-
-          {tab === 1 && (
-            <>
-              <TextField
-                size="small" placeholder="Pesquisar grupos…"
-                value={groupSearch} onChange={e => setGroupSearch(e.target.value)}
-                sx={{ width: { xs: '100%', sm: 220 } }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 17 }} /></InputAdornment>,
-                  endAdornment: groupSearch && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setGroupSearch('')}>
-                        <ClearIcon sx={{ fontSize: 15 }} />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <Box sx={{ ml: 'auto' }}>
-                <Button
-                  variant="contained" size="small" startIcon={<AddIcon />}
-                  onClick={() => setGroupDialog({ open: true, group: null })}
-                >
-                  Novo grupo
-                </Button>
-              </Box>
-            </>
-          )}
-        </Box>
+        {tab === 1 && (
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <SearchBar searchTerm={groupSearch} onSearch={setGroupSearch} />
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+              {filteredGroups.length} grupo{filteredGroups.length !== 1 ? 's' : ''}
+            </Typography>
+            <Button
+              variant="contained" size="small" startIcon={<AddIcon />}
+              onClick={() => setGroupDialog({ open: true, group: null })}
+            >
+              Novo grupo
+            </Button>
+          </Stack>
+        )}
       </Paper>
 
       {/* ════════════════════════════════════════════════════════════════════

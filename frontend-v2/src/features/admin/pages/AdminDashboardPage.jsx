@@ -4,33 +4,53 @@
  */
 
 import {
-  Box, Grid, Card, CardContent, Typography, Button,
-  Stack, Chip, Skeleton, useTheme, alpha,
+  Box, Grid, Card, CardContent, Typography,
+  Stack, Skeleton, useTheme, alpha, IconButton, Tooltip,
 } from '@mui/material';
 import {
   People as PeopleIcon,
-  Assignment as TasksIcon,
-  Description as DocumentsIcon,
   AdminPanelSettings as AdminIcon,
   Settings as ConfigIcon,
   History as LogsIcon,
   Build as ActionsIcon,
   VpnKey as PermissionsIcon,
   ArrowForward as ArrowIcon,
+  Refresh as RefreshIcon,
+  GroupWork as GroupIcon,
+  CheckCircle as ActiveIcon,
+  HourglassEmpty as PendingIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
-import apiClient from '@/services/api/client';
+import { useInterfaces } from '@/core/contexts/MetadataContext';
+import { listPermissionGroups } from '@/services/permissionGroupsService';
+import { listUsers } from '@/services/userService';
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── Hooks ────────────────────────────────────────────────────────────────────
 
-const useAdminStats = () =>
+const useUserStats = () =>
   useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: () => apiClient.get('/admin/stats'),
-    staleTime: 60 * 1000,
-    select: (res) => res?.stats ?? res ?? null,
+    queryKey: ['admin', 'users-dashboard'],
+    queryFn: listUsers,
+    staleTime: 2 * 60 * 1000,
+    select: (res) => {
+      const list = res?.users ?? (Array.isArray(res) ? res : []);
+      return {
+        total: list.length,
+        active: list.filter((u) => u.active).length,
+        inactive: list.filter((u) => !u.active).length,
+      };
+    },
+    retry: 1,
+  });
+
+const useGroupCount = () =>
+  useQuery({
+    queryKey: ['permission-groups'],
+    queryFn: listPermissionGroups,
+    staleTime: 5 * 60 * 1000,
+    select: (res) => (res?.groups ?? []).length,
     retry: 1,
   });
 
@@ -41,10 +61,14 @@ const StatCard = ({ title, value, icon: Icon, color, loading }) => {
   return (
     <Card variant="outlined" sx={{ bgcolor: alpha(theme.palette[color]?.main || '#000', 0.04) }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-          <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette[color]?.main || '#000', 0.15) }}>
-            <Icon sx={{ color: `${color}.main`, fontSize: 22 }} />
-          </Box>
+        <Box
+          sx={{
+            width: 40, height: 40, borderRadius: 2, mb: 1.5,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            bgcolor: alpha(theme.palette[color]?.main || '#000', 0.15),
+          }}
+        >
+          <Icon sx={{ color: `${color}.main`, fontSize: 22 }} />
         </Box>
         {loading ? (
           <Skeleton variant="text" width={60} height={40} />
@@ -61,19 +85,24 @@ const StatCard = ({ title, value, icon: Icon, color, loading }) => {
 
 const QuickLink = ({ title, description, path, icon: Icon, color }) => {
   const navigate = useNavigate();
-  const theme = useTheme();
   return (
     <Card
       variant="outlined"
       onClick={() => navigate(path)}
       sx={{
         cursor: 'pointer',
-        transition: '0.2s',
+        transition: 'box-shadow 0.2s, border-color 0.2s, transform 0.2s',
         '&:hover': { boxShadow: 2, borderColor: color, transform: 'translateY(-2px)' },
       }}
     >
       <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(color, 0.12), flexShrink: 0 }}>
+        <Box
+          sx={{
+            width: 36, height: 36, borderRadius: 2, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            bgcolor: alpha(color, 0.12),
+          }}
+        >
           <Icon sx={{ color, fontSize: 20 }} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -89,22 +118,31 @@ const QuickLink = ({ title, description, path, icon: Icon, color }) => {
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 const AdminDashboardPage = () => {
-  const { data: stats, isLoading } = useAdminStats();
+  const { interfaces } = useInterfaces();
+  const { data: userStats, isLoading: loadingUsers, refetch: refetchUsers } = useUserStats();
+  const { data: groupCount, isLoading: loadingGroups, refetch: refetchGroups } = useGroupCount();
+
+  const isLoading = loadingUsers || loadingGroups;
+
+  const handleRefresh = () => {
+    refetchUsers();
+    refetchGroups();
+  };
 
   const statCards = [
-    { title: 'Utilizadores', value: stats?.total_users,   icon: PeopleIcon,   color: 'primary' },
-    { title: 'Tarefas Ativas', value: stats?.active_tasks, icon: TasksIcon,    color: 'success' },
-    { title: 'Documentos',    value: stats?.total_docs,    icon: DocumentsIcon, color: 'info' },
-    { title: 'Administradores', value: stats?.admin_count, icon: AdminIcon,    color: 'warning' },
+    { title: 'Utilizadores Ativos',    value: userStats?.active,  icon: ActiveIcon,      color: 'success' },
+    { title: 'Utilizadores Pendentes', value: userStats?.inactive, icon: PendingIcon,    color: 'warning' },
+    { title: 'Permissões',             value: interfaces?.length, icon: PermissionsIcon, color: 'primary' },
+    { title: 'Grupos de Permissões',   value: groupCount,         icon: GroupIcon,       color: 'secondary' },
   ];
 
   const quickLinks = [
-    { title: 'Utilizadores', description: 'Gerir contas e permissões', path: '/admin/users', icon: PeopleIcon, color: '#2196f3' },
-    { title: 'Permissões', description: 'Configurar acessos por perfil', path: '/admin/permissions', icon: PermissionsIcon, color: '#9c27b0' },
-    { title: 'Configurações', description: 'Parâmetros e estado do sistema', path: '/admin/config', icon: ConfigIcon, color: '#f44336' },
-    { title: 'Logs de Atividade', description: 'Auditoria de ações', path: '/admin/activity-logs', icon: LogsIcon, color: '#ff9800' },
-    { title: 'Logs de Sessões', description: 'Histórico de autenticações', path: '/admin/session-logs', icon: LogsIcon, color: '#607d8b' },
-    { title: 'Ações', description: 'Manutenção e ferramentas', path: '/admin/actions', icon: ActionsIcon, color: '#795548' },
+    { title: 'Utilizadores',      description: 'Gerir contas e permissões',      path: '/admin/users',         icon: PeopleIcon,      color: '#2196f3' },
+    { title: 'Permissões',        description: 'Configurar acessos por perfil',  path: '/admin/permissions',   icon: PermissionsIcon, color: '#9c27b0' },
+    { title: 'Configurações',     description: 'Parâmetros e estado do sistema',  path: '/admin/config',        icon: ConfigIcon,      color: '#f44336' },
+    { title: 'Logs de Atividade', description: 'Auditoria de ações',             path: '/admin/activity-logs', icon: LogsIcon,        color: '#ff9800' },
+    { title: 'Logs de Sessões',   description: 'Histórico de autenticações',     path: '/admin/session-logs',  icon: LogsIcon,        color: '#607d8b' },
+    { title: 'Ações',             description: 'Manutenção e ferramentas',       path: '/admin/actions',       icon: ActionsIcon,     color: '#795548' },
   ];
 
   return (
@@ -113,7 +151,14 @@ const AdminDashboardPage = () => {
       subtitle="Dashboard administrativo — visão geral e acesso rápido"
       icon={AdminIcon}
       color="#f44336"
-      breadcrumbs={[{ label: 'Sistema', path: '/admin' }, { label: 'Dashboard' }]}
+      breadcrumbs={[{ label: 'Dashboard' }]}
+      actions={
+        <Tooltip title="Atualizar">
+          <IconButton onClick={handleRefresh} disabled={isLoading} size="small">
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+      }
     >
       {/* Stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

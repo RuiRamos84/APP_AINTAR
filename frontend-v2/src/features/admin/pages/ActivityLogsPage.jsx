@@ -116,10 +116,7 @@ const ActivityLogsPage = () => {
       subtitle="Auditoria de todas as ações realizadas no sistema"
       icon={LogIcon}
       color="#f44336"
-      breadcrumbs={[
-        { label: 'Administração', path: '/admin' },
-        { label: 'Logs de Atividade', path: '/admin/activity-logs' },
-      ]}
+      breadcrumbs={[{ label: 'Logs de Atividade' }]}
       actions={
         <Tooltip title="Atualizar"><IconButton onClick={refetch}><RefreshIcon /></IconButton></Tooltip>
       }

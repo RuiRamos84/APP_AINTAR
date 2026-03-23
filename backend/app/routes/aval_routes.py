@@ -9,6 +9,17 @@ bp = Blueprint('aval', __name__)
 logger = get_logger(__name__)
 
 
+@bp.route('/aval/analytics/enriched', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_analytics_enriched():
+    """Dados enriquecidos: global + por utilizador com rankings + 'me'."""
+    current_user = get_jwt_identity()
+    return aval_service.get_analytics_enriched(current_user)
+
+
 @bp.route('/aval/analytics', methods=['GET'])
 @jwt_required()
 @token_required
