@@ -34,7 +34,9 @@
       "Bash(powershell -NoProfile -Command \"& { $utf8 = [System.Text.UTF8Encoding]::new\\($false\\); [System.IO.File]::WriteAllText\\(''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\.env.production.local'', \"\"VITE_APP_VERSION=3.1.0\\\\`r\\\\`nVITE_APP_BUILD=1\\\\`r\\\\`n\"\", $utf8\\); Write-Host ''Escrito sem BOM'' }\")",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\_fix_env.ps1\")",
       "Bash(powershell -NoProfile -Command \"Remove-Item ''C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\Deploy\\\\_fix_env.ps1''\")",
-      "Bash(node -e \"const p=require\\(''./package.json''\\); [''react-leaflet'',''leaflet'',''html2canvas''].forEach\\(k => console.log\\(k+'':'', p.dependencies[k] || p.devDependencies?.[k] || ''NÃO INSTALADO''\\)\\)\")"
+      "Bash(node -e \"const p=require\\(''./package.json''\\); [''react-leaflet'',''leaflet'',''html2canvas''].forEach\\(k => console.log\\(k+'':'', p.dependencies[k] || p.devDependencies?.[k] || ''NÃO INSTALADO''\\)\\)\")",
+      "Bash(npx tsc:*)",
+      "Bash(grep -E \"\\\\.\\(py\\)$\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"

@@ -48,6 +48,7 @@ import {
   GridView as InternalIcon,
   Build as EquipamentosIcon,
   Settings as EquipamentoIcon,
+  Construction as ObrasIcon,
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
 
@@ -280,6 +281,15 @@ export const ROUTE_CONFIG = {
     icon: EquipamentosIcon,
     module: 'gestao',
     permissions: { required: PERMISSIONS.EQUIPAMENTOS_VIEW },
+    showInSidebar: true,
+  },
+
+  '/obras': {
+    id: 'obras',
+    text: 'Obras',
+    icon: ObrasIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.OBRAS_VIEW },
     showInSidebar: true,
   },
 

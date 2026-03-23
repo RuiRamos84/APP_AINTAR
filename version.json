@@ -1,18 +1,18 @@
 ﻿{
-    "version":  "3.0.3",
-    "buildNumber":  3,
+    "version":  "3.0.4",
+    "buildNumber":  4,
     "components":  {
                        "frontend":  {
                                         "version":  "2.0.0",
                                         "lastDeploy":  null
                                     },
                        "frontend-v2":  {
-                                           "version":  "3.0.3",
-                                           "lastDeploy":  "2026-03-20T15:56:18"
+                                           "version":  "3.0.4",
+                                           "lastDeploy":  "2026-03-23T07:34:09"
                                        },
                        "backend":  {
-                                       "version":  "3.0.3",
-                                       "lastDeploy":  "2026-03-20T15:56:18"
+                                       "version":  "3.0.4",
+                                       "lastDeploy":  "2026-03-23T07:34:09"
                                    }
                    },
     "history":  [
@@ -47,6 +47,17 @@
                         "versions":  {
                                          "backend":  "3.0.3",
                                          "frontend-v2":  "3.0.3"
+                                     }
+                    },
+                    {
+                        "build":  4,
+                        "date":  "2026-03-23T07:34:09",
+                        "operation":  "backend-v2",
+                        "bumpType":  "patch",
+                        "by":  "rui.ramos",
+                        "versions":  {
+                                         "backend":  "3.0.4",
+                                         "frontend-v2":  "3.0.4"
                                      }
                     }
                 ]

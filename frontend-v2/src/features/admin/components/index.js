@@ -5,3 +5,4 @@
 
 export { default as UserPermissionsDialog } from './UserPermissionsDialog';
 export { default as BulkPermissionsDialog } from './BulkPermissionsDialog';
+export { default as PermissionGroupDialog } from './PermissionGroupDialog';

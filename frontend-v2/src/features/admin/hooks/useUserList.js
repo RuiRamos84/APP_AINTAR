@@ -1,18 +1,4 @@
-/**
- * useUserList Hook
- * Hook especializado para gestão de listagem de utilizadores (Admin)
- *
- * Features:
- * - Paginação
- * - Pesquisa
- * - Ordenação
- * - Ações CRUD (delete, toggle status, reset password)
- * - Auto-refresh
- * - Error handling
- * - Loading states
- */
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   listUsers,
   deleteUser,
@@ -22,188 +8,182 @@ import {
 import { notification } from '@/core/services/notification';
 
 /**
- * Hook para gestão da lista de utilizadores
+ * Hook de gestão da lista de utilizadores.
  *
- * @returns {Object} State and handlers
+ * O backend retorna todos os utilizadores de uma vez (sem suporte a
+ * paginação/ordenação server-side), por isso toda a filtragem, ordenação
+ * e paginação é feita client-side com useMemo.
  *
- * @example
- * const {
- *   users,
- *   totalCount,
- *   isLoading,
- *   page,
- *   setPage,
- *   handleDeleteUser,
- * } = useUserList();
+ * Normaliza também o campo `interface` (singular, vindo do backend)
+ * para `interfaces` (plural, padrão interno da app).
  */
 export const useUserList = () => {
-  // Dados
-  const [users, setUsers] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // Estados
+  // Dados em bruto vindos da API
+  const [allUsers, setAllUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Parâmetros de listagem
+  // Paginação
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [search, setSearch] = useState('');
+
+  // Ordenação
   const [sortBy, setSortBy] = useState('user_id');
   const [sortOrder, setSortOrder] = useState('asc');
 
-  /**
-   * Carregar lista de utilizadores
-   */
+  // Pesquisa com debounce
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Filtro de estado
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
+
+  // ── Debounce da pesquisa (350ms) ─────────────────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // ── Reset de página quando filtros/ordenação mudam ───────────────────────
+  useEffect(() => { setPage(0); }, [search, statusFilter, sortBy, sortOrder]);
+
+  // ── Fetch (único, sem parâmetros — backend não suporta) ──────────────────
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const params = {
-        page: page + 1, // API usa 1-based indexing
-        limit: rowsPerPage,
-        search: search || undefined,
-        sortBy,
-        sortOrder,
-      };
+      const response = await listUsers();
+      const raw = response?.users ?? (Array.isArray(response) ? response : []);
 
-      const response = await listUsers(params);
+      // Normalizar: backend devolve `interface` (singular); a app usa `interfaces`
+      const normalized = raw.map(u => ({
+        ...u,
+        interfaces: u.interfaces ?? u.interface ?? [],
+      }));
 
-      // A resposta pode vir em diferentes formatos
-      if (response?.users) {
-        setUsers(response.users);
-        setTotalCount(response.total || response.users.length);
-      } else if (Array.isArray(response)) {
-        setUsers(response);
-        setTotalCount(response.length);
-      } else {
-        setUsers([]);
-        setTotalCount(0);
-      }
+      setAllUsers(normalized);
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error('[useUserList] Error fetching users:', err);
-      }
       setError(err.message || 'Erro ao carregar utilizadores');
       notification.error(err.message || 'Erro ao carregar utilizadores');
     } finally {
       setIsLoading(false);
     }
-  }, [page, rowsPerPage, search, sortBy, sortOrder]);
+  }, []);
 
-  /**
-   * Auto-fetch quando parâmetros mudam
-   */
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  /**
-   * Apagar utilizador
-   */
+  // ── Filtrar + ordenar (client-side) ─────────────────────────────────────
+  const filteredSorted = useMemo(() => {
+    let result = allUsers;
+
+    // Pesquisa
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(u =>
+        u.username?.toLowerCase().includes(s) ||
+        u.name?.toLowerCase().includes(s) ||
+        u.email?.toLowerCase().includes(s)
+      );
+    }
+
+    // Filtro de estado
+    if (statusFilter === 'active')   result = result.filter(u => u.active);
+    if (statusFilter === 'inactive') result = result.filter(u => !u.active);
+
+    // Ordenação
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'user_id') {
+        const diff = (a.user_id ?? 0) - (b.user_id ?? 0);
+        return sortOrder === 'asc' ? diff : -diff;
+      }
+      const aVal = String(a[sortBy] ?? '');
+      const bVal = String(b[sortBy] ?? '');
+      const cmp = aVal.localeCompare(bVal, 'pt', { sensitivity: 'base', numeric: true });
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [allUsers, search, statusFilter, sortBy, sortOrder]);
+
+  // ── Paginar (client-side) ────────────────────────────────────────────────
+  const users = useMemo(() => {
+    const start = page * rowsPerPage;
+    return filteredSorted.slice(start, start + rowsPerPage);
+  }, [filteredSorted, page, rowsPerPage]);
+
+  const totalCount = filteredSorted.length;
+
+  // ── Ações ────────────────────────────────────────────────────────────────
   const handleDeleteUser = useCallback(async (userId) => {
     try {
       await deleteUser(userId);
       notification.success('Utilizador apagado com sucesso');
-
-      // Refresh da lista
       await fetchUsers();
       return true;
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error('[useUserList] Error deleting user:', err);
-      }
       notification.error(err.message || 'Erro ao apagar utilizador');
       return false;
     }
   }, [fetchUsers]);
 
-  /**
-   * Ativar/Desativar utilizador
-   */
   const handleToggleStatus = useCallback(async (userId, active) => {
     try {
       await toggleUserStatus(userId, active);
-      notification.success(
-        active ? 'Utilizador ativado com sucesso' : 'Utilizador desativado com sucesso'
-      );
-
-      // Atualizar na lista local para feedback imediato
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.user_id === userId ? { ...user, active } : user
-        )
-      );
-
+      notification.success(active ? 'Utilizador ativado' : 'Utilizador desativado');
+      // Atualiza localmente sem refetch
+      setAllUsers(prev => prev.map(u =>
+        u.user_id === userId ? { ...u, active } : u
+      ));
       return true;
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error('[useUserList] Error toggling user status:', err);
-      }
-      notification.error(err.message || 'Erro ao alterar status do utilizador');
+      notification.error(err.message || 'Erro ao alterar estado do utilizador');
       return false;
     }
   }, []);
 
-  /**
-   * Reset password do utilizador
-   */
   const handleResetPassword = useCallback(async (userId) => {
     try {
       const result = await resetUserPassword(userId);
-      notification.success('Password resetada com sucesso');
+      notification.success('Password reposta com sucesso');
       return result;
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error('[useUserList] Error resetting password:', err);
-      }
-      notification.error(err.message || 'Erro ao resetar password');
+      notification.error(err.message || 'Erro ao repor password');
       return null;
     }
   }, []);
 
-  /**
-   * Refetch manual
-   */
-  const refetch = useCallback(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  const refetch = useCallback(() => fetchUsers(), [fetchUsers]);
 
-  /**
-   * Reset de filtros
-   */
   const resetFilters = useCallback(() => {
+    setSearchInput('');
     setSearch('');
+    setStatusFilter('all');
     setSortBy('user_id');
     setSortOrder('asc');
     setPage(0);
   }, []);
 
   return {
-    // Dados
     users,
     totalCount,
-
-    // Estados
     isLoading,
     error,
-
-    // Parâmetros
     page,
     rowsPerPage,
+    searchInput,
     search,
     sortBy,
     sortOrder,
-
-    // Setters
+    statusFilter,
     setPage,
     setRowsPerPage,
-    setSearch,
+    setSearchInput,
     setSortBy,
     setSortOrder,
-
-    // Ações
+    setStatusFilter,
     handleDeleteUser,
     handleToggleStatus,
     handleResetPassword,

@@ -23,9 +23,11 @@ import {
   CheckCircle as CheckCircleIcon,
   Image as ImageIcon,
   PrecisionManufacturing as EquipamentosTabIcon,
+  Construction as ObrasTabIcon,
 } from '@mui/icons-material';
 import { InstalacaoEquipamentosTab } from '@/features/equipamentos';
 import { getMeta as getEquipamentosMeta } from '@/features/equipamentos/services/equipamentoService';
+import { InstalacaoObrasTab } from '@/features/obras';
 import { useEffect, useRef } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -1135,12 +1137,14 @@ const TABS_ETAR = [
   { label: 'Operações',      icon: AddIcon },
   { label: 'Incumprimentos', icon: IncumpIcon },
   { label: 'Equipamentos',   icon: EquipamentosTabIcon },
+  { label: 'Obras',          icon: ObrasTabIcon },
 ];
 
-// EE = sem Incumprimentos mas com Equipamentos
+// EE = sem Incumprimentos mas com Equipamentos e Obras
 const TABS_EE = [
   ...TABS_ETAR.slice(0, 7),
   { label: 'Equipamentos', icon: EquipamentosTabIcon },
+  { label: 'Obras',        icon: ObrasTabIcon },
 ];
 
 /**
@@ -1304,6 +1308,15 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
             <InstalacaoEquipamentosTab
               pk={pk}
               meta={equipamentosMeta}
+              canEdit
+            />
+          )}
+          {/* Obras: tab 9 para ETAR, tab 8 para EE */}
+          {((tab === 9 && type === 'etar') || (tab === 8 && type === 'ee')) && (
+            <InstalacaoObrasTab
+              pk={pk}
+              instalacao={selected}
+              type={type}
               canEdit
             />
           )}

@@ -21,8 +21,11 @@ from ..services.user_service import (
     toggle_user_status_admin,
     get_all_interfaces,
     update_user_permissions,
-    bulk_update_permissions
-
+    bulk_update_permissions,
+    get_permission_groups,
+    sync_permission_group,
+    rename_permission_group,
+    delete_permission_group,
 )
 from ..utils.utils import set_session, token_required, db_session_manager
 from app.utils.error_handler import api_error_handler
@@ -274,6 +277,54 @@ def update_user_interfaces(user_id):
     current_user = get_jwt_identity()
     data = request.get_json()
     return update_user_permissions(user_id, data, current_user)
+
+
+# ── Gestão de grupos / templates de permissões ────────────────────────────
+
+@bp.route('/interfaces/groups', methods=['GET'])
+@jwt_required()
+@require_permission(20)  # admin.users
+@set_session
+@api_error_handler
+def list_permission_groups():
+    """Lista todos os grupos com contagem de permissões."""
+    current_user = get_jwt_identity()
+    return get_permission_groups(current_user)
+
+
+@bp.route('/interfaces/groups/<string:name>', methods=['POST'])
+@jwt_required()
+@require_permission(20)
+@set_session
+@api_error_handler
+def create_or_sync_permission_group(name):
+    """Cria ou actualiza um grupo sincronizando as suas permissões (operação atómica)."""
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    return sync_permission_group(name, data, current_user)
+
+
+@bp.route('/interfaces/groups/<string:name>', methods=['PUT'])
+@jwt_required()
+@require_permission(20)
+@set_session
+@api_error_handler
+def update_permission_group_name(name):
+    """Renomeia um grupo em todas as permissões."""
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    return rename_permission_group(name, data, current_user)
+
+
+@bp.route('/interfaces/groups/<string:name>', methods=['DELETE'])
+@jwt_required()
+@require_permission(20)
+@set_session
+@api_error_handler
+def remove_permission_group(name):
+    """Remove um grupo de todas as permissões."""
+    current_user = get_jwt_identity()
+    return delete_permission_group(name, current_user)
 
 
 # ============================================

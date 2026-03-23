@@ -1,13 +1,19 @@
 /**
  * Permission Helpers
  * Funções auxiliares para gestão de permissões e dependências
+ *
+ * FONTE ÚNICA DE VERDADE: ts_interface (BD)
+ * As dependências entre permissões são lidas do campo `requires`
+ * de cada interface carregada via MetadataContext (/metaData).
+ * Não existe mapeamento hardcoded de dependências neste ficheiro.
  */
 
 import { PERMISSIONS } from '../config/permissionMap';
 
 /**
- * Templates de permissões pré-definidos
- * Facilitam a atribuição rápida de conjuntos comuns de permissões
+ * Templates de permissões pré-definidos.
+ * Os IDs referenciam os pk da tabela ts_interface (BD).
+ * Usado para atribuição rápida de conjuntos comuns de permissões.
  */
 export const PERMISSION_TEMPLATES = {
   'Operador Básico': {
@@ -65,76 +71,44 @@ export const PERMISSION_TEMPLATES = {
 };
 
 /**
- * Mapeamento de dependências de permissões
- * Define quais permissões requerem outras permissões
+ * Obtém todas as dependências de uma permissão (recursivo).
+ * Lê o campo `requires` diretamente dos metadados carregados da BD.
  *
- * Exemplo: Para ter TASKS_EDIT, é necessário ter TASKS_VIEW
- */
-export const PERMISSION_DEPENDENCIES = {
-  // Tarefas - hierarquia de permissões
-  [PERMISSIONS.TASKS_CREATE]: [PERMISSIONS.TASKS_VIEW],
-  [PERMISSIONS.TASKS_EDIT]: [PERMISSIONS.TASKS_VIEW],
-  [PERMISSIONS.TASKS_DELETE]: [PERMISSIONS.TASKS_VIEW],
-  [PERMISSIONS.TASKS_ASSIGN]: [PERMISSIONS.TASKS_VIEW],
-
-  // Documentos - hierarquia de permissões
-  [PERMISSIONS.DOCS_CREATE]: [PERMISSIONS.DOCS_VIEW_OWNER],
-  [PERMISSIONS.DOCS_EDIT]: [PERMISSIONS.DOCS_VIEW_OWNER],
-  [PERMISSIONS.DOCS_DELETE]: [PERMISSIONS.DOCS_VIEW_OWNER],
-  [PERMISSIONS.DOCS_ASSIGN]: [PERMISSIONS.DOCS_VIEW_OWNER],
-  [PERMISSIONS.DOCS_APPROVE]: [PERMISSIONS.DOCS_VIEW_OWNER],
-
-  // Entidades - hierarquia de permissões
-  [PERMISSIONS.ENTITIES_EDIT]: [PERMISSIONS.ENTITIES_VIEW],
-  [PERMISSIONS.ENTITIES_DELETE]: [PERMISSIONS.ENTITIES_VIEW],
-
-  // Admin Users requer Dashboard Admin
-  [PERMISSIONS.ADMIN_USERS]: [PERMISSIONS.ADMIN_DASHBOARD],
-  [PERMISSIONS.ADMIN_PAYMENTS]: [PERMISSIONS.ADMIN_DASHBOARD],
-};
-
-/**
- * Obtém todas as dependências de uma permissão (recursivo)
- *
- * @param {number} permissionId - ID da permissão
- * @param {Set} visited - Set de permissões já visitadas (evita loops)
+ * @param {number} permissionId - ID da permissão (ts_interface.pk)
+ * @param {Array} interfaces - Lista de interfaces carregada do MetadataContext
+ * @param {Set} visited - Set interno para evitar loops cíclicos
  * @returns {Array<number>} Array de IDs de permissões necessárias
  */
-export const getPermissionDependencies = (permissionId, visited = new Set()) => {
-  // Evitar loops infinitos
-  if (visited.has(permissionId)) {
-    return [];
-  }
+export const getPermissionDependencies = (permissionId, interfaces = [], visited = new Set()) => {
+  if (visited.has(permissionId)) return [];
   visited.add(permissionId);
 
-  const directDependencies = PERMISSION_DEPENDENCIES[permissionId] || [];
+  const iface = interfaces.find(i => i.pk === permissionId);
+  const directDependencies = iface?.requires || [];
   const allDependencies = [...directDependencies];
 
-  // Recursivamente obter dependências das dependências
   directDependencies.forEach(dep => {
-    const subDeps = getPermissionDependencies(dep, visited);
+    const subDeps = getPermissionDependencies(dep, interfaces, visited);
     allDependencies.push(...subDeps);
   });
 
-  // Remover duplicados
   return [...new Set(allDependencies)];
 };
 
 /**
- * Obtém todas as permissões que dependem de uma permissão específica
- * Útil para remover em cascata
+ * Obtém todas as permissões que dependem de uma permissão específica.
+ * Usado para remoção em cascata: ao remover X, remover tudo que requer X.
  *
- * @param {number} permissionId - ID da permissão
+ * @param {number} permissionId - ID da permissão a remover
  * @param {Array<number>} currentPermissions - Permissões atuais do utilizador
+ * @param {Array} interfaces - Lista de interfaces carregada do MetadataContext
  * @returns {Array<number>} Array de IDs que dependem desta permissão
  */
-export const getPermissionDependents = (permissionId, currentPermissions = []) => {
+export const getPermissionDependents = (permissionId, currentPermissions = [], interfaces = []) => {
   const dependents = [];
 
-  // Para cada permissão nas permissões atuais
   currentPermissions.forEach(pId => {
-    const deps = getPermissionDependencies(pId);
-    // Se esta permissão depende da que queremos remover
+    const deps = getPermissionDependencies(pId, interfaces);
     if (deps.includes(permissionId)) {
       dependents.push(pId);
     }
@@ -144,17 +118,18 @@ export const getPermissionDependents = (permissionId, currentPermissions = []) =
 };
 
 /**
- * Resolve dependências de um array de permissões
- * Adiciona automaticamente todas as dependências necessárias
+ * Resolve dependências de um array de permissões.
+ * Adiciona automaticamente todas as dependências em falta (campo `requires` da BD).
  *
  * @param {Array<number>} permissions - Array de IDs de permissões
+ * @param {Array} interfaces - Lista de interfaces carregada do MetadataContext
  * @returns {Array<number>} Array com permissões + dependências resolvidas
  */
-export const resolvePermissionDependencies = (permissions) => {
+export const resolvePermissionDependencies = (permissions, interfaces = []) => {
   const resolved = new Set(permissions);
 
   permissions.forEach(permId => {
-    const deps = getPermissionDependencies(permId);
+    const deps = getPermissionDependencies(permId, interfaces);
     deps.forEach(dep => resolved.add(dep));
   });
 

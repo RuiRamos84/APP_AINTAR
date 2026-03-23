@@ -348,10 +348,14 @@ const RAMAL_STATUS_KEYS = [
   'Para execução', 'Concluido com sucesso', 'Concluido sem sucesso',
 ];
 
+// statusKeys define EXACTAMENTE quais colunas mostrar — evita ambiguidade no detectKeys
 const MUN_TABS = [
-  { label: 'Pedidos', dataKey: 'pedidos', muniKey: 'Município', filterYear: true },
-  { label: 'Ramais',  dataKey: 'ramais',  muniKey: 'Municipio', filterYear: false },
-  { label: 'Fossas',  dataKey: 'fossas',  muniKey: 'Municipio', filterYear: false },
+  { label: 'Pedidos', dataKey: 'pedidos', muniKey: 'Município', filterYear: true,
+    statusKeys: ['Terminados', 'Abertos'] },
+  { label: 'Ramais',  dataKey: 'ramais',  muniKey: 'Municipio', filterYear: false,
+    statusKeys: ['Concluido com sucesso', 'Para execução', 'Em avaliação'] },
+  { label: 'Fossas',  dataKey: 'fossas',  muniKey: 'Municipio', filterYear: false,
+    statusKeys: ['Concluido', 'Em execução'] },
 ];
 
 const MUN_COLORS = { pedidos: '#2196F3', ramais: '#4CAF50', fossas: '#FF9800' };
@@ -360,7 +364,7 @@ const MUN_COLORS = { pedidos: '#2196F3', ramais: '#4CAF50', fossas: '#FF9800' };
 
 const MunicipioSection = ({ pedidosData, ramaisData, fossasData }) => {
   const [tab, setTab] = useState(0);
-  const { data: munMap = {} } = useMunicipalities(); // { '10': 'Évora', '17': 'Montemor', ... }
+  const { data: munMap = {} } = useMunicipalities();
   const allData = { pedidos: pedidosData, ramais: ramaisData, fossas: fossasData };
   const active  = MUN_TABS[tab];
 
@@ -368,14 +372,12 @@ const MunicipioSection = ({ pedidosData, ramaisData, fossasData }) => {
     const rows     = allData[active.dataKey] || [];
     const filtered = active.filterYear ? rows.filter((r) => r['Ano'] === 'Corrente') : rows;
     return filtered.map((r) => {
-      const entry = { ...r };
-      delete entry['Ano'];
-      if (r[active.muniKey] !== undefined) {
-        const raw = r[active.muniKey];
-        // Resolver nome: lookup pelo pk; fallback para o valor original
-        entry['Município'] = munMap[String(raw)] ?? String(raw);
-        if (active.muniKey !== 'Município') delete entry[active.muniKey];
-      }
+      // 'Município' é SEMPRE string e SEMPRE primeiro — detectKeys escolhe-o como xKey
+      const rawMun = r[active.muniKey];
+      const nome   = munMap[String(rawMun)] ?? String(rawMun ?? '—');
+      const entry  = { Município: nome };
+      // Só as colunas definidas em statusKeys como valores numéricos
+      active.statusKeys.forEach((k) => { entry[k] = parseInt(r[k]) || 0; });
       return entry;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

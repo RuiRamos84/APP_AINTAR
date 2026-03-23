@@ -1,30 +1,13 @@
-/**
- * UserDetailPage (Admin)
- * Página de visualização e edição de detalhes de utilizador (Admin)
- *
- * Features:
- * - Ver todos os detalhes do utilizador
- * - Editar informações (admin pode editar qualquer utilizador)
- * - Alterar perfil/role
- * - Ativar/Desativar utilizador
- * - Reset password
- * - Validação com Zod
- * - Breadcrumbs de navegação
- */
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
-  Container,
   Paper,
   Typography,
   TextField,
   Button,
   Avatar,
   Divider,
-  Breadcrumbs,
-  Link,
   Chip,
   MenuItem,
   Dialog,
@@ -34,45 +17,81 @@ import {
   DialogActions,
   Alert,
   Grid,
-  useMediaQuery,
-  useTheme,
   Stack,
   Tabs,
   Tab,
+  IconButton,
+  Tooltip,
+  alpha,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
-
 import {
-  ArrowBack as ArrowBackIcon,
-  Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
   LockReset as LockResetIcon,
   Block as BlockIcon,
   CheckCircle as CheckCircleIcon,
   Delete as DeleteIcon,
-  NavigateNext as NavigateNextIcon,
   Person as PersonIcon,
-  VpnKey as PermissionsIcon,
+  Security as SecurityIcon,
+  Edit as EditIcon,
+  ContentCopy as CopyIcon,
+  ArrowBack as ArrowBackIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Home as HomeIcon,
+  Badge as BadgeIcon,
 } from '@mui/icons-material';
+import { ModulePage } from '@/shared/components/layout';
+import { FormSkeleton } from '@/shared/components/feedback';
 import { getUserById, updateUserAdmin, deleteUser, resetUserPassword, toggleUserStatus } from '@/services/userService';
 import { useIdentTypes } from '@/core/hooks/useMetaData';
-import { notification } from '@/core/services/notification';
-import { FadeIn } from '@/shared/components/animation';
-import { FormSkeleton } from '@/shared/components/feedback';
 import { useProfiles } from '@/core/contexts/MetadataContext';
+import { notification } from '@/core/services/notification';
 import { UserPermissionsEditor } from '../components/UserPermissionsEditor';
 
+// Cor por perfil (igual ao UserListPage)
+const PROFILE_COLORS = {
+  '0': '#d32f2f',
+  '1': '#1565c0',
+  '2': '#2e7d32',
+  '3': '#e65100',
+  '4': '#6a1b9a',
+  '5': '#d32f2f',
+};
+const getAvatarColor = (profil) => PROFILE_COLORS[profil] || '#546e7a';
+
+const getInitials = (name, username) => {
+  const src = name || username || '?';
+  return src.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2);
+};
+
+// ─── Secção de formulário com título e ícone ────────────────────────────────
+const FormSection = ({ icon: Icon, title, children }) => (
+  <Box sx={{ mb: 3 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+      {Icon && <Icon sx={{ fontSize: 18, color: 'text.secondary' }} />}
+      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+        {title}
+      </Typography>
+    </Box>
+    <Grid container spacing={2}>
+      {children}
+    </Grid>
+  </Box>
+);
+
+// ─── Página ─────────────────────────────────────────────────────────────────
 const UserDetailPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   const { data: identTypes, isLoading: identTypesLoading } = useIdentTypes();
   const { profiles, getProfileName } = useProfiles();
 
-  // Responsividade
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  // Estados
   const [activeTab, setActiveTab] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,39 +101,40 @@ const UserDetailPage = () => {
   const [originalData, setOriginalData] = useState({});
   const [errors, setErrors] = useState({});
 
-  // Diálogos
   const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState(null);
 
-  /**
-   * Carregar dados do utilizador
-   */
+  // ── Fetch ──────────────────────────────────────────────────────────────
   const fetchUser = async () => {
     try {
       setIsLoading(true);
-      const userData = await getUserById(userId);
+      const data = await getUserById(userId);
 
-      setUser(userData);
-      const mappedData = {
-        username: userData.username || '',
-        name: userData.name || '',
-        email: userData.email || '',
-        phone: userData.phone || '',
-        nipc: userData.nipc || '',
-        ident_type: userData.ident_type || '',
-        ident_value: userData.ident_value || '',
-        address: userData.address || '',
-        door: userData.door || '',
-        floor: userData.floor || '',
-        postal: userData.postal || '',
-        nut4: userData.nut4 || '',
-        descr: userData.descr || '',
-        profil: userData.profil || '2',
-        active: userData.active || false,
+      // Normalizar interface → interfaces (backend devolve singular)
+      const normalized = {
+        ...data,
+        interfaces: data.interfaces ?? data.interface ?? [],
       };
-      setFormData(mappedData);
-      setOriginalData(mappedData);
+      setUser(normalized);
+
+      const mapped = {
+        username: data.username || '',
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        ident_type: data.ident_type || '',
+        ident_value: data.ident_value || '',
+        address: data.address || '',
+        door: data.door || '',
+        floor: data.floor || '',
+        postal: data.postal || '',
+        nut4: data.nut4 || '',
+        descr: data.descr || '',
+        profil: data.profil || '2',
+      };
+      setFormData(mapped);
+      setOriginalData(mapped);
     } catch (err) {
       notification.error(err.message || 'Erro ao carregar utilizador');
       navigate('/admin/users');
@@ -123,67 +143,28 @@ const UserDetailPage = () => {
     }
   };
 
-  useEffect(() => {
-    fetchUser();
-  }, [userId, navigate]);
+  useEffect(() => { fetchUser(); }, [userId]);
 
-  /**
-   * Verificar se houve alterações
-   */
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
 
-  /**
-   * Atualizar campo
-   */
   const updateField = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    // Limpar erro
-    if (errors[field]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
   };
 
-  /**
-   * Iniciar edição
-   */
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  /**
-   * Cancelar edição
-   */
-  const handleCancel = () => {
-    setFormData(originalData);
-    setErrors({});
-    setIsEditing(false);
-  };
-
-  /**
-   * Guardar alterações
-   */
+  // ── Ações de formulário ────────────────────────────────────────────────
   const handleSave = async () => {
+    const newErrors = {};
+    if (!formData.username) newErrors.username = 'Obrigatório';
+    if (!formData.email) newErrors.email = 'Obrigatório';
+    if (Object.keys(newErrors).length) { setErrors(newErrors); return; }
+
     try {
       setIsSaving(true);
-
-      // Validação básica
-      if (!formData.username || !formData.email) {
-        setErrors({
-          username: !formData.username ? 'Username é obrigatório' : '',
-          email: !formData.email ? 'Email é obrigatório' : '',
-        });
-        return;
-      }
-
       await updateUserAdmin(userId, formData);
       setOriginalData(formData);
       setIsEditing(false);
       notification.success('Utilizador atualizado com sucesso');
-      // Recarregar user para atualizar header
       fetchUser();
     } catch (err) {
       notification.error(err.message || 'Erro ao guardar utilizador');
@@ -192,526 +173,426 @@ const UserDetailPage = () => {
     }
   };
 
-  /**
-   * Callback ao salvar permissões
-   */
-  const handlePermissionsSaved = () => {
-    fetchUser(); // Recarregar para garantir que temos o estado mais recente
-  };
+  const handleCancel = () => { setFormData(originalData); setErrors({}); setIsEditing(false); };
 
-  /**
-   * Reset password
-   */
-  const handleResetPassword = async () => {
-    try {
-      const result = await resetUserPassword(userId);
-      setTempPassword(result.temp_password);
-      notification.success('Password resetada com sucesso');
-    } catch (err) {
-      notification.error(err.message || 'Erro ao resetar password');
-    }
-  };
-
-  /**
-   * Toggle status
-   */
+  // ── Ações de estado ────────────────────────────────────────────────────
   const handleToggleStatus = async () => {
     try {
       const newStatus = !user.active;
       await toggleUserStatus(userId, newStatus);
-      setUser((prev) => ({ ...prev, active: newStatus }));
-      setFormData((prev) => ({ ...prev, active: newStatus }));
-      setOriginalData((prev) => ({ ...prev, active: newStatus }));
-      notification.success(
-        newStatus ? 'Utilizador ativado com sucesso' : 'Utilizador desativado com sucesso'
-      );
+      setUser(prev => ({ ...prev, active: newStatus }));
+      setFormData(prev => ({ ...prev, active: newStatus }));
+      setOriginalData(prev => ({ ...prev, active: newStatus }));
+      notification.success(newStatus ? 'Utilizador ativado' : 'Utilizador desativado');
     } catch (err) {
-      notification.error(err.message || 'Erro ao alterar status');
+      notification.error(err.message || 'Erro ao alterar estado');
     }
   };
 
-  /**
-   * Apagar utilizador
-   */
+  const handleResetPassword = async () => {
+    try {
+      const result = await resetUserPassword(userId);
+      setTempPassword(result.temp_password);
+    } catch (err) {
+      notification.error(err.message || 'Erro ao repor password');
+    }
+  };
+
   const handleDelete = async () => {
     try {
       await deleteUser(userId);
-      notification.success('Utilizador apagado com sucesso');
+      notification.success('Utilizador apagado');
       navigate('/admin/users');
     } catch (err) {
       notification.error(err.message || 'Erro ao apagar utilizador');
     }
   };
 
-  /**
-   * Obter iniciais
-   */
-  const getInitials = (name) => {
-    if (!name) return '?';
-    return name
-      .split(' ')
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
+  const handlePermissionsSaved = () => fetchUser();
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
+  // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-        <Container maxWidth="md" sx={{ py: 4 }}>
-          <FormSkeleton fields={12} showAvatar showActions />
-        </Container>
+      <ModulePage title="Utilizador" icon={PersonIcon} color="#d32f2f" breadcrumbs={[{ label: 'Utilizadores', to: '/admin/users' }, { label: '...' }]}>
+        <FormSkeleton fields={10} showAvatar showActions />
+      </ModulePage>
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
+
+  const avatarColor = getAvatarColor(user.profil);
 
   return (
-      <Container maxWidth="md" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
-        {/* Breadcrumbs */}
-        <FadeIn direction="down">
-          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: { xs: 2, sm: 3 } }}>
-            <Link
-              color="inherit"
-              href="/admin/users"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate('/admin/users');
-              }}
-              sx={{ cursor: 'pointer' }}
-            >
-              Utilizadores
-            </Link>
-            <Typography color="text.primary">{user.username}</Typography>
-          </Breadcrumbs>
-        </FadeIn>
+    <ModulePage
+      title={user.name || user.username}
+      subtitle={`@${user.username} · ${getProfileName(parseInt(user.profil))}`}
+      icon={PersonIcon}
+      color={avatarColor}
+      breadcrumbs={[{ label: 'Utilizadores', to: '/admin/users' }, { label: user.username }]}
+      actions={
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/admin/users')}
+        >
+          Voltar
+        </Button>
+      }
+    >
+      <Grid container spacing={3}>
 
-        {/* Header com Avatar */}
-        <FadeIn delay={0.1}>
-          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 }, textAlign: 'center', position: 'relative' }}>
+        {/* ── SIDEBAR ──────────────────────────────────────────────────── */}
+        <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+          <Paper sx={{ p: 3, textAlign: 'center', position: 'sticky', top: 80 }}>
+            {/* Avatar */}
             <Avatar
               sx={{
-                width: { xs: 80, sm: 100, md: 120 },
-                height: { xs: 80, sm: 100, md: 120 },
-                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                margin: '0 auto',
+                width: { xs: 72, md: 88 },
+                height: { xs: 72, md: 88 },
+                fontSize: { xs: '1.6rem', md: '2rem' },
+                bgcolor: avatarColor,
+                mx: 'auto',
                 mb: 2,
-                bgcolor: 'primary.main',
+                boxShadow: `0 0 0 4px ${alpha(avatarColor, 0.15)}`,
               }}
             >
-              {getInitials(user.name || user.username)}
+              {getInitials(user.name, user.username)}
             </Avatar>
 
-            <Typography variant={isMobile ? 'h6' : 'h5'} gutterBottom>
+            <Typography variant="h6" fontWeight={700} gutterBottom noWrap>
               {user.name || user.username}
             </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom noWrap>
+              @{user.username}
+            </Typography>
+            {user.email && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }} noWrap>
+                {user.email}
+              </Typography>
+            )}
 
-            <Stack
-              direction="row"
-              spacing={1}
-              justifyContent="center"
-              flexWrap="wrap"
-              sx={{ mb: 2, gap: 1 }}
-            >
+            <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" sx={{ mb: 2.5, gap: 0.5 }}>
               <Chip
                 label={getProfileName(parseInt(user.profil))}
-                color={user.profil === '0' ? 'error' : user.profil === '1' ? 'primary' : 'default'}
-                size={isMobile ? 'small' : 'medium'}
+                size="small"
+                sx={{ bgcolor: alpha(avatarColor, 0.12), color: avatarColor, fontWeight: 700, fontSize: '0.7rem' }}
               />
               {user.active ? (
-                <Chip
-                  icon={isMobile ? undefined : <CheckCircleIcon />}
-                  label={isMobile ? 'Ativo' : 'Validado'}
-                  color="success"
-                  size={isMobile ? 'small' : 'medium'}
-                />
+                <Chip icon={<CheckCircleIcon sx={{ fontSize: '0.85rem !important' }} />} label="Ativo" size="small" color="success" variant="outlined" />
               ) : (
-                <Chip
-                  icon={isMobile ? undefined : <BlockIcon />}
-                  label="Pendente"
-                  color="warning"
-                  size={isMobile ? 'small' : 'medium'}
-                />
+                <Chip icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Pendente" size="small" color="warning" variant="outlined" />
               )}
             </Stack>
 
-            {/* Ações (apenas visíveis na tab de Detalhes) */}
-            {activeTab === 0 && (
-              <Stack
-                direction={isMobile ? 'column' : 'row'}
-                spacing={1}
-                justifyContent="center"
-                alignItems="stretch"
+            {user.interfaces?.length > 0 && (
+              <Chip
+                icon={<SecurityIcon sx={{ fontSize: '0.85rem !important' }} />}
+                label={`${user.interfaces.length} permissões`}
+                size="small"
+                variant="outlined"
+                sx={{ mb: 2.5, fontSize: '0.7rem' }}
+              />
+            )}
+
+            <Divider sx={{ mb: 2 }} />
+
+            {/* Ações rápidas */}
+            <Stack spacing={1}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                startIcon={<LockResetIcon />}
+                onClick={() => setResetPasswordDialog(true)}
               >
-                {!isEditing ? (
+                Repor Password
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                color={user.active ? 'warning' : 'success'}
+                startIcon={user.active ? <BlockIcon /> : <CheckCircleIcon />}
+                onClick={handleToggleStatus}
+              >
+                {user.active ? 'Desativar conta' : 'Ativar conta'}
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => setDeleteDialog(true)}
+              >
+                Apagar utilizador
+              </Button>
+            </Stack>
+          </Paper>
+        </Grid>
+
+        {/* ── CONTEÚDO PRINCIPAL ──────────────────────────────────────── */}
+        <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+          {/* Tabs */}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant={isMobile ? 'fullWidth' : 'standard'}>
+              <Tab icon={<PersonIcon />} iconPosition="start" label="Perfil" />
+              <Tab icon={<SecurityIcon />} iconPosition="start" label="Permissões" />
+            </Tabs>
+          </Box>
+
+          {/* ── TAB 0: PERFIL ──────────────────────────────────────────── */}
+          {activeTab === 0 && (
+            <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+              {/* Secção: Acesso */}
+              <FormSection icon={BadgeIcon} title="Acesso">
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth size="small" label="Username" required
+                    value={formData.username}
+                    onChange={e => updateField('username', e.target.value)}
+                    disabled={!isEditing}
+                    error={!!errors.username} helperText={errors.username}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth size="small" select label="Perfil"
+                    value={formData.profil}
+                    onChange={e => updateField('profil', e.target.value)}
+                    disabled={!isEditing}
+                  >
+                    {profiles.map(p => (
+                      <MenuItem key={p.pk} value={String(p.pk)}>
+                        {p.name || `Perfil ${p.pk}`}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              </FormSection>
+
+              <Divider sx={{ my: 2.5 }} />
+
+              {/* Secção: Dados Pessoais */}
+              <FormSection icon={PersonIcon} title="Dados Pessoais">
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth size="small" label="Nome Completo"
+                    value={formData.name}
+                    onChange={e => updateField('name', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth size="small" type="email" label="Email" required
+                    value={formData.email}
+                    onChange={e => updateField('email', e.target.value)}
+                    disabled={!isEditing}
+                    error={!!errors.email} helperText={errors.email}
+                    InputProps={{ startAdornment: <EmailIcon sx={{ mr: 1, fontSize: 18, color: 'text.secondary' }} /> }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth size="small" label="Telefone"
+                    value={formData.phone}
+                    onChange={e => updateField('phone', e.target.value)}
+                    disabled={!isEditing}
+                    InputProps={{ startAdornment: <PhoneIcon sx={{ mr: 1, fontSize: 18, color: 'text.secondary' }} /> }}
+                  />
+                </Grid>
+              </FormSection>
+
+              <Divider sx={{ my: 2.5 }} />
+
+              {/* Secção: Morada */}
+              <FormSection icon={HomeIcon} title="Morada">
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth size="small" label="Rua / Morada"
+                    value={formData.address}
+                    onChange={e => updateField('address', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 5 }}>
+                  <TextField
+                    fullWidth size="small" label="Código Postal"
+                    value={formData.postal}
+                    onChange={e => updateField('postal', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="XXXX-XXX"
+                  />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3.5 }}>
+                  <TextField
+                    fullWidth size="small" label="Porta"
+                    value={formData.door}
+                    onChange={e => updateField('door', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3.5 }}>
+                  <TextField
+                    fullWidth size="small" label="Andar"
+                    value={formData.floor}
+                    onChange={e => updateField('floor', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth size="small" label="Localidade"
+                    value={formData.nut4}
+                    onChange={e => updateField('nut4', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+              </FormSection>
+
+              <Divider sx={{ my: 2.5 }} />
+
+              {/* Secção: Identificação */}
+              <FormSection icon={BadgeIcon} title="Identificação">
+                <Grid size={{ xs: 12, sm: 5 }}>
+                  <TextField
+                    fullWidth size="small" select label="Tipo Identificação"
+                    value={formData.ident_type}
+                    onChange={e => updateField('ident_type', e.target.value)}
+                    disabled={!isEditing || identTypesLoading}
+                  >
+                    <MenuItem value=""><em>Nenhum</em></MenuItem>
+                    {identTypes?.map(t => (
+                      <MenuItem key={t.pk} value={t.pk}>{t.descr}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 7 }}>
+                  <TextField
+                    fullWidth size="small" label="Nº Identificação"
+                    value={formData.ident_value}
+                    onChange={e => updateField('ident_value', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth size="small" label="Observações" multiline rows={2}
+                    value={formData.descr}
+                    onChange={e => updateField('descr', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </Grid>
+              </FormSection>
+
+              {/* Barra de ações do formulário */}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1, borderTop: `1px solid ${theme.palette.divider}`, mt: 1 }}>
+                {isEditing ? (
                   <>
-                    <Button
-                      variant="contained"
-                      startIcon={!isMobile && <EditIcon />}
-                      onClick={handleEdit}
-                      fullWidth={isMobile}
-                      size={isMobile ? 'medium' : 'large'}
-                    >
-                      Editar
+                    <Button variant="outlined" size="small" startIcon={<CancelIcon />} onClick={handleCancel} disabled={isSaving}>
+                      Cancelar
                     </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={!isMobile && <LockResetIcon />}
-                      onClick={() => setResetPasswordDialog(true)}
-                      fullWidth={isMobile}
-                      size={isMobile ? 'medium' : 'large'}
-                    >
-                      {isMobile ? 'Reset Pass' : 'Reset Password'}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color={user.active ? 'error' : 'success'}
-                      startIcon={!isMobile && (user.active ? <BlockIcon /> : <CheckCircleIcon />)}
-                      onClick={handleToggleStatus}
-                      fullWidth={isMobile}
-                      size={isMobile ? 'medium' : 'large'}
-                    >
-                      {user.active ? 'Desativar' : 'Ativar'}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={!isMobile && <DeleteIcon />}
-                      onClick={() => setDeleteDialog(true)}
-                      fullWidth={isMobile}
-                      size={isMobile ? 'medium' : 'large'}
-                    >
-                      Apagar
+                    <Button variant="contained" size="small" startIcon={<SaveIcon />} onClick={handleSave} disabled={!hasChanges || isSaving}>
+                      {isSaving ? 'A guardar…' : 'Guardar alterações'}
                     </Button>
                   </>
                 ) : (
-                  <>
-                    <Button
-                      variant="contained"
-                      startIcon={!isMobile && <SaveIcon />}
-                      onClick={handleSave}
-                      disabled={!hasChanges || isSaving}
-                      fullWidth={isMobile}
-                      size={isMobile ? 'medium' : 'large'}
-                    >
-                      {isSaving ? 'A guardar...' : 'Guardar'}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={!isMobile && <CancelIcon />}
-                      onClick={handleCancel}
-                      disabled={isSaving}
-                      fullWidth={isMobile}
-                      size={isMobile ? 'medium' : 'large'}
-                    >
-                      Cancelar
-                    </Button>
-                  </>
+                  <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => setIsEditing(true)}>
+                    Editar perfil
+                  </Button>
                 )}
-              </Stack>
-            )}
-          </Paper>
-        </FadeIn>
-
-        {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={activeTab} onChange={handleTabChange} variant={isMobile ? 'fullWidth' : 'standard'}>
-            <Tab icon={<PersonIcon />} iconPosition="start" label="Detalhes Pessoais" />
-            <Tab icon={<PermissionsIcon />} iconPosition="start" label="Permissões & Acessos" />
-          </Tabs>
-        </Box>
-
-        {/* Tab Panel: Detalhes */}
-        {activeTab === 0 && (
-          <FadeIn delay={0.2}>
-            <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant={isMobile ? 'subtitle1' : 'h6'} gutterBottom fontWeight="bold">
-                Informações do Utilizador
-              </Typography>
-              <Divider sx={{ mb: { xs: 2, sm: 3 } }} />
-
-              <Grid container spacing={{ xs: 2, sm: 3 }}>
-                {/* Username */}
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Username"
-                    value={formData.username}
-                    onChange={(e) => updateField('username', e.target.value)}
-                    disabled={!isEditing}
-                    required
-                    error={!!errors.username}
-                    helperText={errors.username}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Perfil/Role */}
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Perfil"
-                    value={formData.profil}
-                    onChange={(e) => updateField('profil', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  >
-                    {profiles.map((profile) => (
-                      <MenuItem key={profile.pk} value={String(profile.pk)}>
-                        {profile.name || `Perfil ${profile.pk}`}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-
-                {/* Nome */}
-                <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    label="Nome Completo"
-                    value={formData.name}
-                    onChange={(e) => updateField('name', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Email */}
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    type="email"
-                    label="Email"
-                    value={formData.email}
-                    onChange={(e) => updateField('email', e.target.value)}
-                    disabled={!isEditing}
-                    required
-                    error={!!errors.email}
-                    helperText={errors.email}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Telefone */}
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Telefone"
-                    value={formData.phone}
-                    onChange={(e) => updateField('phone', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* NIPC */}
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="NIPC"
-                    value={formData.nipc}
-                    onChange={(e) => updateField('nipc', e.target.value)}
-                    disabled={!isEditing}
-                    inputProps={{ maxLength: 9 }}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Tipo Ident */}
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Tipo Identificação"
-                    value={formData.ident_type}
-                    onChange={(e) => updateField('ident_type', e.target.value)}
-                    disabled={!isEditing || identTypesLoading}
-                    size={isMobile ? 'small' : 'medium'}
-                  >
-                    <MenuItem value=""><em>Nenhum</em></MenuItem>
-                    {identTypes?.map((type) => (
-                      <MenuItem key={type.pk} value={type.pk}>
-                        {type.descr}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-
-                {/* Nº Ident */}
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Nº Identificação"
-                    value={formData.ident_value}
-                    onChange={(e) => updateField('ident_value', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Morada */}
-                <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    label="Morada"
-                    value={formData.address}
-                    onChange={(e) => updateField('address', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Código Postal */}
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Código Postal"
-                    value={formData.postal}
-                    onChange={(e) => updateField('postal', e.target.value)}
-                    disabled={!isEditing}
-                    placeholder="XXXX-XXX"
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Porta */}
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Porta"
-                    value={formData.door}
-                    onChange={(e) => updateField('door', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Andar */}
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Andar"
-                    value={formData.floor}
-                    onChange={(e) => updateField('floor', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Localidade */}
-                <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    label="Localidade"
-                    value={formData.nut4}
-                    onChange={(e) => updateField('nut4', e.target.value)}
-                    disabled={!isEditing}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-
-                {/* Descrição */}
-                <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    label="Descrição"
-                    value={formData.descr}
-                    onChange={(e) => updateField('descr', e.target.value)}
-                    disabled={!isEditing}
-                    multiline
-                    rows={isMobile ? 2 : 3}
-                    size={isMobile ? 'small' : 'medium'}
-                  />
-                </Grid>
-              </Grid>
+              </Box>
             </Paper>
-          </FadeIn>
-        )}
+          )}
 
-        {/* Tab Panel: Permissões */}
-        {activeTab === 1 && (
-          <FadeIn delay={0.2}>
-            <UserPermissionsEditor 
-              userId={userId} 
-              currentPermissions={user.interfaces || []}
+          {/* ── TAB 1: PERMISSÕES ──────────────────────────────────────── */}
+          {activeTab === 1 && (
+            <UserPermissionsEditor
+              userId={userId}
+              currentPermissions={user.interfaces}
               onSave={handlePermissionsSaved}
             />
-          </FadeIn>
-        )}
+          )}
+        </Grid>
+      </Grid>
 
-        {/* Diálogo - Reset Password */}
-        <Dialog
-          open={resetPasswordDialog}
-          onClose={() => {
-            setResetPasswordDialog(false);
-            setTempPassword(null);
-          }}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Reset Password</DialogTitle>
-          <DialogContent>
-            {!tempPassword ? (
-              <DialogContentText>
-                Tem certeza que deseja resetar a password do utilizador <strong>{user.username}</strong>?
-              </DialogContentText>
-            ) : (
-              <Box>
-                <Alert severity="success" sx={{ mb: 2 }}>
-                  Password resetada com sucesso!
-                </Alert>
-                <Typography variant="body2" gutterBottom>
-                  Password temporária:
-                </Typography>
-                <Paper sx={{ p: 2, bgcolor: 'grey.100', fontFamily: 'monospace', fontSize: '1.2rem' }}>
-                  {tempPassword}
-                </Paper>
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions>
-            {!tempPassword ? (
-              <>
-                <Button onClick={() => setResetPasswordDialog(false)}>Cancelar</Button>
-                <Button onClick={handleResetPassword} color="primary" variant="contained">
-                  Resetar
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => {
-                setResetPasswordDialog(false);
-                setTempPassword(null);
-              }} variant="contained">
-                Fechar
-              </Button>
-            )}
-          </DialogActions>
-        </Dialog>
-
-        {/* Diálogo - Apagar */}
-        <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
-          <DialogTitle>Confirmar Exclusão</DialogTitle>
-          <DialogContent>
+      {/* ── Diálogo: Repor Password ──────────────────────────────────────── */}
+      <Dialog
+        open={resetPasswordDialog}
+        onClose={() => { setResetPasswordDialog(false); setTempPassword(null); }}
+        maxWidth="sm" fullWidth
+      >
+        <DialogTitle>Repor Password</DialogTitle>
+        <DialogContent>
+          {!tempPassword ? (
             <DialogContentText>
-              Tem certeza que deseja apagar o utilizador <strong>{user.username}</strong>?
-              Esta ação não pode ser desfeita.
+              Será gerada uma password temporária para <strong>{user.username}</strong>.
+              O utilizador deverá alterá-la no primeiro acesso.
             </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDeleteDialog(false)}>Cancelar</Button>
-            <Button onClick={handleDelete} color="error" variant="contained">
-              Apagar
+          ) : (
+            <Box sx={{ pt: 1 }}>
+              <Alert severity="success" sx={{ mb: 2 }}>Password reposta com sucesso.</Alert>
+              <Typography variant="body2" gutterBottom>
+                Password temporária para <strong>{user.username}</strong>:
+              </Typography>
+              <Box
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1, mt: 1, p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: alpha(avatarColor, 0.06),
+                  border: `1px solid ${alpha(avatarColor, 0.2)}`,
+                }}
+              >
+                <Typography sx={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: 1 }}>
+                  {tempPassword}
+                </Typography>
+                <Tooltip title="Copiar">
+                  <IconButton size="small" onClick={() => {
+                    navigator.clipboard.writeText(tempPassword);
+                    notification.success('Copiado para a área de transferência');
+                  }}>
+                    <CopyIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Copie e partilhe com o utilizador. Não será mostrada novamente.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {!tempPassword ? (
+            <>
+              <Button onClick={() => setResetPasswordDialog(false)}>Cancelar</Button>
+              <Button onClick={handleResetPassword} variant="contained">Repor Password</Button>
+            </>
+          ) : (
+            <Button onClick={() => { setResetPasswordDialog(false); setTempPassword(null); }} variant="contained">
+              Fechar
             </Button>
-          </DialogActions>
-        </Dialog>
-      </Container>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Diálogo: Apagar ──────────────────────────────────────────────── */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirmar eliminação</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem a certeza que pretende apagar o utilizador <strong>{user.username}</strong>?
+            Esta ação é irreversível.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>Cancelar</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">Apagar</Button>
+        </DialogActions>
+      </Dialog>
+    </ModulePage>
   );
 };
 

@@ -53,6 +53,8 @@ import {
 } from '@/features/dashboards/pages';
 import { EmissoesPage } from '@/features/emissoes';
 import { EquipamentosPage } from '@/features/equipamentos';
+import { ObrasPage } from '@/features/obras';
+import { PavimentosPage } from '@/features/pavimentos';
 import { EPIPage } from '@/features/administrativo/pages';
 import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
 import { TasksPage } from '@/features/tasks/pages';
@@ -61,6 +63,10 @@ import DocumentsPage from '@/features/documents/pages/DocumentsPage';
 import { InternalDashboardPage, InventoryPage, RequisicaoInternaPage } from '@/features/internal';
 import { FleetDashboard } from '@/features/fleet';
 import { EquipamentoInstalacaoPage } from '@/features/equipamento';
+import {
+  NetworkExpensesPage, BranchesExpensesPage,
+  MaintenanceExpensesPage, EquipmentExpensesPage,
+} from '@/features/expenses';
 
 function App() {
   return (
@@ -169,28 +175,27 @@ function App() {
         <Route path="/etar/expenses" element={<div>ETAR Expenses (Coming Soon)</div>} />
         <Route path="/etar/violations" element={<div>ETAR Violations (Coming Soon)</div>} />
 
-        {/* EE - permissão 660 (EE_VIEW) verificada automaticamente */}
-        <Route path="/ee" element={<div>EE Page (Coming Soon)</div>} />
-        <Route path="/ee/characteristics" element={<div>EE Characteristics (Coming Soon)</div>} />
-        <Route path="/ee/volumes" element={<div>EE Volumes (Coming Soon)</div>} />
-        <Route path="/ee/energy" element={<div>EE Energy (Coming Soon)</div>} />
-        <Route path="/ee/expenses" element={<div>EE Expenses (Coming Soon)</div>} />
+        {/* EE */}
+        <Route path="/ee" element={<EEPage />} />
 
-        {/* Expenses - permissão 1250 (EXPENSES_VIEW) verificada automaticamente */}
-        <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
-        <Route path="/expenses/network" element={<div>Network Expenses (Coming Soon)</div>} />
-        <Route path="/expenses/branches" element={<div>Branches Expenses (Coming Soon)</div>} />
-        <Route path="/expenses/maintenance" element={<div>Maintenance Expenses (Coming Soon)</div>} />
-        <Route path="/expenses/equipment" element={<div>Equipment Expenses (Coming Soon)</div>} />
+        {/* Despesas */}
+        <Route path="/expenses" element={<Navigate to="/expenses/network" replace />} />
+        <Route path="/expenses/network"     element={<NetworkExpensesPage />} />
+        <Route path="/expenses/branches"    element={<BranchesExpensesPage />} />
+        <Route path="/expenses/maintenance" element={<MaintenanceExpensesPage />} />
+        <Route path="/expenses/equipment"   element={<EquipmentExpensesPage />} />
 
         {/* Equipamentos - permissão 1500 (EQUIPAMENTOS_VIEW) */}
         <Route path="/equipamentos" element={<EquipamentosPage />} />
+
+        {/* Obras - permissão 320 (OPERATIONS_ETAR) */}
+        <Route path="/obras" element={<ObrasPage />} />
 
         {/* Telemetry - permissão 750 (TELEMETRY_VIEW) verificada automaticamente */}
         <Route path="/telemetry" element={<TelemetryPage />} />
 
         {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
-        <Route path="/pavements" element={<div>Pavements Page (Coming Soon)</div>} />
+        <Route path="/pavements" element={<PavimentosPage />} />
 
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
         <Route path="/dashboards/overview" element={<DashboardOverviewPage />} />

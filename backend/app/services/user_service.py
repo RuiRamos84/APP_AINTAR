@@ -11,6 +11,7 @@ from pydantic import BaseModel, EmailStr, constr
 from typing import List, Optional
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError, APIError
 from app.utils.logger import get_logger
+from app.services.meta_data_service import clear_meta_data_cache
 
 logger = get_logger(__name__)
 
@@ -634,6 +635,7 @@ def get_all_interfaces(current_user: str):
                 description,
                 icon,
                 requires,
+                groups,
                 is_critical,
                 is_sensitive,
                 sort_order
@@ -646,8 +648,8 @@ def get_all_interfaces(current_user: str):
         interfaces = []
         for row in result:
             interface = dict(row)
-            # Garantir que requires seja uma lista (mesmo que None)
             interface['requires'] = interface.get('requires') or []
+            interface['groups']   = interface.get('groups')   or []
             interfaces.append(interface)
 
         return interfaces
@@ -756,3 +758,116 @@ def bulk_update_permissions(data: dict, current_user: str):
         'message': f'Permissões actualizadas para {updated_count} utilizador(es)',
         'updated_count': updated_count
     }, 200
+
+
+# ============================================================================
+# GESTÃO DE GRUPOS / TEMPLATES DE PERMISSÕES
+# ============================================================================
+
+@api_error_handler
+def get_permission_groups(current_user: str):
+    """
+    Lista todos os grupos distintos definidos em ts_interface.groups,
+    com o número de permissões em cada grupo.
+    """
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT
+                g.name,
+                COUNT(i.pk)                          AS permission_count,
+                ARRAY_AGG(i.pk ORDER BY i.sort_order, i.pk) AS permission_ids
+            FROM ts_interface i
+            CROSS JOIN LATERAL unnest(i.groups) AS g(name)
+            WHERE i.groups IS NOT NULL
+              AND array_length(i.groups, 1) > 0
+            GROUP BY g.name
+            ORDER BY g.name
+        """)
+        result = session.execute(query).mappings().all()
+        groups = []
+        for row in result:
+            g = dict(row)
+            g['permission_ids'] = g.get('permission_ids') or []
+            groups.append(g)
+        return {'groups': groups}, 200
+
+
+@api_error_handler
+def sync_permission_group(name: str, data: dict, current_user: str):
+    """
+    Sincroniza as permissões de um grupo (operação atómica):
+    - Remove o grupo de TODAS as permissões que o tinham
+    - Adiciona o grupo às permissões recebidas no body
+    Usado tanto para criar como para editar um grupo.
+    """
+    new_permission_ids = data.get('permissions', [])
+    if not isinstance(new_permission_ids, list):
+        raise APIError("O campo 'permissions' deve ser uma lista de inteiros", 400)
+
+    name = name.strip()
+    if not name:
+        raise APIError("Nome do grupo inválido", 400)
+
+    with db_session_manager(current_user) as session:
+        # 1. Remover o grupo de todas as permissões que o tinham
+        session.execute(
+            text("UPDATE ts_interface SET groups = array_remove(groups, :name) WHERE :name = ANY(groups)"),
+            {'name': name}
+        )
+        # 2. Adicionar o grupo às permissões selecionadas
+        if new_permission_ids:
+            session.execute(
+                text("""
+                    UPDATE ts_interface
+                    SET groups = array_append(groups, :name)
+                    WHERE pk = ANY(:pks)
+                      AND NOT (:name = ANY(COALESCE(groups, ARRAY[]::text[])))
+                """),
+                {'name': name, 'pks': new_permission_ids}
+            )
+
+    clear_meta_data_cache()
+    logger.info(f"Grupo '{name}' sincronizado por {current_user} ({len(new_permission_ids)} permissões)")
+    return {'message': f'Grupo "{name}" guardado', 'permissions': new_permission_ids}, 200
+
+
+@api_error_handler
+def rename_permission_group(old_name: str, data: dict, current_user: str):
+    """
+    Renomeia um grupo em todas as permissões (array_replace atómico).
+    """
+    new_name = (data.get('name') or '').strip()
+    if not new_name:
+        raise APIError("O campo 'name' é obrigatório", 400)
+    if new_name == old_name:
+        return {'message': 'Nenhuma alteração'}, 200
+
+    with db_session_manager(current_user) as session:
+        result = session.execute(
+            text("""
+                UPDATE ts_interface
+                SET groups = array_replace(groups, :old, :new)
+                WHERE :old = ANY(groups)
+            """),
+            {'old': old_name, 'new': new_name}
+        )
+
+    clear_meta_data_cache()
+    logger.info(f"Grupo '{old_name}' → '{new_name}' por {current_user} ({result.rowcount} permissões afectadas)")
+    return {'message': f'Grupo renomeado para "{new_name}"', 'affected': result.rowcount}, 200
+
+
+@api_error_handler
+def delete_permission_group(name: str, current_user: str):
+    """
+    Remove um grupo de todas as permissões (array_remove).
+    """
+    with db_session_manager(current_user) as session:
+        result = session.execute(
+            text("UPDATE ts_interface SET groups = array_remove(groups, :name) WHERE :name = ANY(groups)"),
+            {'name': name}
+        )
+
+    clear_meta_data_cache()
+    logger.info(f"Grupo '{name}' eliminado por {current_user} ({result.rowcount} permissões afectadas)")
+    return {'message': f'Grupo "{name}" eliminado', 'affected': result.rowcount}, 200

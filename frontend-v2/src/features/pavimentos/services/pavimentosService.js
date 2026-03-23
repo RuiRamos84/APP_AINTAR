@@ -1,55 +1,107 @@
-/**
- * Pavimentos Service
- * Gestão de pavimentações: pendentes, executadas, concluídas
- */
-
 import apiClient from '@/services/api/client';
 
-// ─── Constantes de configuração ──────────────────────────────────────────────
+// ─── Endpoints ────────────────────────────────────────────────────────────────
 
-export const PAVIMENTATION_STATUS = {
-  pending:   { label: 'Pendente',   endpoint: '/document_ramais',          actionEndpoint: '/document_pavenext', nextStatus: 'executed' },
-  executed:  { label: 'Executada',  endpoint: '/document_ramais_executed',  actionEndpoint: '/document_pavpaid',  nextStatus: 'completed' },
-  completed: { label: 'Concluída',  endpoint: '/document_ramais_concluded', actionEndpoint: null,                 nextStatus: null },
+const ENDPOINTS = {
+  pending:   '/document_ramais',
+  executed:  '/document_ramais_executed',
+  completed: '/document_ramais_concluded',
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Mapper ───────────────────────────────────────────────────────────────────
 
-const calcTotals = (item) => ({
-  ...item,
-  comprimento_total: (
-    parseFloat(item.comprimento_bet || 0) +
-    parseFloat(item.comprimento_gra || 0) +
-    parseFloat(item.comprimento_pav || 0)
-  ),
-  area_total: (
-    parseFloat(item.area_bet || 0) +
-    parseFloat(item.area_gra || 0) +
-    parseFloat(item.area_pav || 0)
-  ),
-});
+/**
+ * Mapeia campos do backend para nomes frontend amigáveis.
+ * Calcula comprimentoTotal e areaTotal como soma bet + gra + pav.
+ */
+const mapPavimento = (r) => {
+  const comprimentoBet = parseFloat(r.comprimento_bet ?? 0) || 0;
+  const areaBet        = parseFloat(r.area_bet        ?? 0) || 0;
+  const comprimentoGra = parseFloat(r.comprimento_gra ?? 0) || 0;
+  const areaGra        = parseFloat(r.area_gra        ?? 0) || 0;
+  const comprimentoPav = parseFloat(r.comprimento_pav ?? 0) || 0;
+  const areaPav        = parseFloat(r.area_pav        ?? 0) || 0;
+
+  return {
+    pk:             r.pk,
+    regnumber:      r.regnumber      ?? null,
+    entity:         r.ts_entity      ?? null,
+    address:        r.address        ?? null,
+    door:           r.door           ?? null,
+    floor:          r.floor          ?? null,
+    postal:         r.postal         ?? null,
+    phone:          r.phone          ?? null,
+    nut4:           r.nut4           ?? null,  // Localidade
+    nut3:           r.nut3           ?? null,  // Freguesia
+    nut2:           r.nut2           ?? null,  // Concelho
+    memo:           r.memo           ?? null,
+    // Pavimento por tipo
+    comprimentoBet,
+    areaBet,
+    comprimentoGra,
+    areaGra,
+    comprimentoPav,
+    areaPav,
+    // Totais calculados
+    comprimentoTotal: comprimentoBet + comprimentoGra + comprimentoPav,
+    areaTotal:        areaBet        + areaGra        + areaPav,
+    // Datas
+    submission:     r.submission      ?? null,
+    executionDate:  r.execution_date  ?? null,
+    completionDate: r.completion_date ?? null,
+  };
+};
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 /**
- * Obter lista de pavimentações por estado
+ * Obtém lista de pavimentações pelo status.
  * @param {'pending'|'executed'|'completed'} status
+ * @returns {{ pavimentos: Array }}
  */
 export const getPavimentos = async (status) => {
-  const config = PAVIMENTATION_STATUS[status];
-  const res = await apiClient.get(config.endpoint);
-  const items = (res?.ramais || []).map(calcTotals);
-  return items;
+  const endpoint = ENDPOINTS[status];
+  if (!endpoint) throw new Error(`Status inválido: ${status}`);
+  const res = await apiClient.get(endpoint);
+  return { pavimentos: (res?.ramais ?? []).map(mapPavimento) };
 };
 
 /**
- * Avançar estado de uma pavimentação (pending→executed ou executed→completed)
- * @param {'pending'|'executed'} fromStatus
+ * Executa uma pavimentação (pendente → executada).
  * @param {number} pk
  */
-export const advancePavimento = async (fromStatus, pk) => {
-  const config = PAVIMENTATION_STATUS[fromStatus];
-  if (!config.actionEndpoint) throw new Error('Estado não permite esta ação');
-  const res = await apiClient.put(`${config.actionEndpoint}/${pk}`);
-  return res;
+export const executarPavimento = async (pk) => {
+  return apiClient.put(`/document_pavenext/${pk}`);
+};
+
+/**
+ * Marca uma pavimentação como paga (executada → concluída).
+ * @param {number} pk
+ */
+export const pagarPavimento = async (pk) => {
+  return apiClient.put(`/document_pavpaid/${pk}`);
+};
+
+/**
+ * Adiciona um anexo (ex.: comprovativo de pagamento) a uma pavimentação.
+ * @param {string} regnumber - Número de registo do pavimento
+ * @param {File}   file      - Ficheiro a anexar
+ * @param {string} [comment] - Comentário opcional
+ */
+export const addAnexo = async (regnumber, file, comment = '') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('regnumber', regnumber);
+  formData.append('comment', comment);
+  formData.append('steptype', 'payment_proof');
+  return apiClient.post('/add_document_annex', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export default {
+  getPavimentos,
+  executarPavimento,
+  pagarPavimento,
+  addAnexo,
 };

@@ -1,7 +1,11 @@
 /**
- * Permission Configuration
- * Numeric permission IDs used throughout the application
- * These IDs must match the backend permission system
+ * @deprecated Este ficheiro está obsoleto e NÃO deve ser usado.
+ *
+ * Usa permissionMap.js para constantes de IDs de permissões (PERMISSIONS).
+ * As definições completas (labels, categorias, dependências) vêm da BD
+ * via MetadataContext (GET /metaData → ts_interface).
+ *
+ * Este ficheiro existe apenas por referência histórica e será removido.
  */
 
 export const PERMISSION_IDS = {

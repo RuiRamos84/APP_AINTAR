@@ -1,21 +1,7 @@
-/**
- * UserListPage (Admin)
- * Página de listagem e gestão de utilizadores para administradores
- *
- * Features:
- * - Tabela paginada de utilizadores
- * - Pesquisa por nome, email ou username
- * - Filtros por status (ativo/inativo)
- * - Ações: Editar, Desativar/Ativar, Reset Password, Apagar
- * - Ordenação por colunas
- * - Loading states e error handling
- */
-
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Container,
   Paper,
   Typography,
   Button,
@@ -36,7 +22,6 @@ import {
   DialogContentText,
   DialogActions,
   Alert,
-  Grid,
   Checkbox,
   Toolbar,
   Tooltip,
@@ -45,9 +30,11 @@ import {
   Stack,
   Card,
   CardContent,
-  CardActions,
   Divider,
   Avatar,
+  ToggleButton,
+  ToggleButtonGroup,
+  alpha,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -63,28 +50,66 @@ import {
   PersonAdd as PersonAddIcon,
   PersonRemove as PersonRemoveIcon,
   Assignment as AssignmentIcon,
+  People as PeopleIcon,
+  ContentCopy as CopyIcon,
 } from '@mui/icons-material';
-import { useUserList } from '../hooks';
-import { FadeIn } from '@/shared/components/animation';
+import { ModulePage } from '@/shared/components/layout';
 import { SearchBar } from '@/shared/components/data';
+import SortableHeadCell from '@/shared/components/data/SortableHeadCell';
 import { TableSkeleton } from '@/shared/components/feedback';
 import { useProfiles } from '@/core/contexts/MetadataContext';
+import { useUserList } from '../hooks';
 import UserPermissionsDialog from '../components/UserPermissionsDialog';
 import BulkPermissionsDialog from '../components/BulkPermissionsDialog';
 import { updateUserPermissions, bulkUpdatePermissions } from '@/services/userService';
 import { notification } from '@/core/services/notification';
-import { PERMISSION_TEMPLATES } from '@/core/utils/permissionHelpers';
 
+// Cor do avatar baseada no perfil
+const PROFILE_COLORS = {
+  '0': '#d32f2f', // Super Admin — vermelho
+  '1': '#1565c0', // Operador — azul
+  '2': '#2e7d32', // Técnico — verde
+  '3': '#e65100', // Financeiro — laranja
+  '4': '#6a1b9a', // Gestor — roxo
+  '5': '#d32f2f', // Admin — vermelho
+};
+
+const getAvatarColor = (profil) => PROFILE_COLORS[profil] || '#546e7a';
+
+const getInitials = (name, username) => {
+  const src = name || username || '?';
+  return src.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2);
+};
+
+// ─── Componente de linha de estatística ────────────────────────────────────
+const StatChip = ({ label, value, color }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+      px: 2,
+      py: 0.75,
+      borderRadius: 2,
+      bgcolor: alpha(color, 0.08),
+      border: `1px solid ${alpha(color, 0.2)}`,
+    }}
+  >
+    <Typography variant="h6" fontWeight="bold" color={color} lineHeight={1}>
+      {value}
+    </Typography>
+    <Typography variant="caption" color="text.secondary">
+      {label}
+    </Typography>
+  </Box>
+);
+
+// ─── Página principal ───────────────────────────────────────────────────────
 const UserListPage = () => {
   const navigate = useNavigate();
   const { getProfileName } = useProfiles();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), {
-    noSsr: true,
-  }); // < 600px
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'), {
-    noSsr: true,
-  }); // 600-900px
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
 
   const {
     users,
@@ -93,14 +118,16 @@ const UserListPage = () => {
     error,
     page,
     rowsPerPage,
-    search,
+    searchInput,
     sortBy,
     sortOrder,
+    statusFilter,
     setPage,
     setRowsPerPage,
-    setSearch,
+    setSearchInput,
     setSortBy,
     setSortOrder,
+    setStatusFilter,
     handleDeleteUser,
     handleToggleStatus,
     handleResetPassword,
@@ -116,132 +143,64 @@ const UserListPage = () => {
   const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState(null);
 
-  // Permissões - Single user
+  // Permissões
   const [permissionsDialog, setPermissionsDialog] = useState(false);
   const [userForPermissions, setUserForPermissions] = useState(null);
 
-  // Permissões - Bulk operations
+  // Seleção em massa
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [bulkPermissionsDialog, setBulkPermissionsDialog] = useState(false);
-  const [bulkAction, setBulkAction] = useState(null); // 'add', 'remove', 'template'
+  const [bulkAction, setBulkAction] = useState(null);
 
-  /**
-   * Abrir menu de ações
-   */
-  const handleOpenMenu = (event, user) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedUser(user);
-  };
+  // ── Estatísticas calculadas a partir da lista visível ──────────────────
+  const stats = useMemo(() => {
+    const active = users.filter(u => u.active).length;
+    const inactive = users.filter(u => !u.active).length;
+    return { total: totalCount, active, inactive };
+  }, [users, totalCount]);
 
-  /**
-   * Fechar menu de ações
-   */
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-  };
+  // ── Menu ────────────────────────────────────────────────────────────────
+  const handleOpenMenu = (e, user) => { setAnchorEl(e.currentTarget); setSelectedUser(user); };
+  const handleCloseMenu = () => setAnchorEl(null);
 
-  /**
-   * Navegar para edição
-   */
+  // ── Ações ────────────────────────────────────────────────────────────────
   const handleEdit = () => {
     navigate(`/admin/users/${selectedUser.user_id}/edit`);
     handleCloseMenu();
   };
 
-  /**
-   * Confirmar exclusão
-   */
   const handleConfirmDelete = async () => {
-    const success = await handleDeleteUser(selectedUser.user_id);
-    if (success) {
-      setDeleteDialog(false);
-      handleCloseMenu();
-    }
+    const ok = await handleDeleteUser(selectedUser.user_id);
+    if (ok) { setDeleteDialog(false); handleCloseMenu(); }
   };
 
-  /**
-   * Confirmar reset de password
-   */
   const handleConfirmResetPassword = async () => {
     const result = await handleResetPassword(selectedUser.user_id);
-    if (result) {
-      setTempPassword(result.temp_password);
-    }
+    if (result) setTempPassword(result.temp_password);
   };
 
-  /**
-   * Toggle status (ativar/desativar)
-   */
   const handleToggle = async () => {
     await handleToggleStatus(selectedUser.user_id, !selectedUser.active);
     handleCloseMenu();
   };
 
-  /**
-   * Mudança de página
-   */
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
+  // ── Ordenação ────────────────────────────────────────────────────────────
+  const handleSort = (field) => {
+    setSortOrder(sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc');
+    setSortBy(field);
   };
 
-  /**
-   * Mudança de rows per page
-   */
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+  // ── Seleção ──────────────────────────────────────────────────────────────
+  const handleSelectAll = (e) => {
+    setSelectedUsers(e.target.checked ? users.map(u => u.user_id) : []);
   };
-
-  /**
-   * Mudança de ordenação
-   */
-  const handleSort = (column) => {
-    const isAsc = sortBy === column && sortOrder === 'asc';
-    setSortOrder(isAsc ? 'desc' : 'asc');
-    setSortBy(column);
-  };
-
-  /**
-   * Obter iniciais do nome
-   */
-  const getInitials = (name, username) => {
-    const displayName = name || username || '?';
-    return displayName
-      .split(' ')
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  /**
-   * ===== BULK SELECTION =====
-   */
-  const handleSelectAll = (event) => {
-    if (event.target.checked) {
-      setSelectedUsers(users.map(u => u.user_id));
-    } else {
-      setSelectedUsers([]);
-    }
-  };
-
   const handleSelectUser = (userId) => {
-    setSelectedUsers(prev => {
-      if (prev.includes(userId)) {
-        return prev.filter(id => id !== userId);
-      } else {
-        return [...prev, userId];
-      }
-    });
+    setSelectedUsers(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
   };
 
-  const handleClearSelection = () => {
-    setSelectedUsers([]);
-  };
-
-  /**
-   * ===== PERMISSIONS - SINGLE USER =====
-   */
+  // ── Permissões ──────────────────────────────────────────────────────────
   const handleManagePermissions = () => {
     setUserForPermissions(selectedUser);
     setPermissionsDialog(true);
@@ -251,554 +210,485 @@ const UserListPage = () => {
   const handleSavePermissions = async (permissions) => {
     try {
       await updateUserPermissions(userForPermissions.user_id, permissions);
-      notification.success('Permissões atualizadas com sucesso');
+      notification.success('Permissões atualizadas');
       setPermissionsDialog(false);
       setUserForPermissions(null);
       refetch();
-    } catch (error) {
-      notification.error(error.message || 'Erro ao atualizar permissões');
+    } catch (err) {
+      notification.error(err.message || 'Erro ao atualizar permissões');
     }
-  };
-
-  /**
-   * ===== PERMISSIONS - BULK OPERATIONS =====
-   */
-  const handleOpenBulkPermissions = (action) => {
-    setBulkAction(action);
-    setBulkPermissionsDialog(true);
   };
 
   const handleBulkPermissionsConfirm = async (data) => {
     try {
-      const selectedUsersData = users.filter(u => selectedUsers.includes(u.user_id));
-
-      await bulkUpdatePermissions(selectedUsers, {
-        action: bulkAction,
-        ...data,
-      });
-
-      notification.success(
-        `Permissões atualizadas para ${selectedUsers.length} utilizador(es)`
-      );
-
+      await bulkUpdatePermissions(selectedUsers, { action: bulkAction, ...data });
+      notification.success(`Permissões atualizadas para ${selectedUsers.length} utilizador(es)`);
       setBulkPermissionsDialog(false);
       setSelectedUsers([]);
       refetch();
-    } catch (error) {
-      notification.error(error.message || 'Erro ao atualizar permissões em massa');
+    } catch (err) {
+      notification.error(err.message || 'Erro ao atualizar permissões em massa');
     }
   };
 
-  return (
-      <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
-        {/* Header */}
-        <FadeIn direction="down">
-          <Box
-            sx={{
-              mb: { xs: 2, sm: 3 },
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: { xs: 2, sm: 0 },
-              justifyContent: 'space-between',
-              alignItems: { xs: 'stretch', sm: 'center' },
-            }}
-          >
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              component="h1"
-              fontWeight="bold"
-              sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}
-            >
-              Gestão de Utilizadores
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={!isMobile && <AddIcon />}
-              onClick={() => navigate('/admin/users/new')}
-              fullWidth={isMobile}
-              size={isMobile ? "medium" : "large"}
-            >
-              {isMobile ? '+ Novo' : 'Novo Utilizador'}
-            </Button>
-          </Box>
-        </FadeIn>
+  // ── Copiar password temporária ───────────────────────────────────────────
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(tempPassword);
+    notification.success('Password copiada para a área de transferência');
+  };
 
-      {/* Filtros e Pesquisa */}
-      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <SearchBar
-            searchTerm={search}
-            onSearch={setSearch}
-          />
-          <Button
-            variant="outlined"
-            startIcon={!isMobile && <RefreshIcon />}
-            onClick={refetch}
-            disabled={isLoading}
-            size={isMobile ? "small" : "medium"}
+  // ════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════════════════════
+  return (
+    <ModulePage
+      title="Utilizadores"
+      subtitle="Gestão de contas, acessos e permissões"
+      icon={PeopleIcon}
+      color="#d32f2f"
+      breadcrumbs={[{ label: 'Utilizadores' }]}
+      actions={
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          {/* Filtro de estado */}
+          <ToggleButtonGroup
+            value={statusFilter}
+            exclusive
+            onChange={(_, v) => v && setStatusFilter(v)}
+            size="small"
+            sx={{ display: { xs: 'none', sm: 'flex' } }}
           >
-            Atualizar
+            <ToggleButton value="all" sx={{ px: 1.5, fontSize: '0.75rem' }}>Todos</ToggleButton>
+            <ToggleButton value="active" sx={{ px: 1.5, fontSize: '0.75rem' }}>Ativos</ToggleButton>
+            <ToggleButton value="inactive" sx={{ px: 1.5, fontSize: '0.75rem' }}>Pendentes</ToggleButton>
+          </ToggleButtonGroup>
+
+          <SearchBar searchTerm={searchInput} onSearch={setSearchInput} />
+
+          <Tooltip title="Atualizar">
+            <IconButton onClick={refetch} disabled={isLoading} size="small">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/admin/users/new')}
+            size="small"
+            sx={{ whiteSpace: 'nowrap' }}
+          >
+            {isMobile ? 'Novo' : 'Novo Utilizador'}
           </Button>
         </Box>
-      </Paper>
+      }
+    >
+      {/* Erro */}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {/* Error */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
+      {/* Estatísticas */}
+      {!isLoading && (
+        <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+          <StatChip label="total" value={stats.total} color={theme.palette.text.primary} />
+          <StatChip label="ativos" value={stats.active} color={theme.palette.success.main} />
+          <StatChip label="pendentes" value={stats.inactive} color={theme.palette.warning.main} />
+        </Stack>
       )}
 
-      {/* Bulk Actions Toolbar */}
-      {selectedUsers.length > 0 && (
-        <Paper sx={{ mb: 2 }}>
-          <Toolbar
-            sx={{
-              pl: { xs: 1, sm: 2 },
-              pr: { xs: 1, sm: 1 },
-              bgcolor: 'primary.lighter',
-              minHeight: { xs: 56, sm: 64 },
-            }}
-          >
-            <Typography
-              sx={{ flex: '1 1 100%' }}
-              color="primary"
-              variant={isMobile ? "body2" : "subtitle1"}
-              component="div"
-            >
-              {selectedUsers.length} {isMobile ? 'selecionado(s)' : 'utilizador(es) selecionado(s)'}
-            </Typography>
+      {/* Filtro mobile */}
+      <Box sx={{ display: { xs: 'flex', sm: 'none' }, mb: 2 }}>
+        <ToggleButtonGroup
+          value={statusFilter}
+          exclusive
+          onChange={(_, v) => v && setStatusFilter(v)}
+          size="small"
+          fullWidth
+        >
+          <ToggleButton value="all">Todos</ToggleButton>
+          <ToggleButton value="active">Ativos</ToggleButton>
+          <ToggleButton value="inactive">Pendentes</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
 
-            {isMobile ? (
-              /* Mobile: Stack compacto */
-              <Stack direction="row" spacing={0.5}>
-                <IconButton size="small" onClick={() => handleOpenBulkPermissions('add')} title="Adicionar">
-                  <PersonAddIcon fontSize="small" />
-                </IconButton>
-                <IconButton size="small" onClick={() => handleOpenBulkPermissions('remove')} title="Remover">
-                  <PersonRemoveIcon fontSize="small" />
-                </IconButton>
-                <IconButton size="small" onClick={() => handleOpenBulkPermissions('template')} title="Template">
-                  <AssignmentIcon fontSize="small" />
-                </IconButton>
-                <IconButton size="small" onClick={handleClearSelection} title="Limpar">
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            ) : (
-              /* Desktop: Com tooltips */
-              <>
-                <Tooltip title="Adicionar Permissões">
-                  <IconButton onClick={() => handleOpenBulkPermissions('add')}>
-                    <PersonAddIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Remover Permissões">
-                  <IconButton onClick={() => handleOpenBulkPermissions('remove')}>
-                    <PersonRemoveIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Aplicar Template">
-                  <IconButton onClick={() => handleOpenBulkPermissions('template')}>
-                    <AssignmentIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Limpar Seleção">
-                  <IconButton onClick={handleClearSelection}>
-                    <CloseIcon />
-                  </IconButton>
-                </Tooltip>
-              </>
-            )}
+      {/* Toolbar de seleção em massa */}
+      {selectedUsers.length > 0 && (
+        <Paper sx={{ mb: 2, bgcolor: alpha(theme.palette.primary.main, 0.05), border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
+          <Toolbar sx={{ minHeight: 52, px: 2, gap: 1 }}>
+            <Typography variant="subtitle2" color="primary" sx={{ flex: 1 }}>
+              {selectedUsers.length} selecionado(s)
+            </Typography>
+            <Tooltip title="Adicionar permissões">
+              <IconButton size="small" onClick={() => { setBulkAction('add'); setBulkPermissionsDialog(true); }}>
+                <PersonAddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Remover permissões">
+              <IconButton size="small" onClick={() => { setBulkAction('remove'); setBulkPermissionsDialog(true); }}>
+                <PersonRemoveIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Aplicar template">
+              <IconButton size="small" onClick={() => { setBulkAction('template'); setBulkPermissionsDialog(true); }}>
+                <AssignmentIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+            <Tooltip title="Cancelar seleção">
+              <IconButton size="small" onClick={() => setSelectedUsers([])}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Toolbar>
         </Paper>
       )}
 
-      {/* Conteúdo */}
+      {/* Conteúdo principal */}
       {isLoading ? (
-        <FadeIn>
-          <TableSkeleton rows={rowsPerPage} columns={7} showPagination />
-        </FadeIn>
+        <TableSkeleton rows={rowsPerPage} columns={6} showPagination />
       ) : isMobile ? (
-        /* MOBILE VIEW - Cards */
-        <FadeIn delay={0.1}>
-          <Stack spacing={2}>
-            {users.length === 0 ? (
-              <Paper sx={{ p: 6, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary">
-                  Nenhum utilizador encontrado
-                </Typography>
-              </Paper>
-            ) : (
-              users.map((user) => {
-                const isSelected = selectedUsers.includes(user.user_id);
-                return (
-                  <Card
-                    key={user.user_id}
-                    variant="outlined"
-                    sx={{
-                      borderColor: isSelected ? 'primary.main' : 'divider',
-                      borderWidth: isSelected ? 2 : 1,
-                      '&:hover': { boxShadow: 2 }
-                    }}
-                  >
-                    <CardContent sx={{ pb: 1 }}>
-                      {/* Header com Avatar e Checkbox */}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelectUser(user.user_id)}
-                          size="small"
-                        />
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            bgcolor: 'primary.main',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          {getInitials(user.name, user.username)}
-                        </Avatar>
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                          <Typography variant="subtitle1" fontWeight="bold" noWrap>
-                            {user.username}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            ID: {user.user_id}
-                          </Typography>
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleOpenMenu(e, user)}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                      </Box>
-
-                      <Divider sx={{ my: 1.5 }} />
-
-                      {/* Informações */}
-                      <Stack spacing={1}>
-                        {user.name && (
-                          <Box>
-                            <Typography variant="caption" color="text.secondary">
-                              Nome
-                            </Typography>
-                            <Typography variant="body2">{user.name}</Typography>
-                          </Box>
-                        )}
-
-                        {user.email && (
-                          <Box>
-                            <Typography variant="caption" color="text.secondary">
-                              Email
-                            </Typography>
-                            <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
-                              {user.email}
-                            </Typography>
-                          </Box>
-                        )}
-
-                        {/* Chips de Status e Perfil */}
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pt: 1 }}>
-                          <Chip
-                            label={getProfileName(parseInt(user.profil))}
-                            size="small"
-                            color={user.profil === '0' ? 'error' : user.profil === '1' ? 'primary' : 'default'}
-                          />
-                          {user.active ? (
-                            <Chip
-                              icon={<CheckCircleIcon />}
-                              label="Ativo"
-                              size="small"
-                              color="success"
-                            />
-                          ) : (
-                            <Chip
-                              icon={<BlockIcon />}
-                              label="Pendente"
-                              size="small"
-                              color="warning"
-                            />
-                          )}
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-
-            {/* Paginação Mobile */}
-            {users.length > 0 && (
-              <Paper>
-                <TablePagination
-                  component="div"
-                  count={totalCount}
-                  page={page}
-                  onPageChange={handleChangePage}
-                  rowsPerPage={rowsPerPage}
-                  onRowsPerPageChange={handleChangeRowsPerPage}
-                  rowsPerPageOptions={[10, 20, 50]}
-                  labelRowsPerPage="Por página:"
-                  labelDisplayedRows={({ from, to, count }) =>
-                    `${from}-${to} de ${count}`
-                  }
-                />
-              </Paper>
-            )}
-          </Stack>
-        </FadeIn>
-      ) : (
-        /* DESKTOP/TABLET VIEW - Table */
-        <FadeIn delay={0.1}>
-          <Paper sx={{ overflow: 'hidden' }}>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell padding="checkbox">
+        // ── MOBILE: Cards ──────────────────────────────────────────────────
+        <Stack spacing={1.5}>
+          {users.length === 0 ? (
+            <Paper sx={{ p: 6, textAlign: 'center' }}>
+              <Typography color="text.secondary">Nenhum utilizador encontrado</Typography>
+            </Paper>
+          ) : (
+            users.map(user => {
+              const isSelected = selectedUsers.includes(user.user_id);
+              const avatarColor = getAvatarColor(user.profil);
+              return (
+                <Card
+                  key={user.user_id}
+                  variant="outlined"
+                  sx={{
+                    borderColor: isSelected ? 'primary.main' : 'divider',
+                    borderWidth: isSelected ? 2 : 1,
+                  }}
+                >
+                  <CardContent sx={{ pb: '12px !important' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Checkbox
-                        indeterminate={selectedUsers.length > 0 && selectedUsers.length < users.length}
-                        checked={users.length > 0 && selectedUsers.length === users.length}
-                        onChange={handleSelectAll}
+                        checked={isSelected}
+                        onChange={() => handleSelectUser(user.user_id)}
+                        size="small"
+                        sx={{ p: 0 }}
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        onClick={() => handleSort('user_id')}
-                      >
-                        ID
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        onClick={() => handleSort('username')}
-                      >
-                        Username
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                      <Box
-                        sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        onClick={() => handleSort('name')}
-                      >
-                        Nome
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Perfil</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="right">Ações</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {users.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
-                        <Typography variant="body1" color="text.secondary">
-                          Nenhum utilizador encontrado
+                      <Avatar sx={{ width: 38, height: 38, bgcolor: avatarColor, fontSize: '0.8rem', flexShrink: 0 }}>
+                        {getInitials(user.name, user.username)}
+                      </Avatar>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                          {user.name || user.username}
                         </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    users.map((user) => {
-                      const isSelected = selectedUsers.includes(user.user_id);
-                      return (
-                        <TableRow
-                          key={user.user_id}
-                          hover
-                          selected={isSelected}
-                          onClick={() => handleSelectUser(user.user_id)}
-                          sx={{ cursor: 'pointer' }}
-                        >
-                          <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={isSelected}
-                              onChange={() => handleSelectUser(user.user_id)}
-                            />
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            {user.user_id}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Typography variant="body2" fontWeight="medium">
-                              {user.username}
-                            </Typography>
-                          </TableCell>
-                          <TableCell
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{ display: { xs: 'none', md: 'table-cell' } }}
-                          >
-                            {user.name || '-'}
-                          </TableCell>
-                          <TableCell
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{ display: { xs: 'none', md: 'table-cell' } }}
-                          >
-                            {user.email || '-'}
-                          </TableCell>
-                          <TableCell
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{ display: { xs: 'none', lg: 'table-cell' } }}
-                          >
-                            <Chip
-                              label={getProfileName(parseInt(user.profil))}
-                              size="small"
-                              color={user.profil === '0' ? 'error' : user.profil === '1' ? 'primary' : 'default'}
-                            />
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            {user.active ? (
-                              <Chip
-                                icon={<CheckCircleIcon />}
-                                label={isTablet ? 'Ativo' : 'Validado'}
-                                size="small"
-                                color="success"
-                              />
-                            ) : (
-                              <Chip
-                                icon={<BlockIcon />}
-                                label="Pendente"
-                                size="small"
-                                color="warning"
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleOpenMenu(e, user)}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          @{user.username}
+                        </Typography>
+                      </Box>
+                      <IconButton size="small" onClick={(e) => handleOpenMenu(e, user)}>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
 
-            {/* Paginação Desktop */}
-            {users.length > 0 && (
+                    {user.email && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, ml: 7 }} noWrap>
+                        {user.email}
+                      </Typography>
+                    )}
+
+                    <Box sx={{ display: 'flex', gap: 1, mt: 1.5, ml: 7, flexWrap: 'wrap' }}>
+                      <Chip
+                        label={getProfileName(parseInt(user.profil))}
+                        size="small"
+                        sx={{ bgcolor: alpha(avatarColor, 0.12), color: avatarColor, fontWeight: 600, fontSize: '0.7rem' }}
+                      />
+                      {user.active ? (
+                        <Chip icon={<CheckCircleIcon sx={{ fontSize: '0.85rem !important' }} />} label="Ativo" size="small" color="success" variant="outlined" />
+                      ) : (
+                        <Chip icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Pendente" size="small" color="warning" variant="outlined" />
+                      )}
+                      {user.interfaces?.length > 0 && (
+                        <Chip
+                          icon={<SecurityIcon sx={{ fontSize: '0.85rem !important' }} />}
+                          label={user.interfaces.length}
+                          size="small"
+                          variant="outlined"
+                          color="default"
+                        />
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+
+          {totalCount > 0 && (
+            <Paper>
               <TablePagination
                 component="div"
                 count={totalCount}
                 page={page}
-                onPageChange={handleChangePage}
+                onPageChange={(_, p) => setPage(p)}
                 rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[10, 20, 50, 100]}
-                labelRowsPerPage="Linhas por página:"
-                labelDisplayedRows={({ from, to, count }) =>
-                  `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
-                }
+                onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                rowsPerPageOptions={[10, 20, 50]}
+                labelRowsPerPage="Por página:"
+                labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
               />
-            )}
-          </Paper>
-        </FadeIn>
+            </Paper>
+          )}
+        </Stack>
+      ) : (
+        // ── DESKTOP: Tabela ────────────────────────────────────────────────
+        <Paper sx={{ overflow: 'hidden' }}>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: alpha(theme.palette.text.primary, 0.03) }}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      indeterminate={selectedUsers.length > 0 && selectedUsers.length < users.length}
+                      checked={users.length > 0 && selectedUsers.length === users.length}
+                      onChange={handleSelectAll}
+                    />
+                  </TableCell>
+                  <SortableHeadCell label="Utilizador" field="username" sortKey={sortBy} sortDir={sortOrder} onSort={handleSort} />
+                  <SortableHeadCell label="Email" field="email" sortKey={sortBy} sortDir={sortOrder} onSort={handleSort} sx={{ display: { xs: 'none', md: 'table-cell' } }} />
+                  <SortableHeadCell label="Perfil" field="profil" sortKey={sortBy} sortDir={sortOrder} onSort={handleSort} sx={{ display: { xs: 'none', lg: 'table-cell' } }} />
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Permissões</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell align="right" sx={{ pr: 2 }}>Ações</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                      <Typography color="text.secondary">Nenhum utilizador encontrado</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map(user => {
+                    const isSelected = selectedUsers.includes(user.user_id);
+                    const avatarColor = getAvatarColor(user.profil);
+                    return (
+                      <TableRow
+                        key={user.user_id}
+                        hover
+                        selected={isSelected}
+                        sx={{ cursor: 'default' }}
+                      >
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            size="small"
+                            checked={isSelected}
+                            onChange={() => handleSelectUser(user.user_id)}
+                          />
+                        </TableCell>
+
+                        {/* Utilizador */}
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.72rem', flexShrink: 0 }}>
+                              {getInitials(user.name, user.username)}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" fontWeight={600} noWrap>
+                                {user.name || user.username}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                @{user.username}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+
+                        {/* Email */}
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 220 }}>
+                            {user.email || '—'}
+                          </Typography>
+                        </TableCell>
+
+                        {/* Perfil */}
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          <Chip
+                            label={getProfileName(parseInt(user.profil))}
+                            size="small"
+                            sx={{
+                              bgcolor: alpha(avatarColor, 0.1),
+                              color: avatarColor,
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: 22,
+                            }}
+                          />
+                        </TableCell>
+
+                        {/* Permissões */}
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          {user.interfaces?.length > 0 ? (
+                            <Chip
+                              icon={<SecurityIcon sx={{ fontSize: '0.85rem !important' }} />}
+                              label={user.interfaces.length}
+                              size="small"
+                              variant="outlined"
+                              sx={{ height: 22, fontSize: '0.7rem' }}
+                            />
+                          ) : (
+                            <Typography variant="caption" color="text.disabled">—</Typography>
+                          )}
+                        </TableCell>
+
+                        {/* Estado */}
+                        <TableCell>
+                          {user.active ? (
+                            <Chip
+                              icon={<CheckCircleIcon sx={{ fontSize: '0.85rem !important' }} />}
+                              label="Ativo"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              sx={{ height: 22, fontSize: '0.7rem' }}
+                            />
+                          ) : (
+                            <Chip
+                              icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />}
+                              label="Pendente"
+                              size="small"
+                              color="warning"
+                              variant="outlined"
+                              sx={{ height: 22, fontSize: '0.7rem' }}
+                            />
+                          )}
+                        </TableCell>
+
+                        {/* Ações */}
+                        <TableCell align="right" sx={{ pr: 1 }}>
+                          <Tooltip title="Editar">
+                            <IconButton size="small" onClick={() => navigate(`/admin/users/${user.user_id}/edit`)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Mais opções">
+                            <IconButton size="small" onClick={(e) => handleOpenMenu(e, user)}>
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            component="div"
+            count={totalCount}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            labelRowsPerPage="Por página:"
+            labelDisplayedRows={({ from, to, count }) =>
+              `${from}–${to} de ${count !== -1 ? count : `mais de ${to}`}`
+            }
+          />
+        </Paper>
       )}
 
-      {/* Menu de Ações */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleCloseMenu}
-      >
+      {/* ── Menu de ações ─────────────────────────────────────────────────── */}
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
         <MenuItem onClick={handleEdit}>
-          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          <EditIcon fontSize="small" sx={{ mr: 1.5 }} />
           Editar
         </MenuItem>
         <MenuItem onClick={handleManagePermissions}>
-          <SecurityIcon fontSize="small" sx={{ mr: 1 }} />
+          <SecurityIcon fontSize="small" sx={{ mr: 1.5 }} />
           Gerir Permissões
         </MenuItem>
+        <Divider />
         <MenuItem onClick={handleToggle}>
           {selectedUser?.active ? (
-            <>
-              <BlockIcon fontSize="small" sx={{ mr: 1 }} />
-              Desativar
-            </>
+            <><BlockIcon fontSize="small" sx={{ mr: 1.5, color: 'warning.main' }} />Desativar</>
           ) : (
-            <>
-              <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} />
-              Ativar
-            </>
+            <><CheckCircleIcon fontSize="small" sx={{ mr: 1.5, color: 'success.main' }} />Ativar</>
           )}
         </MenuItem>
-        <MenuItem onClick={() => {
-          setResetPasswordDialog(true);
-          handleCloseMenu();
-        }}>
-          <LockResetIcon fontSize="small" sx={{ mr: 1 }} />
-          Reset Password
+        <MenuItem onClick={() => { setResetPasswordDialog(true); handleCloseMenu(); }}>
+          <LockResetIcon fontSize="small" sx={{ mr: 1.5 }} />
+          Repor Password
         </MenuItem>
-        <MenuItem onClick={() => {
-          setDeleteDialog(true);
-          handleCloseMenu();
-        }}>
-          <DeleteIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
-          <Typography color="error">Apagar</Typography>
+        <Divider />
+        <MenuItem onClick={() => { setDeleteDialog(true); handleCloseMenu(); }} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1.5 }} />
+          Apagar
         </MenuItem>
       </Menu>
 
-      {/* Diálogo de Confirmação - Apagar */}
-      <Dialog
-        open={deleteDialog}
-        onClose={() => setDeleteDialog(false)}
-      >
-        <DialogTitle>Confirmar Exclusão</DialogTitle>
+      {/* ── Diálogo: Apagar ────────────────────────────────────────────────── */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirmar eliminação</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Tem certeza que deseja apagar o utilizador <strong>{selectedUser?.username}</strong>?
-            Esta ação não pode ser desfeita.
+            Tem a certeza que pretende apagar o utilizador <strong>{selectedUser?.username}</strong>?
+            Esta ação é irreversível.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained">
-            Apagar
-          </Button>
+          <Button onClick={() => setDeleteDialog(false)}>Cancelar</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">Apagar</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo de Confirmação - Reset Password */}
+      {/* ── Diálogo: Repor Password ────────────────────────────────────────── */}
       <Dialog
         open={resetPasswordDialog}
-        onClose={() => {
-          setResetPasswordDialog(false);
-          setTempPassword(null);
-        }}
+        onClose={() => { setResetPasswordDialog(false); setTempPassword(null); }}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Reset Password</DialogTitle>
+        <DialogTitle>Repor Password</DialogTitle>
         <DialogContent>
           {!tempPassword ? (
             <DialogContentText>
-              Tem certeza que deseja resetar a password do utilizador <strong>{selectedUser?.username}</strong>?
-              Uma password temporária será gerada.
+              Será gerada uma password temporária para <strong>{selectedUser?.username}</strong>.
+              O utilizador deverá alterá-la no primeiro acesso.
             </DialogContentText>
           ) : (
-            <Box>
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Password resetada com sucesso!
-              </Alert>
+            <Box sx={{ pt: 1 }}>
+              <Alert severity="success" sx={{ mb: 2 }}>Password reposta com sucesso.</Alert>
               <Typography variant="body2" gutterBottom>
                 Password temporária para <strong>{selectedUser?.username}</strong>:
               </Typography>
-              <Paper sx={{ p: 2, bgcolor: 'grey.100', fontFamily: 'monospace', fontSize: '1.2rem' }}>
-                {tempPassword}
-              </Paper>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                }}
+              >
+                <Typography
+                  sx={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: 1 }}
+                >
+                  {tempPassword}
+                </Typography>
+                <Tooltip title="Copiar">
+                  <IconButton size="small" onClick={handleCopyPassword}>
+                    <CopyIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Certifique-se de copiar e enviar esta password ao utilizador. Ela não será mostrada novamente.
+                Copie e partilhe esta password com o utilizador. Não será mostrada novamente.
               </Typography>
             </Box>
           )}
@@ -806,49 +696,36 @@ const UserListPage = () => {
         <DialogActions>
           {!tempPassword ? (
             <>
-              <Button onClick={() => setResetPasswordDialog(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleConfirmResetPassword} color="primary" variant="contained">
-                Resetar Password
-              </Button>
+              <Button onClick={() => setResetPasswordDialog(false)}>Cancelar</Button>
+              <Button onClick={handleConfirmResetPassword} variant="contained">Repor Password</Button>
             </>
           ) : (
-            <Button onClick={() => {
-              setResetPasswordDialog(false);
-              setTempPassword(null);
-            }} variant="contained">
+            <Button onClick={() => { setResetPasswordDialog(false); setTempPassword(null); }} variant="contained">
               Fechar
             </Button>
           )}
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo de Permissões - Single User */}
+      {/* ── Permissões: utilizador individual ────────────────────────────── */}
       {userForPermissions && (
         <UserPermissionsDialog
           open={permissionsDialog}
           user={userForPermissions}
-          onClose={() => {
-            setPermissionsDialog(false);
-            setUserForPermissions(null);
-          }}
+          onClose={() => { setPermissionsDialog(false); setUserForPermissions(null); }}
           onSave={handleSavePermissions}
         />
       )}
 
-      {/* Diálogo de Permissões - Bulk */}
+      {/* ── Permissões: em massa ──────────────────────────────────────────── */}
       <BulkPermissionsDialog
         open={bulkPermissionsDialog}
         selectedUsers={users.filter(u => selectedUsers.includes(u.user_id))}
         action={bulkAction}
-        onClose={() => {
-          setBulkPermissionsDialog(false);
-          setBulkAction(null);
-        }}
+        onClose={() => { setBulkPermissionsDialog(false); setBulkAction(null); }}
         onConfirm={handleBulkPermissionsConfirm}
       />
-      </Container>
+    </ModulePage>
   );
 };
 
