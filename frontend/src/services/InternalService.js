@@ -450,6 +450,68 @@ export const getVehicleMaintenance = async () => {
 
 // ==================== EQUIPAMENTOS INSTALADOS ====================
 
+export const openEquipamentoFile = async (filePath) => {
+    try {
+        const filename = filePath.split(/[/\\]/).pop();
+        const response = await api.get(`/equipamento_file/${filename}`, { responseType: 'blob' });
+        const url = URL.createObjectURL(response.data);
+        window.open(url, '_blank');
+    } catch (error) {
+        console.error("Erro ao abrir ficheiro:", error);
+        throw error;
+    }
+};
+
+export const getEquipamentoAloc = async () => {
+    try {
+        const response = await api.get("/equipamento_aloc_list");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar alocações:", error);
+        throw error;
+    }
+};
+
+export const createEquipamentoAloc = async (data) => {
+    try {
+        const response = await api.post("/equipamento_aloc_create", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar alocação:", error);
+        throw error;
+    }
+};
+
+export const updateEquipamentoAloc = async (pk, data) => {
+    try {
+        const response = await api.put(`/equipamento_aloc_update/${pk}`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar alocação:", error);
+        throw error;
+    }
+};
+
+export const deleteEquipamentoAloc = async (pk) => {
+    try {
+        const response = await api.delete(`/equipamento_aloc_delete/${pk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao eliminar alocação:", error);
+        throw error;
+    }
+};
+
+export const getAllEquipamentos = async () => {
+    try {
+        const response = await api.get("/equipamento_list");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar equipamentos:", error);
+        throw error;
+    }
+};
+
 export const getEquipamentosByInstalacao = async (tbInstalacao) => {
     try {
         const response = await api.get(`/equipamento_list/${tbInstalacao}`);
