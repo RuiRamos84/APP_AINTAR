@@ -30,7 +30,8 @@ export default function AlertaWhatsAppPage() {
     const [carregando, setCarregando] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [phone, setPhone] = useState("");
-    const [apikey, setApikey] = useState("");
+    const [accountSid, setAccountSid] = useState("");
+    const [authToken, setAuthToken] = useState("");
 
     const carregarAlerta = useCallback(async () => {
         setCarregando(true);
@@ -54,14 +55,18 @@ export default function AlertaWhatsAppPage() {
             notification.error("Insere o número de telefone");
             return;
         }
-        if (!apikey.trim()) {
-            notification.error("Insere a API key do CallMeBot");
+        if (!accountSid.trim()) {
+            notification.error("Insere o Account SID do Twilio");
+            return;
+        }
+        if (!authToken.trim()) {
+            notification.error("Insere o Auth Token do Twilio");
             return;
         }
 
         setEnviando(true);
         try {
-            await alertService.enviarAlertaWhatsApp(phone.trim(), apikey.trim());
+            await alertService.enviarAlertaWhatsApp(phone.trim(), accountSid.trim(), authToken.trim());
             notification.success("Alerta enviado com sucesso via WhatsApp!");
         } catch (err) {
             const msg = err?.response?.data?.message || "Erro ao enviar alerta";
@@ -153,28 +158,37 @@ export default function AlertaWhatsAppPage() {
                 </Stack>
 
                 <Alert severity="info" sx={{ mb: 2.5 }}>
-                    Para usar o CallMeBot: guarda o número <strong>+34 644 59 21 88</strong> e envia
-                    a mensagem <em>"I allow callmebot to send me messages"</em> — recebes a API key de resposta.
+                    Regista em <strong>twilio.com</strong> (gratuito) → <strong>Messaging → Try it out → WhatsApp</strong> → scannas o QR code com o teu telemóvel. O Account SID e Auth Token estão no painel principal do Twilio.
                 </Alert>
 
                 <Stack spacing={2}>
                     <TextField
-                        label="Número de telefone"
+                        label="Número de telefone de destino"
                         placeholder="+351912345678"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         fullWidth
                         size="small"
-                        helperText="Inclui o código do país (ex: +351 para Portugal)"
+                        helperText="O teu número com código de país (ex: +351 para Portugal)"
                     />
                     <TextField
-                        label="API Key do CallMeBot"
-                        placeholder="1234567"
-                        value={apikey}
-                        onChange={(e) => setApikey(e.target.value)}
+                        label="Account SID"
+                        placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        value={accountSid}
+                        onChange={(e) => setAccountSid(e.target.value)}
                         fullWidth
                         size="small"
-                        helperText="API key que recebes do CallMeBot via WhatsApp"
+                        helperText="Encontras no painel principal do Twilio"
+                    />
+                    <TextField
+                        label="Auth Token"
+                        placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        value={authToken}
+                        onChange={(e) => setAuthToken(e.target.value)}
+                        fullWidth
+                        size="small"
+                        type="password"
+                        helperText="Encontras no painel principal do Twilio (ao lado do Account SID)"
                     />
                     <Button
                         variant="contained"
