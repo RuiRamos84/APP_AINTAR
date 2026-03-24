@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Box, Button, Typography, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, IconButton,
+    TableContainer, TableHead, TableRow, TableSortLabel, Paper, IconButton,
     Dialog, DialogTitle, DialogContent, DialogActions,
     TextField, MenuItem, FormControl, InputLabel, Select,
-    Grid, CircularProgress, Chip, Tooltip,
+    Grid, CircularProgress, Chip, Tooltip, Divider,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 import EquipamentoDetailDrawer from "../components/EquipamentoDetailDrawer";
 import {
     getAllEquipamentos,
@@ -16,16 +18,12 @@ import {
     updateEquipamento,
     deleteEquipamento,
     getEquipamentosMeta,
-    createEquipamentoAloc,
 } from "../../../services/InternalService";
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster";
 
-const EMPTY_FORM = {
-    tt_equipamento_tipo: "", marca: "", modelo: "", serial: "",
-};
+const EMPTY_FORM = { tt_equipamento_tipo: "", marca: "", modelo: "", serial: "" };
 
-/* ─── Modal: Criar / Editar equipamento ─── */
-const EquipamentoModal = ({ open, onClose, editing, meta, onSaved, onCreated }) => {
+const EquipamentoModal = ({ open, onClose, editing, meta, onSaved }) => {
     const [form, setForm] = useState(EMPTY_FORM);
     const [loading, setLoading] = useState(false);
     const isValid = form.tt_equipamento_tipo && form.modelo?.trim() && form.marca?.trim();
@@ -59,13 +57,11 @@ const EquipamentoModal = ({ open, onClose, editing, meta, onSaved, onCreated }) 
             if (editing?.pk) {
                 await updateEquipamento(editing.pk, payload);
                 notifySuccess("Equipamento atualizado");
-                onSaved();
-                onClose();
             } else {
-                const res = await createEquipamento(payload);
-                onClose();
-                onCreated(res?.pk);
+                await createEquipamento(payload);
+                notifySuccess("Equipamento registado");
             }
+            onSaved();
         } catch {
             notifyError("Erro ao guardar equipamento");
         } finally {
@@ -79,7 +75,7 @@ const EquipamentoModal = ({ open, onClose, editing, meta, onSaved, onCreated }) 
             <form onSubmit={handleSubmit}>
                 <DialogContent dividers>
                     <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Tipo de Equipamento *</InputLabel>
                                 <Select value={form.tt_equipamento_tipo}
@@ -91,15 +87,15 @@ const EquipamentoModal = ({ open, onClose, editing, meta, onSaved, onCreated }) 
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField fullWidth size="small" label="Marca *"
                                 value={form.marca} onChange={e => set("marca", e.target.value)} />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField fullWidth size="small" label="Modelo *"
                                 value={form.modelo} onChange={e => set("modelo", e.target.value)} />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField fullWidth size="small" label="Nº de Série"
                                 value={form.serial} onChange={e => set("serial", e.target.value)} />
                         </Grid>
@@ -117,121 +113,6 @@ const EquipamentoModal = ({ open, onClose, editing, meta, onSaved, onCreated }) 
     );
 };
 
-/* ─── Dialog: Definir estado após criação ─── */
-const AlocDialog = ({ open, onClose, equipamentoPk, meta, onSaved }) => {
-    const EMPTY = {
-        tt_equipamento_aloc: "",
-        tb_instalacao: "",
-        tt_equipamento_localizacao: "",
-        start_date: new Date().toISOString().split("T")[0],
-        stop_date: "",
-        memo: "",
-    };
-    const [form, setForm] = useState(EMPTY);
-    const [loading, setLoading] = useState(false);
-    const isInstalacao = meta?.alocInstalacaoPk && Number(form.tt_equipamento_aloc) === meta.alocInstalacaoPk;
-    const isValid = form.tt_equipamento_aloc && form.start_date;
-
-    useEffect(() => { if (open) setForm(EMPTY); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const set = (f, v) => setForm(p => ({ ...p, [f]: v }));
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            await createEquipamentoAloc(equipamentoPk, {
-                tt_equipamento_aloc: Number(form.tt_equipamento_aloc),
-                tb_instalacao: isInstalacao && form.tb_instalacao ? Number(form.tb_instalacao) : undefined,
-                tt_equipamento_localizacao: isInstalacao && form.tt_equipamento_localizacao ? Number(form.tt_equipamento_localizacao) : undefined,
-                start_date: form.start_date,
-                stop_date: form.stop_date || undefined,
-                memo: form.memo || undefined,
-            });
-            notifySuccess("Estado definido com sucesso");
-            onSaved();
-            onClose();
-        } catch {
-            notifyError("Erro ao definir estado");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Definir Estado do Equipamento</DialogTitle>
-            <form onSubmit={handleSubmit}>
-                <DialogContent dividers>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Estado *</InputLabel>
-                                <Select value={form.tt_equipamento_aloc}
-                                    onChange={e => set("tt_equipamento_aloc", e.target.value)}
-                                    label="Estado *">
-                                    {(meta?.alocTipos || []).map(t => (
-                                        <MenuItem key={t.pk} value={t.pk}>{t.value}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        {isInstalacao && (<>
-                            <Grid item xs={12}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Instalação</InputLabel>
-                                    <Select value={form.tb_instalacao}
-                                        onChange={e => set("tb_instalacao", e.target.value)}
-                                        label="Instalação">
-                                        <MenuItem value="">— Selecionar —</MenuItem>
-                                        {(meta?.instalacoes || []).map(i => (
-                                            <MenuItem key={i.pk} value={i.pk}>{i.nome}</MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Localização</InputLabel>
-                                    <Select value={form.tt_equipamento_localizacao}
-                                        onChange={e => set("tt_equipamento_localizacao", e.target.value)}
-                                        label="Localização">
-                                        <MenuItem value="">— Selecionar —</MenuItem>
-                                        {(meta?.localizacoes || []).map(l => (
-                                            <MenuItem key={l.pk} value={l.pk}>{l.value}</MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                        </>)}
-                        <Grid item xs={12} sm={6}>
-                            <TextField fullWidth size="small" type="date" label="Data de Início *"
-                                value={form.start_date} onChange={e => set("start_date", e.target.value)}
-                                InputLabelProps={{ shrink: true }} />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField fullWidth size="small" type="date" label="Data de Fim"
-                                value={form.stop_date} onChange={e => set("stop_date", e.target.value)}
-                                InputLabelProps={{ shrink: true }} />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField fullWidth size="small" label="Observações" multiline rows={2}
-                                value={form.memo} onChange={e => set("memo", e.target.value)} />
-                        </Grid>
-                    </Grid>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={onClose} disabled={loading}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={loading || !isValid}
-                        startIcon={loading ? <CircularProgress size={16} /> : null}>
-                        Guardar
-                    </Button>
-                </DialogActions>
-            </form>
-        </Dialog>
-    );
-};
-
 export default function EquipamentoGeralView() {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -241,9 +122,80 @@ export default function EquipamentoGeralView() {
     const [confirmDelete, setConfirmDelete] = useState(null);
     const [selected, setSelected] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [confirmAlocOpen, setConfirmAlocOpen] = useState(false);
-    const [alocOpen, setAlocOpen] = useState(false);
-    const [pendingAlocPk, setPendingAlocPk] = useState(null);
+    const [filterEstado, setFilterEstado] = useState("");
+    const [filterTipo, setFilterTipo] = useState("");
+    const [sortCol, setSortCol] = useState("marca");
+    const [sortDir, setSortDir] = useState("asc");
+
+    const SEM_ALOC = "Sem alocação";
+
+    const matchEstado = (r, f) => f === SEM_ALOC ? !r.estado : r.estado === f;
+
+    // Cross-filter: cada dimensão conta só a partir das linhas filtradas pela outra dimensão
+    const rowsByEstado = useMemo(() =>
+        filterEstado ? rows.filter(r => matchEstado(r, filterEstado)) : rows,
+    [rows, filterEstado]);
+
+    const rowsByTipo = useMemo(() =>
+        filterTipo ? rows.filter(r => r["tt_equipamento$tipo"] === filterTipo) : rows,
+    [rows, filterTipo]);
+
+    const estadoCounts = useMemo(() => {
+        const counts = {};
+        rowsByTipo.forEach(r => {
+            const key = r.estado || SEM_ALOC;
+            counts[key] = (counts[key] ?? 0) + 1;
+        });
+        return counts;
+    }, [rowsByTipo]);
+
+    const tipoCounts = useMemo(() => {
+        const counts = {};
+        rowsByEstado.forEach(r => {
+            const t = r["tt_equipamento$tipo"];
+            if (t) counts[t] = (counts[t] ?? 0) + 1;
+        });
+        return counts;
+    }, [rowsByEstado]);
+
+    const filtered = useMemo(() => {
+        let result = rows;
+        if (filterEstado) result = result.filter(r => matchEstado(r, filterEstado));
+        if (filterTipo) result = result.filter(r => r["tt_equipamento$tipo"] === filterTipo);
+        return result;
+    }, [rows, filterEstado, filterTipo]);
+
+    const estados = useMemo(() => Object.keys(estadoCounts).sort(), [estadoCounts]);
+    const tipos = useMemo(() => Object.keys(tipoCounts).sort(), [tipoCounts]);
+    const hasFilter = !!filterEstado || !!filterTipo;
+
+    const SORT_KEY = {
+        tipo:   r => r["tt_equipamento$tipo"] ?? "",
+        marca:  r => r.marca ?? "",
+        modelo: r => r.modelo ?? "",
+        serial: r => r.serial ?? "",
+        estado: r => r.estado ?? "",
+    };
+
+    const sorted = useMemo(() => {
+        const key = SORT_KEY[sortCol] ?? (r => "");
+        return [...filtered].sort((a, b) => {
+            const cmp = key(a).localeCompare(key(b), "pt", { sensitivity: "base" });
+            return sortDir === "asc" ? cmp : -cmp;
+        });
+    }, [filtered, sortCol, sortDir]);
+
+    const handleSort = (col) => {
+        if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+        else { setSortCol(col); setSortDir("asc"); }
+    };
+
+    const ESTADO_CONFIG = { Instalação: "success", Reparação: "warning" };
+    const ESTADO_CUSTOM = {
+        Armazém:        { outlined: { color: "#7b1fa2", borderColor: "#7b1fa2" }, filled: { bgcolor: "#7b1fa2", color: "#fff", borderColor: "#7b1fa2" } },
+        Trabalhador:    { outlined: { color: "#b8860b", borderColor: "#b8860b" }, filled: { bgcolor: "#f5c518", color: "#000", borderColor: "#f5c518" } },
+        [SEM_ALOC]:     { outlined: { color: "text.secondary", borderColor: "text.disabled" }, filled: { bgcolor: "text.secondary", color: "#fff", borderColor: "text.secondary" } },
+    };
 
     useEffect(() => {
         getEquipamentosMeta().then(setMeta).catch(() => notifyError("Erro ao carregar metadados"));
@@ -274,13 +226,6 @@ export default function EquipamentoGeralView() {
         setModalOpen(true);
     };
 
-    const handleCreated = (pk) => {
-        notifySuccess("Equipamento registado");
-        load();
-        setPendingAlocPk(pk);
-        setConfirmAlocOpen(true);
-    };
-
     const handleDelete = async () => {
         try {
             await deleteEquipamento(confirmDelete.pk);
@@ -303,27 +248,116 @@ export default function EquipamentoGeralView() {
                 </Button>
             </Box>
 
+            {/* Barra de filtros */}
+            {!loading && rows.length > 0 && (estados.length > 0 || tipos.length > 0) && (
+                <Box sx={{
+                    display: "flex", flexDirection: "column", gap: 1,
+                    px: 1.5, py: 1, mb: 1.5, borderRadius: 2,
+                    bgcolor: "background.paper",
+                    border: "1px solid", borderColor: "divider",
+                }}>
+                    {/* Linha Estado */}
+                    {estados.length > 0 && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+                            <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, minWidth: 44 }}>
+                                Estado
+                            </Typography>
+                            {estados.map(estado => {
+                                const active = filterEstado === estado;
+                                return (
+                                    <Chip key={estado}
+                                        label={`${estado} ${estadoCounts[estado]}`}
+                                        size="small"
+                                        color={ESTADO_CUSTOM[estado] ? undefined : (ESTADO_CONFIG[estado] || "default")}
+                                        variant={active ? "filled" : "outlined"}
+                                        onClick={() => setFilterEstado(active ? "" : estado)}
+                                        clickable
+                                        sx={{
+                                            fontWeight: active ? 600 : 400, transition: "all 0.15s",
+                                            ...(ESTADO_CUSTOM[estado] && (active ? ESTADO_CUSTOM[estado].filled : ESTADO_CUSTOM[estado].outlined)),
+                                        }}
+                                    />
+                                );
+                            })}
+                        </Box>
+                    )}
+                    {/* Linha Tipo */}
+                    {tipos.length > 0 && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+                            <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, minWidth: 44 }}>
+                                Tipo
+                            </Typography>
+                            {tipos.map(tipo => {
+                                const active = filterTipo === tipo;
+                                return (
+                                    <Chip key={tipo}
+                                        label={`${tipo} ${tipoCounts[tipo]}`}
+                                        size="small"
+                                        variant={active ? "filled" : "outlined"}
+                                        onClick={() => setFilterTipo(active ? "" : tipo)}
+                                        clickable
+                                        sx={{
+                                            fontWeight: active ? 600 : 400, transition: "all 0.15s",
+                                            ...(active && { bgcolor: "primary.main", color: "primary.contrastText", "&:hover": { bgcolor: "primary.dark" } }),
+                                        }}
+                                    />
+                                );
+                            })}
+                        </Box>
+                    )}
+                    {/* Linha rodapé: contagem + limpar */}
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                            {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
+                        </Typography>
+                        {hasFilter && (
+                            <Tooltip title="Limpar filtros">
+                                <IconButton size="small" onClick={() => { setFilterEstado(""); setFilterTipo(""); }}
+                                    sx={{ color: "text.secondary", p: 0.25 }}>
+                                    <FilterAltOffIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Box>
+                </Box>
+            )}
+
             {loading ? (
                 <Box textAlign="center" py={4}><CircularProgress /></Box>
             ) : rows.length === 0 ? (
                 <Typography color="text.secondary" textAlign="center" py={4}>
                     Nenhum equipamento registado.
                 </Typography>
+            ) : filtered.length === 0 ? (
+                <Typography color="text.secondary" textAlign="center" py={4}>
+                    Nenhum equipamento corresponde aos filtros seleccionados.
+                </Typography>
             ) : (
                 <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell><b>Tipo</b></TableCell>
-                                <TableCell><b>Marca</b></TableCell>
-                                <TableCell><b>Modelo</b></TableCell>
-                                <TableCell><b>Nº Série</b></TableCell>
-                                <TableCell><b>Estado Actual</b></TableCell>
+                                {[
+                                    { id: "tipo",   label: "Tipo" },
+                                    { id: "marca",  label: "Marca" },
+                                    { id: "modelo", label: "Modelo" },
+                                    { id: "serial", label: "Nº Série" },
+                                    { id: "estado", label: "Estado Actual" },
+                                ].map(col => (
+                                    <TableCell key={col.id} sortDirection={sortCol === col.id ? sortDir : false}>
+                                        <TableSortLabel
+                                            active={sortCol === col.id}
+                                            direction={sortCol === col.id ? sortDir : "asc"}
+                                            onClick={() => handleSort(col.id)}>
+                                            <b>{col.label}</b>
+                                        </TableSortLabel>
+                                    </TableCell>
+                                ))}
                                 <TableCell align="right"><b>Ações</b></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {rows.map(row => (
+                            {sorted.map(row => (
                                 <TableRow key={row.pk} hover
                                     onClick={() => handleRowClick(row)}
                                     sx={{ cursor: "pointer" }}>
@@ -374,33 +408,9 @@ export default function EquipamentoGeralView() {
                 onClose={() => setModalOpen(false)}
                 editing={editing}
                 meta={meta}
-                onSaved={load}
-                onCreated={handleCreated}
+                onSaved={() => { load(); setModalOpen(false); }}
             />
 
-            {/* Confirmar definição de estado */}
-            <Dialog open={confirmAlocOpen} onClose={() => setConfirmAlocOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Definir estado do equipamento?</DialogTitle>
-                <DialogContent>
-                    <Typography>Pretende definir um estado para o equipamento registado?</Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmAlocOpen(false)}>Não</Button>
-                    <Button variant="contained" onClick={() => { setConfirmAlocOpen(false); setAlocOpen(true); }}>
-                        Sim
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <AlocDialog
-                open={alocOpen}
-                onClose={() => setAlocOpen(false)}
-                equipamentoPk={pendingAlocPk}
-                meta={meta}
-                onSaved={load}
-            />
-
-            {/* Confirmar eliminação */}
             <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>
                 <DialogTitle>Confirmar eliminação</DialogTitle>
                 <DialogContent>

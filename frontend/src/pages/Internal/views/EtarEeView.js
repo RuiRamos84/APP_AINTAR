@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box, Button, Typography, Paper, Grid, Card, CardContent,
     FormControl, InputLabel, Select, MenuItem, TextField,
@@ -22,6 +22,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import ConstructionIcon from '@mui/icons-material/Construction';
 
 import { useMetaData } from "../../../contexts/MetaDataContext";
+import { getEquipamentosMeta } from "../../../services/InternalService";
 import EntityDetailsView from '../components/EntityDetailsView';
 import DetailsModal from "../components/DetailsModal";
 import IncumprimentosTable from '../components/IncumprimentosTable';
@@ -32,6 +33,7 @@ import ExpenseRecordsTable from "../components/ExpenseRecordsTable";
 import { useEntityDetails } from "../hooks/useEntityDetails";
 import { updateEntityDetails, createInternalRequest } from "../../../services/InternalService";
 import ObrasInstalacaoTable from '../components/ObrasInstalacaoTable';
+import EquipamentoInstalacaoTable from '../components/EquipamentoInstalacaoTable';
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster";
 
 const SUB_AREAS = [
@@ -47,6 +49,7 @@ const SUB_AREAS = [
     { id: 'vedacao', name: 'Vedação', icon: <SecurityIcon />, requiresEntity: true },
     { id: 'qualidade_ambiental', name: 'Qualidade Ambiental', icon: <OpacityIcon />, requiresEntity: true },
     { id: 'obras', name: 'Obras', icon: <ConstructionIcon />, requiresEntity: true },
+    { id: 'equipamentos', name: 'Equipamentos', icon: <BuildIcon />, requiresEntity: true },
 ];
 
 const EtarEeView = ({ areaId }) => {
@@ -57,6 +60,11 @@ const EtarEeView = ({ areaId }) => {
     const { metaData } = useMetaData();
 
     const { details, editableDetails, setEditableDetails, isEditMode, setIsEditMode, fetchDetails } = useEntityDetails();
+    const [equipMeta, setEquipMeta] = useState(null);
+
+    useEffect(() => {
+        getEquipamentosMeta().then(setEquipMeta).catch(() => {});
+    }, []);
 
     // Estado do selector: mostrar se não há localização OU entidade seleccionada
     const showSelectors = !selectedLocation || !selectedEntity;
@@ -210,6 +218,8 @@ const EtarEeView = ({ areaId }) => {
                 return <IncumprimentosTable selectedEntity={selectedEntity} metaData={metaData} />;
             case 'obras':
                 return <ObrasInstalacaoTable selectedEntity={selectedEntity} areaId={areaId} metaData={metaData} />;
+            case 'equipamentos':
+                return <EquipamentoInstalacaoTable selectedEntity={selectedEntity} meta={equipMeta} />;
             case 'reparacao':
             case 'vedacao':
             case 'qualidade_ambiental':
