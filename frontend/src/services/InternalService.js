@@ -502,3 +502,169 @@ export const getObrasInstalacaoRecords = async (tbInstalacao) => {
         throw error;
     }
 };
+
+
+// ==================== EQUIPAMENTOS ====================
+
+export const getEquipamentosMeta = async () => {
+    try {
+        const response = await api.get("/equipamentos/meta");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar metadados de equipamentos:", error);
+        throw error;
+    }
+};
+
+export const getAllEquipamentos = async () => {
+    try {
+        const response = await api.get("/equipamentos");
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar equipamentos:", error);
+        throw error;
+    }
+};
+
+export const getEquipamentosByInstalacao = async (tbInstalacao) => {
+    try {
+        const response = await api.get(`/equipamentos/by-instalacao/${tbInstalacao}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar equipamentos:", error);
+        throw error;
+    }
+};
+
+export const createEquipamento = async (data) => {
+    try {
+        const response = await api.post("/equipamentos", data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar equipamento:", error);
+        throw error;
+    }
+};
+
+export const updateEquipamento = async (pk, data) => {
+    try {
+        const response = await api.put(`/equipamentos/${pk}`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar equipamento:", error);
+        throw error;
+    }
+};
+
+export const deleteEquipamento = async (pk) => {
+    try {
+        const response = await api.delete(`/equipamentos/${pk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao eliminar equipamento:", error);
+        throw error;
+    }
+};
+
+export const getEquipamentoAloc = async (equipPk) => {
+    try {
+        const response = await api.get(`/equipamentos/${equipPk}/aloc`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao buscar alocações:", error);
+        throw error;
+    }
+};
+
+export const createEquipamentoAloc = async (equipPk, data) => {
+    try {
+        const response = await api.post(`/equipamentos/${equipPk}/aloc`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao criar alocação:", error);
+        throw error;
+    }
+};
+
+export const updateEquipamentoAloc = async (equipPk, alocPk, data) => {
+    try {
+        const response = await api.put(`/equipamentos/${equipPk}/aloc/${alocPk}`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao atualizar alocação:", error);
+        throw error;
+    }
+};
+
+export const deleteEquipamentoAloc = async (equipPk, alocPk) => {
+    try {
+        const response = await api.delete(`/equipamentos/${equipPk}/aloc/${alocPk}`);
+        return response.data;
+    } catch (error) {
+        console.error("Erro ao eliminar alocação:", error);
+        throw error;
+    }
+};
+
+export const getEquipamentoSpecs = async (equipPk) => {
+    try {
+        const response = await api.get(`/equipamentos/${equipPk}/specs`);
+        return response.data;
+    } catch (error) { console.error("Erro ao buscar especificações:", error); throw error; }
+};
+
+export const createEquipamentoSpec = async (equipPk, data) => {
+    try {
+        const response = await api.post(`/equipamentos/${equipPk}/specs`, data);
+        return response.data;
+    } catch (error) { console.error("Erro ao criar especificação:", error); throw error; }
+};
+
+export const updateEquipamentoSpec = async (equipPk, specPk, data) => {
+    try {
+        const response = await api.put(`/equipamentos/${equipPk}/specs/${specPk}`, data);
+        return response.data;
+    } catch (error) { console.error("Erro ao atualizar especificação:", error); throw error; }
+};
+
+export const deleteEquipamentoSpec = async (equipPk, specPk) => {
+    try {
+        const response = await api.delete(`/equipamentos/${equipPk}/specs/${specPk}`);
+        return response.data;
+    } catch (error) { console.error("Erro ao eliminar especificação:", error); throw error; }
+};
+
+export const getEquipamentoRepairs = async (equipPk) => {
+    try {
+        const response = await api.get(`/equipamentos/${equipPk}/repairs`);
+        return response.data;
+    } catch (error) { console.error("Erro ao buscar manutenções:", error); throw error; }
+};
+
+export const createEquipamentoRepair = async (equipPk, data) => {
+    try {
+        const response = await api.post(`/equipamentos/${equipPk}/repairs`, data);
+        return response.data;
+    } catch (error) { console.error("Erro ao criar manutenção:", error); throw error; }
+};
+
+export const updateEquipamentoRepair = async (equipPk, repPk, data) => {
+    try {
+        const response = await api.put(`/equipamentos/${equipPk}/repairs/${repPk}`, data);
+        return response.data;
+    } catch (error) { console.error("Erro ao atualizar manutenção:", error); throw error; }
+};
+
+export const deleteEquipamentoRepair = async (equipPk, repPk) => {
+    try {
+        const response = await api.delete(`/equipamentos/${equipPk}/repairs/${repPk}`);
+        return response.data;
+    } catch (error) { console.error("Erro ao eliminar manutenção:", error); throw error; }
+};
+
+export const reallocarEquipamento = async (equipPk, data) => {
+    try {
+        const response = await api.post(`/equipamentos/${equipPk}/reallocar`, data);
+        return response.data;
+    } catch (error) { console.error("Erro ao realocar equipamento:", error); throw error; }
+};
