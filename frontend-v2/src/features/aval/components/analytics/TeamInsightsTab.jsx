@@ -11,7 +11,6 @@ import {
 // ── Constantes ────────────────────────────────────────────────
 const C = { colab: '#1976d2', rel: '#ed6c02', prof: '#2e7d32' };
 const TIER_COLORS = { A: '#FFD700', B: '#9E9E9E', C: '#CD7F32' };
-const TIER_LABELS = { A: 'Tier A — Top 20%', B: 'Tier B — Meio 60%', C: 'Tier C — Bottom 20%' };
 
 // ── Helpers ───────────────────────────────────────────────────
 const initials = (name) =>
@@ -83,91 +82,157 @@ function MediasSection({ globalData }) {
   );
 }
 
-// ── Secção 2: Dispersão ───────────────────────────────────────
+// ── Secção 2: Dispersão (histograma) ──────────────────────────
 function DispersaoSection({ currentUsers }) {
-  const sorted = [...currentUsers].sort((a, b) => b.media_global - a.media_global);
-  const teamAvg = sorted.length
-    ? Math.round(sorted.reduce((s, u) => s + u.media_global, 0) / sorted.length * 10) / 10
-    : 0;
+  const scores = currentUsers.map((u) => +u.media_global);
+  const n = scores.length;
+  if (!n) return null;
 
-  const barData = sorted.map((u, i) => ({
-    pos: i + 1,
-    score: +u.media_global,
-    fill: +u.media_global >= teamAvg ? C.colab : '#ef9a9a',
+  const mean   = scores.reduce((s, v) => s + v, 0) / n;
+  const stdDev = Math.sqrt(scores.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+  const minVal = Math.min(...scores);
+  const maxVal = Math.max(...scores);
+
+  // 10 bins: [0–1), [1–2), …, [9–10]
+  const bins = Array.from({ length: 10 }, (_, i) => ({
+    label: i === 9 ? '9–10' : `${i}–${i + 1}`,
+    count: scores.filter((s) => (i === 9 ? s >= 9 : s >= i && s < i + 1)).length,
+    binStart: i,
   }));
+
+  const binColor = (i) => i < 4 ? '#ef9a9a' : i < 7 ? '#ffcc80' : '#a5d6a7';
+
+  const [alignLabel, alignColor] =
+    stdDev < 1.5 ? ['Equipa alinhada',    'success'] :
+    stdDev < 2.5 ? ['Dispersão moderada', 'warning'] :
+                   ['Equipa polarizada',  'error'  ];
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="subtitle2">Dispersão de Resultados</Typography>
-        <Chip size="small" label={`Média equipa: ${teamAvg}`} color="primary" variant="outlined" />
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+        <Typography variant="subtitle2">Distribuição de Resultados</Typography>
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" justifyContent="flex-end">
+          <Chip size="small" label={`Média ${mean.toFixed(1)}`} color="primary" variant="outlined" />
+          <Chip size="small" label={`σ ${stdDev.toFixed(1)}`} variant="outlined" />
+          <Chip size="small" label={alignLabel} color={alignColor} />
+        </Stack>
       </Box>
+
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={barData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="pos" tick={{ fontSize: 11 }} label={{ value: 'Posição', position: 'insideBottom', offset: -2, fontSize: 11 }} />
-          <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
-          <Tooltip formatter={(v) => [Number(v).toFixed(1), 'Média global']} labelFormatter={(l) => `Posição ${l}`} />
-          <ReferenceLine y={teamAvg} stroke="#1976d2" strokeDasharray="4 4" label={{ value: `Avg ${teamAvg}`, fill: '#1976d2', fontSize: 11 }} />
-          <Bar dataKey="score" radius={[3, 3, 0, 0]}>
-            {barData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+        <BarChart data={bins} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+          <Tooltip
+            formatter={(v) => [v, 'Colaboradores']}
+            labelFormatter={(l) => `Notas ${l}`}
+          />
+          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+            {bins.map((b) => <Cell key={b.label} fill={binColor(b.binStart)} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+
       <Typography variant="caption" color="text.secondary" mt={1} display="block">
-        Azul = acima da média · Vermelho = abaixo da média · Sem nomes (anonimato)
+        Min: {minVal.toFixed(1)} · Máx: {maxVal.toFixed(1)} · {n} colaboradores
+        &nbsp;·&nbsp; Vermelho = notas baixas (0–4) · Verde = notas altas (7–10)
       </Typography>
     </Paper>
   );
 }
 
 // ── Secção 3: Tiers ───────────────────────────────────────────
+const TIER_DEFS = [
+  { id: 'A', label: 'Tier A — Top 20%',    bg: '#fffde7' },
+  { id: 'B', label: 'Tier B — Meio 60%',   bg: '#f5f5f5' },
+  { id: 'C', label: 'Tier C — Bottom 20%', bg: '#fff3e0' },
+];
+
 function TiersSection({ currentUsers }) {
-  const tiered  = assignTiers(currentUsers);
-  const tierA   = tiered.filter((u) => u.tier === 'A');
-  const tierB   = tiered.filter((u) => u.tier === 'B');
-  const tierC   = tiered.filter((u) => u.tier === 'C');
-  const pieData = [
-    { name: 'Tier A', value: tierA.length, color: TIER_COLORS.A },
-    { name: 'Tier B', value: tierB.length, color: TIER_COLORS.B },
-    { name: 'Tier C', value: tierC.length, color: TIER_COLORS.C },
-  ];
+  const tiered = assignTiers(currentUsers);
+  const byTier = {
+    A: tiered.filter((u) => u.tier === 'A'),
+    B: tiered.filter((u) => u.tier === 'B'),
+    C: tiered.filter((u) => u.tier === 'C'),
+  };
+
+  const pieData = TIER_DEFS.map(({ id, label }) => ({
+    name: label.split(' — ')[0],
+    value: byTier[id].length,
+    color: TIER_COLORS[id],
+  }));
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Typography variant="subtitle2" mb={2}>Distribuição por Tier</Typography>
-      <Grid container spacing={2} alignItems="center">
+      <Grid container spacing={2} alignItems="flex-start">
         <Grid size={{ xs: 12, sm: 5 }}>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" outerRadius={70} dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                outerRadius={65}
+                dataKey="value"
+                label={({ name, value }) => `${name}: ${value}`}
+                labelLine={false}
+              >
                 {pieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(v, name) => [`${v} pessoa${v !== 1 ? 's' : ''}`, name]} />
             </PieChart>
           </ResponsiveContainer>
         </Grid>
+
         <Grid size={{ xs: 12, sm: 7 }}>
-          {[{ tier: 'A', list: tierA }, { tier: 'B', list: tierB }, { tier: 'C', list: tierC }].map(({ tier, list }) => (
-            <Box key={tier} mb={1.5}>
-              <Typography variant="caption" fontWeight={600} color="text.secondary">
-                {TIER_LABELS[tier]} ({list.length} pessoa{list.length !== 1 ? 's' : ''})
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={0.5} mt={0.5}>
-                {list.map((u) => (
-                  <Chip
-                    key={u.colaborador}
-                    size="small"
-                    avatar={<Avatar sx={{ bgcolor: TIER_COLORS[tier], fontSize: 10 }}>{initials(u.colaborador)}</Avatar>}
-                    label={u.colaborador.split(' ')[0]}
-                    variant="outlined"
-                    sx={{ borderColor: TIER_COLORS[tier] }}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          ))}
+          <Stack spacing={1}>
+            {TIER_DEFS.map(({ id, label, bg }) => {
+              const list = byTier[id];
+              return (
+                <Box
+                  key={id}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1,
+                    bgcolor: bg,
+                    border: '1px solid',
+                    borderColor: `${TIER_COLORS[id]}60`,
+                  }}
+                >
+                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.75}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary">
+                      {label}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={`${list.length} pessoa${list.length !== 1 ? 's' : ''}`}
+                      sx={{
+                        bgcolor: TIER_COLORS[id],
+                        color: id === 'B' ? 'text.primary' : '#fff',
+                        fontSize: 11,
+                        height: 20,
+                      }}
+                    />
+                  </Box>
+                  <Box display="flex" flexWrap="wrap" gap={0.5}>
+                    {list.map((u) => (
+                      <Chip
+                        key={u.colaborador}
+                        label={u.colaborador.split(' ')[0]}
+                        size="small"
+                        variant="outlined"
+                        sx={{ borderColor: TIER_COLORS[id], fontSize: 11 }}
+                      />
+                    ))}
+                    {list.length === 0 && (
+                      <Typography variant="caption" color="text.disabled">—</Typography>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Stack>
         </Grid>
       </Grid>
     </Paper>

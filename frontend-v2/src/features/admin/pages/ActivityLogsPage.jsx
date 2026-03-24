@@ -165,6 +165,10 @@ const ActivityLogsPage = () => {
         <Divider />
         {isError ? (
           <Alert severity="error" sx={{ m: 2 }}>Erro ao carregar logs de atividade.</Alert>
+        ) : !isLoading && logs.length === 0 ? (
+          <Alert severity="info" sx={{ m: 2 }}>
+            Não existem registos de auditoria. Esta funcionalidade requer uma tabela de logs dedicada na base de dados.
+          </Alert>
         ) : (
           <DataGrid
             rows={filtered}

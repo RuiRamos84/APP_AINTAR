@@ -14,7 +14,7 @@ from app.services.meta_data_service import clear_meta_data_cache
 logger = get_logger(__name__)
 
 
-# ── Estado dos Serviços ───────────────────────────────────────────────────────
+# ── Estado dos Serviços ──────────────────────────────────────────────────────
 
 @api_error_handler
 def get_system_status(current_user: str):
@@ -111,7 +111,7 @@ def get_system_status(current_user: str):
     }, 200
 
 
-# ── Cache ─────────────────────────────────────────────────────────────────────
+# ── Cache ────────────────────────────────────────────────────────────────────
 
 @api_error_handler
 def clear_all_caches(current_user: str):
@@ -154,7 +154,7 @@ def save_system_config(data: dict, current_user: str):
     }, 200
 
 
-# ── Ações Administrativas ─────────────────────────────────────────────────────
+# ── Ações Administrativas ────────────────────────────────────────────────────
 
 @api_error_handler
 def run_admin_action(key: str, current_user: str):
@@ -230,16 +230,17 @@ def run_admin_action(key: str, current_user: str):
         )
         return {
             'message': (
-                'Backup automático não configurado. '
-                'Contacte o departamento de IT.'
-            )
-        }, 501
+                'Backup automático não configurado nesta versão. '
+                'Contacte o departamento de IT para backups manuais.'
+            ),
+            'status': 'not_configured',
+        }, 200
 
     else:
         return {'message': f'Ação desconhecida: {key}'}, 400
 
 
-# ── Logs ──────────────────────────────────────────────────────────────────────
+# ── Logs ─────────────────────────────────────────────────────────────────────
 
 @api_error_handler
 def get_activity_logs(filters: dict, current_user: str):

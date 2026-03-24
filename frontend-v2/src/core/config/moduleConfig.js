@@ -1,10 +1,10 @@
 import {
   Engineering,
-  Business,
+  AccountTree,        // Gestão: hierarquia de infraestrutura
   Payment,
-  Dashboard,
+  Analytics,          // Dashboards: mais visual que Dashboard genérico
   AdminPanelSettings,
-  Description,
+  BusinessCenter,     // Interno: área administrativa interna
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap.js';
 
@@ -35,7 +35,7 @@ export const MODULES = {
   GESTAO: {
     id: 'gestao',
     label: 'Gestão',
-    icon: Business,
+    icon: AccountTree,
     color: '#4caf50', // Verde
     order: 2,
     permissions: {
@@ -73,7 +73,7 @@ export const MODULES = {
   DASHBOARDS: {
     id: 'dashboards',
     label: 'Dashboards',
-    icon: Dashboard,
+    icon: Analytics,
     color: '#9c27b0', // Roxo
     order: 4,
     permissions: {
@@ -105,18 +105,17 @@ export const MODULES = {
   ADMINISTRATIVO: {
     id: 'administrativo',
     label: 'Interno',
-    icon: Description,
+    icon: BusinessCenter,
     color: '#607d8b', // Cinza azulado
     order: 6,
     permissions: {
       required: [
         PERMISSIONS.TASKS_VIEW,
         PERMISSIONS.EPI_MANAGEMENT,
-        PERMISSIONS.INVENTORY_VIEW,
         PERMISSIONS.OFFICES_VIEW,
       ]
     },
-    description: 'Tarefas administrativas, EPI, frota e inventário',
+    description: 'Tarefas administrativas, EPI, frota e requisições',
     defaultRoute: '/tasks',
   },
 };
@@ -201,7 +200,6 @@ export const detectModuleFromPath = (pathname) => {
     // ADMINISTRATIVO
     '/tasks': 'administrativo',
     '/internal': 'administrativo',
-    '/equipamento': 'administrativo',
     '/epi': 'administrativo',
     '/fleet': 'administrativo',
     '/inventory': 'administrativo',

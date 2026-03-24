@@ -13,17 +13,6 @@ export const getInstallationVolumeRecords = async (tbInstalacao) => {
         throw error;
     }
 };
-export const getInventoryRecords = async () => {
-    try {
-        const response = await api.get("/inventory_list");
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao buscar inventário:", error);
-        throw error;
-    }
-};
-    
-
 
 export const addInstallationVolumeRecord = async (data) => {
     try {
@@ -113,7 +102,6 @@ export const getExpenseRecords = async (type) => {
             case "rede": url = `/rede_expenses`; break;
             case "ramal": url = `/ramal_expenses`; break;
             case "manutencao": url = `/manut_expenses`; break;
-            case "equip": url = "/equip_expenses"; break;
             default: throw new Error("Tipo de despesa inválido");
         }
         const response = await api.get(url);
@@ -131,7 +119,6 @@ export const addExpenseRecord = async (type, data) => {
             case "rede": url = "/rede_expense"; break;
             case "ramal": url = "/ramal_expense"; break;
             case "manutencao": url = "/manut_expense"; break;
-            case "equip": url = "/equip_expense"; break;
             default: throw new Error("Tipo de despesa inválido");
         }
         const response = await api.post(url, data);
@@ -222,21 +209,6 @@ export const updateEntityDetails = async (areaId, pk, data) => {
         throw error;
     }
 };
-export const updateInventoryRecord = async (pk, data) => {
-    try {
-        if (!pk) throw new Error("PK do inventário inválido.");
-        if (!data || Object.keys(data).length === 0) {
-            throw new Error("Dados inválidos para atualização.");
-        }
-
-        const response = await api.put(`/inventory_update/${pk}`, data);
-        return response.data;
-
-    } catch (error) {
-        console.error("Erro ao atualizar inventário:", error);
-        throw error;
-    }
-};
 export const updateVehicleAssignRegister = async (pk, data) => {
     try {
         if (!pk) throw new Error("PK do inventário inválido.");
@@ -266,16 +238,6 @@ export const addMaintenance = async (type, pk) => {
         return response.data;
     } catch (error) {
         console.error("Erro ao adicionar manutenção:", error);
-        throw error;
-    }
-};
-export const addInventoryRecord = async (data) => {
-    try {
-        if (!data) throw new Error("Dados inválidos.");
-        const response = await api.post("/inventory_create", data);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao adicionar inventário:", error);
         throw error;
     }
 };
@@ -444,114 +406,6 @@ export const getVehicleMaintenance = async () => {
         return response.data;
     } catch (error) {
         console.error("Erro ao buscar lista de veículos:", error);
-        throw error;
-    }
-};
-
-// ==================== EQUIPAMENTOS INSTALADOS ====================
-
-export const openEquipamentoFile = async (filePath) => {
-    try {
-        const filename = filePath.split(/[/\\]/).pop();
-        const response = await api.get(`/equipamento_file/${filename}`, { responseType: 'blob' });
-        const url = URL.createObjectURL(response.data);
-        window.open(url, '_blank');
-    } catch (error) {
-        console.error("Erro ao abrir ficheiro:", error);
-        throw error;
-    }
-};
-
-export const getEquipamentoAloc = async () => {
-    try {
-        const response = await api.get("/equipamento_aloc_list");
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao buscar alocações:", error);
-        throw error;
-    }
-};
-
-export const createEquipamentoAloc = async (data) => {
-    try {
-        const response = await api.post("/equipamento_aloc_create", data);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao criar alocação:", error);
-        throw error;
-    }
-};
-
-export const updateEquipamentoAloc = async (pk, data) => {
-    try {
-        const response = await api.put(`/equipamento_aloc_update/${pk}`, data);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao atualizar alocação:", error);
-        throw error;
-    }
-};
-
-export const deleteEquipamentoAloc = async (pk) => {
-    try {
-        const response = await api.delete(`/equipamento_aloc_delete/${pk}`);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao eliminar alocação:", error);
-        throw error;
-    }
-};
-
-export const getAllEquipamentos = async () => {
-    try {
-        const response = await api.get("/equipamento_list");
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao buscar equipamentos:", error);
-        throw error;
-    }
-};
-
-export const getEquipamentosByInstalacao = async (tbInstalacao) => {
-    try {
-        const response = await api.get(`/equipamento_list/${tbInstalacao}`);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao buscar equipamentos:", error);
-        throw error;
-    }
-};
-
-export const createEquipamento = async (formData) => {
-    try {
-        const response = await api.post("/equipamento_create", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-        });
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao criar equipamento:", error);
-        throw error;
-    }
-};
-
-export const updateEquipamento = async (pk, formData) => {
-    try {
-        const response = await api.put(`/equipamento_update/${pk}`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-        });
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao atualizar equipamento:", error);
-        throw error;
-    }
-};
-
-export const deleteEquipamento = async (pk) => {
-    try {
-        const response = await api.delete(`/equipamento_delete/${pk}`);
-        return response.data;
-    } catch (error) {
-        console.error("Erro ao eliminar equipamento:", error);
         throw error;
     }
 };

@@ -133,6 +133,10 @@ const SessionLogsPage = () => {
         <Divider />
         {isError ? (
           <Alert severity="error" sx={{ m: 2 }}>Erro ao carregar logs de sessões.</Alert>
+        ) : !isLoading && sessions.length === 0 ? (
+          <Alert severity="info" sx={{ m: 2 }}>
+            Não existem registos de sessões. Esta funcionalidade requer uma tabela de sessões dedicada na base de dados.
+          </Alert>
         ) : (
           <DataGrid
             rows={filtered}

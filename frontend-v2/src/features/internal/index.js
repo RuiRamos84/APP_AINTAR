@@ -1,5 +1,4 @@
 export { default as InternalDashboardPage } from './pages/InternalDashboardPage';
-export { default as InventoryPage } from './pages/InventoryPage';
 export { default as RequisicaoInternaPage } from './pages/RequisicaoInternaPage';
 export { default as MaintenancePage } from './pages/MaintenancePage';
 export { default as EquipmentPage } from './pages/EquipmentPage';

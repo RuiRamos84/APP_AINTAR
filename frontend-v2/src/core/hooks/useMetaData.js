@@ -103,20 +103,6 @@ export const useExpenseTypes = () => {
 };
 
 /**
- * Hook para buscar tipos de inventário
- * @returns {Object} { data: inventoryTypes, isLoading, error }
- */
-export const useInventoryTypes = () => {
-  const { data: metaData, isLoading, error } = useMetaData();
-
-  return {
-    data: metaData?.inventory_type || [],
-    isLoading,
-    error,
-  };
-};
-
-/**
  * Hook para buscar lista de ETARs
  */
 export const useETARList = () => {

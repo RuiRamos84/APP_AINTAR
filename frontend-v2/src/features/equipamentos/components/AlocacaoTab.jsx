@@ -17,13 +17,14 @@ const ALOC_COLORS = {
 };
 
 function AlocForm({ open, onClose, onSubmit, aloc, meta }) {
-  const { alocTipos = [], instalacoes = [], localizacoes = [], alocInstalacaoPk } = meta || {};
+  const { alocTipos = [], instalacoes = [], localizacoes = [], clientes = [], alocInstalacaoPk } = meta || {};
 
   const { control, handleSubmit, watch, reset, formState: { isSubmitting, errors } } = useForm({
     defaultValues: {
       alocTipoId: '',
       instalacaoId: '',
       localizacaoId: '',
+      clientId: '',
       startDate: new Date().toISOString().split('T')[0],
       stopDate: '',
       memo: '',
@@ -39,6 +40,7 @@ function AlocForm({ open, onClose, onSubmit, aloc, meta }) {
               alocTipoId: alocTipos.find((t) => t.value === aloc.alocTipo)?.pk ?? '',
               instalacaoId: aloc.instalacaoId ?? '',
               localizacaoId: localizacoes.find((l) => l.value === aloc.localizacao)?.pk ?? '',
+              clientId: clientes.find((c) => c.name === aloc.client)?.pk ?? '',
               startDate: aloc.startDate?.split('T')[0] ?? '',
               stopDate: aloc.stopDate?.split('T')[0] ?? '',
               memo: aloc.memo ?? '',
@@ -48,6 +50,7 @@ function AlocForm({ open, onClose, onSubmit, aloc, meta }) {
               alocTipoId: '',
               instalacaoId: '',
               localizacaoId: '',
+              clientId: '',
               startDate: new Date().toISOString().split('T')[0],
               stopDate: '',
               memo: '',
@@ -120,6 +123,23 @@ function AlocForm({ open, onClose, onSubmit, aloc, meta }) {
                   />
                 </Grid>
               </>
+            )}
+
+            {clientes.length > 0 && (
+              <Grid size={12}>
+                <Controller
+                  name="clientId"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select fullWidth label="Cliente" size="small">
+                      <MenuItem value=""><em>— Sem cliente —</em></MenuItem>
+                      {clientes.map((c) => (
+                        <MenuItem key={c.pk} value={c.pk}>{c.name}</MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+              </Grid>
             )}
 
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -246,6 +266,7 @@ export default function AlocacaoTab({ equipamento, meta, canEdit, onAlocChange }
                 <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Instalação</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Localização</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Cliente</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Início</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Fim</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Obs.</TableCell>
@@ -264,6 +285,7 @@ export default function AlocacaoTab({ equipamento, meta, canEdit, onAlocChange }
                   </TableCell>
                   <TableCell>{a.instalacao || '—'}</TableCell>
                   <TableCell>{a.localizacao || '—'}</TableCell>
+                  <TableCell>{a.client || '—'}</TableCell>
                   <TableCell>{a.startDate ? a.startDate.split('T')[0] : '—'}</TableCell>
                   <TableCell>{a.stopDate ? a.stopDate.split('T')[0] : '—'}</TableCell>
                   <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

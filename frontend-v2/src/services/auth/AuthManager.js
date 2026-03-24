@@ -75,8 +75,16 @@ class AuthManager {
    * Setup API interceptors for authentication
    */
   setupApiInterceptors() {
+    // Eject any previously registered interceptors (prevents HMR duplication)
+    if (apiClient._authRequestInterceptorId != null) {
+      apiClient.interceptors.request.eject(apiClient._authRequestInterceptorId);
+    }
+    if (apiClient._authResponseInterceptorId != null) {
+      apiClient.interceptors.response.eject(apiClient._authResponseInterceptorId);
+    }
+
     // Request interceptor - add auth token
-    apiClient.interceptors.request.use(
+    apiClient._authRequestInterceptorId = apiClient.interceptors.request.use(
       (config) => {
         // Check if logout is in progress
         if (this.authState.getState().isLoggingOut) {
@@ -102,13 +110,14 @@ class AuthManager {
     );
 
     // Response interceptor - handle 401 and refresh token
-    apiClient.interceptors.response.use(
+    apiClient._authResponseInterceptorId = apiClient.interceptors.response.use(
       (response) => response.data,
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 Unauthorized
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Handle 401 Unauthorized — but NOT for auth endpoints (login, etc.)
+        const isAuthEndpoint = originalRequest?.url?.includes('/auth/');
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           originalRequest._retry = true;
 
           try {
@@ -129,7 +138,7 @@ class AuthManager {
           }
         }
 
-        // Extract backend error message if available
+        // Extract backend error message if available (backend uses 'erro' field)
         const backendMessage = error.response?.data?.erro;
         if (backendMessage) {
           const enrichedError = new Error(backendMessage);
@@ -161,7 +170,8 @@ class AuthManager {
 
       return user;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Erro ao fazer login');
+      // error.message is already enriched by the response interceptor (backend 'erro' field)
+      throw new Error(error.message || error.response?.data?.erro || 'Erro ao fazer login');
     }
   }
 

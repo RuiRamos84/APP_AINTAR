@@ -186,6 +186,22 @@ def create_tokens(user_data, refresh_count=0):
 
 def fs_login(username, password):
     try:
+        # Pre-check: verificar se a conta está desativada antes de chamar fs_login
+        # Permite retornar uma mensagem específica em vez do erro genérico do PostgreSQL
+        try:
+            with db_session_manager() as pre_session:
+                active_row = pre_session.execute(
+                    text("SELECT COALESCE(active, 1) FROM ts_client"
+                         " WHERE lower(username) = lower(:u)"),
+                    {'u': username}
+                ).fetchone()
+                if active_row is not None and int(active_row[0]) == 0:
+                    raise InvalidCredentialsError('Conta desativada. Contacte o administrador.')
+        except InvalidCredentialsError:
+            raise
+        except Exception as pre_err:
+            logger.warning(f'Pre-check de estado da conta falhou para {username}: {pre_err}')
+
         query = text("SELECT * FROM fs_login(:username, :password)")
         result = db.session.execute(
             query, {'username': username, 'password': password}).fetchone()
@@ -197,12 +213,16 @@ def fs_login(username, password):
             db.session.commit()
             return session_id, profil
         raise InvalidCredentialsError('Resposta inválida do procedimento de login.')
+    except InvalidCredentialsError:
+        raise
     except Exception as e:
+        db.session.rollback()
         logger.error(f'Erro ao executar fs_login para {username}: {str(e)}', exc_info=True)
-        # Se não for uma InvalidCredentialsError, lança um erro genérico
-        if not isinstance(e, InvalidCredentialsError):
-            raise APIError(f"Erro inesperado no login: {format_message(str(e))}", 500)
-        raise e
+        # Erros conhecidos do PostgreSQL (fs_login levanta exceção para credenciais inválidas)
+        err_str = format_message(str(e))
+        if 'CREDENCIAIS' in err_str.upper() or 'NÃO VALIDADO' in err_str.upper():
+            raise InvalidCredentialsError('Credenciais inválidas.')
+        raise APIError(f"Erro inesperado no login: {err_str}", 500)
 
 
 def decode_token(token):

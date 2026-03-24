@@ -25,7 +25,6 @@ import { useMetaData } from "../../../contexts/MetaDataContext";
 import EntityDetailsView from '../components/EntityDetailsView';
 import DetailsModal from "../components/DetailsModal";
 import IncumprimentosTable from '../components/IncumprimentosTable';
-import EquipamentoInstalacaoTable from '../components/EquipamentoInstalacaoTable';
 import VolumeRecordsTable from "../components/VolumeRecordsTable";
 import WaterVolumeRecordsTable from "../components/WaterVolumeRecordsTable";
 import EnergyRecordsTable from "../components/EnergyRecordsTable";
@@ -47,7 +46,6 @@ const SUB_AREAS = [
     { id: 'reparacao', name: 'Reparação', icon: <BuildIcon />, requiresEntity: true },
     { id: 'vedacao', name: 'Vedação', icon: <SecurityIcon />, requiresEntity: true },
     { id: 'qualidade_ambiental', name: 'Qualidade Ambiental', icon: <OpacityIcon />, requiresEntity: true },
-    { id: 'equipamentos', name: 'Equipamentos Instalados', icon: <BuildIcon />, requiresEntity: true },
     { id: 'obras', name: 'Obras', icon: <ConstructionIcon />, requiresEntity: true },
 ];
 
@@ -210,8 +208,6 @@ const EtarEeView = ({ areaId }) => {
                 return <ExpenseRecordsTable selectedEntity={selectedEntity} selectedArea={areaId} metaData={metaData} />;
             case 'incumprimentos':
                 return <IncumprimentosTable selectedEntity={selectedEntity} metaData={metaData} />;
-            case 'equipamentos':
-                return <EquipamentoInstalacaoTable selectedEntity={selectedEntity} metaData={metaData} />;
             case 'obras':
                 return <ObrasInstalacaoTable selectedEntity={selectedEntity} areaId={areaId} metaData={metaData} />;
             case 'reparacao':

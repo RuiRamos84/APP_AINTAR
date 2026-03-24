@@ -106,16 +106,25 @@ const AdminActionsPage = () => {
   const runAction = async () => {
     if (!dialog.action) return;
     setLoading(true);
+    const actionRef = dialog.action;
     closeDialog();
     const start = Date.now();
     try {
-      const res = await apiClient.post(`/admin/actions/${dialog.action.key}`);
+      const res = await apiClient.post(`/admin/actions/${actionRef.key}`);
       const duration = ((Date.now() - start) / 1000).toFixed(1);
-      toast.success(`${dialog.action.title} concluído em ${duration}s`);
-      setResults((prev) => [{ key: dialog.action.key, label: dialog.action.title, ok: true, time: new Date(), duration }, ...prev.slice(0, 9)]);
+      const msg = res?.message || `${actionRef.title} concluído em ${duration}s`;
+      toast.success(msg);
+      setResults((prev) => [
+        { key: actionRef.key, label: actionRef.title, ok: true, time: new Date(), duration },
+        ...prev.slice(0, 9),
+      ]);
     } catch (e) {
-      toast.error(`Erro: ${e.message}`);
-      setResults((prev) => [{ key: dialog.action.key, label: dialog.action.title, ok: false, time: new Date(), error: e.message }, ...prev.slice(0, 9)]);
+      const msg = e.response?.data?.message || e.response?.data?.erro || e.message;
+      toast.error(msg);
+      setResults((prev) => [
+        { key: actionRef.key, label: actionRef.title, ok: false, time: new Date(), error: msg },
+        ...prev.slice(0, 9),
+      ]);
     } finally {
       setLoading(false);
     }

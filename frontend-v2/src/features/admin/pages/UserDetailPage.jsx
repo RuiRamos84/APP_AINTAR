@@ -178,12 +178,18 @@ const UserDetailPage = () => {
   // ── Ações de estado ────────────────────────────────────────────────────
   const handleToggleStatus = async () => {
     try {
-      const newStatus = !user.active;
-      await toggleUserStatus(userId, newStatus);
-      setUser(prev => ({ ...prev, active: newStatus }));
-      setFormData(prev => ({ ...prev, active: newStatus }));
-      setOriginalData(prev => ({ ...prev, active: newStatus }));
-      notification.success(newStatus ? 'Utilizador ativado' : 'Utilizador desativado');
+      const activate = user.status === 'disabled'; // activa se desativado, desativa nos outros casos
+      await toggleUserStatus(userId, activate);
+      const newActive = activate;
+      let newUserStatus;
+      if (!newActive) newUserStatus = 'disabled';
+      else if (!user.email_validated) newUserStatus = 'pending';
+      else newUserStatus = 'active';
+      const patch = { active: newActive, status: newUserStatus };
+      setUser(prev => ({ ...prev, ...patch }));
+      setFormData(prev => ({ ...prev, ...patch }));
+      setOriginalData(prev => ({ ...prev, ...patch }));
+      notification.success(activate ? 'Utilizador ativado' : 'Utilizador desativado');
     } catch (err) {
       notification.error(err.message || 'Erro ao alterar estado');
     }
@@ -279,10 +285,14 @@ const UserDetailPage = () => {
                 size="small"
                 sx={{ bgcolor: alpha(avatarColor, 0.12), color: avatarColor, fontWeight: 700, fontSize: '0.7rem' }}
               />
-              {user.active ? (
+              {user.status === 'active' && (
                 <Chip icon={<CheckCircleIcon sx={{ fontSize: '0.85rem !important' }} />} label="Ativo" size="small" color="success" variant="outlined" />
-              ) : (
+              )}
+              {user.status === 'pending' && (
                 <Chip icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Pendente" size="small" color="warning" variant="outlined" />
+              )}
+              {user.status === 'disabled' && (
+                <Chip icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Desativo" size="small" color="error" variant="outlined" />
               )}
             </Stack>
 
@@ -313,11 +323,11 @@ const UserDetailPage = () => {
                 fullWidth
                 variant="outlined"
                 size="small"
-                color={user.active ? 'warning' : 'success'}
-                startIcon={user.active ? <BlockIcon /> : <CheckCircleIcon />}
+                color={user.status === 'disabled' ? 'success' : 'error'}
+                startIcon={user.status === 'disabled' ? <CheckCircleIcon /> : <BlockIcon />}
                 onClick={handleToggleStatus}
               >
-                {user.active ? 'Desativar conta' : 'Ativar conta'}
+                {user.status === 'disabled' ? 'Ativar conta' : 'Desativar conta'}
               </Button>
               <Button
                 fullWidth

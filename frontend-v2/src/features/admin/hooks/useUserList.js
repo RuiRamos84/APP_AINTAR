@@ -36,7 +36,7 @@ export const useUserList = () => {
   const [search, setSearch] = useState('');
 
   // Filtro de estado
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'pending' | 'disabled'
 
   // ── Debounce da pesquisa (350ms) ─────────────────────────────────────────
   useEffect(() => {
@@ -58,11 +58,25 @@ export const useUserList = () => {
       const response = await listUsers();
       const raw = response?.users ?? (Array.isArray(response) ? response : []);
 
-      // Normalizar: backend devolve `interface` (singular); a app usa `interfaces`
-      const normalized = raw.map(u => ({
-        ...u,
-        interfaces: u.interfaces ?? u.interface ?? [],
-      }));
+      // Normalizar: garante `interfaces`, `active`, `email_validated` e `status`
+      const normalized = raw.map(u => {
+        const active = u.active ?? true;
+        const emailValidated = u.email_validated ?? (u.validated === 0);
+        // `status` pode já vir do backend; se não, calcula aqui
+        let status = u.status;
+        if (!status) {
+          if (!active)          status = 'disabled';
+          else if (!emailValidated) status = 'pending';
+          else                  status = 'active';
+        }
+        return {
+          ...u,
+          interfaces: u.interfaces ?? u.interface ?? [],
+          active,
+          email_validated: emailValidated,
+          status,
+        };
+      });
 
       setAllUsers(normalized);
     } catch (err) {
@@ -90,8 +104,7 @@ export const useUserList = () => {
     }
 
     // Filtro de estado
-    if (statusFilter === 'active')   result = result.filter(u => u.active);
-    if (statusFilter === 'inactive') result = result.filter(u => !u.active);
+    if (statusFilter !== 'all') result = result.filter(u => u.status === statusFilter);
 
     // Ordenação
     result = [...result].sort((a, b) => {
@@ -116,6 +129,14 @@ export const useUserList = () => {
 
   const totalCount = filteredSorted.length;
 
+  // ── Estatísticas sobre TODOS os utilizadores filtrados (não só a página) ─
+  const stats = useMemo(() => ({
+    total:    filteredSorted.length,
+    active:   filteredSorted.filter(u => u.status === 'active').length,
+    pending:  filteredSorted.filter(u => u.status === 'pending').length,
+    disabled: filteredSorted.filter(u => u.status === 'disabled').length,
+  }), [filteredSorted]);
+
   // ── Ações ────────────────────────────────────────────────────────────────
   const handleDeleteUser = useCallback(async (userId) => {
     try {
@@ -129,14 +150,20 @@ export const useUserList = () => {
     }
   }, [fetchUsers]);
 
-  const handleToggleStatus = useCallback(async (userId, active) => {
+  const handleToggleStatus = useCallback(async (userId, activate) => {
     try {
-      await toggleUserStatus(userId, active);
-      notification.success(active ? 'Utilizador ativado' : 'Utilizador desativado');
-      // Atualiza localmente sem refetch
-      setAllUsers(prev => prev.map(u =>
-        u.user_id === userId ? { ...u, active } : u
-      ));
+      await toggleUserStatus(userId, activate);
+      notification.success(activate ? 'Utilizador ativado' : 'Utilizador desativado');
+      // Atualiza localmente sem refetch: recalcula status a partir de active + email_validated
+      setAllUsers(prev => prev.map(u => {
+        if (u.user_id !== userId) return u;
+        const newActive = activate;
+        let newStatus;
+        if (!newActive) newStatus = 'disabled';
+        else if (!u.email_validated) newStatus = 'pending';
+        else newStatus = 'active';
+        return { ...u, active: newActive, status: newStatus };
+      }));
       return true;
     } catch (err) {
       notification.error(err.message || 'Erro ao alterar estado do utilizador');
@@ -169,6 +196,7 @@ export const useUserList = () => {
   return {
     users,
     totalCount,
+    stats,
     isLoading,
     error,
     page,

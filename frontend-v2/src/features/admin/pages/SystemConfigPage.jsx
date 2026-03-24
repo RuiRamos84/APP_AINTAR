@@ -67,6 +67,27 @@ const ServiceCard = ({ label, status, detail, icon: Icon, color }) => {
   );
 };
 
+// ─── Configuração local de ícones/cores por serviço ──────────────────────────
+// (A API não devolve ícones — são sempre definidos no frontend)
+
+const SERVICE_CFG = {
+  db:        { icon: DBIcon,        color: '#2196f3' },
+  email:     { icon: EmailIcon,     color: '#ff9800' },
+  socket:    { icon: SocketIcon,    color: '#4caf50' },
+  cache:     { icon: DBIcon,        color: '#9c27b0' },
+  auth:      { icon: SecurityIcon,  color: '#f44336' },
+  scheduler: { icon: SchedulerIcon, color: '#607d8b' },
+};
+
+const DEFAULT_SERVICES = [
+  { key: 'db',        label: 'Base de Dados', status: 'ok', detail: 'PostgreSQL' },
+  { key: 'email',     label: 'Email (SMTP)',   status: 'ok', detail: 'Office365 SMTP' },
+  { key: 'socket',    label: 'WebSockets',     status: 'ok', detail: 'Socket.IO / Eventlet' },
+  { key: 'cache',     label: 'Cache (Redis)',  status: 'ok', detail: 'Redis' },
+  { key: 'auth',      label: 'JWT / Auth',     status: 'ok', detail: 'Flask-JWT-Extended' },
+  { key: 'scheduler', label: 'Scheduler',      status: 'ok', detail: 'APScheduler' },
+];
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 const SystemConfigPage = () => {
@@ -99,15 +120,12 @@ const SystemConfigPage = () => {
     }
   };
 
-  // Serviços para mostrar (dados reais da API ou defaults)
-  const services = systemStatus?.services ?? [
-    { key: 'db',       label: 'Base de Dados',  icon: DBIcon,        color: '#2196f3', status: systemStatus?.database ?? 'ok',    detail: 'PostgreSQL' },
-    { key: 'email',    label: 'Email (SMTP)',    icon: EmailIcon,     color: '#ff9800', status: systemStatus?.email ?? 'ok',       detail: 'Office365 SMTP' },
-    { key: 'socket',   label: 'WebSockets',      icon: SocketIcon,    color: '#4caf50', status: systemStatus?.socket ?? 'ok',      detail: 'Socket.IO / Eventlet' },
-    { key: 'cache',    label: 'Cache (Redis)',    icon: DBIcon,        color: '#9c27b0', status: systemStatus?.cache ?? 'ok',       detail: 'Redis' },
-    { key: 'security', label: 'JWT / Auth',       icon: SecurityIcon,  color: '#f44336', status: systemStatus?.auth ?? 'ok',        detail: 'Flask-JWT-Extended' },
-    { key: 'scheduler',label: 'Scheduler',        icon: SchedulerIcon, color: '#607d8b', status: systemStatus?.scheduler ?? 'ok',   detail: 'APScheduler' },
-  ];
+  // Mescla dados da API com config local (ícones/cores)
+  const rawServices = systemStatus?.services ?? DEFAULT_SERVICES;
+  const services = rawServices.map((svc) => ({
+    ...svc,
+    ...(SERVICE_CFG[svc.key] ?? { icon: DBIcon, color: '#607d8b' }),
+  }));
 
   return (
     <ModulePage
@@ -131,9 +149,9 @@ const SystemConfigPage = () => {
               Estado dos Serviços
             </Typography>
             <Grid container spacing={1.5}>
-              {services.map((svc) => (
-                <Grid key={svc.key} size={{ xs: 12, sm: 6 }}>
-                  <ServiceCard {...svc} />
+              {services.map(({ key: svcKey, ...svcProps }) => (
+                <Grid key={svcKey} size={{ xs: 12, sm: 6 }}>
+                  <ServiceCard {...svcProps} />
                 </Grid>
               ))}
             </Grid>

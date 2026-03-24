@@ -4,25 +4,15 @@ import {
   Typography, Box, Chip,
 } from '@mui/material';
 import {
-  Inventory as InventoryIcon,
   Work as EPIIcon,
   DirectionsCar as FleetIcon,
   Description as RequestIcon,
-  Settings as EquipIcon,
+  GridView as InternalIcon,
 } from '@mui/icons-material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 
 const AREAS = [
-  {
-    id: 'inventario',
-    label: 'Inventário',
-    description: 'Gestão de ativos e equipamentos atribuídos',
-    icon: InventoryIcon,
-    color: '#1976d2',
-    path: '/internal/inventario',
-    ready: true,
-  },
   {
     id: 'requisicao',
     label: 'Requisição Interna',
@@ -48,15 +38,6 @@ const AREAS = [
     icon: FleetIcon,
     color: '#6a1b9a',
     path: '/fleet',
-    ready: true,
-  },
-  {
-    id: 'equipamento',
-    label: 'Equipamentos Instalados',
-    description: 'Registo de equipamentos em ETAR e estações elevatórias',
-    icon: EquipIcon,
-    color: '#5c6bc0',
-    path: '/internal/equipamento',
     ready: true,
   },
 ];
@@ -128,13 +109,13 @@ const InternalDashboardPage = () => {
   return (
     <ModulePage
       title="Área Interna"
-      icon={InventoryIcon}
+      icon={InternalIcon}
       color={theme.palette.primary.main}
       breadcrumbs={[{ label: 'Início', path: '/home' }, { label: 'Área Interna' }]}
     >
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Aceda aos recursos administrativos internos: inventário, EPI, frota e requisições.
+          Aceda aos recursos administrativos internos: EPI, frota e requisições.
         </Typography>
       </Box>
 

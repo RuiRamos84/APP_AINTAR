@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -114,6 +114,7 @@ const UserListPage = () => {
   const {
     users,
     totalCount,
+    stats,
     isLoading,
     error,
     page,
@@ -152,12 +153,7 @@ const UserListPage = () => {
   const [bulkPermissionsDialog, setBulkPermissionsDialog] = useState(false);
   const [bulkAction, setBulkAction] = useState(null);
 
-  // ── Estatísticas calculadas a partir da lista visível ──────────────────
-  const stats = useMemo(() => {
-    const active = users.filter(u => u.active).length;
-    const inactive = users.filter(u => !u.active).length;
-    return { total: totalCount, active, inactive };
-  }, [users, totalCount]);
+  // stats vem do hook (calculado sobre todos os utilizadores filtrados)
 
   // ── Menu ────────────────────────────────────────────────────────────────
   const handleOpenMenu = (e, user) => { setAnchorEl(e.currentTarget); setSelectedUser(user); };
@@ -180,7 +176,9 @@ const UserListPage = () => {
   };
 
   const handleToggle = async () => {
-    await handleToggleStatus(selectedUser.user_id, !selectedUser.active);
+    // activa se estiver desativado; desativa nos outros casos
+    const activate = selectedUser.status === 'disabled';
+    await handleToggleStatus(selectedUser.user_id, activate);
     handleCloseMenu();
   };
 
@@ -257,9 +255,10 @@ const UserListPage = () => {
             size="small"
             sx={{ display: { xs: 'none', sm: 'flex' } }}
           >
-            <ToggleButton value="all" sx={{ px: 1.5, fontSize: '0.75rem' }}>Todos</ToggleButton>
-            <ToggleButton value="active" sx={{ px: 1.5, fontSize: '0.75rem' }}>Ativos</ToggleButton>
-            <ToggleButton value="inactive" sx={{ px: 1.5, fontSize: '0.75rem' }}>Pendentes</ToggleButton>
+            <ToggleButton value="all"      sx={{ px: 1.5, fontSize: '0.75rem' }}>Todos</ToggleButton>
+            <ToggleButton value="active"   sx={{ px: 1.5, fontSize: '0.75rem' }}>Ativos</ToggleButton>
+            <ToggleButton value="pending"  sx={{ px: 1.5, fontSize: '0.75rem' }}>Pendentes</ToggleButton>
+            <ToggleButton value="disabled" sx={{ px: 1.5, fontSize: '0.75rem' }}>Desativos</ToggleButton>
           </ToggleButtonGroup>
 
           <SearchBar searchTerm={searchInput} onSearch={setSearchInput} />
@@ -288,9 +287,10 @@ const UserListPage = () => {
       {/* Estatísticas */}
       {!isLoading && (
         <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-          <StatChip label="total" value={stats.total} color={theme.palette.text.primary} />
-          <StatChip label="ativos" value={stats.active} color={theme.palette.success.main} />
-          <StatChip label="pendentes" value={stats.inactive} color={theme.palette.warning.main} />
+          <StatChip label="total"     value={stats.total}    color={theme.palette.text.primary} />
+          <StatChip label="ativos"    value={stats.active}   color={theme.palette.success.main} />
+          <StatChip label="pendentes" value={stats.pending}  color={theme.palette.warning.main} />
+          <StatChip label="desativos" value={stats.disabled} color={theme.palette.error.main} />
         </Stack>
       )}
 
@@ -305,7 +305,8 @@ const UserListPage = () => {
         >
           <ToggleButton value="all">Todos</ToggleButton>
           <ToggleButton value="active">Ativos</ToggleButton>
-          <ToggleButton value="inactive">Pendentes</ToggleButton>
+          <ToggleButton value="pending">Pendentes</ToggleButton>
+          <ToggleButton value="disabled">Desativos</ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
@@ -400,10 +401,14 @@ const UserListPage = () => {
                         size="small"
                         sx={{ bgcolor: alpha(avatarColor, 0.12), color: avatarColor, fontWeight: 600, fontSize: '0.7rem' }}
                       />
-                      {user.active ? (
+                      {user.status === 'active' && (
                         <Chip icon={<CheckCircleIcon sx={{ fontSize: '0.85rem !important' }} />} label="Ativo" size="small" color="success" variant="outlined" />
-                      ) : (
+                      )}
+                      {user.status === 'pending' && (
                         <Chip icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Pendente" size="small" color="warning" variant="outlined" />
+                      )}
+                      {user.status === 'disabled' && (
+                        <Chip icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Desativo" size="small" color="error" variant="outlined" />
                       )}
                       {user.interfaces?.length > 0 && (
                         <Chip
@@ -542,22 +547,24 @@ const UserListPage = () => {
 
                         {/* Estado */}
                         <TableCell>
-                          {user.active ? (
+                          {user.status === 'active' && (
                             <Chip
                               icon={<CheckCircleIcon sx={{ fontSize: '0.85rem !important' }} />}
-                              label="Ativo"
-                              size="small"
-                              color="success"
-                              variant="outlined"
+                              label="Ativo" size="small" color="success" variant="outlined"
                               sx={{ height: 22, fontSize: '0.7rem' }}
                             />
-                          ) : (
+                          )}
+                          {user.status === 'pending' && (
                             <Chip
                               icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />}
-                              label="Pendente"
-                              size="small"
-                              color="warning"
-                              variant="outlined"
+                              label="Pendente" size="small" color="warning" variant="outlined"
+                              sx={{ height: 22, fontSize: '0.7rem' }}
+                            />
+                          )}
+                          {user.status === 'disabled' && (
+                            <Chip
+                              icon={<BlockIcon sx={{ fontSize: '0.85rem !important' }} />}
+                              label="Desativo" size="small" color="error" variant="outlined"
                               sx={{ height: 22, fontSize: '0.7rem' }}
                             />
                           )}
@@ -612,10 +619,10 @@ const UserListPage = () => {
         </MenuItem>
         <Divider />
         <MenuItem onClick={handleToggle}>
-          {selectedUser?.active ? (
-            <><BlockIcon fontSize="small" sx={{ mr: 1.5, color: 'warning.main' }} />Desativar</>
-          ) : (
+          {selectedUser?.status === 'disabled' ? (
             <><CheckCircleIcon fontSize="small" sx={{ mr: 1.5, color: 'success.main' }} />Ativar</>
+          ) : (
+            <><BlockIcon fontSize="small" sx={{ mr: 1.5, color: 'error.main' }} />Desativar</>
           )}
         </MenuItem>
         <MenuItem onClick={() => { setResetPasswordDialog(true); handleCloseMenu(); }}>

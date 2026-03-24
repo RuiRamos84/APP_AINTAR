@@ -19,7 +19,7 @@ export function useRecords(recordType) {
     const [submitting, setSubmitting] = useState(false);
 
     const fetchRecords = async () => {
-        if (recordType !== "inventario" && recordType !== "veiculos" && recordType !== "veiculoAtribuido" && recordType !== "manutencaoVeiculos" && recordType !== "obras" && !selectedEntity && !["rede", "ramal", "manutencao", "equip"].includes(getTypeByArea(selectedArea))) return;
+        if (recordType !== "veiculos" && recordType !== "veiculoAtribuido" && recordType !== "manutencaoVeiculos" && recordType !== "obras" && !selectedEntity && !["rede", "ramal", "manutencao"].includes(getTypeByArea(selectedArea))) return;
 
         dispatch({ type: "FETCH_START" });
         try {
@@ -56,10 +56,6 @@ export function useRecords(recordType) {
                 case "incumprimentos":
                     response = await InternalService.getIncumprimentoRecords(selectedEntity?.pk);
                     dispatch({ type: "FETCH_SUCCESS", payload: response.incumprimentos || [] });
-                    break;
-                case "inventario":
-                    response = await InternalService.getInventoryRecords();
-                    dispatch({ type: "FETCH_SUCCESS", payload: response.inventory || [] });
                     break;
                 case "veiculos":
                     response = await InternalService.getVehicleRecords();
@@ -154,9 +150,6 @@ export function useRecords(recordType) {
                 case "incumprimentos":
                     await InternalService.addIncumprimentoRecord(data);
                     break;
-                case "inventario":
-                    await InternalService.addInventoryRecord(data);
-                    break;
                 case "veiculos":
                     await InternalService.addVehicleRegister(data);
                     break;
@@ -188,9 +181,6 @@ export function useRecords(recordType) {
             setSubmitting(true);
 
             switch (recordType) {
-                case "inventario":
-                    await InternalService.updateInventoryRecord(id, data);
-                    break;
                 case "veiculos":
                     await InternalService.updateVehicleAssignRegister(id, data);
                     break;

@@ -5,22 +5,16 @@ import { InternalProvider } from "./context/InternalContext";
 import EtarEeView from "./views/EtarEeView";
 import RedeRamalView from "./views/RedeRamalView";
 import ManutencaoView from "./views/ManutencaoView";
-import EquipamentoView from "./views/EquipamentoView";
-import EquipamentoGeralView from "./views/EquipamentoGeralView";
 import RequisicaoInternaView from './views/RequisicaoInternaView';
+import VeiculoView from "./views/VeiculoView";
+import ObrasView from "./views/ObrasView";
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import OpacityIcon from '@mui/icons-material/Opacity';
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import BuildIcon from '@mui/icons-material/Build';
-import HandymanIcon from '@mui/icons-material/Handyman';
 import DescriptionIcon from '@mui/icons-material/Description';
-import InventarioView from "./views/InventoryView";
-import Inventory2Icon from '@mui/icons-material/Inventory2';
-import VeiculoView from "./views/VeiculoView";
-import ObrasView from "./views/ObrasView";
 import ConstructionIcon from '@mui/icons-material/Construction';
-import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
 
 
 
@@ -30,12 +24,9 @@ const areas = [
     { id: 3, name: "Rede", description: "Gestão de Rede" },
     { id: 4, name: "Ramais", description: "Gestão de Ramais" },
     { id: 5, name: "Manutenção", description: "Gestão de Manutenção" },
-    { id: 6, name: "Equipamento Básico", description: "Gestão de Equipamento Básico" },
     { id: 7, name: "Requisição Interna", description: "Gestão de Requisições Internas" },
-    { id: 8, name: "Inventário", description: "Gestão Inventário de Material Interno"},
     { id: 9, name: "Veículos", description: "Gestão de Veículos internos"},
     { id: 10, name: "Obras", description: "Gestão de Obras" },
-    { id: 11, name: "Equipamentos", description: "Gestão de Equipamentos" },
   ];
 
 const InternalArea = () => {
@@ -59,23 +50,17 @@ const InternalArea = () => {
                 return <RedeRamalView areaId={selectedArea} />;
             case 5:
                 return <ManutencaoView />;
-            case 6:
-                return <EquipamentoView />;
             case 7:
                 return <RequisicaoInternaView />;
-            case 8:
-                return <InventarioView />;
             case 9:
                 return <VeiculoView />;
             case 10:
                 return <ObrasView />;
-            case 11:
-                return <EquipamentoGeralView />;
             default:
                 return null;
         }
     };
-    
+
     const getAreaIcon = (areaId) => {
         switch (areaId) {
             case 1: return <WaterDropIcon sx={{ fontSize: 40 }} />;
@@ -83,12 +68,9 @@ const InternalArea = () => {
             case 3: return <LinearScaleIcon sx={{ fontSize: 40 }} />;
             case 4: return <AccountTreeIcon sx={{ fontSize: 40 }} />;
             case 5: return <BuildIcon sx={{ fontSize: 40 }} />;
-            case 6: return <HandymanIcon sx={{ fontSize: 40 }} />;
             case 7: return <DescriptionIcon sx={{ fontSize: 40 }} />;
-            case 8: return <Inventory2Icon sx={{ fontSize: 40 }} />;
             case 9: return null;
             case 10: return <ConstructionIcon sx={{ fontSize: 40 }} />;
-            case 11: return <PrecisionManufacturingIcon sx={{ fontSize: 40 }} />;
             default: return null;
         }
       };
@@ -145,8 +127,8 @@ const InternalArea = () => {
                                             left: 0,
                                             width: "100%",
                                             height: "100%",
-                                            background: (theme) => `linear-gradient(145deg, 
-                ${theme.palette.primary.light}22, 
+                                            background: (theme) => `linear-gradient(145deg,
+                ${theme.palette.primary.light}22,
                 ${theme.palette.primary.main}33)`,
                                             opacity: 0,
                                             transition: "opacity 0.3s ease-in-out",

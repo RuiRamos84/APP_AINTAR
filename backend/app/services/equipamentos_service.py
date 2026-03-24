@@ -43,6 +43,7 @@ class AlocacaoCreate(BaseModel):
     tt_equipamento_aloc: int
     tb_instalacao: Optional[int] = None
     tt_equipamento_localizacao: Optional[int] = None
+    ts_client: Optional[int] = None
     start_date: str
     stop_date: Optional[str] = None
     memo: Optional[str] = None
@@ -53,6 +54,7 @@ class AlocacaoUpdate(BaseModel):
     tt_equipamento_aloc: Optional[int] = None
     tb_instalacao: Optional[int] = None
     tt_equipamento_localizacao: Optional[int] = None
+    ts_client: Optional[int] = None
     start_date: Optional[str] = None
     stop_date: Optional[str] = None
     memo: Optional[str] = None
@@ -63,6 +65,7 @@ class ReallocarData(BaseModel):
     tt_equipamento_aloc: int
     tb_instalacao: Optional[int] = None
     tt_equipamento_localizacao: Optional[int] = None
+    ts_client: Optional[int] = None
     data: str
     memo: Optional[str] = None
     ord: Optional[int] = 1
@@ -179,12 +182,19 @@ def get_meta(current_user: str):
             """)
         ).mappings().all()
 
+        clientes = session.execute(
+            text(
+                'SELECT pk, name FROM ts_client ORDER BY name'
+            )
+        ).mappings().all()
+
     return {
         'tipos': [dict(r) for r in tipos],
         'alocTipos': [dict(r) for r in aloc_tipos],
         'localizacoes': [dict(r) for r in localizacoes],
         'specs': [dict(r) for r in specs],
         'instalacoes': [dict(r) for r in instalacoes],
+        'clientes': [dict(r) for r in clientes],
         'alocInstalacaoPk': ALOC_INSTALACAO_PK,
     }, 200
 

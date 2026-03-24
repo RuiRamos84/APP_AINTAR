@@ -311,6 +311,7 @@ def get_all_users(current_user: str):
                 c.name,
                 e.email,
                 c.validated,
+                COALESCE(c.active, 1) as active,
                 c.ts_profile as profil,
                 c.darkmode,
                 c.vacation,
@@ -327,14 +328,20 @@ def get_all_users(current_user: str):
         users = []
         for row in result:
             user = dict(row)
-            # validated = 0 -> já validado (active = True)
-            # validated != 0 -> código de ativação pendente (active = False)
+            # active: campo directo na tabela (1 = ativo, 0 = desativado pelo admin)
+            user['active'] = bool(user.get('active', 0))
+            # validated: 0 = email confirmado, != 0 = código de activação pendente
             validated_value = user.get('validated', 0)
-            user['active'] = (validated_value == 0)
             user['email_validated'] = (validated_value == 0)
             user['activation_code'] = validated_value if validated_value != 0 else None
-            # Converter profil para string
             user['profil'] = str(user.get('profil', '2'))
+            # status: estado consolidado para o frontend
+            if not user['active']:
+                user['status'] = 'disabled'
+            elif not user['email_validated']:
+                user['status'] = 'pending'
+            else:
+                user['status'] = 'active'
             users.append(user)
 
         return users
@@ -353,6 +360,7 @@ def get_user_by_id(user_id: int, current_user: str):
                 c.name,
                 e.email,
                 c.validated,
+                COALESCE(c.active, 1) as active,
                 c.ts_profile as profil,
                 c.darkmode,
                 c.vacation,
@@ -381,13 +389,17 @@ def get_user_by_id(user_id: int, current_user: str):
             raise ResourceNotFoundError("Utilizador", user_id)
 
         user = dict(result)
-        # validated = 0 -> já validado (active = True)
-        # validated != 0 -> código de ativação pendente (active = False)
+        user['active'] = bool(user.get('active', 0))
         validated_value = user.get('validated', 0)
-        user['active'] = (validated_value == 0)
         user['email_validated'] = (validated_value == 0)
         user['activation_code'] = validated_value if validated_value != 0 else None
         user['profil'] = str(user.get('profil', '2'))
+        if not user['active']:
+            user['status'] = 'disabled'
+        elif not user['email_validated']:
+            user['status'] = 'pending'
+        else:
+            user['status'] = 'active'
 
         return user
 
@@ -424,8 +436,8 @@ def create_user_admin(data: dict, current_user: str):
 
         # Criar client
         client_query = text("""
-            INSERT INTO ts_client (username, passwd, ts_entity, ts_profile, validated, name)
-            VALUES (:username, :passwd, :ts_entity, :ts_profile, :validated, :name)
+            INSERT INTO ts_client (username, passwd, ts_entity, ts_profile, validated, name, active)
+            VALUES (:username, :passwd, :ts_entity, :ts_profile, :validated, :name, :active)
             RETURNING pk
         """)
         client_result = session.execute(client_query, {
@@ -434,7 +446,8 @@ def create_user_admin(data: dict, current_user: str):
             'ts_entity': entity_id,
             'ts_profile': int(data.get('profil', 2)),
             'validated': activation_code,  # 0 = validado, != 0 = código de ativação
-            'name': data.get('name', '')
+            'name': data.get('name', ''),
+            'active': 1,  # novo utilizador criado pelo admin fica sempre ativo
         })
         user_id = client_result.scalar()
 
@@ -605,12 +618,12 @@ def toggle_user_status_admin(user_id: int, active: bool, current_user: str):
     with db_session_manager(current_user) as session:
         update_query = text("""
             UPDATE ts_client
-            SET validated = :validated
+            SET active = :active
             WHERE pk = :user_id
         """)
         result = session.execute(update_query, {
             'user_id': user_id,
-            'validated': 1 if active else 0
+            'active': 1 if active else 0
         })
 
         if result.rowcount == 0:
