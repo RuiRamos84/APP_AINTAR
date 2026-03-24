@@ -56,7 +56,7 @@ def fetch_meta_data(current_user):
         'opcontrolo': "SELECT * FROM tt_operacaocontrolo",
         'profiles': "SELECT * FROM ts_profile ORDER BY pk",
         'interfaces': "SELECT * FROM ts_interface ORDER BY pk",
-        'inventory_type': "SELECT * FROM tt_inventorytype ORDER BY pk",
+        #'inventory_type': "SELECT * FROM tt_inventorytype ORDER BY pk",
         'maintenancetype': "SELECT * FROM vbl_maintenancetype ORDER BY pk",
         'vehicle': "SELECT * FROM vbl_vehicle ORDER BY pk",
         'sensor_types': "SELECT * FROM vbl_sensortype ORDER BY pk",

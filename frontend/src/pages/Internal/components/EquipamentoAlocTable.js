@@ -9,44 +9,44 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useMetaData } from "../../../contexts/MetaDataContext";
 import {
+    getAllEquipamentos,
     getEquipamentoAloc,
     createEquipamentoAloc,
     updateEquipamentoAloc,
     deleteEquipamentoAloc,
-    getAllEquipamentos,
 } from "../../../services/InternalService";
 import { notifySuccess, notifyError } from "../../../components/common/Toaster/ThemedToaster";
 
 const EMPTY_FORM = {
-    tb_equipamento: "",
-    "tt_equipamento$aloc": "",
+    tt_equipamento_aloc: "",
     tb_instalacao: "",
-    "tt_equipamento$localizacao": "",
+    tt_equipamento_localizacao: "",
     start_date: "",
     stop_date: "",
     memo: "",
     ord: "",
 };
 
-const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved }) => {
+const AlocacaoModal = ({ open, onClose, editing, equipPk, meta, onSaved }) => {
     const [form, setForm] = useState(EMPTY_FORM);
     const [loading, setLoading] = useState(false);
 
-    const instalacoes = metaData?.instalacao || [];
-    const equipAloc = metaData?.equipaloc || [];
-    const equipLoc = metaData?.equiplocalizacao || [];
+    const alocTipos = meta?.alocTipos || [];
+    const instalacoes = meta?.instalacoes || [];
+    const localizacoes = meta?.localizacoes || [];
+    const alocInstalacaoPk = meta?.alocInstalacaoPk;
 
-    const isValid = form.tb_equipamento && form["tt_equipamento$aloc"] && form.tb_instalacao && form.start_date;
+    const requiresInstalacao = Number(form.tt_equipamento_aloc) === alocInstalacaoPk;
+    const isValid = form.tt_equipamento_aloc && form.start_date &&
+        (!requiresInstalacao || (form.tb_instalacao && form.tt_equipamento_localizacao));
 
     useEffect(() => {
         if (editing) {
             setForm({
-                tb_equipamento: editing.tb_equipamento ?? "",
-                "tt_equipamento$aloc": equipAloc.find(a => a.value === editing.aloc_nome)?.pk ?? "",
+                tt_equipamento_aloc: alocTipos.find(a => a.value === editing["tt_equipamento$aloc"])?.pk ?? "",
                 tb_instalacao: editing.pk_instalacao ?? "",
-                "tt_equipamento$localizacao": equipLoc.find(l => l.value === editing.localizacao_nome)?.pk ?? "",
+                tt_equipamento_localizacao: localizacoes.find(l => l.value === editing["tt_equipamento$localizacao"])?.pk ?? "",
                 start_date: editing.start_date ? editing.start_date.split("T")[0] : "",
                 stop_date: editing.stop_date ? editing.stop_date.split("T")[0] : "",
                 memo: editing.memo ?? "",
@@ -64,20 +64,19 @@ const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved
         setLoading(true);
         try {
             const payload = {
-                tb_equipamento: form.tb_equipamento || null,
-                "tt_equipamento$aloc": form["tt_equipamento$aloc"] || null,
-                tb_instalacao: form.tb_instalacao || null,
-                "tt_equipamento$localizacao": form["tt_equipamento$localizacao"] || null,
-                start_date: form.start_date || null,
-                stop_date: form.stop_date || null,
-                memo: form.memo || null,
-                ord: form.ord ? Number(form.ord) : null,
+                tt_equipamento_aloc: Number(form.tt_equipamento_aloc),
+                tb_instalacao: form.tb_instalacao ? Number(form.tb_instalacao) : undefined,
+                tt_equipamento_localizacao: form.tt_equipamento_localizacao ? Number(form.tt_equipamento_localizacao) : undefined,
+                start_date: form.start_date,
+                stop_date: form.stop_date || undefined,
+                memo: form.memo || undefined,
+                ord: form.ord ? Number(form.ord) : undefined,
             };
             if (editing?.pk) {
-                await updateEquipamentoAloc(editing.pk, payload);
+                await updateEquipamentoAloc(equipPk, editing.pk, payload);
                 notifySuccess("Alocação atualizada");
             } else {
-                await createEquipamentoAloc(payload);
+                await createEquipamentoAloc(equipPk, payload);
                 notifySuccess("Alocação registada");
             }
             onSaved();
@@ -97,25 +96,11 @@ const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved
                     <Grid container spacing={2}>
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth size="small">
-                                <InputLabel>Equipamento *</InputLabel>
-                                <Select value={form.tb_equipamento}
-                                    onChange={(e) => set("tb_equipamento", e.target.value)}
-                                    label="Equipamento *">
-                                    {equipamentos.map((eq) => (
-                                        <MenuItem key={eq.pk} value={eq.pk}>
-                                            {eq.marca ? `${eq.marca} — ${eq.modelo}` : eq.modelo}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth size="small">
                                 <InputLabel>Tipo de Alocação *</InputLabel>
-                                <Select value={form["tt_equipamento$aloc"]}
-                                    onChange={(e) => set("tt_equipamento$aloc", e.target.value)}
+                                <Select value={form.tt_equipamento_aloc}
+                                    onChange={(e) => set("tt_equipamento_aloc", e.target.value)}
                                     label="Tipo de Alocação *">
-                                    {equipAloc.map((a) => (
+                                    {alocTipos.map((a) => (
                                         <MenuItem key={a.pk} value={a.pk}>{a.value}</MenuItem>
                                     ))}
                                 </Select>
@@ -123,10 +108,11 @@ const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth size="small">
-                                <InputLabel>Instalação *</InputLabel>
+                                <InputLabel>Instalação {requiresInstalacao ? "*" : ""}</InputLabel>
                                 <Select value={form.tb_instalacao}
                                     onChange={(e) => set("tb_instalacao", e.target.value)}
-                                    label="Instalação *">
+                                    label={`Instalação ${requiresInstalacao ? "*" : ""}`}>
+                                    <MenuItem value=""><em>— Nenhuma —</em></MenuItem>
                                     {instalacoes.map((i) => (
                                         <MenuItem key={i.pk} value={i.pk}>{i.nome}</MenuItem>
                                     ))}
@@ -135,16 +121,20 @@ const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth size="small">
-                                <InputLabel>Localização</InputLabel>
-                                <Select value={form["tt_equipamento$localizacao"]}
-                                    onChange={(e) => set("tt_equipamento$localizacao", e.target.value)}
-                                    label="Localização">
+                                <InputLabel>Localização {requiresInstalacao ? "*" : ""}</InputLabel>
+                                <Select value={form.tt_equipamento_localizacao}
+                                    onChange={(e) => set("tt_equipamento_localizacao", e.target.value)}
+                                    label={`Localização ${requiresInstalacao ? "*" : ""}`}>
                                     <MenuItem value=""><em>— Nenhuma —</em></MenuItem>
-                                    {equipLoc.map((l) => (
+                                    {localizacoes.map((l) => (
                                         <MenuItem key={l.pk} value={l.pk}>{l.value}</MenuItem>
                                     ))}
                                 </Select>
                             </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth size="small" label="Ordem" type="number"
+                                value={form.ord} onChange={(e) => set("ord", e.target.value)} />
                         </Grid>
                         <Grid item xs={12} sm={4}>
                             <TextField fullWidth size="small" label="Data Início *" type="date"
@@ -158,15 +148,9 @@ const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved
                                 onChange={(e) => set("stop_date", e.target.value)}
                                 InputLabelProps={{ shrink: true }} />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <TextField fullWidth size="small" label="Ordem" type="number"
-                                value={form.ord}
-                                onChange={(e) => set("ord", e.target.value)} />
-                        </Grid>
                         <Grid item xs={12}>
                             <TextField fullWidth size="small" label="Notas" multiline rows={2}
-                                value={form.memo}
-                                onChange={(e) => set("memo", e.target.value)} />
+                                value={form.memo} onChange={(e) => set("memo", e.target.value)} />
                         </Grid>
                     </Grid>
                 </DialogContent>
@@ -182,36 +166,43 @@ const AlocacaoModal = ({ open, onClose, editing, equipamentos, metaData, onSaved
     );
 };
 
-const EquipamentoAlocTable = () => {
-    const { metaData } = useMetaData();
-    const [rows, setRows] = useState([]);
+const EquipamentoAlocTable = ({ meta, initialEquipPk }) => {
     const [equipamentos, setEquipamentos] = useState([]);
+    const [selectedEquip, setSelectedEquip] = useState(initialEquipPk || "");
+
+    useEffect(() => {
+        if (initialEquipPk) setSelectedEquip(initialEquipPk);
+    }, [initialEquipPk]);
+    const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [confirmDelete, setConfirmDelete] = useState(null);
 
+    useEffect(() => {
+        getAllEquipamentos()
+            .then(d => setEquipamentos(d?.equipamentos || []))
+            .catch(() => notifyError("Erro ao carregar equipamentos"));
+    }, []);
+
     const load = useCallback(async () => {
+        if (!selectedEquip) { setRows([]); return; }
         setLoading(true);
         try {
-            const [alocData, equipData] = await Promise.all([
-                getEquipamentoAloc(),
-                getAllEquipamentos(),
-            ]);
-            setRows(alocData?.alocacoes || []);
-            setEquipamentos(equipData?.equipamentos || []);
+            const data = await getEquipamentoAloc(selectedEquip);
+            setRows(data?.alocacoes || []);
         } catch {
             notifyError("Erro ao carregar alocações");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedEquip]);
 
     useEffect(() => { load(); }, [load]);
 
     const handleDelete = async () => {
         try {
-            await deleteEquipamentoAloc(confirmDelete.pk);
+            await deleteEquipamentoAloc(selectedEquip, confirmDelete.pk);
             notifySuccess("Alocação eliminada");
             setConfirmDelete(null);
             load();
@@ -222,28 +213,46 @@ const EquipamentoAlocTable = () => {
 
     const formatDate = (d) => d ? d.split("T")[0] : "—";
 
+    const equipLabel = (eq) => eq.marca ? `${eq.marca} — ${eq.modelo} (${eq.serial || "s/série"})` : eq.modelo;
+
     return (
         <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6">Alocações de Equipamento</Typography>
                 <Button variant="contained" size="small" startIcon={<AddIcon />}
+                    disabled={!selectedEquip}
                     onClick={() => { setEditing(null); setModalOpen(true); }}>
                     Adicionar
                 </Button>
             </Box>
 
-            {loading ? (
+            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <InputLabel>Selecionar Equipamento</InputLabel>
+                <Select value={selectedEquip}
+                    onChange={(e) => setSelectedEquip(e.target.value)}
+                    label="Selecionar Equipamento">
+                    <MenuItem value=""><em>— Escolha um equipamento —</em></MenuItem>
+                    {equipamentos.map((eq) => (
+                        <MenuItem key={eq.pk} value={eq.pk}>{equipLabel(eq)}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+
+            {!selectedEquip ? (
+                <Typography color="text.secondary" textAlign="center" py={4}>
+                    Selecione um equipamento para ver as alocações.
+                </Typography>
+            ) : loading ? (
                 <Box textAlign="center" py={4}><CircularProgress /></Box>
             ) : rows.length === 0 ? (
                 <Typography color="text.secondary" textAlign="center" py={4}>
-                    Nenhuma alocação registada.
+                    Nenhuma alocação registada para este equipamento.
                 </Typography>
             ) : (
                 <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell><b>Equipamento</b></TableCell>
                                 <TableCell><b>Tipo Alocação</b></TableCell>
                                 <TableCell><b>Instalação</b></TableCell>
                                 <TableCell><b>Localização</b></TableCell>
@@ -257,15 +266,9 @@ const EquipamentoAlocTable = () => {
                         <TableBody>
                             {rows.map((row) => (
                                 <TableRow key={row.pk} hover>
-                                    <TableCell>
-                                        <Typography variant="body2">{row.equipamento_tipo || "—"}</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {[row.equipamento_marca, row.equipamento_nome, row.equipamento_serial].filter(Boolean).join(" · ")}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>{row.aloc_nome || "—"}</TableCell>
-                                    <TableCell>{row.instalacao_nome || "—"}</TableCell>
-                                    <TableCell>{row.localizacao_nome || "—"}</TableCell>
+                                    <TableCell>{row["tt_equipamento$aloc"] || "—"}</TableCell>
+                                    <TableCell>{row.tb_instalacao || "—"}</TableCell>
+                                    <TableCell>{row["tt_equipamento$localizacao"] || "—"}</TableCell>
                                     <TableCell>{formatDate(row.start_date)}</TableCell>
                                     <TableCell>{formatDate(row.stop_date)}</TableCell>
                                     <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -295,8 +298,8 @@ const EquipamentoAlocTable = () => {
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
                 editing={editing}
-                equipamentos={equipamentos}
-                metaData={metaData}
+                equipPk={selectedEquip}
+                meta={meta}
                 onSaved={load}
             />
 

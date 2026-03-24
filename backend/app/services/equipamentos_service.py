@@ -262,18 +262,13 @@ def create_equipamento(data: dict, current_user: str):
     db_data = _map_keys(eq.model_dump(exclude_none=True))
 
     with db_session_manager(current_user) as session:
-        pk = session.execute(
-            text('SELECT fs_nextcode()')
-        ).scalar()
+        pk = session.execute(text('SELECT fs_nextcode()')).scalar()
         db_data['pk'] = pk
         sql, params = _build_insert('vbf_equipamento', db_data)
         session.execute(sql, params)
         session.commit()
 
-    return {
-        'message': 'Equipamento criado com sucesso',
-        'pk': pk,
-    }, 201
+    return {'message': 'Equipamento criado com sucesso', 'pk': pk}, 201
 
 
 @api_error_handler
