@@ -195,13 +195,15 @@ def set_session(f):
 @contextmanager
 def db_session_manager(session_id):
     from app import db
+    from flask import current_app
     session = db.session()
     try:
         if session_id:
-            # logger.debug(f"Configurando sessão no banco de dados para session_id: {session_id}")
             result = fs_setsession(session_id)
             if not result:
                 raise InvalidSessionError(f"Sessão inválida ou expirada para session_id: {session_id}")
+            search_path = current_app.config.get('SEARCH_PATH', 'public')
+            session.execute(text(f"SET search_path TO {search_path}"))
         yield session
         session.commit()
     except SQLAlchemyError as e:

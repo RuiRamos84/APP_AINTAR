@@ -72,37 +72,37 @@ function AlocForm({ open, onClose, onSubmit, aloc, meta }) {
             <form onSubmit={handleSubmit}>
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField select fullWidth size="small" label="Tipo de Alocação *"
                                 value={form.tt_equipamento_aloc} onChange={e => set("tt_equipamento_aloc", e.target.value)}>
                                 {alocTipos.map(t => <MenuItem key={t.pk} value={t.pk}>{t.value}</MenuItem>)}
                             </TextField>
                         </Grid>
                         {isInstalacao && (<>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <TextField select fullWidth size="small" label="Instalação *"
                                     value={form.tb_instalacao} onChange={e => set("tb_instalacao", e.target.value)}>
                                     {instalacoes.map(i => <MenuItem key={i.pk} value={i.pk}>{i.nome}</MenuItem>)}
                                 </TextField>
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <TextField select fullWidth size="small" label="Localização *"
                                     value={form.tt_equipamento_localizacao} onChange={e => set("tt_equipamento_localizacao", e.target.value)}>
                                     {localizacoes.map(l => <MenuItem key={l.pk} value={l.pk}>{l.value}</MenuItem>)}
                                 </TextField>
                             </Grid>
                         </>)}
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField fullWidth size="small" type="date" label="Data Início *"
                                 value={form.start_date} onChange={e => set("start_date", e.target.value)}
                                 InputLabelProps={{ shrink: true }} />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField fullWidth size="small" type="date" label="Data Fim"
                                 value={form.stop_date} onChange={e => set("stop_date", e.target.value)}
                                 InputLabelProps={{ shrink: true }} />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField fullWidth size="small" label="Observações" multiline rows={2}
                                 value={form.memo} onChange={e => set("memo", e.target.value)} />
                         </Grid>
