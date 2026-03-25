@@ -28,6 +28,7 @@ import {
   alpha,
 } from '@mui/material';
 import { useState, useMemo } from 'react';
+import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
 import MenuIcon from '@mui/icons-material/Menu';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -52,6 +53,8 @@ export const AppBar = ({ onMenuClick }) => {
   const currentModule = useUIStore((state) => state.currentModule);
   const setCurrentModule = useUIStore((state) => state.setCurrentModule);
 
+  const scrolled = useNavbarCompact();
+
   const { user, logoutUser } = useAuth();
   const { hasPermission, hasAnyPermission } = usePermissionContext();
   const navigate = useNavigate();
@@ -64,7 +67,6 @@ export const AppBar = ({ onMenuClick }) => {
     [hasPermission, hasAnyPermission]
   );
 
-  // Módulo ativo com cor própria
   const activeModule = useMemo(
     () => (currentModule ? getModuleById(currentModule) : null),
     [currentModule]
@@ -95,13 +97,25 @@ export const AppBar = ({ onMenuClick }) => {
     return name.split(' ').map((word) => word[0]).join('').toUpperCase().substring(0, 2);
   };
 
-  // Glassmorphism com borda inferior colorida pelo módulo ativo
   const accentColor = activeModule?.color;
+
+  // Dimensões que variam com o scroll
+  const toolbarHeight = { xs: scrolled ? 48 : 64, sm: scrolled ? 54 : 72 };
+  const logoHeight   = { xs: scrolled ? 24 : 32, sm: scrolled ? 30 : 40 };
+  const tabHeight    = scrolled ? 54 : 64;
+  const avatarSize   = scrolled ? 30 : 36;
+  const tabFontSize  = scrolled ? '0.82rem' : '0.9rem';
+  const tabIconSize  = scrolled ? 18 : 20;
+
+  // Glass: mais opaco + sombra mais forte quando scrolled
   const glassStyles = {
-    backgroundColor: alpha(theme.palette.background.paper, 0.72),
+    backgroundColor: alpha(theme.palette.background.paper, scrolled ? 0.92 : 0.72),
     backdropFilter: 'blur(20px) saturate(180%)',
     WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-    boxShadow: `0 2px 24px ${alpha(theme.palette.common.black, 0.08)}`,
+    boxShadow: scrolled
+      ? `0 4px 32px ${alpha(theme.palette.common.black, 0.14)}, inset 0 -2px 0 ${alpha(accentColor || theme.palette.primary.main, 0.35)}`
+      : `0 2px 24px ${alpha(theme.palette.common.black, 0.08)}`,
+    transition: 'box-shadow 0.35s ease, background-color 0.35s ease',
   };
 
   return (
@@ -115,7 +129,12 @@ export const AppBar = ({ onMenuClick }) => {
         color: theme.palette.text.primary,
       }}
     >
-      <Toolbar sx={{ minHeight: { xs: 64, sm: 72 }, px: { xs: 1.5, sm: 3 }, gap: 1 }}>
+      <Toolbar sx={{
+        minHeight: toolbarHeight,
+        px: { xs: 1.5, sm: 3 },
+        gap: 1,
+        transition: 'min-height 0.35s ease',
+      }}>
 
         {/* Mobile: hamburger quando há módulo ativo */}
         {isMobile && currentModule && (
@@ -128,22 +147,21 @@ export const AppBar = ({ onMenuClick }) => {
         <Tooltip title="Ir para Home">
           <IconButton
             onClick={() => navigate('/home')}
-            sx={{ p: 0.5, flexShrink: 0, transition: 'all 0.2s', '&:hover': { transform: 'scale(1.05)' } }}
+            sx={{ p: 0.5, flexShrink: 0, '&:hover': { transform: 'scale(1.05)' } }}
           >
             <Box
               component="img"
               src="/logo.png"
               alt="AINTAR"
-              sx={{ height: { xs: 32, sm: 40 }, width: 'auto' }}
+              sx={{ height: logoHeight, width: 'auto', transition: 'height 0.35s ease' }}
             />
           </IconButton>
         </Tooltip>
 
-
         {/* Spacer */}
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Desktop/Tablet: tabs de módulos com cor própria */}
+        {/* Desktop/Tablet: tabs de módulos */}
         {!isMobile && accessibleModules.length > 0 && (
           <Tabs
             value={currentModule || false}
@@ -158,17 +176,18 @@ export const AppBar = ({ onMenuClick }) => {
               },
             }}
             sx={{
-              minHeight: 64,
+              minHeight: tabHeight,
               mr: 2,
+              transition: 'min-height 0.35s ease',
               '& .MuiTab-root': {
-                minHeight: 64,
+                minHeight: tabHeight,
                 textTransform: 'none',
                 fontWeight: 500,
-                fontSize: '0.9rem',
+                fontSize: tabFontSize,
                 minWidth: { sm: 60, md: 100 },
                 px: { sm: 1.5, md: 2 },
                 color: theme.palette.text.secondary,
-                transition: 'all 0.2s',
+                transition: 'min-height 0.35s ease, font-size 0.35s ease, color 0.2s',
               },
             }}
           >
@@ -178,14 +197,11 @@ export const AppBar = ({ onMenuClick }) => {
                 value={module.id}
                 sx={{
                   '&.Mui-selected': { color: module.color, fontWeight: 600 },
-                  '&:hover': {
-                    color: module.color,
-                    backgroundColor: alpha(module.color, 0.06),
-                  },
+                  '&:hover': { color: module.color, backgroundColor: alpha(module.color, 0.06) },
                 }}
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <module.icon sx={{ fontSize: 20 }} />
+                    <module.icon sx={{ fontSize: tabIconSize, transition: 'font-size 0.35s ease' }} />
                     {isDesktop && <span>{module.label}</span>}
                   </Box>
                 }
@@ -194,7 +210,7 @@ export const AppBar = ({ onMenuClick }) => {
           </Tabs>
         )}
 
-        {/* Mobile: chip indicador do módulo atual (apenas informativo) */}
+        {/* Mobile: chip indicador do módulo atual */}
         {isMobile && activeModule && (
           <Chip
             icon={
@@ -215,7 +231,7 @@ export const AppBar = ({ onMenuClick }) => {
           />
         )}
 
-        {/* Notificações — sempre visível */}
+        {/* Notificações */}
         <NotificationCenter />
 
         {/* Tema — apenas desktop/tablet */}
@@ -242,18 +258,18 @@ export const AppBar = ({ onMenuClick }) => {
               p: 0.5,
               border: `2px solid ${accentColor ? alpha(accentColor, 0.4) : alpha(theme.palette.primary.main, 0.2)}`,
               borderRadius: '50%',
-              transition: 'all 0.3s',
+              transition: 'all 0.35s ease',
               '&:hover': { borderColor: accentColor || theme.palette.primary.main },
             }}
           >
             <Avatar
               sx={{
-                width: 36,
-                height: 36,
+                width: avatarSize,
+                height: avatarSize,
                 bgcolor: accentColor || theme.palette.primary.main,
-                fontSize: '0.85rem',
+                fontSize: scrolled ? '0.75rem' : '0.85rem',
                 fontWeight: 'bold',
-                transition: 'background-color 0.3s',
+                transition: 'all 0.35s ease',
               }}
             >
               {getInitials(user?.user_name)}

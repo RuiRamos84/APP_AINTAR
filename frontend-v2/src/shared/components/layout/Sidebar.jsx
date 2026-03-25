@@ -37,6 +37,7 @@ import {
   alpha,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED } from './layoutConstants';
 
@@ -52,12 +53,14 @@ export const Sidebar = ({
   const location = useLocation();
   const { hasPermission } = usePermissionContext();
   const { isConnected } = useSocket();
+  const currentModule = useUIStore((state) => state.currentModule);
+
+  const navbarH = useNavbarCompact() ? 54 : 72; // sincronizado com AppBar (sm breakpoint)
 
   const collapsed = variant === 'temporary' ? false : (collapsedProp ?? true);
   const [openSubmenus, setOpenSubmenus] = useState({});
   const [anchorEl, setAnchorEl] = useState(null);
   const [popoverRoute, setPopoverRoute] = useState(null);
-  const currentModule = useUIStore((state) => state.currentModule);
 
   useEffect(() => {
     if (variant !== 'temporary' && collapsedProp !== undefined) {
@@ -380,14 +383,18 @@ export const Sidebar = ({
             width: variant === 'temporary' ? DRAWER_WIDTH_EXPANDED : drawerWidth,
             boxSizing: 'border-box',
             ...glassStyles,
-            marginTop: variant === 'permanent' ? '72px' : 0,
-            height: variant === 'permanent' ? 'calc(100vh - 72px)' : '100vh',
-            transition: theme.transitions.create('width', {
-              easing: theme.transitions.easing.sharp,
-              duration: collapsed
-                ? theme.transitions.duration.leavingScreen
-                : theme.transitions.duration.enteringScreen,
-            }),
+            marginTop: variant === 'permanent' ? `${navbarH}px` : 0,
+            height: variant === 'permanent' ? `calc(100vh - ${navbarH}px)` : '100vh',
+            transition: [
+              theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: collapsed
+                  ? theme.transitions.duration.leavingScreen
+                  : theme.transitions.duration.enteringScreen,
+              }),
+              'margin-top 0.35s ease',
+              'height 0.35s ease',
+            ].join(', '),
           },
         }}
       >

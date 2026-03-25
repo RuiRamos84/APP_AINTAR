@@ -5,6 +5,8 @@ import {
   Analytics,          // Dashboards: mais visual que Dashboard genérico
   AdminPanelSettings,
   BusinessCenter,     // Interno: área administrativa interna
+  Inbox,              // Pedidos: caixa de entrada de pedidos
+  Badge,              // Recursos Humanos: crachá/identificação pessoal
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap.js';
 
@@ -20,7 +22,6 @@ export const MODULES = {
     color: '#2196f3', // Azul
     order: 1,
     permissions: {
-      // Acesso ao módulo (pelo menos UMA dessas permissões)
       required: [
         PERMISSIONS.TASKS_MY,
         PERMISSIONS.OPERATIONS_VIEW,
@@ -45,12 +46,44 @@ export const MODULES = {
         PERMISSIONS.ANALYSES_VIEW,
         PERMISSIONS.TELEMETRY_VIEW,
         PERMISSIONS.EXPENSES_VIEW,
-        PERMISSIONS.PAVEMENTS_VIEW,
         PERMISSIONS.EQUIPAMENTOS_VIEW,
+        PERMISSIONS.OBRAS_VIEW,
+        PERMISSIONS.ADMIN_USERS, // Frota (permissão temporária)
       ]
     },
     description: 'Gestão de infraestruturas e análises técnicas',
     defaultRoute: '/etar',
+  },
+
+  PEDIDOS: {
+    id: 'pedidos',
+    label: 'Pedidos',
+    icon: Inbox,
+    color: '#ff5722', // Laranja profundo
+    order: 3,
+    permissions: {
+      required: [
+        PERMISSIONS.DOCS_VIEW_ALL,
+        PERMISSIONS.PAVEMENTS_VIEW,
+        PERMISSIONS.TASKS_VIEW,
+      ]
+    },
+    description: 'Gestão de pedidos, pavimentações e requisições',
+    defaultRoute: '/pedidos',
+  },
+
+  RH: {
+    id: 'rh',
+    label: 'Recursos Humanos',
+    icon: Badge,
+    color: '#e91e63', // Rosa
+    order: 4,
+    permissions: {
+      // Avaliação é acessível a todos — módulo visível a todos os autenticados
+      required: []
+    },
+    description: 'Avaliações de desempenho, recursos humanos e gestão de EPI',
+    defaultRoute: '/epi',
   },
 
   PAGAMENTOS: {
@@ -58,7 +91,7 @@ export const MODULES = {
     label: 'Pagamentos',
     icon: Payment,
     color: '#ff9800', // Laranja
-    order: 3,
+    order: 5,
     permissions: {
       required: [
         PERMISSIONS.PAYMENTS_VIEW,
@@ -75,7 +108,7 @@ export const MODULES = {
     label: 'Dashboards',
     icon: Analytics,
     color: '#9c27b0', // Roxo
-    order: 4,
+    order: 6,
     permissions: {
       required: [
         PERMISSIONS.DASHBOARD_VIEW,
@@ -85,12 +118,28 @@ export const MODULES = {
     defaultRoute: '/dashboards/overview',
   },
 
+  ADMINISTRATIVO: {
+    id: 'administrativo',
+    label: 'Interno',
+    icon: BusinessCenter,
+    color: '#607d8b', // Cinza azulado
+    order: 7,
+    permissions: {
+      required: [
+        PERMISSIONS.TASKS_VIEW,
+        PERMISSIONS.EMISSIONS_VIEW,
+      ]
+    },
+    description: 'Tarefas administrativas e emissões',
+    defaultRoute: '/tasks',
+  },
+
   ADMINISTRACAO: {
     id: 'administracao',
     label: 'Sistema',
     icon: AdminPanelSettings,
     color: '#f44336', // Vermelho
-    order: 5,
+    order: 8,
     permissions: {
       required: [
         PERMISSIONS.ADMIN_DASHBOARD,
@@ -100,23 +149,6 @@ export const MODULES = {
     },
     description: 'Administração do sistema, utilizadores e logs',
     defaultRoute: '/admin',
-  },
-
-  ADMINISTRATIVO: {
-    id: 'administrativo',
-    label: 'Interno',
-    icon: BusinessCenter,
-    color: '#607d8b', // Cinza azulado
-    order: 6,
-    permissions: {
-      required: [
-        PERMISSIONS.TASKS_VIEW,
-        PERMISSIONS.EPI_MANAGEMENT,
-        PERMISSIONS.OFFICES_VIEW,
-      ]
-    },
-    description: 'Tarefas administrativas, EPI, frota e requisições',
-    defaultRoute: '/tasks',
   },
 };
 
@@ -173,9 +205,18 @@ export const detectModuleFromPath = (pathname) => {
     '/analyses': 'gestao',
     '/telemetry': 'gestao',
     '/expenses': 'gestao',
-    '/pavements': 'gestao',
-    '/emissoes': 'gestao',
     '/equipamentos': 'gestao',
+    '/fleet': 'gestao',
+
+    // PEDIDOS
+    '/pedidos': 'pedidos',
+    '/pavements': 'pedidos',
+    '/internal': 'pedidos',
+
+    // RECURSOS HUMANOS
+    '/epi': 'rh',
+    '/aval': 'rh',
+    '/rh': 'rh',
 
     // PAGAMENTOS
     '/clients': 'pagamentos',
@@ -188,7 +229,12 @@ export const detectModuleFromPath = (pathname) => {
     '/reports': 'dashboards',
     '/analytics': 'dashboards',
 
-    // ADMINISTRAÇÃO
+    // ADMINISTRATIVO (Interno)
+    '/tasks': 'administrativo',
+    '/emissoes': 'administrativo',
+    '/inventory': 'administrativo',
+
+    // ADMINISTRAÇÃO (Sistema)
     '/admin': 'administracao',
     '/system': 'administracao',
     '/users': 'administracao',
@@ -196,15 +242,7 @@ export const detectModuleFromPath = (pathname) => {
     '/entities': 'administracao',
     '/offices-admin': 'administracao',
     '/requests': 'administracao',
-
-    // ADMINISTRATIVO
-    '/tasks': 'administrativo',
-    '/internal': 'administrativo',
-    '/epi': 'administrativo',
-    '/fleet': 'administrativo',
-    '/inventory': 'administrativo',
     '/offices': 'administrativo',
-    '/pedidos': 'administrativo',
   };
 
   // Remove trailing slash

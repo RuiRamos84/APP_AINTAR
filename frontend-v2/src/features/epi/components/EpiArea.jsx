@@ -8,7 +8,7 @@
  * - Resumo de Entregas
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Grid,
@@ -87,11 +87,6 @@ const EpiArea = () => {
 
   // Estado local para controle de animação
   const [showContent, setShowContent] = useState(true);
-
-  // Buscar dados ao montar
-  useEffect(() => {
-    fetchEpiData();
-  }, []);
 
   // Handlers
   const handleSectionSelect = (sectionId) => {

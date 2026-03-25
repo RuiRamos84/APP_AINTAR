@@ -102,6 +102,7 @@ export const MainLayout = () => {
           position: 'relative',
         }}
       >
+        {/* Spacer com a altura total da navbar — conteúdo nunca fica por trás */}
         <Toolbar sx={{ minHeight: { xs: 64, sm: 72 } }} />
         <AnimatePresence mode="popLayout">
           <PageTransition key={location.pathname}>
