@@ -60,7 +60,7 @@ function AvalAnalyticsPage() {
         {tab === 0 && <TeamInsightsTab      enriched={enriched} loading={loading} />}
         {tab === 1 && <IndividualInsightsTab enriched={enriched} rawData={rawData} periods={periods} loading={loading} />}
         {tab === 2 && <TeamEvolutionTab      {...shared} />}
-        {tab === 3 && <PeriodComparisonTab   {...shared} />}
+        {tab === 3 && <PeriodComparisonTab   {...shared} me={enriched?.me} />}
       </Box>
     </ModulePage>
   );

@@ -1,31 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import avalService from '../services/avalService';
 
 const SESSION_KEY = 'aval_pending_dismissed';
 
 export const useAvalPending = () => {
-  const [data, setData] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(() => !!sessionStorage.getItem(SESSION_KEY));
 
-  useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY)) return;
-
-    avalService.getPending()
-      .then((res) => {
-        if (res?.has_pending) {
-          setData(res);
-          setOpen(true);
-        }
-      })
-      .catch(() => {
-        // falha silenciosa — não interrompe a navegação
-      });
-  }, []);
+  const { data } = useQuery({
+    queryKey: ['aval-pending'],
+    queryFn: () => avalService.getPending(),
+    staleTime: 60 * 1000,
+    enabled: !dismissed,
+  });
 
   const dismiss = () => {
     sessionStorage.setItem(SESSION_KEY, '1');
-    setOpen(false);
+    setDismissed(true);
   };
 
-  return { data, open, dismiss };
+  return {
+    data,
+    open: !dismissed && !!data?.has_pending,
+    dismiss,
+  };
 };

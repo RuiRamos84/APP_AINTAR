@@ -389,6 +389,10 @@ export const useTasks = (options = {}) => {
     [selectedTasks, setBulkLoading, clearError, clearSelection, invalidateCache, fetchTasks]
   );
 
+  // ==================== UTILITIES ====================
+
+  const refresh = useCallback(() => fetchTasks(true), [fetchTasks]);
+
   // ==================== EFFECTS ====================
 
   // Auto-fetch on mount
@@ -467,7 +471,7 @@ export const useTasks = (options = {}) => {
     bulkLoading,
 
     // Utilities
-    refresh: () => fetchTasks(true),
+    refresh,
     hasSelection: selectedTasks.length > 0,
     selectedCount: selectedTasks.length,
   };

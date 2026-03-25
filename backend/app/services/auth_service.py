@@ -222,7 +222,8 @@ def fs_login(username, password):
         err_str = format_message(str(e))
         if 'CREDENCIAIS' in err_str.upper() or 'NÃO VALIDADO' in err_str.upper():
             raise InvalidCredentialsError('Credenciais inválidas.')
-        raise APIError(f"Erro inesperado no login: {err_str}", 500)
+        # Nunca expor detalhes internos (SQL, parâmetros, stack) ao utilizador
+        raise APIError("Serviço temporariamente indisponível. Tente novamente.", 503)
 
 
 def decode_token(token):
