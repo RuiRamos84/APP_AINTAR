@@ -36,6 +36,8 @@ const TOAST_MESSAGES = {
 export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onTaskUpdated } = {}) => {
   // Proteção anti-duplicados (mesmo que SocketContext)
   const lastRef = useRef({ taskId: null, timestamp: 0 });
+  // Debounce para full-refresh: coalesce múltiplas notificações simultâneas numa única chamada
+  const refreshTimerRef = useRef(null);
 
   const handleNotification = useCallback(
     (data) => {
@@ -85,9 +87,12 @@ export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onT
         case 'new_task':
         case 'task_update':
         default: {
-          // Full refresh para novos itens ou edições que alteram vários campos
+          // Full refresh com debounce: coalesce múltiplos eventos num único refresh
           store.invalidateCache();
-          window.dispatchEvent(new CustomEvent('task-refresh'));
+          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+          refreshTimerRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('task-refresh'));
+          }, 300);
           break;
         }
       }
@@ -112,6 +117,7 @@ export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onT
     onEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleNotification);
     return () => {
       offEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleNotification);
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
   }, [handleNotification]);
 };

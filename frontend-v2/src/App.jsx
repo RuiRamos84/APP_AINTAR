@@ -57,6 +57,10 @@ import { ObrasPage } from '@/features/obras';
 import { PavimentosPage } from '@/features/pavimentos';
 import { EPIPage } from '@/features/administrativo/pages';
 import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
+import FeriasPage from '@/features/rh/pages/FeriasPage';
+import FaltasPage from '@/features/rh/pages/FaltasPage';
+import HorariosPage from '@/features/rh/pages/HorariosPage';
+import PiquetePage from '@/features/rh/pages/PiquetePage';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
@@ -196,6 +200,9 @@ function App() {
         {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
         <Route path="/pavements" element={<PavimentosPage />} />
 
+        {/* Ofícios/Expedientes - permissão 1300 (OFFICES_VIEW) */}
+        <Route path="/offices-admin" element={<OfficesPage />} />
+
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
         <Route path="/dashboards/overview" element={<DashboardOverviewPage />} />
         <Route path="/dashboards/requests" element={<DashboardRequestsPage />} />
@@ -207,11 +214,18 @@ function App() {
         <Route path="/dashboards/repav" element={<DashboardRepavPage />} />
         <Route path="/dashboards/tramitacoes" element={<DashboardTramitacoesPage />} />
 
+        {/* ==================== EMISSÕES (Ofícios, Notificações, etc.) ==================== */}
+        <Route path="/emissoes" element={<EmissoesPage />} />
+
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
+        <Route path="/epi" element={<EPIPage />} />
+        <Route path="/rh/pessoal/ferias"   element={<FeriasPage />} />
+        <Route path="/rh/pessoal/faltas"   element={<FaltasPage />} />
+        <Route path="/rh/pessoal/horarios" element={<HorariosPage />} />
+        <Route path="/rh/pessoal/piquete"  element={<PiquetePage />} />
         <Route path="/aval" element={<AvalPage />} />
         <Route path="/aval/admin" element={<AvalAdminPage />} />
         <Route path="/aval/analytics" element={<AvalAnalyticsPage />} />
-        <Route path="/epi" element={<EPIPage />} />
 
         {/* ==================== ÁREA INTERNA ==================== */}
         <Route path="/internal" element={<InternalDashboardPage />} />

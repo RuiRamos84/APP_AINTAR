@@ -37,9 +37,12 @@ import {
   HowToVote as AvalIcon,
   BarChart as ResultsIcon,
   Group as AssignIcon,
+  CompareArrows as CompareIcon,
 } from '@mui/icons-material';
 import ModulePage from '@/shared/components/layout/ModulePage';
 import { useAvalAdmin } from '../hooks/useAvalAdmin';
+import { useAvalAnalytics } from '../hooks/useAvalAnalytics';
+import PeriodComparisonTab from '../components/analytics/PeriodComparisonTab';
 
 // ── Diálogo: criar campanha ──────────────────────────────────────────────────
 function CreatePeriodDialog({ open, onClose, onCreate }) {
@@ -295,6 +298,7 @@ function ResultsTab({ results }) {
 // ── Página principal ──────────────────────────────────────────────────────────
 function AvalAdminPage() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [pageTab,    setPageTab]    = useState(0);
 
   const {
     periods,
@@ -312,6 +316,8 @@ function AvalAdminPage() {
     generateAssignments,
   } = useAvalAdmin();
 
+  const { rawData, periods: analyticsPeriods, loading: loadingAnalytics } = useAvalAnalytics();
+
   const currentPeriod = periods.find((p) => p.pk === selectedPeriod);
 
   return (
@@ -322,16 +328,39 @@ function AvalAdminPage() {
       color="primary"
       breadcrumbs={[{ label: 'Avaliação' }, { label: 'Configuração' }]}
       actions={
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
-          size="small"
-        >
-          Nova Campanha
-        </Button>
+        pageTab === 0 ? (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setCreateOpen(true)}
+            size="small"
+          >
+            Nova Campanha
+          </Button>
+        ) : null
       }
     >
+      {/* ── Tabs de topo ── */}
+      <Tabs
+        value={pageTab}
+        onChange={(_, v) => setPageTab(v)}
+        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+      >
+        <Tab icon={<SettingsIcon fontSize="small" />} iconPosition="start" label="Campanhas" />
+        <Tab icon={<CompareIcon  fontSize="small" />} iconPosition="start" label="Comparação de Períodos" />
+      </Tabs>
+
+      {/* ── Tab: Comparação ── */}
+      {pageTab === 1 && (
+        <PeriodComparisonTab
+          rawData={rawData}
+          periods={analyticsPeriods}
+          loading={loadingAnalytics}
+        />
+      )}
+
+      {/* ── Tab: Campanhas ── */}
+      {pageTab === 0 && <>
       {loading && <LinearProgress sx={{ mb: 2 }} />}
 
       <Grid container spacing={3}>
@@ -453,6 +482,7 @@ function AvalAdminPage() {
         onClose={() => setCreateOpen(false)}
         onCreate={createPeriod}
       />
+      </>}
     </ModulePage>
   );
 }

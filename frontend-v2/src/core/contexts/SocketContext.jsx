@@ -290,13 +290,8 @@ export const SocketProvider = ({ children }) => {
       };
 
       // Não mostrar toast para notificações de tarefas
-      // (o toast já é mostrado pelo hook useTasks quando o utilizador faz a ação)
-      // Apenas adicionar ao centro de notificações
+      // O refresh em tempo real é gerido pelo hook useTaskSocket (subscreve diretamente ao evento)
       handleNewNotification(notif, false);
-
-      // Disparar evento para atualizar a lista de tarefas em tempo real
-      // Isto permite que a TasksPage atualize os cards com as notificações
-      window.dispatchEvent(new CustomEvent('task-refresh'));
     },
     [handleNewNotification]
   );
@@ -328,9 +323,6 @@ export const SocketProvider = ({ children }) => {
       };
 
       handleNewNotification(notif, true);
-
-      // Disparar task-refresh para atualizar listas em tempo real
-      window.dispatchEvent(new CustomEvent('task-refresh'));
     },
     [handleNewNotification]
   );

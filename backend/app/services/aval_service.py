@@ -14,7 +14,9 @@ class SubmitAvalModel(BaseModel):
     aval_personal_rel: int
     aval_professional: int
 
-    @field_validator('aval_personal_colab', 'aval_personal_rel', 'aval_professional')
+    @field_validator(
+        'aval_personal_colab', 'aval_personal_rel', 'aval_professional'
+    )
     @classmethod
     def check_range(cls, v):
         if not (1 <= v <= 10):
@@ -24,45 +26,46 @@ class SubmitAvalModel(BaseModel):
 
 @api_error_handler
 def get_analytics_enriched(current_user: str):
-    """Dados enriquecidos: global por período + por utilizador com rankings + utilizador atual."""
+    """Dados enriquecidos: global + rankings por utilizador + nome atual."""
     with db_session_manager(current_user) as session:
 
         global_rows = session.execute(text("""
             SELECT
-                periodo_data, periodo, total_avaliacoes,
-                media_personal_colab, media_personal_rel, media_profissional
-            FROM vbl_aval_results_global
-            ORDER BY periodo_data
+                g.periodo_data, g.periodo, g.total_avaliacoes,
+                g.media_personal_colab, g.media_personal_rel,
+                g.media_profissional, g.media_global
+            FROM vbl_aval_results_global g
+            JOIN vbl_aval_period p ON p.pk = g.period_pk
+            WHERE p.active = 1
+            ORDER BY p.year, p.data NULLS LAST, p.pk
         """)).mappings().all()
 
         user_rows = session.execute(text("""
-            WITH base AS (
-                SELECT
-                    p.pk                                AS period_pk,
-                    p.hist_time                         AS periodo_data,
-                    p.descr                             AS periodo,
-                    c.name                              AS colaborador,
-                    COUNT(*)::integer                   AS total_avaliacoes,
-                    ROUND(AVG(r.aval_personal_colab), 2)  AS media_personal_colab,
-                    ROUND(AVG(r.aval_personal_rel),   2)  AS media_personal_rel,
-                    ROUND(AVG(r.aval_professional),   2)  AS media_profissional,
-                    ROUND((AVG(r.aval_personal_colab)
-                         + AVG(r.aval_personal_rel)
-                         + AVG(r.aval_professional)) / 3, 2) AS media_global
-                FROM tb_aval r
-                JOIN tb_aval_period p ON p.pk = r.tb_aval_period
-                JOIN ts_client c      ON c.pk = r.ts_target
-                GROUP BY p.pk, p.hist_time, p.descr, c.name
-            )
-            SELECT
-                *,
-                RANK() OVER (PARTITION BY period_pk ORDER BY media_global         DESC)::integer AS rank_global,
-                RANK() OVER (PARTITION BY period_pk ORDER BY media_personal_colab DESC)::integer AS rank_colab,
-                RANK() OVER (PARTITION BY period_pk ORDER BY media_personal_rel   DESC)::integer AS rank_rel,
-                RANK() OVER (PARTITION BY period_pk ORDER BY media_profissional   DESC)::integer AS rank_prof,
-                COUNT(*) OVER (PARTITION BY period_pk)::integer                                 AS total_users
-            FROM base
-            ORDER BY period_pk, colaborador
+            SELECT u.*,
+                p.year,
+                RANK() OVER (
+                    PARTITION BY u.period_pk
+                    ORDER BY u.media_global DESC
+                )::integer AS rank_global,
+                RANK() OVER (
+                    PARTITION BY u.period_pk
+                    ORDER BY u.media_personal_colab DESC
+                )::integer AS rank_colab,
+                RANK() OVER (
+                    PARTITION BY u.period_pk
+                    ORDER BY u.media_personal_rel DESC
+                )::integer AS rank_rel,
+                RANK() OVER (
+                    PARTITION BY u.period_pk
+                    ORDER BY u.media_profissional DESC
+                )::integer AS rank_prof,
+                COUNT(*) OVER (
+                    PARTITION BY u.period_pk
+                )::integer AS total_users
+            FROM vbl_aval_results_users u
+            JOIN vbl_aval_period p ON p.pk = u.period_pk
+            WHERE p.active = 1
+            ORDER BY p.year, p.data NULLS LAST, p.pk, u.colaborador
         """)).mappings().all()
 
         my_name = session.execute(
@@ -78,62 +81,58 @@ def get_analytics_enriched(current_user: str):
 
 @api_error_handler
 def get_analytics(current_user: str):
-    """Dados completos para análise de evolução — todos os períodos e colaboradores."""
+    """Dados de evolução — todos os períodos e colaboradores."""
     with db_session_manager(current_user) as session:
-        result = session.execute(
-            text("""
-                SELECT
-                    p.pk                               AS period_pk,
-                    p.year,
-                    p.descr                            AS periodo,
-                    c.name                             AS colaborador,
-                    COUNT(*)::integer                       AS total_avaliacoes,
-                    ROUND(AVG(r.aval_personal_colab), 2)   AS media_personal_colab,
-                    ROUND(AVG(r.aval_personal_rel), 2)     AS media_personal_rel,
-                    ROUND(AVG(r.aval_professional), 2)     AS media_profissional
-                FROM tb_aval r
-                JOIN tb_aval_period p ON p.pk = r.tb_aval_period
-                JOIN ts_client c      ON c.pk  = r.ts_target
-                GROUP BY p.pk, p.year, p.descr, c.name
-                ORDER BY p.pk, c.name
-            """)
-        ).mappings().all()
+        result = session.execute(text("""
+            SELECT
+                u.period_pk, u.periodo_data, u.periodo, u.colaborador,
+                u.total_avaliacoes, u.media_personal_colab,
+                u.media_personal_rel, u.media_profissional, u.media_global,
+                p.year
+            FROM vbl_aval_results_users u
+            JOIN vbl_aval_period p ON p.pk = u.period_pk
+            ORDER BY p.year, p.data NULLS LAST, p.pk, u.colaborador
+        """)).mappings().all()
         return [dict(r) for r in result]
 
 
 @api_error_handler
 def get_pending_summary(current_user: str):
-    """Resumo de avaliações pendentes para o utilizador atual (todas as campanhas ativas)."""
+    """Resumo de avaliações pendentes do utilizador atual."""
     with db_session_manager(current_user) as session:
-        result = session.execute(
-            text("""
-                SELECT
-                    p.pk,
-                    p.year,
-                    p.descr,
-                    COUNT(*)::integer AS remaining
-                FROM tb_aval_assign a
-                JOIN tb_aval_period p ON p.pk = a.tb_aval_period
-                WHERE a.ts_evaluator = fs_client()
-                  AND p.active = 1
-                  AND a.done   = 0
-                GROUP BY p.pk, p.year, p.descr
-                ORDER BY p.year DESC
-            """)
-        ).mappings().all()
+        result = session.execute(text("""
+            SELECT
+                period_pk AS pk,
+                year,
+                descr,
+                COUNT(*)::integer AS remaining
+            FROM vbl_aval_assign
+            WHERE evaluator_pk = fs_client()
+              AND active        = 1
+              AND done          = 0
+            GROUP BY period_pk, year, descr
+            ORDER BY year DESC
+        """)).mappings().all()
 
         periods = [dict(r) for r in result]
         total = sum(p['remaining'] for p in periods)
-        return {"has_pending": total > 0, "total_pending": total, "periods": periods}
+        return {
+            "has_pending": total > 0,
+            "total_pending": total,
+            "periods": periods,
+        }
 
 
 @api_error_handler
 def get_periods(current_user: str):
-    """Lista campanhas de avaliação ativas (colaborador)."""
+    """Lista campanhas de avaliação ativas."""
     with db_session_manager(current_user) as session:
-        result = session.execute(
-            text("SELECT pk, year, active, descr FROM vbl_aval_period WHERE active = 1 ORDER BY year DESC")
-        ).mappings().all()
+        result = session.execute(text("""
+            SELECT pk, year, active, descr
+            FROM vbl_aval_period
+            WHERE active = 1
+            ORDER BY year DESC, data DESC NULLS LAST, pk DESC
+        """)).mappings().all()
         return [dict(r) for r in result]
 
 
@@ -146,7 +145,8 @@ def get_aval_list(period_pk: int, current_user: str):
             raise APIError("Utilizador inválido.", 401)
 
         result = session.execute(
-            text('SELECT pk, ts_target, target_name FROM "fbo_aval$list"(:period, :evaluator)'),
+            text('SELECT pk, ts_target, target_name'
+                 ' FROM "fbo_aval$list"(:period, :evaluator)'),
             {"period": period_pk, "evaluator": evaluator_pk}
         ).mappings().all()
         return [dict(r) for r in result]
@@ -161,7 +161,8 @@ def get_aval_status(period_pk: int, current_user: str):
             raise APIError("Utilizador inválido.", 401)
 
         row = session.execute(
-            text('SELECT total, done, remaining FROM "fbo_aval$status"(:period, :evaluator)'),
+            text('SELECT total, done, remaining'
+                 ' FROM "fbo_aval$status"(:period, :evaluator)'),
             {"period": period_pk, "evaluator": evaluator_pk}
         ).fetchone()
 
@@ -185,7 +186,6 @@ def submit_evaluation(data: dict, current_user: str):
                 "professional": validated.aval_professional,
             }
         )
-
     return {"message": "Avaliação submetida com sucesso."}, 200
 
 
@@ -207,9 +207,11 @@ class GenerateAssignmentsModel(BaseModel):
 def admin_get_all_periods(current_user: str):
     """Lista todas as campanhas (admin)."""
     with db_session_manager(current_user) as session:
-        result = session.execute(
-            text("SELECT pk, year, active, descr FROM vbl_aval_period ORDER BY year DESC")
-        ).mappings().all()
+        result = session.execute(text("""
+            SELECT pk, year, active, descr
+            FROM vbl_aval_period
+            ORDER BY year DESC
+        """)).mappings().all()
         return [dict(r) for r in result]
 
 
@@ -220,10 +222,14 @@ def admin_create_period(data: dict, current_user: str):
     with db_session_manager(current_user) as session:
         session.execute(
             text("""
-                INSERT INTO tb_aval_period (pk, year, descr, active, hist_client, hist_time)
-                VALUES (nextval('sq_codes'), :year, :descr, :active, fs_client(), current_timestamp)
+                INSERT INTO tb_aval_period
+                    (pk, year, descr, active, hist_client, hist_time)
+                VALUES
+                    (nextval('sq_codes'), :year, :descr, :active,
+                     fs_client(), current_timestamp)
             """),
-            {"year": validated.year, "descr": validated.descr, "active": validated.active},
+            {"year": validated.year, "descr": validated.descr,
+             "active": validated.active},
         )
     return {"message": "Campanha criada com sucesso."}, 201
 
@@ -249,16 +255,13 @@ def admin_get_assignments(period_pk: int, current_user: str):
     with db_session_manager(current_user) as session:
         result = session.execute(
             text("""
-                SELECT
-                    a.pk,
-                    c1.name AS evaluator_name,
-                    c2.name AS target_name,
-                    a.done
-                FROM tb_aval_assign a
-                JOIN ts_client c1 ON c1.pk = a.ts_evaluator
-                JOIN ts_client c2 ON c2.pk = a.ts_target
-                WHERE a.tb_aval_period = :period
-                ORDER BY c1.name, c2.name
+                SELECT pk,
+                       ts_evaluator AS evaluator_name,
+                       ts_target    AS target_name,
+                       done
+                FROM vbl_aval_assign
+                WHERE period_pk = :period
+                ORDER BY ts_evaluator, ts_target
             """),
             {"period": period_pk},
         ).mappings().all()
@@ -267,17 +270,17 @@ def admin_get_assignments(period_pk: int, current_user: str):
 
 @api_error_handler
 def admin_get_users(current_user: str):
-    """Lista utilizadores ativos para seleção de atribuições."""
+    """Lista utilizadores elegíveis para atribuição de avaliações."""
     with db_session_manager(current_user) as session:
         result = session.execute(
-            text("SELECT pk, name FROM ts_client WHERE validated = 0 AND ts_entity = 1 ORDER BY name")
+            text("SELECT pk, name FROM vbl_aval_users")
         ).mappings().all()
         return [dict(r) for r in result]
 
 
 @api_error_handler
 def admin_generate_assignments(period_pk: int, data: dict, current_user: str):
-    """Gera atribuições todos-contra-todos via CROSS JOIN (ignora pares já existentes)."""
+    """Gera atribuições todos-contra-todos (ignora pares já existentes)."""
     validated = GenerateAssignmentsModel.model_validate(data)
     user_ids = validated.user_ids
 
@@ -294,9 +297,9 @@ def admin_generate_assignments(period_pk: int, data: dict, current_user: str):
                     nextval('sq_codes'), :period, c1.pk, c2.pk,
                     0, fs_client(), current_timestamp
                 FROM
-                    (SELECT pk FROM ts_client WHERE pk = ANY(:ids)) c1
+                    (SELECT pk FROM vbl_aval_users WHERE pk = ANY(:ids)) c1
                     CROSS JOIN
-                    (SELECT pk FROM ts_client WHERE pk = ANY(:ids)) c2
+                    (SELECT pk FROM vbl_aval_users WHERE pk = ANY(:ids)) c2
                 WHERE c1.pk != c2.pk
                   AND NOT EXISTS (
                       SELECT 1 FROM tb_aval_assign x
@@ -319,16 +322,12 @@ def admin_get_results(period_pk: int, current_user: str):
         result = session.execute(
             text("""
                 SELECT
-                    c.name                           AS colaborador,
-                    COUNT(*)::integer                       AS total_avaliacoes,
-                    ROUND(AVG(r.aval_personal_colab), 2)   AS media_personal_colab,
-                    ROUND(AVG(r.aval_personal_rel), 2)     AS media_personal_rel,
-                    ROUND(AVG(r.aval_professional), 2)     AS media_profissional
-                FROM tb_aval r
-                JOIN ts_client c ON c.pk = r.ts_target
-                WHERE r.tb_aval_period = :period
-                GROUP BY c.name
-                ORDER BY c.name
+                    colaborador, total_avaliacoes,
+                    media_personal_colab, media_personal_rel,
+                    media_profissional, media_global
+                FROM vbl_aval_results_users
+                WHERE period_pk = :period
+                ORDER BY colaborador
             """),
             {"period": period_pk},
         ).mappings().all()

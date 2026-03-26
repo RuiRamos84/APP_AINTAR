@@ -44,9 +44,28 @@ def _get_pdf_path(document_type: str, document_id: int, current_user: str):
 
         return file_path, None
 
-    # Adicionar outros tipos de documento aqui no futuro:
-    # elif document_type == 'contract':
-    #     ...
+    elif document_type == 'letter':
+        from app import db
+        from sqlalchemy import text as sqla_text
+        row = db.session.execute(
+            sqla_text("SELECT filename, ts_letterstatus FROM vbl_letter WHERE pk = :pk"),
+            {"pk": document_id}
+        ).mappings().fetchone()
+
+        if not row:
+            return None, 'Ofício não encontrado'
+        if not row['filename']:
+            return None, 'É necessário gerar o PDF antes de assinar'
+        if row['ts_letterstatus'] == 'Assinado':
+            return None, 'Este documento já foi assinado'
+
+        pdf_dir = os.path.join(os.path.dirname(__file__), '../generated_pdfs')
+        file_path = os.path.join(pdf_dir, row['filename'])
+
+        if not os.path.exists(file_path):
+            return None, 'Ficheiro PDF não encontrado no servidor'
+
+        return file_path, None
 
     return None, f'Tipo de documento não suportado: {document_type}'
 
@@ -70,6 +89,25 @@ def _mark_as_signed(document_type: str, document_id: int, current_user: str, met
             WHERE pk = :pk
         """)
 
+        db.session.execute(update_sql, {
+            'pk': document_id,
+            'sign_client': current_user,
+            'sign_data': json.dumps({'method': method, **extra_data}),
+            'filename': signed_filename
+        })
+        db.session.commit()
+        return True
+
+    elif document_type == 'letter':
+        update_sql = text("""
+            UPDATE vbf_letter
+            SET ts_letterstatus = 3,
+                sign_client = :sign_client,
+                sign_time = NOW(),
+                sign_data = :sign_data,
+                filename = :filename
+            WHERE pk = :pk
+        """)
         db.session.execute(update_sql, {
             'pk': document_id,
             'sign_client': current_user,
@@ -428,6 +466,148 @@ def sign_with_cc():
         return jsonify({'success': False, 'message': str(e)}), 401
     except Exception as e:
         logger.error(f'[SIGNATURE] Erro ao assinar com CC: {str(e)}')
+        from app import db
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# =============================================================================
+# ASSINATURA EM LOTE (CMD) — 1 OTP confirma N documentos
+# =============================================================================
+
+@signature_bp.route('/cmd/init-batch', methods=['POST'])
+@jwt_required()
+@require_permission(PERMISSION_SIGN)
+def init_cmd_batch_signature():
+    """
+    Inicia assinatura CMD em lote — 1 SMS/OTP confirma todos os documentos.
+    POST /signature/cmd/init-batch
+    Body: {document_type, document_ids: [int], phone, nif, reason?}
+    """
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+
+        required = ['document_type', 'document_ids', 'phone', 'nif']
+        missing = [f for f in required if not data.get(f)]
+        if missing:
+            return jsonify({'success': False, 'message': f'Campos obrigatórios: {", ".join(missing)}'}), 400
+
+        document_ids = data['document_ids']
+        if not isinstance(document_ids, list) or len(document_ids) == 0:
+            return jsonify({'success': False, 'message': 'document_ids deve ser uma lista não vazia'}), 400
+        if len(document_ids) > 50:
+            return jsonify({'success': False, 'message': 'Máximo 50 documentos por lote'}), 400
+
+        with db_session_manager(current_user):
+            # Resolver caminhos de PDF para cada documento
+            pdf_paths = []
+            skipped = []
+            for doc_id in document_ids:
+                path, error = _get_pdf_path(data['document_type'], doc_id, current_user)
+                if error:
+                    skipped.append({'id': doc_id, 'reason': error})
+                else:
+                    pdf_paths.append((doc_id, path))
+
+            if not pdf_paths:
+                return jsonify({
+                    'success': False,
+                    'message': 'Nenhum documento válido para assinar',
+                    'skipped': skipped
+                }), 400
+
+            from app.services.digital_signature_service import DigitalSignatureService
+            sig_service = DigitalSignatureService()
+
+            result = sig_service.sign_batch_with_cmd(
+                pdf_paths=pdf_paths,
+                user_phone=data['phone'],
+                user_nif=data['nif'],
+                reason=data.get('reason', 'Assinatura de Documentos Oficiais AINTAR')
+            )
+
+            if skipped:
+                result['skipped'] = skipped
+
+            status_code = 200 if result.get('success') else 400
+            return jsonify(result), status_code
+
+    except InvalidSessionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 401
+    except Exception as e:
+        logger.error(f'[SIGNATURE] Erro ao iniciar lote CMD: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@signature_bp.route('/cmd/complete-batch', methods=['POST'])
+@jwt_required()
+@require_permission(PERMISSION_SIGN)
+def complete_cmd_batch_signature():
+    """
+    Completa assinatura CMD em lote após confirmação do utilizador.
+    POST /signature/cmd/complete-batch
+    Body: {document_type, document_ids: [int], process_id}
+    """
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+
+        required = ['document_type', 'document_ids', 'process_id']
+        missing = [f for f in required if not data.get(f)]
+        if missing:
+            return jsonify({'success': False, 'message': f'Campos obrigatórios: {", ".join(missing)}'}), 400
+
+        with db_session_manager(current_user):
+            # Resolver caminhos
+            pdf_paths = []
+            for doc_id in data['document_ids']:
+                path, error = _get_pdf_path(data['document_type'], doc_id, current_user)
+                if not error:
+                    pdf_paths.append((doc_id, path))
+
+            if not pdf_paths:
+                return jsonify({'success': False, 'message': 'Nenhum documento válido encontrado'}), 400
+
+            from app.services.digital_signature_service import DigitalSignatureService
+            sig_service = DigitalSignatureService()
+
+            signed_list = sig_service.cmd_complete_batch_signature(
+                process_id=data['process_id'],
+                pdf_paths=pdf_paths,
+                current_user=current_user
+            )
+
+            signed_ids = []
+            failed = []
+            for pk, signed_path in signed_list:
+                try:
+                    _mark_as_signed(
+                        document_type=data['document_type'],
+                        document_id=pk,
+                        current_user=current_user,
+                        method='CMD',
+                        extra_data={'process_id': data['process_id']},
+                        signed_filename=os.path.basename(signed_path)
+                    )
+                    signed_ids.append(pk)
+                except Exception as e:
+                    logger.error(f'[SIGNATURE] Erro ao marcar {pk} como assinado: {e}')
+                    failed.append({'id': pk, 'error': str(e)})
+
+            logger.info(f'[SIGNATURE] Lote CMD: {len(signed_ids)} assinados, {len(failed)} falhados — por {current_user}')
+
+            return jsonify({
+                'success': True,
+                'signed': signed_ids,
+                'failed': failed,
+                'message': f'{len(signed_ids)} documento(s) assinado(s) com sucesso'
+            }), 200
+
+    except InvalidSessionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 401
+    except Exception as e:
+        logger.error(f'[SIGNATURE] Erro ao completar lote CMD: {str(e)}')
         from app import db
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

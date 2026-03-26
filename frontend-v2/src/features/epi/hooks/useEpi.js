@@ -85,9 +85,9 @@ export const useEpi = (options = {}) => {
    */
   const fetchEpiData = useCallback(
     async (forceRefresh = false) => {
-      if (!forceRefresh && isCacheValid()) {
-        return;
-      }
+      if (!forceRefresh && isCacheValid()) return;
+      // Evita chamadas duplicadas concorrentes — lê o estado atual do store (não o valor reativo da closure)
+      if (!forceRefresh && useEpiStore.getState().loading) return;
 
       setLoading(true);
       clearError();

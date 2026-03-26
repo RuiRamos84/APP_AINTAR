@@ -54,6 +54,11 @@ import {
   AssignmentTurnedIn as PedidosIcon, // Pedidos processados
   BuildCircle as MaintenanceIcon,  // Manutenção cíclica
   Gavel as ContractIcon,           // Contratos (símbolo legal)
+  ManageAccounts as GestPessoalIcon, // Gestão de pessoal/RH
+  BeachAccess as FeriasIcon,       // Férias
+  EventBusy as FaltasIcon,         // Faltas e justificações
+  Schedule as HorariosIcon,        // Horários de trabalho
+  NightShelter as PiqueteIcon,     // Serviço de piquete
 } from '@mui/icons-material';
 import { PERMISSIONS } from './permissionMap';
 
@@ -117,7 +122,7 @@ export const ROUTE_CONFIG = {
     showInSidebar: false,
   },
 
-  // ==================== MÓDULO: OPERAÇÃO ====================
+  // ==================== MÓDULO: INTERNO ====================
 
   '/tasks': {
     id: 'tasks',
@@ -185,15 +190,7 @@ export const ROUTE_CONFIG = {
   // '/branches' e '/septic-tanks' removidos - não implementados
 
   // ==================== MÓDULO: GESTÃO ====================
-
-  '/analyses': {
-    id: 'analyses',
-    text: 'Análises',
-    icon: AnalysisIcon,
-    module: 'gestao',
-    permissions: { required: PERMISSIONS.ANALYSES_VIEW },
-    showInSidebar: true,
-  },
+  // Ordem: ETAR, EE, Equipamentos, Obras, Análises, Gestão de Frota, Despesas, Telemetria
 
   '/etar': {
     id: 'etar',
@@ -210,6 +207,42 @@ export const ROUTE_CONFIG = {
     icon: EEIcon,
     module: 'gestao',
     permissions: { required: PERMISSIONS.EE_VIEW },
+    showInSidebar: true,
+  },
+
+  '/equipamentos': {
+    id: 'equipamentos',
+    text: 'Equipamentos',
+    icon: EquipamentosIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.EQUIPAMENTOS_VIEW },
+    showInSidebar: true,
+  },
+
+  '/obras': {
+    id: 'obras',
+    text: 'Obras',
+    icon: ObrasIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.OBRAS_VIEW },
+    showInSidebar: true,
+  },
+
+  '/analyses': {
+    id: 'analyses',
+    text: 'Análises',
+    icon: AnalysisIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.ANALYSES_VIEW },
+    showInSidebar: true,
+  },
+
+  '/fleet': {
+    id: 'fleet',
+    text: 'Gestão de Frota',
+    icon: FleetIcon,
+    module: 'gestao',
+    permissions: { required: PERMISSIONS.ADMIN_USERS }, // Temp permission until we define a specific Fleet one (PERMISSIONS.FLEET_VIEW)
     showInSidebar: true,
   },
 
@@ -244,7 +277,7 @@ export const ROUTE_CONFIG = {
       },
       '/expenses/equipment': {
         id: 'expenses_equipment',
-        text: 'Equipamento',
+        text: 'Equipamentos',
         icon: InventoryIcon,
         permissions: { required: PERMISSIONS.EXPENSES_VIEW },
         showInSidebar: true,
@@ -261,61 +294,25 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
-  '/pavements': {
-    id: 'pavements',
-    text: 'Pavimentações',
-    icon: PavementIcon,
-    module: 'gestao',
-    permissions: { required: PERMISSIONS.PAVEMENTS_VIEW },
-    showInSidebar: true,
-  },
-
-
   '/emissoes': {
     id: 'emissoes',
     text: 'Emissões',
     icon: EmissoesIcon,
-    module: 'gestao',
+    module: 'administrativo',
     permissions: { required: PERMISSIONS.EMISSIONS_VIEW },
     showInSidebar: true,
   },
 
-  '/equipamentos': {
-    id: 'equipamentos',
-    text: 'Equipamentos',
-    icon: EquipamentosIcon,
-    module: 'gestao',
-    permissions: { required: PERMISSIONS.EQUIPAMENTOS_VIEW },
-    showInSidebar: true,
-  },
-
-  '/obras': {
-    id: 'obras',
-    text: 'Obras',
-    icon: ObrasIcon,
-    module: 'gestao',
-    permissions: { required: PERMISSIONS.OBRAS_VIEW },
-    showInSidebar: true,
-  },
-
   // ==================== MÓDULO: PAGAMENTOS ====================
+  // Ordem: SIBS/Pagamentos, Faturas, Clientes/contratos
 
-  '/clients': {
-    id: 'clients',
-    text: 'Clientes',
-    icon: ClientIcon,
+  '/payments': {
+    id: 'payments',
+    text: 'SIBS/Pagamentos',
+    icon: PaymentsIcon,
     module: 'pagamentos',
-    permissions: { required: PERMISSIONS.CLIENTS_VIEW },
+    permissions: { required: PERMISSIONS.PAYMENTS_VIEW },
     showInSidebar: true,
-    submenu: {
-      '/clients/contracts': {
-        id: 'clients_contracts',
-        text: 'Contratos',
-        icon: ContractIcon,
-        permissions: { required: PERMISSIONS.CLIENTS_CONTRACTS },
-        showInSidebar: true,
-      },
-    },
   },
 
   '/invoices': {
@@ -343,13 +340,22 @@ export const ROUTE_CONFIG = {
     },
   },
 
-  '/payments': {
-    id: 'payments',
-    text: 'SIBS/Pagamentos',
-    icon: PaymentsIcon,
+  '/clients': {
+    id: 'clients',
+    text: 'Clientes',
+    icon: ClientIcon,
     module: 'pagamentos',
-    permissions: { required: PERMISSIONS.PAYMENTS_VIEW },
+    permissions: { required: PERMISSIONS.CLIENTS_VIEW },
     showInSidebar: true,
+    submenu: {
+      '/clients/contracts': {
+        id: 'clients_contracts',
+        text: 'Contratos',
+        icon: ContractIcon,
+        permissions: { required: PERMISSIONS.CLIENTS_CONTRACTS },
+        showInSidebar: true,
+      },
+    },
   },
 
   // ==================== MÓDULO: DASHBOARDS ====================
@@ -508,38 +514,15 @@ export const ROUTE_CONFIG = {
     module: 'administracao',
     permissions: { required: PERMISSIONS.OFFICES_VIEW },
     showInSidebar: true,
-    submenu: {
-      '/offices-admin/open': {
-        id: 'offices_open',
-        text: 'Abrir',
-        icon: CreateNoteIcon,
-        permissions: { required: PERMISSIONS.OFFICES_CREATE },
-        showInSidebar: true,
-      },
-      '/offices-admin/close': {
-        id: 'offices_close',
-        text: 'Fechar',
-        icon: CheckCircleIcon,
-        permissions: { required: PERMISSIONS.OFFICES_CLOSE },
-        showInSidebar: true,
-      },
-      '/offices-admin/replicate': {
-        id: 'offices_replicate',
-        text: 'Replicar',
-        icon: ReplicateIcon,
-        permissions: { required: PERMISSIONS.OFFICES_REPLICATE },
-        showInSidebar: true,
-      },
-    },
   },
 
   '/requests': {
     id: 'requests',
     text: 'Pedidos Gestão',
     icon: RequestsIcon,
-    module: 'administracao',
+    module: 'pedidos',
     permissions: { required: PERMISSIONS.REQUESTS_VIEW },
-    showInSidebar: true,
+    showInSidebar: false,
     submenu: {
       '/requests/open': {
         id: 'requests_open',
@@ -571,7 +554,7 @@ export const ROUTE_CONFIG = {
     icon: EntitiesIcon,
     module: 'administracao',
     permissions: { required: PERMISSIONS.ENTITIES_VIEW },
-    showInSidebar: true,
+    showInSidebar: false,
     submenu: {
       '/entities/list': {
         id: 'entities_list',
@@ -597,34 +580,101 @@ export const ROUTE_CONFIG = {
     },
   },
 
-  // ==================== MÓDULO: ADMINISTRATIVO ====================
+  // ==================== MÓDULO: PEDIDOS ====================
+  // Ordem: Pedidos, Pavimentações, Requisição Interna
 
-  // ==================== MÓDULO: ÁREA INTERNA ====================
+  '/pedidos': {
+    id: 'pedidos',
+    text: 'Pedidos',
+    icon: PedidosIcon,
+    module: 'pedidos',
+    permissions: { required: PERMISSIONS.DOCS_VIEW_ALL },
+    showInSidebar: true,
+  },
+
+  '/pavements': {
+    id: 'pavements',
+    text: 'Pavimentações',
+    icon: PavementIcon,
+    module: 'pedidos',
+    permissions: { required: PERMISSIONS.PAVEMENTS_VIEW },
+    showInSidebar: true,
+  },
 
   '/internal': {
     id: 'internal',
     text: 'Área Interna',
     icon: InternalIcon,
-    module: 'administrativo',
+    module: 'pedidos',
     permissions: { required: PERMISSIONS.TASKS_VIEW },
     showInSidebar: false,
   },
-
 
   '/internal/requisicao': {
     id: 'internal_requisicao',
     text: 'Requisição Interna',
     icon: RequestsIcon,
-    module: 'administrativo',
+    module: 'pedidos',
     permissions: { required: PERMISSIONS.TASKS_VIEW },
     showInSidebar: true,
+  },
+
+  // ==================== MÓDULO: RECURSOS HUMANOS ====================
+  // Ordem: EPI (topo), Gestão Pessoal (submenu), Avaliação, Análise de Avaliações
+
+  '/epi': {
+    id: 'epi',
+    text: 'Gestão de EPI',
+    icon: EPIIcon,
+    module: 'rh',
+    permissions: { required: PERMISSIONS.EPI_MANAGEMENT },
+    showInSidebar: true,
+  },
+
+  '/rh/pessoal': {
+    id: 'rh_pessoal',
+    text: 'Gestão Pessoal',
+    icon: GestPessoalIcon,
+    module: 'rh',
+    permissions: null, // Será controlado ao nível dos submenus
+    showInSidebar: true,
+    submenu: {
+      '/rh/pessoal/ferias': {
+        id: 'rh_ferias',
+        text: 'Férias',
+        icon: FeriasIcon,
+        permissions: null,
+        showInSidebar: true,
+      },
+      '/rh/pessoal/faltas': {
+        id: 'rh_faltas',
+        text: 'Faltas e Justificações',
+        icon: FaltasIcon,
+        permissions: null,
+        showInSidebar: true,
+      },
+      '/rh/pessoal/horarios': {
+        id: 'rh_horarios',
+        text: 'Horários',
+        icon: HorariosIcon,
+        permissions: null,
+        showInSidebar: true,
+      },
+      '/rh/pessoal/piquete': {
+        id: 'rh_piquete',
+        text: 'Piquete',
+        icon: PiqueteIcon,
+        permissions: null,
+        showInSidebar: true,
+      },
+    },
   },
 
   '/aval': {
     id: 'aval',
     text: 'Avaliação',
     icon: AvalIcon,
-    module: 'administrativo',
+    module: 'rh',
     permissions: null, // Todos os utilizadores autenticados
     showInSidebar: true,
   },
@@ -633,7 +683,7 @@ export const ROUTE_CONFIG = {
     id: 'aval_analytics',
     text: 'Análise de Avaliações',
     icon: AnalyticsIcon,
-    module: 'administrativo',
+    module: 'rh',
     permissions: null,
     showInSidebar: true,
   },
@@ -647,42 +697,13 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
-
-  '/epi': {
-    id: 'epi',
-    text: 'Gestão de EPI',
-    icon: EPIIcon,
-    module: 'administrativo',
-    permissions: { required: PERMISSIONS.EPI_MANAGEMENT },
-    showInSidebar: true,
-  },
-
-  '/fleet': {
-    id: 'fleet',
-    text: 'Gestão de Frota',
-    icon: FleetIcon,
-    module: 'administrativo',
-    permissions: { required: PERMISSIONS.ADMIN_USERS }, // Temp permission until we define a specific Fleet one (PERMISSIONS.FLEET_VIEW)
-    showInSidebar: true,
-  },
-
-
   '/offices': {
     id: 'offices',
     text: 'Gestão de Ofícios',
     icon: OfficesIcon,
     module: 'administrativo',
     permissions: { required: PERMISSIONS.OFFICES_VIEW },
-    showInSidebar: false, // Consolidado em /offices-admin (módulo Sistema)
-  },
-
-  '/pedidos': {
-    id: 'pedidos',
-    text: 'Pedidos',
-    icon: PedidosIcon,
-    module: 'administrativo',
-    permissions: { required: PERMISSIONS.DOCS_VIEW_ALL },
-    showInSidebar: true,
+    showInSidebar: false,
   },
 
   // ==================== ROTAS LEGACY (mantidas para compatibilidade) ====================

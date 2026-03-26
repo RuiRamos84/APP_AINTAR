@@ -264,15 +264,20 @@ export const TasksPage = () => {
   }, [refresh]);
 
   // Socket.IO: atualizações em tempo real de tarefas
-  useTaskSocket({
-    selectedTaskId: selectedTask?.pk ?? selectedTask?.id ?? null,
-    currentUserId: userId,
-    onTaskUpdated: (taskId) => {
+  const handleSocketTaskUpdated = useCallback(
+    (taskId) => {
       if (selectedTask && (selectedTask.pk === taskId || selectedTask.id === taskId)) {
-        setSelectedTask((prev) => prev ? { ...prev, _socketRefresh: Date.now() } : prev);
+        setSelectedTask((prev) => (prev ? { ...prev, _socketRefresh: Date.now() } : prev));
       }
       refresh();
     },
+    [selectedTask, refresh]
+  );
+
+  useTaskSocket({
+    selectedTaskId: selectedTask?.pk ?? selectedTask?.id ?? null,
+    currentUserId: userId,
+    onTaskUpdated: handleSocketTaskUpdated,
   });
 
   // Abrir modal se taskId estiver na URL (vindo de notificação)

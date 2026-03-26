@@ -204,7 +204,7 @@ def create_app(config_class):
             tasks_bp, operations_bp, permissions_bp, operation_control_bp,
             analysis_bp, operation_metadata_bp, telemetry_bp, inventory_bp,
             vehicle_bp, alert_whatsapp_bp, aval_bp, equipamentos_bp,
-            equipamento_bp, obras_bp, obra_despesa_bp,
+            equipamento_bp, obras_bp, obra_despesa_bp, offices_bp,
         )
         from .routes.emission_routes import emission_bp
         from .routes.signature_routes import signature_bp
@@ -237,6 +237,7 @@ def create_app(config_class):
         app.register_blueprint(equipamento_bp, url_prefix='/api/v1')
         app.register_blueprint(obras_bp, url_prefix='/api/v1')
         app.register_blueprint(obra_despesa_bp, url_prefix='/api/v1')
+        app.register_blueprint(offices_bp, url_prefix='/api/v1')
 
 
         # Configuração do search_path para o PostgreSQL
