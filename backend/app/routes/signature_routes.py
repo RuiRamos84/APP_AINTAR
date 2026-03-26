@@ -83,6 +83,107 @@ def _mark_as_signed(document_type: str, document_id: int, current_user: str, met
 
 
 # =============================================================================
+# ASSINATURA INTERNA (certificado AINTAR — funciona sem credenciais externas)
+# =============================================================================
+
+@signature_bp.route('/internal', methods=['POST'])
+@jwt_required()
+@require_permission(PERMISSION_SIGN)
+def sign_internal():
+    """
+    Assina documento com o certificado interno da AINTAR.
+    POST /signature/internal
+    Body: {document_type, document_id, reason?}
+    """
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json() or {}
+
+        required = ['document_type', 'document_id']
+        missing = [f for f in required if not data.get(f)]
+        if missing:
+            return jsonify({'success': False, 'message': f'Campos obrigatórios: {", ".join(missing)}'}), 400
+
+        with db_session_manager(current_user):
+            file_path, error = _get_pdf_path(data['document_type'], data['document_id'], current_user)
+            if error:
+                return jsonify({'success': False, 'message': error}), 400 if 'necessário' in error or 'já foi' in error else 404
+
+            from app.services.digital_signature_service import sign_pdf_internal
+            signed_path = sign_pdf_internal(
+                pdf_path=file_path,
+                signer_name=current_user,
+                reason=data.get('reason', 'Assinatura de Documento Oficial')
+            )
+
+            signed_filename = os.path.basename(signed_path)
+
+            _mark_as_signed(
+                document_type=data['document_type'],
+                document_id=data['document_id'],
+                current_user=current_user,
+                method='INTERNAL',
+                extra_data={},
+                signed_filename=signed_filename
+            )
+
+            logger.info(f'[SIGNATURE] {data["document_type"]} {data["document_id"]} assinado internamente por {current_user}')
+
+            return jsonify({
+                'success': True,
+                'message': 'Documento assinado com sucesso',
+                'data': {
+                    'document_type': data['document_type'],
+                    'document_id': data['document_id'],
+                    'signed_filename': signed_filename,
+                    'method': 'INTERNAL'
+                }
+            }), 200
+
+    except InvalidSessionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 401
+    except Exception as e:
+        logger.error(f'[SIGNATURE] Erro na assinatura interna: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# =============================================================================
+# VALIDAÇÃO DE ASSINATURA
+# =============================================================================
+
+@signature_bp.route('/validate', methods=['GET'])
+@jwt_required()
+def validate_signature():
+    """
+    Valida assinatura digital de um documento.
+    GET /signature/validate?document_type=emission&document_id=123
+    """
+    try:
+        current_user = get_jwt_identity()
+        document_type = request.args.get('document_type')
+        document_id = request.args.get('document_id', type=int)
+
+        if not document_type or not document_id:
+            return jsonify({'success': False, 'message': 'document_type e document_id são obrigatórios'}), 400
+
+        with db_session_manager(current_user):
+            file_path, error = _get_pdf_path(document_type, document_id, current_user)
+            if error:
+                return jsonify({'success': False, 'message': error}), 404
+
+            from app.services.digital_signature_service import validate_pdf_signature
+            result = validate_pdf_signature(file_path)
+
+            return jsonify({'success': True, **result}), 200
+
+    except InvalidSessionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 401
+    except Exception as e:
+        logger.error(f'[SIGNATURE] Erro na validação: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# =============================================================================
 # HASH DO DOCUMENTO (necessário para assinatura com Cartão de Cidadão)
 # =============================================================================
 

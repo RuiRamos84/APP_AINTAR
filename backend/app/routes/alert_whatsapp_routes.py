@@ -65,18 +65,12 @@ def enviar_alerta_whatsapp():
     try:
         body = request.get_json(force=True, silent=True) or {}
         phone = body.get("phone", "").strip()
-        account_sid = body.get("account_sid", "").strip()
-        auth_token = body.get("auth_token", "").strip()
         pk = body.get("pk", None)
 
         if not phone:
             return jsonify({"status": "error", "message": "Número de telefone obrigatório"}), 400
-        if not account_sid:
-            return jsonify({"status": "error", "message": "Account SID do Twilio obrigatório"}), 400
-        if not auth_token:
-            return jsonify({"status": "error", "message": "Auth Token do Twilio obrigatório"}), 400
 
-        return send_whatsapp_alert(phone=phone, account_sid=account_sid, auth_token=auth_token, pk=pk)
+        return send_whatsapp_alert(phone=phone, pk=pk)
 
     except Exception as e:
         logger.error(f"Erro ao enviar alerta WhatsApp: {str(e)}")

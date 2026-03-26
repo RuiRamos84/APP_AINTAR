@@ -30,8 +30,6 @@ export default function AlertaWhatsAppPage() {
     const [carregando, setCarregando] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [phone, setPhone] = useState("");
-    const [accountSid, setAccountSid] = useState("");
-    const [authToken, setAuthToken] = useState("");
 
     const carregarAlerta = useCallback(async () => {
         setCarregando(true);
@@ -55,18 +53,10 @@ export default function AlertaWhatsAppPage() {
             notification.error("Insere o número de telefone");
             return;
         }
-        if (!accountSid.trim()) {
-            notification.error("Insere o Account SID do Twilio");
-            return;
-        }
-        if (!authToken.trim()) {
-            notification.error("Insere o Auth Token do Twilio");
-            return;
-        }
 
         setEnviando(true);
         try {
-            await alertService.enviarAlertaWhatsApp(phone.trim(), accountSid.trim(), authToken.trim());
+            await alertService.enviarAlertaWhatsApp(phone.trim());
             notification.success("Alerta enviado com sucesso via WhatsApp!");
         } catch (err) {
             const msg = err?.response?.data?.message || "Erro ao enviar alerta";
@@ -157,10 +147,6 @@ export default function AlertaWhatsAppPage() {
                     </Typography>
                 </Stack>
 
-                <Alert severity="info" sx={{ mb: 2.5 }}>
-                    Regista em <strong>twilio.com</strong> (gratuito) → <strong>Messaging → Try it out → WhatsApp</strong> → scannas o QR code com o teu telemóvel. O Account SID e Auth Token estão no painel principal do Twilio.
-                </Alert>
-
                 <Stack spacing={2}>
                     <TextField
                         label="Número de telefone de destino"
@@ -169,26 +155,7 @@ export default function AlertaWhatsAppPage() {
                         onChange={(e) => setPhone(e.target.value)}
                         fullWidth
                         size="small"
-                        helperText="O teu número com código de país (ex: +351 para Portugal)"
-                    />
-                    <TextField
-                        label="Account SID"
-                        placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                        value={accountSid}
-                        onChange={(e) => setAccountSid(e.target.value)}
-                        fullWidth
-                        size="small"
-                        helperText="Encontras no painel principal do Twilio"
-                    />
-                    <TextField
-                        label="Auth Token"
-                        placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                        value={authToken}
-                        onChange={(e) => setAuthToken(e.target.value)}
-                        fullWidth
-                        size="small"
-                        type="password"
-                        helperText="Encontras no painel principal do Twilio (ao lado do Account SID)"
+                        helperText="Número com código de país (ex: +351 para Portugal)"
                     />
                     <Button
                         variant="contained"
