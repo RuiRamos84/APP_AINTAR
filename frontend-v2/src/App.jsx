@@ -200,6 +200,9 @@ function App() {
         {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
         <Route path="/pavements" element={<PavimentosPage />} />
 
+        {/* Ofícios/Expedientes - permissão 1300 (OFFICES_VIEW) */}
+        <Route path="/offices-admin" element={<OfficesPage />} />
+
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
         <Route path="/dashboards/overview" element={<DashboardOverviewPage />} />
         <Route path="/dashboards/requests" element={<DashboardRequestsPage />} />
@@ -210,6 +213,9 @@ function App() {
         <Route path="/dashboards/analyses" element={<DashboardAnalysesPage />} />
         <Route path="/dashboards/repav" element={<DashboardRepavPage />} />
         <Route path="/dashboards/tramitacoes" element={<DashboardTramitacoesPage />} />
+
+        {/* ==================== EMISSÕES (Ofícios, Notificações, etc.) ==================== */}
+        <Route path="/emissoes" element={<EmissoesPage />} />
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />

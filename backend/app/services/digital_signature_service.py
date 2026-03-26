@@ -308,6 +308,126 @@ class DigitalSignatureService:
             raise
 
     # ============================================
+    # CMD EM LOTE — 1 OTP confirma N documentos
+    # ============================================
+
+    def sign_batch_with_cmd(
+        self,
+        pdf_paths: list,   # [(pk, path), ...]
+        user_phone: str,
+        user_nif: str,
+        reason: str = "Assinatura de Documentos Oficiais AINTAR"
+    ) -> dict:
+        """
+        Inicia assinatura CMD para múltiplos documentos.
+        A AMA envia UM único SMS/OTP que confirma TODOS os documentos.
+
+        Returns:
+            {success, process_id, document_count, message}
+        """
+        if not self._check_cmd_credentials():
+            return {'success': False, 'error': 'Credenciais CMD não configuradas'}
+
+        try:
+            # Gerar hashes para todos os documentos
+            documents = []
+            for pk, path in pdf_paths:
+                documents.append({
+                    'documentId': str(pk),
+                    'documentHash': self._generate_document_hash(path),
+                    'hashAlgorithm': 'SHA256'
+                })
+
+            access_token = self._cmd_authenticate()
+
+            url = f"{self.cmd_api_base}/sign/batch/init"
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            }
+            payload = {
+                'mobileNumber': user_phone,
+                'nif': user_nif,
+                'documents': documents,
+                'signatureReason': reason,
+                'applicationId': 'AINTAR_OFICIOS'
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            process_id = response.json()['requestId']
+
+            logger.info(f"Assinatura CMD em lote iniciada: {process_id} ({len(pdf_paths)} docs)")
+
+            return {
+                'success': True,
+                'process_id': process_id,
+                'document_count': len(pdf_paths),
+                'message': f'OTP enviado. Confirme para assinar {len(pdf_paths)} documento(s).'
+            }
+
+        except Exception as e:
+            logger.error(f"Erro na assinatura CMD em lote: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
+    def cmd_complete_batch_signature(
+        self,
+        process_id: str,
+        pdf_paths: list,   # [(pk, path), ...]
+        current_user: str = None
+    ) -> list:
+        """
+        Completa assinatura CMD em lote após confirmação do utilizador.
+
+        Returns:
+            [(pk, signed_path), ...] para documentos assinados com sucesso
+        """
+        if not self._check_cmd_credentials():
+            raise ValueError("Credenciais CMD não configuradas")
+
+        try:
+            access_token = self._cmd_authenticate()
+
+            url = f"{self.cmd_api_base}/sign/batch/complete"
+            headers = {'Authorization': f'Bearer {access_token}'}
+
+            response = requests.post(
+                url,
+                headers=headers,
+                json={'requestId': process_id},
+                timeout=60
+            )
+            response.raise_for_status()
+
+            # {signatures: [{documentId, signature, certificate}, ...]}
+            signatures = response.json().get('signatures', [])
+
+            signed_results = []
+            for pk, path in pdf_paths:
+                doc_sig = next((s for s in signatures if s['documentId'] == str(pk)), None)
+                if doc_sig:
+                    signed_path = self._apply_signature_to_pdf(
+                        path,
+                        doc_sig['signature'],
+                        doc_sig['certificate']
+                    )
+                    signed_results.append((pk, signed_path))
+
+            if current_user:
+                LetterAuditService.log_action(
+                    user=current_user,
+                    action='LETTER_SIGN_CMD_BATCH',
+                    details={'process_id': process_id, 'count': len(signed_results)}
+                )
+
+            logger.info(f"Assinatura CMD em lote concluída: {len(signed_results)} docs")
+            return signed_results
+
+        except Exception as e:
+            logger.error(f"Erro ao completar assinatura CMD em lote: {str(e)}")
+            raise
+
+    # ============================================
     # CARTÃO DE CIDADÃO (CC)
     # ============================================
 

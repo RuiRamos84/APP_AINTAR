@@ -514,29 +514,6 @@ export const ROUTE_CONFIG = {
     module: 'administracao',
     permissions: { required: PERMISSIONS.OFFICES_VIEW },
     showInSidebar: true,
-    submenu: {
-      '/offices-admin/open': {
-        id: 'offices_open',
-        text: 'Abrir',
-        icon: CreateNoteIcon,
-        permissions: { required: PERMISSIONS.OFFICES_CREATE },
-        showInSidebar: true,
-      },
-      '/offices-admin/close': {
-        id: 'offices_close',
-        text: 'Fechar',
-        icon: CheckCircleIcon,
-        permissions: { required: PERMISSIONS.OFFICES_CLOSE },
-        showInSidebar: true,
-      },
-      '/offices-admin/replicate': {
-        id: 'offices_replicate',
-        text: 'Replicar',
-        icon: ReplicateIcon,
-        permissions: { required: PERMISSIONS.OFFICES_REPLICATE },
-        showInSidebar: true,
-      },
-    },
   },
 
   '/requests': {
