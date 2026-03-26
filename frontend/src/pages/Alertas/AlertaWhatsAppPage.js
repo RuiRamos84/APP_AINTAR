@@ -30,7 +30,6 @@ export default function AlertaWhatsAppPage() {
     const [carregando, setCarregando] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [phone, setPhone] = useState("");
-    const [apikey, setApikey] = useState("");
 
     const carregarAlerta = useCallback(async () => {
         setCarregando(true);
@@ -54,14 +53,10 @@ export default function AlertaWhatsAppPage() {
             notification.error("Insere o número de telefone");
             return;
         }
-        if (!apikey.trim()) {
-            notification.error("Insere a API key do CallMeBot");
-            return;
-        }
 
         setEnviando(true);
         try {
-            await alertService.enviarAlertaWhatsApp(phone.trim(), apikey.trim());
+            await alertService.enviarAlertaWhatsApp(phone.trim());
             notification.success("Alerta enviado com sucesso via WhatsApp!");
         } catch (err) {
             const msg = err?.response?.data?.message || "Erro ao enviar alerta";
@@ -152,29 +147,15 @@ export default function AlertaWhatsAppPage() {
                     </Typography>
                 </Stack>
 
-                <Alert severity="info" sx={{ mb: 2.5 }}>
-                    Para usar o CallMeBot: guarda o número <strong>+34 644 59 21 88</strong> e envia
-                    a mensagem <em>"I allow callmebot to send me messages"</em> — recebes a API key de resposta.
-                </Alert>
-
                 <Stack spacing={2}>
                     <TextField
-                        label="Número de telefone"
+                        label="Número de telefone de destino"
                         placeholder="+351912345678"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         fullWidth
                         size="small"
-                        helperText="Inclui o código do país (ex: +351 para Portugal)"
-                    />
-                    <TextField
-                        label="API Key do CallMeBot"
-                        placeholder="1234567"
-                        value={apikey}
-                        onChange={(e) => setApikey(e.target.value)}
-                        fullWidth
-                        size="small"
-                        helperText="API key que recebes do CallMeBot via WhatsApp"
+                        helperText="Número com código de país (ex: +351 para Portugal)"
                     />
                     <Button
                         variant="contained"

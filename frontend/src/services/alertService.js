@@ -6,10 +6,9 @@ const alertService = {
     getUltimoAlerta: (pk = null) =>
         api.get(`${BASE}/whatsapp/ultimo`, { params: pk ? { pk } : {} }),
 
-    enviarAlertaWhatsApp: (phone, apikey, pk = null) =>
+    enviarAlertaWhatsApp: (phone, pk = null) =>
         api.post(`${BASE}/whatsapp/enviar`, {
             phone,
-            apikey,
             ...(pk !== null && { pk }),
         }),
 };

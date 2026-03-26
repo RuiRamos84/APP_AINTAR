@@ -65,15 +65,12 @@ def enviar_alerta_whatsapp():
     try:
         body = request.get_json(force=True, silent=True) or {}
         phone = body.get("phone", "").strip()
-        apikey = body.get("apikey", "").strip()
         pk = body.get("pk", None)
 
         if not phone:
             return jsonify({"status": "error", "message": "Número de telefone obrigatório"}), 400
-        if not apikey:
-            return jsonify({"status": "error", "message": "API key do CallMeBot obrigatória"}), 400
 
-        return send_whatsapp_alert(phone=phone, apikey=apikey, pk=pk)
+        return send_whatsapp_alert(phone=phone, pk=pk)
 
     except Exception as e:
         logger.error(f"Erro ao enviar alerta WhatsApp: {str(e)}")
