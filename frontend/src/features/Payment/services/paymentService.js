@@ -191,6 +191,49 @@ class PaymentService {
     }
 
     /**
+     * CONTRATOS
+     */
+    async getContracts() {
+        const response = await this.api.get('/payments/contracts');
+        return response.data;
+    }
+
+    async getContractAlerts() {
+        const response = await this.api.get('/payments/contracts/alerts');
+        return response.data;
+    }
+
+    async getContractPayments(contractPk) {
+        const response = await this.api.get(`/payments/contracts/${contractPk}/payments`);
+        return response.data;
+    }
+
+    async getEntityDetail(pk) {
+        const response = await this.api.get(`/entity/${pk}`);
+        return response.data;
+    }
+
+    async getEntityByNipc(nipc) {
+        const response = await this.api.get(`/entity/nipc/${nipc}`);
+        return response.data;
+    }
+
+    async createContract(data) {
+        const response = await this.api.post('/payments/contracts', data);
+        return response.data;
+    }
+
+    async invoiceContractPayment(contractPk, paymentPk, invoiceDate) {
+        const response = await this.api.patch(`/payments/contracts/${contractPk}/payments/${paymentPk}/invoice`, { invoice_date: invoiceDate || null });
+        return response.data;
+    }
+
+    async validateContractPayment(contractPk, paymentPk, payedDate) {
+        const response = await this.api.patch(`/payments/contracts/${contractPk}/payments/${paymentPk}/validate`, { payed_date: payedDate });
+        return response.data;
+    }
+
+    /**
      * UTILITÁRIOS
      */
 
