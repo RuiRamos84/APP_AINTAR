@@ -149,7 +149,8 @@ function App() {
         <Route path="/payments" element={<PaymentAdminPage />} />
 
         {/* Clients */}
-        <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/clients" element={<EntitiesPage />} />
+        <Route path="/clients/*" element={<EntitiesPage />} />
         <Route path="/clients/contracts" element={<ClientContractsPage />} />
 
         {/* Invoices */}
@@ -241,6 +242,7 @@ function App() {
         {/* ==================== ENTIDADES ==================== */}
         <Route path="/entities" element={<EntitiesPage />} />
         <Route path="/entities/*" element={<EntitiesPage />} />
+
       </Route>
 
       {/* ==================== 404 ==================== */}

@@ -356,7 +356,12 @@ export const Sidebar = ({
         },
       }}
     >
-      {popoverRoute?.submenu && Object.entries(popoverRoute.submenu).map(([subPath, subRoute]) => (
+      {popoverRoute?.submenu && Object.entries(popoverRoute.submenu)
+        .filter(([, subRoute]) => {
+          const perm = subRoute.permissions?.required;
+          return !perm || hasPermission(perm);
+        })
+        .map(([subPath, subRoute]) => (
         <MenuItem
           key={subPath}
           selected={isActive(subPath)}

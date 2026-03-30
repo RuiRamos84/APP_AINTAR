@@ -19,6 +19,8 @@ from functools import wraps
 import os
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
+from app.utils.permissions_decorator import require_permission
+from app.utils.utils import token_required
 from app.services.telemetry_service import (
     insert_sensor_data,
     get_sensor_data,
@@ -173,6 +175,8 @@ def receive_sensor_data():
 
 @bp.route('/dados', methods=['GET'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view
 @api_error_handler
 def list_sensor_data():
     """
@@ -220,6 +224,8 @@ def list_sensor_data():
 
 @bp.route('/params', methods=['GET'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view
 @api_error_handler
 def list_teleparams():
     """
@@ -237,6 +243,8 @@ def list_teleparams():
 
 @bp.route('/dados/<int:pk>/processed', methods=['PUT'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.edit')  # ts_interface: telemetry.edit
 @api_error_handler
 def set_processed(pk):
     """
@@ -269,6 +277,8 @@ def set_processed(pk):
 
 @bp.route('/sensores', methods=['GET'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view
 @api_error_handler
 def list_sensors():
     """
@@ -286,6 +296,8 @@ def list_sensors():
 
 @bp.route('/tiposensor', methods=['GET'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view
 @api_error_handler
 def list_sensor_types():
     """
@@ -303,6 +315,8 @@ def list_sensor_types():
 
 @bp.route('/sensores/query', methods=['POST'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view (query é read-only)
 @api_error_handler
 def query_stations_route():
     """
@@ -331,6 +345,8 @@ def query_stations_route():
 
 @bp.route('/stats', methods=['GET'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view
 @api_error_handler
 def get_stats():
     """
@@ -358,6 +374,8 @@ def get_stats():
 
 @bp.route('/query', methods=['POST'])
 @jwt_required()
+@token_required
+@require_permission('telemetry.view')  # ts_interface: telemetry.view (query é read-only)
 @api_error_handler
 def query_data():
     """

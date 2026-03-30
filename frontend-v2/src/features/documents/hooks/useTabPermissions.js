@@ -1,16 +1,15 @@
 import { useMemo } from 'react';
 import { usePermissions } from '@/core/contexts';
-import { PERMISSIONS } from '@/core/config/permissionMap';
 
 /**
  * Tab definitions for the Documents page
- * Each tab maps to a permission ID
+ * Each tab maps to a permission string
  */
 const TAB_CONFIG = [
-  { index: 0, label: 'Todos os Pedidos', permission: PERMISSIONS.DOCS_VIEW_ALL },
-  { index: 1, label: 'A Meu Cargo', permission: PERMISSIONS.DOCS_VIEW_ASSIGNED },
-  { index: 2, label: 'Criados por Mim', permission: PERMISSIONS.DOCS_VIEW_OWNER },
-  { index: 3, label: 'Em Atraso', permission: PERMISSIONS.DOCS_VIEW_ALL },
+  { index: 0, label: 'Todos os Pedidos', permission: 'docs.view.all' },
+  { index: 1, label: 'A Meu Cargo', permission: 'docs.view.assigned' },
+  { index: 2, label: 'Criados por Mim', permission: 'docs.view.owner' },
+  { index: 3, label: 'Em Atraso', permission: 'docs.view.all' },
 ];
 
 /**

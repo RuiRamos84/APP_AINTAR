@@ -21,8 +21,13 @@ export const PERMISSION_TEMPLATES = {
     icon: 'work',
     color: '#38A169',
     permissions: [
+      PERMISSIONS.INTERNAL_ACCESS,
+      PERMISSIONS.OPERATION_ACCESS,
+      PERMISSIONS.OPERATION_EXECUTE,
       PERMISSIONS.TASKS_VIEW,
+      PERMISSIONS.TASKS_MANAGE,
       PERMISSIONS.DOCS_VIEW_ASSIGNED,
+      PERMISSIONS.DASHBOARD_VIEW,
     ],
   },
   'Gestor de Documentos': {
@@ -34,7 +39,6 @@ export const PERMISSION_TEMPLATES = {
       PERMISSIONS.DOCS_CREATE,
       PERMISSIONS.DOCS_EDIT,
       PERMISSIONS.DOCS_DELETE,
-      PERMISSIONS.DOCS_ASSIGN,
     ],
   },
   'Gestor de Tarefas': {
@@ -42,11 +46,10 @@ export const PERMISSION_TEMPLATES = {
     icon: 'task',
     color: '#805AD5',
     permissions: [
+      PERMISSIONS.TASKS_ALL,
       PERMISSIONS.TASKS_VIEW,
-      PERMISSIONS.TASKS_CREATE,
+      PERMISSIONS.TASKS_MANAGE,
       PERMISSIONS.TASKS_EDIT,
-      PERMISSIONS.TASKS_DELETE,
-      PERMISSIONS.TASKS_ASSIGN,
     ],
   },
   'Administrador': {
@@ -57,6 +60,9 @@ export const PERMISSION_TEMPLATES = {
       PERMISSIONS.ADMIN_DASHBOARD,
       PERMISSIONS.ADMIN_USERS,
       PERMISSIONS.ADMIN_PAYMENTS,
+      PERMISSIONS.ADMIN_LOGS_VIEW,
+      PERMISSIONS.ADMIN_REPORTS_VIEW,
+      PERMISSIONS.INTERNAL_ACCESS,
     ],
   },
   'Gestor de Entidades': {
@@ -65,10 +71,42 @@ export const PERMISSION_TEMPLATES = {
     color: '#2D3748',
     permissions: [
       PERMISSIONS.ENTITIES_VIEW,
-      PERMISSIONS.ENTITIES_EDIT,
+      PERMISSIONS.ENTITIES_CREATE,
+      PERMISSIONS.ENTITIES_MANAGE,
+    ],
+  },
+  'Financeiro — Básico': {
+    description: 'Visualização de pagamentos e processar MB/MBWay',
+    icon: 'payments',
+    color: '#2B6CB0',
+    permissions: [
+      PERMISSIONS.PAYMENTS_VIEW,
+      PERMISSIONS.PAYMENTS_MBWAY,
+      PERMISSIONS.PAYMENTS_MULTIBANCO,
+      PERMISSIONS.ENTITIES_VIEW,
+      PERMISSIONS.DOCS_VIEW,
+      PERMISSIONS.DASHBOARD_VIEW,
+    ],
+  },
+  'Financeiro — Completo': {
+    description: 'Todos os métodos de pagamento incluindo numerário e municípios',
+    icon: 'account_balance',
+    color: '#744210',
+    permissions: [
+      PERMISSIONS.PAYMENTS_VIEW,
+      PERMISSIONS.PAYMENTS_MBWAY,
+      PERMISSIONS.PAYMENTS_MULTIBANCO,
+      PERMISSIONS.PAYMENTS_BANK_TRANSFER,
+      PERMISSIONS.PAYMENTS_CASH,
+      PERMISSIONS.PAYMENTS_MUNICIPALITY,
+      PERMISSIONS.ENTITIES_VIEW,
+      PERMISSIONS.DOCS_VIEW,
+      PERMISSIONS.ADMIN_REPORTS_VIEW,
+      PERMISSIONS.DASHBOARD_VIEW,
     ],
   },
 };
+
 
 /**
  * Obtém todas as dependências de uma permissão (recursivo).

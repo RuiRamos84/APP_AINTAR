@@ -45,12 +45,17 @@ Domain: app.aintar.pt | Production server: Windows Server 2019
 ## Key Patterns
 
 ### Backend
-- Routes: `@bp.route()` + `@jwt_required()` + `@api_error_handler`
+- Routes: `@bp.route()` + `@require_permission('string.value')` + `@api_error_handler`
 - DB reads use views (`vbl_*`), writes use tables (`tb_*`, `vbf_*`)
 - PK generation: `fs_nextcode()` database function
 - Session: `db_session_manager(current_user)`
 - Error messages in Portuguese
 - API prefix: `/api/v1/`
+
+### Permissions / Granular RBAC (Strictly Enforced)
+- **String-Based Only**: All permission checks (`require_permission` in Backend, `permissions: { required: '...' }` in Frontend) MUST use the exact granular string values from the `ts_interface` database table (e.g., `docs.view`, `entities.edit`).
+- **No Legacy Constants**: DO NOT use legacy numeric ID constants like `PERMISSIONS.DOCS_VIEW` or `530`. The `permissionMap.js` mapping is obsolete.
+- **Granular Actions**: Permissions must follow the `.view` and `.edit` convention per module context (or specific actions like `payments.mbway`). "Umbrella" or generic grouping permissions (e.g., `global.access` or `admin.dashboard`) were permanently removed and must never be reintroduced.
 
 ### Frontend (current production)
 - **Components:** PascalCase filenames matching component names

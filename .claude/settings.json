@@ -41,7 +41,8 @@
       "Bash(find c:Usersrui.ramosDesktopAPPfrontendsrc -type f \\\\\\(-name *quipamento* \\\\\\))",
       "Bash(find c:Usersrui.ramosDesktopAPPbackend -type f \\\\\\(-name *.md -o -name *schema* -o -name *db* \\\\\\))",
       "Bash(find c:Usersrui.ramosDesktopAPPbackend -type f \\\\\\(-name *.md -o -name *.txt -o -name *.rst \\\\\\))",
-      "Bash(npm show:*)"
+      "Bash(npm show:*)",
+      "Bash(/dev/null:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"

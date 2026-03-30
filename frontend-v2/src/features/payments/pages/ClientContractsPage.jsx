@@ -17,13 +17,14 @@ import {
   Cancel as InactiveIcon,
   Close as CloseIcon,
   Refresh as RefreshIcon,
-  Person as PersonIcon,
-  CalendarToday as DateIcon,
 } from '@mui/icons-material';
-import { DataGrid } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
+import DataTable from '@/shared/components/data/DataTable/DataTable';
 import apiClient from '@/services/api/client';
+import { ContractFormModal } from '../components/ContractFormModal';
+import { ContractInvoicesList } from '../components/ContractInvoicesList';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
@@ -39,21 +40,31 @@ const STATUS = {
 const useContracts = (search) =>
   useQuery({
     queryKey: ['contracts', search],
-    queryFn: () => apiClient.get('/clients/contracts', { params: search ? { q: search } : {} }),
+    queryFn: () => apiClient.get('/clients/contracts', { params: search ? { entity_id: null } : {} }),
     staleTime: 3 * 60 * 1000,
     select: (res) => res?.contracts ?? res?.data ?? [],
     retry: 1,
     enabled: true,
   });
 
+// ─── Util: Derive Status ──────────────────────────────────────────────────────
+const getContractStatus = (contract) => {
+  const now = new Date();
+  if (contract.start_date && new Date(contract.start_date) > now) return 'pending';
+  if (contract.stop_date && new Date(contract.stop_date) < now) return 'expired';
+  return 'active';
+};
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 const ClientContractsPage = () => {
   const theme = useTheme();
+  const { hasPermission } = usePermissions();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
 
-  const { data: contracts = [], isLoading, isError, refetch } = useContracts(debouncedSearch);
+  const { data: contracts = [], isLoading, isError, error, refetch } = useContracts(debouncedSearch);
 
   const handleSearch = (value) => {
     setSearch(value);
@@ -66,53 +77,40 @@ const ClientContractsPage = () => {
     const s = search.toLowerCase();
     return contracts.filter((c) =>
       String(c.pk).includes(s) ||
-      c.contract_number?.toLowerCase().includes(s) ||
       c.ts_entity?.toLowerCase().includes(s) ||
-      c.service_type?.toLowerCase().includes(s)
+      String(c.nipc).includes(s)
     );
   }, [contracts, search]);
 
   const columns = [
-    { field: 'pk', headerName: 'Nº', width: 80 },
-    { field: 'contract_number', headerName: 'Nº Contrato', width: 150 },
-    { field: 'ts_entity', headerName: 'Cliente', flex: 1, minWidth: 200 },
-    { field: 'service_type', headerName: 'Tipo de Serviço', width: 160 },
+    { id: 'pk', label: 'Nº Contrato', minWidth: 100 },
+    { id: 'ts_entity', label: 'Cliente (Entidade)', minWidth: 250 },
+    { id: 'nipc', label: 'NIF', minWidth: 120 },
+    { id: 'tt_contractfrequency', label: 'Periodicidade', minWidth: 130 },
+    { id: 'family', label: 'N.º Membros', minWidth: 120 },
     {
-      field: 'start_date', headerName: 'Início', width: 110,
-      valueFormatter: (v) => v ? new Date(v).toLocaleDateString('pt-PT') : '—',
+      id: 'start_date', label: 'Início', minWidth: 110,
+      render: (v) => v ? new Date(v).toLocaleDateString('pt-PT') : '—',
     },
     {
-      field: 'end_date', headerName: 'Término', width: 110,
-      valueFormatter: (v) => v ? new Date(v).toLocaleDateString('pt-PT') : '—',
+      id: 'stop_date', label: 'Término', minWidth: 110,
+      render: (v) => v ? new Date(v).toLocaleDateString('pt-PT') : '—',
     },
     {
-      field: 'amount', headerName: 'Valor', width: 120,
-      valueFormatter: (v) => v
-        ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(v)
-        : '—',
-    },
-    {
-      field: 'status', headerName: 'Estado', width: 110,
-      renderCell: ({ value }) => {
-        const s = STATUS[value] ?? STATUS.inactive;
+      id: 'status', label: 'Estado', minWidth: 110,
+      render: (_, row) => {
+        const derived = getContractStatus(row);
+        const s = STATUS[derived];
         return <Chip label={s.label} size="small" color={s.color} />;
       },
-    },
-    {
-      field: 'actions', headerName: '', width: 60, sortable: false,
-      renderCell: () => (
-        <Tooltip title="Ver contrato">
-          <IconButton size="small"><ViewIcon fontSize="small" /></IconButton>
-        </Tooltip>
-      ),
     },
   ];
 
   const counts = {
     total:    contracts.length,
-    active:   contracts.filter((c) => c.status === 'active').length,
-    pending:  contracts.filter((c) => c.status === 'pending').length,
-    expired:  contracts.filter((c) => c.status === 'expired').length,
+    active:   contracts.filter((c) => getContractStatus(c) === 'active').length,
+    pending:  contracts.filter((c) => getContractStatus(c) === 'pending').length,
+    expired:  contracts.filter((c) => getContractStatus(c) === 'expired').length,
   };
 
   return (
@@ -127,9 +125,16 @@ const ClientContractsPage = () => {
         { label: 'Contratos', path: '/clients/contracts' },
       ]}
       actions={
-        <Tooltip title="Atualizar">
-          <IconButton onClick={refetch}><RefreshIcon /></IconButton>
-        </Tooltip>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Atualizar">
+            <IconButton onClick={refetch}><RefreshIcon /></IconButton>
+          </Tooltip>
+          {hasPermission('payments.manage') && (
+            <Button variant="contained" onClick={() => setFormOpen(true)}>
+              Novo Contrato
+            </Button>
+          )}
+        </Stack>
       }
     >
       {/* Stats */}
@@ -168,11 +173,9 @@ const ClientContractsPage = () => {
         </Box>
         <Divider />
 
-        {isLoading ? (
+        {isLoading && !error ? (
           <Box sx={{ p: 2 }}><Skeleton variant="rounded" height={300} /></Box>
-        ) : isError ? (
-          <Alert severity="error" sx={{ m: 2 }}>Erro ao carregar contratos.</Alert>
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && !error ? (
           <Box sx={{ textAlign: 'center', py: 8, color: 'text.disabled' }}>
             <ContractIcon sx={{ fontSize: 72, opacity: 0.2, mb: 2 }} />
             <Typography variant="h6">Sem contratos encontrados</Typography>
@@ -181,16 +184,20 @@ const ClientContractsPage = () => {
             </Typography>
           </Box>
         ) : (
-          <DataGrid
-            rows={filtered} columns={columns}
-            getRowId={(r) => r.pk}
-            autoHeight disableRowSelectionOnClick
-            pageSizeOptions={[25, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-            sx={{ border: 0 }}
+          <DataTable
+            data={filtered}
+            columns={columns}
+            loading={isLoading}
+            error={error}
+            paginationMode="client"
+            expandable
+            renderExpandedRow={(row) => <ContractInvoicesList contract={row} />}
           />
         )}
       </Paper>
+      
+      {/* Drawer/Modal de Novo Contrato */}
+      <ContractFormModal open={formOpen} onClose={() => setFormOpen(false)} />
     </ModulePage>
   );
 };

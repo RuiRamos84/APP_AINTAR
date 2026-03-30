@@ -63,8 +63,8 @@ export function AppProviders({ children }) {
     <BrowserRouter basename={import.meta.env.PROD ? '/v2' : '/'}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <PermissionProvider>
-            <MetadataProvider>
+          <MetadataProvider>
+            <PermissionProvider>
               <SocketProvider>
                 <AppThemeProvider>
                   {children}
@@ -78,10 +78,11 @@ export function AppProviders({ children }) {
                   )}
                 </AppThemeProvider>
               </SocketProvider>
-            </MetadataProvider>
-          </PermissionProvider>
+            </PermissionProvider>
+          </MetadataProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>
   );
 }
+

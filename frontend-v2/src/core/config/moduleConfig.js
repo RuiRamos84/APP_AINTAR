@@ -1,32 +1,34 @@
 import {
   Engineering,
-  AccountTree,        // Gestão: hierarquia de infraestrutura
+  AccountTree,
   Payment,
-  Analytics,          // Dashboards: mais visual que Dashboard genérico
+  Analytics,
   AdminPanelSettings,
-  BusinessCenter,     // Interno: área administrativa interna
-  Inbox,              // Pedidos: caixa de entrada de pedidos
-  Badge,              // Recursos Humanos: crachá/identificação pessoal
+  BusinessCenter,
+  Inbox,
+  Badge,
 } from '@mui/icons-material';
-import { PERMISSIONS } from './permissionMap.js';
+
+// Sem import de PERMISSIONS — strings da BD resolvidas dinamicamente pelo permissionService
 
 /**
  * Configuração de módulos da aplicação AINTAR
  * Cada módulo representa uma área principal acessível via Top Navbar
+ *
+ * permissions.required: array de strings (value da ts_interface).
+ * O módulo aparece na navbar se o utilizador tiver PELO MENOS UMA das permissões.
  */
 export const MODULES = {
   OPERACAO: {
     id: 'operacao',
     label: 'Operação',
     icon: Engineering,
-    color: '#2196f3', // Azul
+    color: '#2196f3',
     order: 1,
     permissions: {
       required: [
-        PERMISSIONS.TASKS_MY,
-        PERMISSIONS.OPERATIONS_VIEW,
-        PERMISSIONS.BRANCHES_VIEW,
-        PERMISSIONS.SEPTIC_TANKS_VIEW,
+        'tasks.manage',        // tasks.manage — gerir tarefas atribuídas
+        'operation.access',    // operation.access — aceder ao módulo
       ]
     },
     description: 'Operações de campo e controlo operacional',
@@ -37,18 +39,15 @@ export const MODULES = {
     id: 'gestao',
     label: 'Gestão',
     icon: AccountTree,
-    color: '#4caf50', // Verde
+    color: '#4caf50',
     order: 2,
     permissions: {
       required: [
-        PERMISSIONS.ETAR_VIEW,
-        PERMISSIONS.EE_VIEW,
-        PERMISSIONS.ANALYSES_VIEW,
-        PERMISSIONS.TELEMETRY_VIEW,
-        PERMISSIONS.EXPENSES_VIEW,
-        PERMISSIONS.EQUIPAMENTOS_VIEW,
-        PERMISSIONS.OBRAS_VIEW,
-        PERMISSIONS.ADMIN_USERS, // Frota (permissão temporária)
+        'operation.access',    // ETAR, EE, Despesas
+        'equipamentos.view',   // Equipamentos
+        'obras.view',          // Obras
+        'fleet.view',          // Frota
+        'telemetry.view',      // Telemetria
       ]
     },
     description: 'Gestão de infraestruturas e análises técnicas',
@@ -59,13 +58,14 @@ export const MODULES = {
     id: 'pedidos',
     label: 'Pedidos',
     icon: Inbox,
-    color: '#ff5722', // Laranja profundo
+    color: '#ff5722',
     order: 3,
     permissions: {
       required: [
-        PERMISSIONS.DOCS_VIEW_ALL,
-        PERMISSIONS.PAVEMENTS_VIEW,
-        PERMISSIONS.TASKS_VIEW,
+        'docs.view.all',      // Pedidos
+        'pav.view',           // Pavimentações
+        'tasks.view',         // Área interna
+        'entities.view',      // Entidades
       ]
     },
     description: 'Gestão de pedidos, pavimentações e requisições',
@@ -76,11 +76,14 @@ export const MODULES = {
     id: 'rh',
     label: 'Recursos Humanos',
     icon: Badge,
-    color: '#e91e63', // Rosa
+    color: '#e91e63',
     order: 4,
     permissions: {
-      // Avaliação é acessível a todos — módulo visível a todos os autenticados
-      required: []
+      required: [
+        'epi.view',
+        'rh.view',
+        'aval.view',
+      ]
     },
     description: 'Avaliações de desempenho, recursos humanos e gestão de EPI',
     defaultRoute: '/epi',
@@ -90,13 +93,11 @@ export const MODULES = {
     id: 'pagamentos',
     label: 'Pagamentos',
     icon: Payment,
-    color: '#ff9800', // Laranja
+    color: '#ff9800',
     order: 5,
     permissions: {
       required: [
-        PERMISSIONS.PAYMENTS_VIEW,
-        PERMISSIONS.INVOICES_VIEW,
-        PERMISSIONS.CLIENTS_VIEW,
+        'payments.manage',      // Tesouraria e Validação
       ]
     },
     description: 'Gestão de clientes, faturas e pagamentos',
@@ -107,11 +108,11 @@ export const MODULES = {
     id: 'dashboards',
     label: 'Dashboards',
     icon: Analytics,
-    color: '#9c27b0', // Roxo
+    color: '#9c27b0',
     order: 6,
     permissions: {
       required: [
-        PERMISSIONS.DASHBOARD_VIEW,
+        'dashboard.view',
       ]
     },
     description: 'Analytics e relatórios',
@@ -122,12 +123,12 @@ export const MODULES = {
     id: 'administrativo',
     label: 'Interno',
     icon: BusinessCenter,
-    color: '#607d8b', // Cinza azulado
+    color: '#607d8b',
     order: 7,
     permissions: {
       required: [
-        PERMISSIONS.TASKS_VIEW,
-        PERMISSIONS.EMISSIONS_VIEW,
+        'tasks.view',        // Tarefas administrativas
+        'letters.manage',    // Emissões / Ofícios
       ]
     },
     description: 'Tarefas administrativas e emissões',
@@ -138,19 +139,19 @@ export const MODULES = {
     id: 'administracao',
     label: 'Sistema',
     icon: AdminPanelSettings,
-    color: '#f44336', // Vermelho
+    color: '#f44336',
     order: 8,
     permissions: {
       required: [
-        PERMISSIONS.ADMIN_DASHBOARD,
-        PERMISSIONS.ADMIN_USERS,
-        PERMISSIONS.SYSTEM_CONFIG,
+        'admin.users',
+        'admin.system.settings',
       ]
     },
     description: 'Administração do sistema, utilizadores e logs',
     defaultRoute: '/admin',
   },
 };
+
 
 /**
  * Retorna módulos acessíveis pelo utilizador com base nas suas permissões
@@ -212,6 +213,7 @@ export const detectModuleFromPath = (pathname) => {
     '/pedidos': 'pedidos',
     '/pavements': 'pedidos',
     '/internal': 'pedidos',
+    '/entities': 'pedidos',
 
     // RECURSOS HUMANOS
     '/epi': 'rh',
@@ -239,7 +241,6 @@ export const detectModuleFromPath = (pathname) => {
     '/system': 'administracao',
     '/users': 'administracao',
     '/permissions': 'administracao',
-    '/entities': 'administracao',
     '/offices-admin': 'administracao',
     '/requests': 'administracao',
     '/offices': 'administrativo',

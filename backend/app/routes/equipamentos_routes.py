@@ -28,11 +28,9 @@ from ..services.equipamentos_service import (
 
 bp = Blueprint('equipamentos', __name__)
 
-EQUIPAMENTOS_VIEW = 1500
-EQUIPAMENTOS_CREATE = 1510
-EQUIPAMENTOS_EDIT = 1520
-EQUIPAMENTOS_DELETE = 1530
-EQUIPAMENTOS_MANAGE_ALLOC = 1540
+EQUIPAMENTOS_VIEW = 'equipamentos.view'   # ts_interface value
+EQUIPAMENTOS_EDIT = 'equipamentos.edit'   # ts_interface value
+EQUIPAMENTOS_MANAGE_ALLOC = 'equipamentos.edit'
 
 
 # ─── Meta ─────────────────────────────────────────────────────────────
@@ -86,7 +84,7 @@ def get_equipamento_route(pk):
 @bp.route('/equipamentos', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(EQUIPAMENTOS_CREATE)
+@require_permission(EQUIPAMENTOS_EDIT)
 @set_session
 @api_error_handler
 def post_equipamento():
@@ -108,7 +106,7 @@ def put_equipamento(pk):
 @bp.route('/equipamentos/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(EQUIPAMENTOS_DELETE)
+@require_permission(EQUIPAMENTOS_EDIT)
 @set_session
 @api_error_handler
 def delete_equipamento_route(pk):

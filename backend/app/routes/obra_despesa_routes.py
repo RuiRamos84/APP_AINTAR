@@ -14,7 +14,7 @@ bp = Blueprint('obra_despesa_routes', __name__)
 @bp.route('/obra_despesa_list_by_instalacao/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.view')  # ts_interface: obras.view
 @set_session
 @api_error_handler
 def list_obra_despesas_by_instalacao_route(pk):
@@ -25,7 +25,7 @@ def list_obra_despesas_by_instalacao_route(pk):
 @bp.route('/obra_despesa_list', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.view')  # ts_interface: obras.view
 @set_session
 @api_error_handler
 def list_obra_despesas_route():
@@ -36,7 +36,7 @@ def list_obra_despesas_route():
 @bp.route('/obra_despesa_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.edit')  # ts_interface: obras.edit
 @set_session
 @api_error_handler
 def create_obra_despesa_route():
@@ -48,7 +48,7 @@ def create_obra_despesa_route():
 @bp.route('/obra_despesa_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.edit')  # ts_interface: obras.edit
 @set_session
 @api_error_handler
 def update_obra_despesa_route(pk):

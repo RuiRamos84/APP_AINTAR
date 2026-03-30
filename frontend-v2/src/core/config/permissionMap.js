@@ -2,183 +2,106 @@
  * Permission Map
  * Mapeia nomes de permissões para IDs do ts_interface
  *
- * IMPORTANTE: Estes IDs devem corresponder aos pk da tabela ts_interface
- * Para facilitar manutenção, use nomes descritivos em vez de IDs hardcoded
+ * IMPORTANTE: Estes IDs correspondem aos pk REAIS da tabela ts_interface na BD.
+ * Sincronizado com os dados actuais da ts_interface.
  */
 
 /**
  * IDs de Permissões (ts_interface.pk)
- * Baseado na estrutura do backend
+ * Sincronizado com a estrutura real da BD (ts_interface)
  */
 export const PERMISSIONS = {
-  // ==================== ADMIN (10-99) ====================
-  ADMIN_DASHBOARD: 10,
-  ADMIN_USERS: 20,
-  ADMIN_PAYMENTS: 30,
-  SYSTEM_CONFIG: 40,
-  SYSTEM_LOGS: 50,
-  ADMIN_CACHE_MANAGE: 110,
+  // ==================== ADMIN (10-110) ====================
+  ADMIN_DASHBOARD: 10,         // admin.dashboard
+  ADMIN_USERS: 20,             // admin.users (criar, editar, remover utilizadores)
+  ADMIN_PAYMENTS: 30,          // admin.payments (aprovar pagamentos admin)
+  ADMIN_CASH: 40,              // admin.cash (gerir caixa)
+  ADMIN_DOCS_MANAGE: 50,       // admin.docs.manage (gerir todos os documentos)
+  ADMIN_DOCS_REOPEN: 60,       // admin.docs.reopen (reabrir documentos)
+  ADMIN_DB_MANAGE: 70,         // admin.db.manage (BD e backups)
+  ADMIN_LOGS_VIEW: 80,         // admin.logs.view (logs de auditoria)
+  ADMIN_REPORTS_VIEW: 90,      // admin.reports.view (relatórios avançados)
+  ADMIN_SYSTEM_SETTINGS: 100,  // admin.system.settings (configurações críticas)
+  ADMIN_CACHE_MANAGE: 110,     // admin.cache.manage (gerir cache)
 
-  // ==================== TASKS (200-299) ====================
-  TASKS_VIEW: 200,
-  TASKS_MY: 201, // Ver apenas minhas tarefas
-  TASKS_CREATE: 210,
-  TASKS_EDIT: 220,
-  TASKS_DELETE: 230,
-  TASKS_ASSIGN: 240,
-  TASKS_COMPLETE: 250,
-  TASKS_CONTROL: 260, // Controlo de tarefas (gestores)
+  // ==================== TAREFAS (200-760) ====================
+  TASKS_ALL: 200,              // tasks.all (gerir TODAS as tarefas do sistema)
+  TASKS_VIEW: 201,             // tasks.view (visualizar sem gerir) [NOVO - a inserir na BD]
+  TASKS_MANAGE: 750,           // tasks.manage (gerir tarefas atribuídas a si)
+  TASKS_EDIT: 760,             // tasks.edit (editar tarefas) [NOVO - a inserir na BD]
 
-  // ==================== OPERATIONS (300-399) ====================
-  OPERATIONS_VIEW: 300,
-  OPERATIONS_CREATE: 310,
-  OPERATIONS_EXECUTE: 311,  // Executar tarefas (operador)
-  OPERATIONS_SUPERVISE: 312, // Supervisão de operações
-  OPERATIONS_MANAGE: 313,   // Gestão avançada
-  OPERATIONS_ETAR: 320,
-  OPERATIONS_EE: 330,
-  OPERATIONS_NETWORK: 340,
-  OPERATIONS_BOXES: 350,
-  OPERATIONS_EDIT: 360,
-  OPERATIONS_DELETE: 370,
+  // ==================== EPI / EQUIPAMENTOS PROTECÇÃO (210-211) ====================
+  EPI_MANAGE: 210,             // epi.manage (gerir EPIs - tudo-em-um)
+  EPI_VIEW: 211,               // epi.view (visualizar EPIs) [NOVO - a inserir na BD]
 
-  // ==================== BRANCHES - RAMAIS (400-449) ====================
-  BRANCHES_VIEW: 400,
-  BRANCHES_CREATE: 410,
-  BRANCHES_EDIT: 420,
-  BRANCHES_DELETE: 430,
+  // ==================== CORRESPONDÊNCIA (220) ====================
+  LETTERS_MANAGE: 220,         // letters.manage (gerir correspondência)
 
-  // ==================== SEPTIC TANKS - FOSSAS (450-499) ====================
-  SEPTIC_TANKS_VIEW: 450,
-  SEPTIC_TANKS_MANAGE: 460,
-  SEPTIC_TANKS_EDIT: 470,
-  SEPTIC_TANKS_DELETE: 480,
+  // ==================== ACESSOS GERAIS (300-320) ====================
+  INTERNAL_ACCESS: 300,        // internal.access (acesso à área interna)
+  GLOBAL_ACCESS: 320,          // global.access (acesso global exceto admin)
 
-  // ==================== DOCUMENTS (500-599) ====================
-  DOCS_VIEW_ALL: 500,
-  DOCS_VIEW_OWNER: 510,
-  DOCS_VIEW_ASSIGNED: 520,
-  DOCS_CREATE: 530,
-  DOCS_EDIT: 540,
-  DOCS_DELETE: 550,
-  DOCS_ASSIGN: 560,
-  DOCS_APPROVE: 570,
+  // ==================== OPERAÇÕES (310-314) ====================
+  OPERATION_ACCESS: 310,       // operation.access (aceder ao módulo)
+  OPERATION_EXECUTE: 311,      // operation.execute (executar - operador de campo)
+  OPERATION_SUPERVISE: 312,    // operation.supervise (supervisionar)
+  OPERATION_MANAGE: 313,       // operation.manage (configurar e gerir)
+  OPERATION_ANALYTICS: 314,    // operation.analytics
 
-  // ==================== ETAR (600-649) ====================
-  ETAR_VIEW: 600,
-  ETAR_VIEW_CHARACTERISTICS: 610,
-  ETAR_VIEW_VOLUMES: 620,
-  ETAR_VIEW_ENERGY: 630,
-  ETAR_VIEW_EXPENSES: 640,
-  ETAR_VIEW_VIOLATIONS: 645,
-  ETAR_EDIT: 650,
+  // ==================== DASHBOARD (400) ====================
+  DASHBOARD_VIEW: 400,         // dashboard.view
 
-  // ==================== ESTAÇÕES ELEVATÓRIAS - EE (650-699) ====================
-  EE_VIEW: 660,
-  EE_VIEW_CHARACTERISTICS: 665,
-  EE_VIEW_VOLUMES: 670,
-  EE_VIEW_ENERGY: 675,
-  EE_VIEW_EXPENSES: 680,
-  EE_EDIT: 690,
+  // ==================== DOCUMENTOS (500-562) ====================
+  DOCS_VIEW_ALL: 500,          // docs.view.all (todos os documentos)
+  DOCS_VIEW_OWNER: 510,        // docs.view.owner (apenas próprios)
+  DOCS_VIEW_ASSIGNED: 520,     // docs.view.assigned (apenas atribuídos)
+  DOCS_VIEW: 530,              // docs.view (visualização básica)
+  DOCS_MODERN: 540,            // docs.modern (gestor moderno frontend-v2)
+  DOCS_CREATE: 560,            // docs.create
+  DOCS_EDIT: 561,              // docs.edit [NOVO - a inserir na BD]
+  DOCS_DELETE: 562,            // docs.delete [NOVO - a inserir na BD]
 
-  // ==================== ANÁLISES (700-749) ====================
-  ANALYSES_VIEW: 700,
-  ANALYSES_CREATE: 710,
-  ANALYSES_EDIT: 720,
-  ANALYSES_DELETE: 730,
+  // ==================== PAV / PAVIMENTAÇÕES (600-601) ====================
+  PAV_VIEW: 600,               // pav.view
+  PAV_EDIT: 601,               // pav.edit (editar pavimentações) [NOVO - a inserir na BD]
 
-  // ==================== TELEMETRIA (750-799) ====================
-  TELEMETRY_VIEW: 750,
-  TELEMETRY_CONFIG: 760,
-  TELEMETRY_EDIT: 770,
+  // ==================== PAGAMENTOS (700-880) ====================
+  // Granularidade por método — cada um é uma permissão independente
+  PAYMENTS_MBWAY: 700,         // payments.mbway (processar MB WAY)
+  PAYMENTS_MULTIBANCO: 710,    // payments.multibanco (processar multibanco)
+  PAYMENTS_BANK_TRANSFER: 720, // payments.bank_transfer (transferências bancárias)
+  PAYMENTS_CASH: 730,          // payments.cash.action (numerário — sensível)
+  PAYMENTS_MUNICIPALITY: 740,  // payments.municipality (pagamentos municípios)
+  PAYMENTS_VIEW: 880,          // payments.view (ver sem processar) [NOVO - a inserir na BD]
+  PAYMENTS_MANAGE: 890,        // payments.manage (gerir e processar pagamentos) [NOVO - a inserir na BD]
 
-  // ==================== ENTITIES (800-849) ====================
-  ENTITIES_VIEW: 800,
-  ENTITIES_EDIT: 810,
-  ENTITIES_CREATE: 820,
-  ENTITIES_DELETE: 830,
+  // ==================== ENTIDADES (800-820) ====================
+  ENTITIES_VIEW: 800,          // entities.view
+  ENTITIES_CREATE: 810,        // entities.create
+  ENTITIES_MANAGE: 820,        // entities.manage (editar e gerir)
 
-  // ==================== PAGAMENTOS (850-899) ====================
-  PAYMENTS_VIEW: 850,
-  PAYMENTS_VALIDATE: 860,
-  PAYMENTS_REFUND: 870,
-  PAYMENTS_PROCESS: 880,
-  PAYMENTS_APPROVE: 890,
+  // ==================== FROTA / VEÍCULOS (830-831) ====================
+  FLEET_VIEW: 830,             // fleet.view [NOVO - a inserir na BD]
+  FLEET_EDIT: 831,             // fleet.edit [NOVO - a inserir na BD]
 
-  // ==================== INVOICES - FATURAS (900-949) ====================
-  INVOICES_VIEW: 900,
-  INVOICES_CREATE: 910,
-  INVOICES_EDIT: 920,
-  INVOICES_CANCEL: 930,
+  // ==================== OBRAS (840-841) ====================
+  OBRAS_VIEW: 840,             // obras.view [NOVO - a inserir na BD]
+  OBRAS_EDIT: 841,             // obras.edit [NOVO - a inserir na BD]
 
-  // ==================== CLIENTS - CLIENTES (950-999) ====================
-  CLIENTS_VIEW: 950,
-  CLIENTS_CREATE: 960,
-  CLIENTS_EDIT: 970,
-  CLIENTS_CONTRACTS: 980,
-  CLIENTS_DELETE: 990,
+  // ==================== TELEMETRIA (850-851) ====================
+  TELEMETRY_VIEW: 850,         // telemetry.view [NOVO - a inserir na BD]
+  TELEMETRY_EDIT: 851,         // telemetry.edit [NOVO - a inserir na BD]
 
-  // ==================== DASHBOARDS (1000-1099) ====================
-  DASHBOARD_VIEW: 1000,
-  DASHBOARD_TASKS: 1010,
-  DASHBOARD_BRANCHES: 1020,
-  DASHBOARD_SEPTIC_TANKS: 1030,
-  DASHBOARD_INSTALLATIONS: 1040,
-  DASHBOARD_VIOLATIONS: 1050,
-  DASHBOARD_ANALYSES: 1060,
+  // ==================== EQUIPAMENTOS (860-861) ====================
+  EQUIPAMENTOS_VIEW: 860,      // equipamentos.view [NOVO - a inserir na BD]
+  EQUIPAMENTOS_EDIT: 861,      // equipamentos.edit [NOVO - a inserir na BD]
 
-  // ==================== EPI (1100-1149) ====================
-  EPI_MANAGEMENT: 1100,
-  EPI_ASSIGN: 1110,
-  EPI_TRACK: 1120,
-  EPI_VIEW: 1130,
+  // ==================== RECURSOS HUMANOS (900) ====================
+  RH_VIEW: 900,               // rh.view (visualizar módulo RH) [NOVO - a inserir na BD]
 
-  // ==================== PAVIMENTAÇÕES (1200-1249) ====================
-  PAVEMENTS_VIEW: 1200,
-  PAVEMENTS_MANAGE: 1210,
-  PAVEMENTS_EDIT: 1220,
-
-  // ==================== DESPESAS (1250-1299) ====================
-  EXPENSES_VIEW: 1250,
-  EXPENSES_CREATE: 1260,
-  EXPENSES_APPROVE: 1270,
-  EXPENSES_EDIT: 1280,
-
-  // ==================== OFÍCIOS (1300-1349) ====================
-  OFFICES_VIEW: 1300,
-  OFFICES_CREATE: 1310,
-  OFFICES_EDIT: 1320,
-  OFFICES_CLOSE: 1330,
-  OFFICES_REPLICATE: 1340,
-
-  // ==================== REQUESTS - PEDIDOS GESTÃO (1350-1399) ====================
-  REQUESTS_VIEW: 1350,
-  REQUESTS_CREATE: 1360,
-  REQUESTS_EDIT: 1370,
-  REQUESTS_CLOSE: 1380,
-  REQUESTS_REPLICATE: 1390,
-
-  // ==================== SIBS (1400-1449) ====================
-  SIBS_VIEW: 1400,
-  SIBS_PROCESS: 1410,
-
-  // ==================== EMISSOES (1450-1499) ====================
-  EMISSIONS_VIEW: 1450,
-  EMISSIONS_CREATE: 1460,
-  EMISSIONS_MANAGE_TEMPLATES: 1470,
-
-  // ==================== EQUIPAMENTOS (1500-1549) ====================
-  EQUIPAMENTOS_VIEW: 1500,
-  EQUIPAMENTOS_CREATE: 1510,
-  EQUIPAMENTOS_EDIT: 1520,
-  EQUIPAMENTOS_DELETE: 1530,
-  EQUIPAMENTOS_MANAGE_ALLOC: 1540,
-
-  // ==================== OBRAS (1550-1599) ====================
-  OBRAS_VIEW: 1550,
-  OBRAS_CREATE: 1560,
-  OBRAS_EDIT: 1570,
-  OBRAS_DELETE: 1580,
+  // ==================== AVALIAÇÕES (870-871) ====================
+  AVAL_VIEW: 870,              // aval.view [NOVO - a inserir na BD]
+  AVAL_EDIT: 871,              // aval.edit [NOVO - a inserir na BD]
 };
 
 /**
@@ -213,142 +136,82 @@ export const USER_PROFILES = {
 };
 
 /**
- * Grupos de Permissões
- * Útil para atribuir múltiplas permissões de uma vez
- * Mapeamento de perfis para permissões (referência - backend controla as permissões reais)
+ * Grupos de Permissões — conjuntos comuns por perfil
+ * Referência apenas. As permissões reais são controladas na BD (ts_interface + ts_client_interface).
  */
 export const PERMISSION_GROUPS = {
-  // Super Admin - Acesso total
-  SUPER_ADMIN: Object.values(PERMISSIONS),
-
-  // Operador - Apenas módulo Operação
+  // Operador — executa tarefas de campo
   OPERADOR: [
-    PERMISSIONS.TASKS_MY,
+    PERMISSIONS.INTERNAL_ACCESS,
+    PERMISSIONS.OPERATION_ACCESS,
+    PERMISSIONS.OPERATION_EXECUTE,
     PERMISSIONS.TASKS_VIEW,
-    PERMISSIONS.TASKS_CREATE,
-    PERMISSIONS.OPERATIONS_VIEW,
-    PERMISSIONS.OPERATIONS_CREATE,
-    PERMISSIONS.BRANCHES_VIEW,
-    PERMISSIONS.SEPTIC_TANKS_VIEW,
+    PERMISSIONS.TASKS_MANAGE,
+    PERMISSIONS.DOCS_VIEW_ASSIGNED,
+    PERMISSIONS.DASHBOARD_VIEW,
   ],
 
-  // Técnico - Operação + Gestão
+  // Técnico — operações + gestão técnica
   TECNICO: [
+    PERMISSIONS.INTERNAL_ACCESS,
+    PERMISSIONS.OPERATION_ACCESS,
+    PERMISSIONS.OPERATION_EXECUTE,
+    PERMISSIONS.OPERATION_SUPERVISE,
+    PERMISSIONS.TASKS_ALL,
     PERMISSIONS.TASKS_VIEW,
-    PERMISSIONS.TASKS_CREATE,
+    PERMISSIONS.TASKS_MANAGE,
     PERMISSIONS.TASKS_EDIT,
-    PERMISSIONS.TASKS_ASSIGN,
-    PERMISSIONS.OPERATIONS_VIEW,
-    PERMISSIONS.OPERATIONS_CREATE,
-    PERMISSIONS.OPERATIONS_ETAR,
-    PERMISSIONS.OPERATIONS_EE,
-    PERMISSIONS.OPERATIONS_NETWORK,
-    PERMISSIONS.OPERATIONS_BOXES,
-    PERMISSIONS.ETAR_VIEW,
-    PERMISSIONS.ETAR_VIEW_CHARACTERISTICS,
-    PERMISSIONS.ETAR_VIEW_VOLUMES,
-    PERMISSIONS.ETAR_VIEW_ENERGY,
-    PERMISSIONS.EE_VIEW,
-    PERMISSIONS.EE_VIEW_CHARACTERISTICS,
-    PERMISSIONS.EE_VIEW_VOLUMES,
-    PERMISSIONS.ANALYSES_VIEW,
-    PERMISSIONS.ANALYSES_CREATE,
+    PERMISSIONS.DOCS_VIEW,
+    PERMISSIONS.DOCS_CREATE,
+    PERMISSIONS.ENTITIES_VIEW,
     PERMISSIONS.TELEMETRY_VIEW,
-    PERMISSIONS.BRANCHES_VIEW,
-    PERMISSIONS.BRANCHES_CREATE,
-    PERMISSIONS.SEPTIC_TANKS_VIEW,
-    PERMISSIONS.SEPTIC_TANKS_MANAGE,
+    PERMISSIONS.DASHBOARD_VIEW,
   ],
 
-  // Financeiro - Pagamentos + Dashboards
+  // Financeiro — pagamentos (granular por método)
   FINANCEIRO: [
+    PERMISSIONS.INTERNAL_ACCESS,
     PERMISSIONS.PAYMENTS_VIEW,
-    PERMISSIONS.PAYMENTS_VALIDATE,
-    PERMISSIONS.INVOICES_VIEW,
-    PERMISSIONS.INVOICES_CREATE,
-    PERMISSIONS.INVOICES_EDIT,
-    PERMISSIONS.CLIENTS_VIEW,
-    PERMISSIONS.CLIENTS_CREATE,
-    PERMISSIONS.CLIENTS_EDIT,
-    PERMISSIONS.CLIENTS_CONTRACTS,
-    PERMISSIONS.SIBS_VIEW,
+    PERMISSIONS.PAYMENTS_MBWAY,
+    PERMISSIONS.PAYMENTS_MULTIBANCO,
+    PERMISSIONS.DOCS_VIEW,
+    PERMISSIONS.ENTITIES_VIEW,
     PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.DASHBOARD_TASKS,
+    PERMISSIONS.ADMIN_REPORTS_VIEW,
   ],
 
-  // Gestor - Tudo exceto Administração
+  // Gestor — acesso amplo exceto administração
   GESTOR: [
-    // Operação
+    PERMISSIONS.INTERNAL_ACCESS,
+    PERMISSIONS.GLOBAL_ACCESS,
+    PERMISSIONS.OPERATION_ACCESS,
+    PERMISSIONS.OPERATION_SUPERVISE,
+    PERMISSIONS.OPERATION_MANAGE,
+    PERMISSIONS.TASKS_ALL,
     PERMISSIONS.TASKS_VIEW,
-    PERMISSIONS.TASKS_CREATE,
+    PERMISSIONS.TASKS_MANAGE,
     PERMISSIONS.TASKS_EDIT,
-    PERMISSIONS.TASKS_ASSIGN,
-    PERMISSIONS.TASKS_CONTROL,
-    PERMISSIONS.OPERATIONS_VIEW,
-    PERMISSIONS.OPERATIONS_CREATE,
-    PERMISSIONS.BRANCHES_VIEW,
-    PERMISSIONS.BRANCHES_CREATE,
-    PERMISSIONS.SEPTIC_TANKS_VIEW,
-    PERMISSIONS.SEPTIC_TANKS_MANAGE,
-    // Gestão
-    PERMISSIONS.ETAR_VIEW,
-    PERMISSIONS.ETAR_VIEW_CHARACTERISTICS,
-    PERMISSIONS.ETAR_VIEW_VOLUMES,
-    PERMISSIONS.ETAR_VIEW_ENERGY,
-    PERMISSIONS.ETAR_VIEW_EXPENSES,
-    PERMISSIONS.ETAR_VIEW_VIOLATIONS,
-    PERMISSIONS.EE_VIEW,
-    PERMISSIONS.EE_VIEW_CHARACTERISTICS,
-    PERMISSIONS.EE_VIEW_VOLUMES,
-    PERMISSIONS.EE_VIEW_ENERGY,
-    PERMISSIONS.EE_VIEW_EXPENSES,
-    PERMISSIONS.ANALYSES_VIEW,
-    PERMISSIONS.ANALYSES_CREATE,
-    PERMISSIONS.TELEMETRY_VIEW,
-    PERMISSIONS.EXPENSES_VIEW,
-    PERMISSIONS.EXPENSES_CREATE,
-    PERMISSIONS.PAVEMENTS_VIEW,
-    // Pagamentos
-    PERMISSIONS.PAYMENTS_VIEW,
-    PERMISSIONS.INVOICES_VIEW,
-    PERMISSIONS.CLIENTS_VIEW,
-    // Dashboards
-    PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.DASHBOARD_TASKS,
-    PERMISSIONS.DASHBOARD_BRANCHES,
-    PERMISSIONS.DASHBOARD_INSTALLATIONS,
-    PERMISSIONS.DASHBOARD_ANALYSES,
-    // Administrativo
-    PERMISSIONS.EPI_MANAGEMENT,
-    PERMISSIONS.OFFICES_VIEW,
-  ],
-
-  // Admin - Acesso completo
-  ADMIN: Object.values(PERMISSIONS),
-
-  // Legacy groups (manter compatibilidade)
-  TASK_MANAGER: [
-    PERMISSIONS.TASKS_VIEW,
-    PERMISSIONS.TASKS_CREATE,
-    PERMISSIONS.TASKS_EDIT,
-    PERMISSIONS.TASKS_DELETE,
-    PERMISSIONS.TASKS_ASSIGN,
-  ],
-
-  DOCUMENT_MANAGER: [
     PERMISSIONS.DOCS_VIEW_ALL,
     PERMISSIONS.DOCS_CREATE,
     PERMISSIONS.DOCS_EDIT,
-    PERMISSIONS.DOCS_DELETE,
-    PERMISSIONS.DOCS_ASSIGN,
-    PERMISSIONS.DOCS_APPROVE,
+    PERMISSIONS.ENTITIES_VIEW,
+    PERMISSIONS.ENTITIES_CREATE,
+    PERMISSIONS.PAYMENTS_VIEW,
+    PERMISSIONS.PAYMENTS_MANAGE,
+    PERMISSIONS.FLEET_VIEW,
+    PERMISSIONS.OBRAS_VIEW,
+    PERMISSIONS.TELEMETRY_VIEW,
+    PERMISSIONS.EQUIPAMENTOS_VIEW,
+    PERMISSIONS.AVAL_VIEW,
+    PERMISSIONS.RH_VIEW,
+    PERMISSIONS.PAV_EDIT,
+    PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.ADMIN_REPORTS_VIEW,
+    PERMISSIONS.EPI_VIEW,
   ],
 
-  BASIC_USER: [
-    PERMISSIONS.TASKS_MY,
-    PERMISSIONS.DOCS_VIEW_OWNER,
-    PERMISSIONS.DOCS_VIEW_ASSIGNED,
-  ],
+  // Admin — acesso completo
+  ADMIN: Object.values(PERMISSIONS),
 };
 
 export default PERMISSIONS;

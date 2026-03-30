@@ -6,13 +6,12 @@ import { SearchBar } from '@/shared/components/data';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { EquipamentoList, EquipamentoForm, EquipamentoDetail } from '../components';
 import { usePermissions } from '@/core/contexts/PermissionContext';
-import { PERMISSIONS } from '@/core/config/permissionMap';
 
 export default function EquipamentosPage() {
   const { hasPermission } = usePermissions();
-  const canCreate = hasPermission(PERMISSIONS.EQUIPAMENTOS_CREATE);
-  const canEdit = hasPermission(PERMISSIONS.EQUIPAMENTOS_EDIT);
-  const canDelete = hasPermission(PERMISSIONS.EQUIPAMENTOS_DELETE);
+  const canCreate = hasPermission('equipamentos.edit');
+  const canEdit = hasPermission('equipamentos.edit');
+  const canDelete = hasPermission('equipamentos.edit');
 
   const {
     filteredEquipamentos, loading, meta,

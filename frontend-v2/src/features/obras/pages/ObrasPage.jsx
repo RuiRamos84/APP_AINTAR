@@ -17,11 +17,10 @@ import { SearchBar } from '@/shared/components/data';
 import { useObras } from '../hooks/useObras';
 import { ObrasList, ObrasForm, DespesasTab } from '../components';
 import { usePermissions } from '@/core/contexts/PermissionContext';
-import { PERMISSIONS } from '@/core/config/permissionMap';
 
 export default function ObrasPage() {
   const { hasPermission } = usePermissions();
-  const canEdit = hasPermission(PERMISSIONS.OPERATIONS_ETAR);
+  const canEdit = hasPermission('obras.edit');
 
   const {
     filteredObras, obras, loading, meta,

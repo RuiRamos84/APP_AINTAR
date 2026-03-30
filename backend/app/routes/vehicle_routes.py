@@ -26,7 +26,7 @@ bp = Blueprint('vehicle_routes', __name__)
 @bp.route('/vehicle_list', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(500)
+@require_permission('fleet.view')  # ts_interface: fleet.view
 @set_session
 @api_error_handler
 def list_vehicle_route():
@@ -49,7 +49,7 @@ def list_vehicle_route():
 @bp.route('/vehicle_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
 @set_session
 @api_error_handler
 def add_vehicle_route():
@@ -124,7 +124,7 @@ def update_vehicle_route(pk):
 @bp.route('/vehicle_assign_list', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(500)
+@require_permission('fleet.view')  # ts_interface: fleet.view
 @set_session
 @api_error_handler
 def list_vehicle_assign_route():
@@ -147,7 +147,7 @@ def list_vehicle_assign_route():
 @bp.route('/vehicle_assign_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
 @set_session
 @api_error_handler
 def add_vehicle_assign_route():
@@ -181,7 +181,7 @@ def add_vehicle_assign_route():
 @bp.route('/vehicle_assign_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
 @set_session
 @api_error_handler
 def update_vehicle_assign_route(pk):
@@ -222,7 +222,7 @@ def update_vehicle_assign_route(pk):
 @bp.route('/vehicle_maintenance_list', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(500)
+@require_permission('fleet.view')  # ts_interface: fleet.view
 @set_session
 @api_error_handler
 def list_vehicle_maintenance_route():
@@ -245,7 +245,7 @@ def list_vehicle_maintenance_route():
 @bp.route('/vehicle_maintenance_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
 @set_session
 @api_error_handler
 def add_vehicle_maintenance_route():
@@ -279,6 +279,7 @@ def add_vehicle_maintenance_route():
 @bp.route('/vehicle_maintenance_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
 @set_session
 @api_error_handler
 def update_vehicle_maintenance_route(pk):

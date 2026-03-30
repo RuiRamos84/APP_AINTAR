@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.utils import token_required, set_session
+from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 from ..services import aval_service
@@ -12,6 +13,7 @@ logger = get_logger(__name__)
 @bp.route('/aval/analytics/enriched', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view
 @set_session
 @api_error_handler
 def get_analytics_enriched():
@@ -23,6 +25,7 @@ def get_analytics_enriched():
 @bp.route('/aval/analytics', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view
 @set_session
 @api_error_handler
 def get_analytics():
@@ -34,6 +37,7 @@ def get_analytics():
 @bp.route('/aval/pending', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view
 @set_session
 @api_error_handler
 def get_pending_summary():
@@ -45,6 +49,7 @@ def get_pending_summary():
 @bp.route('/aval/periods', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view
 @set_session
 @api_error_handler
 def get_periods():
@@ -67,6 +72,7 @@ def get_periods():
 @bp.route('/aval/<int:period_pk>/list', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view
 @set_session
 @api_error_handler
 def get_aval_list(period_pk):
@@ -94,6 +100,7 @@ def get_aval_list(period_pk):
 @bp.route('/aval/<int:period_pk>/status', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view
 @set_session
 @api_error_handler
 def get_aval_status(period_pk):
@@ -121,6 +128,7 @@ def get_aval_status(period_pk):
 @bp.route('/aval/submit', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission('aval.view')  # ts_interface: aval.view — submeter é acção de participante
 @set_session
 @api_error_handler
 def submit_evaluation():
@@ -169,6 +177,7 @@ def submit_evaluation():
 @bp.route('/aval/admin/periods', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_get_periods():
@@ -190,6 +199,7 @@ def admin_get_periods():
 @bp.route('/aval/admin/periods', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_create_period():
@@ -228,6 +238,7 @@ def admin_create_period():
 @bp.route('/aval/admin/periods/<int:period_pk>/toggle', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_toggle_period(period_pk):
@@ -249,6 +260,7 @@ def admin_toggle_period(period_pk):
 @bp.route('/aval/admin/<int:period_pk>/assignments', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_get_assignments(period_pk):
@@ -270,6 +282,7 @@ def admin_get_assignments(period_pk):
 @bp.route('/aval/admin/users', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_get_users():
@@ -291,6 +304,7 @@ def admin_get_users():
 @bp.route('/aval/admin/<int:period_pk>/generate', methods=['POST'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_generate_assignments(period_pk):
@@ -328,6 +342,7 @@ def admin_generate_assignments(period_pk):
 @bp.route('/aval/admin/<int:period_pk>/results', methods=['GET'])
 @jwt_required()
 @token_required
+@require_permission('aval.edit')  # ts_interface: aval.edit
 @set_session
 @api_error_handler
 def admin_get_results(period_pk):

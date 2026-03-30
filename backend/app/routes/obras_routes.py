@@ -21,7 +21,7 @@ bp = Blueprint('obras_routes', __name__)
 @bp.route('/obras_list', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.view')  # ts_interface: obras.view
 @set_session
 @api_error_handler
 def list_obras_route():
@@ -33,7 +33,7 @@ def list_obras_route():
 @bp.route('/obras_list/<int:tb_instalacao>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.view')  # ts_interface: obras.view
 @set_session
 @api_error_handler
 def list_obras_instalacao_route(tb_instalacao):
@@ -45,7 +45,7 @@ def list_obras_instalacao_route(tb_instalacao):
 @bp.route('/obra_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.edit')  # ts_interface: obras.edit
 @set_session
 @api_error_handler
 def create_obra_route():
@@ -58,7 +58,7 @@ def create_obra_route():
 @bp.route('/obra_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.edit')  # ts_interface: obras.edit
 @set_session
 @api_error_handler
 def update_obra_route(pk):
@@ -71,7 +71,7 @@ def update_obra_route(pk):
 @bp.route('/obra_delete/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(320)
+@require_permission('obras.edit')  # ts_interface: obras.edit
 @set_session
 @api_error_handler
 def delete_obra_route(pk):

@@ -8,7 +8,7 @@ import {
   Box, Container, Typography, Tabs, Tab, Paper, Fab, Fade,
   CircularProgress, Alert, IconButton, Tooltip, Menu, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  Divider, Chip, Grid, TextField, InputAdornment, Card, CardContent,
+  Chip, Grid, TextField, InputAdornment, Card, CardContent,
   CardActions, Skeleton, Stack,
 } from '@mui/material';
 import {
@@ -25,11 +25,11 @@ import {
   PictureAsPdf as PdfIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  FilterList as FilterIcon,
   Close as CloseIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
 import { useDocumentTypes, useEmissoes, useTemplates } from '../hooks/useEmissoes';
+import { TemplateEditor } from '../components/TemplateEditor';
 import { STATUS_CONFIG, formatEmissionNumber } from '../services/emissoesService';
 import { toast } from 'sonner';
 
@@ -308,22 +308,23 @@ const NovaEmissaoForm = ({ selectedType, selectedTypeData, onCancel, onSuccess }
 // ─── Sub-componente: Gestão de Templates ─────────────────────────────────────
 
 const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
-  const [createOpen, setCreateOpen] = useState(false);
+  const [editorOpen, setEditorOpen]       = useState(false);
+  const [editTarget, setEditTarget]       = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [newTemplate, setNewTemplate] = useState({ name: '', body: '', active: 1 });
 
-  const { templates, isLoading, create, isCreating, remove, isRemoving } = useTemplates(
-    selectedType ? { tb_document_type: selectedType } : {}
-  );
+  const { templates, isLoading, create, isCreating, update, isUpdating, remove, isRemoving } =
+    useTemplates(selectedType ? { tb_document_type: selectedType } : {});
 
-  const handleCreate = () => {
-    if (!newTemplate.name.trim()) { toast.warning('O nome é obrigatório.'); return; }
-    create(
-      { ...newTemplate, tb_document_type: selectedType },
-      {
-        onSuccess: () => { setCreateOpen(false); setNewTemplate({ name: '', body: '', active: 1 }); },
-      }
-    );
+  const openCreate = () => { setEditTarget(null); setEditorOpen(true); };
+  const openEdit   = (t) => { setEditTarget(t);   setEditorOpen(true); };
+  const closeEditor = () => { setEditorOpen(false); setEditTarget(null); };
+
+  const handleSave = (data) => {
+    if (editTarget) {
+      update({ id: editTarget.pk, data }, { onSuccess: closeEditor });
+    } else {
+      create({ ...data, tb_document_type: selectedType }, { onSuccess: closeEditor });
+    }
   };
 
   return (
@@ -333,7 +334,7 @@ const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
         <Typography variant="h6" fontWeight={600}>
           Templates — {selectedTypeData?.name}
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)} size="small">
+        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} size="small">
           Novo Template
         </Button>
       </Box>
@@ -349,7 +350,7 @@ const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
       {!isLoading && templates.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
           <Typography variant="body1">Nenhum template criado para {selectedTypeData?.name}.</Typography>
-          <Button variant="outlined" startIcon={<AddIcon />} sx={{ mt: 2 }} onClick={() => setCreateOpen(true)}>
+          <Button variant="outlined" startIcon={<AddIcon />} sx={{ mt: 2 }} onClick={openCreate}>
             Criar Primeiro Template
           </Button>
         </Box>
@@ -363,7 +364,7 @@ const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
               <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="subtitle2" fontWeight={600}>{t.name}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Versão {t.version} · {t.active ? 'Ativo' : 'Inativo'}
+                  Versão {t.version ?? 1} · {t.active ? 'Ativo' : 'Inativo'}
                 </Typography>
               </Box>
               <Chip
@@ -371,6 +372,11 @@ const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
                 color={t.active ? 'success' : 'default'}
                 size="small"
               />
+              <Tooltip title="Editar template">
+                <IconButton size="small" color="primary" onClick={() => openEdit(t)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Remover">
                 <IconButton size="small" color="error" onClick={() => setDeleteConfirm(t)}>
                   <DeleteIcon fontSize="small" />
@@ -381,38 +387,18 @@ const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
         </Stack>
       )}
 
-      {/* Dialog criar template */}
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Novo Template — {selectedTypeData?.name}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              fullWidth
-              required
-              label="Nome do Template"
-              value={newTemplate.name}
-              onChange={(e) => setNewTemplate((p) => ({ ...p, name: e.target.value }))}
-            />
-            <TextField
-              fullWidth
-              multiline
-              rows={6}
-              label="Corpo do Template"
-              value={newTemplate.body}
-              onChange={(e) => setNewTemplate((p) => ({ ...p, body: e.target.value }))}
-              placeholder="Use {{variavel}} para variáveis dinâmicas..."
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleCreate} disabled={isCreating}>
-            {isCreating ? 'A criar...' : 'Criar Template'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Editor de Template (criar / editar) */}
+      <TemplateEditor
+        key={editorOpen ? (editTarget?.pk ?? 'new') : 'closed'}
+        open={editorOpen}
+        template={editTarget}
+        documentType={selectedTypeData}
+        onClose={closeEditor}
+        onSave={handleSave}
+        isSaving={isCreating || isUpdating}
+      />
 
-      {/* Confirmar remoção */}
+      {/* Dialog — Confirmar remoção */}
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Remover Template</DialogTitle>
         <DialogContent>
@@ -420,10 +406,7 @@ const GestaoTemplates = ({ selectedType, selectedTypeData }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={isRemoving}
+          <Button color="error" variant="contained" disabled={isRemoving}
             onClick={() => { remove(deleteConfirm.pk); setDeleteConfirm(null); }}
           >
             Remover

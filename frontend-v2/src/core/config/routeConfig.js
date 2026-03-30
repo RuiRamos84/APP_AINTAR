@@ -2,13 +2,14 @@
  * Route Configuration
  * Mapeamento centralizado de rotas → permissões, módulos e metadados
  *
- * IMPORTANTE: Este é o ficheiro central para definir TODAS as rotas privadas
- * Todas as permissões são geridas aqui, tornando o sistema completamente dinâmico
+ * IMPORTANTE: Este é o ficheiro central para definir TODAS as rotas privadas.
+ * Permissões usam o campo `value` da tabela ts_interface da BD (ex: 'fleet.view').
+ * O hasPermission() resolve automaticamente a string → pk via catálogo do MetadataContext.
  */
 
 import {
   Dashboard as DashboardIcon,
-  Grading as AvalIcon,             // Avaliação de desempenho (era HowToVote)
+  Grading as AvalIcon,
   People as PeopleIcon,
   Assignment as TasksIcon,
   Settings as SettingsIcon,
@@ -19,48 +20,50 @@ import {
   AddCircleOutline as AddIcon,
   CheckCircle as CheckCircleIcon,
   AccountTree as ControlIcon,
-  ForkRight as BranchIcon,         // Ramal = bifurcação (era Cable)
-  InvertColors as SepticTankIcon,  // Saneamento/água (era CleaningServices)
+  ForkRight as BranchIcon,
+  InvertColors as SepticTankIcon,
   Science as AnalysisIcon,
   Factory as ETARIcon,
   ElectricBolt as EEIcon,
-  Sensors as TelemetryIcon,        // Monitorização por sensores (era Router)
+  Sensors as TelemetryIcon,
   AttachMoney as ExpensesIcon,
-  Layers as PavementIcon,          // Camadas de pavimento (era Straighten)
-  PeopleAlt as ClientIcon,         // Gerir clientes existentes (era PersonAdd)
+  Layers as PavementIcon,
+  PeopleAlt as ClientIcon,
   Receipt as InvoiceIcon,
-  GppBad as ViolationsIcon,        // Não-conformidade/violação (era Assessment)
-  Analytics as AnalyticsIcon,      // Mais visual (era BarChart duplicado)
+  GppBad as ViolationsIcon,
+  Analytics as AnalyticsIcon,
   VpnKey as PermissionsIcon,
   Storage as SystemIcon,
   Article as OfficesIcon,
   RequestPage as RequestsIcon,
   Inventory as InventoryIcon,
-  HealthAndSafety as EPIIcon,      // Proteção e segurança (era Work)
-  Hub as NetworkIcon,              // Rede de distribuição (era Cable)
+  HealthAndSafety as EPIIcon,
+  Hub as NetworkIcon,
   DirectionsCar as FleetIcon,
   GridView as InternalIcon,
-  Handyman as EquipamentosIcon,    // Ferramentas/equipamentos (era Build)
+  Handyman as EquipamentosIcon,
   Construction as ObrasIcon,
-  ManageSearch as ActivityLogIcon, // Auditoria de logs
-  History as SessionLogIcon,       // Histórico de sessões
-  Terminal as ActionsIcon,         // Ações de sistema
-  ContentCopy as ReplicateIcon,    // Replicar = copiar
-  NoteAdd as CreateNoteIcon,       // Criar ofício/pedido
-  Route as RouteIcon,              // Gestão de voltas/percursos
-  SupervisorAccount as SupervisorIcon, // Supervisão de operadores
-  Air as EmissoesIcon,             // Emissões para ambiente
-  CalendarMonth as PaymentPlanIcon, // Plano = calendário de prestações
-  AssignmentTurnedIn as PedidosIcon, // Pedidos processados
-  BuildCircle as MaintenanceIcon,  // Manutenção cíclica
-  Gavel as ContractIcon,           // Contratos (símbolo legal)
-  ManageAccounts as GestPessoalIcon, // Gestão de pessoal/RH
-  BeachAccess as FeriasIcon,       // Férias
-  EventBusy as FaltasIcon,         // Faltas e justificações
-  Schedule as HorariosIcon,        // Horários de trabalho
-  NightShelter as PiqueteIcon,     // Serviço de piquete
+  ManageSearch as ActivityLogIcon,
+  History as SessionLogIcon,
+  Terminal as ActionsIcon,
+  ContentCopy as ReplicateIcon,
+  NoteAdd as CreateNoteIcon,
+  Route as RouteIcon,
+  SupervisorAccount as SupervisorIcon,
+  Air as EmissoesIcon,
+  CalendarMonth as PaymentPlanIcon,
+  AssignmentTurnedIn as PedidosIcon,
+  BuildCircle as MaintenanceIcon,
+  Gavel as ContractIcon,
+  ManageAccounts as GestPessoalIcon,
+  BeachAccess as FeriasIcon,
+  EventBusy as FaltasIcon,
+  Schedule as HorariosIcon,
+  NightShelter as PiqueteIcon,
 } from '@mui/icons-material';
-import { PERMISSIONS } from './permissionMap';
+
+// Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
+
 
 /**
  * ROUTE_CONFIG
@@ -129,7 +132,7 @@ export const ROUTE_CONFIG = {
     text: 'Tarefas',
     icon: TasksIcon,
     module: 'administrativo',
-    permissions: { required: PERMISSIONS.TASKS_VIEW },
+    permissions: { required: 'tasks.view' },
     showInSidebar: true,
   },
 
@@ -138,7 +141,7 @@ export const ROUTE_CONFIG = {
     text: 'Minhas Tarefas',
     icon: TasksIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_VIEW },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 
@@ -147,7 +150,7 @@ export const ROUTE_CONFIG = {
     text: 'Operação',
     icon: TasksIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_VIEW },
+    permissions: { required: 'operation.access' },
     showInSidebar: false,
   },
 
@@ -156,7 +159,7 @@ export const ROUTE_CONFIG = {
     text: 'Controlo Operacional',
     icon: ControlIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_SUPERVISE },
+    permissions: { required: 'operation.supervise' },
     showInSidebar: true,
   },
 
@@ -165,7 +168,7 @@ export const ROUTE_CONFIG = {
     text: 'Gestão de Voltas',
     icon: RouteIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_SUPERVISE },
+    permissions: { required: 'operation.supervise' },
     showInSidebar: true,
   },
 
@@ -174,7 +177,7 @@ export const ROUTE_CONFIG = {
     text: 'Supervisão',
     icon: SupervisorIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.OPERATIONS_SUPERVISE },
+    permissions: { required: 'operation.supervise' },
     showInSidebar: true,
   },
 
@@ -183,7 +186,7 @@ export const ROUTE_CONFIG = {
     text: 'Controlo de Tarefas',
     icon: ControlIcon,
     module: 'operacao',
-    permissions: { required: PERMISSIONS.TASKS_CONTROL },
+    permissions: { required: 'tasks.view' },
     showInSidebar: false,
   },
 
@@ -197,7 +200,7 @@ export const ROUTE_CONFIG = {
     text: 'ETAR',
     icon: ETARIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.ETAR_VIEW },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 
@@ -206,7 +209,7 @@ export const ROUTE_CONFIG = {
     text: 'Estações Elevatórias',
     icon: EEIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.EE_VIEW },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 
@@ -215,7 +218,7 @@ export const ROUTE_CONFIG = {
     text: 'Equipamentos',
     icon: EquipamentosIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.EQUIPAMENTOS_VIEW },
+    permissions: { required: 'equipamentos.view' },
     showInSidebar: true,
   },
 
@@ -224,7 +227,7 @@ export const ROUTE_CONFIG = {
     text: 'Obras',
     icon: ObrasIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.OBRAS_VIEW },
+    permissions: { required: 'obras.view' },
     showInSidebar: true,
   },
 
@@ -233,7 +236,7 @@ export const ROUTE_CONFIG = {
     text: 'Análises',
     icon: AnalysisIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.ANALYSES_VIEW },
+    permissions: { required: 'admin.reports.view' },
     showInSidebar: true,
   },
 
@@ -242,7 +245,7 @@ export const ROUTE_CONFIG = {
     text: 'Gestão de Frota',
     icon: FleetIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.ADMIN_USERS }, // Temp permission until we define a specific Fleet one (PERMISSIONS.FLEET_VIEW)
+    permissions: { required: 'fleet.view' },
     showInSidebar: true,
   },
 
@@ -251,35 +254,35 @@ export const ROUTE_CONFIG = {
     text: 'Despesas',
     icon: ExpensesIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.EXPENSES_VIEW },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
     submenu: {
       '/expenses/network': {
         id: 'expenses_network',
         text: 'Rede',
         icon: NetworkIcon,
-        permissions: { required: PERMISSIONS.EXPENSES_VIEW },
+        permissions: { required: 'operation.access' },
         showInSidebar: true,
       },
       '/expenses/branches': {
         id: 'expenses_branches',
         text: 'Ramais',
         icon: BranchIcon,
-        permissions: { required: PERMISSIONS.EXPENSES_VIEW },
+        permissions: { required: 'operation.access' },
         showInSidebar: true,
       },
       '/expenses/maintenance': {
         id: 'expenses_maintenance',
         text: 'Manutenção',
         icon: MaintenanceIcon,
-        permissions: { required: PERMISSIONS.EXPENSES_VIEW },
+        permissions: { required: 'operation.access' },
         showInSidebar: true,
       },
       '/expenses/equipment': {
         id: 'expenses_equipment',
         text: 'Equipamentos',
         icon: InventoryIcon,
-        permissions: { required: PERMISSIONS.EXPENSES_VIEW },
+        permissions: { required: 'operation.access' },
         showInSidebar: true,
       },
     },
@@ -290,7 +293,7 @@ export const ROUTE_CONFIG = {
     text: 'Telemetria',
     icon: TelemetryIcon,
     module: 'gestao',
-    permissions: { required: PERMISSIONS.TELEMETRY_VIEW },
+    permissions: { required: 'telemetry.view' },
     showInSidebar: true,
   },
 
@@ -299,7 +302,7 @@ export const ROUTE_CONFIG = {
     text: 'Emissões',
     icon: EmissoesIcon,
     module: 'administrativo',
-    permissions: { required: PERMISSIONS.EMISSIONS_VIEW },
+    permissions: { required: 'letters.manage' },
     showInSidebar: true,
   },
 
@@ -311,7 +314,7 @@ export const ROUTE_CONFIG = {
     text: 'SIBS/Pagamentos',
     icon: PaymentsIcon,
     module: 'pagamentos',
-    permissions: { required: PERMISSIONS.PAYMENTS_VIEW },
+    permissions: { required: 'payments.view' },
     showInSidebar: true,
   },
 
@@ -320,21 +323,21 @@ export const ROUTE_CONFIG = {
     text: 'Faturas',
     icon: InvoiceIcon,
     module: 'pagamentos',
-    permissions: { required: PERMISSIONS.INVOICES_VIEW },
+    permissions: { required: 'docs.view.owner' },
     showInSidebar: true,
     submenu: {
       '/invoices/issued': {
         id: 'invoices_issued',
         text: 'Emitidas',
         icon: CheckCircleIcon,
-        permissions: { required: PERMISSIONS.INVOICES_VIEW },
+        permissions: { required: 'docs.view.owner' },
         showInSidebar: true,
       },
       '/invoices/payment-plans': {
         id: 'invoices_payment_plans',
         text: 'Planos de Pagamento',
         icon: PaymentPlanIcon,
-        permissions: { required: PERMISSIONS.INVOICES_VIEW },
+        permissions: { required: 'docs.view.owner' },
         showInSidebar: true,
       },
     },
@@ -345,14 +348,14 @@ export const ROUTE_CONFIG = {
     text: 'Clientes',
     icon: ClientIcon,
     module: 'pagamentos',
-    permissions: { required: PERMISSIONS.CLIENTS_VIEW },
+    permissions: { required: 'entities.view' },
     showInSidebar: true,
     submenu: {
       '/clients/contracts': {
         id: 'clients_contracts',
         text: 'Contratos',
         icon: ContractIcon,
-        permissions: { required: PERMISSIONS.CLIENTS_CONTRACTS },
+        permissions: { required: 'entities.view' },
         showInSidebar: true,
       },
     },
@@ -365,7 +368,7 @@ export const ROUTE_CONFIG = {
     text: 'Visão Geral',
     icon: DashboardIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_VIEW },
+    permissions: { required: 'dashboard.view' },
     showInSidebar: true,
   },
 
@@ -374,7 +377,7 @@ export const ROUTE_CONFIG = {
     text: 'Pedidos',
     icon: RequestsIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_VIEW },
+    permissions: { required: 'dashboard.view' },
     showInSidebar: true,
   },
 
@@ -383,7 +386,7 @@ export const ROUTE_CONFIG = {
     text: 'Ramais',
     icon: BranchIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_BRANCHES },
+    permissions: { required: 'pav.view' },
     showInSidebar: true,
   },
 
@@ -392,7 +395,7 @@ export const ROUTE_CONFIG = {
     text: 'Fossas',
     icon: SepticTankIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_SEPTIC_TANKS },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 
@@ -401,7 +404,7 @@ export const ROUTE_CONFIG = {
     text: 'Instalações/Operações',
     icon: ETARIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_INSTALLATIONS },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 
@@ -410,7 +413,7 @@ export const ROUTE_CONFIG = {
     text: 'Incumprimentos',
     icon: ViolationsIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_VIOLATIONS },
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 
@@ -419,7 +422,7 @@ export const ROUTE_CONFIG = {
     text: 'Análises',
     icon: AnalysisIcon,
     module: 'dashboards',
-    permissions: { required: PERMISSIONS.DASHBOARD_ANALYSES },
+    permissions: { required: 'dashboard.view' },
     showInSidebar: true,
   },
 
@@ -430,35 +433,35 @@ export const ROUTE_CONFIG = {
     text: 'Sistema',
     icon: SystemIcon,
     module: 'administracao',
-    permissions: { required: PERMISSIONS.ADMIN_DASHBOARD },
+    permissions: { required: 'admin.system.settings' },
     showInSidebar: true,
     submenu: {
       '/admin/config': {
         id: 'admin_config',
         text: 'Configurações',
         icon: SettingsIcon,
-        permissions: { required: PERMISSIONS.SYSTEM_CONFIG },
+        permissions: { required: 'admin.system.settings' },
         showInSidebar: true,
       },
       '/admin/activity-logs': {
         id: 'admin_activity_logs',
         text: 'Logs de Atividade',
         icon: ActivityLogIcon,
-        permissions: { required: PERMISSIONS.SYSTEM_LOGS },
+        permissions: { required: 'admin.logs.view' },
         showInSidebar: true,
       },
       '/admin/session-logs': {
         id: 'admin_session_logs',
         text: 'Logs de Sessões',
         icon: SessionLogIcon,
-        permissions: { required: PERMISSIONS.SYSTEM_LOGS },
+        permissions: { required: 'admin.logs.view' },
         showInSidebar: true,
       },
       '/admin/actions': {
         id: 'admin_actions',
         text: 'Ações',
         icon: ActionsIcon,
-        permissions: { required: PERMISSIONS.ADMIN_DASHBOARD },
+        permissions: { required: 'admin.system.settings' },
         showInSidebar: true,
       },
     },
@@ -469,21 +472,21 @@ export const ROUTE_CONFIG = {
     text: 'Utilizadores',
     icon: PeopleIcon,
     module: 'administracao',
-    permissions: { required: PERMISSIONS.ADMIN_USERS },
+    permissions: { required: 'admin.users' },
     showInSidebar: true,
     submenu: {
       '/admin/users/list': {
         id: 'admin_users_list',
         text: 'Lista',
         icon: PeopleIcon,
-        permissions: { required: PERMISSIONS.ADMIN_USERS },
+        permissions: { required: 'admin.users' },
         showInSidebar: true,
       },
       '/admin/permissions': {
         id: 'admin_permissions',
         text: 'Permissões',
         icon: PermissionsIcon,
-        permissions: { required: PERMISSIONS.ADMIN_USERS },
+        permissions: { required: 'admin.users' },
         showInSidebar: true,
       },
     },
@@ -494,7 +497,7 @@ export const ROUTE_CONFIG = {
     text: 'Criar Utilizador',
     icon: PeopleIcon,
     module: 'administracao',
-    permissions: { required: PERMISSIONS.ADMIN_USERS },
+    permissions: { required: 'admin.users' },
     showInSidebar: false,
   },
 
@@ -503,7 +506,7 @@ export const ROUTE_CONFIG = {
     text: 'Editar Utilizador',
     icon: PeopleIcon,
     module: 'administracao',
-    permissions: { required: PERMISSIONS.ADMIN_USERS },
+    permissions: { required: 'admin.users' },
     showInSidebar: false,
   },
 
@@ -512,7 +515,7 @@ export const ROUTE_CONFIG = {
     text: 'Ofícios',
     icon: OfficesIcon,
     module: 'administracao',
-    permissions: { required: PERMISSIONS.OFFICES_VIEW },
+    permissions: { required: 'letters.manage' },
     showInSidebar: true,
   },
 
@@ -521,28 +524,28 @@ export const ROUTE_CONFIG = {
     text: 'Pedidos Gestão',
     icon: RequestsIcon,
     module: 'pedidos',
-    permissions: { required: PERMISSIONS.REQUESTS_VIEW },
+    permissions: { required: 'docs.view.all' },
     showInSidebar: false,
     submenu: {
       '/requests/open': {
         id: 'requests_open',
         text: 'Abrir',
         icon: CreateNoteIcon,
-        permissions: { required: PERMISSIONS.REQUESTS_CREATE },
+        permissions: { required: 'docs.create' },
         showInSidebar: true,
       },
       '/requests/close': {
         id: 'requests_close',
         text: 'Fechar',
         icon: CheckCircleIcon,
-        permissions: { required: PERMISSIONS.REQUESTS_CLOSE },
+        permissions: { required: 'docs.view.all' },
         showInSidebar: true,
       },
       '/requests/replicate': {
         id: 'requests_replicate',
         text: 'Replicar',
         icon: ReplicateIcon,
-        permissions: { required: PERMISSIONS.REQUESTS_REPLICATE },
+        permissions: { required: 'admin.docs.manage' },
         showInSidebar: true,
       },
     },
@@ -552,32 +555,9 @@ export const ROUTE_CONFIG = {
     id: 'entities',
     text: 'Entidades',
     icon: EntitiesIcon,
-    module: 'administracao',
-    permissions: { required: PERMISSIONS.ENTITIES_VIEW },
-    showInSidebar: false,
-    submenu: {
-      '/entities/list': {
-        id: 'entities_list',
-        text: 'Listar',
-        icon: EntitiesIcon,
-        permissions: { required: PERMISSIONS.ENTITIES_VIEW },
-        showInSidebar: true,
-      },
-      '/entities/create': {
-        id: 'entities_create',
-        text: 'Criar',
-        icon: AddIcon,
-        permissions: { required: PERMISSIONS.ENTITIES_CREATE },
-        showInSidebar: true,
-      },
-      '/entities/requests': {
-        id: 'entities_requests',
-        text: 'Pedidos',
-        icon: RequestsIcon,
-        permissions: { required: PERMISSIONS.ENTITIES_VIEW },
-        showInSidebar: true,
-      },
-    },
+    module: 'pedidos',
+    permissions: { required: 'entities.view' },
+    showInSidebar: true,
   },
 
   // ==================== MÓDULO: PEDIDOS ====================
@@ -588,7 +568,7 @@ export const ROUTE_CONFIG = {
     text: 'Pedidos',
     icon: PedidosIcon,
     module: 'pedidos',
-    permissions: { required: PERMISSIONS.DOCS_VIEW_ALL },
+    permissions: { required: 'docs.view.all' },
     showInSidebar: true,
   },
 
@@ -597,7 +577,7 @@ export const ROUTE_CONFIG = {
     text: 'Pavimentações',
     icon: PavementIcon,
     module: 'pedidos',
-    permissions: { required: PERMISSIONS.PAVEMENTS_VIEW },
+    permissions: { required: 'pav.view' },
     showInSidebar: true,
   },
 
@@ -606,7 +586,7 @@ export const ROUTE_CONFIG = {
     text: 'Área Interna',
     icon: InternalIcon,
     module: 'pedidos',
-    permissions: { required: PERMISSIONS.TASKS_VIEW },
+    permissions: { required: 'tasks.view' },
     showInSidebar: false,
   },
 
@@ -615,7 +595,7 @@ export const ROUTE_CONFIG = {
     text: 'Requisição Interna',
     icon: RequestsIcon,
     module: 'pedidos',
-    permissions: { required: PERMISSIONS.TASKS_VIEW },
+    permissions: { required: 'tasks.view' },
     showInSidebar: true,
   },
 
@@ -627,7 +607,7 @@ export const ROUTE_CONFIG = {
     text: 'Gestão de EPI',
     icon: EPIIcon,
     module: 'rh',
-    permissions: { required: PERMISSIONS.EPI_MANAGEMENT },
+    permissions: { required: 'epi.view' },
     showInSidebar: true,
   },
 
@@ -636,35 +616,35 @@ export const ROUTE_CONFIG = {
     text: 'Gestão Pessoal',
     icon: GestPessoalIcon,
     module: 'rh',
-    permissions: null, // Será controlado ao nível dos submenus
+    permissions: { required: 'rh.view' },
     showInSidebar: true,
     submenu: {
       '/rh/pessoal/ferias': {
         id: 'rh_ferias',
         text: 'Férias',
         icon: FeriasIcon,
-        permissions: null,
+        permissions: { required: 'rh.view' },
         showInSidebar: true,
       },
       '/rh/pessoal/faltas': {
         id: 'rh_faltas',
         text: 'Faltas e Justificações',
         icon: FaltasIcon,
-        permissions: null,
+        permissions: { required: 'rh.view' },
         showInSidebar: true,
       },
       '/rh/pessoal/horarios': {
         id: 'rh_horarios',
         text: 'Horários',
         icon: HorariosIcon,
-        permissions: null,
+        permissions: { required: 'rh.view' },
         showInSidebar: true,
       },
       '/rh/pessoal/piquete': {
         id: 'rh_piquete',
         text: 'Piquete',
         icon: PiqueteIcon,
-        permissions: null,
+        permissions: { required: 'rh.view' },
         showInSidebar: true,
       },
     },
@@ -675,7 +655,7 @@ export const ROUTE_CONFIG = {
     text: 'Avaliação',
     icon: AvalIcon,
     module: 'rh',
-    permissions: null, // Todos os utilizadores autenticados
+    permissions: { required: 'aval.view' },
     showInSidebar: true,
   },
 
@@ -684,7 +664,7 @@ export const ROUTE_CONFIG = {
     text: 'Análise de Avaliações',
     icon: AnalyticsIcon,
     module: 'rh',
-    permissions: null,
+    permissions: { required: 'aval.view' },
     showInSidebar: true,
   },
 
@@ -693,7 +673,7 @@ export const ROUTE_CONFIG = {
     text: 'Configuração de Avaliações',
     icon: AvalIcon,
     module: 'administracao',
-    permissions: { required: PERMISSIONS.ADMIN_USERS },
+    permissions: { required: 'admin.users' },
     showInSidebar: true,
   },
 
@@ -702,7 +682,7 @@ export const ROUTE_CONFIG = {
     text: 'Gestão de Ofícios',
     icon: OfficesIcon,
     module: 'administrativo',
-    permissions: { required: PERMISSIONS.OFFICES_VIEW },
+    permissions: { required: 'letters.manage' },
     showInSidebar: false,
   },
 
@@ -713,28 +693,28 @@ export const ROUTE_CONFIG = {
     text: 'Documentos',
     icon: DocumentsIcon,
     module: null, // Sem módulo específico
-    permissions: { required: PERMISSIONS.DOCS_VIEW_ALL },
+    permissions: { required: 'docs.view.all' },
     showInSidebar: false, // Desativado na sidebar (usar ofícios administrativos)
     submenu: {
       '/documents/all': {
         id: 'documents_all',
         text: 'Todos os Documentos',
         icon: DocumentsIcon,
-        permissions: { required: PERMISSIONS.DOCS_VIEW_ALL },
+        permissions: { required: 'docs.view.all' },
         showInSidebar: false,
       },
       '/documents/my': {
         id: 'documents_my',
         text: 'Meus Documentos',
         icon: DocumentsIcon,
-        permissions: { required: PERMISSIONS.DOCS_VIEW_OWNER },
+        permissions: { required: 'docs.view.owner' },
         showInSidebar: false,
       },
       '/documents/assigned': {
         id: 'documents_assigned',
         text: 'Documentos Atribuídos',
         icon: DocumentsIcon,
-        permissions: { required: PERMISSIONS.DOCS_VIEW_ASSIGNED },
+        permissions: { required: 'docs.view.assigned' },
         showInSidebar: false,
       },
     },

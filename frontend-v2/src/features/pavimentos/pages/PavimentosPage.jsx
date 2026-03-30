@@ -16,7 +16,6 @@ import { SearchBar } from '@/shared/components/data';
 
 import ModulePage from '@/shared/components/layout/ModulePage';
 import { usePermissions } from '@/core/contexts/PermissionContext';
-import { PERMISSIONS } from '@/core/config/permissionMap';
 
 import { usePavimentos } from '../hooks/usePavimentos';
 import {
@@ -55,7 +54,7 @@ const TABS = [
 
 export default function PavimentosPage() {
   const { hasPermission } = usePermissions();
-  const canManage = hasPermission(PERMISSIONS.PAVEMENTS_MANAGE);
+  const canManage = hasPermission('pav.edit');
 
   const [tab, setTab] = useState(0);
 

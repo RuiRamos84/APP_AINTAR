@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from app.utils.permissions_decorator import require_permission
+from app.utils.permissions_decorator import require_permission, require_any_permission
 from ..services.tasks_service import (
     list_tasks,
     create_task,
@@ -28,7 +28,7 @@ bp = Blueprint('tasks_routes', __name__)
 @bp.route('/tasks', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(200)  # tasks.all
+@require_any_permission(200, 201)  # tasks.all OU tasks.view
 @set_session
 @api_error_handler
 def get_tasks():
@@ -302,7 +302,7 @@ def update_task_status_route(task_id):
 @bp.route('/tasks/<int:task_id>/history', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(200)  # tasks.all
+@require_any_permission([200, 201])  # tasks.all OU tasks.view
 @set_session
 @api_error_handler
 def get_task_history_route(task_id):

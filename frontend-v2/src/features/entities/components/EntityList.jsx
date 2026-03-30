@@ -9,6 +9,9 @@ import {
 import DataTable from '@/shared/components/data/DataTable/DataTable';
 import { useEntityStore } from '../store/entityStore';
 import { EntityForm } from './EntityForm';
+import { ContractFormModal } from '@/features/payments/components/ContractFormModal';
+import { Description as ContractIcon } from '@mui/icons-material';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 
 // Utility para ter uma cor consistente baseada no nome
 const stringToColor = (string) => {
@@ -37,6 +40,10 @@ export const EntityList = () => {
   // States para Ordenação
   const [order, setOrder] = React.useState('asc');
   const [orderBy, setOrderBy] = React.useState('name');
+
+  // State para Contratos
+  const { hasPermission } = usePermissions();
+  const [contractModalData, setContractModalData] = React.useState(null);
 
   useEffect(() => {
     fetchEntities();
@@ -228,6 +235,20 @@ export const EntityList = () => {
           </Typography>
         </Grid>
       </Grid>
+      
+      {/* Ações Extra (Ex: Novo Contrato) */}
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
+        {hasPermission('payments.manage') && (
+          <Button 
+            variant="outlined" 
+            size="small" 
+            startIcon={<ContractIcon />}
+            onClick={() => setContractModalData(row)}
+          >
+            Novo Contrato
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 
@@ -248,6 +269,12 @@ export const EntityList = () => {
         }}
       />
       <EntityForm />
+
+      <ContractFormModal 
+        open={Boolean(contractModalData)} 
+        onClose={() => setContractModalData(null)} 
+        defaultEntity={contractModalData} 
+      />
     </>
   );
 };

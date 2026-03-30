@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 import { ModulePage } from '@/shared/components/layout';
 import { useExpenseTypes, useAssociates } from '@/core/hooks/useMetaData';
 import { usePermissions } from '@/core/contexts/PermissionContext';
-import { PERMISSIONS } from '@/core/config/permissionMap';
 
 const formatDate = (d) =>
   d ? new Date(d.includes('T') ? d : d + 'T00:00:00').toLocaleDateString('pt-PT') : '—';
@@ -177,7 +176,7 @@ export default function ExpenseListPage({
   expenses, loading, onAdd,
 }) {
   const { hasPermission } = usePermissions();
-  const canEdit = hasPermission(PERMISSIONS.EXPENSES_CREATE);
+  const canEdit = hasPermission('operation.access');
 
   const { data: expenseTypes = [] } = useExpenseTypes();
   const { data: associates = [] }   = useAssociates();

@@ -1,137 +1,147 @@
 /**
  * Permission Service
  * Centralized permission checking logic
+ *
+ * Aceita tanto IDs numéricos como value strings (ex: 'operation.access').
+ * Os value strings são resolvidos via catálogo da BD (ts_interface),
+ * injectado pelo PermissionContext usando os dados do MetadataContext.
+ *
+ * FONTE ÚNICA DE VERDADE: ts_interface (BD) — sem permissionMap.js.
  */
 
 class PermissionService {
   constructor() {
     this.user = null;
+    this._userInterfacesSet = new Set();
+    this._interfaceCatalog = [];
+    this._interfaceMap = new Map(); // O(1) lookup
   }
 
   /**
-   * Set current user
-   * @param {Object} user - User object with interfaces array
+   * Define o utilizador autenticado (chamado pelo AuthContext/PermissionContext)
+   * @param {Object} user - Objecto com user_id, profil, interfaces[]
    */
   setUser(user) {
-    // Evitar atualizações desnecessárias se o user não mudou
-    if (this.user?.user_id === user?.user_id) {
-      return;
-    }
+    if (this.user?.user_id === user?.user_id && this.user?.interfaces?.length === user?.interfaces?.length) return;
     this.user = user;
+    this._userInterfacesSet = new Set(user?.interfaces || []);
   }
 
   /**
-   * Clear current user
+   * Injeta o catálogo de interfaces da BD (chamado pelo PermissionContext)
+   * Deve ser chamado assim que o MetadataContext terminar de carregar.
+   * @param {Array} interfaces - Array de objectos ts_interface da BD
    */
+  setInterfaceCatalog(interfaces = []) {
+    this._interfaceCatalog = interfaces;
+    this._interfaceMap = new Map();
+    interfaces.forEach(i => {
+      if (i.value) this._interfaceMap.set(i.value, i.pk);
+    });
+  }
+
+  /** Limpa o utilizador no logout */
   clearUser() {
     this.user = null;
+    this._userInterfacesSet.clear();
   }
 
   /**
-   * Check if user has a specific permission
-   * @param {number} requiredInterfaceId - Numeric permission ID
+   * Resolve um identificador de permissão para o ID numérico (pk).
+   * Aceita:
+   *   - number  → usa directamente (ex: 310)
+   *   - string  → faz lookup por `value` no catálogo da BD (ex: 'operation.access')
+   *
+   * @param {number|string} permission
+   * @returns {number|null}
+   */
+  _resolveId(permission) {
+    if (typeof permission === 'number') return permission;
+    if (typeof permission === 'string') {
+      const pk = this._interfaceMap.get(permission);
+      if (pk === undefined) {
+        if (import.meta.env.DEV && this._interfaceMap.size > 0) {
+          console.warn(`[PermissionService] Permissão '${permission}' não encontrada no catálogo da BD.`);
+        }
+        return null;
+      }
+      return pk;
+    }
+    return null;
+  }
+
+  /**
+   * Verifica se o utilizador tem a permissão indicada.
+   * @param {number|string} permission - ID numérico ou value string (ex: 'operation.access')
    * @returns {boolean}
    */
-  hasPermission(requiredInterfaceId) {
-    if (!this.user) {
-      return false;
-    }
+  hasPermission(permission) {
+    if (!this.user) return false;
 
-    // Converter para número para garantir comparação
-    const permId = Number(requiredInterfaceId);
+    // Super admin (profil === '0') tem acesso a tudo
+    if (String(this.user.profil) === '0') return true;
 
-    // Super admin (profil === '0') has all permissions
-    if (String(this.user.profil) === '0') {
-      return true;
-    }
+    const permId = this._resolveId(permission);
+    if (permId === null) return false;
 
-    // Check if permission ID is valid
-    if (typeof permId !== 'number' || isNaN(permId)) {
-      return false;
-    }
-
-    // Check if user has the permission in their interfaces array
-    const userInterfaces = this.user.interfaces || [];
-    return userInterfaces.includes(permId);
+    // Fast O(1) lookup
+    return this._userInterfacesSet.has(permId);
   }
 
-
-
   /**
-   * Check if user has ANY of the specified permissions
-   * @param {number[]} permissions - Array of permission IDs
+   * Verifica se o utilizador tem PELO MENOS UMA das permissões.
+   * @param {Array<number|string>} permissions
    * @returns {boolean}
    */
   hasAnyPermission(permissions) {
-    if (!Array.isArray(permissions) || permissions.length === 0) {
-      return false;
-    }
-
-    return permissions.some(permission => this.hasPermission(permission));
+    if (!Array.isArray(permissions) || permissions.length === 0) return false;
+    return permissions.some(p => this.hasPermission(p));
   }
 
   /**
-   * Check if user has ALL of the specified permissions
-   * @param {number[]} permissions - Array of permission IDs
+   * Verifica se o utilizador tem TODAS as permissões.
+   * @param {Array<number|string>} permissions
    * @returns {boolean}
    */
   hasAllPermissions(permissions) {
-    if (!Array.isArray(permissions) || permissions.length === 0) {
-      return false;
-    }
-
-    return permissions.every(permission => this.hasPermission(permission));
+    if (!Array.isArray(permissions) || permissions.length === 0) return false;
+    return permissions.every(p => this.hasPermission(p));
   }
 
   /**
-   * Batch check multiple permissions
-   * @param {Object} permissionMap - Object with keys and permission IDs
-   * @returns {Object} Object with same keys and boolean values
+   * Verifica um mapa de permissões em batch.
+   * @param {Object} permissionMap - Ex: { canView: 'operation.access', canEdit: 'operation.manage' }
+   * @returns {Object} - Ex: { canView: true, canEdit: false }
    */
   checkBatchPermissions(permissionMap) {
     const result = {};
-
     Object.keys(permissionMap).forEach(key => {
-      const permissionId = permissionMap[key];
-      result[key] = this.hasPermission(permissionId);
+      result[key] = this.hasPermission(permissionMap[key]);
     });
-
     return result;
   }
 
-  /**
-   * Get all user permissions
-   * @returns {number[]} Array of permission IDs
-   */
+  /** @returns {number[]} Array de IDs de interfaces do utilizador */
   getUserPermissions() {
     return this.user?.interfaces || [];
   }
 
-  /**
-   * Check if user is super admin
-   * @returns {boolean}
-   */
+  /** @returns {boolean} */
   isAdmin() {
-    return this.user?.profil === '0';
+    return String(this.user?.profil) === '0';
   }
 
-  /**
-   * Get user profile
-   * @returns {string|null}
-   */
+  /** @returns {string|null} */
   getUserProfile() {
     return this.user?.profil || null;
   }
 
-  /**
-   * Check if user is authenticated
-   * @returns {boolean}
-   */
+  /** @returns {boolean} */
   isAuthenticated() {
     return !!this.user;
   }
 }
 
-// Export singleton instance
+// Singleton
 const permissionService = new PermissionService();
 export default permissionService;

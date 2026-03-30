@@ -10,58 +10,56 @@ from app.core.permissions import permission_manager
 logger = get_logger(__name__)
 
 
-def check_permission_by_id(permission_id: int, user_profile: str, user_interfaces: list) -> bool:
+def check_permission_by_id(permission_id, user_profile: str, user_interfaces: list) -> bool:
     """
-    Verifica se o utilizador tem uma permissão, baseando-se no ID da interface.
+    Verifica se o utilizador tem uma permissão.
 
-    Args:
-        permission_id: ID da permissão/interface (ex: 500, 520, 510)
-        user_profile: Perfil do utilizador
-        user_interfaces: Lista de interfaces do utilizador
-
-    Returns:
-        bool: True se tiver permissão, False caso contrário
+    Aceita:
+      - str  → resolve via permission_manager (lookup na ts_interface carregada na startup)
+              ex: check_permission_by_id('fleet.view', ...)
+      - int  → compara directamente com o array de interfaces do JWT
+              ex: check_permission_by_id(830, ...)
     """
     # Super admin (perfil '0') sempre tem acesso
     if user_profile == "0":
         return True
 
-    # Verificar se o ID da permissão está na lista de interfaces do utilizador
-    return permission_id in (user_interfaces or [])
+    if isinstance(permission_id, str):
+        # Delegar ao permission_manager que tem o mapa value→pk da ts_interface
+        return permission_manager.check_permission(permission_id, user_profile, user_interfaces)
+    elif isinstance(permission_id, int):
+        return permission_id in (user_interfaces or [])
+    else:
+        logger.warning(f"Tipo de permissão desconhecido: {type(permission_id)} ({permission_id})")
+        return False
 
 
 def require_permission(permission_id):
     """
-    Decorator para verificar permissões em rotas
+    Decorator para verificar permissões em rotas.
 
-    Usage:
-        @require_permission(500)  # ID numérico da permissão
-        def my_route():
-            return "Success"
+    Aceita string (value da BD) ou inteiro (pk da ts_interface):
+        @require_permission('fleet.view')   # resolve via BD
+        @require_permission(830)            # pk directo (legado)
     """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             try:
-                # Extrair dados do JWT
                 jwt_data = get_jwt()
 
-                # User ID
                 user_id = jwt_data.get('user_id')
                 if isinstance(user_id, dict):
                     user_id = user_id.get('user_id')
 
-                # Perfil do utilizador
                 user_profile = (
                     jwt_data.get('profil') or
                     jwt_data.get('profile') or
                     jwt_data.get('user_profile')
                 )
 
-                # Interfaces do utilizador
                 user_interfaces = jwt_data.get('interfaces', [])
 
-                # Validação básica
                 if not user_id:
                     logger.warning(
                         f"Acesso negado - User ID não encontrado na rota {f.__name__}")
@@ -71,7 +69,6 @@ def require_permission(permission_id):
                         "code": "INVALID_USER_DATA"
                     }), 401
 
-                # Verificar permissão usando apenas IDs numéricos
                 has_permission = check_permission_by_id(
                     permission_id,
                     str(user_profile),
@@ -104,6 +101,7 @@ def require_permission(permission_id):
 
         return decorated_function
     return decorator
+
 
 
 def require_any_permission(*permission_ids):
