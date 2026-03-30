@@ -698,6 +698,218 @@ def debug_permissions():
     }), 200
 
 
+@bp.route("/payments/contracts", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_contracts():
+    """Listar contratos da vista vbl_contract"""
+    has_permission, _, _ = check_payment_admin_permission()
+    if not has_permission:
+        return jsonify({"erro": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+    from app.utils.utils import db_session_manager
+    from sqlalchemy.sql import text
+
+    with db_session_manager(user) as session:
+        result = session.execute(text(
+            "SELECT c.pk, c.ts_entity, c.nipc, c.start_date, c.stop_date, c.family, "
+            "c.tt_contractfrequency, c.address, c.postal, c.door, c.floor, c.nut1, c.nut2, c.nut3, c.nut4, "
+            "e.email "
+            "FROM vbl_contract c "
+            "LEFT JOIN vbf_entity e ON e.nipc = c.nipc "
+            "ORDER BY c.pk DESC"
+        ))
+        columns = result.keys()
+        contracts = [dict(zip(columns, row)) for row in result]
+
+    return jsonify({"success": True, "contracts": contracts}), 200
+
+
+@bp.route("/payments/contracts", methods=["POST"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def create_contract():
+    """Criar contrato via vbf_contract"""
+    has_permission, _, _ = check_payment_admin_permission()
+    if not has_permission:
+        return jsonify({"erro": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+    data = request.get_json()
+
+    required = ['ts_entity', 'start_date']
+    for field in required:
+        if not data.get(field):
+            return jsonify({"erro": f"Campo obrigatório em falta: {field}"}), 400
+
+    from app.utils.utils import db_session_manager
+    from sqlalchemy.sql import text
+
+    def to_int(val):
+        try:
+            return int(val) if val not in (None, '', 'None') else None
+        except (ValueError, TypeError):
+            return None
+
+    ts_entity = to_int(data.get("ts_entity"))
+
+    with db_session_manager(user) as session:
+        pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+        session.execute(text(
+            "INSERT INTO vbf_contract (pk, ts_entity, start_date, stop_date, family, tt_contractfrequency, "
+            "address, postal, door, floor, nut1, nut2, nut3, nut4) "
+            "VALUES (:pk, :ts_entity, :start_date, :stop_date, :family, :tt_contractfrequency, "
+            ":address, :postal, :door, :floor, :nut1, :nut2, :nut3, :nut4)"
+        ), {
+            "pk": pk,
+            "ts_entity": ts_entity,
+            "start_date": data.get("start_date"),
+            "stop_date": data.get("stop_date") or None,
+            "family": to_int(data.get("family")),
+            "tt_contractfrequency": to_int(data.get("tt_contractfrequency")),
+            "address": data.get("address") or None,
+            "postal": data.get("postal") or None,
+            "door": data.get("door") or None,
+            "floor": data.get("floor") or None,
+            "nut1": data.get("nut1") or None,
+            "nut2": data.get("nut2") or None,
+            "nut3": data.get("nut3") or None,
+            "nut4": data.get("nut4") or None,
+        })
+
+    return jsonify({"success": True}), 201
+
+
+@bp.route("/payments/contracts/<int:contract_pk>/payments/<int:payment_pk>/invoice", methods=["PATCH"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def invoice_contract_payment(contract_pk, payment_pk):
+    """Registar data de faturação — actualiza coluna presented"""
+    has_permission, _, _ = check_payment_admin_permission()
+    if not has_permission:
+        return jsonify({"erro": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+    from app.utils.utils import db_session_manager
+    from sqlalchemy.sql import text
+
+    data = request.get_json()
+    invoice_date = data.get("invoice_date") if data else None
+
+    with db_session_manager(user) as session:
+        session.execute(text(
+            "UPDATE vbf_contract_payment SET presented = :invoice_date "
+            "WHERE pk = :pk AND tb_contract = :contract_pk"
+        ), {"invoice_date": invoice_date, "pk": payment_pk, "contract_pk": contract_pk})
+
+    return jsonify({"success": True}), 200
+
+
+@bp.route("/payments/contracts/<int:contract_pk>/payments/<int:payment_pk>/validate", methods=["PATCH"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def validate_contract_payment(contract_pk, payment_pk):
+    """Validar pagamento de contrato — actualiza coluna payed"""
+    has_permission, _, _ = check_payment_admin_permission()
+    if not has_permission:
+        return jsonify({"erro": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+    from app.utils.utils import db_session_manager
+    from sqlalchemy.sql import text
+
+    data = request.get_json()
+    payed_date = data.get("payed_date") if data else None
+    if not payed_date:
+        return jsonify({"erro": "Data de pagamento obrigatória"}), 400
+
+    with db_session_manager(user) as session:
+        session.execute(text(
+            "UPDATE vbf_contract_payment SET payed = :payed_date "
+            "WHERE pk = :pk AND tb_contract = :contract_pk"
+        ), {"payed_date": payed_date, "pk": payment_pk, "contract_pk": contract_pk})
+
+    return jsonify({"success": True}), 200
+
+
+@bp.route("/payments/contracts/alerts", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_contract_payment_alerts():
+    """Pagamentos faturados mas não pagos, com info de prazo (presented + 30 dias)"""
+    has_permission, _, _ = check_payment_admin_permission()
+    if not has_permission:
+        return jsonify({"erro": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+    from app.utils.utils import db_session_manager
+    from sqlalchemy.sql import text
+    from datetime import date, timedelta
+
+    today = date.today()
+
+    with db_session_manager(user) as session:
+        result = session.execute(text("""
+            SELECT cp.pk, cp.tb_contract, cp.start_date, cp.stop_date, cp.value,
+                   cp.presented, cp.payed,
+                   c.ts_entity, c.nipc,
+                   e.email
+            FROM vbl_contract_payment cp
+            JOIN vbl_contract c ON c.pk = cp.tb_contract
+            JOIN vbf_entity e ON e.nipc = c.nipc
+            WHERE cp.presented IS NOT NULL AND cp.payed IS NULL
+            ORDER BY cp.presented
+        """))
+        columns = result.keys()
+        alerts = []
+        for row in result:
+            r = dict(zip(columns, row))
+            presented_date = r['presented'].date() if hasattr(r['presented'], 'date') else r['presented']
+            deadline = (presented_date + timedelta(days=30)) if presented_date else None
+            r['deadline'] = deadline.isoformat() if deadline else None
+            r['overdue'] = (today > deadline) if deadline else False
+            alerts.append(r)
+
+    return jsonify({"success": True, "alerts": alerts}), 200
+
+
+@bp.route("/payments/contracts/<int:contract_pk>/payments", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_contract_payments(contract_pk):
+    """Listar pagamentos de um contrato via vbl_contract_payment"""
+    has_permission, _, _ = check_payment_admin_permission()
+    if not has_permission:
+        return jsonify({"erro": "Sem permissão"}), 403
+
+    user = get_jwt_identity()
+    from app.utils.utils import db_session_manager
+    from sqlalchemy.sql import text
+
+    with db_session_manager(user) as session:
+        result = session.execute(text(
+            "SELECT pk, tb_contract, start_date, stop_date, value, presented, payed "
+            "FROM vbl_contract_payment WHERE tb_contract = :pk ORDER BY start_date"
+        ), {"pk": contract_pk})
+        columns = result.keys()
+        payments = [dict(zip(columns, row)) for row in result]
+
+    return jsonify({"success": True, "payments": payments}), 200
+
+
 @bp.route("/payments/debug/migration-status", methods=["GET"])
 @jwt_required()
 @token_required

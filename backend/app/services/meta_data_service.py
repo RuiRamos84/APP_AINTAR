@@ -62,6 +62,8 @@ def fetch_meta_data(current_user):
         'tipo_obra': "SELECT * FROM vbl_tipoobra ORDER BY pk",
         'urgencia': "SELECT * FROM tt_urgencia ORDER BY code",
         'despesaobra': "SELECT * FROM vbl_despesaobra ORDER BY pk",
+        'contractfrequency': "SELECT * FROM vbl_contractfrequency ORDER BY pk",
+        'entities': "SELECT pk, name FROM ts_entity ORDER BY name",
     }
 
     response_data = {}

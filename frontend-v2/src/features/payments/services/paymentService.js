@@ -166,6 +166,39 @@ class PaymentService {
         const response = await api.put(`/payments/exemptions/${paymentPk}/reject`);
         return response;
     }
+
+    /**
+     * CONTRATOS
+     */
+    async getEntityByNipc(nipc) {
+        const response = await api.get(`/entity/nipc/${nipc}`);
+        return response;
+    }
+
+    async createContract(data) {
+        const response = await api.post('/payments/contracts', data);
+        return response;
+    }
+
+    async getContractAlerts() {
+        const response = await api.get('/payments/contracts/alerts');
+        return response;
+    }
+
+    async getContractPayments(contractPk) {
+        const response = await api.get(`/payments/contracts/${contractPk}/payments`);
+        return response;
+    }
+
+    async invoiceContractPayment(contractPk, paymentPk, invoiceDate) {
+        const response = await api.patch(`/payments/contracts/${contractPk}/payments/${paymentPk}/invoice`, { invoice_date: invoiceDate || null });
+        return response;
+    }
+
+    async validateContractPayment(contractPk, paymentPk, payedDate) {
+        const response = await api.patch(`/payments/contracts/${contractPk}/payments/${paymentPk}/validate`, { payed_date: payedDate });
+        return response;
+    }
 }
 
 export default new PaymentService();
