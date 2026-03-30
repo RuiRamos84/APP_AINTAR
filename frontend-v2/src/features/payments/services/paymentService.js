@@ -170,6 +170,11 @@ class PaymentService {
     /**
      * CONTRATOS
      */
+    async getContracts() {
+        const response = await api.get('/payments/contracts');
+        return response;
+    }
+
     async getEntityByNipc(nipc) {
         const response = await api.get(`/entity/nipc/${nipc}`);
         return response;
