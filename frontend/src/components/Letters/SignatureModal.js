@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,9 +13,10 @@ import {
   Box,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  Typography,
 } from '@mui/material';
-import { PhoneAndroid, CreditCard } from '@mui/icons-material';
+import { PhoneAndroid, CreditCard, VerifiedUser } from '@mui/icons-material';
 import api from '../../services/api';
 
 const SignatureModal = ({ open, onClose, letterstoreId, onSigned }) => {
@@ -92,6 +93,28 @@ const SignatureModal = ({ open, onClose, letterstoreId, onSigned }) => {
     }
   };
 
+  const handleSignInternal = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post('/signature/internal', {
+        document_type: 'emission',
+        document_id: letterstoreId,
+        reason: 'Assinatura de Ofício Oficial',
+      });
+      if (response.data.success) {
+        onSigned && onSigned(response.data);
+        onClose();
+      } else {
+        setError(response.data.message);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignWithCC = async () => {
     setLoading(true);
     setError(null);
@@ -147,7 +170,20 @@ const SignatureModal = ({ open, onClose, letterstoreId, onSigned }) => {
         >
           <Tab icon={<PhoneAndroid />} label="Chave Móvel Digital" value="cmd" />
           <Tab icon={<CreditCard />} label="Cartão de Cidadão" value="cc" />
+          <Tab icon={<VerifiedUser />} label="Certificado AINTAR" value="internal" />
         </Tabs>
+
+        {signatureType === 'internal' && (
+          <Alert severity="success" sx={{ mt: 1 }}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Assinatura com certificado interno da AINTAR
+            </Typography>
+            <Typography variant="body2">
+              O documento será assinado digitalmente com o certificado oficial da organização.
+              Não requer credenciais externas.
+            </Typography>
+          </Alert>
+        )}
 
         {signatureType === 'cmd' && activeStep === 0 && (
           <Box>
@@ -209,12 +245,19 @@ const SignatureModal = ({ open, onClose, letterstoreId, onSigned }) => {
           </Button>
         )}
         {signatureType === 'cc' && (
+          <Button onClick={handleSignWithCC} variant="contained" disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : 'Assinar'}
+          </Button>
+        )}
+        {signatureType === 'internal' && (
           <Button
-            onClick={handleSignWithCC}
+            onClick={handleSignInternal}
             variant="contained"
+            color="success"
+            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <VerifiedUser />}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : 'Assinar'}
+            {loading ? 'A assinar...' : 'Assinar com Certificado AINTAR'}
           </Button>
         )}
       </DialogActions>

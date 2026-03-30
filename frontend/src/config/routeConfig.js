@@ -76,7 +76,7 @@ export const ROUTE_CONFIG = {
 
     '/payment-admin': {
         id: 'payments',
-        text: 'Validar Pagamentos',
+        text: 'Gestão de Pagamentos',
         icon: PaymentBalanceIcon, // COMPONENTE
         permissions: { required: 30 }, // admin.payments
         showInSidebar: true
