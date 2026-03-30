@@ -97,11 +97,11 @@ export const MODULES = {
     order: 5,
     permissions: {
       required: [
-        'payments.manage',      // Tesouraria e Validação
+        'payments.manage',       // Tesouraria — gestão completa
       ]
     },
-    description: 'Gestão de clientes, faturas e pagamentos',
-    defaultRoute: '/clients',
+    description: 'Processamento de pagamentos e gestão financeira',
+    defaultRoute: '/payments',
   },
 
   DASHBOARDS: {

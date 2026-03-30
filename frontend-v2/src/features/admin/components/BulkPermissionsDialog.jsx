@@ -8,7 +8,7 @@
  * - Aplicar templates a múltiplos utilizadores
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -24,29 +24,51 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Chip,
+  Divider,
+  CircularProgress,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   GroupAdd as GroupAddIcon,
+  GroupWork as GroupWorkIcon,
+  Tune as TemplateIcon,
 } from '@mui/icons-material';
 import { useInterfaces } from '@/core/contexts/MetadataContext';
 import {
   PERMISSION_TEMPLATES,
   groupPermissionsByCategory,
 } from '@/core/utils/permissionHelpers';
+import { listPermissionGroups } from '@/services/permissionGroupsService';
 
 const BulkPermissionsDialog = ({ open, selectedUsers, action, onClose, onConfirm }) => {
   const { interfaces } = useInterfaces();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), {
-    noSsr: true,
-  });
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
 
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [tabIndex, setTabIndex] = useState(action === 'template' ? 1 : 0);
+
+  // Grupos dinâmicos da BD
+  const [bdGroups, setBdGroups] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+
+  // Carregar grupos da BD quando o diálogo abre em modo template
+  useEffect(() => {
+    if (!open || action !== 'template') return;
+    setGroupsLoading(true);
+    listPermissionGroups()
+      .then(res => setBdGroups(
+        [...(res?.groups || [])].sort((a, b) =>
+          a.name.localeCompare(b.name, 'pt', { sensitivity: 'base' })
+        )
+      ))
+      .catch(() => setBdGroups([]))
+      .finally(() => setGroupsLoading(false));
+  }, [open, action]);
 
   // Agrupar permissões
   const groupedPermissions = groupPermissionsByCategory(interfaces);
@@ -72,6 +94,13 @@ const BulkPermissionsDialog = ({ open, selectedUsers, action, onClose, onConfirm
 
   const handleConfirm = () => {
     if (action === 'template' && selectedTemplate) {
+      // Grupo da BD — enviar lista de IDs directamente
+      const bdGroup = bdGroups.find(g => g.name === selectedTemplate);
+      if (bdGroup) {
+        onConfirm({ permissions: bdGroup.permission_ids });
+        return;
+      }
+      // Template hardcoded — enviar nome para o caller resolver
       onConfirm({ templateName: selectedTemplate });
     } else {
       onConfirm({ permissions: selectedPermissions });
@@ -127,41 +156,96 @@ const BulkPermissionsDialog = ({ open, selectedUsers, action, onClose, onConfirm
         </Alert>
 
         {action === 'template' ? (
-          /* Templates Tab */
-          <Grid container spacing={2}>
-            {Object.entries(PERMISSION_TEMPLATES).map(([name, template]) => (
-              <Grid size={{ xs: 12, sm: 6 }} key={name}>
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '2px solid',
-                    borderColor:
-                      selectedTemplate === name ? 'primary.main' : 'divider',
-                    borderRadius: 2,
-                    cursor: 'pointer',
-                    bgcolor:
-                      selectedTemplate === name ? 'primary.lighter' : 'background.paper',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      transform: 'scale(1.02)',
-                    },
-                  }}
-                  onClick={() => setSelectedTemplate(name)}
-                >
-                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                    {name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {template.description}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {template.permissions.length} permissões
+          <Box>
+            {/* ── Grupos da BD ─────────────────────────────────── */}
+            {groupsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : bdGroups.length > 0 && (
+              <>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <GroupWorkIcon fontSize="small" color="primary" />
+                  <Typography variant="subtitle2" fontWeight={700} color="primary">
+                    Grupos Predefinidos
                   </Typography>
                 </Box>
-              </Grid>
-            ))}
-          </Grid>
+                <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                  {bdGroups.map(group => (
+                    <Grid size={{ xs: 12, sm: 6 }} key={group.name}>
+                      <Box
+                        onClick={() => setSelectedTemplate(group.name)}
+                        sx={{
+                          p: 1.5,
+                          border: '2px solid',
+                          borderColor: selectedTemplate === group.name ? 'primary.main' : 'divider',
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          bgcolor: selectedTemplate === group.name ? 'primary.lighter' : 'background.paper',
+                          transition: 'all 0.15s',
+                          '&:hover': { borderColor: 'primary.main' },
+                        }}
+                      >
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          {group.name}
+                        </Typography>
+                        <Chip
+                          label={`${group.permission_count} permissões`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          sx={{ mt: 0.5, height: 20, fontSize: '0.68rem' }}
+                        />
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+                <Divider sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary">Templates Base</Typography>
+                </Divider>
+              </>
+            )}
+
+            {/* ── Templates hardcoded ───────────────────────────── */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <TemplateIcon fontSize="small" color="action" />
+              <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                Templates de Sistema
+              </Typography>
+            </Box>
+            <Grid container spacing={1.5}>
+              {Object.entries(PERMISSION_TEMPLATES).map(([name, template]) => (
+                <Grid size={{ xs: 12, sm: 6 }} key={name}>
+                  <Box
+                    onClick={() => setSelectedTemplate(name)}
+                    sx={{
+                      p: 1.5,
+                      border: '2px solid',
+                      borderColor: selectedTemplate === name ? 'primary.main' : 'divider',
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      bgcolor: selectedTemplate === name ? 'primary.lighter' : 'background.paper',
+                      transition: 'all 0.15s',
+                      '&:hover': { borderColor: 'primary.main' },
+                    }}
+                  >
+                    <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                      {name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                      {template.description}
+                    </Typography>
+                    <Chip
+                      label={`${template.permissions.length} permissões`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 20, fontSize: '0.68rem' }}
+                    />
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
         ) : (
           /* Permissions Selection */
           <Box>

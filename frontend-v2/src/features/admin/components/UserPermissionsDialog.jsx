@@ -41,7 +41,6 @@ import {
 } from '@mui/icons-material';
 import { useInterfaces } from '@/core/contexts/MetadataContext';
 import {
-  PERMISSION_TEMPLATES,
   getPermissionDependencies,
   getPermissionDependents,
   resolvePermissionDependencies,
@@ -84,6 +83,20 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
 
   // Agrupar por categoria (fonte: BD)
   const groupedPermissions = useMemo(() => groupPermissionsByCategory(interfaces), [interfaces]);
+
+  // Grupos definidos (fonte: campo groups[] de cada permissão na BD)
+  const permissionGroups = useMemo(() => {
+    const map = {};
+    interfaces.forEach(perm => {
+      (perm.groups || []).forEach(groupName => {
+        if (!map[groupName]) map[groupName] = [];
+        map[groupName].push(perm.pk);
+      });
+    });
+    return Object.entries(map)
+      .map(([name, ids]) => ({ name, permission_ids: ids }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt', { sensitivity: 'base' }));
+  }, [interfaces]);
 
   // Filtrar pela pesquisa
   const filteredGroups = useMemo(() => {
@@ -159,14 +172,6 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
     }
   };
 
-  // ── Aplicar template ───────────────────────────────────────────────────
-  const handleApplyTemplate = (templateName) => {
-    const template = PERMISSION_TEMPLATES[templateName];
-    if (!template) return;
-    const resolved = resolvePermissionDependencies([...selectedPermissions, ...template.permissions], interfaces);
-    setSelectedPermissions(resolved);
-    notification.success(`Template "${templateName}" aplicado`);
-  };
 
   // ── Expandir / Recolher todos ──────────────────────────────────────────
   const handleExpandAll  = () => setExpandedPanels(new Set(Object.keys(filteredGroups)));
@@ -260,33 +265,58 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
 
       <Divider sx={{ my: 2 }} />
 
-      {/* Templates rápidos */}
+      {/* Grupos definidos na BD */}
       <Typography variant="caption" fontWeight={700} color="text.secondary"
         sx={{ textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', mb: 1.25 }}>
-        Templates rápidos
+        Grupos
       </Typography>
-      <Stack spacing={0.75}>
-        {Object.entries(PERMISSION_TEMPLATES).map(([name, template]) => (
-          <Box
-            key={name}
-            onClick={() => handleApplyTemplate(name)}
-            sx={{
-              p: 1.25, borderRadius: 1, cursor: 'pointer',
-              border: `1px solid ${theme.palette.divider}`,
-              transition: 'all 0.15s',
-              '&:hover': {
-                borderColor: 'primary.main',
-                bgcolor: alpha(theme.palette.primary.main, 0.04),
-              },
-            }}
-          >
-            <Typography variant="body2" fontWeight={600} gutterBottom={false}>{name}</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
-              {template.description}
-            </Typography>
-          </Box>
-        ))}
-      </Stack>
+      {permissionGroups.length === 0 ? (
+        <Typography variant="caption" color="text.disabled">
+          Sem grupos definidos. Cria grupos em Gestão de Permissões.
+        </Typography>
+      ) : (
+        <Stack spacing={0.75}>
+          {permissionGroups.map(({ name, permission_ids }) => {
+            const selCount = permission_ids.filter(id => selectedPermissions.includes(id)).length;
+            const allSel = selCount === permission_ids.length;
+            const partial = selCount > 0 && !allSel;
+            return (
+              <Box
+                key={name}
+                onClick={() => {
+                  if (allSel) {
+                    setSelectedPermissions(selectedPermissions.filter(id => !permission_ids.includes(id)));
+                  } else {
+                    const resolved = resolvePermissionDependencies([...selectedPermissions, ...permission_ids], interfaces);
+                    setSelectedPermissions(resolved);
+                  }
+                }}
+                sx={{
+                  p: 1.25, borderRadius: 1, cursor: 'pointer',
+                  border: `1px solid ${allSel ? theme.palette.primary.main : partial ? theme.palette.warning.main : theme.palette.divider}`,
+                  bgcolor: allSel ? alpha(theme.palette.primary.main, 0.06) : partial ? alpha(theme.palette.warning.main, 0.04) : 'transparent',
+                  transition: 'all 0.15s',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" fontWeight={600}>{name}</Typography>
+                  <Chip
+                    label={`${selCount}/${permission_ids.length}`}
+                    size="small"
+                    variant={allSel ? 'filled' : 'outlined'}
+                    color={allSel ? 'primary' : partial ? 'warning' : 'default'}
+                    sx={{ height: 18, fontSize: '0.65rem' }}
+                  />
+                </Box>
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
     </Box>
   );
 
@@ -333,13 +363,13 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
 
       {/* ── Conteúdo ────────────────────────────────────────────────────── */}
       <DialogContent sx={{ p: 0, display: 'flex', overflow: 'hidden' }}>
-        <Grid container sx={{ flex: 1, overflow: 'hidden' }}>
+        <Grid container sx={{ flex: 1, overflow: 'hidden', height: '100%' }}>
 
           {/* ── Painel esquerdo: lista de permissões ─────────────────────── */}
           <Grid
             size={{ xs: 12, md: 8 }}
             sx={{
-              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%',
               borderRight: isDesktop ? `1px solid ${theme.palette.divider}` : 'none',
             }}
           >
@@ -388,7 +418,7 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
             </Box>
 
             {/* Accordions por categoria */}
-            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {Object.entries(filteredGroups).map(([category, perms]) => {
                 const catIds = perms.map(p => p.pk);
                 const selCount = catIds.filter(id => selectedPermissions.includes(id)).length;
@@ -550,11 +580,11 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
             )}
           </Grid>
 
-          {/* ── Painel direito: resumo + templates (apenas desktop) ───────── */}
+          {/* ── Painel direito: resumo + grupos (apenas desktop) ─────────── */}
           {isDesktop && (
             <Grid
               size={{ md: 4 }}
-              sx={{ overflowY: 'auto' }}
+              sx={{ overflowY: 'auto', height: '100%', minHeight: 0 }}
             >
               <SummaryPanel />
             </Grid>

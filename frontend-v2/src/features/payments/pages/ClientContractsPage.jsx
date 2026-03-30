@@ -3,7 +3,7 @@
  * Contratos de clientes — consulta e gestão de contratos de serviço
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -13,15 +13,14 @@ import {
   Button,
   Chip,
   IconButton,
-  InputAdornment,
   Card,
   CardContent,
   Skeleton,
-  Divider,
   Tooltip,
   useTheme,
   alpha,
   Badge,
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -43,9 +42,7 @@ import {
 } from '@mui/material';
 import {
   Description as ContractIcon,
-  Search as SearchIcon,
   CheckCircle as CheckCircleIcon,
-  Close as CloseIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
   Edit as EditIcon,
@@ -53,12 +50,16 @@ import {
   Schedule as ScheduleIcon,
   NotificationsActive as AlertsIcon,
 } from '@mui/icons-material';
+import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import useMetaData from '@/core/hooks/useMetaData';
 import paymentService from '../services/paymentService';
+import EntitySearchField from '@/features/entities/components/fields/EntitySearchField';
+import { EntityForm } from '@/features/entities/components/EntityForm';
+import { useEntityStore } from '@/features/entities/store/entityStore';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -132,12 +133,15 @@ const ClientContractsPage = () => {
   // ── Pesquisa ────────────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
 
+  // ── Entity store (para abrir EntityForm em criação/edição) ──────────────────
+  const { openCreateModal, openModal, createModalOpen, modalOpen } = useEntityStore();
+
   // ── Diálogo 1: NIF ──────────────────────────────────────────────────────────
   const [nifDialogOpen, setNifDialogOpen] = useState(false);
   const [nifInput, setNifInput] = useState('');
-  const [nifEntity, setNifEntity] = useState(null);
-  const [nifLoading, setNifLoading] = useState(false);
-  const [nifError, setNifError] = useState('');
+  const [nifEntity, setNifEntity] = useState(null);       // entidade encontrada
+  const [nifSearchStatus, setNifSearchStatus] = useState(null); // null | 'loading' | 'success' | 'not_found' | 'error'
+  const [waitingForEntity, setWaitingForEntity] = useState(false);
 
   // ── Diálogo 2: Formulário contrato ──────────────────────────────────────────
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
@@ -244,50 +248,82 @@ const ClientContractsPage = () => {
     onError: () => toast.error('Erro ao validar pagamento'),
   });
 
-  // ── Handlers NIF ────────────────────────────────────────────────────────────
+  // ── Helpers NIF ─────────────────────────────────────────────────────────────
+  const REQUIRED_FOR_CONTRACT = ['address', 'postal'];
+  const FIELD_LABELS = { address: 'Morada', postal: 'Código Postal' };
+
+  const getEntityCompleteness = (entity) => {
+    const missing = REQUIRED_FOR_CONTRACT.filter(
+      (f) => !entity[f] || String(entity[f]).trim() === ''
+    );
+    return { isComplete: missing.length === 0, missing };
+  };
+
+  const applyEntityToForm = (entity) => {
+    setNifEntity(entity);
+    setContractForm({
+      ...emptyContract,
+      ts_entity: entity.pk,
+      address: entity.address || '',
+      postal: entity.postal || '',
+      door: entity.door || '',
+      floor: entity.floor || '',
+      nut1: entity.nut1 || '',
+      nut2: entity.nut2 || '',
+      nut3: entity.nut3 || '',
+      nut4: entity.nut4 || '',
+    });
+    setNifDialogOpen(false);
+    setContractDialogOpen(true);
+  };
+
   const resetNifDialog = () => {
     setNifInput('');
     setNifEntity(null);
-    setNifError('');
+    setNifSearchStatus(null);
+    setWaitingForEntity(false);
   };
 
-  const handleNifSearch = async () => {
-    setNifError('');
-    setNifLoading(true);
-    try {
-      const res = await paymentService.getEntityByNipc(nifInput);
-      const entity = res?.entity;
-      if (!entity?.pk) {
-        setNifError('NIF não encontrado');
-        return;
-      }
-      setNifEntity(entity);
-      setContractForm({
-        ...emptyContract,
-        ts_entity: entity.pk,
-        address: entity.address || '',
-        postal: entity.postal || '',
-        door: entity.door || '',
-        floor: entity.floor || '',
-        nut1: entity.nut1 || '',
-        nut2: entity.nut2 || '',
-        nut3: entity.nut3 || '',
-        nut4: entity.nut4 || '',
-      });
-      setNifDialogOpen(false);
-      setContractDialogOpen(true);
-    } catch {
-      setNifError('NIF não encontrado');
-    } finally {
-      setNifLoading(false);
-    }
+  // Callback do EntitySearchField
+  const handleEntityFound = (entity) => setNifEntity(entity);
+
+  // Continuar para o formulário de contrato
+  const handleProceedWithContract = () => {
+    if (nifEntity) applyEntityToForm(nifEntity);
   };
+
+  // Abrir EntityForm em modo criação
+  const handleCreateEntity = () => {
+    setWaitingForEntity(true);
+    openCreateModal({ nipc: nifInput });
+  };
+
+  // Abrir EntityForm em modo edição
+  const handleUpdateEntity = () => {
+    setWaitingForEntity(true);
+    openModal(nifEntity);
+  };
+
+  // Depois de EntityForm fechar, re-buscar entidade e avançar automaticamente
+  useEffect(() => {
+    if (!waitingForEntity) return;
+    if (createModalOpen || modalOpen) return;
+
+    const refetch = async () => {
+      try {
+        const res = await paymentService.getEntityByNipc(nifInput);
+        const entity = res?.entity;
+        if (entity?.pk) applyEntityToForm(entity);
+      } finally {
+        setWaitingForEntity(false);
+      }
+    };
+    refetch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createModalOpen, modalOpen]);
 
   // ── Colunas DataGrid ─────────────────────────────────────────────────────────
   const columns = [
-    { field: 'pk', headerName: 'Nº', width: 70 },
-    { field: 'ts_entity', headerName: 'Cliente', flex: 1, minWidth: 180 },
-    { field: 'nipc', headerName: 'NIPC', width: 120 },
     {
       field: 'start_date',
       headerName: 'Início',
@@ -300,19 +336,12 @@ const ClientContractsPage = () => {
       width: 100,
       valueFormatter: (v) => fmtDate(v),
     },
-    { field: 'family', headerName: 'Família', width: 80 },
+    { field: 'nipc', headerName: 'NIF', width: 110 },
+    { field: 'ts_entity', headerName: 'Cliente', flex: 1, minWidth: 180 },
+    { field: 'family', headerName: 'Agregado', width: 90 },
     { field: 'tt_contractfrequency', headerName: 'Frequência', width: 110 },
+    { field: 'postal', headerName: 'Código Postal', width: 110 },
     { field: 'address', headerName: 'Morada', flex: 1, minWidth: 160 },
-    { field: 'postal', headerName: 'Postal', width: 90 },
-    { field: 'nut1', headerName: 'Distrito', width: 120, valueFormatter: (v) => v || '—' },
-    { field: 'nut2', headerName: 'Município', width: 140, valueFormatter: (v) => v || '—' },
-    {
-      field: 'nut3',
-      headerName: 'Freguesia',
-      flex: 1,
-      minWidth: 160,
-      valueFormatter: (v) => v || '—',
-    },
     { field: 'nut4', headerName: 'Localidade', width: 130, valueFormatter: (v) => v || '—' },
     {
       field: 'actions',
@@ -357,7 +386,8 @@ const ClientContractsPage = () => {
         { label: 'Contratos', path: '/clients/contracts' },
       ]}
       actions={
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <SearchBar searchTerm={search} onSearch={setSearch} />
           <Tooltip title="Atualizar">
             <IconButton onClick={refetch}>
               <RefreshIcon />
@@ -380,10 +410,7 @@ const ClientContractsPage = () => {
             variant="contained"
             size="small"
             startIcon={<AddIcon />}
-            onClick={() => {
-              resetNifDialog();
-              setNifDialogOpen(true);
-            }}
+            onClick={() => { resetNifDialog(); setNifDialogOpen(true); }}
           >
             Novo Contrato
           </Button>
@@ -418,31 +445,6 @@ const ClientContractsPage = () => {
 
       {/* Tabela */}
       <Paper sx={{ borderRadius: 2 }}>
-        <Box sx={{ p: 2 }}>
-          <TextField
-            size="small"
-            placeholder="Pesquisar por cliente, NIPC, morada, localização..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ maxWidth: 420 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: search ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearch('')}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
-          />
-        </Box>
-        <Divider />
-
         {isLoading && !isError ? (
           <Box sx={{ p: 2 }}>
             <Skeleton variant="rounded" height={300} />
@@ -473,52 +475,80 @@ const ClientContractsPage = () => {
       {/* ── Diálogo 1: NIF ──────────────────────────────────────────────────── */}
       <Dialog
         open={nifDialogOpen}
-        onClose={() => {
-          setNifDialogOpen(false);
-          resetNifDialog();
-        }}
-        maxWidth="xs"
+        onClose={() => { setNifDialogOpen(false); resetNifDialog(); }}
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Novo Contrato</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Digite o NIF da entidade para pesquisar.
-          </Typography>
-          <TextField
-            label="NIF"
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+          <EntitySearchField
             value={nifInput}
-            autoFocus
-            fullWidth
-            onChange={(e) => {
-              setNifInput(e.target.value.replace(/\D/g, ''));
-              setNifError('');
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && handleNifSearch()}
-            inputProps={{ maxLength: 9 }}
-            error={!!nifError}
-            helperText={nifError || ''}
-            InputProps={{ endAdornment: nifLoading ? <CircularProgress size={16} /> : null }}
+            onChange={(e) => setNifInput(e.target.value.replace(/\D/g, ''))}
+            onEntityFound={handleEntityFound}
+            onSearchStatusChange={setNifSearchStatus}
+            label="NIF da Entidade"
           />
+
+          {/* Entidade encontrada */}
+          {nifSearchStatus === 'success' && nifEntity && (() => {
+            const { isComplete, missing } = getEntityCompleteness(nifEntity);
+            return (
+              <Alert
+                severity={isComplete ? 'success' : 'warning'}
+                sx={{ alignItems: 'flex-start' }}
+              >
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {nifEntity.name}
+                </Typography>
+                <Typography variant="body2">
+                  NIF: {nifEntity.nipc}
+                  {nifEntity.address ? ` · ${nifEntity.address}` : ''}
+                  {nifEntity.postal ? `, ${nifEntity.postal}` : ''}
+                </Typography>
+                {!isComplete && (
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    Dados em falta:{' '}
+                    <strong>{missing.map((f) => FIELD_LABELS[f]).join(', ')}</strong>.
+                    Recomendamos atualizar antes de criar o contrato.
+                  </Typography>
+                )}
+              </Alert>
+            );
+          })()}
+
+          {/* NIF não encontrado */}
+          {nifSearchStatus === 'not_found' && (
+            <Alert severity="info">
+              Nenhuma entidade com NIF <strong>{nifInput}</strong> encontrada.
+              Pode criar uma nova entidade.
+            </Alert>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setNifDialogOpen(false);
-              resetNifDialog();
-            }}
-          >
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 3, pb: 2 }}>
+          <Button onClick={() => { setNifDialogOpen(false); resetNifDialog(); }}>
             Cancelar
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleNifSearch}
-            disabled={nifLoading || nifInput.length < 9}
-          >
-            {nifLoading ? 'A pesquisar...' : 'Pesquisar'}
-          </Button>
+          <Box sx={{ flex: 1 }} />
+          {nifSearchStatus === 'not_found' && (
+            <Button variant="outlined" onClick={handleCreateEntity}>
+              Criar Entidade
+            </Button>
+          )}
+          {nifSearchStatus === 'success' && nifEntity && !getEntityCompleteness(nifEntity).isComplete && (
+            <Button variant="outlined" color="warning" onClick={handleUpdateEntity}>
+              Atualizar Entidade
+            </Button>
+          )}
+          {nifSearchStatus === 'success' && nifEntity && (
+            <Button variant="contained" onClick={handleProceedWithContract}>
+              Continuar
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
+
+      {/* EntityForm — responde ao useEntityStore (criação/edição de entidades) */}
+      <EntityForm />
 
       {/* ── Diálogo 2: Formulário ────────────────────────────────────────────── */}
       <Dialog
@@ -535,6 +565,13 @@ const ClientContractsPage = () => {
         <DialogTitle>Novo Contrato</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
+
+            {/* ── Identificação ─────────────────────────────────────────────── */}
+            <Grid size={12}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Identificação
+              </Typography>
+            </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Entidade"
@@ -542,54 +579,51 @@ const ClientContractsPage = () => {
                 fullWidth
                 size="small"
                 InputProps={{ readOnly: true }}
-                sx={{
-                  '& .MuiInputBase-input': { color: 'text.primary', WebkitTextFillColor: 'unset' },
-                }}
+                sx={{ '& .MuiInputBase-input': { color: 'text.primary', WebkitTextFillColor: 'unset' } }}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 6, sm: 2 }}>
               <TextField
-                label="Família"
+                label="Agregado *"
                 type="number"
                 fullWidth
                 size="small"
                 value={contractForm.family}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === '' || (Number(v) >= 1 && Number(v) <= 10))
+                  if (v === '' || (Number(v) >= 1 && Number(v) <= 20))
                     setContractForm((f) => ({ ...f, family: v }));
                 }}
-                inputProps={{ min: 1, max: 10 }}
+                inputProps={{ min: 1, max: 20 }}
                 error={contractSubmitted && !contractForm.family}
-                helperText={contractSubmitted && !contractForm.family ? 'Campo obrigatório' : ''}
+                helperText={contractSubmitted && !contractForm.family ? 'Obrigatório' : ''}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControl
-                fullWidth
-                size="small"
-                error={contractSubmitted && !contractForm.tt_contractfrequency}
-              >
+            <Grid size={{ xs: 6, sm: 4 }}>
+              <FormControl fullWidth size="small" error={contractSubmitted && !contractForm.tt_contractfrequency}>
                 <InputLabel>Frequência *</InputLabel>
                 <Select
                   value={contractForm.tt_contractfrequency}
-                  onChange={(e) =>
-                    setContractForm((f) => ({ ...f, tt_contractfrequency: e.target.value }))
-                  }
+                  onChange={(e) => setContractForm((f) => ({ ...f, tt_contractfrequency: e.target.value }))}
                   label="Frequência *"
                 >
                   {(metaData?.contractfrequency || []).map((cf) => (
-                    <MenuItem key={cf.pk} value={cf.pk}>
-                      {cf.value}
-                    </MenuItem>
+                    <MenuItem key={cf.pk} value={cf.pk}>{cf.value}</MenuItem>
                   ))}
                 </Select>
                 {contractSubmitted && !contractForm.tt_contractfrequency && (
-                  <FormHelperText>Campo obrigatório</FormHelperText>
+                  <FormHelperText>Obrigatório</FormHelperText>
                 )}
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+
+            {/* ── Período ───────────────────────────────────────────────────── */}
+            <Grid size={12}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Período
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, sm: 6 }}>
               <TextField
                 type="date"
                 label="Data início *"
@@ -599,12 +633,10 @@ const ClientContractsPage = () => {
                 onChange={(e) => setContractForm((f) => ({ ...f, start_date: e.target.value }))}
                 InputLabelProps={{ shrink: true }}
                 error={contractSubmitted && !contractForm.start_date}
-                helperText={
-                  contractSubmitted && !contractForm.start_date ? 'Campo obrigatório' : ''
-                }
+                helperText={contractSubmitted && !contractForm.start_date ? 'Obrigatório' : ''}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 6, sm: 6 }}>
               <TextField
                 type="date"
                 label="Data fim *"
@@ -618,26 +650,88 @@ const ClientContractsPage = () => {
                 helperText={stopDateError || ''}
               />
             </Grid>
-            {[
-              { field: 'address', label: 'Morada', size: { xs: 12, sm: 8 } },
-              { field: 'postal', label: 'Código Postal', size: { xs: 12, sm: 4 } },
-              { field: 'door', label: 'Porta', size: { xs: 6, sm: 3 } },
-              { field: 'floor', label: 'Andar', size: { xs: 6, sm: 3 } },
-              { field: 'nut1', label: 'Distrito', size: { xs: 6, sm: 3 } },
-              { field: 'nut2', label: 'Município', size: { xs: 6, sm: 3 } },
-              { field: 'nut3', label: 'Freguesia', size: { xs: 6, sm: 3 } },
-              { field: 'nut4', label: 'Localidade', size: { xs: 6, sm: 3 } },
-            ].map(({ field, label, size }) => (
-              <Grid key={field} size={size}>
-                <TextField
-                  label={label}
-                  fullWidth
-                  size="small"
-                  value={contractForm[field]}
-                  onChange={(e) => setContractForm((f) => ({ ...f, [field]: e.target.value }))}
-                />
-              </Grid>
-            ))}
+
+            {/* ── Morada ────────────────────────────────────────────────────── */}
+            <Grid size={12}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Morada
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <TextField
+                label="Código Postal"
+                fullWidth
+                size="small"
+                value={contractForm.postal}
+                onChange={(e) => setContractForm((f) => ({ ...f, postal: e.target.value }))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 5 }}>
+              <TextField
+                label="Rua / Morada"
+                fullWidth
+                size="small"
+                value={contractForm.address}
+                onChange={(e) => setContractForm((f) => ({ ...f, address: e.target.value }))}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 2 }}>
+              <TextField
+                label="Porta"
+                fullWidth
+                size="small"
+                value={contractForm.door}
+                onChange={(e) => setContractForm((f) => ({ ...f, door: e.target.value }))}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 2 }}>
+              <TextField
+                label="Andar"
+                fullWidth
+                size="small"
+                value={contractForm.floor}
+                onChange={(e) => setContractForm((f) => ({ ...f, floor: e.target.value }))}
+              />
+            </Grid>
+
+            {/* ── Localização administrativa ────────────────────────────────── */}
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <TextField
+                label="Localidade"
+                fullWidth
+                size="small"
+                value={contractForm.nut4}
+                onChange={(e) => setContractForm((f) => ({ ...f, nut4: e.target.value }))}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <TextField
+                label="Freguesia"
+                fullWidth
+                size="small"
+                value={contractForm.nut3}
+                onChange={(e) => setContractForm((f) => ({ ...f, nut3: e.target.value }))}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <TextField
+                label="Município"
+                fullWidth
+                size="small"
+                value={contractForm.nut2}
+                onChange={(e) => setContractForm((f) => ({ ...f, nut2: e.target.value }))}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <TextField
+                label="Distrito"
+                fullWidth
+                size="small"
+                value={contractForm.nut1}
+                onChange={(e) => setContractForm((f) => ({ ...f, nut1: e.target.value }))}
+              />
+            </Grid>
+
           </Grid>
         </DialogContent>
         <DialogActions>

@@ -104,6 +104,16 @@ export const Sidebar = ({
   const isSubmenuActive = (submenu) => submenu && Object.keys(submenu).some(path => location.pathname.startsWith(path));
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
+  // Auto-expand submenu quando se navega para uma rota filha
+  useEffect(() => {
+    visibleRoutes.forEach((route) => {
+      if (route.submenu && isSubmenuActive(route.submenu)) {
+        setOpenSubmenus((prev) => prev[route.id] ? prev : { ...prev, [route.id]: true });
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, visibleRoutes]);
+
   const glassStyles = {
     backgroundColor: alpha(theme.palette.background.paper, 0.72),
     backdropFilter: 'blur(20px) saturate(180%)',

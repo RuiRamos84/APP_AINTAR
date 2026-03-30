@@ -704,13 +704,17 @@ def bulk_update_permissions(data: dict, current_user: str):
             'templateName': 'Template Name'  # for template
         }
     """
-    # Permission templates (matching frontend)
+    # Permission templates — PKs reais da ts_interface
+    # Usado apenas como fallback quando o frontend envia templateName (templates hardcoded)
+    # Grupos da BD são enviados directamente como lista de permissions pelo frontend
     PERMISSION_TEMPLATES = {
-        'Operador Básico': [200, 500],  # TASKS_VIEW, DOCS_VIEW_ASSIGNED
-        'Gestor de Documentos': [502, 510, 520, 530, 540],  # DOCS_VIEW_ALL, CREATE, EDIT, DELETE, ASSIGN
-        'Gestor de Tarefas': [200, 210, 220, 230, 240],  # TASKS full permissions
-        'Administrador': [10, 20, 30],  # ADMIN_DASHBOARD, ADMIN_USERS, ADMIN_PAYMENTS
-        'Gestor de Entidades': [800, 810],  # ENTITIES_VIEW, ENTITIES_EDIT
+        'Operador Básico':      [300, 310, 311, 201, 750, 520, 400],
+        'Gestor de Documentos': [500, 560, 561, 562],
+        'Gestor de Tarefas':    [200, 201, 750, 760],
+        'Administrador':        [20, 30, 80, 90, 300],
+        'Gestor de Entidades':  [800, 810, 820],
+        'Financeiro — Básico':  [880, 700, 710, 800, 530, 400],
+        'Financeiro — Completo': [880, 700, 710, 720, 730, 740, 800, 530, 90, 400],
     }
 
     user_ids = data.get('user_ids', [])
@@ -748,10 +752,13 @@ def bulk_update_permissions(data: dict, current_user: str):
                 new_permissions = [p for p in new_permissions if p not in permissions]
 
             elif action == 'template':
-                # Replace with template permissions
-                if template_name not in PERMISSION_TEMPLATES:
+                # Se vieram permissions directas (grupo da BD), usar essas
+                if permissions:
+                    new_permissions = list(permissions)
+                elif template_name and template_name in PERMISSION_TEMPLATES:
+                    new_permissions = PERMISSION_TEMPLATES[template_name]
+                else:
                     raise APIError(f"Template '{template_name}' não encontrado", 400, "ERR_TEMPLATE_NOT_FOUND")
-                new_permissions = PERMISSION_TEMPLATES[template_name]
 
             # Update user permissions
             query_update = text("""

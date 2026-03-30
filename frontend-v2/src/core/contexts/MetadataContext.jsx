@@ -4,7 +4,7 @@
  * Carrega dados de referência (profiles, interfaces, etc.) uma única vez
  */
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMetaData } from '@/services/metadataService';
 import { useAuth } from './AuthContext';
 
@@ -17,30 +17,44 @@ const MetadataContext = createContext(undefined);
  * Provider de Metadados
  * Carrega e mantém em cache todos os metadados da aplicação
  */
+const EMPTY_METADATA = {
+  profiles: [],
+  interfaces: [],
+  identTypes: [],
+  associates: [],
+  taskPriority: [],
+  taskStatus: [],
+  paymentMethod: [],
+};
+
 export function MetadataProvider({ children }) {
   const { user, isLoading: authLoading } = useAuth();
 
-  const [metadata, setMetadata] = useState({
-    profiles: [],
-    interfaces: [],
-    identTypes: [],
-    associates: [],
-    taskPriority: [],
-    taskStatus: [],
-    paymentMethod: [],
-    // Adicionar outros metadados conforme necessário
-  });
+  // Guarda o user_id para o qual os metadados foram carregados
+  // Evita re-fetch quando o token é renovado (novo objecto user, mesmo user_id)
+  const loadedForUserRef = useRef(null);
 
+  const [metadata, setMetadata] = useState(EMPTY_METADATA);
+
+  // isLoading: true apenas no carregamento INICIAL (bloqueia render da página)
+  // isRefreshing: true em refreshes em background (a página continua visível)
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
   /**
-   * Carrega todos os metadados do backend
+   * Carrega todos os metadados do backend.
+   * @param {boolean} background - se true, usa isRefreshing em vez de isLoading
+   *   (evita desmontar componentes que já estão visíveis)
    */
-  const loadMetadata = useCallback(async () => {
+  const loadMetadata = useCallback(async (background = false) => {
     try {
-      setIsLoading(true);
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
 
       const data = await fetchMetaData();
@@ -91,47 +105,43 @@ export function MetadataProvider({ children }) {
       setError(err.message || 'Erro ao carregar metadados');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
   /**
-   * Recarrega os metadados (force refresh)
+   * Força re-fetch dos metadados em background (ex: após admin alterar permissões).
+   * Usa isRefreshing em vez de isLoading — a página NÃO desmonta durante o fetch.
    */
   const refreshMetadata = useCallback(() => {
-    return loadMetadata();
+    loadedForUserRef.current = null;
+    return loadMetadata(true); // background = true
   }, [loadMetadata]);
 
   /**
-   * Carrega metadados quando user está autenticado
-   * Só faz fetch se:
-   * 1. Autenticação não está em loading
-   * 2. User está autenticado
-   * 3. Metadados ainda não foram carregados
+   * Carrega metadados quando user está autenticado.
+   * Depende apenas de user_id (não do objecto user completo) para evitar
+   * re-fetch quando o token JWT é renovado silenciosamente em background.
+   * loadedForUserRef garante carga única por sessão — não recarrega enquanto
+   * o mesmo utilizador estiver activo.
    */
-  useEffect(() => {
-    // Aguardar autenticação finalizar
-    if (authLoading) {
-      return;
-    }
+  const userId = user?.user_id ?? null;
 
-    // Só carregar se user autenticado
-    if (user) {
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (userId) {
+      // Já carregámos para este utilizador — não repetir
+      if (loadedForUserRef.current === userId) return;
+      loadedForUserRef.current = userId;
       loadMetadata();
     } else {
-      // User não autenticado - limpar metadata e parar loading
+      // Logout — limpar estado e permitir nova carga no próximo login
+      loadedForUserRef.current = null;
       setIsLoading(false);
-      setMetadata({
-        profiles: [],
-        interfaces: [],
-        identTypes: [],
-        associates: [],
-        taskPriority: [],
-        taskStatus: [],
-        paymentMethod: [],
-      });
+      setMetadata(EMPTY_METADATA);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading]); // Recarregar quando user muda
+  }, [userId, authLoading, loadMetadata]);
 
   /**
    * Helper: Encontrar profile por ID
@@ -255,6 +265,7 @@ export function MetadataProvider({ children }) {
     // Estado
     metadata,
     isLoading,
+    isRefreshing,
     error,
     lastFetch,
 
@@ -323,6 +334,7 @@ export function useInterfaces() {
   const {
     metadata,
     isLoading,
+    isRefreshing,
     refreshMetadata,
     getInterfaceById,
     getInterfaceByValue,
@@ -336,6 +348,7 @@ export function useInterfaces() {
   return {
     interfaces: metadata.interfaces,
     isLoading,
+    isRefreshing,
     refreshMetadata,
     getInterfaceById,
     getInterfaceByValue,

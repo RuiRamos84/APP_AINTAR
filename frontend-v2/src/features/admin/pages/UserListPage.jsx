@@ -264,9 +264,11 @@ const UserListPage = () => {
           <SearchBar searchTerm={searchInput} onSearch={setSearchInput} />
 
           <Tooltip title="Atualizar">
-            <IconButton onClick={refetch} disabled={isLoading} size="small">
-              <RefreshIcon />
-            </IconButton>
+            <span>
+              <IconButton onClick={refetch} disabled={isLoading} size="small">
+                <RefreshIcon />
+              </IconButton>
+            </span>
           </Tooltip>
 
           <Button

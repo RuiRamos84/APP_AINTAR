@@ -253,7 +253,7 @@ const StatItem = ({ value, label, color }) => (
 const PermissionsListPage = () => {
   const theme    = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { interfaces, isLoading, refreshMetadata } = useInterfaces();
+  const { interfaces, isLoading, isRefreshing, refreshMetadata } = useInterfaces();
 
   // ── Tab activo ────────────────────────────────────────────────────────────
   const [tab, setTab] = useState(0);
@@ -360,9 +360,11 @@ const PermissionsListPage = () => {
   };
 
   const filteredGroups = useMemo(() => {
-    if (!groupSearch) return groups;
-    const s = groupSearch.toLowerCase();
-    return groups.filter(g => g.name.toLowerCase().includes(s));
+    const list = groupSearch
+      ? groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()))
+      : groups;
+    // Ordenação locale-aware (suporta acentos PT: Ç, Ã, Ê, etc.)
+    return [...list].sort((a, b) => a.name.localeCompare(b.name, 'pt', { sensitivity: 'base' }));
   }, [groups, groupSearch]);
 
   // ── Actions do ModulePage (direita do header) ─────────────────────────────
@@ -382,14 +384,16 @@ const PermissionsListPage = () => {
       <Divider orientation="vertical" flexItem sx={{ ml: 0.5, mr: 1 }} />
       <Tooltip title="Recarregar metadados">
         <span>
-          <IconButton size="small" onClick={() => { refreshMetadata(); if (tab === 1) fetchGroups(); }} disabled={isLoading}>
-            <RefreshIcon fontSize="small" />
+          <IconButton size="small" onClick={() => { refreshMetadata(); if (tab === 1) fetchGroups(); }} disabled={isLoading || isRefreshing}>
+            <RefreshIcon fontSize="small" sx={{ ...(isRefreshing && { animation: 'spin 1s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }) }} />
           </IconButton>
         </span>
       </Tooltip>
     </Stack>
   );
 
+  // Guard apenas para carregamento inicial — NÃO para refreshes em background
+  // (evita desmontar a página e re-triggerar efeitos durante refreshMetadata)
   if (isLoading) return <Loading />;
 
   return (
