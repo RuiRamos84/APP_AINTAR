@@ -1,112 +1,229 @@
 /**
  * SessionLogsPage
- * Logs de sessões — histórico de logins, logouts e sessões ativas
+ * Logs de sessões — paginação server-side + filtros de data/utilizador
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import {
-  Box, Paper, Typography, TextField, Button, Chip, Stack,
-  IconButton, InputAdornment, Alert, Divider, Tooltip,
-  Card, CardContent, useTheme, alpha,
+  Box, Paper, Typography, Chip, Stack, IconButton, Button,
+  Tooltip, Card, CardContent, useTheme, alpha,
+  TextField, FormControlLabel, Switch,
+  Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
 } from '@mui/material';
 import {
   VpnKey as SessionIcon,
-  Search as SearchIcon,
   Refresh as RefreshIcon,
-  Close as CloseIcon,
   CheckCircle as ActiveIcon,
   Cancel as ExpiredIcon,
-  Login as LoginIcon,
+  FilterList as FilterIcon,
+  PersonOff as KillUserIcon,
+  LogoutOutlined as KillAllIcon,
+  HourglassDisabled as KillStaleIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
+import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 import apiClient from '@/services/api/client';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
+import { toast } from 'sonner';
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+
+const toLocalDate = (isoString) => {
+  if (!isoString) return '—';
+  return new Date(isoString).toLocaleString('pt-PT');
+};
+
+const fmtDuration = (seconds) => {
+  if (!seconds || seconds < 0) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
+};
+
+const todayISO = () => new Date().toISOString().split('T')[0];
+const daysAgoISO = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+};
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-const useSessionLogs = () =>
-  useQuery({
-    queryKey: ['admin', 'session-logs'],
-    queryFn: () => apiClient.get('/admin/logs/sessions'),
-    staleTime: 60 * 1000,
-    select: (res) => res?.sessions ?? res?.data ?? [],
-    retry: 1,
+const useSessionLogs = ({ page, pageSize, username, dateFrom, dateTo, activeOnly }) => {
+  const params = new URLSearchParams({
+    page:       String(page + 1), // DataGrid é 0-based, backend é 1-based
+    per_page:   String(pageSize),
+    date_from:  dateFrom,
+    date_to:    dateTo,
+    ...(username   && { username }),
+    ...(activeOnly && { active_only: 'true' }),
   });
+
+  return useQuery({
+    queryKey: ['admin', 'session-logs', page, pageSize, username, dateFrom, dateTo, activeOnly],
+    queryFn:  () => apiClient.get(`/admin/logs/sessions?${params}`),
+    staleTime: 60 * 1000,
+    keepPreviousData: true,
+  });
+};
+
+// ─── Kill sessions confirm dialog ────────────────────────────────────────────
+
+const KILL_MODES = {
+  user:  { label: 'Utilizador',            icon: KillUserIcon,  color: 'warning', description: (u) => `Terminar todas as sessões ativas do utilizador "${u}".` },
+  all:   { label: 'Todas as sessões',      icon: KillAllIcon,   color: 'error',   description: () => 'Terminar TODAS as sessões ativas (exceto a sua). Use apenas em situações de emergência.' },
+  stale: { label: 'Sessões prolongadas',   icon: KillStaleIcon, color: 'warning', description: () => 'Terminar sessões ativas há mais de 8 horas sem actividade.' },
+};
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 const SessionLogsPage = () => {
   const theme = useTheme();
-  const [search, setSearch] = useState('');
+  const queryClient = useQueryClient();
 
-  const { data: sessions = [], isLoading, isError, refetch } = useSessionLogs();
+  // ── Paginação ──────────────────────────────────────────────────────────────
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 50 });
 
-  const filtered = useMemo(() => {
-    if (!search) return sessions;
-    const s = search.toLowerCase();
-    return sessions.filter((sess) =>
-      sess.user_name?.toLowerCase().includes(s) ||
-      sess.ip?.toLowerCase().includes(s) ||
-      sess.device?.toLowerCase().includes(s)
-    );
-  }, [sessions, search]);
+  // ── Kill dialog ────────────────────────────────────────────────────────────
+  const [killDialog, setKillDialog] = useState({ open: false, mode: null, username: null });
 
-  // Métricas rápidas
-  const activeSessions = sessions.filter((s) => s.active);
-  const todaySessions = sessions.filter((s) => {
-    if (!s.login_at) return false;
-    return new Date(s.login_at).toDateString() === new Date().toDateString();
+  const { mutate: killSessions, isPending: isKilling } = useMutation({
+    mutationFn: ({ mode, username }) =>
+      apiClient.post('/admin/logs/sessions/kill', { mode, username }),
+    onSuccess: (data) => {
+      toast.success(data?.message ?? 'Sessões terminadas.');
+      setKillDialog({ open: false, mode: null, username: null });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'session-logs'] });
+    },
+    onError: () => toast.error('Erro ao terminar sessões.'),
   });
 
+  const openKill = (mode, username = null) => setKillDialog({ open: true, mode, username });
+
+  // ── Filtros ────────────────────────────────────────────────────────────────
+  const [searchInput, setSearchInput]   = useState('');
+  const [dateFrom, setDateFrom]         = useState(daysAgoISO(7));
+  const [dateTo, setDateTo]             = useState(todayISO());
+  const [activeOnly, setActiveOnly]     = useState(false);
+
+  // Debounce na pesquisa para não disparar pedidos a cada tecla
+  const username = useDebouncedValue(searchInput, 400);
+
+  // Reset para página 0 ao mudar filtros
+  const handleFilterChange = useCallback((setter) => (val) => {
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    setter(val);
+  }, []);
+
+  const { data, isLoading, isError, refetch, isFetching } = useSessionLogs({
+    page:       paginationModel.page,
+    pageSize:   paginationModel.pageSize,
+    username,
+    dateFrom,
+    dateTo,
+    activeOnly,
+  });
+
+  const sessions = data?.sessions ?? [];
+  const total    = data?.total    ?? 0;
+
+  // ── Stats (apenas da página actual, dados do servidor) ─────────────────────
+  const activeSessions = sessions.filter((s) => s.active).length;
+
+  // ── Colunas ────────────────────────────────────────────────────────────────
   const columns = [
-    { field: 'user_name', headerName: 'Utilizador', width: 160 },
+    { field: 'username',   headerName: 'Utilizador',  width: 160 },
     {
-      field: 'login_at', headerName: 'Login', width: 160,
-      valueFormatter: (v) => v ? new Date(v).toLocaleString('pt-PT') : '—',
+      field: 'startdate', headerName: 'Login', width: 160,
+      valueFormatter: (v) => toLocalDate(v),
     },
     {
-      field: 'logout_at', headerName: 'Logout', width: 160,
-      valueFormatter: (v) => v ? new Date(v).toLocaleString('pt-PT') : '—',
+      field: 'stopdate', headerName: 'Logout', width: 160,
+      valueFormatter: (v) => toLocalDate(v),
     },
     {
-      field: 'duration', headerName: 'Duração', width: 100,
-      valueFormatter: (v) => v ? `${Math.round(v / 60)} min` : '—',
+      field: 'duration_seconds', headerName: 'Duração', width: 100,
+      valueFormatter: (v) => fmtDuration(v),
     },
-    { field: 'ip', headerName: 'IP', width: 130 },
-    { field: 'device', headerName: 'Dispositivo', flex: 1, minWidth: 140 },
     {
-      field: 'active', headerName: 'Estado', width: 100,
+      field: 'profile', headerName: 'Perfil', width: 80,
+      valueFormatter: (v) => v ?? '—',
+    },
+    {
+      field: 'active', headerName: 'Estado', width: 110,
       renderCell: ({ value }) => (
         <Chip
           label={value ? 'Ativa' : 'Expirada'}
           size="small"
           color={value ? 'success' : 'default'}
           icon={value
-            ? <ActiveIcon sx={{ fontSize: '14px !important' }} />
+            ? <ActiveIcon  sx={{ fontSize: '14px !important' }} />
             : <ExpiredIcon sx={{ fontSize: '14px !important' }} />}
         />
       ),
+    },
+    {
+      field: '_actions', headerName: '', width: 110, sortable: false,
+      renderCell: ({ row }) => row.active ? (
+        <Tooltip title={`Terminar todas as sessões de "${row.username}"`}>
+          <Button
+            size="small" variant="outlined" color="warning"
+            startIcon={<KillUserIcon sx={{ fontSize: '14px !important' }} />}
+            onClick={(e) => { e.stopPropagation(); openKill('user', row.username); }}
+            sx={{ fontSize: '0.7rem', py: 0.25 }}
+          >
+            Terminar
+          </Button>
+        </Tooltip>
+      ) : null,
     },
   ];
 
   return (
     <ModulePage
       title="Logs de Sessões"
-      subtitle="Histórico de autenticações e sessões ativas"
+      subtitle={`${total.toLocaleString('pt-PT')} registos · ${dateFrom} → ${dateTo}`}
       icon={SessionIcon}
       color="#f44336"
       breadcrumbs={[{ label: 'Logs de Sessões' }]}
       actions={
-        <Tooltip title="Atualizar"><IconButton onClick={refetch}><RefreshIcon /></IconButton></Tooltip>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Tooltip title="Terminar sessões prolongadas (> 8h)">
+            <Button
+              size="small" variant="outlined" color="warning"
+              startIcon={<KillStaleIcon />}
+              onClick={() => openKill('stale')}
+            >
+              Limpeza
+            </Button>
+          </Tooltip>
+          <Tooltip title="Terminar TODAS as sessões ativas">
+            <Button
+              size="small" variant="outlined" color="error"
+              startIcon={<KillAllIcon />}
+              onClick={() => openKill('all')}
+            >
+              Terminar todas
+            </Button>
+          </Tooltip>
+          <Tooltip title="Atualizar">
+            <IconButton onClick={refetch} disabled={isFetching}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       }
     >
-      {/* Stats */}
+      {/* ── Stats ──────────────────────────────────────────────────────────── */}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
         {[
-          { label: 'Total de Sessões',     value: sessions.length,        color: 'info' },
-          { label: 'Sessões Ativas',        value: activeSessions.length,  color: 'success' },
-          { label: 'Sessões Hoje',          value: todaySessions.length,   color: 'primary' },
+          { label: 'Total (período)',   value: total,           color: 'info' },
+          { label: 'Ativas (página)',   value: activeSessions,  color: 'success' },
+          { label: 'Página atual',      value: `${paginationModel.page + 1} / ${Math.max(1, Math.ceil(total / paginationModel.pageSize))}`, color: 'primary' },
         ].map(({ label, value, color }) => (
           <Card key={label} variant="outlined" sx={{ flex: 1, bgcolor: alpha(theme.palette[color]?.main || '#000', 0.04) }}>
             <CardContent sx={{ textAlign: 'center', py: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -117,43 +234,141 @@ const SessionLogsPage = () => {
         ))}
       </Stack>
 
-      {/* Filtro + tabela */}
-      <Paper sx={{ borderRadius: 2 }}>
-        <Box sx={{ p: 2 }}>
+      {/* ── Filtros ────────────────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <FilterIcon fontSize="small" color="action" />
+            <Typography variant="caption" fontWeight={600} color="text.secondary">Filtros</Typography>
+          </Box>
+          <SearchBar
+            searchTerm={searchInput}
+            onSearch={handleFilterChange(setSearchInput)}
+            placeholder="Utilizador..."
+          />
           <TextField
-            size="small" placeholder="Utilizador, IP, dispositivo..."
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            sx={{ maxWidth: 340 }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-              endAdornment: search ? <InputAdornment position="end"><IconButton size="small" onClick={() => setSearch('')}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : null,
-            }}
+            type="date"
+            label="De"
+            size="small"
+            value={dateFrom}
+            onChange={(e) => handleFilterChange(setDateFrom)(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ width: 155 }}
           />
-        </Box>
-        <Divider />
-        {isError ? (
-          <Alert severity="error" sx={{ m: 2 }}>Erro ao carregar logs de sessões.</Alert>
-        ) : !isLoading && sessions.length === 0 ? (
-          <Alert severity="info" sx={{ m: 2 }}>
-            Não existem registos de sessões. Esta funcionalidade requer uma tabela de sessões dedicada na base de dados.
-          </Alert>
-        ) : (
-          <DataGrid
-            rows={filtered}
-            columns={columns}
-            getRowId={(r) => r.pk ?? r.id ?? Math.random()}
-            loading={isLoading}
-            autoHeight
-            disableRowSelectionOnClick
-            pageSizeOptions={[50, 100]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 50 } },
-              sorting: { sortModel: [{ field: 'login_at', sort: 'desc' }] },
-            }}
-            sx={{ border: 0 }}
+          <TextField
+            type="date"
+            label="Até"
+            size="small"
+            value={dateTo}
+            onChange={(e) => handleFilterChange(setDateTo)(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ max: todayISO() }}
+            sx={{ width: 155 }}
           />
-        )}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={activeOnly}
+                onChange={(e) => handleFilterChange(setActiveOnly)(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Só ativas</Typography>}
+          />
+          {/* Atalhos de período */}
+          <Stack direction="row" spacing={0.5}>
+            {[
+              { label: 'Hoje',    days: 0 },
+              { label: '7 dias',  days: 7 },
+              { label: '30 dias', days: 30 },
+            ].map(({ label, days }) => (
+              <Chip
+                key={label}
+                label={label}
+                size="small"
+                variant={dateFrom === daysAgoISO(days) && dateTo === todayISO() ? 'filled' : 'outlined'}
+                color="primary"
+                onClick={() => {
+                  handleFilterChange(setDateFrom)(daysAgoISO(days));
+                  handleFilterChange(setDateTo)(todayISO());
+                }}
+                sx={{ cursor: 'pointer' }}
+              />
+            ))}
+          </Stack>
+        </Stack>
       </Paper>
+
+      {/* ── Tabela ─────────────────────────────────────────────────────────── */}
+      <Paper sx={{ borderRadius: 2 }}>
+        <DataGrid
+          rows={sessions}
+          columns={columns}
+          getRowId={(r) => r.pk}
+          loading={isLoading || isFetching}
+          // Server-side pagination
+          paginationMode="server"
+          rowCount={total}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[25, 50, 100]}
+          disableRowSelectionOnClick
+          autoHeight
+          initialState={{
+            sorting: { sortModel: [{ field: 'startdate', sort: 'desc' }] },
+          }}
+          sx={{ border: 0 }}
+          localeText={{
+            noRowsLabel: isError
+              ? 'Erro ao carregar logs de sessões.'
+              : 'Sem registos para o período selecionado.',
+          }}
+        />
+      </Paper>
+      {/* ── Diálogo de confirmação kill ──────────────────────────────────── */}
+      {killDialog.mode && (() => {
+        const cfg = KILL_MODES[killDialog.mode];
+        return (
+          <Dialog
+            open={killDialog.open}
+            onClose={() => !isKilling && setKillDialog({ open: false, mode: null, username: null })}
+            maxWidth="xs"
+            fullWidth
+          >
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <cfg.icon color={cfg.color} />
+              Terminar sessões — {cfg.label}
+            </DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                {cfg.description(killDialog.username)}
+              </DialogContentText>
+              {killDialog.mode !== 'user' && (
+                <Box
+                  sx={{ mt: 1.5, p: 1.5, borderRadius: 1, bgcolor: alpha(theme.palette.warning.main, 0.08), border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}` }}
+                >
+                  <Typography variant="caption" color="warning.dark">
+                    Esta ação força o logout imediato. Os utilizadores afetados terão de autenticar-se novamente.
+                  </Typography>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setKillDialog({ open: false, mode: null, username: null })} disabled={isKilling}>
+                Cancelar
+              </Button>
+              <Button
+                variant="contained"
+                color={cfg.color}
+                disabled={isKilling}
+                onClick={() => killSessions({ mode: killDialog.mode, username: killDialog.username })}
+              >
+                {isKilling ? 'A terminar...' : 'Confirmar'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        );
+      })()}
     </ModulePage>
   );
 };

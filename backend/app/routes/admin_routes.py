@@ -17,6 +17,7 @@ from app.services.admin_service import (
     run_admin_action,
     get_activity_logs,
     get_session_logs,
+    kill_sessions,
 )
 
 bp = Blueprint('admin', __name__)
@@ -101,5 +102,25 @@ def activity_logs():
 @set_session
 @api_error_handler
 def session_logs():
-    """Lista logs de sessões."""
-    return get_session_logs(get_jwt_identity())
+    """Lista logs de sessões com paginação server-side e filtros."""
+    filters = {
+        k: v for k, v in request.args.items()
+        if k in ('page', 'per_page', 'username', 'date_from', 'date_to', 'active_only')
+    }
+    return get_session_logs(get_jwt_identity(), filters)
+
+
+@bp.route('/logs/sessions/kill', methods=['POST'])
+@jwt_required()
+@require_permission(20)
+@set_session
+@api_error_handler
+def kill_user_sessions():
+    """
+    Termina sessões ativas de forma centralizada.
+    Body JSON: { mode: 'user'|'all'|'stale', username?: str }
+    """
+    data     = request.get_json() or {}
+    mode     = data.get('mode')
+    username = data.get('username')
+    return kill_sessions(get_jwt_identity(), mode, username)
