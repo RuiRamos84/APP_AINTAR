@@ -220,6 +220,7 @@ function App() {
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />
+        <Route path="/rh/pessoal" element={<Navigate to="/rh/pessoal/ferias" replace />} />
         <Route path="/rh/pessoal/ferias"   element={<FeriasPage />} />
         <Route path="/rh/pessoal/faltas"   element={<FaltasPage />} />
         <Route path="/rh/pessoal/horarios" element={<HorariosPage />} />

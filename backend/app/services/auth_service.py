@@ -76,6 +76,34 @@ def fsf_client_darkmodeclean(user_id, current_user):
         raise APIError(f"Erro ao atualizar o darkmode: {str(e)}", 500)
 
 
+def fsf_client_vacationadd(user_id, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            result = session.execute(
+                text("SELECT fsf_client_vacationadd(:user_id)"),
+                {"user_id": user_id}
+            )
+            s = result.fetchone()[0]
+            return s
+    except Exception as e:
+        logger.error(f"Erro ao ativar férias: {str(e)}")
+        raise APIError(f"Erro ao ativar férias: {str(e)}", 500)
+
+
+def fsf_client_vacationclean(user_id, current_user):
+    try:
+        with db_session_manager(current_user) as session:
+            result = session.execute(
+                text("SELECT fsf_client_vacationclean(:user_id)"),
+                {"user_id": user_id}
+            )
+            s = result.fetchone()[0]
+            return s
+    except Exception as e:
+        logger.error(f"Erro ao desativar férias: {str(e)}")
+        raise APIError(f"Erro ao desativar férias: {str(e)}", 500)
+
+
 def fsf_client_darkmodeadd(user_id, current_user):
     try:
         with db_session_manager(current_user) as session:
@@ -189,7 +217,8 @@ def fs_login(username, password):
         # Pre-check: verificar se a conta está desativada antes de chamar fs_login
         # Permite retornar uma mensagem específica em vez do erro genérico do PostgreSQL
         try:
-            with db_session_manager() as pre_session:
+            # Login não requer session_id — passa None para saltar o fs_setsession
+            with db_session_manager(None) as pre_session:
                 active_row = pre_session.execute(
                     text("SELECT COALESCE(active, 1) FROM ts_client"
                          " WHERE lower(username) = lower(:u)"),
@@ -313,16 +342,13 @@ def refresh_access_token(refresh_token, client_time, server_time):
 
 
 def update_last_activity(current_user):
-    if current_app.config['ENV'] != 'production':
-        cache.set(f"{LAST_ACTIVITY_PREFIX}{current_user}", datetime.now(timezone.utc))
+    cache.set(f"{LAST_ACTIVITY_PREFIX}{current_user}", datetime.now(timezone.utc))
     active_users.add(current_user)
     logger.info(f"Última atividade atualizada para o utilizador {current_user}")
 
 
 def get_last_activity(current_user):
-    if current_app.config['ENV'] != 'production':
-        return cache.get(f"{LAST_ACTIVITY_PREFIX}{current_user}")
-    return None
+    return cache.get(f"{LAST_ACTIVITY_PREFIX}{current_user}")
 
 
 def check_inactivity(current_user):
@@ -351,14 +377,15 @@ def list_cached_activities(current_user):
     return activities
 
 
-def clear_inactive_users(current_user):
-    now = time.time()
-    for current_user in active_users.copy():
-        last_activity = get_last_activity(current_user)
-        if not last_activity or (now - last_activity) > INACTIVITY_TIMEOUT.total_seconds():
-            cache.delete(f"{LAST_ACTIVITY_PREFIX}{current_user}")
-            active_users.discard(current_user)
-            logger.info(f"Atividade do utilizador {current_user} removida do cache")
+def clear_inactive_users(_calling_user=None):
+    now = datetime.now(timezone.utc)
+    inactivity_timeout = current_app.config['INACTIVITY_TIMEOUT']
+    for user_id in active_users.copy():
+        last_activity = get_last_activity(user_id)
+        if not last_activity or (now - last_activity) > inactivity_timeout:
+            cache.delete(f"{LAST_ACTIVITY_PREFIX}{user_id}")
+            active_users.discard(user_id)
+            logger.info(f"Atividade do utilizador {user_id} removida do cache")
 
 
 def fs_logout(session):

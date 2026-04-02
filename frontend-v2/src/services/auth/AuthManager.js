@@ -30,6 +30,11 @@ class AuthManager {
    */
   async initialize() {
     try {
+      // Registar interceptors ANTES de qualquer chamada API.
+      // O Axios constrói a cadeia de interceptors no momento do pedido —
+      // se não estiverem registados, o GET /auth/me sai sem Authorization → 401.
+      this.setupApiInterceptors();
+
       const storedUser = localStorage.getItem('user');
 
       if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
@@ -50,6 +55,18 @@ class AuthManager {
                   localStorage.removeItem('user');
                   this.authState.setState({ user: null });
                 });
+            } else {
+              // Token válido — buscar interfaces frescas da BD em background
+              // (permissões podem ter sido alteradas desde o último login)
+              apiClient.get('/auth/me')
+                .then((data) => {
+                  if (data?.interfaces !== undefined) {
+                    const refreshedUser = { ...user, interfaces: data.interfaces };
+                    localStorage.setItem('user', JSON.stringify(refreshedUser));
+                    this.authState.setState({ user: refreshedUser });
+                  }
+                })
+                .catch(() => { /* silencioso — usa dados do localStorage */ });
             }
           } else {
             localStorage.removeItem('user');
@@ -64,7 +81,6 @@ class AuthManager {
         this.authState.setState({ isLoading: false });
       }
 
-      this.setupApiInterceptors();
     } catch (error) {
       localStorage.removeItem('user');
       this.authState.setState({ user: null, isLoading: false });

@@ -22,7 +22,6 @@ class PermissionService {
    * @param {Object} user - Objecto com user_id, profil, interfaces[]
    */
   setUser(user) {
-    if (this.user?.user_id === user?.user_id && this.user?.interfaces?.length === user?.interfaces?.length) return;
     this.user = user;
     this._userInterfacesSet = new Set(user?.interfaces || []);
   }

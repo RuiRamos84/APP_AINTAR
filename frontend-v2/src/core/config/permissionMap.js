@@ -96,12 +96,28 @@ export const PERMISSIONS = {
   EQUIPAMENTOS_VIEW: 860,      // equipamentos.view [NOVO - a inserir na BD]
   EQUIPAMENTOS_EDIT: 861,      // equipamentos.edit [NOVO - a inserir na BD]
 
-  // ==================== RECURSOS HUMANOS (900) ====================
-  RH_VIEW: 900,               // rh.view (visualizar módulo RH) [NOVO - a inserir na BD]
+  // ==================== RECURSOS HUMANOS (900-902) ====================
+  RH_VIEW: 900,               // rh.view (visualizar módulo RH)
+  RH_PESSOAL_VIEW: 901,       // rh.pessoal.view (férias, faltas, horários, piquete)
+  RH_PESSOAL_EDIT: 902,       // rh.pessoal.edit (gerir gestão pessoal)
 
   // ==================== AVALIAÇÕES (870-871) ====================
-  AVAL_VIEW: 870,              // aval.view [NOVO - a inserir na BD]
-  AVAL_EDIT: 871,              // aval.edit [NOVO - a inserir na BD]
+  AVAL_VIEW: 870,              // aval.view
+  AVAL_EDIT: 871,              // aval.edit
+
+  // ==================== DESPESAS OPERACIONAIS (910-911) ====================
+  EXPENSES_VIEW: 910,          // expenses.view (ver despesas operacionais)
+  EXPENSES_EDIT: 911,          // expenses.edit (gerir despesas)
+
+  // ==================== ANÁLISES LABORATORIAIS (920-921) ====================
+  ANALYSES_VIEW: 920,          // analyses.view (ver análises)
+  ANALYSES_EDIT: 921,          // analyses.edit (gerir análises)
+
+  // ==================== OFÍCIOS / CORRESPONDÊNCIA (1300-1340) ====================
+  OFFICES_VIEW: 1300,          // offices.view (ver ofícios)
+  OFFICES_CREATE: 1310,        // offices.create (criar ofícios)
+  OFFICES_CLOSE: 1330,         // offices.close (fechar/assinar)
+  OFFICES_REPLICATE: 1340,     // offices.replicate (replicar)
 };
 
 /**

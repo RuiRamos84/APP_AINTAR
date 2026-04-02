@@ -1,164 +1,156 @@
 // frontend/src/services/permissionService.js
-import api from './api';
 
 /**
- * ===================================================================
- * NOVO SISTEMA DE PERMISSÕES BASEADO EM IDs DE INTERFACE (PKs)
- * A fonte da verdade são os dados do utilizador (user.profil e user.interfaces)
- * ===================================================================
+ * Serviço de permissões — aceita IDs numéricos E strings do campo value da ts_interface.
+ * O catálogo (string → pk) é injectado pelo PermissionContext via setInterfaceCatalog().
+ * Compatível com o sistema legacy (IDs numéricos) e com o novo sistema granular (strings).
  */
+
+import api from './api';
 
 class PermissionService {
     constructor() {
-        this.userPermissions = null;
-        this.lastUserCheck = null;
-        this.user = null; // Referência do utilizador atual
+        this.user = null;
+        this._userInterfacesSet = new Set(); // O(1) lookup
+        this._interfaceCatalog = [];
+        this._interfaceMap = new Map(); // string → pk
     }
 
     /**
-     * Definir utilizador atual (chamado pelo AuthContext)
+     * Injeta o catálogo de interfaces da BD (chamado pelo PermissionContext).
+     * Deve ser chamado assim que o MetaDataContext terminar de carregar.
+     * @param {Array} interfaces - Array de objectos {pk, value} da BD
+     */
+    setInterfaceCatalog(interfaces = []) {
+        this._interfaceCatalog = interfaces;
+        this._interfaceMap = new Map();
+        interfaces.forEach(i => {
+            if (i.value) this._interfaceMap.set(i.value, i.pk);
+        });
+    }
+
+    /**
+     * Define o utilizador autenticado.
+     * @param {Object} user - Objecto com user_id, profil, interfaces[]
      */
     setUser(user) {
         if (this.user?.user_id !== user?.user_id) {
-            this.clearLocalState(); // Limpar estado se mudou utilizador
+            this.clearLocalState();
         }
         this.user = user;
+        this._userInterfacesSet = new Set(user?.interfaces || []);
     }
 
     /**
-     * Verifica se o utilizador tem uma permissão (ID de interface).
-     * Agora usa apenas IDs numéricos para máxima eficiência.
+     * Resolve um identificador de permissão para o pk numérico.
+     * - number  → usa directamente (retrocompatibilidade)
+     * - string  → lookup no catálogo da BD
+     * @param {number|string} permission
+     * @returns {number|null}
      */
-    hasPermission(requiredInterfaceId) {
+    _resolveId(permission) {
+        if (typeof permission === 'number') return permission;
+        if (typeof permission === 'string') {
+            const pk = this._interfaceMap.get(permission);
+            if (pk === undefined) {
+                if (process.env.NODE_ENV === 'development' && this._interfaceMap.size > 0) {
+                    console.warn(`[PermissionService] Permissão '${permission}' não encontrada no catálogo da BD.`);
+                }
+                return null;
+            }
+            return pk;
+        }
+        return null;
+    }
+
+    /**
+     * Verifica se o utilizador tem a permissão indicada.
+     * Aceita ID numérico (retrocompat) ou string do campo value da ts_interface.
+     * @param {number|string} requiredPermission
+     * @returns {boolean}
+     */
+    hasPermission(requiredPermission) {
         if (!this.user) return false;
 
-        // Super admin sempre tem acesso
+        // Super admin tem acesso total
         if (this.user.profil === '0') return true;
 
-        // Apenas IDs numéricos são suportados
-        if (typeof requiredInterfaceId !== 'number') {
-            console.warn(`Permissão deve ser ID numérico, recebido: ${typeof requiredInterfaceId}`);
-            return false;
-        }
+        const permId = this._resolveId(requiredPermission);
+        if (permId === null) return false;
 
-        // Verifica se o ID da interface está na lista de interfaces do utilizador
-        const userInterfaces = this.user.interfaces || [];
-        return userInterfaces.includes(requiredInterfaceId);
+        return this._userInterfacesSet.has(permId);
     }
 
     /**
-     * Verificar múltiplas permissões. A lógica agora é local.
+     * Verifica múltiplas permissões — qualquer uma.
+     * @param {Array<number|string>} permissions
      */
-    checkPermissions(permissions) {
-        const permissionList = Array.isArray(permissions) ? permissions : [permissions];
-        return permissionList.reduce((acc, p) => {
-            acc[p] = this.hasPermission(p);
-            return acc;
-        }, {});
+    hasAnyPermission(permissions) {
+        if (!Array.isArray(permissions) || permissions.length === 0) return false;
+        return permissions.some(p => this.hasPermission(p));
     }
 
     /**
-     * Obter todas as permissões do utilizador atual
+     * Verifica múltiplas permissões — todas.
+     * @param {Array<number|string>} permissions
      */
+    hasAllPermissions(permissions) {
+        if (!Array.isArray(permissions) || permissions.length === 0) return false;
+        return permissions.every(p => this.hasPermission(p));
+    }
+
+    /**
+     * Verificação batch.
+     * @param {Object} permissionMap - Ex: { canView: 'operation.access', canEdit: 310 }
+     */
+    checkBatchPermissions(permissionMap) {
+        const result = {};
+        Object.keys(permissionMap).forEach(key => {
+            result[key] = this.hasPermission(permissionMap[key]);
+        });
+        return result;
+    }
+
+    /** @returns {number[]} */
     getUserPermissions() {
-        // Após a refatoração, as permissões (interfaces) estão sempre disponíveis
-        // no objeto 'user'. Esta função agora é síncrona e retorna os dados locais.
-        if (!this.user || !this.user.interfaces) {
-            return [];
-        }
-        // Adiciona a permissão de super admin (perfil '0') para consistência.
+        if (!this.user || !this.user.interfaces) return [];
         const permissions = [...this.user.interfaces];
         if (this.user.profil === '0') {
-            permissions.push('admin.super'); // Adiciona uma permissão virtual
+            permissions.push('admin.super');
         }
         return permissions;
     }
 
-    /**
-     * Verificar se tem pelo menos uma das permissões
-     */
-    hasAnyPermission(permissions) {
-        if (!Array.isArray(permissions) || permissions.length === 0) {
-            return false;
-        }
-
-        for (const permission of permissions) {
-            if (this.hasPermission(permission)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Verificar se tem todas as permissões
-     */
-    hasAllPermissions(permissions) {
-        if (!Array.isArray(permissions) || permissions.length === 0) {
-            return true;
-        }
-
-        for (const permission of permissions) {
-            if (!this.hasPermission(permission)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Verificação batch para múltiplos componentes
-     */
-    checkBatchPermissions(permissionMap) {
-        const permissions = Object.values(permissionMap).filter(Boolean);
-        if (permissions.length === 0) return {};
-        // A chamada à API foi removida, a verificação é local
-        const results = this.checkPermissions(permissions);
-
-        const mapped = {};
-        Object.entries(permissionMap).forEach(([key, permission]) => {
-            mapped[key] = permission ? (results[permission] || false) : true;
-        });
-
-        return mapped;
-    }
-
-    /**
-     * Limpar cache
-     */
+    /** Limpar estado local (logout ou mudança de utilizador) */
     clearLocalState() {
-        this.userPermissions = null;
-        this.lastUserCheck = null;
+        this.user = null;
+        this._userInterfacesSet = new Set();
     }
 
-    /**
-     * Pré-carregar permissões comuns
-     */
-    async preloadCommonPermissions() {
-        // Esta função não é mais necessária, pois todas as permissões (interfaces)
-        // já estão disponíveis localmente no objeto `user`.
-        console.log('✅ Permissões já estão disponíveis localmente. Pré-carregamento não é necessário.');
-        return Promise.resolve();
+    /** @returns {boolean} */
+    isAdmin() {
+        return String(this.user?.profil) === '0';
     }
 
-    /**
-     * Estatísticas do cache (debug)
-     */
+    /** @returns {string|null} */
+    getUserProfile() {
+        return this.user?.profil || null;
+    }
+
+    /** Estatísticas de debug */
     getCacheStats() {
         return {
-            userPermissionsCount: this.userPermissions?.length || 0,
-            lastUserCheck: this.lastUserCheck ? new Date(this.lastUserCheck).toLocaleString() : 'Nunca'
+            userPermissionsCount: this._userInterfacesSet.size,
+            catalogSize: this._interfaceMap.size,
         };
     }
 
-    // === GESTÃO ADMINISTRATIVA ===
+    // === GESTÃO ADMINISTRATIVA (endpoints) ===
 
     async getPermissionRules() {
         try {
             const response = await api.get('/permissions/rules');
-            if (response.data.success) {
-                return response.data.rules;
-            }
+            if (response.data.success) return response.data.rules;
             throw new Error(response.data.error);
         } catch (error) {
             console.error('Erro obter regras:', error);
@@ -169,9 +161,7 @@ class PermissionService {
     async createRule(ruleData) {
         try {
             const response = await api.post('/permissions/rules', ruleData);
-            if (response.data.success) {
-                return true;
-            }
+            if (response.data.success) return true;
             throw new Error(response.data.error);
         } catch (error) {
             console.error('Erro criar regra:', error);
@@ -182,9 +172,7 @@ class PermissionService {
     async updateRule(ruleId, updates) {
         try {
             const response = await api.put(`/permissions/rules/${ruleId}`, updates);
-            if (response.data.success) {
-                return true;
-            }
+            if (response.data.success) return true;
             throw new Error(response.data.error);
         } catch (error) {
             console.error('Erro atualizar regra:', error);
@@ -195,9 +183,7 @@ class PermissionService {
     async disableRule(ruleId) {
         try {
             const response = await api.delete(`/permissions/rules/${ruleId}`);
-            if (response.data.success) {
-                return true;
-            }
+            if (response.data.success) return true;
             throw new Error(response.data.error);
         } catch (error) {
             console.error('Erro desativar regra:', error);
@@ -208,18 +194,19 @@ class PermissionService {
     async enableRule(ruleId) {
         try {
             const response = await api.put(`/permissions/rules/${ruleId}/enable`);
-            if (response.data.success) {
-                return true;
-            }
+            if (response.data.success) return true;
             throw new Error(response.data.error);
         } catch (error) {
             console.error('Erro reativar regra:', error);
             throw error;
         }
     }
+
+    // Mantido para retrocompatibilidade
+    async preloadCommonPermissions() {
+        return Promise.resolve();
+    }
 }
 
-// Instância singleton
 const permissionService = new PermissionService();
-
 export default permissionService;

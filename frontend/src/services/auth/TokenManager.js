@@ -17,8 +17,9 @@ export class TokenManager {
 
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            const expirationTime = payload.created_at * 1000 + (1 * 60 * 1000);
-            return Date.now() < expirationTime;
+            // Usar o claim `exp` standard do JWT (Unix timestamp em segundos)
+            if (!payload?.exp) return false;
+            return payload.exp * 1000 > Date.now();
         } catch {
             return false;
         }
@@ -43,7 +44,9 @@ export class TokenManager {
                 const updatedUser = {
                     ...storedUser,
                     access_token: response.data.access_token,
-                    refresh_token: response.data.refresh_token
+                    refresh_token: response.data.refresh_token,
+                    // Interfaces frescas da BD — o backend já as inclui na resposta do refresh
+                    ...(response.data.interfaces !== undefined && { interfaces: response.data.interfaces }),
                 };
 
                 localStorage.setItem("user", JSON.stringify(updatedUser));

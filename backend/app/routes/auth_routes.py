@@ -1,12 +1,13 @@
 from flask import Blueprint, request, jsonify, current_app, g
+from sqlalchemy import text
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..services.auth_service import (
     login_user, logout_user, refresh_access_token,
     update_last_activity, check_inactivity, get_last_activity,
     list_cached_activities, fsf_client_darkmodeadd, fsf_client_darkmodeclean,
-    # set_user_dark_mode # Descomentar quando a função for adicionada ao serviço
+    fsf_client_vacationadd, fsf_client_vacationclean,
 )
-from ..utils.utils import format_message, set_session, db_session_manager
+from ..utils.utils import format_message, set_session, db_session_manager, add_token_to_blacklist
 import pytz
 from flask_limiter.util import get_remote_address
 from .. import limiter
@@ -82,6 +83,10 @@ def logout():
     """
     user_identity = get_jwt_identity()
     if user_identity:
+        # Revogar o token actual na blacklist antes de terminar a sessão
+        jwt_data = get_jwt()
+        if jwt_data and jwt_data.get('jti'):
+            add_token_to_blacklist(jwt_data['jti'])
         logout_user(user_identity)
         return jsonify(msg="Logout bem-sucedido"), 200
     else:
@@ -284,6 +289,100 @@ def check_session():
             time_since_last_activity
         return jsonify({"warning": "Sessão próxima de expirar", "time_left": time_left.total_seconds()}), 200
     return jsonify({"message": "Sessão válida"}), 200
+
+
+@bp.route('/me', methods=['GET'])
+@jwt_required()
+@set_session
+@api_error_handler
+def me():
+    """
+    Obter Dados Actuais do Utilizador
+    ---
+    tags:
+      - Autenticação
+    summary: Retorna as interfaces/permissões frescas do utilizador a partir da BD.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Dados actuais do utilizador.
+      401:
+        description: Não autorizado.
+    """
+    claims = get_jwt()
+    user_id = claims.get('user_id')
+    session_id = claims.get('session_id')
+
+    with db_session_manager(session_id) as session:
+        result = session.execute(
+            text("""
+                SELECT COALESCE(interface, ARRAY[]::integer[]) as interfaces
+                FROM ts_client
+                WHERE pk = :user_id
+            """),
+            {'user_id': user_id}
+        ).fetchone()
+
+    interfaces = result.interfaces if result else []
+    return jsonify({"interfaces": interfaces}), 200
+
+
+@bp.route('/preferences', methods=['PATCH'])
+@jwt_required()
+@set_session
+@api_error_handler
+def update_preferences():
+    """
+    Actualizar Preferências do Utilizador
+    ---
+    tags:
+      - Autenticação
+    summary: Actualiza dark_mode e/ou vacation para o utilizador actual.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            dark_mode:
+              type: boolean
+            vacation:
+              type: boolean
+    responses:
+      200:
+        description: Preferências actualizadas com sucesso.
+      400:
+        description: Nenhum campo válido fornecido.
+      401:
+        description: Não autorizado.
+    """
+    claims = get_jwt()
+    session_id = claims.get('session_id')
+    user_id = claims.get('user_id')
+    data = request.get_json() or {}
+
+    if 'dark_mode' not in data and 'vacation' not in data:
+        return jsonify({"error": "Nenhum campo válido fornecido (dark_mode, vacation)"}), 400
+
+    if 'dark_mode' in data:
+        if data['dark_mode']:
+            fsf_client_darkmodeadd(user_id, session_id)
+        else:
+            fsf_client_darkmodeclean(user_id, session_id)
+
+    if 'vacation' in data:
+        if data['vacation']:
+            fsf_client_vacationadd(user_id, session_id)
+        else:
+            fsf_client_vacationclean(user_id, session_id)
+
+    return jsonify({"message": "Preferências actualizadas com sucesso"}), 200
 
 
 @bp.route('/cached-activities', methods=['GET'])

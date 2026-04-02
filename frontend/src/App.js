@@ -102,17 +102,17 @@ const App = () => (
       <SWRConfig value={swrConfig}>
       <AuthProvider>
         <ModalProvider>
-          <PermissionProvider>
-            <SidebarProvider>
-              <SocketProvider>
-                <MetaDataProvider>
+          <MetaDataProvider>
+            <PermissionProvider>
+              <SidebarProvider>
+                <SocketProvider>
                   <EpiProvider>
-                  <AppContent />
+                    <AppContent />
                   </EpiProvider>
-                </MetaDataProvider>
-              </SocketProvider>
-            </SidebarProvider>
-          </PermissionProvider>
+                </SocketProvider>
+              </SidebarProvider>
+            </PermissionProvider>
+          </MetaDataProvider>
         </ModalProvider>
         </AuthProvider>
         </SWRConfig>

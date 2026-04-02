@@ -54,13 +54,14 @@ class TokenManager {
         }
       );
 
-      const { access_token, refresh_token } = responseData;
+      const { access_token, refresh_token, interfaces } = responseData;
 
-      // Update user object with new tokens
+      // Update user object with new tokens + fresh interfaces from backend
       const updatedUser = {
         ...currentUser,
         access_token,
-        refresh_token
+        refresh_token,
+        ...(interfaces !== undefined && { interfaces }),
       };
 
       // Save to localStorage

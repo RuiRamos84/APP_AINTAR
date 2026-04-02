@@ -17,17 +17,35 @@ export function PermissionProvider({ children }) {
   const { user, isLoading: authLoading } = useAuth();
   const { metadata, isLoading: metaLoading } = useMetadata();
   const [initialized, setInitialized] = useState(false);
+
+  // catalogVersion — incrementa quando o catálogo (ts_interface) é (re)carregado:
+  //   fix da race condition: isReady só fica true APÓS _interfaceMap estar populado
+  //   também propaga refreshMetadata() do admin sem logout
+  const [catalogVersion, setCatalogVersion] = useState(0);
+
+  // userVersion — incrementa quando as interfaces do utilizador mudam efectivamente:
+  //   permite que alterações de permissões na BD sejam reflectidas com F5 sem logout
+  const [userVersion, setUserVersion] = useState(0);
+
   const userIdRef = useRef(null);
 
-  // Injectar catálogo de interfaces da BD no permissionService
-  // Sempre que o MetadataContext recarregar a ts_interface, o service fica actualizado
-  useEffect(() => {
-    if (metadata?.interfaces?.length > 0) {
-      permissionService.setInterfaceCatalog(metadata.interfaces);
-    }
-  }, [metadata?.interfaces]);
+  // Chave estável das interfaces: muda só quando o conjunto de PKs muda
+  // Usado como dependência para detectar alterações reais (não apenas de referência)
+  const interfaceKey = useMemo(
+    () => (user?.interfaces || []).slice().sort((a, b) => a - b).join(','),
+    [user?.interfaces]
+  );
 
-  // Injectar o utilizador autenticado no permissionService
+  // Injectar catálogo de interfaces da BD no permissionService.
+  // Corre quando o metadata termina de carregar OU quando é refrescado em background.
+  useEffect(() => {
+    if (metaLoading) return;
+    permissionService.setInterfaceCatalog(metadata?.interfaces || []);
+    setCatalogVersion(v => v + 1);
+  }, [metaLoading, metadata?.interfaces]);
+
+  // Injectar o utilizador autenticado no permissionService.
+  // Depende de interfaceKey para detectar alterações reais de permissões (ex: /auth/me no F5).
   useEffect(() => {
     if (authLoading) {
       if (initialized) setInitialized(false);
@@ -35,21 +53,21 @@ export function PermissionProvider({ children }) {
     }
 
     const currentUserId = user?.user_id || null;
-    if (currentUserId === userIdRef.current && initialized) return;
-
     userIdRef.current = currentUserId;
 
     if (user) {
       permissionService.setUser(user);
+      setUserVersion(v => v + 1);
     } else {
       permissionService.clearUser();
     }
 
     if (!initialized) setInitialized(true);
-  }, [user?.user_id, authLoading, initialized]);
+  // interfaceKey garante que o efeito corre quando as permissões mudam, mesmo sem logout
+  }, [user?.user_id, interfaceKey, authLoading, initialized]);
 
-  // Pronto quando auth E metadata estiverem carregados
-  const isReady = initialized && !authLoading && !metaLoading;
+  // Pronto quando auth está inicializado E catálogo foi carregado pelo menos 1x.
+  const isReady = initialized && !authLoading && catalogVersion > 0;
 
   const value = useMemo(() => ({
     initialized: isReady,
@@ -61,7 +79,7 @@ export function PermissionProvider({ children }) {
     getUserPermissions: () => permissionService.getUserPermissions(),
     isAdmin: () => permissionService.isAdmin(),
     getUserProfile: () => permissionService.getUserProfile(),
-  }), [isReady]);
+  }), [isReady, catalogVersion, userVersion]);
 
   return (
     <PermissionContext.Provider value={value}>

@@ -1,4 +1,7 @@
-// config/routeConfig.js - VERSÃO CORRIGIDA
+// config/routeConfig.js
+// Permissões: IDs numéricos (pk da ts_interface) — directos, sem dependência do catálogo de strings.
+// O permissionService resolve números directamente via _userInterfacesSet (O(1), sem lookup).
+
 import {
     AdminPanelSettings as AdminIcon,
     Speed as SpeedIcon,
@@ -32,43 +35,42 @@ import {
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import { AccountBalance as PaymentBalanceIcon } from '@mui/icons-material';
 
-// CORREÇÃO: Ícones como COMPONENTES, não JSX
 export const ROUTE_CONFIG = {
     '/settings': {
         id: 'settings',
         text: 'Administração',
-        icon: AdminIcon, // COMPONENTE
+        icon: AdminIcon,
         permissions: { required: 10 }, // admin.dashboard
         showInSidebar: true,
         submenu: {
             '/settings?tab=dashboard': {
                 id: 'admin_dashboard',
                 text: 'Dashboard Admin',
-                icon: SpeedIcon, // COMPONENTE
+                icon: SpeedIcon,
                 permissions: { required: 10 } // admin.dashboard
             },
             '/settings?tab=users': {
                 id: 'admin_users',
                 text: 'Gestão de Utilizadores',
-                icon: PeopleIcon, // COMPONENTE
+                icon: PeopleIcon,
                 permissions: { required: 20 } // admin.users
             },
             '/settings?tab=permissions': {
                 id: 'admin_permissions',
                 text: 'Gestão de Permissões',
-                icon: SecurityIcon, // COMPONENTE
+                icon: SecurityIcon,
                 permissions: { required: 20 } // admin.users
             },
             '/settings?tab=documents': {
                 id: 'admin_documents',
                 text: 'Gestão de Documentos',
-                icon: DocumentIcon, // COMPONENTE
+                icon: DocumentIcon,
                 permissions: { required: 50 } // admin.docs.manage
             },
             '/settings?tab=reopen': {
                 id: 'admin_reopen',
                 text: 'Reabertura de Pedidos',
-                icon: HistoryIcon, // COMPONENTE
+                icon: HistoryIcon,
                 permissions: { required: 60 } // admin.docs.reopen
             }
         }
@@ -77,7 +79,7 @@ export const ROUTE_CONFIG = {
     '/payment-admin': {
         id: 'payments',
         text: 'Gestão de Pagamentos',
-        icon: PaymentBalanceIcon, // COMPONENTE
+        icon: PaymentBalanceIcon,
         permissions: { required: 30 }, // admin.payments
         showInSidebar: true
     },
@@ -85,32 +87,31 @@ export const ROUTE_CONFIG = {
     '/pedidos-modernos': {
         id: 'modern_requests',
         text: 'Pedidos Modernos',
-        icon: ViewModuleIcon, // COMPONENTE
+        icon: ViewModuleIcon,
         permissions: { required: 540 }, // docs.modern
         showInSidebar: true
     },
 
-    //Entidades
-    '/entities': { // Assumindo que 'entities.view' e 'entities.create' não têm IDs, removemos a restrição por agora
+    '/entities': {
         id: 'entities',
         text: 'Entidades',
-        icon: DomainIcon, // COMPONENTE
+        icon: DomainIcon,
         permissions: { required: 800 }, // entities.view
         showInSidebar: true,
         submenu: {
             '/entities': {
                 id: 'all_entities',
                 text: 'Todas as Entidades',
-                icon: ListAltIcon, // COMPONENTE
+                icon: ListAltIcon,
                 permissions: { required: 800 } // entities.view
             },
-            'add-entity-action': { // Chave alterada para não ser uma rota
+            'add-entity-action': {
                 id: 'add_entity',
                 text: 'Adicionar Entidade',
-                icon: AddIcon, // COMPONENTE
-                action: 'openModal', // Ação genérica
-                actionPayload: 'CREATE_ENTITY', // Tipo de modal a abrir
-                to: null, // Garantir que não há navegação
+                icon: AddIcon,
+                action: 'openModal',
+                actionPayload: 'CREATE_ENTITY',
+                to: null,
                 permissions: { required: 810 } // entities.create
             }
         }
@@ -119,27 +120,26 @@ export const ROUTE_CONFIG = {
     '/documents': {
         id: 'pedidos',
         text: 'Pedidos',
-        icon: AssignmentIcon, // COMPONENTE
-        // A permissão 'docs.view' é agregada. A lógica no useRouteConfig irá tratar disto.
+        icon: AssignmentIcon,
         showInSidebar: true,
         submenu: {
             '/document_self': {
                 id: 'para_tratamento',
                 text: 'Para tratamento',
-                icon: AssignmentIndIcon, // COMPONENTE
+                icon: AssignmentIndIcon,
                 permissions: { required: 520 }, // docs.view.assigned
                 isBadged: true
             },
             '/document_owner': {
                 id: 'criados_por_mim',
                 text: 'Criados por mim',
-                icon: PersonIcon, // COMPONENTE
+                icon: PersonIcon,
                 permissions: { required: 510 }, // docs.view.owner
             },
             '/documents': {
                 id: 'todos_pedidos',
                 text: 'Todos os Pedidos',
-                icon: ListAltIcon, // COMPONENTE
+                icon: ListAltIcon,
                 permissions: { required: 500 } // docs.view.all
             },
         }
@@ -148,27 +148,27 @@ export const ROUTE_CONFIG = {
     '/tasks': {
         id: 'tasks',
         text: 'Tarefas',
-        icon: ListAltIcon, // COMPONENTE
+        icon: ListAltIcon,
         permissions: { required: 200 }, // tasks.all
         showInSidebar: true,
         submenu: {
             '/tasks/my': {
                 id: 'my_tasks',
                 text: 'Minhas Tarefas',
-                icon: AssignmentIndIcon, // COMPONENTE
+                icon: AssignmentIndIcon,
                 permissions: { required: 200 } // tasks.all
             },
             '/tasks/created': {
                 id: 'created_tasks',
                 text: 'Tarefas Onde Sou Responsável',
-                icon: PersonIcon, // COMPONENTE
+                icon: PersonIcon,
                 permissions: { required: 200 } // tasks.all
             },
             '/tasks/all': {
                 id: 'all_tasks',
                 text: 'Todas as Tarefas',
-                icon: ListAltIcon, // COMPONENTE
-                permissions: { required: 200, profile: 0 } // tasks.all - apenas admins
+                icon: ListAltIcon,
+                permissions: { required: 200, profile: 0 } // tasks.all — apenas admins
             }
         }
     },
@@ -177,7 +177,7 @@ export const ROUTE_CONFIG = {
         id: 'dashboard',
         text: 'Dashboard',
         icon: DashboardIcon,
-        permissions: { required: 400 },
+        permissions: { required: 400 }, // dashboard.view
         showInSidebar: true,
     },
 
@@ -185,65 +185,65 @@ export const ROUTE_CONFIG = {
         id: 'operations',
         text: 'Operação',
         icon: WorkIcon,
-        permissions: { required: 310 }, // operation.access - acesso básico
+        permissions: { required: 310 }, // operation.access
         showInSidebar: true,
         submenu: {
             '/operation': {
                 id: 'operations_main',
                 text: 'Minhas Tarefas',
                 icon: AssignmentIcon,
-                permissions: { required: 311 } // operation.execute - executar tarefas
+                permissions: { required: 311 } // operation.execute
             },
             '/operation/control': {
                 id: 'operations_control',
                 text: 'Controlo de Equipa',
                 icon: PeopleIcon,
-                permissions: { required: 312 } // operation.supervise - supervisão
+                permissions: { required: 312 } // operation.supervise
             },
             '/operation/analysis': {
                 id: 'operations_analysis',
                 text: 'Análises',
                 icon: ScienceIcon,
-                permissions: { required: 310 } // operation.access - todos
+                permissions: { required: 310 } // operation.access
             },
             '/operation/metadata': {
                 id: 'operation_metadata',
                 text: 'Gestão de Voltas',
                 icon: SettingsIcon,
-                permissions: { required: 313 } // operation.manage - gestores
+                permissions: { required: 313 } // operation.manage
             },
             '/operation-legacy': {
                 id: 'operations_legacy',
                 text: 'Visualização por Tipos',
                 icon: ViewModuleIcon,
-                permissions: { required: 310 } // operation.access - acesso básico
+                permissions: { required: 310 } // operation.access
             }
         }
     },
 
-    '/ramais': { // Assumindo que 'pavimentations.view' não tem ID, removemos a restrição
+    '/ramais': {
         id: 'ramais',
         text: 'Pavimentações',
-        icon: CheckIcon, // COMPONENTE
+        icon: CheckIcon,
         permissions: { required: 600 }, // pav.view
         showInSidebar: true,
         submenu: {
             '/ramais': {
                 id: 'pending_pavimentations',
                 text: 'Pendentes',
-                icon: AssignmentIcon, // COMPONENTE
+                icon: AssignmentIcon,
                 permissions: { required: 600 }
             },
             '/ramais/executed': {
                 id: 'executed_pavimentations',
                 text: 'Executadas',
-                icon: AssignmentIcon, // COMPONENTE
+                icon: AssignmentIcon,
                 permissions: { required: 600 }
             },
             '/ramais/concluded': {
                 id: 'concluded_pavimentations',
                 text: 'Concluídas',
-                icon: AssignmentIcon, // COMPONENTE
+                icon: AssignmentIcon,
                 permissions: { required: 600 }
             }
         }
@@ -252,15 +252,15 @@ export const ROUTE_CONFIG = {
     '/emissions': {
         id: 'emissions',
         text: 'Emissões',
-        icon: EmissionIcon, // COMPONENTE
-        permissions: { required: 220 },
+        icon: EmissionIcon,
+        permissions: { required: 220 }, // letters.manage
         showInSidebar: true
     },
 
     '/epi': {
         id: 'epi',
         text: 'Gestão de EPIs',
-        icon: SecurityOutlinedIcon, // COMPONENTE
+        icon: SecurityOutlinedIcon,
         permissions: { required: 210 }, // epi.manage
         showInSidebar: true
     },
@@ -268,7 +268,7 @@ export const ROUTE_CONFIG = {
     '/internal': {
         id: 'internal',
         text: 'Internal Area',
-        icon: AppsIcon, // COMPONENTE
+        icon: AppsIcon,
         permissions: { required: 300 }, // internal.access
         showInSidebar: true
     },
@@ -277,7 +277,7 @@ export const ROUTE_CONFIG = {
         id: 'telemetry',
         text: 'Telemetria',
         icon: SensorsIcon,
-        permissions: { required: 10 }, // admin
+        permissions: { required: 850 }, // telemetry.view
         showInSidebar: true
     }
 };

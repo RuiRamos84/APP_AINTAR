@@ -266,12 +266,13 @@ def verify_token_claims(token):
 
 
 def add_token_to_blacklist(jti):
-    from app import blacklist  # Importação local
-    blacklist.token_blacklist.add(jti)
+    from app import blacklist  # Importação local — blacklist é um set()
+    blacklist.add(jti)
 
 
 def is_token_revoked(jti):
-    return jti in token_blacklist
+    from app import blacklist  # Importação local — blacklist é um set()
+    return jti in blacklist
 
 
 def check_if_token_revoked(jwt_payload):

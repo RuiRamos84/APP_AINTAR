@@ -80,8 +80,42 @@ VALUES
    'Processar e aprovar pagamentos SIBS e outros', 'payment', '{880}', false, true, 890),
 
   -- Recursos Humanos — visualização geral
-  (900, 'rh.view',     'Recursos Humanos', 'Visualizar RH',
-   'Aceder ao módulo de recursos humanos (férias, faltas, horários)', 'people', NULL, false, false, 900)
+  (900, 'rh.view',        'Recursos Humanos', 'Visualizar RH',
+   'Aceder ao módulo de recursos humanos (férias, faltas, horários)', 'people', NULL, false, false, 900),
+
+  -- Recursos Humanos — Gestão Pessoal (férias, faltas, horários, piquete)
+  (901, 'rh.pessoal.view', 'Recursos Humanos', 'Visualizar Gestão Pessoal',
+   'Ver férias, faltas, horários e piquete', 'calendar_month', '{900}', false, false, 901),
+
+  (902, 'rh.pessoal.edit', 'Recursos Humanos', 'Gerir Gestão Pessoal',
+   'Criar, editar e gerir férias, faltas, horários e piquete', 'edit_calendar', '{901}', false, false, 902),
+
+  -- Despesas Operacionais — módulo específico (rede, ramais, manutenção, equipamentos)
+  (910, 'expenses.view',   'Despesas', 'Visualizar Despesas',
+   'Ver despesas operacionais (rede, ramais, manutenção, equipamentos)', 'visibility', '{310}', false, false, 910),
+
+  (911, 'expenses.edit',   'Despesas', 'Gerir Despesas',
+   'Registar e editar despesas operacionais', 'edit', '{910}', false, false, 911),
+
+  -- Análises Laboratoriais
+  (920, 'analyses.view',   'Análises', 'Visualizar Análises',
+   'Ver resultados de análises laboratoriais', 'science', NULL, false, false, 920),
+
+  (921, 'analyses.edit',   'Análises', 'Gerir Análises',
+   'Registar e editar análises laboratoriais', 'edit', '{920}', false, false, 921),
+
+  -- Ofícios / Correspondência — granularidade por acção
+  (1300, 'offices.view',      'Ofícios', 'Visualizar Ofícios',
+   'Ver ofícios e correspondência', 'article', NULL, false, false, 1300),
+
+  (1310, 'offices.create',    'Ofícios', 'Criar Ofícios',
+   'Criar novos ofícios e correspondência', 'note_add', '{1300}', false, false, 1310),
+
+  (1330, 'offices.close',     'Ofícios', 'Fechar/Assinar Ofícios',
+   'Assinar e fechar ofícios', 'check_circle', '{1300}', false, false, 1330),
+
+  (1340, 'offices.replicate', 'Ofícios', 'Replicar Ofícios',
+   'Replicar ofícios para múltiplos destinatários', 'content_copy', '{1300}', false, false, 1340)
 
 ON CONFLICT (pk) DO NOTHING;  -- Seguro: ignora se já existir
 
@@ -92,5 +126,12 @@ COMMIT;
 -- ============================================================
 SELECT pk, value, category, label, requires
 FROM ts_interface
-WHERE pk IN (201,211,561,562,601,760,830,831,840,841,850,851,860,861,870,871,880,890,900)
+WHERE pk IN (
+  201,211,561,562,601,760,
+  830,831,840,841,850,851,860,861,870,871,
+  880,890,
+  900,901,902,
+  910,911,920,921,
+  1300,1310,1330,1340
+)
 ORDER BY pk;

@@ -16,6 +16,11 @@ export class AuthManager {
     }
 
     initialize() {
+        // Registar interceptors ANTES de qualquer chamada API.
+        // O Axios constrói a cadeia de interceptors no momento do pedido —
+        // se não estiverem registados, o GET /auth/me sai sem Authorization → 401.
+        this.setupApiInterceptors();
+
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
             try {
@@ -23,6 +28,19 @@ export class AuthManager {
 
                 if (this.tokenManager.isTokenValid(user.access_token)) {
                     this.authState.setState({ user, isLoading: false });
+
+                    // Token válido — buscar interfaces frescas da BD em background.
+                    // Assim alterações de permissões reflectem-se com F5 sem logout.
+                    api.get('/auth/me')
+                        .then(res => {
+                            const data = res.data || res;
+                            if (data?.interfaces !== undefined) {
+                                const refreshedUser = { ...user, interfaces: data.interfaces };
+                                localStorage.setItem('user', JSON.stringify(refreshedUser));
+                                this.authState.setState({ user: refreshedUser });
+                            }
+                        })
+                        .catch(() => { /* silencioso — usa dados do localStorage */ });
                 } else {
                     this.tokenManager.refreshToken(Date.now())
                         .then(newTokens => {
@@ -44,8 +62,6 @@ export class AuthManager {
         } else {
             this.authState.setState({ isLoading: false });
         }
-
-        this.setupApiInterceptors();
     }
 
     setupApiInterceptors() {

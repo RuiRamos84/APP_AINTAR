@@ -1,130 +1,129 @@
-// frontend/src/contexts/PermissionContext.js - NOVO ARQUIVO
+// frontend/src/contexts/PermissionContext.js
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+/**
+ * PermissionContext
+ * Liga o permissionService ao AuthContext (user) e ao MetaDataContext (catálogo da BD).
+ *
+ * Padrão idêntico ao frontend-v2:
+ * - catalogVersion: incrementa APÓS setInterfaceCatalog() → garante que isReady só é true
+ *   depois do _interfaceMap estar populado (fix da race condition)
+ * - userVersion: incrementa quando as interfaces do utilizador mudam efectivamente →
+ *   permite que alterações de permissões se reflictam com F5 sem logout
+ * - interfaceKey: string estável das PKs ordenadas → detecta mudanças reais de interfaces
+ */
+
+import React, {
+    createContext, useContext, useEffect, useState, useMemo, useCallback, useRef
+} from 'react';
 import { useAuth } from './AuthContext';
+import { useMetaData } from './MetaDataContext';
 import permissionService from '../services/permissionService';
 
 const PermissionContext = createContext();
 
 export const PermissionProvider = ({ children }) => {
-    const { user } = useAuth();
-    const [permissions, setPermissions] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [initialized, setInitialized] = useState(false);
+    const { user, isLoading: authLoading } = useAuth();
+    const { metaData, loading: metaLoading } = useMetaData();
 
-    // Carregar permissões do utilizador
-    const loadUserPermissions = useCallback(async (forceRefresh = false) => {
-        if (!user) {
-            setPermissions([]);
-            setInitialized(false);
+    const [initialized, setInitialized] = useState(false);
+    const [catalogVersion, setCatalogVersion] = useState(0);
+    const [userVersion, setUserVersion] = useState(0);
+
+    // Chave estável das interfaces: muda só quando o conjunto de PKs muda efectivamente
+    const interfaceKey = useMemo(
+        () => (user?.interfaces || []).slice().sort((a, b) => a - b).join(','),
+        [user?.interfaces]
+    );
+
+    // Injectar catálogo de interfaces da BD no permissionService.
+    // setCatalogVersion corre APÓS setInterfaceCatalog → isReady só fica true com catálogo pronto.
+    useEffect(() => {
+        if (metaLoading) return;
+        permissionService.setInterfaceCatalog(metaData?.interfaces || []);
+        setCatalogVersion(v => v + 1);
+    }, [metaLoading, metaData?.interfaces]);
+
+    // Injectar utilizador autenticado.
+    // interfaceKey como dependência garante que corre quando as permissões mudam (ex: F5 com /auth/me).
+    useEffect(() => {
+        if (authLoading) {
+            if (initialized) setInitialized(false);
             return;
         }
 
-        setLoading(true);
-        try {
-            const userPermissions = await permissionService.getUserPermissions(forceRefresh);
-            setPermissions(userPermissions);
-
-            // Pré-carregar permissões comuns para melhor performance
-            if (!forceRefresh) {
-                permissionService.preloadCommonPermissions().catch(console.warn);
-            }
-            setInitialized(true); // ✅ Inicializado apenas após sucesso
-        } catch (error) {
-            console.error('Erro carregar permissões:', error);
-            setPermissions([]);
-            setInitialized(true);
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
-
-    // Carregar permissões quando utilizador muda
-    useEffect(() => {
-        loadUserPermissions();
-    }, [loadUserPermissions]);
-
-    // Limpar cache quando utilizador faz logout
-    useEffect(() => {
-        if (!user) {
+        if (user) {
+            permissionService.setUser(user);
+            setUserVersion(v => v + 1);
+        } else {
             permissionService.clearLocalState();
-            setPermissions([]);
-            setInitialized(false);
-        }
-    }, [user]);
-
-    /**
-     * Verificar se tem permissão específica
-     */
-    const hasPermission = useCallback((permission) => {
-        // Se o sistema de permissões ainda não foi inicializado, aguardar.
-        if (!initialized) return false;
-
-        // Super admin sempre tem acesso
-        if (user?.profil === '0') return true;
-
-        // Se não há permissão especificada, negar por segurança (ou permitir, dependendo da regra)
-        if (!permission) return true;
-
-        // Verificar via serviço (com cache)
-        return permissionService.hasPermission(permission);
-    }, [user, initialized]);
-
-    /**
-     * Verificar múltiplas permissões (qualquer uma)
-     */
-    const hasAnyPermission = useCallback((permissionList) => {
-        if (user?.profil === '0') return true;
-        if (!permissionList || permissionList.length === 0) return true;
-
-        return permissionService.hasAnyPermission(permissionList);
-    }, [user]);
-
-    /**
-     * Verificar múltiplas permissões (todas)
-     */
-    const hasAllPermissions = useCallback((permissionList) => {
-        if (user?.profil === '0') return true;
-        if (!permissionList || permissionList.length === 0) return true;
-
-        return permissionService.hasAllPermissions(permissionList);
-    }, [user]);
-
-    /**
-     * Verificar permissões batch para otimização
-     */
-    const checkPermissions = useCallback((permissionMap) => {
-        if (user?.profil === '0') {
-            // Super admin tem todas as permissões
-            return Object.keys(permissionMap).reduce((acc, key) => {
-                acc[key] = true;
-                return acc;
-            }, {});
         }
 
-        return permissionService.checkBatchPermissions(permissionMap);
-    }, [user]);
+        if (!initialized) setInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.user_id, interfaceKey, authLoading]);
 
-    /**
-     * Recarregar permissões (útil após mudanças)
-     */
+    // Pronto quando auth está inicializado E catálogo foi carregado pelo menos 1x
+    const isReady = initialized && !authLoading && catalogVersion > 0;
+
+    const hasPermission = useCallback(
+        (permission) => {
+            if (!isReady) return false;
+            return permissionService.hasPermission(permission);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isReady, catalogVersion, userVersion]
+    );
+
+    const hasAnyPermission = useCallback(
+        (permissionList) => {
+            if (!permissionList || permissionList.length === 0) return true;
+            if (!isReady) return false;
+            return permissionService.hasAnyPermission(permissionList);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isReady, catalogVersion, userVersion]
+    );
+
+    const hasAllPermissions = useCallback(
+        (permissionList) => {
+            if (!permissionList || permissionList.length === 0) return true;
+            if (!isReady) return false;
+            return permissionService.hasAllPermissions(permissionList);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isReady, catalogVersion, userVersion]
+    );
+
+    const checkPermissions = useCallback(
+        (permissionMap) => {
+            if (user?.profil === '0') {
+                return Object.keys(permissionMap).reduce((acc, key) => {
+                    acc[key] = true;
+                    return acc;
+                }, {});
+            }
+            return permissionService.checkBatchPermissions(permissionMap);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isReady, catalogVersion, userVersion, user?.profil]
+    );
+
+    const isAdmin = useCallback(
+        () => String(user?.profil) === '0',
+        [user?.profil]
+    );
+
     const reload = useCallback(() => {
-        return loadUserPermissions(true);
-    }, [loadUserPermissions]);
+        // Com o novo sistema, as permissões actualizam via F5 (/auth/me).
+        // Esta função mantida para retrocompatibilidade.
+        Promise.resolve();
+    }, []);
 
-    /**
-     * Verificar se utilizador tem capacidade administrativa
-     */
-    const isAdmin = useCallback(() => {
-        if (user?.profil === '0') return true;
-        return hasPermission(2); // 2 = admin.users
-    }, [user, hasPermission]);
-
-    const contextValue = {
+    const contextValue = useMemo(() => ({
         // Estado
-        permissions,
-        loading,
-        initialized,
+        permissions: user?.interfaces || [],
+        loading: !isReady && !authLoading,
+        initialized: isReady,
         user,
 
         // Métodos de verificação
@@ -136,10 +135,12 @@ export const PermissionProvider = ({ children }) => {
 
         // Utilidades
         reload,
-
-        // Informações de debug
-        getCacheStats: permissionService.getCacheStats.bind(permissionService)
-    };
+        getCacheStats: () => permissionService.getCacheStats(),
+    }), [
+        isReady, authLoading, user,
+        hasPermission, hasAnyPermission, hasAllPermissions,
+        checkPermissions, isAdmin, reload,
+    ]);
 
     return (
         <PermissionContext.Provider value={contextValue}>
@@ -156,7 +157,6 @@ export const usePermissionContext = () => {
     return context;
 };
 
-// Hook simplificado para uso direto
 export const usePermissions = () => {
     const context = usePermissionContext();
     return {
@@ -168,6 +168,8 @@ export const usePermissions = () => {
         loading: context.loading,
         initialized: context.initialized,
         reload: context.reload,
-        isAdmin: context.isAdmin
+        isAdmin: context.isAdmin,
     };
 };
+
+export default PermissionContext;

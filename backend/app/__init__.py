@@ -242,12 +242,33 @@ def create_app(config_class):
         app.register_blueprint(client_contracts_bp, url_prefix='/api/v1')
 
 
-        # Configuração do search_path para o PostgreSQL
+        # Configuração do search_path para o PostgreSQL (ligações novas)
         @db.event.listens_for(db.engine, "connect")
         def set_search_path(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute(f"SET search_path TO {app.config['SEARCH_PATH']}")
             cursor.close()
+
+        # Limpeza do estado PostgreSQL ao reutilizar ligações do pool.
+        # O fs_setsession define variáveis de sessão (SET key = value) que persistem
+        # na ligação mesmo após commit. Se não forem limpas, a próxima request que
+        # use essa ligação vê estado de outro utilizador → fs_login falha com
+        # "CREDENCIAIS INVÁLIDAS" mesmo com credenciais correctas.
+        @db.event.listens_for(db.engine, "checkout")
+        def reset_session_on_checkout(dbapi_connection, connection_record, connection_proxy):
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("RESET ALL")
+                # Re-aplicar o search_path correcto após o RESET ALL
+                cursor.execute(f"SET search_path TO {app.config['SEARCH_PATH']}")
+            except Exception:
+                pass
+            finally:
+                cursor.close()
+
+        # Inicializar o mapa de permissões (string → pk) a partir da BD
+        from .core.permissions import init_permissions
+        init_permissions(app)
 
         # Registro dos eventos do Socket.IO
         from .socketio.socketio_events import register_socket_events
