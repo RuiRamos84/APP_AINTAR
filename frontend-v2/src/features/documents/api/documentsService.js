@@ -62,6 +62,16 @@ export const documentsService = {
   },
 
   /**
+   * Fetch documents filtered by the user's associate (municipality)
+   * Used for profiles that cannot see all documents (profil != '0' and != '1')
+   * @returns {Promise<Array>} List of documents matching user's associate
+   */
+  async fetchByAssociate() {
+    const response = await api.get('/documents/by-associate');
+    return extractArray(response, 'documents');
+  },
+
+  /**
    * Fetch late documents (older than 30 days)
    * @returns {Promise<Array>} List of late documents
    */
@@ -141,6 +151,15 @@ export const documentsService = {
    */
   async replicate(id, newType) {
     const response = await api.post(`/document/replicate/${id}`, { new_type: newType });
+    return response;
+  },
+
+  /**
+   * Reopen a closed document
+   * @param {string} regnumber - Document registration number
+   */
+  async reopen(regnumber) {
+    const response = await api.post('/document/reopen', { regnumber });
     return response;
   },
 

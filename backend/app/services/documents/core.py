@@ -65,6 +65,46 @@ def list_documents(current_user):
         raise APIError(f"Erro interno do servidor", 500, "ERR_INTERNAL")
 
 
+def list_documents_by_associate(current_user, entity_pk):
+    """Listar documentos filtrados pelo associado (município) do utilizador.
+
+    vbl_document.ts_associate contém o NOME do associado (string resolvida pela view).
+    vsl_associate.pk coincide com o entity_pk do utilizador (mesmo espaço de PKs).
+    Portanto: filtramos por vsl_associate.name WHERE pk = entity_pk.
+    """
+    try:
+        with db_session_manager(current_user) as session:
+            if not entity_pk:
+                return {'documents': []}, 200
+
+            query = text("""
+                SELECT d.* FROM vbl_document d
+                WHERE d.ts_associate = (
+                    SELECT name FROM vsl_associate WHERE pk = :entity_pk
+                )
+            """)
+            result = session.execute(query, {'entity_pk': entity_pk}).fetchall()
+            logger.info(f"[by-associate] entity_pk={entity_pk} → {len(result)} documentos")
+
+            if result:
+                documents_list = []
+                for document in result:
+                    document_dict = document._asdict()
+                    if isinstance(document_dict.get("submission"), datetime):
+                        document_dict["submission"] = document_dict["submission"].isoformat()
+                    documents_list.append(document_dict)
+                return {'documents': documents_list}, 200
+            else:
+                return {'documents': []}, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao listar documentos por associado: {str(e)}")
+        raise APIError("Erro ao consultar documentos", 500, "ERR_DATABASE")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao listar documentos por associado: {str(e)}")
+        raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
+
+
 def documentById(documentId, current_user):
     """Obter dados do documento por pk ou regnumber"""
     try:
@@ -241,14 +281,6 @@ def create_document(data, files, current_user):
                     doc_fields[field] = data.get(
                         f'shipping_{field}', doc_fields[field])
 
-            # Verificar sessão BD antes de inserir (diagnóstico who=null)
-            try:
-                session_check = session.execute(text("SELECT fs_setsession(:sid)"), {"sid": current_user}).scalar()
-                logger.warning(f"📝 Sessão BD re-confirmada: {session_check}")
-            except Exception as sess_err:
-                logger.error(f"🔴 Falha ao re-confirmar sessão BD: {sess_err}")
-                raise APIError("Sessão de base de dados inválida. Faça login novamente.", 401, "ERR_SESSION")
-
             # Gerar PK do documento
             logger.warning("📝 Gerando PK do documento...")
             pk_query = text("SELECT fs_nextcode()")
@@ -280,16 +312,14 @@ def create_document(data, files, current_user):
 
             try:
                 session.execute(insert_query, query_params)
+                # Commit necessário para o trigger DEFERRED gerar o regnumber
                 session.commit()
                 logger.warning(f"✅ Documento inserido com sucesso! PK={pk_result}")
             except IntegrityError as ie:
                 session.rollback()
                 logger.error(f"🔴 IntegrityError ao inserir documento: {str(ie)}")
-                logger.error(f"🔴 Tipo do erro: {type(ie)}")
-                logger.error(f"🔴 Query params que causaram erro: {query_params}")
                 if "unique constraint" in str(ie).lower():
                     raise DuplicateResourceError("Documento", "regnumber", "")
-                # Check constraint (who=null) → sessão BD expirada → 419 para trigger refresh
                 if "check constraint" in str(ie).lower() or "nn05" in str(ie).lower():
                     logger.error(f"🔴 Possível problema de sessão BD (who=null). Session ID: {current_user}")
                     from app.utils.error_handler import InvalidSessionError
@@ -300,13 +330,22 @@ def create_document(data, files, current_user):
             except Exception as db_err:
                 session.rollback()
                 logger.error(f"🔴 Erro genérico ao inserir documento: {str(db_err)}")
-                logger.error(f"🔴 Tipo do erro: {type(db_err)}")
                 raise APIError(f"Erro ao inserir documento no BD: {str(db_err)}", 500, "ERR_DB_INSERT")
 
-            # Obter regnumber e who
+            # O commit acima termina a transação e apaga a variável de sessão PostgreSQL
+            # (fs_setsession é SET LOCAL, válido apenas por transação).
+            # Re-estabelecer antes de consultar vbl_document.
+            session.execute(text("SELECT fs_setsession(:sid)"), {'sid': current_user})
+
+            # Obter regnumber e who (trigger já gerou regnumber após commit)
             reg_query = text(
                 "SELECT regnumber, who FROM vbl_document WHERE pk = :pk")
             result = session.execute(reg_query, {'pk': pk_result}).fetchone()
+            if result is None:
+                raise APIError(
+                    f"Documento criado (PK={pk_result}) mas regnumber não encontrado",
+                    500, "ERR_REGNUMBER"
+                )
             reg_result = result.regnumber
             who = result.who
 
@@ -315,12 +354,17 @@ def create_document(data, files, current_user):
                 reg_result)
 
             file_descriptions = data.getlist('descr')
-            for i, file in enumerate(files[:5]):
+            for i, file in enumerate(files[:10]):
                 filename_query = text("SELECT fs_nextcode()")
                 file_pk = session.execute(filename_query).scalar()
                 description = file_descriptions[i] if i < len(
-                    file_descriptions) else 'file description'
-                extension = os.path.splitext(file.filename)[1]
+                    file_descriptions) else file.filename or 'ficheiro'
+                # Extensão via nome do ficheiro; fallback via MIME type
+                extension = os.path.splitext(file.filename)[1].lower()
+                if not extension:
+                    from app.services.documents.attachments import MIME_TO_EXT
+                    raw_mime = (file.content_type or file.mimetype or '').lower().split(';')[0].strip()
+                    extension = MIME_TO_EXT.get(raw_mime, '.bin')
                 filename = f"{file_pk}{extension}"
                 filepath = os.path.join(anexos_path, filename)
 
@@ -346,7 +390,7 @@ def create_document(data, files, current_user):
                         'descr': description,
                         'filename': filename
                     })
-                    session.commit()
+                    # session.commit()
                 except Exception as ae:
                     logger.error(
                         f"Erro ao registrar anexo {filename}: {str(ae)}")
@@ -506,7 +550,7 @@ def create_document(data, files, current_user):
                 # DEBUG: Log dos parâmetros actualizados
                 logger.info(f"✅ Parâmetros actualizados para documento {pk_result}: {updated_params}")
 
-                session.commit()
+                # session.commit()
 
                 # Calcular invoice após guardar parâmetros
                 TYPE_TO_INVOICE = {
@@ -544,7 +588,7 @@ def create_document(data, files, current_user):
                             savepoint = session.begin_nested()
                             invoice_query = text(f"SELECT {invoice_function}(:pnpk) AS result")
                             invoice_result = session.execute(invoice_query, {'pnpk': pk_result}).scalar()
-                            session.commit()
+                            # session.commit()
                             logger.info(f"💰 Invoice calculado na criação do documento {pk_result}: resultado={invoice_result}")
 
                             # Verificar se o valor foi gravado
@@ -681,7 +725,7 @@ def create_document_direct(ntype, associate, nif, name, phone, email, text_value
                 raise APIError("Falha ao processar pedido",
                                500, "ERR_PROCESSING")
 
-            session.commit()
+            # session.commit()
 
             # Formatar a mensagem de resultado
             formatted_result = format_message(result[0])

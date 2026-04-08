@@ -162,26 +162,17 @@ const AppRoutes = ({ user }) => (
 
         {/* === ROTAS DE DOCUMENTOS === */}
         <Route path="/pedidos-modernos" element={
-        <PrivateRoute requiredPermission={540}>
+        <PrivateRoute requiredPermission="docs.modern">
                 <ModernDocuments />
             </PrivateRoute>
         } />
 
-        <Route path="/documents" element={
-        <PrivateRoute requiredPermission={500}>
-                <DocumentList />
-            </PrivateRoute>
-        } />
-        <Route path="/documents/:id" element={<PrivateRoute><DocumentPage /></PrivateRoute>} />
-        <Route path="/create_document" element={
-            <PrivateRoute requiredPermission={560}><CreateDocument /></PrivateRoute>
-        } />
-    <Route path="/document_owner" element={<PrivateRoute requiredPermission={510}><CreatedByMe /></PrivateRoute>} />
-        <Route path="/document_self" element={
-        <PrivateRoute requiredPermission={520}>
-                <AssignedToMe />
-            </PrivateRoute>
-        } />
+        {/* Rotas legacy de documentos — redireccionam para o módulo moderno */}
+        <Route path="/documents" element={<Navigate to="/pedidos-modernos" replace />} />
+        <Route path="/documents/:id" element={<Navigate to="/pedidos-modernos" replace />} />
+        <Route path="/create_document" element={<Navigate to="/pedidos-modernos" replace />} />
+        <Route path="/document_owner" element={<Navigate to="/pedidos-modernos" replace />} />
+        <Route path="/document_self" element={<Navigate to="/pedidos-modernos" replace />} />
 
         {/* === ROTAS DE PAVIMENTAÇÕES === */}
         <Route path="/ramais" element={<PrivateRoute><PendingPavimentations /></PrivateRoute>} />
@@ -209,7 +200,7 @@ const AppRoutes = ({ user }) => (
 
         {/* === ROTAS DE TAREFAS === */}
         <Route path="/tasks" element={
-        <PrivateRoute requiredPermission={200}>
+        <PrivateRoute requiredPermission={201}>
                 <TaskManagement />
             </PrivateRoute>
         }>

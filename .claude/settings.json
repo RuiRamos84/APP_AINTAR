@@ -43,7 +43,9 @@
       "Bash(find c:Usersrui.ramosDesktopAPPbackend -type f \\\\\\(-name *.md -o -name *.txt -o -name *.rst \\\\\\))",
       "Bash(npm show:*)",
       "Bash(/dev/null:*)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Read(//c/Users/RUI~1.RAM/AppData/Local/Temp/claude/c--Users-rui-ramos-Desktop-APP/09f702b1-13b2-450a-a6e9-17aae2f0a6d0/tasks/**)",
+      "Read(//c/Users/rui.ramos/Desktop/APP/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"

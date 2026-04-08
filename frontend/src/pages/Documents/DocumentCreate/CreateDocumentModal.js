@@ -87,6 +87,7 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
   const [documentTypeParams, setDocumentTypeParams] = useState([]);
   const [isInternal, setIsInternal] = useState(false);
   const [isInterProfile, setIsInterProfile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const steps = ["Entidade e Morada", "Detalhes do Pedido", "Confirmação"];
 
@@ -334,10 +335,12 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
   const handleBack = () => setActiveStep(prev => prev - 1);
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (!validateStep()) {
       notifyError("Campos obrigatórios em falta.");
       return;
     }
+    setIsSubmitting(true);
 
     const allFilesHaveDescription = document.files.every(file => file.description.trim() !== "");
     if (!allFilesHaveDescription) {
@@ -425,6 +428,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
       }
 
       notifyError("Erro ao criar documento: " + errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -744,8 +749,8 @@ const CreateDocumentModal = ({ open, onClose, initialNipc }) => {
             Voltar
           </Button>
           {activeStep === steps.length - 1 ? (
-            <Button onClick={handleSubmit} variant="contained" color="primary">
-              Submeter
+            <Button onClick={handleSubmit} variant="contained" color="primary" disabled={isSubmitting}>
+              {isSubmitting ? 'A submeter...' : 'Submeter'}
             </Button>
           ) : (
             <Button onClick={handleNext} variant="contained" color="primary">

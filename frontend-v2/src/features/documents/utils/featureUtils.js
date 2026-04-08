@@ -12,7 +12,7 @@ import { isDocumentClosed } from './statusUtils';
  * @returns {boolean}
  */
 export function isFeatureAvailable(feature, context) {
-  const { activeTab, document, user } = context || {};
+  const { activeTab, document, user, permissions = {} } = context || {};
 
   switch (feature) {
     case 'viewDetails':
@@ -27,8 +27,8 @@ export function isFeatureAvailable(feature, context) {
       return activeTab === 1 && document != null && !isDocumentClosed(document);
 
     case 'replicate':
-      // Disponível para documentos em tratamento
-      return activeTab === 1 && document != null;
+      // Requer permissão admin.docs.manage
+      return !!permissions.canReplicate && document != null;
 
     case 'downloadComprovativo':
       // Disponível na tab "Criados por Mim" ou se é o criador

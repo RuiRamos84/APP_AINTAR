@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     getDocuments,
+    getDocumentsByAssociate,
     getDocumentsAssignedToMe,
     getDocumentsCreatedByMe,
     downloadComprovativo,
@@ -8,7 +9,9 @@ import {
     getDocumentsLate,
 } from '../../../services/documentService';
 import { useMetaData } from '../../../contexts/MetaDataContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import permissionService from '../../../services/permissionService';
+import { usePermissions } from '../../../contexts/PermissionContext';
 import { documentsCache, metadataCache, cacheUtils } from '../utils/advancedCache';
 import { notifySuccess, notifyError, notifyWarning, notifyInfo } from "../../../components/common/Toaster/ThemedToaster.js";
 
@@ -22,6 +25,13 @@ export const useDocumentsContext = () => useContext(DocumentsContext);
 export const DocumentsProvider = ({ children }) => {
     // Obter metadados do contexto global
     const { metaData } = useMetaData();
+    const { user } = useAuth();
+
+    // Perfis 0 e 1 vêem todos os pedidos; outros vêem apenas os do seu associado
+    const isRestrictedProfile = user?.profil !== '0' && user?.profil !== '1' && user?.profil != null;
+
+    // Aguardar que o catálogo de permissões esteja carregado antes de verificar permissões
+    const { hasPermission: checkPermission, initialized: permissionsReady } = usePermissions();
 
     // Estados
     const [allDocuments, setAllDocuments] = useState([]);
@@ -34,14 +44,25 @@ export const DocumentsProvider = ({ children }) => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     // Função para determinar a tab inicial baseada nas permissões
     const getInitialActiveTab = useCallback(() => {
-        // Verificar permissões na ordem de preferência
-        if (permissionService.hasPermission(500)) return 0;  // docs.view.all - Todos
-        if (permissionService.hasPermission(520)) return 1;  // docs.view.assigned - A meu cargo
-        if (permissionService.hasPermission(510)) return 2;  // docs.view.owner - Por mim criados
+        // Perfis restritos (município) têm sempre tab 0 disponível (filtrada por associado)
+        if (isRestrictedProfile) return 0;
+        if (checkPermission('docs.view.all')) return 0;
+        if (checkPermission('docs.view.assigned')) return 1;
+        if (checkPermission('docs.view.owner')) return 2;
         return 0; // fallback
-    }, []);
+    }, [checkPermission, isRestrictedProfile]);
 
-    const [activeTab, setActiveTab] = useState(getInitialActiveTab);
+    const [activeTab, setActiveTab] = useState(0);
+    const [_initialTabSet, setInitialTabSet] = useState(false);
+
+    // Definir tab inicial após o catálogo de permissões estar pronto
+    useEffect(() => {
+        if (permissionsReady && !_initialTabSet) {
+            setActiveTab(getInitialActiveTab());
+            setInitialTabSet(true);
+        }
+    }, [permissionsReady, _initialTabSet, getInitialActiveTab]);
+
     const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list', ou 'kanban'
     const [lateDocuments, setLateDocuments] = useState([]);
     const [loadingLate, setLoadingLate] = useState(true);
@@ -50,8 +71,9 @@ export const DocumentsProvider = ({ children }) => {
 
     // Funções para buscar documentos com cache
     const fetchAllDocuments = useCallback(async () => {
-        // Verificar permissão antes de fazer a chamada
-        if (!permissionService.hasPermission(500)) {
+        // Perfis restritos usam endpoint filtrado por associado; não precisam de docs.view.all
+        const needsAllPermission = !isRestrictedProfile;
+        if (needsAllPermission && !permissionService.hasPermission('docs.view.all')) {
             setAllDocuments([]);
             setLoadingAll(false);
             return;
@@ -61,30 +83,29 @@ export const DocumentsProvider = ({ children }) => {
         setError(null);
 
         try {
-            // Tentar obter do cache primeiro
-            const cacheKey = 'all_documents';
+            const cacheKey = isRestrictedProfile ? 'associate_documents' : 'all_documents';
             let docs = documentsCache.get(cacheKey);
 
             if (!docs) {
-                // Se não estiver em cache, fazer requisição
-                docs = await getDocuments();
-                // Armazenar em cache por 3 minutos
+                docs = isRestrictedProfile
+                    ? await getDocumentsByAssociate()
+                    : await getDocuments();
                 documentsCache.set(cacheKey, docs);
             }
 
             setAllDocuments(docs || []);
         } catch (err) {
-            console.error('Erro ao buscar todos os documentos:', err);
+            console.error('Erro ao buscar documentos:', err);
             setError('Erro ao carregar documentos. Por favor, tente novamente.');
             notifyError('Erro ao carregar documentos');
         } finally {
             setLoadingAll(false);
         }
-    }, []);
+    }, [isRestrictedProfile]);
 
     const fetchAssignedDocuments = useCallback(async () => {
         // Verificar permissão antes de fazer a chamada
-        if (!permissionService.hasPermission(520)) {
+        if (!permissionService.hasPermission('docs.view.assigned')) {
             setAssignedDocuments([]);
             setLoadingAssigned(false);
             return;
@@ -114,7 +135,7 @@ export const DocumentsProvider = ({ children }) => {
 
     const fetchCreatedDocuments = useCallback(async () => {
         // Verificar permissão antes de fazer a chamada
-        if (!permissionService.hasPermission(510)) {
+        if (!permissionService.hasPermission('docs.view.owner')) {
             setCreatedDocuments([]);
             setLoadingCreated(false);
             return;
@@ -144,7 +165,7 @@ export const DocumentsProvider = ({ children }) => {
 
     const fetchLateDocuments = useCallback(async () => {
         // Verificar permissão antes de fazer a chamada (usa mesma permissão que "Todos")
-        if (!permissionService.hasPermission(500)) {
+        if (!permissionService.hasPermission('docs.view.all')) {
             setLateDocuments([]);
             setLoadingLate(false);
             return;
@@ -200,6 +221,9 @@ export const DocumentsProvider = ({ children }) => {
 
     // ===== CARREGAMENTO INICIAL: Carrega TODAS as tabs =====
     useEffect(() => {
+        // Aguardar que o catálogo de permissões esteja pronto (evita race condition)
+        if (!permissionsReady) return;
+
         if (isInitialLoad) {
             // No primeiro mount, carregar TODAS as tabs com permissões
             const loadAllData = async () => {
@@ -207,16 +231,17 @@ export const DocumentsProvider = ({ children }) => {
                 documentsCache.clear();
 
                 // Carregar sequencialmente (await) para garantir ordem
-                if (permissionService.hasPermission(500)) {
+                // Perfis restritos usam endpoint filtrado (não precisam de docs.view.all)
+                if (isRestrictedProfile || checkPermission('docs.view.all')) {
                     await fetchAllDocuments();
                 }
-                if (permissionService.hasPermission(520)) {
+                if (checkPermission('docs.view.assigned')) {
                     await fetchAssignedDocuments();
                 }
-                if (permissionService.hasPermission(510)) {
+                if (checkPermission('docs.view.owner')) {
                     await fetchCreatedDocuments();
                 }
-                if (permissionService.hasPermission(500)) {
+                if (!isRestrictedProfile && checkPermission('docs.view.all')) {
                     await fetchLateDocuments();
                 }
 
@@ -225,7 +250,7 @@ export const DocumentsProvider = ({ children }) => {
 
             loadAllData();
         }
-    }, [isInitialLoad]);
+    }, [isInitialLoad, permissionsReady, isRestrictedProfile, checkPermission, fetchAllDocuments, fetchAssignedDocuments, fetchCreatedDocuments, fetchLateDocuments]);
 
     // ===== LAZY LOADING: Depois do mount inicial, carregar apenas a tab ativa =====
     useEffect(() => {
@@ -233,22 +258,22 @@ export const DocumentsProvider = ({ children }) => {
             // Após primeiro carregamento, carregar apenas a tab ativa quando mudar
             switch (activeTab) {
                 case 0:
-                    if (permissionService.hasPermission(500)) {
+                    if (permissionService.hasPermission('docs.view.all')) {
                         fetchAllDocuments();
                     }
                     break;
                 case 1:
-                    if (permissionService.hasPermission(520)) {
+                    if (permissionService.hasPermission('docs.view.assigned')) {
                         fetchAssignedDocuments();
                     }
                     break;
                 case 2:
-                    if (permissionService.hasPermission(510)) {
+                    if (permissionService.hasPermission('docs.view.owner')) {
                         fetchCreatedDocuments();
                     }
                     break;
                 case 3:
-                    if (permissionService.hasPermission(500)) {
+                    if (!isRestrictedProfile && permissionService.hasPermission('docs.view.all')) {
                         fetchLateDocuments();
                     }
                     break;

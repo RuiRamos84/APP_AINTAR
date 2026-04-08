@@ -201,6 +201,21 @@ def create_checkout():
     if not all(k in data for k in required):
         return jsonify({"error": f"Campos obrigatórios: {required}"}), 400
 
+    # Garantir que amount é numérico e > 0 antes do Pydantic
+    try:
+        amount_val = float(data.get("amount", 0) or 0)
+    except (ValueError, TypeError):
+        amount_val = 0
+
+    if amount_val <= 0:
+        return jsonify({
+            "success": False,
+            "error": "O valor do pagamento deve ser superior a 0€. Verifique se a fatura foi calculada correctamente."
+        }), 400
+
+    # Normalizar amount para float (evita string '0' vinda da serialização Decimal)
+    data["amount"] = amount_val
+
     # ✅ VERIFICAR PERMISSÃO PARA O MÉTODO ESPECÍFICO
     payment_method = data.get("payment_method")
     has_permission, user_id, user_profile = check_payment_method_permission(

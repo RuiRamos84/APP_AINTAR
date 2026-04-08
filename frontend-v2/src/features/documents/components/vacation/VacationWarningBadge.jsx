@@ -20,7 +20,7 @@ const VacationWarningBadge = ({ userId, userName, size = 'small' }) => {
       try {
         const result = await documentsService.checkVacationStatus(userId);
         if (!cancelled) {
-          setVacationStatus(typeof result === 'object' ? result.vacation_status : result);
+          setVacationStatus(typeof result === 'object' ? result.vacation : result);
         }
       } catch (err) {
         console.error('Erro ao verificar férias:', err);

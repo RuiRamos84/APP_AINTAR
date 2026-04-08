@@ -29,6 +29,7 @@ import {
   Map as MapIcon,
   Download as DownloadIcon,
   FileCopy as FileCopyIcon,
+  LockOpen as ReopenIcon,
   Receipt as ReceiptIcon,
   CalendarToday as CalendarIcon,
   Phone as PhoneIcon,
@@ -44,9 +45,11 @@ import {
   History as HistoryIcon,
 } from '@mui/icons-material';
 import WorkflowViewer from './tabs/WorkflowViewer';
-import { useDocumentDetails, useDocumentSteps, useDownloadComprovativo } from '../../hooks/useDocuments';
+import { useDocumentDetails, useDocumentSteps, useDownloadComprovativo, useReopenDocument } from '../../hooks/useDocuments';
 import { useMetaData } from '@/core/hooks/useMetaData';
+import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { getStatusColor, getStatusLabel, formatDate } from '../../utils/documentUtils';
+import { isDocumentClosed } from '../../utils/statusUtils';
 import DocumentTimeline from './DocumentTimeline';
 import DocumentAnnexes from './DocumentAnnexes';
 import AddStepModal from '../modals/AddStepModal';
@@ -139,6 +142,11 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const { data: steps, isLoading: isLoadingSteps } = useDocumentSteps(documentPk);
   const { data: metaData } = useMetaData();
   const downloadComprovativo = useDownloadComprovativo();
+  const reopenDocument = useReopenDocument();
+  const { hasPermission } = usePermissionContext();
+  const canReplicate = hasPermission('admin.docs.manage');
+  const canReopen = hasPermission('admin.docs.reopen');
+  const canDownloadComprovativo = isCreator || hasPermission('docs.view.owner');
 
   const findMetaValue = (metaArray, key, value) => {
     if (!metaArray || value === null || value === undefined) return value;
@@ -960,7 +968,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         flexWrap: 'wrap',
       }}>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          {isCreator && (
+          {canDownloadComprovativo && (
             <Button
               variant="outlined"
               size="small"
@@ -972,7 +980,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               {isMobile ? 'Comprov.' : 'Comprovativo'}
             </Button>
           )}
-          {isOwner && (
+          {canReplicate && (
             <Button
               variant="outlined"
               size="small"
@@ -982,6 +990,19 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
             >
               Replicar
+            </Button>
+          )}
+          {canReopen && document && isDocumentClosed(document) && (
+            <Button
+              variant="outlined"
+              size="small"
+              color="warning"
+              startIcon={reopenDocument.isPending ? <CircularProgress size={16} /> : <ReopenIcon />}
+              onClick={() => documentRegNumber && reopenDocument.mutate(documentRegNumber, { onSuccess: onActionSuccess })}
+              disabled={reopenDocument.isPending}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+            >
+              Reabrir
             </Button>
           )}
         </Box>

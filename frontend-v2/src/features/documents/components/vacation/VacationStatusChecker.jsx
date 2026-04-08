@@ -41,7 +41,7 @@ const VacationStatusChecker = ({
         setError(null);
         try {
           const result = await documentsService.checkVacationStatus(userId);
-          setVacationStatus(typeof result === 'object' ? result.vacation_status : result);
+          setVacationStatus(typeof result === 'object' ? result.vacation : result);
         } catch (err) {
           console.error('Erro ao verificar status de férias:', err);
           setError('Não foi possível verificar o status de disponibilidade');

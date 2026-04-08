@@ -1,14 +1,28 @@
-import React from 'react';
-import { Grid, Box, Typography, alpha, useTheme, useMediaQuery, Fade } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Grid, Box, Typography, alpha, useTheme, useMediaQuery, Fade, TablePagination } from '@mui/material';
 import { SearchOff as EmptyIcon } from '@mui/icons-material';
 import DocumentCard from './DocumentCard';
 
 /**
  * Grid View container - Responsive with staggered animation
  */
-const DocumentGrid = ({ documents, loading, onViewDetails, metaData }) => {
+const DocumentGrid = ({ documents, loading, onViewDetails, metaData, animated = true }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(24);
+
+  // Reset to first page whenever the document list changes
+  useEffect(() => { setPage(0); }, [documents]);
+
+  const handleChangePage = (_, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (e) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  };
+
+  const paginated = (documents || []).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   if (!documents || documents.length === 0) {
     return (
@@ -47,20 +61,36 @@ const DocumentGrid = ({ documents, loading, onViewDetails, metaData }) => {
   }
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 } }}>
-      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
-        {documents.map((doc, index) => (
-          <Fade
-            in
-            timeout={300 + Math.min(index, 11) * 50}
-            key={doc.pk}
-          >
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
-              <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} />
-            </Grid>
-          </Fade>
-        ))}
-      </Grid>
+    <Box>
+      <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 } }}>
+        <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
+          {paginated.map((doc, index) => (
+            animated ? (
+              <Fade in timeout={300 + Math.min(index, 11) * 50} key={doc.pk}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
+                  <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} />
+                </Grid>
+              </Fade>
+            ) : (
+              <Grid key={doc.pk} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
+                <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} />
+              </Grid>
+            )
+          ))}
+        </Grid>
+      </Box>
+      <TablePagination
+        component="div"
+        count={documents.length}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[12, 24, 48, 96]}
+        labelRowsPerPage="Por página:"
+        labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+        sx={{ borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}
+      />
     </Box>
   );
 };

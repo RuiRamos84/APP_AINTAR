@@ -65,7 +65,11 @@ export default function ObrasForm({ open, onClose, onSubmit, obra, meta }) {
 
   const instalacoesFiltradas = useMemo(() => {
     if (!selectedAssociateName) return [];
-    return instalacao.filter((i) => i.ts_entity === selectedAssociateName);
+    // ts_entity nas ETARs/EEs é nome curto (ex: "Tondela");
+    // vsl_associate.name é nome completo (ex: "Município de Tondela")
+    return instalacao.filter(
+      (i) => i.ts_entity && selectedAssociateName.includes(i.ts_entity)
+    );
   }, [instalacao, selectedAssociateName]);
 
   // Auto-gerar nome quando tipo é ETAR/EEAR e instalação está selecionada (apenas em criação)

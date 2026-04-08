@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useDeferredValue, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { useQueryClient, useIsFetching } from '@tanstack/react-query';
 import DocumentsLayout from './DocumentsLayout';
@@ -11,6 +11,8 @@ import { filterDocuments, sortDocuments } from '../utils/documentUtils';
 import LateDocumentsAlert from '../components/alerts/LateDocumentsAlert';
 import { exportDocumentsToExcel } from '../utils/excelExport';
 import { useMetaData } from '@/core/hooks/useMetaData';
+import { useAuth } from '@/core/contexts/AuthContext';
+import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import KeyboardShortcutsHelp from '../components/keyboard/KeyboardShortcutsHelp';
 
@@ -36,6 +38,28 @@ const DocumentsPage = () => {
   } = useDocumentsStore();
 
   const { data: metaData } = useMetaData();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissionContext();
+
+  // Perfis 0 (super admin) e 1 (admin) vêem todos os pedidos.
+  // Outros perfis (ex: município) vêem apenas os do seu associado.
+  const isRestrictedProfile = useMemo(() => {
+    if (!user) return null; // ainda a carregar — não sabemos
+    const profil = String(user.profil ?? '');
+    return profil !== '0' && profil !== '1';
+  }, [user]);
+
+  // Redirecionar para tab 0 se o user não tem permissão para a tab activa
+  useEffect(() => {
+    if (isRestrictedProfile === null) return; // user ainda a carregar
+    if (activeTab === 3 && (isRestrictedProfile || !hasPermission('docs.view.all'))) {
+      useDocumentsStore.getState().setActiveTab(0);
+    } else if (activeTab === 1 && !hasPermission('docs.view.assigned')) {
+      useDocumentsStore.getState().setActiveTab(0);
+    } else if (activeTab === 2 && !hasPermission('docs.view.owner')) {
+      useDocumentsStore.getState().setActiveTab(0);
+    }
+  }, [isRestrictedProfile, activeTab, hasPermission]);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -43,18 +67,20 @@ const DocumentsPage = () => {
   // Defer search input to avoid blocking render on every keystroke
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
-  // Determine which API to call based on activeTab
+  // Determine which API to call based on activeTab.
+  // null = ainda a carregar o user, não fazer fetch.
   const queryType = useMemo(() => {
+    if (isRestrictedProfile === null) return null;
     switch (activeTab) {
-      case 1: return 'assigned';
-      case 2: return 'created';
-      case 3: return 'late';
-      default: return 'all';
+      case 1: return hasPermission('docs.view.assigned') ? 'assigned' : null;
+      case 2: return hasPermission('docs.view.owner') ? 'created' : null;
+      case 3: return (!isRestrictedProfile && hasPermission('docs.view.all')) ? 'late' : null;
+      default: return isRestrictedProfile ? 'associate' : 'all';
     }
-  }, [activeTab]);
+  }, [activeTab, isRestrictedProfile, hasPermission]);
 
-  // Fetch Data
-  const { data: documents, isLoading, error } = useDocuments(queryType);
+  // Fetch Data — enabled:false enquanto user não estiver disponível
+  const { data: documents, isLoading, error } = useDocuments(queryType, { enabled: queryType !== null });
 
   // Client-side Filter & Sort (deferredSearchTerm avoids blocking on every keystroke)
   const processedDocuments = useMemo(() => {
@@ -124,13 +150,14 @@ const DocumentsPage = () => {
               <LateDocumentsAlert documents={documents} />
             )}
 
-            {/* Tab "A Meu Cargo" em modo lista → agrupado por estado */}
-            {activeTab === 1 && viewMode === 'list' ? (
+            {/* Tab "A Meu Cargo" → agrupado por estado (lista ou grelha) */}
+            {activeTab === 1 ? (
               <DocumentGroupedList
                 documents={processedDocuments}
                 loading={isLoading}
                 metaData={metaData}
                 onViewDetails={handleViewDetails}
+                viewMode={viewMode}
               />
             ) : viewMode === 'list' ? (
               <DocumentList

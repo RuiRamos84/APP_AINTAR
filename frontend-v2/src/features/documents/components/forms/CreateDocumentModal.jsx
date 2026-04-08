@@ -148,7 +148,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
   
   // Permissions
   const { isAdmin, hasPermission } = usePermissionContext();
-  const isInterProfile = isAdmin() || hasPermission('can_create_internal_documents');
+  const isInterProfile = isAdmin() || hasPermission('docs.create');
 
   // Dynamic Params Hook (now receives entityData for statistics)
   const { 

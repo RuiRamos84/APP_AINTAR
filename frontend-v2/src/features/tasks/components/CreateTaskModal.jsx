@@ -30,6 +30,7 @@ import PropTypes from 'prop-types';
 // Hooks
 import { useTasks } from '../hooks/useTasks';
 import { useWhoList } from '@/core/hooks/useMetaData';
+import { useVacationChecker } from '@/features/documents/hooks/useVacationChecker.jsx';
 
 /**
  * CreateTaskModal Component
@@ -39,6 +40,7 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { createTask, loading } = useTasks({ autoFetch: false });
   const { data: clients } = useWhoList();
+  const { checkUserVacation, VacationDialog } = useVacationChecker();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -121,6 +123,7 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={handleClose}
@@ -164,7 +167,15 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
             options={clients}
             getOptionLabel={(option) => option.name || ''}
             value={clients.find((c) => c.pk === formData.client) || null}
-            onChange={(_, newValue) => handleChange('client', newValue?.pk || null)}
+            onChange={(_, newValue) => {
+              if (!newValue) {
+                handleChange('client', null);
+                return;
+              }
+              checkUserVacation(newValue.pk, newValue.name, () => {
+                handleChange('client', newValue.pk || null);
+              });
+            }}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -234,6 +245,8 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
         </Button>
       </DialogActions>
     </Dialog>
+    {VacationDialog}
+    </>
   );
 };
 

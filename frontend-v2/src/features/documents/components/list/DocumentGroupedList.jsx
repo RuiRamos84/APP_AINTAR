@@ -10,13 +10,14 @@ import {
 } from '@mui/material';
 import { NotificationsActive as NotifIcon } from '@mui/icons-material';
 import DocumentList from './DocumentList';
+import DocumentGrid from '../card/DocumentGrid';
 import { getStatusColor, getStatusLabel } from '../../utils/documentUtils';
 
 /**
  * Grouped list of documents by status (what), shown as tabs.
  * Used in "A Meu Cargo" tab.
  */
-const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData }) => {
+const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData, viewMode = 'list' }) => {
   const theme = useTheme();
   const [selectedStatus, setSelectedStatus] = useState(null); // null = first group
 
@@ -132,7 +133,7 @@ const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData }) =>
         </Tabs>
       </Box>
 
-      {/* Document list for the selected state */}
+      {/* Documents for the selected state — list or grid */}
       <Box
         sx={{
           flexGrow: 1,
@@ -143,12 +144,23 @@ const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData }) =>
           overflow: 'hidden',
         }}
       >
-        <DocumentList
-          documents={activeDocs}
-          loading={loading}
-          onViewDetails={onViewDetails}
-          metaData={metaData}
-        />
+        {viewMode === 'grid' ? (
+          <DocumentGrid
+            key={activeKey}
+            documents={activeDocs}
+            loading={loading}
+            onViewDetails={onViewDetails}
+            metaData={metaData}
+            animated={false}
+          />
+        ) : (
+          <DocumentList
+            documents={activeDocs}
+            loading={loading}
+            onViewDetails={onViewDetails}
+            metaData={metaData}
+          />
+        )}
       </Box>
     </Box>
   );

@@ -10,7 +10,6 @@ export const useObrasStore = create(
       immer((set, get) => ({
         // ─── Data ────────────────────────────────────────────────────────────
         obras: [],
-        meta: null, // { tipo_obra, despesaobra, urgencia, associates, instalacao }
 
         // ─── UI ──────────────────────────────────────────────────────────────
         loading: false,
@@ -23,11 +22,6 @@ export const useObrasStore = create(
             state.obras = obras;
             state.loading = false;
             state.error = null;
-          }),
-
-        setMeta: (meta) =>
-          set((state) => {
-            state.meta = meta;
           }),
 
         addObra: (obra) =>

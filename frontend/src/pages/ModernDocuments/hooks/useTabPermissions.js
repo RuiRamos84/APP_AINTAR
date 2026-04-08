@@ -1,26 +1,33 @@
 import { useMemo } from 'react';
-import permissionService from '../../../services/permissionService';
+import { usePermissionContext } from '../../../contexts/PermissionContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 /**
  * Hook para verificar permissões das tabs de documentos modernos
- * Baseado no sistema de permissões existente dos componentes tradicionais
+ * Usa o PermissionContext para garantir que re-avalia após o catálogo carregar.
  */
 export const useTabPermissions = () => {
+    const { hasPermission } = usePermissionContext();
+    const { user } = useAuth();
+
+    // Perfis restritos (município, etc.) vêem tab "Todos" filtrada pelo associado
+    const isRestrictedProfile = user?.profil !== '0' && user?.profil !== '1' && user?.profil != null;
+
     const tabPermissions = useMemo(() => {
         return {
-            // Tab 0: Todos os documentos - requer permissão para ver todos
-            all: permissionService.hasPermission(500), // docs.view.all
+            // Tab 0: Perfis restritos vêem apenas o seu associado; admins vêem tudo
+            all: isRestrictedProfile || hasPermission('docs.view.all'),
 
             // Tab 1: Documentos atribuídos ao utilizador - requer permissão para ver atribuídos
-            assigned: permissionService.hasPermission(520), // docs.view.assigned
+            assigned: hasPermission('docs.view.assigned'),
 
             // Tab 2: Documentos criados pelo utilizador - requer permissão para ver próprios
-            created: permissionService.hasPermission(510), // docs.view.owner
+            created: hasPermission('docs.view.owner'),
 
-            // Tab 3: Documentos em atraso - requer pelo menos permissão para ver todos
-            late: permissionService.hasPermission(500) // docs.view.all (mesmo que "Todos")
+            // Tab 3: Apenas perfis 0 e 1 — independentemente das permissões atribuídas
+            late: !isRestrictedProfile && hasPermission('docs.view.all')
         };
-    }, []);
+    }, [hasPermission, isRestrictedProfile]); // re-avalia quando o catálogo ou utilizador mudam
 
     /**
      * Obtém lista de tabs visíveis baseado nas permissões
@@ -33,7 +40,7 @@ export const useTabPermissions = () => {
                 index: 0,
                 key: 'all',
                 label: 'Todos',
-                permission: 500
+                permission: 'docs.view.all'
             });
         }
 
@@ -42,7 +49,7 @@ export const useTabPermissions = () => {
                 index: visibleTabs.length,
                 key: 'assigned',
                 label: 'A meu cargo',
-                permission: 520
+                permission: 'docs.view.assigned'
             });
         }
 
@@ -51,7 +58,7 @@ export const useTabPermissions = () => {
                 index: visibleTabs.length,
                 key: 'created',
                 label: 'Por mim criados',
-                permission: 510
+                permission: 'docs.view.owner'
             });
         }
 
@@ -60,7 +67,7 @@ export const useTabPermissions = () => {
                 index: visibleTabs.length,
                 key: 'late',
                 label: 'Prazo excedido',
-                permission: 500
+                permission: 'docs.view.all'
             });
         }
 

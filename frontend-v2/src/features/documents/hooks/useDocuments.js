@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsService } from '../api/documentsService';
 import { toast } from 'sonner';
+import { useAuth } from '@/core/contexts/AuthContext';
 
 // Query Keys
 export const documentKeys = {
@@ -20,18 +21,24 @@ export const documentKeys = {
  * @param {string} type 'all' | 'assigned' | 'created' | 'late'
  */
 export const useDocuments = (type = 'all', options = {}) => {
+  const { user } = useAuth();
+  const userId = user?.user_id ?? null;
+
   return useQuery({
-    queryKey: documentKeys.list(type),
+    // Incluir userId na key — garante cache separado por utilizador
+    queryKey: [...documentKeys.list(type), userId],
     queryFn: async () => {
       switch (type) {
-        case 'assigned':  return documentsService.fetchAssigned();
-        case 'created':   return documentsService.fetchCreated();
-        case 'late':      return documentsService.fetchLate();
+        case 'assigned':   return documentsService.fetchAssigned();
+        case 'created':    return documentsService.fetchCreated();
+        case 'late':       return documentsService.fetchLate();
+        case 'associate':  return documentsService.fetchByAssociate();
         case 'all':
-        default:          return documentsService.fetchAll();
+        default:           return documentsService.fetchAll();
       }
     },
     staleTime: 1000 * 60 * 2, // 2 minutes
+    enabled: type !== null,
     ...options,
   });
 };
@@ -171,6 +178,24 @@ export const useReplicateDocument = () => {
     },
     onError: (error) => {
       toast.error('Erro ao replicar pedido: ' + (error.response?.data?.error || error.message));
+    },
+  });
+};
+
+/**
+ * Hook to reopen a closed document
+ */
+export const useReopenDocument = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (regnumber) => documentsService.reopen(regnumber),
+    onSuccess: () => {
+      toast.success('Pedido reaberto com sucesso');
+      queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error('Erro ao reabrir pedido: ' + (error.response?.data?.error || error.message));
     },
   });
 };

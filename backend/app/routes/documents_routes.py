@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, g, current_app, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, decode_token
 from ..services.documents import (
     list_documents,
+    list_documents_by_associate,
     create_document,
     get_document_steps,
     get_document_anex_steps,
@@ -41,7 +42,7 @@ from app.utils.error_handler import api_error_handler
 
 bp = Blueprint('documents_routes', __name__)
 
-from app.utils.permissions_decorator import require_permission
+from app.utils.permissions_decorator import require_permission, require_any_permission
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -74,7 +75,7 @@ def get_documents():
 @bp.route('/document/<string:documentId>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(500)  # docs.view (usar docs.view.all como base) # Protege o acesso direto a um documento
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @set_session
 @api_error_handler
 def documentById_route(documentId):
@@ -101,6 +102,24 @@ def documentById_route(documentId):
     current_user = get_jwt_identity()
     with db_session_manager(current_user):
         return documentById(documentId, current_user)
+
+
+@bp.route('/documents/by-associate', methods=['GET'])
+@jwt_required()
+@token_required
+@require_any_permission(500, 510, 520)  # qualquer permissão de visualização
+@set_session
+@api_error_handler
+def get_documents_by_associate():
+    """Listar documentos do mesmo associado (município) do utilizador"""
+    from flask_jwt_extended import get_jwt
+    current_user = get_jwt_identity()
+    jwt_data = get_jwt()
+    entity_pk = jwt_data.get('entity')
+    user_profil = jwt_data.get('profil')
+    logger.info(f"[by-associate] user={current_user} profil={user_profil} entity_pk={entity_pk}")
+    with db_session_manager(current_user):
+        return list_documents_by_associate(current_user, entity_pk)
 
 
 @bp.route('/document_self', methods=['GET'])
@@ -142,7 +161,7 @@ def check_vacation_status_route(user_pk):
 @bp.route('/step_hierarchy/<int:dockty_id>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(500)  # docs.view (usar docs.view.all como base) # Acesso à estrutura de um tipo de pedido
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @set_session
 @api_error_handler
 def check_step_hierarchy(dockty_id):
@@ -200,10 +219,9 @@ def create_new_document():
         description: Documento Formado e Ingressado com Sucesso.
     """
     current_user = get_jwt_identity()
-    with db_session_manager(current_user):
-        data = request.form
-        files = request.files.getlist('files')
-        return create_document(data, files, current_user)
+    data = request.form
+    files = request.files.getlist('files')
+    return create_document(data, files, current_user)
 
 
 @bp.route('/update_document_notification/<int:pk>', methods=['PUT'])
@@ -246,7 +264,7 @@ def get_document_owner():
 @bp.route('/get_document_step/<int:pk>', methods=['GET'])
 @limiter.exempt
 @jwt_required()
-@require_permission(500)  # docs.view (usar docs.view.all como base) # Permissão genérica para ver detalhes de um pedido
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @token_required
 @set_session
 @api_error_handler
@@ -259,7 +277,7 @@ def get_document_step(pk):
 
 @bp.route('/document/<int:document_id>/params', methods=['GET'])
 @jwt_required()
-@require_permission(500)  # docs.view (usar docs.view.all como base)
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @token_required
 @set_session
 @api_error_handler
@@ -272,7 +290,7 @@ def get_document_params(document_id):
 
 @bp.route('/document/<int:document_id>/params', methods=['PUT'])
 @jwt_required()
-@require_permission(50)  # admin.docs.manage # Apenas admins podem alterar parâmetros
+@require_permission(520)  # docs.view.assigned — quem tem o pedido em sua posse
 @token_required
 @set_session
 @api_error_handler
@@ -286,7 +304,7 @@ def update_document_params_route(document_id):
 @bp.route('/get_document_anex/<int:pk>', methods=['GET'])
 @limiter.exempt
 @jwt_required()
-@require_permission(500)  # docs.view (usar docs.view.all como base)
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @token_required
 @set_session
 @api_error_handler
@@ -314,7 +332,7 @@ def add_document_steps(pk):
 
 @bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
 @jwt_required()
-@require_permission(500)  # docs.view (usar docs.view.all como base)
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @token_required
 @set_session
 @api_error_handler
@@ -342,7 +360,7 @@ def add_document_annex_endpoint():
 
 @bp.route('/entity_count_types/<int:pk>', methods=['GET'])
 @jwt_required()
-@require_permission(500)  # docs.view (usar docs.view.all como base)
+@require_any_permission(500, 510, 520)  # docs.view.all | docs.view.owner | docs.view.assigned
 @token_required
 @set_session
 @api_error_handler

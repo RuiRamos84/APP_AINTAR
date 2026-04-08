@@ -7,7 +7,7 @@
  *  - Mostra apenas obras desta instalação
  *  - Inclui sub-tab de despesas de obras desta instalação
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Button, Tab, Tabs, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, IconButton,
@@ -23,7 +23,7 @@ import {
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'sonner';
-import { fetchMetaData } from '@/services/metadataService';
+import { useMetaData } from '@/core/hooks/useMetaData';
 import * as svc from '../services/obrasService';
 
 const formatDate = (d) =>
@@ -374,7 +374,6 @@ function DespesaDialog({ open, onClose, onSubmit, despesa, meta, obras }) {
 
 export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
   const tipoObraId = INSTALACAO_TIPO_MAP[type] ?? 1;
-  const [meta, setMeta] = useState(null);
   const [obras, setObras] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -384,18 +383,17 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
   const [despesaDialog, setDespesaDialog] = useState(false);
   const [editDespesa, setEditDespesa] = useState(null);
 
-  // Carregar meta uma vez
-  useEffect(() => {
-    fetchMetaData().then((res) => {
-      setMeta({
-        tipoObra: res?.tipo_obra ?? [],
-        despesaobra: res?.despesaobra ?? [],
-        urgencia: res?.urgencia ?? [],
-        associates: res?.associates ?? [],
-        instalacao: res?.instalacao ?? [],
-      });
-    }).catch(() => {});
-  }, []);
+  const { data: metaRaw } = useMetaData();
+  const meta = useMemo(() => {
+    if (!metaRaw) return null;
+    return {
+      tipoObra:    metaRaw.tipo_obra   ?? [],
+      despesaobra: metaRaw.despesaobra ?? [],
+      urgencia:    metaRaw.urgencia    ?? [],
+      associates:  metaRaw.associates  ?? [],
+      instalacao:  [...(metaRaw.etar ?? []), ...(metaRaw.ee ?? [])],
+    };
+  }, [metaRaw]);
 
   const tipoObraLabel = meta?.tipoObra?.find((t) => t.pk === tipoObraId)?.value ?? (type === 'etar' ? 'ETAR' : 'EEAR');
 

@@ -56,6 +56,16 @@ export const getDocuments = async () => {
   }
 };
 
+export const getDocumentsByAssociate = async () => {
+  try {
+    const response = await api.get("/documents/by-associate");
+    return handleResponse(response);
+  } catch (error) {
+    console.error("Erro ao buscar documentos por associado:", error);
+    throw error;
+  }
+};
+
 // Corrigir o serviço para usar o formato correto
 export const getDocumentById = async (documentId) => {
   try {

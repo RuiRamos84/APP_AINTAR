@@ -225,6 +225,8 @@ const DocumentList = ({ documents, loading, onViewDetails, metaData }) => {
         density="comfortable"
         disableRowSelectionOnClick
         disableColumnMenu
+        pageSizeOptions={[25, 50, 100]}
+        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
         sx={{
           border: 'none',

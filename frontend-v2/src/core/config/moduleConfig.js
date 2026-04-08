@@ -62,7 +62,8 @@ export const MODULES = {
     order: 3,
     permissions: {
       required: [
-        'docs.view.all',      // Pedidos
+        'docs.modern',        // Acesso ao módulo de pedidos (inclui municípios)
+        'docs.view.all',      // Ver todos os pedidos
         'pav.view',           // Pavimentações
         'tasks.view',         // Área interna
         'entities.view',      // Entidades
@@ -80,13 +81,11 @@ export const MODULES = {
     order: 4,
     permissions: {
       required: [
-        'epi.view',
-        'rh.view',
-        'aval.view',
+        'rh.view',  // porta de entrada — obrigatório para aceder ao módulo
       ]
     },
     description: 'Avaliações de desempenho, recursos humanos e gestão de EPI',
-    defaultRoute: '/epi',
+    defaultRoute: '/rh/pessoal',
   },
 
   PAGAMENTOS: {

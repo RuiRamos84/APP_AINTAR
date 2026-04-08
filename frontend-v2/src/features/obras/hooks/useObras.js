@@ -1,35 +1,33 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useObrasStore } from '../store/obrasStore';
 import * as svc from '../services/obrasService';
-import { fetchMetaData } from '@/services/metadataService';
+import { useMetaData } from '@/core/hooks/useMetaData';
 
 export const useObras = ({ fetchOnMount = true } = {}) => {
   const {
-    obras, meta, loading, error, filters,
-    setObras, setMeta, setLoading, setError,
+    obras, loading, error, filters,
+    setObras, setLoading, setError,
     addObra, updateObraInList, removeObra,
     setFilter, resetFilters,
     getFilteredObras,
   } = useObrasStore();
 
-  // ─── Meta ──────────────────────────────────────────────────────────────────
+  // ─── Meta (via React Query — sem Zustand, sem stale state) ─────────────────
 
-  const fetchMeta = useCallback(async () => {
-    if (meta) return;
-    try {
-      const res = await fetchMetaData();
-      setMeta({
-        tipoObra: res?.tipo_obra ?? [],
-        despesaobra: res?.despesaobra ?? [],
-        urgencia: res?.urgencia ?? [],
-        associates: res?.associates ?? [],
-        instalacao: res?.instalacao ?? [],
-      });
-    } catch {
-      // meta não crítico
-    }
-  }, [meta, setMeta]);
+  const { data: metaRaw } = useMetaData();
+
+  const meta = useMemo(() => {
+    if (!metaRaw) return null;
+    return {
+      tipoObra:    metaRaw.tipo_obra   ?? [],
+      despesaobra: metaRaw.despesaobra ?? [],
+      urgencia:    metaRaw.urgencia    ?? [],
+      associates:  metaRaw.associates  ?? [],
+      // vbl_instalacao não tem ts_entity; vbl_etar + vbl_ee têm
+      instalacao:  [...(metaRaw.etar ?? []), ...(metaRaw.ee ?? [])],
+    };
+  }, [metaRaw]);
 
   // ─── Obras ─────────────────────────────────────────────────────────────────
 
@@ -110,14 +108,13 @@ export const useObras = ({ fetchOnMount = true } = {}) => {
   useEffect(() => {
     if (fetchOnMount) {
       fetchObras();
-      fetchMeta();
     }
   }, []); // eslint-disable-line
 
   return {
     obras, meta, loading, error, filters,
     filteredObras: getFilteredObras(),
-    fetchObras, fetchMeta,
+    fetchObras,
     setFilter, resetFilters,
     createObra, updateObra, deleteObra,
     createDespesa, updateDespesa,

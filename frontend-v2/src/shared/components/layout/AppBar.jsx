@@ -17,9 +17,11 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Badge,
   Tooltip,
   Divider,
   ListItemIcon,
+  Switch,
   useMediaQuery,
   useTheme,
   Tabs,
@@ -36,8 +38,11 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LockIcon from '@mui/icons-material/Lock';
 import SettingsIcon from '@mui/icons-material/Settings';
+import BeachAccessIcon from '@mui/icons-material/BeachAccess';
+import WorkIcon from '@mui/icons-material/Work';
 import { useUIStore } from '@/core/store/uiStore';
 import { useAuth } from '@/core/contexts/AuthContext';
+import logoSrc from '/logo.png';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useNavigate } from 'react-router-dom';
 import { getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
@@ -55,7 +60,7 @@ export const AppBar = ({ onMenuClick }) => {
 
   const scrolled = useNavbarCompact();
 
-  const { user, logoutUser } = useAuth();
+  const { user, logoutUser, toggleVacationStatus } = useAuth();
   const { hasPermission, hasAnyPermission } = usePermissionContext();
   const navigate = useNavigate();
 
@@ -82,6 +87,11 @@ export const AppBar = ({ onMenuClick }) => {
   const handleLogout = async () => {
     handleCloseMenu();
     try { await logoutUser(); } catch (error) { console.error('[AppBar] Logout error:', error); }
+  };
+
+  const handleToggleVacation = async (e) => {
+    e.stopPropagation();
+    try { await toggleVacationStatus(); } catch (error) { console.error('[AppBar] Toggle vacation error:', error); }
   };
 
   const handleModuleChange = (_event, newModuleId) => {
@@ -151,7 +161,7 @@ export const AppBar = ({ onMenuClick }) => {
           >
             <Box
               component="img"
-              src="/logo.png"
+              src={logoSrc}
               alt="AINTAR"
               sx={{ height: logoHeight, width: 'auto', transition: 'height 0.35s ease' }}
             />
@@ -251,29 +261,39 @@ export const AppBar = ({ onMenuClick }) => {
         )}
 
         {/* Avatar / menu utilizador */}
-        <Tooltip title="Conta">
+        <Tooltip title={user?.vacation ? 'Conta (de férias)' : 'Conta'}>
           <IconButton
             onClick={handleOpenMenu}
             sx={{
               p: 0.5,
-              border: `2px solid ${accentColor ? alpha(accentColor, 0.4) : alpha(theme.palette.primary.main, 0.2)}`,
+              border: `2px solid ${user?.vacation ? alpha(theme.palette.warning.main, 0.5) : accentColor ? alpha(accentColor, 0.4) : alpha(theme.palette.primary.main, 0.2)}`,
               borderRadius: '50%',
               transition: 'all 0.35s ease',
-              '&:hover': { borderColor: accentColor || theme.palette.primary.main },
+              '&:hover': { borderColor: user?.vacation ? theme.palette.warning.main : accentColor || theme.palette.primary.main },
             }}
           >
-            <Avatar
-              sx={{
-                width: avatarSize,
-                height: avatarSize,
-                bgcolor: accentColor || theme.palette.primary.main,
-                fontSize: scrolled ? '0.75rem' : '0.85rem',
-                fontWeight: 'bold',
-                transition: 'all 0.35s ease',
-              }}
+            <Badge
+              overlap="circular"
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              badgeContent={
+                user?.vacation
+                  ? <BeachAccessIcon sx={{ fontSize: 12, color: 'warning.main', bgcolor: 'background.paper', borderRadius: '50%' }} />
+                  : null
+              }
             >
-              {getInitials(user?.user_name)}
-            </Avatar>
+              <Avatar
+                sx={{
+                  width: avatarSize,
+                  height: avatarSize,
+                  bgcolor: user?.vacation ? 'warning.main' : accentColor || theme.palette.primary.main,
+                  fontSize: scrolled ? '0.75rem' : '0.85rem',
+                  fontWeight: 'bold',
+                  transition: 'all 0.35s ease',
+                }}
+              >
+                {getInitials(user?.user_name)}
+              </Avatar>
+            </Badge>
           </IconButton>
         </Tooltip>
 
@@ -312,6 +332,26 @@ export const AppBar = ({ onMenuClick }) => {
           <MenuItem onClick={handleNavigateToSettings} sx={{ borderRadius: 1, mx: 1 }}>
             <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
             <Typography variant="body2">Configurações</Typography>
+          </MenuItem>
+          <MenuItem
+            onClick={handleToggleVacation}
+            sx={{ borderRadius: 1, mx: 1, justifyContent: 'space-between' }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <ListItemIcon>
+                {user?.vacation
+                  ? <BeachAccessIcon fontSize="small" color="warning" />
+                  : <WorkIcon fontSize="small" />}
+              </ListItemIcon>
+              <Typography variant="body2">{user?.vacation ? 'De Férias' : 'Disponível'}</Typography>
+            </Box>
+            <Switch
+              checked={!!user?.vacation}
+              onChange={handleToggleVacation}
+              size="small"
+              color="warning"
+              onClick={(e) => e.stopPropagation()}
+            />
           </MenuItem>
           <Divider sx={{ my: 1 }} />
           <MenuItem onClick={handleLogout} sx={{ borderRadius: 1, mx: 1, color: theme.palette.error.main }}>

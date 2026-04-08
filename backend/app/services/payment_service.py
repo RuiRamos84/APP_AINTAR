@@ -145,7 +145,31 @@ class PaymentService:
             # 3. Se a fatura existir, retorná-la (enriquecida com dados SIBS)
             if result:
                 invoice_data = dict(result._mapping)
-                logger.info(f"💰 Invoice encontrado para documento {document_id}: {invoice_data.get('invoice', 0)}")
+                invoice_val = float(invoice_data.get('invoice') or 0)
+                has_urgency = bool(invoice_data.get('urgency'))
+                logger.info(f"💰 Invoice encontrado para documento {document_id}: {invoice_val} (urgency={has_urgency})")
+
+                # Se o valor é 0 mas há urgência, o invoice pode não ter sido recalculado
+                # após a urgência ser definida. fbo_document_invoice$getset NÃO recalcula se
+                # o registo já existe — é necessário chamar a função específica do tipo ($2 para Fossa).
+                if invoice_val == 0 and has_urgency:
+                    logger.info(f"🔄 Invoice=0 com urgência activa — recalculando para documento {document_id}")
+                    try:
+                        doc_type_query = text("SELECT tt_type FROM tb_document WHERE pk = :document_id")
+                        doc_type = session.execute(doc_type_query, {"document_id": document_id}).scalar()
+                        type_fn_map = {1: '"fbo_document_invoice$1"', 2: '"fbo_document_invoice$2"'}
+                        fn = type_fn_map.get(doc_type)
+                        if fn:
+                            session.execute(text(f"SELECT {fn}(:document_id)"), {"document_id": document_id})
+                            recalc_result = session.execute(invoice_query, {"document_id": document_id}).fetchone()
+                            if recalc_result:
+                                invoice_data = dict(recalc_result._mapping)
+                                invoice_val = float(invoice_data.get('invoice') or 0)
+                                logger.info(f"✅ Invoice recalculado para documento {document_id} (tipo={doc_type}): {invoice_val}")
+                        else:
+                            logger.warning(f"⚠️ Tipo {doc_type} sem função de recálculo configurada")
+                    except Exception as recalc_err:
+                        logger.warning(f"⚠️ Erro ao recalcular invoice para documento {document_id}: {recalc_err}")
 
                 # Enriquecer com dados da tabela SIBS (expiry, entity, etc.)
                 # A view vbl_document_invoice não tem tb_sibs, usar order_id ou tb_document

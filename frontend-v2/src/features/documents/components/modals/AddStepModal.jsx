@@ -41,7 +41,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useAddStep, useDocumentDetails } from '../../hooks/useDocuments';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { getAvailableSteps, getAvailableUsersForStep } from '../../utils/workflowUtils';
-import VacationWarningBadge from '../vacation/VacationWarningBadge';
+import { useVacationChecker } from '../../hooks/useVacationChecker.jsx';
 import { toast } from 'sonner';
 
 const MAX_FILES = 5;
@@ -79,6 +79,8 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
   const { data: fetchedDocument } = useDocumentDetails(propDocument ? null : documentId);
   const document = propDocument || fetchedDocument;
   const { data: metaData } = useMetaData();
+
+  const { checkUserVacation, VacationDialog } = useVacationChecker();
 
   const {
     control,
@@ -341,9 +343,20 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
                 <Controller
                   name="user"
                   control={control}
-                  render={({ field }) => (
+                  render={({ field: { onChange: fieldOnChange, ...restField } }) => (
                     <TextField
-                      {...field}
+                      {...restField}
+                      onChange={(e) => {
+                        const newUserId = e.target.value;
+                        if (newUserId) {
+                          const selectedUser = availableUsers.find((u) => u.pk === newUserId);
+                          checkUserVacation(newUserId, selectedUser?.name || '', () => {
+                            fieldOnChange(e);
+                          });
+                        } else {
+                          fieldOnChange(e);
+                        }
+                      }}
                       select
                       label="Destinatário"
                       fullWidth
@@ -370,18 +383,6 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
                   )}
                 />
               </Grid>
-
-              {/* Vacation Warning */}
-              {(watch('user') !== '' && watch('user') !== null && watch('user') !== undefined) && (
-                <Grid size={12}>
-                  <VacationWarningBadge
-                    userId={watch('user')}
-                    userName={
-                      availableUsers.find((u) => u.pk === watch('user'))?.name || ''
-                    }
-                  />
-                </Grid>
-              )}
 
               {/* Memo */}
               <Grid size={12}>
@@ -569,6 +570,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
           </Button>
         </DialogActions>
       </Dialog>
+      {VacationDialog}
     </>
   );
 };

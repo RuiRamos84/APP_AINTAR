@@ -88,7 +88,7 @@ export const ROUTE_CONFIG = {
         id: 'modern_requests',
         text: 'Pedidos Modernos',
         icon: ViewModuleIcon,
-        permissions: { required: 540 }, // docs.modern
+        permissions: { required: 'docs.modern' },
         showInSidebar: true
     },
 
@@ -117,58 +117,31 @@ export const ROUTE_CONFIG = {
         }
     },
 
-    '/documents': {
-        id: 'pedidos',
-        text: 'Pedidos',
-        icon: AssignmentIcon,
-        showInSidebar: true,
-        submenu: {
-            '/document_self': {
-                id: 'para_tratamento',
-                text: 'Para tratamento',
-                icon: AssignmentIndIcon,
-                permissions: { required: 520 }, // docs.view.assigned
-                isBadged: true
-            },
-            '/document_owner': {
-                id: 'criados_por_mim',
-                text: 'Criados por mim',
-                icon: PersonIcon,
-                permissions: { required: 510 }, // docs.view.owner
-            },
-            '/documents': {
-                id: 'todos_pedidos',
-                text: 'Todos os Pedidos',
-                icon: ListAltIcon,
-                permissions: { required: 500 } // docs.view.all
-            },
-        }
-    },
 
     '/tasks': {
         id: 'tasks',
         text: 'Tarefas',
         icon: ListAltIcon,
-        permissions: { required: 200 }, // tasks.all
+        permissions: { required: 201 }, // tasks.view
         showInSidebar: true,
         submenu: {
             '/tasks/my': {
                 id: 'my_tasks',
                 text: 'Minhas Tarefas',
                 icon: AssignmentIndIcon,
-                permissions: { required: 200 } // tasks.all
+                permissions: { required: 201 } // tasks.view
             },
             '/tasks/created': {
                 id: 'created_tasks',
                 text: 'Tarefas Onde Sou Responsável',
                 icon: PersonIcon,
-                permissions: { required: 200 } // tasks.all
+                permissions: { required: 201 } // tasks.view
             },
             '/tasks/all': {
                 id: 'all_tasks',
                 text: 'Todas as Tarefas',
                 icon: ListAltIcon,
-                permissions: { required: 200, profile: 0 } // tasks.all — apenas admins
+                permissions: { required: 201, profile: 0 } // tasks.view — apenas admins
             }
         }
     },
@@ -253,7 +226,7 @@ export const ROUTE_CONFIG = {
         id: 'emissions',
         text: 'Emissões',
         icon: EmissionIcon,
-        permissions: { required: 220 }, // letters.manage
+        permissions: { required: 1300 }, // offices.view
         showInSidebar: true
     },
 
@@ -261,7 +234,7 @@ export const ROUTE_CONFIG = {
         id: 'epi',
         text: 'Gestão de EPIs',
         icon: SecurityOutlinedIcon,
-        permissions: { required: 210 }, // epi.manage
+        permissions: { required: 211 }, // epi.view
         showInSidebar: true
     },
 
@@ -269,7 +242,7 @@ export const ROUTE_CONFIG = {
         id: 'internal',
         text: 'Internal Area',
         icon: AppsIcon,
-        permissions: { required: 300 }, // internal.access
+        permissions: { required: 201 }, // tasks.view — acesso à área interna
         showInSidebar: true
     },
 

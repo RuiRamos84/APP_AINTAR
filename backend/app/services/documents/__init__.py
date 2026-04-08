@@ -3,6 +3,7 @@
 # Operações CRUD básicas
 from .core import (
     list_documents,
+    list_documents_by_associate,
     documentById,
     document_self,
     document_owner,
@@ -57,7 +58,7 @@ from .replication import (
 # Exportar todos os símbolos como interface pública
 __all__ = [
     # Core
-    'list_documents', 'documentById', 'document_self', 'document_owner',
+    'list_documents', 'list_documents_by_associate', 'documentById', 'document_self', 'document_owner',
     'create_document', 'create_document_direct', 'update_document_notification',
     'check_vacation_status', 'get_documents_late',
 

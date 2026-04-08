@@ -37,6 +37,7 @@ import {
 } from '@/services/websocket/socketService';
 import { useAuth } from './AuthContext';
 import { notification } from '@/core/services/notification/notificationService';
+import apiClient from '@/services/api/client';
 
 const SocketContext = createContext(null);
 
@@ -332,36 +333,61 @@ export const SocketProvider = ({ children }) => {
   // ========================================================================
 
   /**
-   * Marcar notificação como lida
+   * Marcar notificação como lida.
+   * Para notificações de tarefas, também persiste no backend via REST.
    */
   const markAsRead = useCallback(
     (notificationId) => {
+      // Encontrar antes de actualizar estado para aceder ao taskId
+      const notif = notifications.find((n) => n.id === notificationId);
+
+      // Persistir no backend para notificações de tarefas
+      if (notif?.taskId) {
+        apiClient
+          .put(`/tasks/${notif.taskId}/notification`)
+          .catch((err) =>
+            console.error('[SocketContext] Erro ao marcar tarefa como lida:', err)
+          );
+      }
+
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
 
-      // unreadCount é calculado automaticamente via useMemo
-
-      // Emitir para servidor
+      // Emitir para servidor Socket.IO
       emitEvent(SOCKET_EVENTS.MARK_NOTIFICATION_READ, {
         notificationId,
         userId: user?.user_id,
       });
     },
-    [user?.user_id]
+    [notifications, user?.user_id]
   );
 
   /**
-   * Marcar todas como lidas
+   * Marcar todas como lidas.
+   * Para notificações de tarefas, persiste no backend via REST em batch.
    */
   const markAllAsRead = useCallback(() => {
-    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    const unread = notifications.filter((n) => !n.read);
+    const unreadIds = unread.map((n) => n.id);
+
+    // Persistir no backend as notificações de tarefas não lidas
+    const taskUnread = unread.filter((n) => n.taskId);
+    if (taskUnread.length > 0) {
+      Promise.all(
+        taskUnread.map((n) =>
+          apiClient
+            .put(`/tasks/${n.taskId}/notification`)
+            .catch((err) =>
+              console.error(`[SocketContext] Erro ao marcar tarefa ${n.taskId} como lida:`, err)
+            )
+        )
+      );
+    }
 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
-    // unreadCount é calculado automaticamente via useMemo
-
-    // Emitir para servidor
+    // Emitir para servidor Socket.IO
     if (unreadIds.length > 0) {
       emitEvent(SOCKET_EVENTS.MARK_ALL_NOTIFICATIONS_READ, {
         notificationIds: unreadIds,
@@ -380,6 +406,62 @@ export const SocketProvider = ({ children }) => {
 
     setNotifications((prev) => prev.filter((n) => new Date(n.timestamp).getTime() > weekAgo));
   }, []);
+
+  /**
+   * Carregar notificações de tarefas pendentes da base de dados (recuperação offline).
+   * Chamado ao montar o contexto quando o utilizador está autenticado.
+   * Filtra tarefas com notification_owner=1 (owner) ou notification_client=1 (client).
+   */
+  const loadOfflineTaskNotifications = useCallback(async () => {
+    if (!user?.user_id) return;
+
+    try {
+      const response = await apiClient.get('/tasks');
+      const tasks = response?.tasks || [];
+
+      const tasksWithNotifs = tasks.filter(
+        (task) =>
+          (task.owner === user.user_id && task.notification_owner === 1) ||
+          (task.ts_client === user.user_id && task.notification_client === 1)
+      );
+
+      if (tasksWithNotifs.length === 0) return;
+
+      const offlineNotifications = tasksWithNotifs.map((task) => ({
+        id: `offline_task_${task.pk}`,
+        type: 'task',
+        title: 'Nota não lida',
+        message: `Tarefa "${task.name}" tem atualizações não lidas`,
+        timestamp: task.when_start || new Date().toISOString(),
+        read: false,
+        priority: 'medium',
+        taskId: task.pk,
+        taskName: task.name,
+        metadata: { offline: true },
+      }));
+
+      // Merge evitando duplicados por taskId
+      setNotifications((prev) => {
+        const existingTaskIds = new Set(
+          prev.filter((n) => n.taskId).map((n) => n.taskId)
+        );
+        const newOnes = offlineNotifications.filter(
+          (n) => !existingTaskIds.has(n.taskId)
+        );
+        if (newOnes.length === 0) return prev;
+        return [...newOnes, ...prev];
+      });
+    } catch (error) {
+      console.error('[SocketContext] Erro ao carregar notificações offline de tarefas:', error);
+    }
+  }, [user?.user_id]);
+
+  // Recuperar notificações offline de tarefas ao autenticar
+  useEffect(() => {
+    if (user?.user_id) {
+      loadOfflineTaskNotifications();
+    }
+  }, [user?.user_id, loadOfflineTaskNotifications]);
 
   /**
    * Emitir evento customizado
