@@ -162,6 +162,7 @@ def update_entity(pk):
         return update_entity_detail(pk, data, current_user)
 
 
+
 @bp.route('/entities', methods=['GET'])
 @jwt_required()
 @token_required

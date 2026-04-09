@@ -8,29 +8,19 @@ import {
 import { Avatar, Box, Card, CardContent, Chip, Grid, Radio, Typography } from '@mui/material';
 import { PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
 
-// Ícones SIBS reais
-const MBWayIcon = ({ sx, ...props }) => (
-    <img
-        src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Logo_MBWay.svg/512px-Logo_MBWay.svg.png?20201121193832"
-        alt="MB Way"
-        style={{ width: 48, height: 24, ...sx }}
-        {...props}
-    />
+const MBWayIcon = ({ sx }) => (
+    <img src="/mbway.svg" alt="MB Way" style={{ width: 48, height: 24, objectFit: 'contain', ...sx }} />
 );
 
-const MultibancoIcon = ({ sx, ...props }) => (
-    <img
-        src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Multibanco.svg/512px-Multibanco.svg.png?20201121201922"
-        alt="Multibanco"
-        style={{ width: 24, height: 34, ...sx }}
-        {...props}
-    />
+const MultibancoIcon = ({ sx }) => (
+    <img src="/multibanco.svg" alt="Multibanco" style={{ width: 28, height: 28, objectFit: 'contain', ...sx }} />
 );
 
 const methods = {
     MBWAY: {
         label: PAYMENT_METHOD_LABELS.MBWAY,
         icon: MBWayIcon,
+        isImage: true,
         color: '#3b5998',
         description: 'Pagamento via telemóvel',
         features: ['Imediato'],
@@ -41,6 +31,7 @@ const methods = {
     MULTIBANCO: {
         label: PAYMENT_METHOD_LABELS.MULTIBANCO,
         icon: MultibancoIcon,
+        isImage: true,
         color: '#0066cc',
         description: 'Referência ATM/homebanking',
         features: ['Tradicional'],
@@ -165,7 +156,10 @@ const PaymentMethodSelector = ({
                                                 height: 40
                                             }}
                                         >
-                                            <Icon sx={{ color: isSelected ? 'white' : method.color }} />
+                                            {method.isImage
+                                                ? <Icon />
+                                                : <Icon sx={{ color: isSelected ? 'white' : method.color }} />
+                                            }
                                         </Avatar>
                                         <Radio
                                             checked={isSelected}

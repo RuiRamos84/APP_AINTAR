@@ -60,6 +60,7 @@ import {
   EventBusy as FaltasIcon,
   Schedule as HorariosIcon,
   NightShelter as PiqueteIcon,
+  AccountBalanceWallet as CaixaIcon,
 } from '@mui/icons-material';
 
 // Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
@@ -366,6 +367,15 @@ export const ROUTE_CONFIG = {
         showInSidebar: true,
       },
     },
+  },
+
+  '/caixa': {
+    id: 'caixa',
+    text: 'Fundo de Caixa',
+    icon: CaixaIcon,
+    module: 'pagamentos',
+    permissions: { required: 'payments.caixa.view' },
+    showInSidebar: true,
   },
 
   // ==================== MÓDULO: DASHBOARDS ====================

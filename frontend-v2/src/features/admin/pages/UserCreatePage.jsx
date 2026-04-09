@@ -39,10 +39,12 @@ import { createUserAdmin } from '@/services/userService';
 import { notification } from '@/core/services/notification';
 import { FadeIn } from '@/shared/components/animation';
 import { useProfiles } from '@/core/contexts/MetadataContext';
+import { useAssociates } from '@/core/hooks/useMetaData';
 
 const UserCreatePage = () => {
   const navigate = useNavigate();
   const { profiles } = useProfiles();
+  const { data: associates } = useAssociates();
 
   // Responsividade
   const theme = useTheme();
@@ -53,19 +55,29 @@ const UserCreatePage = () => {
     name: '',
     email: '',
     password: '',
-    phone: '',
-    profil: '2', // Default: User
-    send_activation_email: false, // Enviar email de ativação?
+    entity_pk: '',
+    profil: '2',
+    send_activation_email: false,
   });
 
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Perfis 0 (Admin) e 1 (AINTAR) são utilizadores internos — não precisam de município
+  const isInternalProfile = formData.profil === '0' || formData.profil === '1';
+
   /**
    * Atualizar campo
    */
   const updateField = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Se mudar para perfil interno, limpar município
+      if (field === 'profil' && (value === '0' || value === '1')) {
+        updated.entity_pk = '';
+      }
+      return updated;
+    });
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -82,10 +94,14 @@ const UserCreatePage = () => {
     const newErrors = {};
 
     if (!formData.username) newErrors.username = 'Username é obrigatório';
+    if (!formData.name) newErrors.name = 'Nome é obrigatório';
     if (!formData.email) newErrors.email = 'Email é obrigatório';
     if (!formData.password) newErrors.password = 'Password é obrigatória';
     if (formData.password && formData.password.length < 6) {
       newErrors.password = 'Password deve ter pelo menos 6 caracteres';
+    }
+    if (!isInternalProfile && !formData.entity_pk) {
+      newErrors.entity_pk = 'Município é obrigatório para este perfil';
     }
 
     setErrors(newErrors);
@@ -247,16 +263,29 @@ const UserCreatePage = () => {
                 />
               </Grid>
 
-              {/* Telefone */}
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Telefone"
-                  value={formData.phone}
-                  onChange={(e) => updateField('phone', e.target.value)}
-                  size={isMobile ? 'small' : 'medium'}
-                />
-              </Grid>
+              {/* Município (Associate) — apenas para perfis de município */}
+              {!isInternalProfile && (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Município"
+                    value={formData.entity_pk}
+                    onChange={(e) => updateField('entity_pk', e.target.value)}
+                    required
+                    error={!!errors.entity_pk}
+                    helperText={errors.entity_pk || 'Município ao qual o utilizador pertence'}
+                    size={isMobile ? 'small' : 'medium'}
+                  >
+                    <MenuItem value="">-- Selecionar Município --</MenuItem>
+                    {associates.map((a) => (
+                      <MenuItem key={a.pk} value={a.pk}>
+                        {a.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              )}
 
               {/* Password Inicial */}
               <Grid size={{ xs: 12 }}>

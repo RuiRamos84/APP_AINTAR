@@ -716,13 +716,13 @@ class PaymentService:
                     if (new_status == PaymentStatus.SUCCESS
                             and local_data.tb_document):
                         db.execute(text("""
-                            SELECT fbo_document_invoice$sibs(
-                                :invoice_pk,
+                            SELECT "fbo_document_invoice$link"(
+                                :document_id,
                                 (SELECT pk FROM tb_sibs
                                  WHERE transaction_id = :tid)
                             )
                         """), {
-                            "invoice_pk": local_data.invoice_pk,
+                            "document_id": local_data.tb_document,
                             "tid": transaction_id
                         })
 
@@ -755,9 +755,9 @@ class PaymentService:
                     SELECT fbo_sibs_approve(:payment_pk, :user_pk)
                 """), {"payment_pk": payment_pk, "user_pk": user_pk})
 
-                # Obter invoice_pk, document_id, payment_method e actualizar invoice
+                # Obter invoice_pk, document_id, payment_method, amount e actualizar invoice
                 payment_info = db.execute(text("""
-                    SELECT invoice_pk, tb_document, payment_method
+                    SELECT invoice_pk, tb_document, payment_method, amount
                     FROM vbl_sibs
                     WHERE pk = :payment_pk
                 """), {"payment_pk": payment_pk}).fetchone()
@@ -765,11 +765,12 @@ class PaymentService:
                 invoice_pk = payment_info[0] if payment_info else None
                 document_id = payment_info[1] if payment_info else None
                 payment_method = payment_info[2] if payment_info else None
+                amount = float(payment_info[3]) if payment_info and payment_info[3] else None
 
                 if document_id:
                     db.execute(text("""
-                        SELECT fbo_document_invoice$sibs(:invoice_pk, :sibs_pk)
-                    """), {"invoice_pk": invoice_pk, "sibs_pk": payment_pk})
+                        SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
+                    """), {"document_id": document_id, "sibs_pk": payment_pk})
 
                     # Actualizar parâmetro "Método de pagamento" automaticamente
                     # Mapear método de pagamento para pk do payment_method:
@@ -792,6 +793,37 @@ class PaymentService:
                             f"Parâmetro 'Método de pagamento' actualizado para {payment_method_pk} "
                             f"(document_id={document_id}, método={payment_method})"
                         )
+
+                    # Criar movimento de caixa automático (tipo 2 = entrada com documento)
+                    if amount and amount > 0:
+                        try:
+                            caixa_pk = db.execute(text("SELECT fs_nextcode()")).scalar()
+                            db.execute(text("""
+                                INSERT INTO vbf_caixa (
+                                    pk, tt_caixamovimento, data, valor,
+                                    tb_document, ordempagamento,
+                                    ts_client1, ts_client2,
+                                    hist_client, hist_time
+                                ) VALUES (
+                                    :pk, 2, NOW(), :valor,
+                                    :tb_document, NULL,
+                                    :ts_client1, NULL,
+                                    :ts_client1, NOW()
+                                )
+                            """), {
+                                'pk':          caixa_pk,
+                                'valor':       amount,
+                                'tb_document': document_id,
+                                'ts_client1':  user_pk,
+                            })
+                            logger.info(
+                                f"Movimento de caixa {caixa_pk} criado automaticamente "
+                                f"para pagamento {payment_pk} (doc={document_id}, valor={amount})"
+                            )
+                        except Exception as caixa_err:
+                            logger.warning(
+                                f"Falha ao criar movimento de caixa para pagamento {payment_pk}: {caixa_err}"
+                            )
 
             return {"success": True, "message": "Pagamento aprovado"}
 
@@ -1001,12 +1033,12 @@ class PaymentService:
                 # Se sucesso, actualizar invoice
                 if internal_status == PaymentStatus.SUCCESS and document_id:
                     db.execute(text("""
-                        SELECT fbo_document_invoice$sibs(:invoice_pk, (
+                        SELECT "fbo_document_invoice$link"(:document_id, (
                             SELECT pk FROM tb_sibs
                             WHERE transaction_id = :transaction_id
                         ))
                     """), {
-                        "invoice_pk": invoice_pk,
+                        "document_id": document_id,
                         "transaction_id": transaction_id
                     })
 
@@ -1112,8 +1144,8 @@ class PaymentService:
 
                 if document_id:
                     db.execute(text("""
-                        SELECT "fbo_document_invoice$sibs"(:invoice_pk, :sibs_pk)
-                    """), {"invoice_pk": invoice_pk, "sibs_pk": payment_pk})
+                        SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
+                    """), {"document_id": document_id, "sibs_pk": payment_pk})
 
             return {"success": True, "message": "Isenção aprovada com sucesso"}
 

@@ -11,10 +11,10 @@
  * - 740: payments.municipality
  */
 
+import { usePermissionContext } from '../../../core/contexts/PermissionContext';
+import { useMemo } from 'react';
 import permissionService from '../../../services/permissionService';
-import { useState, useEffect } from 'react';
 
-// Manter constantes para compatibilidade
 export const PAYMENT_METHODS = {
     MBWAY: 'MBWAY',
     MULTIBANCO: 'MULTIBANCO',
@@ -35,44 +35,14 @@ export const PAYMENT_STATUS = {
     REFUNDED: 'REFUNDED'
 };
 
-// Mapeamento para o novo sistema de permissões (IDs numéricos da BD)
 const PAYMENT_PERMISSION_MAP = {
-    [PAYMENT_METHODS.MBWAY]: 700,           // payments.mbway
-    [PAYMENT_METHODS.MULTIBANCO]: 710,      // payments.multibanco
-    [PAYMENT_METHODS.CASH]: 730,            // payments.cash.action
-    [PAYMENT_METHODS.BANK_TRANSFER]: 720,   // payments.bank_transfer
-    [PAYMENT_METHODS.MUNICIPALITY]: 740     // payments.municipality
+    [PAYMENT_METHODS.MBWAY]: 700,
+    [PAYMENT_METHODS.MULTIBANCO]: 710,
+    [PAYMENT_METHODS.CASH]: 730,
+    [PAYMENT_METHODS.BANK_TRANSFER]: 720,
+    [PAYMENT_METHODS.MUNICIPALITY]: 740
 };
 
-/**
- * Verificar se utilizador pode usar método específico
- */
-export const canUsePaymentMethod = async (paymentMethod) => {
-    const permission = PAYMENT_PERMISSION_MAP[paymentMethod];
-    if (!permission) return false;
-
-    return await permissionService.hasPermission(permission);
-};
-
-/**
- * Obter métodos disponíveis para utilizador
- */
-export const getAvailableMethodsForUserAsync = async () => {
-    try {
-        const availableMethods = [];
-        Object.entries(PAYMENT_PERMISSION_MAP).forEach(([method, permission]) => {
-            if (permissionService.hasPermission(permission)) {
-                availableMethods.push(method);
-            }
-        });
-        return availableMethods;
-    } catch (e) {
-        console.warn("Erro ao verificar permissões de pagamento:", e);
-        return [];
-    }
-};
-
-// Manter labels e cores para compatibilidade
 export const PAYMENT_METHOD_LABELS = {
     [PAYMENT_METHODS.MBWAY]: 'MB WAY',
     [PAYMENT_METHODS.MULTIBANCO]: 'Multibanco',
@@ -91,7 +61,6 @@ export const PAYMENT_STATUS_COLORS = {
     [PAYMENT_STATUS.EXPIRED]: 'error.light',
     [PAYMENT_STATUS.REJECTED]: 'error.main',
     [PAYMENT_STATUS.REFUNDED]: 'secondary.main',
-    // Cores para métodos
     'MBWAY': '#667eea',
     'MULTIBANCO': '#f093fb',
     'CASH': '#43e97b',
@@ -101,27 +70,27 @@ export const PAYMENT_STATUS_COLORS = {
 };
 
 /**
- * Hook para permissões de pagamento
+ * Hook para permissões de pagamento.
+ * Usa usePermissionContext (reactivo) — recalcula quando o catálogo carrega.
  */
 export const usePaymentPermissions = () => {
-    const [availableMethods, setAvailableMethods] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { hasPermission, initialized } = usePermissionContext();
 
-    useEffect(() => {
-        const loadPermissions = async () => {
-            try {
-                const methods = await getAvailableMethodsForUserAsync();
-                setAvailableMethods(methods);
-            } catch (error) {
-                console.error('Erro carregar permissões pagamento:', error);
-                setAvailableMethods([]);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const availableMethods = useMemo(() => {
+        if (!initialized) return [];
+        return Object.entries(PAYMENT_PERMISSION_MAP)
+            .filter(([, permId]) => hasPermission(permId))
+            .map(([method]) => method);
+    }, [hasPermission, initialized]);
 
-        loadPermissions();
-    }, []);
-
-    return { availableMethods, loading };
+    return { availableMethods, loading: !initialized };
 };
+
+// Helpers síncronos (válidos após catálogo carregado)
+export const canUsePaymentMethod = (paymentMethod) => {
+    const permission = PAYMENT_PERMISSION_MAP[paymentMethod];
+    if (!permission) return false;
+    return permissionService.hasPermission(permission);
+};
+
+export const canManagePayments = () => permissionService.hasPermission(30);

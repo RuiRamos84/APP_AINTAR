@@ -43,7 +43,7 @@ import {
 // Módulos do sistema de navegação híbrida
 import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage, TasksPage as OperationTasksPage } from '@/features/operations/pages';
 import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage } from '@/features/gestao/pages';
-import { ClientsPage, InvoicesPage, ClientContractsPage } from '@/features/payments/pages';
+import { ClientsPage, InvoicesPage, ClientContractsPage, CaixaPage } from '@/features/payments/pages';
 import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
 import {
   DashboardOverviewPage, DashboardRequestsPage, DashboardBranchesPage,
@@ -152,6 +152,9 @@ function App() {
         <Route path="/clients" element={<EntitiesPage />} />
         <Route path="/clients/*" element={<EntitiesPage />} />
         <Route path="/clients/contracts" element={<ClientContractsPage />} />
+
+        {/* Caixa */}
+        <Route path="/caixa" element={<CaixaPage />} />
 
         {/* Invoices */}
         <Route path="/invoices" element={<InvoicesPage />} />

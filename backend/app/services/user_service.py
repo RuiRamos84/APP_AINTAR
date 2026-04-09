@@ -3,6 +3,7 @@ import jwt
 from flask import current_app, jsonify
 from flask_mail import Message
 from sqlalchemy.sql import text
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 from .. import db, mail
 from ..utils.utils import format_message, db_session_manager
@@ -421,35 +422,47 @@ def create_user_admin(data: dict, current_user: str):
         send_activation = data.get('send_activation_email', False)
         activation_code = random.randint(100000, 999999) if send_activation else 0
 
-        # Criar entity
-        entity_query = text("""
-            INSERT INTO ts_entity (name, email, phone)
-            VALUES (:name, :email, :phone)
-            RETURNING pk
-        """)
-        entity_result = session.execute(entity_query, {
-            'name': data.get('name', ''),
-            'email': data.get('email', ''),
-            'phone': data.get('phone', '')
-        })
-        entity_id = entity_result.scalar()
+        profil = int(data.get('profil', 2))
+        entity_pk = data.get('entity_pk')
 
-        # Criar client
+        if profil in (0, 1):
+            # Utilizador interno AINTAR — associar à entidade AINTAR (pk=1)
+            entity_pk = 1
+        else:
+            # Utilizador de município — entity_pk obrigatório
+            if not entity_pk:
+                raise APIError("É obrigatório selecionar o município para este perfil.", 400)
+
+        # Verificar se a entidade existe
+        entity_check = session.execute(
+            text("SELECT pk FROM ts_entity WHERE pk = :pk"),
+            {'pk': entity_pk}
+        ).scalar()
+        if not entity_check:
+            raise ResourceNotFoundError(f"Entidade {entity_pk} não encontrada.")
+
+        # Criar client ligado à entidade existente
         client_query = text("""
-            INSERT INTO ts_client (username, passwd, ts_entity, ts_profile, validated, name, active)
-            VALUES (:username, :passwd, :ts_entity, :ts_profile, :validated, :name, :active)
+            INSERT INTO ts_client (pk, username, passwd, ts_entity, ts_profile, validated, name, active)
+            VALUES (fs_nextcode(), :username, :passwd, :ts_entity, :ts_profile, :validated, :name, :active)
             RETURNING pk
         """)
-        client_result = session.execute(client_query, {
-            'username': data.get('username'),
-            'passwd': password_hash,
-            'ts_entity': entity_id,
-            'ts_profile': int(data.get('profil', 2)),
-            'validated': activation_code,  # 0 = validado, != 0 = código de ativação
-            'name': data.get('name', ''),
-            'active': 1,  # novo utilizador criado pelo admin fica sempre ativo
-        })
-        user_id = client_result.scalar()
+        try:
+            client_result = session.execute(client_query, {
+                'username': data.get('username'),
+                'passwd': password_hash,
+                'ts_entity': entity_pk,
+                'ts_profile': profil,
+                'validated': activation_code,  # 0 = validado, != 0 = código de ativação
+                'name': data.get('name', ''),
+                'active': 1,  # novo utilizador criado pelo admin fica sempre ativo
+            })
+            user_id = client_result.scalar()
+        except IntegrityError as e:
+            orig = str(e.orig).lower() if e.orig else str(e).lower()
+            if 'ts_client_unk01' in orig or ('username' in orig and 'unique' in orig):
+                raise APIError("O username indicado já se encontra em uso. Escolha outro.", 409)
+            raise
 
         # Enviar email de ativação se solicitado
         if send_activation and activation_code != 0:
@@ -537,14 +550,20 @@ def update_user_admin(user_id: int, data: dict, current_user: str):
                 vacation = :vacation
             WHERE pk = :user_id
         """)
-        result = session.execute(update_client_query, {
-            'user_id': user_id,
-            'username': data.get('username'),
-            'name': data.get('name'),
-            'ts_profile': int(data.get('profil', 2)),
-            'darkmode': int(data.get('darkmode', 0)),
-            'vacation': int(data.get('vacation', 0))
-        })
+        try:
+            result = session.execute(update_client_query, {
+                'user_id': user_id,
+                'username': data.get('username'),
+                'name': data.get('name'),
+                'ts_profile': int(data.get('profil', 2)),
+                'darkmode': int(data.get('darkmode', 0)),
+                'vacation': int(data.get('vacation', 0))
+            })
+        except IntegrityError as e:
+            orig = str(e.orig).lower() if e.orig else str(e).lower()
+            if 'ts_client_unk01' in orig or ('username' in orig and 'unique' in orig):
+                raise APIError("O username indicado já se encontra em uso. Escolha outro.", 409)
+            raise
 
         if result.rowcount == 0:
             raise ResourceNotFoundError("Utilizador", user_id)
