@@ -16,7 +16,7 @@ import {
   Language as LangIcon, Accessibility as AccessIcon,
   KeyboardArrowRight as ArrowIcon, Lock as LockIcon,
 } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -62,7 +62,7 @@ const SettingsPage = () => {
   const handleSave = () => {
     // As preferências são guardadas localmente (localStorage) por ora
     localStorage.setItem('aintar_prefs', JSON.stringify(prefs));
-    toast.success('Preferências guardadas com sucesso!');
+    notification.success('Preferências guardadas com sucesso!');
   };
 
   return (

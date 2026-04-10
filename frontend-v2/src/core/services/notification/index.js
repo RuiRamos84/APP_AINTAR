@@ -3,7 +3,7 @@
  * Exportações centralizadas do sistema de notificações
  */
 
-export { default as notification } from './notificationService';
+export { default, default as notification } from './notificationService';
 export {
   notifySuccess,
   notifyError,
@@ -13,4 +13,5 @@ export {
   notifyLoading,
   notifyAction,
   notifyCustom,
+  notifyApiError,
 } from './notificationService';

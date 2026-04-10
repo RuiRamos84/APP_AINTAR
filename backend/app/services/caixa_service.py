@@ -118,15 +118,19 @@ def _build_tipo_state(last) -> dict:
 def list_movements(current_user: str, date_from=None, date_to=None):
     with db_session_manager(current_user) as session:
         params = {}
-        where = []
+        view_where_parts  = []  # com prefixo v. para a query com JOIN
+        table_where_parts = []  # sem prefixo para a query directa em tb_caixa
         if date_from:
-            where.append("v.data >= :date_from")
+            view_where_parts.append("v.data >= :date_from")
+            table_where_parts.append("data >= :date_from")
             params['date_from'] = date_from
         if date_to:
-            where.append("v.data <= :date_to")
+            view_where_parts.append("v.data <= :date_to")
+            table_where_parts.append("data <= :date_to")
             params['date_to'] = date_to
 
-        where_clause = f"WHERE {' AND '.join(where)}" if where else ""
+        where_clause       = f"WHERE {' AND '.join(view_where_parts)}"  if view_where_parts  else ""
+        saldo_where_clause = f"WHERE {' AND '.join(table_where_parts)}" if table_where_parts else ""
 
         rows = session.execute(text(f"""
             SELECT v.pk, v.tt_caixamovimento,
@@ -147,11 +151,9 @@ def list_movements(current_user: str, date_from=None, date_to=None):
         """), {**params, 'two_person_tipos': list(TIPOS_TWO_PERSON)}).mappings().all()
 
         # Saldo calculado directamente para evitar dependência da ordenação da view
-        saldo_params = {k: v for k, v in params.items() if k != 'two_person_tipos'}
-        saldo_where  = f"WHERE {' AND '.join(where)}" if where else ""
-        saldo_atual  = session.execute(text(f"""
-            SELECT COALESCE(SUM(valor), 0) FROM tb_caixa {saldo_where}
-        """), saldo_params).scalar()
+        saldo_atual = session.execute(text(f"""
+            SELECT COALESCE(SUM(valor), 0) FROM tb_caixa {saldo_where_clause}
+        """), params).scalar()
         saldo_atual   = float(saldo_atual)
         total_entrada = sum(float(r['valor'] or 0) for r in rows if (r['valor'] or 0) > 0)
         total_saida   = abs(sum(float(r['valor'] or 0) for r in rows if (r['valor'] or 0) < 0))

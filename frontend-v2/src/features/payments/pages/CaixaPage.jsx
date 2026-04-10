@@ -15,12 +15,12 @@
  *  3. Rotação: próximo criador = último validador; próximo validador = último criador
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Box, Grid, Paper, Typography, TextField, Button, Chip, Stack,
-  Alert, Skeleton, Card, CardContent,
+  Alert, Skeleton, Card, CardContent, Badge,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  MenuItem, Tooltip, IconButton, useTheme, alpha,
+  MenuItem, Tooltip, IconButton, useTheme, alpha, Menu,
 } from '@mui/material';
 import {
   AccountBalanceWallet as CaixaIcon,
@@ -35,13 +35,18 @@ import {
   CheckCircle as ValidarIcon,
   HourglassEmpty as PendenteIcon,
   FactCheck as ControlIcon,
+  FileDownload as ExportIcon,
+  TableChart as ExcelIcon,
+  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { format, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
+import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
+import { exportToExcel } from '@/features/epi/utils/exportUtils';
 import apiClient from '@/services/api/client';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAuth } from '@/core/contexts/AuthContext';
@@ -201,13 +206,13 @@ const MovementDialog = ({ open, onClose, initial, tipos, currentUserId, fechoSta
   const canSubmit = !meta.isTwoPerson || (!hasPending && (!rotacao || rotacao.isMyTurn));
 
   const handleSave = () => {
-    if (!form.tt_caixamovimento) return toast.error('Selecione o tipo de movimento.');
+    if (!form.tt_caixamovimento) return notification.warning('Selecione o tipo de movimento.');
     if (!meta.noValor && (form.valor === '' || Number(form.valor) <= 0))
-      return toast.error('Introduza um valor positivo.');
+      return notification.warning('Introduza um valor positivo.');
     if (meta.docRequired && !form.tb_document)
-      return toast.error('Pedido associado obrigatório para este tipo de movimento.');
+      return notification.warning('Pedido associado obrigatório para este tipo de movimento.');
     if (meta.opRequired && !form.ordempagamento)
-      return toast.error('Ordem de pagamento obrigatória para este tipo de movimento.');
+      return notification.warning('Ordem de pagamento obrigatória para este tipo de movimento.');
     if (!canSubmit) return;
     onSave(form);
   };
@@ -353,6 +358,47 @@ const MovementDialog = ({ open, onClose, initial, tipos, currentUserId, fechoSta
   );
 };
 
+// ─── Export PDF ──────────────────────────────────────────────────────────────
+
+const exportToPdf = (rows) => {
+  const html = `
+    <html><head><meta charset="utf-8"><title>Fundo de Caixa</title>
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 12px; }
+      h2 { margin-bottom: 4px; }
+      p  { margin: 0 0 12px; color: #666; font-size: 11px; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background: #ff9800; color: #fff; padding: 6px 8px; text-align: left; font-size: 11px; }
+      td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+      tr:nth-child(even) td { background: #fafafa; }
+    </style></head><body>
+    <h2>Fundo de Caixa</h2>
+    <p>Exportado em ${new Date().toLocaleString('pt-PT')}</p>
+    <table>
+      <thead><tr>
+        <th>Data</th><th>Tipo</th><th>Valor</th><th>Saldo</th>
+        <th>Registado por</th><th>Validado por</th><th>Pedido</th><th>Ordem Pag.</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td>${r.data?.slice(0,10) ?? '—'}</td>
+          <td>${r.tt_caixamovimento ?? '—'}</td>
+          <td>${r.valor != null ? new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(r.valor) : '—'}</td>
+          <td>${r.saldo != null ? new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(r.saldo) : '—'}</td>
+          <td>${r.ts_client1 ?? '—'}</td>
+          <td>${r.ts_client2 ?? (TIPOS_TWO_PERSON.includes(r.tt_caixamovimento_raw) ? 'Aguarda validação' : '—')}</td>
+          <td>${r.tb_document ?? '—'}</td>
+          <td>${r.ordempagamento ?? '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+};
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 const CaixaPage = () => {
@@ -364,25 +410,63 @@ const CaixaPage = () => {
 
   const canEdit = hasPermission('payments.caixa.edit');
 
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo]     = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editRow, setEditRow]   = useState(null);
+  const currentYear = new Date().getFullYear();
+  const yearOptions = useMemo(() => {
+    const years = [];
+    for (let y = currentYear; y >= 2025; y--) years.push(y);
+    return years;
+  }, [currentYear]);
 
-  const filters = useMemo(() => {
-    const f = {};
-    if (dateFrom) f.date_from = dateFrom;
-    if (dateTo)   f.date_to   = dateTo;
+  // ── Filtros servidor ──
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [dateFrom, setDateFrom]         = useState('');
+  const [dateTo, setDateTo]             = useState('');
+  // ── Filtros cliente ──
+  const [searchTerm, setSearchTerm]         = useState('');
+  const [filterTipo, setFilterTipo]         = useState('');
+  const [filterPendente, setFilterPendente] = useState(false);
+  const [filtersOpen, setFiltersOpen]       = useState(false);
+  // ── UI ──
+  const [formOpen, setFormOpen]         = useState(false);
+  const [editRow, setEditRow]           = useState(null);
+  const [exportAnchor, setExportAnchor] = useState(null);
+
+  const serverFilters = useMemo(() => {
+    // Base: ano selecionado
+    const f = {
+      date_from: dateFrom || `${selectedYear}-01-01`,
+      date_to:   dateTo   || `${selectedYear}-12-31`,
+    };
     return f;
-  }, [dateFrom, dateTo]);
+  }, [selectedYear, dateFrom, dateTo]);
 
-  const { data, isLoading, isError } = useCaixa(filters);
+  const { data, isLoading, isError } = useCaixa(serverFilters);
   const { data: tipos = [] }         = useTipos();
   const { data: fechoState }         = useFechoState();
 
-  const movements = data?.movements ?? [];
-  const summary   = data?.summary ?? { saldo: 0, total_entrada: 0, total_saida: 0, count: 0 };
+  const allMovements = data?.movements ?? [];
+  const summary      = data?.summary ?? { saldo: 0, total_entrada: 0, total_saida: 0, count: 0 };
+
+  // ── Filtragem cliente ──
+  const movements = useMemo(() => {
+    let rows = allMovements;
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      rows = rows.filter(r =>
+        r.tt_caixamovimento?.toLowerCase().includes(q) ||
+        r.ts_client1?.toLowerCase().includes(q) ||
+        r.ts_client2?.toLowerCase().includes(q) ||
+        String(r.tb_document ?? '').toLowerCase().includes(q) ||
+        String(r.ordempagamento ?? '').toLowerCase().includes(q)
+      );
+    }
+    if (filterTipo) rows = rows.filter(r => r.tt_caixamovimento_raw === Number(filterTipo));
+    if (filterPendente) rows = rows.filter(r => r.is_pending_validation);
+    return rows;
+  }, [allMovements, searchTerm, filterTipo, filterPendente]);
+
+  const activeFilterCount = [dateFrom, dateTo, filterTipo, filterPendente].filter(Boolean).length;
+
 
   // ── Mutations ──
 
@@ -390,20 +474,20 @@ const CaixaPage = () => {
 
   const createMut = useMutation({
     mutationFn: (body) => apiClient.post('/caixa', body),
-    onSuccess: () => { toast.success('Movimento registado com sucesso.'); invalidateCaixa(); setFormOpen(false); },
-    onError: (err) => toast.error(err?.message || 'Erro ao registar movimento.'),
+    onSuccess: () => { notification.success('Movimento registado com sucesso.'); invalidateCaixa(); setFormOpen(false); },
+    onError: (err) => notification.apiError(err, 'Não foi possível registar o movimento.'),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ pk, ...body }) => apiClient.put(`/caixa/${pk}`, body),
-    onSuccess: () => { toast.success('Movimento atualizado com sucesso.'); invalidateCaixa(); setFormOpen(false); setEditRow(null); },
-    onError: (err) => toast.error(err?.message || 'Erro ao atualizar movimento.'),
+    onSuccess: () => { notification.success('Movimento atualizado com sucesso.'); invalidateCaixa(); setFormOpen(false); setEditRow(null); },
+    onError: (err) => notification.apiError(err, 'Não foi possível atualizar o movimento.'),
   });
 
   const validateMut = useMutation({
     mutationFn: (pk) => apiClient.post(`/caixa/${pk}/validar`),
-    onSuccess: (_, __, ctx) => { toast.success('Validado com sucesso.'); invalidateCaixa(); },
-    onError: (err) => toast.error(err?.message || 'Erro ao validar.'),
+    onSuccess: () => { notification.success('Fecho validado com sucesso.'); invalidateCaixa(); },
+    onError: (err) => notification.apiError(err, 'Não foi possível validar o fecho.'),
   });
 
   const handleSave = (form) => {
@@ -429,6 +513,33 @@ const CaixaPage = () => {
       tb_document:       row.tb_document_pk ?? row.tb_document ?? '',
     });
     setFormOpen(true);
+  };
+
+  const handleExportExcel = useCallback(() => {
+    const rows = movements.map(r => ({
+      'Data':          r.data?.slice(0,10) ?? '',
+      'Tipo':          r.tt_caixamovimento ?? '',
+      'Valor (€)':     r.valor ?? 0,
+      'Saldo (€)':     r.saldo ?? 0,
+      'Registado por': r.ts_client1 ?? '',
+      'Validado por':  r.ts_client2 ?? '',
+      'Pedido':        r.tb_document ?? '',
+      'Ordem Pag.':    r.ordempagamento ?? '',
+    }));
+    exportToExcel(rows, 'fundo_de_caixa');
+    setExportAnchor(null);
+    notification.success('Ficheiro Excel gerado com sucesso.');
+  }, [movements]);
+
+  const handleExportPdf = useCallback(() => {
+    exportToPdf(movements);
+    setExportAnchor(null);
+  }, [movements]);
+
+  const handleClearFilters = () => {
+    setDateFrom(''); setDateTo('');
+    setFilterTipo(''); setFilterPendente(false);
+    setSelectedYear(currentYear);
   };
 
   // ── Columns ──
@@ -567,14 +678,18 @@ const CaixaPage = () => {
         { label: 'Caixa', path: '/caixa' },
       ]}
       actions={
-        canEdit && (
-          <Button
-            variant="contained" startIcon={<AddIcon />} onClick={() => { setEditRow(null); setFormOpen(true); }}
-            sx={{ bgcolor: '#ff9800', '&:hover': { bgcolor: '#f57c00' } }}
-          >
-            Novo Movimento
-          </Button>
-        )
+        <Stack direction="row" spacing={1} alignItems="center">
+          <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+          {canEdit && (
+            <Button
+              variant="contained" startIcon={<AddIcon />}
+              onClick={() => { setEditRow(null); setFormOpen(true); }}
+              sx={{ bgcolor: '#ff9800', '&:hover': { bgcolor: '#f57c00' }, whiteSpace: 'nowrap' }}
+            >
+              Novo Movimento
+            </Button>
+          )}
+        </Stack>
       }
     >
       {/* ── Banners de pendentes ── */}
@@ -621,32 +736,102 @@ const CaixaPage = () => {
 
       {/* ── Table ── */}
       <Paper sx={{ borderRadius: 2 }}>
+        {/* Toolbar */}
         <Box sx={{
           px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1,
-          borderBottom: 1, borderColor: 'divider', flexWrap: 'wrap',
+          borderBottom: filtersOpen ? 1 : 0, borderColor: 'divider', flexWrap: 'wrap',
         }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>Movimentos</Typography>
-          <Button size="small" startIcon={<FilterIcon />}
-            onClick={() => setFiltersOpen((p) => !p)}
-            variant={filtersOpen ? 'contained' : 'outlined'} color="inherit">
-            Filtrar por data
-          </Button>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
+            Movimentos
+            {movements.length !== allMovements.length && (
+              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                ({movements.length} de {allMovements.length})
+              </Typography>
+            )}
+          </Typography>
+
+          {/* Exportar */}
+          <Tooltip title="Exportar">
+            <IconButton size="small" onClick={(e) => setExportAnchor(e.currentTarget)}
+              disabled={movements.length === 0}>
+              <ExportIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Menu anchorEl={exportAnchor} open={!!exportAnchor} onClose={() => setExportAnchor(null)}>
+            <MenuItem onClick={handleExportExcel} sx={{ gap: 1 }}>
+              <ExcelIcon fontSize="small" color="success" /> Excel (.xlsx)
+            </MenuItem>
+            <MenuItem onClick={handleExportPdf} sx={{ gap: 1 }}>
+              <PdfIcon fontSize="small" color="error" /> PDF (imprimir)
+            </MenuItem>
+          </Menu>
+
+          {/* Filtros */}
+          <Badge badgeContent={activeFilterCount} color="warning" variant="dot"
+            invisible={activeFilterCount === 0}>
+            <Button size="small" startIcon={<FilterIcon />}
+              onClick={() => setFiltersOpen((p) => !p)}
+              variant={filtersOpen ? 'contained' : 'outlined'} color="inherit">
+              Filtros
+            </Button>
+          </Badge>
+
+          {/* Seletor de ano */}
+          <TextField
+            select size="small"
+            value={selectedYear}
+            onChange={(e) => { setSelectedYear(Number(e.target.value)); setDateFrom(''); setDateTo(''); }}
+            sx={{ width: 100 }}
+          >
+            {yearOptions.map((y) => (
+              <MenuItem key={y} value={y}>{y}</MenuItem>
+            ))}
+          </TextField>
         </Box>
 
+        {/* Painel de filtros */}
         {filtersOpen && (
-          <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider', bgcolor: alpha(theme.palette.action.hover, 0.3) }}>
-            <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
-              <TextField size="small" type="date" label="De" value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 160 }} />
-              <TextField size="small" type="date" label="Até" value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 160 }} />
-              {(dateFrom || dateTo) && (
-                <Button size="small" color="inherit" startIcon={<CloseIcon />}
-                  onClick={() => { setDateFrom(''); setDateTo(''); }}>
+          <Box sx={{ px: 2, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: alpha(theme.palette.action.hover, 0.12) }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="date" label="Data de"
+                  value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  InputLabelProps={{ shrink: true }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="date" label="Data até"
+                  value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  InputLabelProps={{ shrink: true }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth select size="small" label="Tipo de movimento"
+                  value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)}>
+                  <MenuItem value="">Todos</MenuItem>
+                  {tipos.map((t) => (
+                    <MenuItem key={t.pk} value={t.pk}>{t.value}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+                <Button
+                  fullWidth size="small"
+                  variant={filterPendente ? 'contained' : 'outlined'}
+                  color="warning"
+                  startIcon={<PendenteIcon />}
+                  onClick={() => setFilterPendente((p) => !p)}
+                >
+                  Só pendentes
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 12, md: 1 }}>
+                <Button fullWidth size="small" color="inherit"
+                  startIcon={<CloseIcon />}
+                  onClick={handleClearFilters}
+                  disabled={activeFilterCount === 0}>
                   Limpar
                 </Button>
-              )}
-            </Stack>
+              </Grid>
+            </Grid>
           </Box>
         )}
 
@@ -677,7 +862,7 @@ const CaixaPage = () => {
               sx={{
                 border: 0,
                 '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
-                '& .MuiDataGrid-row:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) },
+                '& .MuiDataGrid-row:hover': { bgcolor: alpha(theme.palette.action.hover, 0.15) },
                 '& .row-pending': { bgcolor: alpha(theme.palette.warning.main, 0.06) },
               }}
             />

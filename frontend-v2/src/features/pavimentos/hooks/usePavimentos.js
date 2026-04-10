@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import * as svc from '../services/pavimentosService';
 
 /**
@@ -29,7 +29,7 @@ export const usePavimentos = (status) => {
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao carregar pavimentações';
       setError(msg);
-      toast.error(msg);
+      notification.error(msg);
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export const usePavimentos = (status) => {
     try {
       if (acao === 'execute') {
         await svc.executarPavimento(pk);
-        toast.success('Pavimentação marcada como executada');
+        notification.success('Pavimentação marcada como executada');
       } else if (acao === 'pay') {
         await svc.pagarPavimento(pk);
         // Enviar anexos se existirem
@@ -66,12 +66,12 @@ export const usePavimentos = (status) => {
             await Promise.allSettled(uploads);
           }
         }
-        toast.success('Pavimentação marcada como concluída e paga');
+        notification.success('Pavimentação marcada como concluída e paga');
       }
       await fetchPavimentos();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao processar ação';
-      toast.error(msg);
+      notification.error(msg);
     } finally {
       setActionLoading(null);
     }

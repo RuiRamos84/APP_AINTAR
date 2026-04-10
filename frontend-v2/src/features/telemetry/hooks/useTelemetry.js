@@ -1,6 +1,6 @@
 // features/telemetry/hooks/useTelemetry.js
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useTelemetryStore } from '../store/telemetryStore';
 import * as telemetryService from '../services/telemetryService';
 
@@ -53,7 +53,7 @@ export function useTelemetry() {
     } catch (err) {
       const msg = err?.response?.data?.message ?? err?.message ?? 'Erro desconhecido';
       store.setError(`Erro ao carregar sensores: ${msg}`);
-      toast.error('Erro ao carregar sensores.');
+      notification.error('Erro ao carregar sensores.');
     } finally {
       store.setLoading('loadingSensors', false);
       searchingRef.current = false;
@@ -108,7 +108,7 @@ export function useTelemetry() {
         store.setAnalysisData(data);
       } catch (err) {
         const msg = err?.response?.data?.message ?? err?.message ?? 'Erro desconhecido';
-        toast.error(`Erro ao carregar dados: ${msg}`);
+        notification.error(`Erro ao carregar dados: ${msg}`);
       } finally {
         store.setLoading('loadingAnalysis', false);
       }

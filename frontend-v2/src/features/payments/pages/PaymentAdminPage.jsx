@@ -11,6 +11,7 @@ import {
     Euro, History, Close as CloseIcon, Cancel, VerifiedUser, Undo
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import notification from '@/core/services/notification';
 import { useAuth } from '@/core/contexts/AuthContext';
 import useMetaData from '@/core/hooks/useMetaData';
 import paymentService from '../services/paymentService';
@@ -24,7 +25,6 @@ const PaymentAdminPage = () => {
     const queryClient = useQueryClient();
 
     const [tab, setTab] = useState(0);
-    const [error, setError] = useState('');
     const [selectedPayment, setSelectedPayment] = useState(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -80,7 +80,7 @@ const PaymentAdminPage = () => {
             setConfirmOpen(false);
             setSelectedPayment(null);
         },
-        onError: (err) => setError(err.message || 'Erro na aprovação'),
+        onError: (err) => notification.apiError(err, 'Erro na aprovação do pagamento.'),
     });
 
     // Mutation aprovar isenção
@@ -91,7 +91,7 @@ const PaymentAdminPage = () => {
             setConfirmOpen(false);
             setSelectedPayment(null);
         },
-        onError: (err) => setError(err.message || 'Erro na aprovação da isenção'),
+        onError: (err) => notification.apiError(err, 'Erro na aprovação da isenção.'),
     });
 
     // Mutation devolução
@@ -103,7 +103,7 @@ const PaymentAdminPage = () => {
             setRefundReason('');
             setSelectedPayment(null);
         },
-        onError: (err) => setError(err.response?.data?.erro || err.message || 'Erro na devolução'),
+        onError: (err) => notification.apiError(err, 'Erro na devolução.'),
     });
 
     // Mutation rejeitar isenção
@@ -114,7 +114,7 @@ const PaymentAdminPage = () => {
             setRejectOpen(false);
             setSelectedPayment(null);
         },
-        onError: (err) => setError(err.message || 'Erro na rejeição da isenção'),
+        onError: (err) => notification.apiError(err, 'Erro na rejeição da isenção.'),
     });
 
     // Query histórico
@@ -307,8 +307,6 @@ const PaymentAdminPage = () => {
                     </Grid>
                 </Grid>
             )}
-
-            {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
             {/* Tabela */}
             <Paper elevation={2}>

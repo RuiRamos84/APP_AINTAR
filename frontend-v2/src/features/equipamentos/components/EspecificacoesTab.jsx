@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import * as svc from '../services/equipamentoService';
 
 function SpecForm({ open, onClose, onSubmit, spec, specTipos = [] }) {
@@ -86,7 +86,7 @@ export default function EspecificacoesTab({ equipamento, meta, canEdit }) {
       const list = await svc.getSpecs(equipamento.id);
       setSpecs(list);
     } catch {
-      toast.error('Erro ao carregar especificações');
+      notification.error('Erro ao carregar especificações');
     } finally {
       setLoading(false);
     }
@@ -98,16 +98,16 @@ export default function EspecificacoesTab({ equipamento, meta, canEdit }) {
     try {
       if (editing) {
         await svc.updateSpec(equipamento.id, editing.id, data);
-        toast.success('Especificação atualizada');
+        notification.success('Especificação atualizada');
       } else {
         await svc.createSpec(equipamento.id, data);
-        toast.success('Especificação adicionada');
+        notification.success('Especificação adicionada');
       }
       setEditing(null);
       await load();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao guardar especificação';
-      toast.error(msg);
+      notification.error(msg);
       throw err; // mantém o dialog aberto
     }
   };
@@ -116,10 +116,10 @@ export default function EspecificacoesTab({ equipamento, meta, canEdit }) {
     if (!window.confirm('Eliminar esta especificação?')) return;
     try {
       await svc.deleteSpec(equipamento.id, id);
-      toast.success('Especificação eliminada');
+      notification.success('Especificação eliminada');
       load();
     } catch {
-      toast.error('Erro ao eliminar especificação');
+      notification.error('Erro ao eliminar especificação');
     }
   };
 

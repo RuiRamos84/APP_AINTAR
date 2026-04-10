@@ -22,7 +22,7 @@ import {
   CheckCircle as DoneIcon, RadioButtonUnchecked as PendingIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import * as svc from '../services/obrasService';
 
@@ -404,7 +404,7 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
       const { obras: list } = await svc.getObrasByInstalacao(pk);
       setObras(list);
     } catch {
-      toast.error('Erro ao carregar obras da instalação');
+      notification.error('Erro ao carregar obras da instalação');
     } finally {
       setLoading(false);
     }
@@ -416,7 +416,7 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
       const { despesas: list } = await svc.getDespesasByInstalacao(pk);
       setDespesas(list);
     } catch {
-      toast.error('Erro ao carregar despesas');
+      notification.error('Erro ao carregar despesas');
     }
   }, [pk]);
 
@@ -444,17 +444,17 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
     try {
       if (editObra) {
         await svc.updateObra(editObra.id, payload);
-        toast.success('Obra atualizada');
+        notification.success('Obra atualizada');
       } else {
         await svc.createObra(payload);
-        toast.success('Obra criada com sucesso');
+        notification.success('Obra criada com sucesso');
       }
       setObraDialog(false);
       setEditObra(null);
       await loadObras();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao guardar obra';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   };
@@ -463,17 +463,17 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
     try {
       if (editDespesa) {
         await svc.updateDespesa(editDespesa.id, values);
-        toast.success('Despesa atualizada');
+        notification.success('Despesa atualizada');
       } else {
         await svc.createDespesa(values);
-        toast.success('Despesa adicionada');
+        notification.success('Despesa adicionada');
       }
       setDespesaDialog(false);
       setEditDespesa(null);
       await loadDespesas();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao guardar despesa';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   };

@@ -4,7 +4,7 @@ import { Delete as DeleteIcon, Add as AddIcon, CheckCircle as PaidIcon, RemoveCi
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { DatePicker } from '@mui/x-date-pickers';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import apiClient from '@/services/api/client';
 import DataTable from '@/shared/components/data/DataTable/DataTable';
 import ConfirmDialog from '@/shared/components/feedback/ConfirmDialog';
@@ -31,36 +31,31 @@ export const ContractInvoicesList = ({ contract }) => {
   const createMutation = useMutation({
     mutationFn: (data) => apiClient.post(`/clients/contracts/${contractId}/payments`, data),
     onSuccess: () => {
-      toast.success('Registo financeiro adicionado!');
+      notification.success('Registo financeiro adicionado!');
       queryClient.invalidateQueries(['contract-payments', contractId]);
       setIsAdding(false);
       reset();
     },
-    onError: (error) => toast.error(error?.response?.data?.message || error?.message || 'Erro ao adicionar registo.'),
+    onError: (err) => notification.apiError(err, 'Erro ao adicionar registo.'),
   });
 
   const togglePayedMutation = useMutation({
     mutationFn: ({ pk, currentPayed }) => apiClient.put(`/clients/contracts/payments/${pk}`, { payed: !currentPayed }),
     onSuccess: () => {
-      toast.success('Estado atualizado!');
+      notification.success('Estado atualizado!');
       queryClient.invalidateQueries(['contract-payments', contractId]);
     },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || error.message || 'Erro ao alterar estado de pagamento!');
-    }
+    onError: (err) => notification.apiError(err, 'Erro ao alterar estado de pagamento.')
   });
 
   const deleteMutation = useMutation({
     mutationFn: (pk) => apiClient.delete(`/clients/contracts/payments/${pk}`),
     onSuccess: () => {
-      toast.success('Registo eliminado!');
+      notification.success('Registo eliminado!');
       queryClient.invalidateQueries(['contract-payments', contractId]);
       setDeleteInvoiceId(null);
     },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || error.message || 'Erro ao eliminar o registo!');
-      setDeleteInvoiceId(null);
-    }
+    onError: (err) => { notification.apiError(err, 'Erro ao eliminar o registo.'); setDeleteInvoiceId(null); }
   });
 
   const onSubmit = (data) => {

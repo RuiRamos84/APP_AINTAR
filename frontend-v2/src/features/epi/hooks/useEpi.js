@@ -19,7 +19,7 @@
 import { useCallback, useEffect } from 'react';
 import { useEpiStore } from '../store/epiStore';
 import epiService from '../services/epiService';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 export const useEpi = (options = {}) => {
   const { autoFetch = true, fetchOnMount = true, onSuccess, onError } = options;
@@ -107,7 +107,7 @@ export const useEpi = (options = {}) => {
         const errorMsg = err.message || 'Erro ao carregar dados EPI';
         setError(errorMsg);
         setLoading(false);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
       }
     },
@@ -141,7 +141,7 @@ export const useEpi = (options = {}) => {
       } catch (err) {
         const errorMsg = err.message || 'Erro ao carregar entregas';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
       }
     },
     [getEmployeeById, page, rowsPerPage, setLoadingDeliveries, clearError, setDeliveries, setError]
@@ -160,7 +160,7 @@ export const useEpi = (options = {}) => {
     } catch (err) {
       const errorMsg = err.message || 'Erro ao carregar entregas';
       setError(errorMsg);
-      toast.error(errorMsg);
+      notification.error(errorMsg);
       return [];
     } finally {
       setLoadingDeliveries(false);
@@ -182,14 +182,14 @@ export const useEpi = (options = {}) => {
         addDelivery(newDelivery);
         invalidateCache();
 
-        toast.success('Entrega registada com sucesso!');
+        notification.success('Entrega registada com sucesso!');
         onSuccess?.('Entrega criada');
 
         return newDelivery;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao criar entrega';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {
@@ -223,19 +223,19 @@ export const useEpi = (options = {}) => {
         invalidateCache();
 
         if (successCount === deliveries.length) {
-          toast.success('Todas as entregas foram registadas com sucesso!');
+          notification.success('Todas as entregas foram registadas com sucesso!');
           onSuccess?.('Entregas criadas');
         } else if (successCount > 0) {
-          toast.warning(`${successCount} de ${deliveries.length} entregas registadas`);
+          notification.warning(`${successCount} de ${deliveries.length} entregas registadas`);
         } else {
-          toast.error('Nenhuma entrega foi registada');
+          notification.error('Nenhuma entrega foi registada');
         }
 
         return { successCount, errors };
       } catch (err) {
         const errorMsg = err.message || 'Erro ao processar entregas';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         throw err;
       } finally {
         setLoading(false);
@@ -259,14 +259,14 @@ export const useEpi = (options = {}) => {
         updateDeliveryInStore(pk, updatedDelivery);
         invalidateCache();
 
-        toast.success('Entrega atualizada com sucesso!');
+        notification.success('Entrega atualizada com sucesso!');
         onSuccess?.('Entrega atualizada');
 
         return updatedDelivery;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao atualizar entrega';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {
@@ -289,12 +289,12 @@ export const useEpi = (options = {}) => {
         markDeliveryReturned(pk, data.pndata, data.pnmemo);
         invalidateCache();
 
-        toast.success('Entrega anulada com sucesso!');
+        notification.success('Entrega anulada com sucesso!');
         onSuccess?.('Entrega anulada');
       } catch (err) {
         const errorMsg = err.message || 'Erro ao anular entrega';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {
@@ -319,14 +319,14 @@ export const useEpi = (options = {}) => {
         updateEmployeePreferences(employeeId, preferencesData);
         invalidateCache();
 
-        toast.success('Preferências atualizadas com sucesso!');
+        notification.success('Preferências atualizadas com sucesso!');
         onSuccess?.('Preferências atualizadas');
 
         return result;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao atualizar preferências';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {
@@ -351,14 +351,14 @@ export const useEpi = (options = {}) => {
         addEmployee(newEmployee);
         invalidateCache();
 
-        toast.success('Colaborador criado com sucesso!');
+        notification.success('Colaborador criado com sucesso!');
         onSuccess?.('Colaborador criado');
 
         return newEmployee;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao criar colaborador';
         setError(errorMsg);
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {

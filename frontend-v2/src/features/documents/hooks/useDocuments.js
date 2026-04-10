@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsService } from '../api/documentsService';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useAuth } from '@/core/contexts/AuthContext';
 
 // Query Keys
@@ -78,11 +78,11 @@ export const useCreateDocument = () => {
   return useMutation({
     mutationFn: (formData) => documentsService.create(formData),
     onSuccess: () => {
-      toast.success('Pedido criado com sucesso');
+      notification.success('Pedido criado com sucesso');
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
-      toast.error('Erro ao criar pedido: ' + (error.response?.data?.error || error.message));
+      notification.error('Erro ao criar pedido: ' + (error.response?.data?.error || error.message));
     }
   });
 };
@@ -96,14 +96,14 @@ export const useAddStep = () => {
   return useMutation({
     mutationFn: ({ id, formData }) => documentsService.addStep(id, formData),
     onSuccess: (_, variables) => {
-      toast.success('Passo adicionado com sucesso');
+      notification.success('Passo adicionado com sucesso');
       queryClient.invalidateQueries({ queryKey: documentKeys.steps(variables.id) });
       queryClient.invalidateQueries({ queryKey: documentKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
       const backendMsg = error.response?.data?.error;
-      toast.error('Erro ao adicionar ação: ' + (backendMsg || error.message));
+      notification.error('Erro ao adicionar ação: ' + (backendMsg || error.message));
     }
   });
 };
@@ -151,7 +151,7 @@ export const useAddAnnex = () => {
   return useMutation({
     mutationFn: ({ docId: _id, formData }) => documentsService.addAnnex(formData),
     onSuccess: (_, { docId }) => {
-      toast.success('Anexo adicionado com sucesso');
+      notification.success('Anexo adicionado com sucesso');
       if (docId) {
         queryClient.invalidateQueries({ queryKey: documentKeys.annexes(Number(docId)) });
         queryClient.invalidateQueries({ queryKey: documentKeys.detail(Number(docId)) });
@@ -159,7 +159,7 @@ export const useAddAnnex = () => {
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
-      toast.error('Erro ao adicionar anexo: ' + (error.response?.data?.error || error.message));
+      notification.error('Erro ao adicionar anexo: ' + (error.response?.data?.error || error.message));
     },
   });
 };
@@ -173,11 +173,11 @@ export const useReplicateDocument = () => {
   return useMutation({
     mutationFn: ({ id, newType }) => documentsService.replicate(id, newType),
     onSuccess: () => {
-      toast.success('Pedido replicado com sucesso');
+      notification.success('Pedido replicado com sucesso');
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
-      toast.error('Erro ao replicar pedido: ' + (error.response?.data?.error || error.message));
+      notification.error('Erro ao replicar pedido: ' + (error.response?.data?.error || error.message));
     },
   });
 };
@@ -191,11 +191,11 @@ export const useReopenDocument = () => {
   return useMutation({
     mutationFn: (regnumber) => documentsService.reopen(regnumber),
     onSuccess: () => {
-      toast.success('Pedido reaberto com sucesso');
+      notification.success('Pedido reaberto com sucesso');
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
     onError: (error) => {
-      toast.error('Erro ao reabrir pedido: ' + (error.response?.data?.error || error.message));
+      notification.error('Erro ao reabrir pedido: ' + (error.response?.data?.error || error.message));
     },
   });
 };
@@ -240,10 +240,10 @@ export const useDownloadComprovativo = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Comprovativo descarregado');
+      notification.success('Comprovativo descarregado');
     },
     onError: (error) => {
-      toast.error('Erro ao descarregar comprovativo: ' + (error.message || 'Erro desconhecido'));
+      notification.error('Erro ao descarregar comprovativo: ' + (error.message || 'Erro desconhecido'));
     },
   });
 };

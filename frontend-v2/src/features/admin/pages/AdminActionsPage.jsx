@@ -22,7 +22,7 @@ import {
   CheckCircle as OkIcon,
   Send as SendIcon,
 } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import apiClient from '@/services/api/client';
 
@@ -113,14 +113,14 @@ const AdminActionsPage = () => {
       const res = await apiClient.post(`/admin/actions/${actionRef.key}`);
       const duration = ((Date.now() - start) / 1000).toFixed(1);
       const msg = res?.message || `${actionRef.title} concluído em ${duration}s`;
-      toast.success(msg);
+      notification.success(msg);
       setResults((prev) => [
         { key: actionRef.key, label: actionRef.title, ok: true, time: new Date(), duration },
         ...prev.slice(0, 9),
       ]);
     } catch (e) {
       const msg = e.response?.data?.message || e.response?.data?.erro || e.message;
-      toast.error(msg);
+      notification.error(msg);
       setResults((prev) => [
         { key: actionRef.key, label: actionRef.title, ok: false, time: new Date(), error: msg },
         ...prev.slice(0, 9),

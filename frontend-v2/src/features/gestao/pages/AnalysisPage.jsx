@@ -17,7 +17,7 @@ import {
   Refresh as RefreshIcon, Close as CloseIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useMetaData, useETARList, useEEList, useAnaliseParams } from '@/core/hooks/useMetaData';
 import { queryAnalyses, searchAnalysisByPK, updateAnalysis } from '../services/analysisService';
@@ -105,7 +105,7 @@ const AnalysisPage = () => {
     } catch (e) {
       const status = e.response?.status ?? e.status;
       if (status === 404) {
-        toast.info(`Nenhuma análise encontrada para o nº ${quickPK.trim()}`);
+        notification.info(`Nenhuma análise encontrada para o nº ${quickPK.trim()}`);
         setRows([]);
         setSearched(true);
       } else {
@@ -148,11 +148,11 @@ const AnalysisPage = () => {
     setSaving(true);
     try {
       await updateAnalysis({ pk: selected.pk, resultado });
-      toast.success('Resultado atualizado com sucesso!');
+      notification.success('Resultado atualizado com sucesso!');
       setRows((prev) => prev.map((r) => r.pk === selected.pk ? { ...r, resultado } : r));
       setEditOpen(false);
     } catch (e) {
-      toast.error(`Erro: ${e.message}`);
+      notification.error(`Erro: ${e.message}`);
     } finally {
       setSaving(false);
     }

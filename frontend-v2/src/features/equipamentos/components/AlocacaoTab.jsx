@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import * as svc from '../services/equipamentoService';
 
 const ALOC_COLORS = {
@@ -200,7 +200,7 @@ export default function AlocacaoTab({ equipamento, meta, canEdit, onAlocChange }
       const list = await svc.getAloc(equipamento.id);
       setAlocacoes([...list].sort((a, b) => b.id - a.id));
     } catch {
-      toast.error('Erro ao carregar alocações');
+      notification.error('Erro ao carregar alocações');
     } finally {
       setLoading(false);
     }
@@ -212,17 +212,17 @@ export default function AlocacaoTab({ equipamento, meta, canEdit, onAlocChange }
     try {
       if (editing) {
         await svc.updateAloc(equipamento.id, editing.id, data);
-        toast.success('Alocação atualizada');
+        notification.success('Alocação atualizada');
       } else {
         await svc.createAloc(equipamento.id, data);
-        toast.success('Alocação registada');
+        notification.success('Alocação registada');
       }
       setEditing(null);
       load();
       onAlocChange?.();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao guardar alocação';
-      toast.error(msg);
+      notification.error(msg);
       throw err; // mantém o dialog aberto
     }
   };
@@ -231,11 +231,11 @@ export default function AlocacaoTab({ equipamento, meta, canEdit, onAlocChange }
     if (!window.confirm('Eliminar esta alocação?')) return;
     try {
       await svc.deleteAloc(equipamento.id, id);
-      toast.success('Alocação eliminada');
+      notification.success('Alocação eliminada');
       load();
       onAlocChange?.();
     } catch {
-      toast.error('Erro ao eliminar alocação');
+      notification.error('Erro ao eliminar alocação');
     }
   };
 

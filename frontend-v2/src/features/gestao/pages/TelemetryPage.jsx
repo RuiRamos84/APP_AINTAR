@@ -18,7 +18,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import html2canvas from 'html2canvas';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import ModulePage from '@/shared/components/layout/ModulePage';
 import SensorMap, { MiniSensorMap } from '../components/SensorMap';
 import telemetryService from '../services/telemetryService';
@@ -135,7 +135,7 @@ export default function TelemetryPage() {
       setHasSearched(true);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Erro desconhecido';
-      toast.error(`Erro ao carregar sensores: ${msg}`);
+      notification.error(`Erro ao carregar sensores: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -204,7 +204,7 @@ export default function TelemetryPage() {
       setAnalysisData(data);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Erro desconhecido';
-      toast.error(`Erro ao carregar dados de análise: ${msg}`);
+      notification.error(`Erro ao carregar dados de análise: ${msg}`);
     } finally {
       setAnalysisLoading(false);
     }

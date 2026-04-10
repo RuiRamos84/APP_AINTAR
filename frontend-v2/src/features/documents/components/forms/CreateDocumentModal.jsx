@@ -24,7 +24,7 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
   Delete as DeleteIcon,
   CloudUpload as UploadIcon,
@@ -195,7 +195,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
       case 0: // Identification
         if (!isInternal) {
             if (!entityData) {
-                toast.error("Por favor selecione uma Entidade.");
+                notification.error("Por favor selecione uma Entidade.");
                 return; 
             }
             // Validate Entity Completeness (Legacy Parity)
@@ -203,7 +203,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
             const missing = requiredFields.filter(f => !entityData[f] || String(entityData[f]).trim() === '');
             
             if (missing.length > 0) {
-                 toast.error("A entidade selecionada tem dados em falta.", {
+                 notification.error("A entidade selecionada tem dados em falta.", {
                      description: `Campos em falta: ${missing.join(', ')}. Por favor atualize a ficha da entidade primeiro.`,
                      duration: 6000
                  });
@@ -211,7 +211,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
             }
         }
         if (isRepresentative && !representativeData) {
-            toast.error("Por favor selecione um Representante Legal.");
+            notification.error("Por favor selecione um Representante Legal.");
             return;
         }
         break;
@@ -228,7 +228,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
             return val === '' || val === null || val === undefined;
           });
           if (missing.length > 0) {
-            toast.error('Todos os parâmetros são obrigatórios.', {
+            notification.error('Todos os parâmetros são obrigatórios.', {
               description: `Falta preencher: ${missing.map(p => p.name).join(', ')}`,
               duration: 5000
             });
@@ -282,7 +282,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
   // GPS Handler
   const handleGetCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      toast.error('Geolocalização não suportada pelo browser.');
+      notification.error('Geolocalização não suportada pelo browser.');
       return;
     }
     setGpsLoading(true);
@@ -291,7 +291,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
         setValue('glat', String(position.coords.latitude));
         setValue('glong', String(position.coords.longitude));
         setGpsLoading(false);
-        toast.success('Localização obtida com sucesso.');
+        notification.success('Localização obtida com sucesso.');
       },
       (error) => {
         setGpsLoading(false);
@@ -300,7 +300,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
           2: 'Localização indisponível.',
           3: 'Tempo esgotado ao obter localização.',
         };
-        toast.error(messages[error.code] || 'Erro ao obter localização.');
+        notification.error(messages[error.code] || 'Erro ao obter localização.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -448,7 +448,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
     console.error('[CreateDocument] Erros de validação:', validationErrors);
     const fieldNames = Object.keys(validationErrors);
     const messages = fieldNames.map(f => validationErrors[f]?.message || f).join(', ');
-    toast.error('Existem campos obrigatórios em falta', {
+    notification.error('Existem campos obrigatórios em falta', {
       description: messages,
       duration: 5000
     });

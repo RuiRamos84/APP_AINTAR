@@ -29,7 +29,7 @@ import {
   PhoneAndroid as PhoneIcon,
 } from '@mui/icons-material';
 import { DataGrid, useGridApiRef } from '@mui/x-data-grid';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useQuery } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
@@ -84,7 +84,7 @@ const SignDialog = ({ open, offices, onClose, onComplete }) => {
   // Step 0 → 1: pedir OTP
   const handleRequestOTP = async () => {
     if (signable.length === 0) {
-      toast.error('Nenhum documento elegível para assinar.');
+      notification.error('Nenhum documento elegível para assinar.');
       return;
     }
     setLoading(true);
@@ -100,7 +100,7 @@ const SignDialog = ({ open, offices, onClose, onComplete }) => {
       setProcessId(res.process_id ?? res.request_id);
       setStep(1);
     } catch (e) {
-      toast.error(`Erro ao solicitar OTP: ${e?.message ?? 'desconhecido'}`);
+      notification.error(`Erro ao solicitar OTP: ${e?.message ?? 'desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ const SignDialog = ({ open, offices, onClose, onComplete }) => {
       setStep(2);
       onComplete?.();
     } catch (e) {
-      toast.error(`Erro ao confirmar assinatura: ${e?.message ?? 'desconhecido'}`);
+      notification.error(`Erro ao confirmar assinatura: ${e?.message ?? 'desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -381,10 +381,10 @@ const OfficesPage = () => {
     closeDialog();
     try {
       await apiClient.post(`/offices/${office.pk}/${action}`);
-      toast.success('Operação realizada com sucesso!');
+      notification.success('Operação realizada com sucesso!');
       refetch();
     } catch (e) {
-      toast.error(`Erro: ${e.message}`);
+      notification.error(`Erro: ${e.message}`);
     }
   };
 
@@ -395,7 +395,7 @@ const OfficesPage = () => {
       const url = window.URL.createObjectURL(new Blob([response], { type: 'application/pdf' }));
       window.open(url, '_blank');
     } catch {
-      toast.error('Erro ao abrir o documento PDF');
+      notification.error('Erro ao abrir o documento PDF');
     }
   };
 
@@ -412,7 +412,7 @@ const OfficesPage = () => {
   };
   const handleSignComplete = () => {
     refetch();
-    toast.success('Processo de assinatura concluído!');
+    notification.success('Processo de assinatura concluído!');
   };
 
   // Stats

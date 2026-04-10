@@ -36,7 +36,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme, alpha } from '@mui/material/styles';
 import { format } from 'date-fns';
 import * as z from 'zod';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import {
   useExpenseTypes, useAssociates, useSpotList, useWhoList, useAnaliseParams,
@@ -640,11 +640,11 @@ const IntervencaoCard = ({ intervencao, pk, associates }) => {
     setSuccess(false);
     try {
       await intervencao.fn({ pnpk_instalacao: pk, pnts_associate: pnts_associate ? parseInt(pnts_associate, 10) : null, pnmemo });
-      toast.success(`Pedido de ${intervencao.label} submetido!`);
+      notification.success(`Pedido de ${intervencao.label} submetido!`);
       reset(intervDefaults);
       setSuccess(true);
     } catch (e) {
-      toast.error(`Erro: ${e.message}`);
+      notification.error(`Erro: ${e.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -849,7 +849,7 @@ const OperacoesTab = ({ pk, type }) => {
       ...data,
       pk_instalacao: pk,
     });
-    toast.success('Operação registada com sucesso!');
+    notification.success('Operação registada com sucesso!');
   };
 
   return (

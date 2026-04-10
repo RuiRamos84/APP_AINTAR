@@ -25,7 +25,7 @@ import { ExpandMore as ExpandMoreIcon, Person as PersonIcon } from '@mui/icons-m
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import PropTypes from 'prop-types';
 
 // Components
@@ -158,7 +158,7 @@ const KanbanView = ({
 
       // Verificar se pode arrastar esta tarefa
       if (canDrag && !canDrag(task)) {
-        toast.error('Não tem permissão para mover esta tarefa');
+        notification.error('Não tem permissão para mover esta tarefa');
         return;
       }
 
@@ -166,7 +166,7 @@ const KanbanView = ({
       try {
         validateStatusTransition(sourceColumnId, targetColumnId);
       } catch (err) {
-        toast.error(err.message);
+        notification.error(err.message);
         return;
       }
 

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
   getInstalacaoVolumes, createInstalacaoVolume,
   getInstalacaoWaterVolumes, createInstalacaoWaterVolume,
@@ -78,45 +78,45 @@ export const useInstalacao = (pk, type = 'etar') => {
     mutationFn: createInstalacaoVolume,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [type, 'volumes', pk] });
-      toast.success('Volume registado com sucesso!');
+      notification.success('Volume registado com sucesso!');
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const waterMut = useMutation({
     mutationFn: createInstalacaoWaterVolume,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [type, 'water', pk] });
-      toast.success('Volume de água registado com sucesso!');
+      notification.success('Volume de água registado com sucesso!');
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const energyMut = useMutation({
     mutationFn: createInstalacaoEnergy,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [type, 'energy', pk] });
-      toast.success('Energia registada com sucesso!');
+      notification.success('Energia registada com sucesso!');
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const expenseMut = useMutation({
     mutationFn: createInstalacaoExpense,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [type, 'expenses', pk] });
-      toast.success('Despesa registada com sucesso!');
+      notification.success('Despesa registada com sucesso!');
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const incumpMut = useMutation({
     mutationFn: createETARIncumprimento,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['etar', 'incumprimentos', pk] });
-      toast.success('Incumprimento registado com sucesso!');
+      notification.success('Incumprimento registado com sucesso!');
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const detailsMut = useMutation({
@@ -124,9 +124,9 @@ export const useInstalacao = (pk, type = 'etar') => {
       type === 'etar' ? updateETARDetails(pkArg, data) : updateEEDetails(pkArg, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [type, 'details', pk] });
-      toast.success('Características atualizadas com sucesso!');
+      notification.success('Características atualizadas com sucesso!');
     },
-    onError: (e) => toast.error(`Erro ao atualizar: ${e.message}`),
+    onError: (e) => notification.error(`Erro ao atualizar: ${e.message}`),
   });
 
   return {

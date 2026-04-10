@@ -22,7 +22,7 @@ import {
   PictureAsPdf as PdfIcon,
   TableChart as CsvIcon,
 } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import PropTypes from 'prop-types';
 
 import { exportToCSV, exportToPDF } from '../services/exportService';
@@ -51,10 +51,10 @@ export const ExportButton = ({
     handleClose();
     try {
       exportToCSV(tasks, 'tarefas');
-      toast.success('Exportação CSV concluída!');
+      notification.success('Exportação CSV concluída!');
     } catch (error) {
       console.error('Erro ao exportar CSV:', error);
-      toast.error('Erro ao exportar CSV');
+      notification.error('Erro ao exportar CSV');
     }
   };
 
@@ -62,10 +62,10 @@ export const ExportButton = ({
     handleClose();
     try {
       exportToPDF(tasks, 'Relatório de Tarefas');
-      toast.success('A gerar PDF...');
+      notification.success('A gerar PDF...');
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
-      toast.error('Erro ao exportar PDF');
+      notification.error('Erro ao exportar PDF');
     }
   };
 

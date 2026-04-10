@@ -31,7 +31,7 @@ import {
 import { useDocumentTypes, useEmissoes, useTemplates } from '../hooks/useEmissoes';
 import { TemplateEditor } from '../components/TemplateEditor';
 import { STATUS_CONFIG, formatEmissionNumber } from '../services/emissoesService';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // ─── Ícones por código ────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ const NovaEmissaoForm = ({ selectedType, selectedTypeData, onCancel, onSuccess }
 
   const handleSubmit = async () => {
     if (!formData.subject.trim()) {
-      toast.warning('O assunto é obrigatório.');
+      notification.warning('O assunto é obrigatório.');
       return;
     }
     setSubmitting(true);

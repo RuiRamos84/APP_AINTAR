@@ -14,7 +14,7 @@ import {
   Save as SaveIcon, CalendarMonth as CalIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import * as svc from '../services/obrasService';
 
 const formatDate = (d) =>
@@ -212,7 +212,7 @@ export default function DespesasTab({ meta, canEdit, obras }) {
       const { despesas: list } = await svc.getDespesas();
       setDespesas(list);
     } catch {
-      toast.error('Erro ao carregar despesas');
+      notification.error('Erro ao carregar despesas');
     } finally {
       setLoading(false);
     }
@@ -230,17 +230,17 @@ export default function DespesasTab({ meta, canEdit, obras }) {
     try {
       if (editTarget) {
         await svc.updateDespesa(editTarget.id, values);
-        toast.success('Despesa atualizada');
+        notification.success('Despesa atualizada');
       } else {
         await svc.createDespesa(values);
-        toast.success('Despesa adicionada');
+        notification.success('Despesa adicionada');
       }
       setDialogOpen(false);
       setEditTarget(null);
       await load();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao guardar despesa';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   };

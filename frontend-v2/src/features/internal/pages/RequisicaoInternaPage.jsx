@@ -11,7 +11,7 @@ import { useTheme } from '@mui/material/styles';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { createRequisicaoInterna } from '../services/internalService';
 
@@ -34,11 +34,11 @@ const RequisicaoInternaPage = () => {
     setLastSuccess(false);
     try {
       await createRequisicaoInterna(memo);
-      toast.success('Requisição interna criada com sucesso!');
+      notification.success('Requisição interna criada com sucesso!');
       reset();
       setLastSuccess(true);
     } catch (error) {
-      toast.error(`Erro ao criar requisição: ${error.message}`);
+      notification.error(`Erro ao criar requisição: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

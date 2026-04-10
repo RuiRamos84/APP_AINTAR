@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
   getVehicles,
   createVehicle,
@@ -26,7 +26,7 @@ return rawData.map(v => ({ ...v, id: v.pk }));
   // onError foi removido do useQuery no React Query v5 — usar useEffect
   useEffect(() => {
     if (vehiclesQuery.isError) {
-      toast.error(`Falha ao carregar veículos: ${vehiclesQuery.error?.message}`);
+      notification.error(`Falha ao carregar veículos: ${vehiclesQuery.error?.message}`);
     }
   }, [vehiclesQuery.isError, vehiclesQuery.error]);
 
@@ -34,10 +34,10 @@ return rawData.map(v => ({ ...v, id: v.pk }));
     mutationFn: createVehicle,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
-      toast.success('Veículo registado com sucesso!');
+      notification.success('Veículo registado com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao registar veículo: ${error.message}`);
+      notification.error(`Erro ao registar veículo: ${error.message}`);
     },
   });
 
@@ -45,10 +45,10 @@ return rawData.map(v => ({ ...v, id: v.pk }));
     mutationFn: ({ id, data }) => updateVehicle(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
-      toast.success('Veículo atualizado com sucesso!');
+      notification.success('Veículo atualizado com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar veículo: ${error.message}`);
+      notification.error(`Erro ao atualizar veículo: ${error.message}`);
     },
   });
 

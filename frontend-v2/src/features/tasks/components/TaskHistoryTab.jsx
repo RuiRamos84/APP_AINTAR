@@ -38,7 +38,7 @@ import {
   FiberNew as FiberNewIcon,
   Send as SendIcon,
 } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import PropTypes from 'prop-types';
 
 import { useAuth } from '@/core/contexts/AuthContext';
@@ -147,7 +147,7 @@ export const TaskHistoryTab = ({ task, canAddNote = false, onNoteAdded }) => {
     setIsAddingNote(true);
     try {
       await addNote(task.pk || task.id, newNote);
-      toast.success('Nota adicionada com sucesso!');
+      notification.success('Nota adicionada com sucesso!');
       setNewNote('');
 
       // Recarregar histórico
@@ -165,7 +165,7 @@ export const TaskHistoryTab = ({ task, canAddNote = false, onNoteAdded }) => {
       // para atualizar a lista de tarefas em background
     } catch (error) {
       console.error('Erro ao adicionar nota:', error);
-      toast.error('Erro ao adicionar nota');
+      notification.error('Erro ao adicionar nota');
     } finally {
       setIsAddingNote(false);
     }

@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Euro as EuroIcon, CalendarMonth as CalIcon } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout';
 import { useExpenseTypes, useAssociates } from '@/core/hooks/useMetaData';
 import { usePermissions } from '@/core/contexts/PermissionContext';
@@ -200,9 +200,9 @@ export default function ExpenseListPage({
     try {
       await onAdd(values);
       setDialogOpen(false);
-      toast.success('Despesa registada com sucesso');
+      notification.success('Despesa registada com sucesso');
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Erro ao registar despesa');
+      notification.error(err?.response?.data?.message || 'Erro ao registar despesa');
       throw err;
     }
   }, [onAdd]);

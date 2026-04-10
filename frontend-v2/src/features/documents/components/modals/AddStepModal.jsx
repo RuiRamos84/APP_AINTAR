@@ -42,7 +42,7 @@ import { useAddStep, useDocumentDetails } from '../../hooks/useDocuments';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { getAvailableSteps, getAvailableUsersForStep } from '../../utils/workflowUtils';
 import { useVacationChecker } from '../../hooks/useVacationChecker.jsx';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB per file
@@ -135,7 +135,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
   const validateFileSize = useCallback((file) => {
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      toast.error(
+      notification.error(
         `"${file.name}" é demasiado grande (${sizeMB}MB). Máximo: ${(MAX_FILE_SIZE / (1024 * 1024)).toFixed(0)}MB por ficheiro.`
       );
       return false;
@@ -207,13 +207,13 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
     if (files.length > 0) {
       const missingDesc = files.some((f) => !f.description.trim());
       if (missingDesc) {
-        toast.error('Cada ficheiro deve ter uma descrição obrigatória.');
+        notification.error('Cada ficheiro deve ter uma descrição obrigatória.');
         return;
       }
     }
 
     if (data.user === null || data.user === undefined || data.user === '') {
-      toast.error('Deve selecionar um utilizador.');
+      notification.error('Deve selecionar um utilizador.');
       return;
     }
 

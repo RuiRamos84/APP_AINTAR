@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import * as svc from '../services/equipamentoService';
 
 function RepairForm({ open, onClose, onSubmit, repair }) {
@@ -103,7 +103,7 @@ export default function ManutencaoTab({ equipamento, canEdit }) {
       const list = await svc.getRepairs(equipamento.id);
       setRepairs(list);
     } catch {
-      toast.error('Erro ao carregar manutenções');
+      notification.error('Erro ao carregar manutenções');
     } finally {
       setLoading(false);
     }
@@ -115,16 +115,16 @@ export default function ManutencaoTab({ equipamento, canEdit }) {
     try {
       if (editing) {
         await svc.updateRepair(equipamento.id, editing.id, data);
-        toast.success('Manutenção atualizada');
+        notification.success('Manutenção atualizada');
       } else {
         await svc.createRepair(equipamento.id, data);
-        toast.success('Manutenção registada');
+        notification.success('Manutenção registada');
       }
       setEditing(null);
       await load();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao guardar manutenção';
-      toast.error(msg);
+      notification.error(msg);
       throw err; // mantém o dialog aberto
     }
   };
@@ -133,10 +133,10 @@ export default function ManutencaoTab({ equipamento, canEdit }) {
     if (!window.confirm('Eliminar este registo de manutenção?')) return;
     try {
       await svc.deleteRepair(equipamento.id, id);
-      toast.success('Manutenção eliminada');
+      notification.success('Manutenção eliminada');
       load();
     } catch {
-      toast.error('Erro ao eliminar manutenção');
+      notification.error('Erro ao eliminar manutenção');
     }
   };
 

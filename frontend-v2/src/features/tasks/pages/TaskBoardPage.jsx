@@ -40,7 +40,7 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // Components
 import TaskColumn from '../components/TaskColumn';
@@ -129,16 +129,16 @@ export const TaskBoardPage = () => {
       try {
         validateStatusTransition(sourceColumnId, targetColumnId);
       } catch (err) {
-        toast.error(err.message);
+        notification.error(err.message);
         return;
       }
 
       // Atualizar status
       try {
         await updateStatus(task.pk || task.id, targetColumnId);
-        toast.success(`Tarefa movida para "${KANBAN_COLUMNS.find(c => c.id === targetColumnId)?.label}"`);
+        notification.success(`Tarefa movida para "${KANBAN_COLUMNS.find(c => c.id === targetColumnId)?.label}"`);
       } catch (err) {
-        toast.error('Erro ao mover tarefa');
+        notification.error('Erro ao mover tarefa');
         console.error(err);
       }
     },

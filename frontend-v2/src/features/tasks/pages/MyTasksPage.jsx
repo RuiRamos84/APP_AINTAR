@@ -36,7 +36,7 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // Components
 import { DataTable, useDataTable } from '@/shared/components/data';

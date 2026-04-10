@@ -11,7 +11,7 @@ import {
     Alert,
     useTheme
 } from '@mui/material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
     Business as BusinessIcon,
     Person as PersonIcon,
@@ -215,7 +215,7 @@ const IdentificationStep = ({
                 
                 if (!entity) {
                     console.error('[IdentificationStep] ❌ Failed to get entity data after all retries');
-                    toast.error('Erro ao obter dados da entidade criada. Por favor, pesquise novamente.');
+                    notification.error('Erro ao obter dados da entidade criada. Por favor, pesquise novamente.');
                     return;
                 }
                 
@@ -223,11 +223,11 @@ const IdentificationStep = ({
                 
                 // Apply entity data directly (like legacy applyEntityData)
                 handleEntityFound(entity);
-                toast.success('Entidade criada e selecionada com sucesso!');
+                notification.success('Entidade criada e selecionada com sucesso!');
                 
             } catch (error) {
                 console.error('[IdentificationStep] ❌ Error in handleCreateEntitySuccess:', error);
-                toast.error('Erro ao processar entidade criada');
+                notification.error('Erro ao processar entidade criada');
             }
         };
         
@@ -237,7 +237,7 @@ const IdentificationStep = ({
     // Toast notification for not found
     useEffect(() => {
         if (searchStatus === 'not_found') {
-            toast.warning('Entidade não encontrada.', {
+            notification.warning('Entidade não encontrada.', {
                 description: 'Deseja criar uma nova ficha para este NIF?',
                 action: {
                     label: 'Criar Entidade',

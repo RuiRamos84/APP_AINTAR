@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import avalAdminService from '../services/avalAdminService';
 
 export function useAvalAdmin() {
@@ -19,7 +19,7 @@ export function useAvalAdmin() {
       const res = await avalAdminService.getPeriods();
       setPeriods(Array.isArray(res) ? res : []);
     } catch {
-      toast.error('Erro ao carregar campanhas');
+      notification.error('Erro ao carregar campanhas');
     } finally {
       setLoading(false);
     }
@@ -29,11 +29,11 @@ export function useAvalAdmin() {
     async (data) => {
       try {
         await avalAdminService.createPeriod(data);
-        toast.success('Campanha criada com sucesso');
+        notification.success('Campanha criada com sucesso');
         await fetchPeriods();
         return true;
       } catch (err) {
-        toast.error(err?.response?.data?.error ?? 'Erro ao criar campanha');
+        notification.error(err?.response?.data?.error ?? 'Erro ao criar campanha');
         return false;
       }
     },
@@ -46,7 +46,7 @@ export function useAvalAdmin() {
         await avalAdminService.togglePeriod(periodPk);
         await fetchPeriods();
       } catch {
-        toast.error('Erro ao atualizar estado da campanha');
+        notification.error('Erro ao atualizar estado da campanha');
       }
     },
     [fetchPeriods]
@@ -64,7 +64,7 @@ export function useAvalAdmin() {
       setAssignments(Array.isArray(assign) ? assign : []);
       setResults(Array.isArray(res) ? res : []);
     } catch {
-      toast.error('Erro ao carregar detalhe da campanha');
+      notification.error('Erro ao carregar detalhe da campanha');
     } finally {
       setLoadingDetail(false);
     }
@@ -76,7 +76,7 @@ export function useAvalAdmin() {
       const res = await avalAdminService.getUsers();
       setUsers(Array.isArray(res) ? res : []);
     } catch {
-      toast.error('Erro ao carregar utilizadores');
+      notification.error('Erro ao carregar utilizadores');
     }
   }, []);
 
@@ -84,11 +84,11 @@ export function useAvalAdmin() {
     async (periodPk, userIds) => {
       try {
         const res = await avalAdminService.generateAssignments(periodPk, userIds);
-        toast.success(res?.message ?? 'Atribuições geradas');
+        notification.success(res?.message ?? 'Atribuições geradas');
         await fetchDetail(periodPk);
         return true;
       } catch (err) {
-        toast.error(err?.response?.data?.error ?? 'Erro ao gerar atribuições');
+        notification.error(err?.response?.data?.error ?? 'Erro ao gerar atribuições');
         return false;
       }
     },

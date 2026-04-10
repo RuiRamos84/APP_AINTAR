@@ -21,7 +21,7 @@ import {
   CheckCircle as OkIcon,
   Warning as WarnIcon,
 } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useQuery } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import apiClient from '@/services/api/client';
@@ -105,18 +105,18 @@ const SystemConfigPage = () => {
   const handleSave = async () => {
     try {
       await apiClient.post('/admin/system/config', settings);
-      toast.success('Configurações guardadas com sucesso!');
+      notification.success('Configurações guardadas com sucesso!');
     } catch {
-      toast.error('Erro ao guardar configurações.');
+      notification.error('Erro ao guardar configurações.');
     }
   };
 
   const handleClearCache = async () => {
     try {
       await apiClient.post('/admin/cache/clear');
-      toast.success('Cache limpa com sucesso!');
+      notification.success('Cache limpa com sucesso!');
     } catch {
-      toast.error('Erro ao limpar cache.');
+      notification.error('Erro ao limpar cache.');
     }
   };
 
@@ -204,10 +204,10 @@ const SystemConfigPage = () => {
               <Button variant="outlined" color="warning" onClick={handleClearCache}>
                 Limpar Cache
               </Button>
-              <Button variant="outlined" color="info" onClick={() => apiClient.post('/admin/system/reload-config').then(() => toast.success('Configuração recarregada!')).catch(() => toast.error('Erro.'))}>
+              <Button variant="outlined" color="info" onClick={() => apiClient.post('/admin/system/reload-config').then(() => notification.success('Configuração recarregada!')).catch(() => notification.error('Erro.'))}>
                 Recarregar Configuração
               </Button>
-              <Button variant="outlined" color="error" onClick={() => toast.info('Contacte o departamento de IT para reiniciar o servidor.')}>
+              <Button variant="outlined" color="error" onClick={() => notification.info('Contacte o departamento de IT para reiniciar o servidor.')}>
                 Reiniciar Servidor
               </Button>
             </Stack>

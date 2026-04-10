@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import avalService from '../services/avalService';
 
 const STALE = 60 * 1000; // 1 minuto
@@ -20,7 +20,7 @@ export function useAvalAnalytics() {
 
   useEffect(() => {
     if (analyticsQuery.isError || enrichedQuery.isError)
-      toast.error('Erro ao carregar dados de análise');
+      notification.error('Erro ao carregar dados de análise');
   }, [analyticsQuery.isError, enrichedQuery.isError]);
 
   const rawData = Array.isArray(analyticsQuery.data) ? analyticsQuery.data : [];

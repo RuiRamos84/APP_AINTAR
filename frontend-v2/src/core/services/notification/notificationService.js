@@ -1,12 +1,21 @@
 /**
  * Notification Service
- * Sistema centralizado de notificações usando Sonner
- * Baseado no ThemedToaster do frontend antigo
+ * Sistema centralizado de notificações — ponto único de entrada para todos os toasts.
+ *
+ * Uso:
+ *   import notification from '@/core/services/notification'
+ *   notification.success('Guardado!')
+ *   notification.apiError(err, 'Fallback se sem mensagem')
+ *
+ * Nunca usar { toast } from 'sonner' diretamente fora deste ficheiro.
  */
 
 import { toast } from 'sonner';
 
 const DEFAULT_DURATION = 5000;
+
+// Statuses que indicam erro de negócio (warning laranja) vs erro técnico (vermelho)
+const BUSINESS_STATUSES = new Set([400, 403, 404, 409, 422]);
 
 /**
  * Notificação de sucesso
@@ -105,18 +114,38 @@ export const notifyCustom = (content, options = {}) => {
 };
 
 /**
+ * Routing inteligente de erros de API:
+ *  - Status 400/403/404/409/422 → regra de negócio → warning (laranja)
+ *  - Qualquer outro / sem status  → erro técnico    → error (vermelho)
+ *
+ * O interceptor do AuthManager já extrai `error.response?.data?.erro`
+ * e coloca em `error.message`, por isso basta ler `err.message`.
+ */
+export const notifyApiError = (err, fallback = 'Ocorreu um erro inesperado.') => {
+  const message = err?.message || fallback;
+  const status  = err?.status ?? err?.response?.status;
+
+  if (status && BUSINESS_STATUSES.has(status)) {
+    toast.warning(message, { duration: DEFAULT_DURATION });
+  } else {
+    toast.error(message, { duration: DEFAULT_DURATION });
+  }
+};
+
+/**
  * Objeto consolidado com todas as funções de notificação
  */
 export const notification = {
-  success: notifySuccess,
-  error: notifyError,
-  info: notifyInfo,
-  warning: notifyWarning,
+  success:  notifySuccess,
+  error:    notifyError,
+  info:     notifyInfo,
+  warning:  notifyWarning,
   description: notifyDescription,
-  loading: notifyLoading,
-  action: notifyAction,
-  custom: notifyCustom,
-  toast, // Exporta a função toast direta também
+  loading:  notifyLoading,
+  action:   notifyAction,
+  custom:   notifyCustom,
+  apiError: notifyApiError,
+  toast,    // Acesso direto para casos especiais (dismiss, custom, etc.)
 };
 
 export default notification;

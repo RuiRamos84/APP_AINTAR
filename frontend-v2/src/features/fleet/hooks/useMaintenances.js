@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
   getMaintenances,
   createMaintenance,
@@ -25,7 +25,7 @@ export const useMaintenances = () => {
 
   useEffect(() => {
     if (maintenancesQuery.isError) {
-      toast.error(`Falha ao carregar manutenções: ${maintenancesQuery.error?.message}`);
+      notification.error(`Falha ao carregar manutenções: ${maintenancesQuery.error?.message}`);
     }
   }, [maintenancesQuery.isError, maintenancesQuery.error]);
 
@@ -33,10 +33,10 @@ export const useMaintenances = () => {
     mutationFn: createMaintenance,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MAINTENANCES_QUERY_KEY });
-      toast.success('Registo de manutenção criado com sucesso!');
+      notification.success('Registo de manutenção criado com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao criar registo de manutenção: ${error.message}`);
+      notification.error(`Erro ao criar registo de manutenção: ${error.message}`);
     },
   });
 
@@ -44,10 +44,10 @@ export const useMaintenances = () => {
     mutationFn: ({ id, data }) => updateMaintenance(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MAINTENANCES_QUERY_KEY });
-      toast.success('Registo de manutenção atualizado com sucesso!');
+      notification.success('Registo de manutenção atualizado com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar registo de manutenção: ${error.message}`);
+      notification.error(`Erro ao atualizar registo de manutenção: ${error.message}`);
     },
   });
 

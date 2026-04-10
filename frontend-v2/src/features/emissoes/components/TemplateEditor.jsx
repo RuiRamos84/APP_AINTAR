@@ -29,7 +29,7 @@ import {
   AutoFixHigh as AutoIcon,
   Check as CheckIcon,
 } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // ─── Variáveis disponíveis ────────────────────────────────────────────────────
 
@@ -313,14 +313,14 @@ export const TemplateEditor = ({ open, template, documentType, onClose, onSave, 
         section:  SECTIONS.find((s) => extractVars(form[s]).includes(v)) ?? 'body',
       }));
     set('metadata', [...(form.metadata || []), ...added]);
-    if (added.length) toast.success(`${added.length} variável(is) detectada(s)`);
-    else toast.info('Nenhuma variável nova encontrada');
+    if (added.length) notification.success(`${added.length} variável(is) detectada(s)`);
+    else notification.info('Nenhuma variável nova encontrada');
     setBottomTab('metadata');
   };
 
   const handleSave = () => {
-    if (!form.name.trim()) { toast.warning('O nome é obrigatório.'); return; }
-    if (!form.body.trim()) { toast.warning('O corpo não pode estar vazio.'); return; }
+    if (!form.name.trim()) { notification.warning('O nome é obrigatório.'); return; }
+    if (!form.body.trim()) { notification.warning('O corpo não pode estar vazio.'); return; }
     onSave(form);
   };
 

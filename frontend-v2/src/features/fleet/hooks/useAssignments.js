@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
   getVehicleAssignments,
   createAssignment,
@@ -25,7 +25,7 @@ export const useAssignments = () => {
 
   useEffect(() => {
     if (assignmentsQuery.isError) {
-      toast.error(`Falha ao carregar atribuições: ${assignmentsQuery.error?.message}`);
+      notification.error(`Falha ao carregar atribuições: ${assignmentsQuery.error?.message}`);
     }
   }, [assignmentsQuery.isError, assignmentsQuery.error]);
 
@@ -33,10 +33,10 @@ export const useAssignments = () => {
     mutationFn: createAssignment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ASSIGNMENTS_QUERY_KEY });
-      toast.success('Veículo atribuído com sucesso!');
+      notification.success('Veículo atribuído com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao atribuir veículo: ${error.message}`);
+      notification.error(`Erro ao atribuir veículo: ${error.message}`);
     },
   });
 
@@ -44,10 +44,10 @@ export const useAssignments = () => {
     mutationFn: ({ id, data }) => updateAssignment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ASSIGNMENTS_QUERY_KEY });
-      toast.success('Atribuição atualizada com sucesso!');
+      notification.success('Atribuição atualizada com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar atribuição: ${error.message}`);
+      notification.error(`Erro ao atualizar atribuição: ${error.message}`);
     },
   });
 

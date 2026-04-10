@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import {
   getDocumentTypes,
   getEmissions,
@@ -47,44 +47,44 @@ export const useEmissoes = (filters = {}) => {
   const create = useMutation({
     mutationFn: createEmission,
     onSuccess: () => {
-      toast.success('Emissão criada com sucesso!');
+      notification.success('Emissão criada com sucesso!');
       qc.invalidateQueries({ queryKey: ['emissoes', 'list'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const update = useMutation({
     mutationFn: ({ id, data }) => updateEmission(id, data),
     onSuccess: () => {
-      toast.success('Emissão atualizada com sucesso!');
+      notification.success('Emissão atualizada com sucesso!');
       qc.invalidateQueries({ queryKey: ['emissoes', 'list'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const remove = useMutation({
     mutationFn: deleteEmission,
     onSuccess: () => {
-      toast.success('Emissão cancelada com sucesso!');
+      notification.success('Emissão cancelada com sucesso!');
       qc.invalidateQueries({ queryKey: ['emissoes', 'list'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const genPDF = useMutation({
     mutationFn: generatePDF,
-    onSuccess: () => toast.success('PDF gerado com sucesso!'),
-    onError: (e) => toast.error(`Erro ao gerar PDF: ${e.message}`),
+    onSuccess: () => notification.success('PDF gerado com sucesso!'),
+    onError: (e) => notification.error(`Erro ao gerar PDF: ${e.message}`),
   });
 
   const dlPDF = useMutation({
     mutationFn: ({ id, filename }) => downloadPDF(id, filename),
-    onError: (e) => toast.error(`Erro ao descarregar PDF: ${e.message}`),
+    onError: (e) => notification.error(`Erro ao descarregar PDF: ${e.message}`),
   });
 
   const openPDF = useMutation({
     mutationFn: viewPDF,
-    onError: (e) => toast.error(`Erro ao visualizar PDF: ${e.message}`),
+    onError: (e) => notification.error(`Erro ao visualizar PDF: ${e.message}`),
   });
 
   return {
@@ -120,28 +120,28 @@ export const useTemplates = (filters = {}) => {
   const create = useMutation({
     mutationFn: createTemplate,
     onSuccess: () => {
-      toast.success('Template criado com sucesso!');
+      notification.success('Template criado com sucesso!');
       qc.invalidateQueries({ queryKey: ['emissoes', 'templates'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const update = useMutation({
     mutationFn: ({ id, data }) => updateTemplate(id, data),
     onSuccess: () => {
-      toast.success('Template atualizado com sucesso!');
+      notification.success('Template atualizado com sucesso!');
       qc.invalidateQueries({ queryKey: ['emissoes', 'templates'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   const remove = useMutation({
     mutationFn: deleteTemplate,
     onSuccess: () => {
-      toast.success('Template removido com sucesso!');
+      notification.success('Template removido com sucesso!');
       qc.invalidateQueries({ queryKey: ['emissoes', 'templates'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`),
+    onError: (e) => notification.error(`Erro: ${e.message}`),
   });
 
   return {

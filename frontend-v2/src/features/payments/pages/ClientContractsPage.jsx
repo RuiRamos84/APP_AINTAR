@@ -53,7 +53,7 @@ import {
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import useMetaData from '@/core/hooks/useMetaData';
 import paymentService from '../services/paymentService';
@@ -210,9 +210,9 @@ const ClientContractsPage = () => {
       setContractForm(emptyContract);
       setNifEntity(null);
       setContractSubmitted(false);
-      toast.success('Contrato registado com sucesso');
+      notification.success('Contrato registado com sucesso');
     },
-    onError: () => toast.error('Erro ao criar contrato'),
+    onError: (err) => notification.apiError(err, 'Erro ao criar contrato.'),
   });
 
   const { mutate: invoicePayment, isPending: isInvoicing } = useMutation({
@@ -223,9 +223,9 @@ const ClientContractsPage = () => {
       setInvoiceDialogOpen(false);
       setPaymentToInvoice(null);
       setInvoiceDate('');
-      toast.success('Data de faturação registada');
+      notification.success('Data de faturação registada');
     },
-    onError: () => toast.error('Erro ao registar faturação'),
+    onError: (err) => notification.apiError(err, 'Erro ao registar faturação.'),
   });
 
   const { mutate: validatePayment, isPending: isValidating } = useMutation({
@@ -243,9 +243,9 @@ const ClientContractsPage = () => {
       setValidateDialogOpen(false);
       setPaymentToValidate(null);
       setPayedDate('');
-      toast.success('Pagamento validado');
+      notification.success('Pagamento validado');
     },
-    onError: () => toast.error('Erro ao validar pagamento'),
+    onError: (err) => notification.apiError(err, 'Erro ao validar pagamento.'),
   });
 
   // ── Helpers NIF ─────────────────────────────────────────────────────────────

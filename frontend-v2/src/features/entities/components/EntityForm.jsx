@@ -28,7 +28,7 @@ import { useEntityStore } from '../store/entityStore';
 import { entitySchema } from '../schemas/entitySchema';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { getAddressByPostalCode, isValidPostalCode, extractStreets, extractAdministrativeData } from '@/services/postalCodeService';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // Sub-componente para títulos de secção
 const SectionHeader = ({ icon: Icon, title }) => (
@@ -163,7 +163,7 @@ export const EntityForm = () => {
                     if (streets.length > 1) {
                         setAddressOptions(streets);
                         setShowAddressSelect(true);
-                        toast.info('Múltiplas moradas encontradas.');
+                        notification.info('Múltiplas moradas encontradas.');
                     } else if (streets.length === 1) {
                         reset({
                             ...control._formValues,
@@ -172,7 +172,7 @@ export const EntityForm = () => {
                             postal: postalValue
                         }, { keepDefaultValues: true });
                         setShowAddressSelect(false);
-                        toast.success('Morada preenchida.');
+                        notification.success('Morada preenchida.');
                     } else {
                         setShowAddressSelect(false);
                     }
@@ -206,11 +206,11 @@ export const EntityForm = () => {
                          if (existing && existing.entity && existing.entity.pk) {
                              setNifStatus('exists');
                              setExistingData(existing.entity);
-                             toast.warning('Entidade já existe.');
+                             notification.warning('Entidade já existe.');
                              setShowDuplicateDialog(true);
                          } else {
                              setNifStatus('valid');
-                             // toast.success('NIF válido.'); // Opcional, para não spammar
+                             // notification.success('NIF válido.'); // Opcional, para não spammar
                          }
                      } catch (error) {
                          setNifStatus('valid');
@@ -235,7 +235,7 @@ export const EntityForm = () => {
           closeCreateModal(); 
           openModal(existingData); 
           
-          toast.success('Modo de edição ativado.');
+          notification.success('Modo de edição ativado.');
           setShowDuplicateDialog(false);
           setNifStatus('valid'); 
       }
@@ -326,15 +326,15 @@ export const EntityForm = () => {
     try {
       if (isEditMode && selectedEntity) {
         await updateEntity(selectedEntity.pk, payload);
-        toast.success('Entidade atualizada com sucesso!');
+        notification.success('Entidade atualizada com sucesso!');
       } else {
         await addEntity(payload); // Using sanitized payload instead of raw data
-        toast.success('Entidade criada com sucesso!');
+        notification.success('Entidade criada com sucesso!');
       }
       onClose();
     } catch (error) {
       console.error('Falha ao salvar entidade:', error);
-      toast.error('Erro ao guardar entidade.');
+      notification.apiError(error, 'Erro ao guardar entidade.');
     } finally {
       setSubmitting(false);
     }

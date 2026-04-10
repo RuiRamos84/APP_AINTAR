@@ -16,7 +16,7 @@ import {
   HourglassEmpty as PendingIcon, Close as CloseIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import apiClient from '@/services/api/client';
 import { useQuery } from '@tanstack/react-query';

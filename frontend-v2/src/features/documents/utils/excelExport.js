@@ -3,7 +3,7 @@
  * Uses xlsx library (SheetJS) for client-side export
  */
 import * as XLSX from 'xlsx';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { getStatusName } from './statusUtils';
 
 const DEFAULT_COLUMNS = [
@@ -39,7 +39,7 @@ const DEFAULT_WIDTHS = [15, 15, 25, 25, 20, 25, 20];
 export const exportDocumentsToExcel = (documents, metaData, tabName, options = {}) => {
   try {
     if (!Array.isArray(documents) || documents.length === 0) {
-      toast.warning('Não existem documentos para exportar');
+      notification.warning('Não existem documentos para exportar');
       return false;
     }
 
@@ -80,11 +80,11 @@ export const exportDocumentsToExcel = (documents, metaData, tabName, options = {
     // Write file (triggers download)
     XLSX.writeFile(workbook, filename);
 
-    toast.success('Exportação para Excel concluída');
+    notification.success('Exportação para Excel concluída');
     return true;
   } catch (error) {
     console.error('Erro ao exportar para Excel:', error);
-    toast.error('Erro ao exportar dados para Excel');
+    notification.error('Erro ao exportar dados para Excel');
     return false;
   }
 };
@@ -99,7 +99,7 @@ export const exportDocumentsToExcel = (documents, metaData, tabName, options = {
 export const exportDocumentsToCSV = (documents, metaData, filename) => {
   try {
     if (!Array.isArray(documents) || documents.length === 0) {
-      toast.warning('Não existem documentos para exportar');
+      notification.warning('Não existem documentos para exportar');
       return false;
     }
 
@@ -134,11 +134,11 @@ export const exportDocumentsToCSV = (documents, metaData, filename) => {
     link.remove();
     URL.revokeObjectURL(url);
 
-    toast.success('Exportação CSV concluída');
+    notification.success('Exportação CSV concluída');
     return true;
   } catch (error) {
     console.error('Erro ao exportar para CSV:', error);
-    toast.error('Erro ao exportar dados para CSV');
+    notification.error('Erro ao exportar dados para CSV');
     return false;
   }
 };

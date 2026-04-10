@@ -21,7 +21,7 @@ import {
   Build as BuildIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import * as svc from '../services/equipamentoService';
 
 // ─── Dialog: Alocar equipamento à instalação ──────────────────────────
@@ -348,7 +348,7 @@ export default function InstalacaoEquipamentosTab({
       const list = await svc.getEquipamentosByInstalacao(pk);
       setEquipamentos(list);
     } catch {
-      toast.error('Erro ao carregar equipamentos da instalação');
+      notification.error('Erro ao carregar equipamentos da instalação');
     } finally {
       setLoading(false);
     }
@@ -361,7 +361,7 @@ export default function InstalacaoEquipamentosTab({
       // Apenas equipamentos disponíveis (não instalados noutro local)
       setAllEquipamentos(all.filter((eq) => eq.estado !== 'Instalação'));
     } catch {
-      toast.error('Erro ao carregar catálogo de equipamentos');
+      notification.error('Erro ao carregar catálogo de equipamentos');
     }
   }, []);
 
@@ -370,12 +370,12 @@ export default function InstalacaoEquipamentosTab({
   const handleAlocar = async ({ equipamentoPk, data }) => {
     try {
       await svc.createAloc(equipamentoPk, data);
-      toast.success('Equipamento alocado com sucesso');
+      notification.success('Equipamento alocado com sucesso');
       await load();
     } catch (err) {
       const msg = err?.response?.data?.message
         || 'Erro ao alocar equipamento';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   };
@@ -383,12 +383,12 @@ export default function InstalacaoEquipamentosTab({
   const handleReallocar = async ({ equipamentoPk, data }) => {
     try {
       await svc.reallocarEquipamento(equipamentoPk, data);
-      toast.success('Equipamento realocado com sucesso');
+      notification.success('Equipamento realocado com sucesso');
       await load();
     } catch (err) {
       const msg = err?.response?.data?.message
         || 'Erro ao realocar equipamento';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   };

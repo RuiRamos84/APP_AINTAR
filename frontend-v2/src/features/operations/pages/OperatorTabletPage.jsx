@@ -34,7 +34,7 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { useOperationTasks } from '../hooks/useOperationTasks';
 import { useDocuments, useDocumentDetails, useAddStep } from '@/features/documents/hooks/useDocuments';
@@ -767,11 +767,11 @@ const RequisicaoDialog = ({ open, onClose }) => {
         setSaving(true);
         try {
             await operationService.createRequisicaoInterna(memo.trim());
-            toast.success('Requisição interna criada com sucesso');
+            notification.success('Requisição interna criada com sucesso');
             setMemo('');
             onClose();
         } catch {
-            toast.error('Erro ao criar requisição interna');
+            notification.error('Erro ao criar requisição interna');
         } finally {
             setSaving(false);
         }

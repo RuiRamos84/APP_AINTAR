@@ -19,7 +19,7 @@
 import { useCallback, useEffect } from 'react';
 import { useTaskStore } from '../store/taskStore';
 import taskService from '../services/taskService';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 export const useTasks = (options = {}) => {
   const { autoFetch = true, fetchOnMount = true, onSuccess, onError } = options;
@@ -101,7 +101,7 @@ export const useTasks = (options = {}) => {
       } catch (err) {
         const errorMsg = err.message || 'Erro ao carregar tarefas';
         setError({ message: errorMsg });
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
       }
     },
@@ -143,7 +143,7 @@ export const useTasks = (options = {}) => {
     } catch (err) {
       const errorMsg = err.message || 'Erro ao carregar suas tarefas';
       setError({ message: errorMsg });
-      toast.error(errorMsg);
+      notification.error(errorMsg);
     }
   }, [page, rowsPerPage, orderBy, order, filters, setLoading, setError, clearError, setTasks]);
 
@@ -161,14 +161,14 @@ export const useTasks = (options = {}) => {
         const newTask = await taskService.createTask(taskData);
         invalidateCache();
 
-        toast.success('Tarefa criada com sucesso!');
+        notification.success('Tarefa criada com sucesso!');
         onSuccess?.('Tarefa criada');
 
         return newTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao criar tarefa';
         setError({ message: errorMsg });
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {
@@ -193,14 +193,14 @@ export const useTasks = (options = {}) => {
         updateTaskInStore(taskId, updatedTask);
         invalidateCache();
 
-        toast.success('Tarefa atualizada com sucesso!');
+        notification.success('Tarefa atualizada com sucesso!');
         onSuccess?.('Tarefa atualizada');
 
         return updatedTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao atualizar tarefa';
         setError({ message: errorMsg });
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         onError?.(err);
         throw err;
       } finally {
@@ -223,11 +223,11 @@ export const useTasks = (options = {}) => {
         updateTaskInStore(taskId, updatedTask);
         invalidateCache();
 
-        toast.success('Status atualizado com sucesso!');
+        notification.success('Status atualizado com sucesso!');
         return updatedTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao atualizar status';
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         throw err;
       } finally {
         setLoading(false);
@@ -249,11 +249,11 @@ export const useTasks = (options = {}) => {
         updateTaskInStore(taskId, updatedTask);
         invalidateCache();
 
-        toast.success('Tarefa concluída!');
+        notification.success('Tarefa concluída!');
         return updatedTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao concluir tarefa';
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         throw err;
       } finally {
         setLoading(false);
@@ -275,11 +275,11 @@ export const useTasks = (options = {}) => {
         updateTaskInStore(taskId, updatedTask);
         invalidateCache();
 
-        toast.success('Tarefa reaberta!');
+        notification.success('Tarefa reaberta!');
         return updatedTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao reabrir tarefa';
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         throw err;
       } finally {
         setLoading(false);
@@ -306,7 +306,7 @@ export const useTasks = (options = {}) => {
         window.dispatchEvent(new CustomEvent('task-refresh'));
       } catch (err) {
         const errorMsg = err.message || 'Erro ao adicionar nota';
-        toast.error(errorMsg);
+        notification.error(errorMsg);
         throw err;
       } finally {
         setLoading(false);
@@ -323,7 +323,7 @@ export const useTasks = (options = {}) => {
       const history = await taskService.getTaskHistory(taskId);
       return history;
     } catch (err) {
-      toast.error('Erro ao carregar histórico');
+      notification.error('Erro ao carregar histórico');
       throw err;
     }
   }, []);
@@ -366,7 +366,7 @@ export const useTasks = (options = {}) => {
         const failedCount = result.failed?.length ?? 0;
 
         if (failedCount > 0) {
-          toast.warning(`${count} tarefa(s) processada(s), ${failedCount} com erro.`);
+          notification.warning(`${count} tarefa(s) processada(s), ${failedCount} com erro.`);
         } else {
           const labels = {
             close: 'encerradas',
@@ -374,14 +374,14 @@ export const useTasks = (options = {}) => {
             status: 'atualizadas',
             priority: 'atualizadas',
           };
-          toast.success(`${count} tarefa(s) ${labels[action] ?? 'processadas'} com sucesso.`);
+          notification.success(`${count} tarefa(s) ${labels[action] ?? 'processadas'} com sucesso.`);
         }
 
         clearSelection();
         invalidateCache();
         await fetchTasks(true);
       } catch (err) {
-        toast.error(err.message || 'Erro na ação em massa');
+        notification.error(err.message || 'Erro na ação em massa');
       } finally {
         setBulkLoading(false);
       }

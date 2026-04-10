@@ -24,7 +24,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { Close as CloseIcon, Add as AddIcon } from '@mui/icons-material';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import PropTypes from 'prop-types';
 
 // Hooks
@@ -105,7 +105,7 @@ export const CreateTaskModal = ({ open, onClose, onSuccess }) => {
         });
         setErrors(validationErrors);
       } else {
-        toast.error(err.message || 'Erro ao criar tarefa');
+        notification.error(err.message || 'Erro ao criar tarefa');
       }
     }
   };

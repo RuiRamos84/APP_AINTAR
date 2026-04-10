@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useObrasStore } from '../store/obrasStore';
 import * as svc from '../services/obrasService';
 import { useMetaData } from '@/core/hooks/useMetaData';
@@ -39,18 +39,18 @@ export const useObras = ({ fetchOnMount = true } = {}) => {
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao carregar obras';
       setError(msg);
-      toast.error(msg);
+      notification.error(msg);
     }
   }, [setObras, setLoading, setError]);
 
   const createObra = useCallback(async (data) => {
     try {
       await svc.createObra(data);
-      toast.success('Obra criada com sucesso');
+      notification.success('Obra criada com sucesso');
       await fetchObras();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao criar obra';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, [fetchObras]);
@@ -59,10 +59,10 @@ export const useObras = ({ fetchOnMount = true } = {}) => {
     try {
       await svc.updateObra(pk, data);
       await fetchObras();
-      toast.success('Obra atualizada com sucesso');
+      notification.success('Obra atualizada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao atualizar obra';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, [fetchObras]);
@@ -71,10 +71,10 @@ export const useObras = ({ fetchOnMount = true } = {}) => {
     try {
       await svc.deleteObra(pk);
       removeObra(pk);
-      toast.success('Obra eliminada com sucesso');
+      notification.success('Obra eliminada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao eliminar obra';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, [removeObra]);
@@ -84,10 +84,10 @@ export const useObras = ({ fetchOnMount = true } = {}) => {
   const createDespesa = useCallback(async (data) => {
     try {
       await svc.createDespesa(data);
-      toast.success('Despesa registada com sucesso');
+      notification.success('Despesa registada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao registar despesa';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -95,10 +95,10 @@ export const useObras = ({ fetchOnMount = true } = {}) => {
   const updateDespesa = useCallback(async (pk, data) => {
     try {
       await svc.updateDespesa(pk, data);
-      toast.success('Despesa atualizada com sucesso');
+      notification.success('Despesa atualizada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao atualizar despesa';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);

@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMetaData } from '@/services/metadataService';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import LocationPickerDialog from './LocationPickerDialog';
 
 // ──────────────────────────────────────────────
@@ -68,7 +68,7 @@ const LocationSelector = ({ clat, clong, onLocationChange }) => {
 
   const handleUseGps = () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocalização não suportada neste dispositivo.');
+      notification.error('Geolocalização não suportada neste dispositivo.');
       return;
     }
     setGpsLoading(true);
@@ -79,7 +79,7 @@ const LocationSelector = ({ clat, clong, onLocationChange }) => {
           pos.coords.longitude.toFixed(6)
         );
         setGpsLoading(false);
-        toast.info('Localização GPS obtida. Confirme a posição no mapa.');
+        notification.info('Localização GPS obtida. Confirme a posição no mapa.');
         setMapOpen(true); // abrir mapa automáticamente para confirmação
       },
       (err) => {
@@ -88,7 +88,7 @@ const LocationSelector = ({ clat, clong, onLocationChange }) => {
           2: 'Posição indisponível. Tente novamente.',
           3: 'Tempo limite excedido ao obter localização.',
         };
-        toast.error(messages[err.code] || 'Erro ao obter localização GPS.');
+        notification.error(messages[err.code] || 'Erro ao obter localização GPS.');
         setGpsLoading(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }

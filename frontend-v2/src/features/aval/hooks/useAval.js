@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import avalService from '../services/avalService';
 
 export function useAval() {
@@ -20,7 +20,7 @@ export function useAval() {
       const active = list.find((p) => p.active === 1) ?? list[0];
       if (active) setSelectedPeriod(active.pk);
     } catch {
-      toast.error('Erro ao carregar campanhas de avaliação');
+      notification.error('Erro ao carregar campanhas de avaliação');
     } finally {
       setLoading(false);
     }
@@ -62,10 +62,10 @@ export function useAval() {
       setSubmitting(pk);
       try {
         await avalService.submit({ pk, aval_personal_colab, aval_personal_rel, aval_professional });
-        toast.success('Avaliação submetida com sucesso');
+        notification.success('Avaliação submetida com sucesso');
         await fetchEvalData(selectedPeriod);
       } catch (err) {
-        toast.error(err?.response?.data?.error ?? 'Erro ao submeter avaliação');
+        notification.error(err?.response?.data?.error ?? 'Erro ao submeter avaliação');
       } finally {
         setSubmitting(null);
       }

@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { onEvent, offEvent, SOCKET_EVENTS } from '@/services/websocket/socketService';
 import { useTaskStore } from '../store/taskStore';
 
@@ -106,7 +106,7 @@ export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onT
       if (!isSelf) {
         const msgFn = TOAST_MESSAGES[notificationType];
         if (msgFn) {
-          toast.info(msgFn(taskName), { duration: 4000 });
+          notification.info(msgFn(taskName), { duration: 4000 });
         }
       }
     },

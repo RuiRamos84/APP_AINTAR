@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useEquipamentoStore } from '../store/equipamentoStore';
 import * as svc from '../services/equipamentoService';
 
@@ -35,7 +35,7 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao carregar equipamentos';
       setError(msg);
-      toast.error(msg);
+      notification.error(msg);
     }
   }, [setEquipamentos, setLoading, setError]);
 
@@ -44,11 +44,11 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const createEquipamento = useCallback(async (data) => {
     try {
       await svc.createEquipamento(data);
-      toast.success('Equipamento criado com sucesso');
+      notification.success('Equipamento criado com sucesso');
       await fetchEquipamentos();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao criar equipamento';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, [fetchEquipamentos]);
@@ -57,10 +57,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
     try {
       await svc.updateEquipamento(pk, data);
       await fetchEquipamentos(); // re-fetch preserva estado/localizacao
-      toast.success('Equipamento atualizado com sucesso');
+      notification.success('Equipamento atualizado com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao atualizar equipamento';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, [fetchEquipamentos]);
@@ -69,10 +69,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
     try {
       await svc.deleteEquipamento(pk);
       removeEquipamento(pk);
-      toast.success('Equipamento eliminado com sucesso');
+      notification.success('Equipamento eliminado com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao eliminar equipamento';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, [removeEquipamento]);
@@ -82,10 +82,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const createAloc = useCallback(async (equipamentoPk, data) => {
     try {
       await svc.createAloc(equipamentoPk, data);
-      toast.success('Alocação registada com sucesso');
+      notification.success('Alocação registada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao criar alocação';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -93,10 +93,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const updateAloc = useCallback(async (equipamentoPk, alocPk, data) => {
     try {
       await svc.updateAloc(equipamentoPk, alocPk, data);
-      toast.success('Alocação atualizada com sucesso');
+      notification.success('Alocação atualizada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao atualizar alocação';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -104,10 +104,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const deleteAloc = useCallback(async (equipamentoPk, alocPk) => {
     try {
       await svc.deleteAloc(equipamentoPk, alocPk);
-      toast.success('Alocação eliminada com sucesso');
+      notification.success('Alocação eliminada com sucesso');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao eliminar alocação';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -117,10 +117,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const createSpec = useCallback(async (equipamentoPk, data) => {
     try {
       await svc.createSpec(equipamentoPk, data);
-      toast.success('Especificação adicionada');
+      notification.success('Especificação adicionada');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao adicionar especificação';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -128,10 +128,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const updateSpec = useCallback(async (equipamentoPk, specPk, data) => {
     try {
       await svc.updateSpec(equipamentoPk, specPk, data);
-      toast.success('Especificação atualizada');
+      notification.success('Especificação atualizada');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao atualizar especificação';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -139,10 +139,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const deleteSpec = useCallback(async (equipamentoPk, specPk) => {
     try {
       await svc.deleteSpec(equipamentoPk, specPk);
-      toast.success('Especificação eliminada');
+      notification.success('Especificação eliminada');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao eliminar especificação';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -152,10 +152,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const createRepair = useCallback(async (equipamentoPk, data) => {
     try {
       await svc.createRepair(equipamentoPk, data);
-      toast.success('Manutenção registada');
+      notification.success('Manutenção registada');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao registar manutenção';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -163,10 +163,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const updateRepair = useCallback(async (equipamentoPk, repPk, data) => {
     try {
       await svc.updateRepair(equipamentoPk, repPk, data);
-      toast.success('Manutenção atualizada');
+      notification.success('Manutenção atualizada');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao atualizar manutenção';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);
@@ -174,10 +174,10 @@ export const useEquipamentos = ({ fetchOnMount = true } = {}) => {
   const deleteRepair = useCallback(async (equipamentoPk, repPk) => {
     try {
       await svc.deleteRepair(equipamentoPk, repPk);
-      toast.success('Manutenção eliminada');
+      notification.success('Manutenção eliminada');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Erro ao eliminar manutenção';
-      toast.error(msg);
+      notification.error(msg);
       throw err;
     }
   }, []);

@@ -9,7 +9,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/services/api/client';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // ─── Zod Schema ──────────────────────────────────────────────────────────────
 const contractSchema = z.object({
@@ -87,11 +87,11 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
   const createMutation = useMutation({
     mutationFn: (data) => apiClient.post('/clients/contracts', data),
     onSuccess: () => {
-      toast.success('Contrato registado com sucesso!');
+      notification.success('Contrato registado com sucesso!');
       queryClient.invalidateQueries(['contracts']);
       onClose();
     },
-    onError: (error) => toast.error(error?.response?.data?.message || error?.message || 'Erro ao registar contrato.'),
+    onError: (err) => notification.apiError(err, 'Erro ao registar contrato.'),
   });
 
   const onSubmit = (data) => {

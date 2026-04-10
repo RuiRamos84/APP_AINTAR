@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 /**
  * Hook factory para despesas.
@@ -29,7 +29,7 @@ export const createExpenseHook = (queryKey, fetchFn, createFn, label) => {
 
     useEffect(() => {
       if (query.isError) {
-        toast.error(`Falha ao carregar despesas (${label}): ${query.error?.message}`);
+        notification.error(`Falha ao carregar despesas (${label}): ${query.error?.message}`);
       }
     }, [query.isError, query.error]);
 
@@ -37,10 +37,10 @@ export const createExpenseHook = (queryKey, fetchFn, createFn, label) => {
       mutationFn: createFn,
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: key });
-        toast.success(`Despesa de ${label} registada com sucesso!`);
+        notification.success(`Despesa de ${label} registada com sucesso!`);
       },
       onError: (error) => {
-        toast.error(`Erro ao registar despesa: ${error.message}`);
+        notification.error(`Erro ao registar despesa: ${error.message}`);
       },
     });
 

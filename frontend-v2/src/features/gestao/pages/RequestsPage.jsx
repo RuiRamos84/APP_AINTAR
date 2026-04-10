@@ -20,7 +20,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { useQuery } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import apiClient from '@/services/api/client';
@@ -72,10 +72,10 @@ const RequestsPage = () => {
     try {
       if (action === 'close')     await apiClient.post(`/requests/${request.pk}/close`);
       if (action === 'replicate') await apiClient.post(`/requests/${request.pk}/replicate`);
-      toast.success('Ação realizada com sucesso!');
+      notification.success('Ação realizada com sucesso!');
       refetch();
     } catch (e) {
-      toast.error(`Erro: ${e.message}`);
+      notification.error(`Erro: ${e.message}`);
     }
   };
 

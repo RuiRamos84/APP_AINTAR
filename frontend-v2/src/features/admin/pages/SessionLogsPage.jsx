@@ -26,7 +26,7 @@ import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 import apiClient from '@/services/api/client';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -95,11 +95,11 @@ const SessionLogsPage = () => {
     mutationFn: ({ mode, username }) =>
       apiClient.post('/admin/logs/sessions/kill', { mode, username }),
     onSuccess: (data) => {
-      toast.success(data?.message ?? 'Sessões terminadas.');
+      notification.success(data?.message ?? 'Sessões terminadas.');
       setKillDialog({ open: false, mode: null, username: null });
       queryClient.invalidateQueries({ queryKey: ['admin', 'session-logs'] });
     },
-    onError: () => toast.error('Erro ao terminar sessões.'),
+    onError: (err) => notification.apiError(err, 'Erro ao terminar sessões.'),
   });
 
   const openKill = (mode, username = null) => setKillDialog({ open: true, mode, username });

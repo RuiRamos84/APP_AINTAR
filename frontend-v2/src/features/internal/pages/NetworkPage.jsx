@@ -12,7 +12,7 @@ import { useTheme } from '@mui/material/styles';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { toast } from 'sonner';
+import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useAssociates } from '@/core/hooks/useMetaData';
 import ExpensePage from '../components/ExpensePage';
@@ -51,10 +51,10 @@ const RequestForm = ({ title, submitFn, associates }) => {
         pnts_associate: pnts_associate ? parseInt(pnts_associate, 10) : null,
         pnmemo,
       });
-      toast.success('Pedido submetido com sucesso!');
+      notification.success('Pedido submetido com sucesso!');
       reset(defaultValues);
     } catch (error) {
-      toast.error(`Erro ao submeter pedido: ${error.message}`);
+      notification.error(`Erro ao submeter pedido: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
