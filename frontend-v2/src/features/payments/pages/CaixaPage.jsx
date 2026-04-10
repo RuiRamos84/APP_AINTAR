@@ -129,7 +129,7 @@ const StatCard = ({ label, value, color, icon: Icon, loading }) => {
 
 const PendingBanner = ({ pending, label, icon: Icon, currentUserId, onValidar, validating }) => {
   if (!pending) return null;
-  const canValidate = currentUserId !== pending.creator?.pk;
+  const canValidate = Number(currentUserId) !== Number(pending.creator?.pk);
 
   return (
     <Alert
@@ -194,7 +194,7 @@ const MovementDialog = ({ open, onClose, initial, tipos, currentUserId, fechoSta
   const hasPending  = !!tipoState?.pending;
   const rotacao     = useMemo(() => {
     if (!meta.isTwoPerson || !tipoState?.has_previous || hasPending) return null;
-    const isMyTurn = currentUserId === tipoState.next_creator?.pk;
+    const isMyTurn = Number(currentUserId) === Number(tipoState.next_creator?.pk);
     return { next_creator: tipoState.next_creator, isMyTurn };
   }, [meta.isTwoPerson, tipoState, hasPending, currentUserId]);
 
