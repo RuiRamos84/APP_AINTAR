@@ -567,7 +567,7 @@ def replicate_document(pk):
 @bp.route('/document/reopen', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(60)  # admin.docs.reopen # Corrigido para a permissão correta
+@require_permission('docs.reopen')
 @set_session
 @api_error_handler
 def reopen_document_route():
@@ -579,7 +579,7 @@ def reopen_document_route():
     if not regnumber or not user_id:
         return jsonify({'error': 'regnumber e user_id são obrigatórios'}), 400
 
-    return reopen_document(regnumber, user_id, current_user)
+    return reopen_document(regnumber, int(user_id), current_user)
 
 
 @bp.route('/documents/late', methods=['GET'])

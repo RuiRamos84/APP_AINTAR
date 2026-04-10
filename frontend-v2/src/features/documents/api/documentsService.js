@@ -155,11 +155,12 @@ export const documentsService = {
   },
 
   /**
-   * Reopen a closed document
-   * @param {string} regnumber - Document registration number
+   * Reabrir um documento fechado (apenas perfil 0).
+   * @param {string} regnumber - Número de registo do documento
+   * @param {number} userId - PK do utilizador a quem o pedido fica atribuído
    */
-  async reopen(regnumber) {
-    const response = await api.post('/document/reopen', { regnumber });
+  async reopen(regnumber, userId) {
+    const response = await api.post('/document/reopen', { regnumber, user_id: userId });
     return response;
   },
 

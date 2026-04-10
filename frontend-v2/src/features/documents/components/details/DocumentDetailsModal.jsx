@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   IconButton,
   Typography,
   Box,
@@ -17,7 +18,11 @@ import {
   CircularProgress,
   Divider,
   Tooltip,
-  Collapse
+  Collapse,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -132,6 +137,8 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const [isAddAnnexOpen, setIsAddAnnexOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [originOpen, setOriginOpen] = useState(false);
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenUserId, setReopenUserId] = useState('');
 
   // Extract identifiers
   const { pk: documentPk, regnumber: documentRegNumber } = documentData || {};
@@ -143,9 +150,9 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const { data: metaData } = useMetaData();
   const downloadComprovativo = useDownloadComprovativo();
   const reopenDocument = useReopenDocument();
-  const { hasPermission } = usePermissionContext();
+  const { hasPermission, isAdmin } = usePermissionContext();
   const canReplicate = hasPermission('admin.docs.manage');
-  const canReopen = hasPermission('admin.docs.reopen');
+  const canReopen = isAdmin();
   const canDownloadComprovativo = isCreator || hasPermission('docs.view.owner');
 
   const findMetaValue = (metaArray, key, value) => {
@@ -997,9 +1004,8 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               variant="outlined"
               size="small"
               color="warning"
-              startIcon={reopenDocument.isPending ? <CircularProgress size={16} /> : <ReopenIcon />}
-              onClick={() => documentRegNumber && reopenDocument.mutate(documentRegNumber, { onSuccess: onActionSuccess })}
-              disabled={reopenDocument.isPending}
+              startIcon={<ReopenIcon />}
+              onClick={() => { setReopenUserId(''); setReopenDialogOpen(true); }}
               sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
             >
               Reabrir
@@ -1072,6 +1078,60 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
           isCreator={false}
         />
       )}
+
+      {/* Diálogo de reabertura de pedido */}
+      <Dialog
+        open={reopenDialogOpen}
+        onClose={() => setReopenDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ReopenIcon color="warning" />
+          Reabrir Pedido
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Selecione o utilizador a quem o pedido <strong>{documentRegNumber}</strong> ficará atribuído após a reabertura.
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel>Para quem?</InputLabel>
+            <Select
+              value={reopenUserId}
+              label="Para quem?"
+              onChange={(e) => setReopenUserId(e.target.value)}
+            >
+              <MenuItem value=""><em>Selecione um utilizador</em></MenuItem>
+              {metaData?.who?.map((u) => (
+                <MenuItem key={u.pk} value={u.pk}>{u.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setReopenDialogOpen(false)} color="inherit">
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            disabled={!reopenUserId || reopenDocument.isPending}
+            onClick={() => {
+              reopenDocument.mutate(
+                { regnumber: documentRegNumber, userId: reopenUserId },
+                {
+                  onSuccess: () => {
+                    setReopenDialogOpen(false);
+                    onActionSuccess?.();
+                  },
+                }
+              );
+            }}
+          >
+            {reopenDocument.isPending ? <CircularProgress size={18} /> : 'Confirmar Reabertura'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

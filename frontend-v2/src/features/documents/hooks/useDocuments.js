@@ -183,20 +183,19 @@ export const useReplicateDocument = () => {
 };
 
 /**
- * Hook to reopen a closed document
+ * Hook para reabrir um pedido fechado (apenas perfil 0).
+ * Recebe { regnumber, userId } — userId é para quem o pedido fica atribuído.
  */
 export const useReopenDocument = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (regnumber) => documentsService.reopen(regnumber),
+    mutationFn: ({ regnumber, userId }) => documentsService.reopen(regnumber, userId),
     onSuccess: () => {
-      notification.success('Pedido reaberto com sucesso');
+      notification.success('Pedido reaberto com sucesso.');
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
-    onError: (error) => {
-      notification.error('Erro ao reabrir pedido: ' + (error.response?.data?.error || error.message));
-    },
+    onError: (err) => notification.apiError(err, 'Erro ao reabrir pedido.'),
   });
 };
 

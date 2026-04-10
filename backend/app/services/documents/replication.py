@@ -159,9 +159,5 @@ def reopen_document(regnumber, user_id, current_user):
         logger.error(f"Erro de BD ao reabrir pedido: {str(e)}")
         return {'error': "Erro ao reabrir pedido", 'code': "ERR_DATABASE"}, 500
     except Exception as e:
-        logger.error(
-            f"Erro inesperado ao reabrir pedido: {str(e)}")
-        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
-        logger.error(
-            f"Erro inesperado ao reabrir pedido: {str(e)}")
+        logger.error(f"Erro inesperado ao reabrir pedido: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
