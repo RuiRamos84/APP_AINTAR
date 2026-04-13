@@ -35,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import paymentService from '../../../../../features/payments/services/paymentService';
 import PaymentDialog from '../../../../../features/payments/components/modals/PaymentDialog';
+import { formatAmount } from '../../../../../features/payments/utils/paymentUtils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const PaymentsTab = ({ document }) => {
@@ -258,7 +259,7 @@ const PaymentsTab = ({ document }) => {
                             <List disablePadding>
                                 <ListItem sx={{ px: 0, py: 0.5 }}>
                                     <ListItemIcon sx={{ minWidth: 40 }}><MoneyIcon fontSize="small" color="action" /></ListItemIcon>
-                                    <ListItemText primary="Valor" secondary={`${invoiceAmount.invoice_data.invoice || invoiceAmount.invoice_data.amount || 0}€`} />
+                                    <ListItemText primary="Valor" secondary={`${formatAmount(invoiceAmount.invoice_data.invoice || invoiceAmount.invoice_data.amount || 0)}€`} />
                                 </ListItem>
                                 <ListItem sx={{ px: 0, py: 0.5 }}>
                                     <ListItemIcon sx={{ minWidth: 40 }}><CardIcon fontSize="small" color="action" /></ListItemIcon>
@@ -302,7 +303,7 @@ const PaymentsTab = ({ document }) => {
                     {!hasPaymentInfo && (
                         <Alert severity="info" sx={{ mb: 2 }}>
                             <AlertTitle>Pagamento Pendente</AlertTitle>
-                            Valor a pagar: <strong>{invoiceAmount.invoice_data.invoice}€</strong>
+                            Valor a pagar: <strong>{formatAmount(invoiceAmount.invoice_data.invoice)}€</strong>
                         </Alert>
                     )}
                     {hasPaymentInfo && paymentStatus.status === 'pending' && (

@@ -45,10 +45,13 @@
       "Bash(/dev/null:*)",
       "Bash(python -c \":*)",
       "Read(//c/Users/RUI~1.RAM/AppData/Local/Temp/claude/c--Users-rui-ramos-Desktop-APP/09f702b1-13b2-450a-a6e9-17aae2f0a6d0/tasks/**)",
-      "Read(//c/Users/rui.ramos/Desktop/APP/**)"
+      "Read(//c/Users/rui.ramos/Desktop/APP/**)",
+      "Read(//c/Users/rui.ramos/**)",
+      "Bash(code --list-extensions)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\rui.ramos\\AppData\\Local\\Temp"
+      "C:\\Users\\rui.ramos\\AppData\\Local\\Temp",
+      "c:\\Users\\rui.ramos\\.vscode\\extensions\\ms-python.flake8-2026.3.11031008\\bundled\\tool"
     ]
   }
 }

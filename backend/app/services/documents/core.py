@@ -193,33 +193,31 @@ def documentById(documentId, current_user, entity_pk=None):
                     )
 
             # ── Fallback pav views (PAV docs não estão em vbl_document) ────
-            # Corre para todos os utilizadores (vbl_document não inclui tipo PAV)
-            if not document_result and not is_pk:
+            # Corre para todos os utilizadores, por regnumber OU pk
+            if not document_result:
                 try:
+                    pav_col = "pk" if is_pk else "regnumber"
+                    pav_val = doc_pk if is_pk else documentId
+
                     pav_row = session.execute(
-                        text("""
-                            SELECT pk, regnumber, ts_entity, address, door, floor,
-                                   postal, phone, nut4, nut3, nut2, memo, submission
-                            FROM vbr_document_pav01
-                            WHERE regnumber = :v
+                        text(f"""
+                            SELECT * FROM vbr_document_pav01 WHERE {pav_col} = :v
                             UNION ALL
-                            SELECT pk, regnumber, ts_entity, address, door, floor,
-                                   postal, phone, nut4, nut3, nut2, memo, submission
-                            FROM vbr_document_pav02
-                            WHERE regnumber = :v
+                            SELECT * FROM vbr_document_pav02 WHERE {pav_col} = :v
                             UNION ALL
-                            SELECT pk, regnumber, ts_entity, address, door, floor,
-                                   postal, phone, nut4, nut3, nut2, memo, submission
-                            FROM vbr_document_pav03
-                            WHERE regnumber = :v
+                            SELECT * FROM vbr_document_pav03 WHERE {pav_col} = :v
                             LIMIT 1
                         """),
-                        {"v": documentId}
+                        {"v": pav_val}
                     ).fetchone()
                     if pav_row:
                         pav = dict(pav_row._mapping)
-                        logger.info(f"[documentById] fallback pav views: encontrado → {pav.get('regnumber')!r}")
-                        sub = pav.get('submission')
+                        logger.info(f"[documentById] fallback pav views: encontrado → {pav.get('regnumber')!r} campos={list(pav.keys())}")
+
+                        def _dt(val):
+                            if val is None: return None
+                            return val.isoformat() if isinstance(val, datetime) else str(val)
+
                         document_dict = {
                             'pk':             pav.get('pk'),
                             'regnumber':      pav.get('regnumber'),
@@ -234,12 +232,16 @@ def documentById(documentId, current_user, entity_pk=None):
                             'nut3':           pav.get('nut3'),
                             'nut2':           pav.get('nut2'),
                             'memo':           pav.get('memo'),
-                            'submission':     sub.isoformat() if isinstance(sub, datetime) else str(sub) if sub else None,
+                            'submission':     _dt(pav.get('submission')),
+                            'exec_data':      _dt(pav.get('execution_date')),
                             'tt_type':        'Pavimentação',
                             'what':           None,
-                            'ts_associate':   None,
+                            'ts_associate':   pav.get('nut2'),  # município = nut2
                             'creator':        None,
                             'who':            None,
+                            'glat':           pav.get('glat'),
+                            'glong':          pav.get('glong'),
+                            'nipc':           pav.get('nipc'),
                         }
                         return {'document': document_dict}, 200
                     else:
@@ -684,6 +686,10 @@ def create_document(data, files, current_user):
                     "Pedido de Limpeza de Fossa": {
                         "id": 2,
                         "function": "fbo_document_invoice$2"
+                    },
+                    "Reporte de Volume Industrial": {
+                        "id": 58,
+                        "function": "fbo_document_invoice$58"
                     },
                 }
 

@@ -306,11 +306,10 @@ def update_document_params(current_user, document_id, data):
             "id": 2,
             "function": "fbo_document_invoice$2"
         },
-        # Adicionar novos tipos aqui:
-        # "Novo Tipo": {
-        #     "id": 3,
-        #     "function": "fbo_document_invoice$3"
-        # },
+        "Reporte de Volume Industrial": {
+            "id": 58,
+            "function": "fbo_document_invoice$58"
+        },
     }
 
     try:
@@ -447,8 +446,17 @@ def update_document_params(current_user, document_id, data):
 
             except SQLAlchemyError as se:
                 session.rollback()
+                error_str = str(se)
+
+                # Verificar se é uma regra de negócio (mensagem controlada)
+                import re
+                error_match = re.search(r'<error>(.*?)</error>', error_str)
+                if error_match:
+                    error_message = error_match.group(1)
+                    return {'error': error_message, 'code': 'VALIDATION_ERROR'}, 422
+
                 logger.error(
-                    f"Erro de BD ao atualizar parâmetros: {str(se)}")
+                    f"Erro de BD ao atualizar parâmetros: {error_str}")
                 raise APIError("Erro ao atualizar parâmetros",
                                500, "ERR_DATABASE")
 

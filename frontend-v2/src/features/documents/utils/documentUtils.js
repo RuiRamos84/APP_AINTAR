@@ -63,9 +63,11 @@ export const getStatusColor = (statusId) => {
  * @returns {string} Nome legível do status
  */
 export const getStatusLabel = (statusId, metadata = null) => {
+  if (statusId === undefined || statusId === null) return '—';
+
   // Suporta receber metadata.what (array) ou metadata completo (objeto com .what)
   const whatArray = Array.isArray(metadata) ? metadata : metadata?.what;
-  
+
   if (whatArray && Array.isArray(whatArray)) {
     const status = whatArray.find(s => s.pk === parseInt(statusId));
     if (status) return status.step;

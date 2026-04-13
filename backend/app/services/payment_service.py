@@ -157,7 +157,7 @@ class PaymentService:
                     try:
                         doc_type_query = text("SELECT tt_type FROM tb_document WHERE pk = :document_id")
                         doc_type = session.execute(doc_type_query, {"document_id": document_id}).scalar()
-                        type_fn_map = {1: '"fbo_document_invoice$1"', 2: '"fbo_document_invoice$2"'}
+                        type_fn_map = {1: '"fbo_document_invoice$1"', 2: '"fbo_document_invoice$2"', 58: '"fbo_document_invoice$58"'}
                         fn = type_fn_map.get(doc_type)
                         if fn:
                             session.execute(text(f"SELECT {fn}(:document_id)"), {"document_id": document_id})
