@@ -4,7 +4,7 @@
  *   Pendentes → Executadas → Concluídas
  */
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Box, Tab, Tabs, Badge } from '@mui/material';
 import {
   Straighten as StraightenIcon,
@@ -16,6 +16,7 @@ import { SearchBar } from '@/shared/components/data';
 
 import ModulePage from '@/shared/components/layout/ModulePage';
 import { usePermissions } from '@/core/contexts/PermissionContext';
+import { useAuth } from '@/core/contexts/AuthContext';
 
 import { usePavimentos } from '../hooks/usePavimentos';
 import {
@@ -23,6 +24,10 @@ import {
   PavimentosList,
   ConfirmActionDialog,
 } from '../components';
+
+const DocumentDetailsModal = lazy(() =>
+  import('../../documents/components/details/DocumentDetailsModal')
+);
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
@@ -54,9 +59,24 @@ const TABS = [
 
 export default function PavimentosPage() {
   const { hasPermission } = usePermissions();
-  const canManage = hasPermission('pav.edit');
+  const { user } = useAuth();
+  const profil = Number(user?.profil ?? -1);
+
+  // Executar (pendente → executada): admin (0) + municípios (2,3,4,5)
+  const canExecute = profil === 0 || profil >= 2;
+  // Marcar como paga (executada → concluída): apenas AINTAR interno (1) + admin (0)
+  const canPay = profil === 0 || profil === 1;
 
   const [tab, setTab] = useState(0);
+
+  // Document details modal — abrimos imediatamente com os dados do pav que já temos
+  const [selectedPav, setSelectedPav] = useState(null);
+
+  const handleViewDocument = (regnumber, pav) => {
+    console.log('[PavimentosPage] handleViewDocument →', { regnumber, pav });
+    setSelectedPav(pav ?? { pk: null, regnumber });
+  };
+  const handleCloseDocument = () => setSelectedPav(null);
 
   // Dialog state
   const [dialogOpen,  setDialogOpen]  = useState(false);
@@ -162,10 +182,23 @@ export default function PavimentosPage() {
         pavimentos={current.pavimentos}
         loading={current.loading}
         status={TABS[tab].status}
-        canManage={canManage}
+        canExecute={canExecute}
+        canPay={canPay}
         actionLoading={current.actionLoading}
         onAction={handleAction}
+        onViewDocument={handleViewDocument}
       />
+
+      {/* Modal detalhes do pedido — abre imediatamente com dados do pav */}
+      <Suspense fallback={null}>
+        {selectedPav && (
+          <DocumentDetailsModal
+            open={!!selectedPav}
+            onClose={handleCloseDocument}
+            documentData={{ pk: selectedPav.pk, regnumber: selectedPav.regnumber }}
+          />
+        )}
+      </Suspense>
 
       {/* Dialog de confirmação */}
       <ConfirmActionDialog

@@ -7,8 +7,11 @@
  * Nomes padrão dos status (fallback quando metadados não disponíveis)
  */
 const DEFAULT_STATUS_NAMES = {
+  '-4': 'CONCLUIDO PELO MUNICÍPIO',
+  '-3': 'CONCLUIDO POR REPLICAÇÃO',
+  '-2': 'CONCLUIDO SEM SUCESSO',
   '-1': 'ANULADO',
-  '0': 'CONCLUIDO',
+  '0': 'CONCLUIDO COM SUCESSO',
   '1': 'ENTRADA',
   '2': 'PARA VALIDAÇÃO',
   '4': 'PARA TRATAMENTO',
@@ -28,8 +31,11 @@ const DEFAULT_STATUS_NAMES = {
  * Mapeamento de cores MUI para cada status
  */
 const STATUS_COLOR_MAP = {
+  '-4': 'success',   // CONCLUIDO PELO MUNICÍPIO
+  '-3': 'success',   // CONCLUIDO POR REPLICAÇÃO
+  '-2': 'warning',   // CONCLUIDO SEM SUCESSO
   '-1': 'error',     // ANULADO
-  '0': 'success',    // CONCLUIDO
+  '0': 'success',    // CONCLUIDO COM SUCESSO
   '1': 'grey',       // ENTRADA
   '2': 'primary',    // PARA VALIDAÇÃO
   '4': 'primary',    // PARA TRATAMENTO
@@ -49,8 +55,11 @@ const STATUS_COLOR_MAP = {
  * Ordem de visualização (Kanban, sorting)
  */
 const STATUS_ORDER_MAP = {
-  '-1': 999, // ANULADO (final)
-  '0': 998,  // CONCLUIDO (penúltimo)
+  '-4': 995, // CONCLUIDO PELO MUNICÍPIO
+  '-3': 996, // CONCLUIDO POR REPLICAÇÃO
+  '-2': 997, // CONCLUIDO SEM SUCESSO
+  '-1': 999, // ANULADO
+  '0': 998,  // CONCLUIDO COM SUCESSO
   '1': 1,    // ENTRADA
   '2': 2,    // PARA VALIDAÇÃO
   '4': 3,    // PARA TRATAMENTO
@@ -66,8 +75,8 @@ const STATUS_ORDER_MAP = {
   '100': 13, // PARA PAGAMENTO DE PAVIMENTAÇÃO
 };
 
-/** IDs de status que representam documentos fechados */
-const CLOSED_STATUS_IDS = [-1, 0];
+// Todos os estados finais têm pk <= 0 (ANULADO, CONCLUIDO COM SUCESSO,
+// CONCLUIDO SEM SUCESSO, CONCLUIDO POR REPLICAÇÃO, CONCLUIDO PELO MUNICÍPIO, …)
 
 /**
  * Obtém o nome do status a partir dos metadados
@@ -189,11 +198,12 @@ export const groupDocumentsByStatus = (documents, statusMetadata, theme) => {
 };
 
 /**
- * Verifica se um documento está fechado (não pode ser modificado)
+ * Verifica se um documento está fechado (concluído ou anulado).
+ * Todos os estados finais têm pk <= 0.
  * @param {Object} document
  * @returns {boolean}
  */
 export const isDocumentClosed = (document) => {
   if (!document) return false;
-  return CLOSED_STATUS_IDS.includes(Number(document.what));
+  return Number(document.what) <= 0;
 };

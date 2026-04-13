@@ -21,6 +21,7 @@ from ..services.documents import (
     preencher_pdf,
     get_document_type_param,
     update_document_params,
+    update_document_fields,
     create_etar_document_direct,
     create_ee_document_direct,
     get_document_ramais,
@@ -99,9 +100,12 @@ def documentById_route(documentId):
       404:
         description: Documento não existe ou sem permissão.
     """
+    from flask_jwt_extended import get_jwt
     current_user = get_jwt_identity()
+    jwt_data = get_jwt()
+    entity_pk = jwt_data.get('entity')
     with db_session_manager(current_user):
-        return documentById(documentId, current_user)
+        return documentById(documentId, current_user, entity_pk=entity_pk)
 
 
 @bp.route('/documents/by-associate', methods=['GET'])
@@ -299,6 +303,51 @@ def update_document_params_route(document_id):
     current_user = get_jwt_identity()
     data = request.get_json()
     return update_document_params(current_user, document_id, data)
+
+
+@bp.route('/document/<int:pk>/fields', methods=['PUT'])
+@jwt_required()
+@require_any_permission(10, 520)  # admin.access (10) OU docs.view.assigned (520)
+@token_required
+@set_session
+@api_error_handler
+def update_document_fields_route(pk):
+    """
+    Atualizar campos principais de um pedido.
+    ---
+    tags:
+      - Documentos
+    summary: |
+      Atualiza campos do pedido com lógica de permissão dual:
+      - Admin (profil 0/1): todos os campos editáveis.
+      - Utilizador com o pedido (profil != 0/1, permissão 520): apenas glat e glong.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+        description: PK do documento
+    responses:
+      200:
+        description: Pedido atualizado com sucesso.
+      400:
+        description: Dados inválidos ou campos não permitidos.
+      403:
+        description: Permissão insuficiente.
+      404:
+        description: Pedido não encontrado.
+    """
+    from flask_jwt_extended import get_jwt
+    current_user = get_jwt_identity()
+    jwt_data = get_jwt()
+    profil = str(jwt_data.get('profil', ''))
+    is_admin = profil in ('0', '1')
+
+    data = request.get_json()
+    with db_session_manager(current_user):
+        return update_document_fields(pk, data, current_user, is_admin)
 
 
 @bp.route('/get_document_anex/<int:pk>', methods=['GET'])

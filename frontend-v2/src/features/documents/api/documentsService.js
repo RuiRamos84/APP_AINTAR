@@ -147,6 +147,16 @@ export const documentsService = {
   },
 
   /**
+   * Update document main fields (admin: all fields; assignee: lat/lng only)
+   * @param {number} id - Document PK
+   * @param {Object} fields - Fields to update
+   */
+  async updateFields(id, fields) {
+    const response = await api.put(`/document/${id}/fields`, fields);
+    return response;
+  },
+
+  /**
    * Replicate document
    */
   async replicate(id, newType) {

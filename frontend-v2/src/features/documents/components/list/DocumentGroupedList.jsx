@@ -152,6 +152,7 @@ const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData, view
             onViewDetails={onViewDetails}
             metaData={metaData}
             animated={false}
+            showDeadline={activeKey === '4'}
           />
         ) : (
           <DocumentList
@@ -159,6 +160,7 @@ const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData, view
             loading={loading}
             onViewDetails={onViewDetails}
             metaData={metaData}
+            showDeadline={activeKey === '4'}
           />
         )}
       </Box>

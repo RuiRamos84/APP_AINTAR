@@ -1,52 +1,41 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification';
 import * as svc from '../services/pavimentosService';
 
+// ─── Query Keys ──────────────────────────────────────────────────────────────
+
+export const pavKeys = {
+  all:       ['pavimentos'],
+  list:      (status) => ['pavimentos', status],
+};
+
+// ─── usePavimentos ────────────────────────────────────────────────────────────
+
 /**
- * usePavimentos
- *
  * Gere o estado de uma lista de pavimentações para um dado status.
- * Inclui pesquisa, estatísticas e ações com feedback ao utilizador.
+ * Usa React Query para caching e deduplicação de requests.
  *
  * @param {'pending'|'executed'|'completed'} status
  */
 export const usePavimentos = (status) => {
-  const [allPavimentos, setAllPavimentos] = useState([]);
-  const [loading, setLoading]             = useState(false);
-  const [error, setError]                 = useState(null);
+  const queryClient = useQueryClient();
   const [search, setSearch]               = useState('');
-  const [actionLoading, setActionLoading] = useState(null); // pk do item em ação, ou null
+  const [actionLoading, setActionLoading] = useState(null);
 
-  // ─── Fetch ──────────────────────────────────────────────────────────────────
+  // ─── Fetch via React Query ─────────────────────────────────────────────────
 
-  const fetchPavimentos = useCallback(async () => {
-    if (!status) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const { pavimentos } = await svc.getPavimentos(status);
-      setAllPavimentos(pavimentos);
-    } catch (err) {
-      const msg = err?.response?.data?.message || 'Erro ao carregar pavimentações';
-      setError(msg);
-      notification.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [status]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: pavKeys.list(status),
+    queryFn:  () => svc.getPavimentos(status).then((r) => r.pavimentos),
+    staleTime: 1000 * 60 * 2,  // 2 minutos — dados mudam pouco
+    retry: 1,
+  });
 
-  useEffect(() => {
-    fetchPavimentos();
-  }, [fetchPavimentos]);
+  const allPavimentos = data ?? [];
 
-  // ─── Ações ──────────────────────────────────────────────────────────────────
+  // ─── Ações ────────────────────────────────────────────────────────────────
 
-  /**
-   * Executa uma ação sobre um pavimento.
-   * @param {number} pk       - PK do pavimento
-   * @param {'execute'|'pay'} acao - Tipo de ação
-   * @param {Array} [anexos]  - Lista de { file, comment } para 'pay'
-   */
   const executarAcao = useCallback(async (pk, acao, anexos = []) => {
     setActionLoading(pk);
     try {
@@ -55,29 +44,26 @@ export const usePavimentos = (status) => {
         notification.success('Pavimentação marcada como executada');
       } else if (acao === 'pay') {
         await svc.pagarPavimento(pk);
-        // Enviar anexos se existirem
         if (anexos.length > 0) {
           const pav = allPavimentos.find((p) => p.pk === pk);
-          const regnumber = pav?.regnumber;
-          if (regnumber) {
-            const uploads = anexos.map(({ file, comment }) =>
-              svc.addAnexo(regnumber, file, comment)
+          if (pav?.regnumber) {
+            await Promise.allSettled(
+              anexos.map(({ file, comment }) => svc.addAnexo(pav.regnumber, file, comment))
             );
-            await Promise.allSettled(uploads);
           }
         }
         notification.success('Pavimentação marcada como concluída e paga');
       }
-      await fetchPavimentos();
+      // Invalidar todas as listas para forçar refresh
+      queryClient.invalidateQueries({ queryKey: pavKeys.all });
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Erro ao processar ação';
-      notification.error(msg);
+      notification.apiError(err, 'Erro ao processar ação');
     } finally {
       setActionLoading(null);
     }
-  }, [allPavimentos, fetchPavimentos]);
+  }, [allPavimentos, queryClient]);
 
-  // ─── Derived state ──────────────────────────────────────────────────────────
+  // ─── Derived state ────────────────────────────────────────────────────────
 
   const pavimentos = useMemo(() => {
     if (!search.trim()) return allPavimentos;
@@ -95,15 +81,14 @@ export const usePavimentos = (status) => {
   }), [allPavimentos]);
 
   return {
-    pavimentos,   // array filtrado pela pesquisa
-    loading,
+    pavimentos,
+    loading: isLoading,
     error,
     search,
     setSearch,
     actionLoading,
-    fetchPavimentos,
     executarAcao,
-    stats,        // calculado a partir do conjunto completo (não filtrado)
+    stats,
   };
 };
 

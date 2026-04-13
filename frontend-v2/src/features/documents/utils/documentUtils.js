@@ -172,6 +172,57 @@ export const filterDocuments = (documents, filters, searchTerm, dateRange) => {
 };
 
 /**
+ * Calcula dias úteis desde uma data (exclui sábados e domingos)
+ */
+export const getBusinessDaysSince = (dateStr) => {
+  if (!dateStr) return { days: 0 };
+  const startDate = parseDate(dateStr);
+  if (!startDate) return { days: 0 };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  startDate.setHours(0, 0, 0, 0);
+
+  let businessDays = 0;
+  const current = new Date(startDate);
+  while (current <= today) {
+    const dow = current.getDay();
+    if (dow !== 0 && dow !== 6) businessDays++;
+    current.setDate(current.getDate() + 1);
+  }
+  return { days: businessDays };
+};
+
+/**
+ * Formata dias úteis em texto legível (anos, meses, dias)
+ */
+export const formatBusinessDays = (total) => {
+  if (total <= 0) return '0 dias úteis';
+  const anos = Math.floor(total / 252);
+  const meses = Math.floor((total % 252) / 21);
+  const dias = (total % 252) % 21;
+  let r = '';
+  if (anos > 0) r += `${anos} ano${anos > 1 ? 's' : ''}`;
+  if (meses > 0) r += `${r ? ', ' : ''}${meses} mês${meses > 1 ? 'es' : ''}`;
+  if (dias > 0) r += `${r ? ' e ' : ''}${dias} dia${dias !== 1 ? 's' : ''} úteis`;
+  return r || '0 dias úteis';
+};
+
+/**
+ * Determina prazo em dias úteis com base no tipo e urgência do documento
+ */
+export const getDocumentDeadline = (document) => {
+  const tipo = document.tt_type?.toLowerCase() || '';
+  if (tipo.includes('limpeza') && tipo.includes('fossa')) {
+    return Number(document.urgency) === 1 ? 2 : 10;
+  }
+  if (tipo.includes('ramal') && tipo.includes('execução')) {
+    return document.urgency ? 30 : 60;
+  }
+  return 60;
+};
+
+/**
  * Sort documents helper
  */
 export const sortDocuments = (documents, sortConfig) => {

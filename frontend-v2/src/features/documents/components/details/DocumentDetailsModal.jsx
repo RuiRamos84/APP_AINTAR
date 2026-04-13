@@ -60,6 +60,7 @@ import DocumentAnnexes from './DocumentAnnexes';
 import AddStepModal from '../modals/AddStepModal';
 import ReplicateDocumentModal from '../modals/ReplicateDocumentModal';
 import AddAnnexModal from '../modals/AddAnnexModal';
+import EditDocumentModal from '../modals/EditDocumentModal';
 import ParametersTab from './tabs/ParametersTab';
 import DocumentMap from './tabs/DocumentMap';
 import PaymentsTab from './tabs/PaymentsTab';
@@ -135,6 +136,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const [isAddStepOpen, setIsAddStepOpen] = useState(false);
   const [isReplicateOpen, setIsReplicateOpen] = useState(false);
   const [isAddAnnexOpen, setIsAddAnnexOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [originOpen, setOriginOpen] = useState(false);
   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
@@ -154,6 +156,10 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const canReplicate = hasPermission('admin.docs.manage');
   const canReopen = isAdmin();
   const canDownloadComprovativo = isCreator || hasPermission('docs.view.owner');
+  // Editar campos: admin edita tudo; utilizador com pedido em sua posse edita coordenadas
+  const canEditAll = isAdmin();
+  const canEditCoords = isOwner && hasPermission('docs.view.assigned'); // tem o pedido em sua posse
+  const showEditButton = canEditAll || canEditCoords;
 
   const findMetaValue = (metaArray, key, value) => {
     if (!metaArray || value === null || value === undefined) return value;
@@ -697,6 +703,8 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                         borderRadius: 2,
                         border: `1px solid ${theme.palette.divider}`,
                         background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.info.main, 0.03)} 100%)`,
+                        display: 'flex',
+                        flexDirection: 'column',
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -705,19 +713,97 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                           MORADA
                         </Typography>
                       </Box>
+
                       {document.address ? (
-                        <Typography variant="body2" sx={{ lineHeight: 1.8, pl: { xs: 0, sm: 3.5 } }}>
-                          {document.address}
-                          {document.floor && <><br />Andar: {document.floor}</>}
-                          <br />
-                          {document.postal}{document.door ? ` - ${document.door}` : ''}
-                        </Typography>
+                        <Box sx={{ pl: { xs: 0, sm: 3.5 }, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                          {/* Rua */}
+                          <Typography variant="body2" sx={{ lineHeight: 1.8 }}>
+                            {document.address}
+                          </Typography>
+                          {/* Andar */}
+                          {document.floor && (
+                            <Typography variant="body2" sx={{ lineHeight: 1.8 }}>
+                              Andar: {document.floor}
+                            </Typography>
+                          )}
+                          {/* Postal + Porta + NUT4 como texto */}
+                          <Typography variant="body2" sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
+                            {document.postal}{document.door ? ` - ${document.door}` : ''}
+                            {document.nut4 && (
+                              <Box component="span" sx={{ ml: 1, color: 'text.primary', fontWeight: 500 }}>
+                                {document.nut4}
+                              </Box>
+                            )}
+                          </Typography>
+
+                          {/* Chips NUT — 2 linhas:
+                              linha 1: Freguesia (NUT3)
+                              linha 2: Concelho (NUT2) + Distrito (NUT1) */}
+                          {(document.nut3 || document.nut2 || document.nut1) && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 'auto', pt: 1 }}>
+
+                              {/* Linha 1 — Freguesia */}
+                              {document.nut3 && (
+                                <Box>
+                                  <Chip
+                                    icon={<LocationIcon sx={{ fontSize: '14px !important' }} />}
+                                    label={`Freguesia: ${document.nut3}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                      fontSize: '0.68rem',
+                                      height: 22,
+                                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                                      '& .MuiChip-label': { px: 0.75 },
+                                    }}
+                                  />
+                                </Box>
+                              )}
+
+                              {/* Linha 2 — Concelho + Distrito */}
+                              {(document.nut2 || document.nut1) && (
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                  {document.nut2 && (
+                                    <Chip
+                                      icon={<LocationIcon sx={{ fontSize: '14px !important' }} />}
+                                      label={`Concelho: ${document.nut2}`}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{
+                                        fontSize: '0.68rem',
+                                        height: 22,
+                                        borderColor: alpha(theme.palette.primary.main, 0.22),
+                                        '& .MuiChip-label': { px: 0.75 },
+                                      }}
+                                    />
+                                  )}
+                                  {document.nut1 && (
+                                    <Chip
+                                      icon={<LocationIcon sx={{ fontSize: '14px !important' }} />}
+                                      label={`Distrito: ${document.nut1}`}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{
+                                        fontSize: '0.68rem',
+                                        height: 22,
+                                        borderColor: alpha(theme.palette.primary.main, 0.15),
+                                        '& .MuiChip-label': { px: 0.75 },
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              )}
+                            </Box>
+                          )}
+
+                        </Box>
                       ) : (
                         <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', pl: { xs: 0, sm: 3.5 } }}>
                           Morada não definida.
                         </Typography>
                       )}
                     </Paper>
+
 
                     {/* Mapa */}
                     <Paper
@@ -754,47 +840,8 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                     </Paper>
                   </Box>
 
-                  {/* NUTs */}
-                  {(document.nut1 || document.nut2 || document.nut3 || document.nut4) && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
-                      {document.nut4 && (
-                        <Chip
-                          icon={<LocationIcon sx={{ fontSize: '16px !important' }} />}
-                          label={`Localidade: ${document.nut4}`}
-                          size="small"
-                          variant="outlined"
-                          sx={{ borderColor: alpha(theme.palette.primary.main, 0.3) }}
-                        />
-                      )}
-                      {document.nut3 && (
-                        <Chip
-                          icon={<LocationIcon sx={{ fontSize: '16px !important' }} />}
-                          label={`Freguesia: ${document.nut3}`}
-                          size="small"
-                          variant="outlined"
-                          sx={{ borderColor: alpha(theme.palette.primary.main, 0.25) }}
-                        />
-                      )}
-                      {document.nut2 && (
-                        <Chip
-                          icon={<LocationIcon sx={{ fontSize: '16px !important' }} />}
-                          label={`Concelho: ${document.nut2}`}
-                          size="small"
-                          variant="outlined"
-                          sx={{ borderColor: alpha(theme.palette.primary.main, 0.2) }}
-                        />
-                      )}
-                      {document.nut1 && (
-                        <Chip
-                          icon={<LocationIcon sx={{ fontSize: '16px !important' }} />}
-                          label={`Distrito: ${document.nut1}`}
-                          size="small"
-                          variant="outlined"
-                          sx={{ borderColor: alpha(theme.palette.primary.main, 0.15) }}
-                        />
-                      )}
-                    </Box>
-                  )}
+
+
                 </Box>
 
                 {/* Responsáveis */}
@@ -1033,6 +1080,19 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
             </Button>
           </Box>
         )}
+        {showEditButton && (
+          <Button
+            variant="outlined"
+            size={isMobile ? 'small' : 'medium'}
+            color="secondary"
+            startIcon={<EditIcon />}
+            onClick={() => setIsEditOpen(true)}
+            disabled={!document}
+            sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, ml: isOwner ? 0 : 'auto' }}
+          >
+            {isMobile ? 'Editar' : 'Editar Pedido'}
+          </Button>
+        )}
       </Box>
 
       {/* Add Step Modal */}
@@ -1054,6 +1114,24 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         documentId={documentPk}
         document={document}
       />
+
+      {/* Edit Document Modal */}
+      {document && (
+        <EditDocumentModal
+          open={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          document={document}
+          isAdmin={canEditAll}
+          canEditCoords={canEditCoords}
+          onSuccess={() => {
+            // Apenas fechar o EditDocumentModal.
+            // useUpdateDocumentFields invalida a cache pelo regnumber,
+            // o que faz o useDocumentDetails refetch automático e
+            // actualiza os dados visíveis no modal pai sem o fechar.
+            setIsEditOpen(false);
+          }}
+        />
+      )}
 
       {/* Replicate Document Modal */}
       {document && (

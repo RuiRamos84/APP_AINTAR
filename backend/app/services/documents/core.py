@@ -105,29 +105,152 @@ def list_documents_by_associate(current_user, entity_pk):
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
 
 
-def documentById(documentId, current_user):
-    """Obter dados do documento por pk ou regnumber"""
+def documentById(documentId, current_user, entity_pk=None):
+    """Obter dados do documento por pk ou regnumber.
+
+    Para utilizadores de município (entity_pk fornecido), faz fallback
+    com filtro explícito por ts_associate quando a view principal não
+    devolve resultado (RLS por sessão).
+    """
     try:
+        logger.info(f"[documentById] → documentId={documentId!r} current_user={current_user!r} entity_pk={entity_pk!r}")
+
         with db_session_manager(current_user) as session:
-            # Sanitizar entrada
             documentId = sanitize_input(documentId)
 
-            # Tentar converter para int (pk) ou usar como string (regnumber)
             try:
                 doc_pk = int(documentId)
-                # Se é um número, procurar por pk
-                document_query = text(
-                    "SELECT * FROM vbl_document WHERE pk = :doc_pk")
-                document_result = session.execute(
-                    document_query, {"doc_pk": doc_pk}).fetchone()
+                is_pk = True
             except (ValueError, TypeError):
-                # Se não é número, procurar por regnumber
-                document_query = text(
-                    "SELECT * FROM vbl_document WHERE regnumber = :regnumber")
+                is_pk = False
+
+            logger.info(f"[documentById] modo={'pk' if is_pk else 'regnumber'} valor={doc_pk if is_pk else documentId!r}")
+
+            # ── Query principal ───────────────────────────────────────────
+            if is_pk:
                 document_result = session.execute(
-                    document_query, {"regnumber": documentId}).fetchone()
+                    text("SELECT * FROM vbl_document WHERE pk = :v"),
+                    {"v": doc_pk}
+                ).fetchone()
+            else:
+                document_result = session.execute(
+                    text("SELECT * FROM vbl_document WHERE regnumber = :v"),
+                    {"v": documentId}
+                ).fetchone()
+
+            logger.info(f"[documentById] query principal → {'encontrado' if document_result else 'não encontrado'}")
+
+            # ── Fallback por associate (municípios com RLS restrito) ──────
+            if not document_result and entity_pk:
+                # Verificar se o associate existe e qual o seu nome
+                assoc_row = session.execute(
+                    text("SELECT pk, name FROM vsl_associate WHERE pk = :epk"),
+                    {"epk": entity_pk}
+                ).fetchone()
+                logger.info(f"[documentById] associate lookup: entity_pk={entity_pk} → {dict(assoc_row._mapping) if assoc_row else 'NÃO ENCONTRADO'}")
+
+                if is_pk:
+                    document_result = session.execute(
+                        text("""
+                            SELECT d.* FROM vbl_document d
+                            WHERE d.pk = :v
+                              AND d.ts_associate = (
+                                  SELECT name FROM vsl_associate WHERE pk = :epk
+                              )
+                        """),
+                        {"v": doc_pk, "epk": entity_pk}
+                    ).fetchone()
+                else:
+                    document_result = session.execute(
+                        text("""
+                            SELECT d.* FROM vbl_document d
+                            WHERE d.regnumber = :v
+                              AND d.ts_associate = (
+                                  SELECT name FROM vsl_associate WHERE pk = :epk
+                              )
+                        """),
+                        {"v": documentId, "epk": entity_pk}
+                    ).fetchone()
+
+                logger.info(f"[documentById] fallback associate → {'encontrado' if document_result else 'não encontrado'}")
+
+                # Diagnóstico: verificar na tabela base (sem RLS da view)
+                if not document_result:
+                    raw_view = session.execute(
+                        text("SELECT regnumber, ts_associate FROM vbl_document WHERE regnumber = :v"),
+                        {"v": documentId}
+                    ).fetchone()
+                    logger.warning(
+                        f"[documentById] vbl_document sem filtro: {dict(raw_view._mapping) if raw_view else 'inexistente na view'}"
+                    )
+                    # Verificar na tabela base tb_document (apenas colunas seguras)
+                    raw_table = session.execute(
+                        text("SELECT pk, regnumber FROM tb_document WHERE regnumber = :v"),
+                        {"v": documentId}
+                    ).fetchone()
+                    logger.warning(
+                        f"[documentById] tb_document direto: {dict(raw_table._mapping) if raw_table else 'não existe na tabela'}"
+                    )
+
+            # ── Fallback pav views (PAV docs não estão em vbl_document) ────
+            # Corre para todos os utilizadores (vbl_document não inclui tipo PAV)
+            if not document_result and not is_pk:
+                try:
+                    pav_row = session.execute(
+                        text("""
+                            SELECT pk, regnumber, ts_entity, address, door, floor,
+                                   postal, phone, nut4, nut3, nut2, memo, submission
+                            FROM vbr_document_pav01
+                            WHERE regnumber = :v
+                            UNION ALL
+                            SELECT pk, regnumber, ts_entity, address, door, floor,
+                                   postal, phone, nut4, nut3, nut2, memo, submission
+                            FROM vbr_document_pav02
+                            WHERE regnumber = :v
+                            UNION ALL
+                            SELECT pk, regnumber, ts_entity, address, door, floor,
+                                   postal, phone, nut4, nut3, nut2, memo, submission
+                            FROM vbr_document_pav03
+                            WHERE regnumber = :v
+                            LIMIT 1
+                        """),
+                        {"v": documentId}
+                    ).fetchone()
+                    if pav_row:
+                        pav = dict(pav_row._mapping)
+                        logger.info(f"[documentById] fallback pav views: encontrado → {pav.get('regnumber')!r}")
+                        sub = pav.get('submission')
+                        document_dict = {
+                            'pk':             pav.get('pk'),
+                            'regnumber':      pav.get('regnumber'),
+                            'ts_entity':      pav.get('ts_entity'),
+                            'ts_entity_name': pav.get('ts_entity'),
+                            'address':        pav.get('address'),
+                            'door':           pav.get('door'),
+                            'floor':          pav.get('floor'),
+                            'postal':         pav.get('postal'),
+                            'phone':          pav.get('phone'),
+                            'nut4':           pav.get('nut4'),
+                            'nut3':           pav.get('nut3'),
+                            'nut2':           pav.get('nut2'),
+                            'memo':           pav.get('memo'),
+                            'submission':     sub.isoformat() if isinstance(sub, datetime) else str(sub) if sub else None,
+                            'tt_type':        'Pavimentação',
+                            'what':           None,
+                            'ts_associate':   None,
+                            'creator':        None,
+                            'who':            None,
+                        }
+                        return {'document': document_dict}, 200
+                    else:
+                        logger.warning(f"[documentById] fallback pav views: não encontrado para {documentId!r}")
+                except Exception as pav_err:
+                    logger.warning(f"[documentById] erro no fallback pav views: {pav_err}")
 
             if not document_result:
+                logger.warning(
+                    f"[documentById] 404 final: documentId={documentId!r} entity_pk={entity_pk!r}"
+                )
                 raise ResourceNotFoundError("Documento", documentId)
 
             document_dict = document_result._asdict()
@@ -849,4 +972,99 @@ def get_documents_late(current_user):
     except Exception as e:
         logger.error(
             f"Erro inesperado ao listar documentos em atraso: {str(e)}")
+        raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")
+
+# ===================================================================
+# CAMPOS EDITÁVEIS POR NÍVEL DE ACESSO
+# ===================================================================
+
+# Campos exclusivos de admin (morada/localização administrativa)
+_ADMIN_ONLY_FIELDS = {
+    'address', 'postal', 'door', 'floor',
+    'nut1', 'nut2', 'nut3', 'nut4',
+}
+
+# Campos editáveis por qualquer utilizador com o pedido em sua posse
+_ASSIGNEE_FIELDS = {'glat', 'glong'}
+
+# União: tudo o que um admin pode editar
+_ALL_EDITABLE_FIELDS = _ADMIN_ONLY_FIELDS | _ASSIGNEE_FIELDS
+
+
+def update_document_fields(pk: int, data: dict, current_user, is_admin: bool):
+    """
+    Atualiza os campos de localização de um pedido.
+
+    Regras de controlo de acesso:
+    - Admin (profil 0 ou 1): coordenadas GPS + campos de morada
+                             (address, postal, door, floor, nut1-4).
+    - Utilizador com o pedido em posse (permissão 520):
+                             apenas glat e glong.
+    - memo NÃO é editável por esta via.
+
+    Args:
+        pk:           PK do documento.
+        data:         Dicionário com os campos a atualizar.
+        current_user: ID da sessão de BD do utilizador.
+        is_admin:     True se o utilizador tem perfil 0 ou 1.
+    """
+    try:
+        if not data or not isinstance(data, dict):
+            return {'error': 'Dados de atualização inválidos ou ausentes.'}, 400
+
+        # Filtrar apenas os campos permitidos para o nível de acesso
+        allowed_fields = _ALL_EDITABLE_FIELDS if is_admin else _ASSIGNEE_FIELDS
+        fields_to_update = {k: v for k, v in data.items() if k in allowed_fields}
+
+        if not fields_to_update:
+            return {
+                'error': 'Nenhum campo editável fornecido ou permissões insuficientes.'
+            }, 400
+
+        # Validar e converter coordenadas para float
+        for coord_field in ('glat', 'glong'):
+            if coord_field in fields_to_update:
+                val = fields_to_update[coord_field]
+                if val is not None and val != '':
+                    try:
+                        fields_to_update[coord_field] = float(val)
+                    except (TypeError, ValueError):
+                        return {'error': f'O campo {coord_field} deve ser um número decimal.'}, 400
+                else:
+                    fields_to_update[coord_field] = None
+
+        with db_session_manager(current_user) as session:
+            exists = session.execute(
+                text("SELECT pk FROM vbf_document WHERE pk = :pk"),
+                {'pk': pk}
+            ).scalar()
+            if not exists:
+                raise ResourceNotFoundError('Documento', pk)
+
+            # UPDATE via view — a trigger INSTEAD OF UPDATE já processa
+            # glat, glong, address, postal, door, floor e nut1-4
+            set_clauses = ', '.join(f"{col} = :{col}" for col in fields_to_update)
+            update_query = text(f"UPDATE vbf_document SET {set_clauses} WHERE pk = :pk")
+            params = {**fields_to_update, 'pk': pk}
+            session.execute(update_query, params)
+
+        logger.info(
+            f"[update_document_fields] Documento {pk} atualizado por {current_user}. "
+            f"Campos: {list(fields_to_update.keys())} | is_admin={is_admin}"
+        )
+        return {
+            'success': True,
+            'message': 'Pedido atualizado com sucesso.',
+            'updated_fields': list(fields_to_update.keys())
+        }, 200
+
+    except ResourceNotFoundError as e:
+        return {'error': str(e)}, e.status_code
+    except SQLAlchemyError as e:
+        logger.error(f"[update_document_fields] Erro BD ao atualizar documento {pk}: {str(e)}")
+        raise APIError("Erro ao atualizar documento", 500, "ERR_DATABASE")
+    except APIError:
+        raise
+    except Exception as e:
+        logger.error(f"[update_document_fields] Erro inesperado: {str(e)}", exc_info=True)
         raise APIError("Erro interno do servidor", 500, "ERR_INTERNAL")

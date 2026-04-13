@@ -165,6 +165,7 @@ const DocumentsPage = () => {
                 loading={isLoading}
                 metaData={metaData}
                 onViewDetails={handleViewDetails}
+                showDeadline={activeTab === 3}
               />
             ) : (
               <DocumentGrid
@@ -172,6 +173,7 @@ const DocumentsPage = () => {
                 loading={isLoading}
                 metaData={metaData}
                 onViewDetails={handleViewDetails}
+                showDeadline={activeTab === 3}
               />
             )}
           </>

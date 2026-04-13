@@ -6,7 +6,7 @@ import DocumentCard from './DocumentCard';
 /**
  * Grid View container - Responsive with staggered animation
  */
-const DocumentGrid = ({ documents, loading, onViewDetails, metaData, animated = true }) => {
+const DocumentGrid = ({ documents, loading, onViewDetails, metaData, animated = true, showDeadline = false }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -68,12 +68,12 @@ const DocumentGrid = ({ documents, loading, onViewDetails, metaData, animated = 
             animated ? (
               <Fade in timeout={300 + Math.min(index, 11) * 50} key={doc.pk}>
                 <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
-                  <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} />
+                  <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} showDeadline={showDeadline} />
                 </Grid>
               </Fade>
             ) : (
               <Grid key={doc.pk} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
-                <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} />
+                <DocumentCard document={doc} onViewDetails={onViewDetails} metaData={metaData} showDeadline={showDeadline} />
               </Grid>
             )
           ))}

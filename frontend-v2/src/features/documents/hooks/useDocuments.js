@@ -246,3 +246,35 @@ export const useDownloadComprovativo = () => {
     },
   });
 };
+
+/**
+ * Hook para atualizar os campos principais de um pedido.
+ * Admins podem atualizar todos os campos editáveis.
+ * Utilizadores com o pedido em posse apenas atualizam glat/glong.
+ *
+ * Variables: { id: number, regnumber: string, fields: Object }
+ */
+export const useUpdateDocumentFields = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, fields }) => documentsService.updateFields(id, fields),
+    onSuccess: (_, { id, regnumber }) => {
+      notification.success('Pedido atualizado com sucesso.');
+
+      // useDocumentDetails usa regnumber como chave — invalidar + forçar refetch
+      if (regnumber) {
+        queryClient.invalidateQueries({ queryKey: documentKeys.detail(regnumber) });
+        queryClient.refetchQueries({ queryKey: documentKeys.detail(regnumber), exact: true });
+      }
+      // Invalidar também por pk (outros contextos)
+      queryClient.invalidateQueries({ queryKey: documentKeys.detail(id) });
+      // Atualizar listas
+      queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
+    },
+    onError: (error) => {
+      const msg = error?.response?.data?.error || error?.message || 'Erro desconhecido';
+      notification.error('Erro ao atualizar pedido: ' + msg);
+    },
+  });
+};

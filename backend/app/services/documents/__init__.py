@@ -10,6 +10,7 @@ from .core import (
     create_document,
     create_document_direct,
     update_document_notification,
+    update_document_fields,
     check_vacation_status,
     get_documents_late
 )
@@ -60,7 +61,7 @@ __all__ = [
     # Core
     'list_documents', 'list_documents_by_associate', 'documentById', 'document_self', 'document_owner',
     'create_document', 'create_document_direct', 'update_document_notification',
-    'check_vacation_status', 'get_documents_late',
+    'update_document_fields', 'check_vacation_status', 'get_documents_late',
 
     # Workflow
     'get_document_steps', 'add_document_step',

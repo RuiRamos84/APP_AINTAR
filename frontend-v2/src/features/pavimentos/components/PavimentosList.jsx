@@ -2,46 +2,39 @@ import { useState } from 'react';
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, TableSortLabel, Paper, IconButton, Tooltip, Chip,
-  Typography, Skeleton, Collapse, CircularProgress, Button,
+  Typography, Skeleton, Collapse, CircularProgress, Button, Grid,
+  useTheme, alpha,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   PlayArrow as PlayArrowIcon,
   Payment as PaymentIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
+import { formatDate } from '../../documents/utils/documentUtils';
 
-// ─── Formatadores ─────────────────────────────────────────────────────────────
-
-const formatDate = (d) => {
-  if (!d) return '—';
-  try {
-    const dateStr = d.includes('T') ? d : d.replace(' ', 'T');
-    return new Date(dateStr).toLocaleDateString('pt-PT');
-  } catch {
-    return d;
-  }
-};
+// ─── Formatador numérico ──────────────────────────────────────────────────────
 
 const fmtNum = (v) =>
   v > 0
     ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
-    : '—';
+    : null;
 
-// ─── Colunas ──────────────────────────────────────────────────────────────────
+// ─── Colunas ─────────────────────────────────────────────────────────────────
 
 const COLS = [
-  { id: '_expand',        label: '',              sortable: false, width: 40   },
-  { id: 'regnumber',      label: 'Nº Pedido',     sortable: true               },
-  { id: 'entity',         label: 'Entidade',      sortable: true               },
-  { id: 'nut4',           label: 'Localidade',    sortable: true               },
-  { id: 'comprimentoTotal', label: 'Comprimento (m)', sortable: true, align: 'right' },
-  { id: 'areaTotal',      label: 'Área (m²)',     sortable: true,  align: 'right' },
-  { id: 'submission',     label: 'Data',          sortable: true               },
-  { id: '_acoes',         label: 'Ações',         sortable: false, align: 'center' },
+  { id: '_expand',          label: '',                 sortable: false, width: 40  },
+  { id: 'regnumber',        label: 'Nº Pedido',        sortable: true              },
+  { id: 'entity',           label: 'Entidade',         sortable: true              },
+  { id: 'nut4',             label: 'Localidade',       sortable: true              },
+  { id: 'comprimentoTotal', label: 'Comprimento (m)',  sortable: true, align: 'right' },
+  { id: 'areaTotal',        label: 'Área (m²)',        sortable: true, align: 'right' },
+  { id: 'submission',       label: 'Data',             sortable: true              },
+  { id: '_acoes',           label: 'Ações',            sortable: false, align: 'center' },
 ];
 
-// ─── Comparador de ordenação ─────────────────────────────────────────────────
+// ─── Comparador ──────────────────────────────────────────────────────────────
 
 function descendingComparator(a, b, orderBy) {
   const av = a[orderBy] ?? '';
@@ -57,73 +50,136 @@ function getComparator(order, orderBy) {
     : (a, b) => -descendingComparator(a, b, orderBy);
 }
 
-// ─── Linha expandida ──────────────────────────────────────────────────────────
+// ─── Linha expandida ─────────────────────────────────────────────────────────
 
 function ExpandedRow({ pav, colSpan }) {
-  const tiposPav = [
-    { key: 'Bet',  label: 'Betuminoso', comp: pav.comprimentoBet, area: pav.areaBet  },
-    { key: 'Gra',  label: 'Paralelos',  comp: pav.comprimentoGra, area: pav.areaGra  },
-    { key: 'Pav',  label: 'Pavê',       comp: pav.comprimentoPav, area: pav.areaPav  },
-  ].filter(({ comp, area }) => comp > 0 || area > 0);
+  const theme = useTheme();
 
-  const morada = [pav.address, pav.door, pav.floor, pav.postal]
-    .filter(Boolean)
-    .join(', ');
+  const tiposPav = [
+    { label: 'Betuminoso', comp: pav.comprimentoBet, area: pav.areaBet,  color: '#2E7D32' },
+    { label: 'Paralelos',  comp: pav.comprimentoGra, area: pav.areaGra,  color: '#1976D2' },
+    { label: 'Pavê',       comp: pav.comprimentoPav, area: pav.areaPav,  color: '#7B1FA2' },
+  ];
+
+  const moradaLine1 = [pav.address, pav.door, pav.floor].filter(Boolean).join(', ');
+  const moradaLine2 = [pav.postal, pav.nut4, pav.nut3].filter(Boolean).join(' · ');
 
   return (
     <TableRow>
-      <TableCell colSpan={colSpan} sx={{ py: 0, bgcolor: 'action.hover' }}>
+      <TableCell colSpan={colSpan} sx={{ py: 0 }}>
         <Collapse in timeout="auto" unmountOnExit>
-          <Box sx={{ py: 1.5, px: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            {/* Morada */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                Morada
-              </Typography>
-              <Typography variant="body2">{morada || '—'}</Typography>
-              {pav.phone && (
-                <Typography variant="body2" color="text.secondary">
-                  Tel: {pav.phone}
-                </Typography>
-              )}
-            </Box>
+          <Box sx={{
+            py: 2, px: 3,
+            bgcolor: alpha(theme.palette.background.default, 0.6),
+            borderTop: `1px solid ${theme.palette.divider}`,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}>
+            <Grid container spacing={2}>
 
-            {/* Localização */}
-            {(pav.nut3 || pav.nut2) && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                  Localização
+              {/* Morada */}
+              <Grid size={{ xs: 12, sm: 6, md: 5 }}>
+                <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block', mb: 0.5 }}>
+                  Morada
                 </Typography>
-                {pav.nut3 && <Typography variant="body2">Freguesia: {pav.nut3}</Typography>}
-                {pav.nut2 && <Typography variant="body2">Concelho: {pav.nut2}</Typography>}
-              </Box>
-            )}
-
-            {/* Detalhes por tipo de pavimento */}
-            {tiposPav.length > 0 && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                  Detalhes do Pavimento
-                </Typography>
-                {tiposPav.map(({ key, label, comp, area }) => (
-                  <Typography key={key} variant="body2">
-                    {label}: {fmtNum(comp)} m &nbsp;/&nbsp; {fmtNum(area)} m²
+                {moradaLine1 ? (
+                  <Typography variant="body2" sx={{ lineHeight: 1.4 }}>{moradaLine1}</Typography>
+                ) : null}
+                {moradaLine2 ? (
+                  <Typography variant="caption" color="text.secondary">{moradaLine2}</Typography>
+                ) : null}
+                {!moradaLine1 && !moradaLine2 && (
+                  <Typography variant="body2" color="text.disabled">—</Typography>
+                )}
+                {pav.nut2 && (
+                  <Typography variant="caption" color="text.disabled" display="block">
+                    Concelho: {pav.nut2}
                   </Typography>
-                ))}
-              </Box>
-            )}
+                )}
+              </Grid>
 
-            {/* Memo */}
-            {pav.memo && (
-              <Box sx={{ flexBasis: '100%' }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                  Observações
+              {/* Contacto */}
+              <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block', mb: 0.5 }}>
+                  Contacto
                 </Typography>
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {pav.memo}
+                <Typography variant="body2">{pav.phone || '—'}</Typography>
+              </Grid>
+
+              {/* Pavimentação por tipo */}
+              <Grid size={{ xs: 12, sm: 12, md: 5 }}>
+                <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block', mb: 0.5 }}>
+                  Pavimentação
                 </Typography>
-              </Box>
-            )}
+                <Box sx={{
+                  p: 0.75,
+                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                  borderRadius: 1,
+                }}>
+                  <Grid container spacing={0.75}>
+                    {tiposPav.map(({ label, comp, area, color }) => {
+                      const hasData = comp > 0 || area > 0;
+                      return (
+                        <Grid size={{ xs: 4 }} key={label}>
+                          <Box sx={{
+                            p: 0.75, borderRadius: 1, textAlign: 'center',
+                            bgcolor: hasData ? alpha(color, 0.08) : alpha(theme.palette.grey[300], 0.3),
+                            border: hasData
+                              ? `2px solid ${alpha(color, 0.3)}`
+                              : `1px solid ${alpha(theme.palette.grey[400], 0.2)}`,
+                            opacity: hasData ? 1 : 0.55,
+                            transition: 'all 0.2s',
+                          }}>
+                            <Typography variant="caption" sx={{
+                              fontWeight: 700, display: 'block', fontSize: '0.72rem',
+                              color: hasData ? color : 'text.secondary', mb: 0.5,
+                            }}>
+                              {label}
+                            </Typography>
+                            {hasData ? (
+                              <Box>
+                                {comp > 0 && (
+                                  <Typography variant="caption" sx={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, color }}>
+                                    {fmtNum(comp)} m <Typography component="span" sx={{ fontSize: '0.6rem', opacity: 0.7 }}>linear</Typography>
+                                  </Typography>
+                                )}
+                                {area > 0 && (
+                                  <Typography variant="caption" sx={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, color }}>
+                                    {fmtNum(area)} m² <Typography component="span" sx={{ fontSize: '0.6rem', opacity: 0.7 }}>área</Typography>
+                                  </Typography>
+                                )}
+                              </Box>
+                            ) : (
+                              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
+                                Sem dados
+                              </Typography>
+                            )}
+                          </Box>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                </Box>
+              </Grid>
+
+              {/* Observações */}
+              {pav.memo && (
+                <Grid size={{ xs: 12 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block', mb: 0.5 }}>
+                    Observações
+                  </Typography>
+                  <Typography variant="body2" sx={{
+                    p: 1, borderRadius: 0.5, fontStyle: 'italic', fontSize: '0.85rem',
+                    bgcolor: alpha(theme.palette.info.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {pav.memo}
+                  </Typography>
+                </Grid>
+              )}
+
+            </Grid>
           </Box>
         </Collapse>
       </TableCell>
@@ -133,25 +189,15 @@ function ExpandedRow({ pav, colSpan }) {
 
 // ─── PavimentosList ───────────────────────────────────────────────────────────
 
-/**
- * Tabela de pavimentações com ordenação, linhas expansíveis e ações.
- *
- * @param {{
- *   pavimentos:    Array,
- *   loading:       boolean,
- *   status:        'pending'|'executed'|'completed',
- *   canManage:     boolean,
- *   actionLoading: number|null,
- *   onAction:      (pk: number, acao: string, pav: object) => void
- * }} props
- */
 export default function PavimentosList({
   pavimentos,
   loading,
   status,
-  canManage,
+  canExecute,
+  canPay,
   actionLoading,
   onAction,
+  onViewDocument,
 }) {
   const [order,        setOrder]        = useState('asc');
   const [orderBy,      setOrderBy]      = useState('regnumber');
@@ -173,18 +219,14 @@ export default function PavimentosList({
 
   const sorted = [...pavimentos].sort(getComparator(order, orderBy));
 
-  // Skeleton
   if (loading) {
     return (
       <Box sx={{ p: 1 }}>
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} height={52} sx={{ mb: 0.5 }} />
-        ))}
+        {[...Array(5)].map((_, i) => <Skeleton key={i} height={52} sx={{ mb: 0.5 }} />)}
       </Box>
     );
   }
 
-  // Empty state
   if (!pavimentos.length) {
     return (
       <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
@@ -193,7 +235,9 @@ export default function PavimentosList({
     );
   }
 
-  const showActions = status !== 'completed';
+  // Coluna Ações só aparece se o utilizador pode realizar a acção desse tab
+  const showActions = (status === 'pending' && canExecute) ||
+                      (status === 'executed' && canPay);
 
   return (
     <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
@@ -222,108 +266,108 @@ export default function PavimentosList({
             })}
           </TableRow>
         </TableHead>
+
         <TableBody>
           {sorted.map((pav) => {
-            const isExpanded    = expandedRows.has(pav.pk);
-            const isActing      = actionLoading === pav.pk;
-            const colSpanCount  = showActions ? COLS.length : COLS.length - 1;
+            const isExpanded   = expandedRows.has(pav.pk);
+            const isActing     = actionLoading === pav.pk;
+            const colSpanCount = showActions ? COLS.length : COLS.length - 1;
 
             return [
-              <TableRow key={pav.pk} hover sx={{ cursor: 'pointer' }}>
+              <TableRow key={pav.pk} hover>
                 {/* Expandir */}
                 <TableCell padding="checkbox">
                   <IconButton size="small" onClick={() => toggleRow(pav.pk)}>
-                    {isExpanded ? (
-                      <ExpandLessIcon fontSize="small" />
-                    ) : (
-                      <ExpandMoreIcon fontSize="small" />
-                    )}
+                    {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                   </IconButton>
                 </TableCell>
 
-                {/* Nº Pedido */}
-                <TableCell onClick={() => toggleRow(pav.pk)}>
-                  <Chip
-                    label={pav.regnumber ?? '—'}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                  />
+                {/* Nº Pedido — chip clicável para abrir modal */}
+                <TableCell>
+                  <Tooltip title="Ver detalhes do pedido" arrow>
+                    <Chip
+                      label={pav.regnumber ?? '—'}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      icon={<OpenInNewIcon sx={{ fontSize: '12px !important' }} />}
+                      onClick={onViewDocument ? (e) => { e.stopPropagation(); onViewDocument(pav.regnumber, pav); } : undefined}
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        cursor: onViewDocument ? 'pointer' : 'default',
+                        '&:hover': onViewDocument ? { bgcolor: 'primary.50' } : {},
+                      }}
+                    />
+                  </Tooltip>
                 </TableCell>
 
                 {/* Entidade */}
-                <TableCell onClick={() => toggleRow(pav.pk)} sx={{ maxWidth: 160 }}>
+                <TableCell onClick={() => toggleRow(pav.pk)} sx={{ cursor: 'pointer', maxWidth: 160 }}>
                   <Typography variant="body2" noWrap>{pav.entity ?? '—'}</Typography>
                 </TableCell>
 
                 {/* Localidade */}
-                <TableCell onClick={() => toggleRow(pav.pk)}>
+                <TableCell onClick={() => toggleRow(pav.pk)} sx={{ cursor: 'pointer' }}>
                   <Typography variant="body2">{pav.nut4 ?? '—'}</Typography>
                 </TableCell>
 
                 {/* Comprimento */}
-                <TableCell align="right" onClick={() => toggleRow(pav.pk)}>
+                <TableCell align="right" onClick={() => toggleRow(pav.pk)} sx={{ cursor: 'pointer' }}>
                   <Typography variant="body2" fontWeight={500}>
-                    {fmtNum(pav.comprimentoTotal)}
+                    {fmtNum(pav.comprimentoTotal) ?? '—'}
                   </Typography>
                 </TableCell>
 
                 {/* Área */}
-                <TableCell align="right" onClick={() => toggleRow(pav.pk)}>
+                <TableCell align="right" onClick={() => toggleRow(pav.pk)} sx={{ cursor: 'pointer' }}>
                   <Typography variant="body2">
-                    {fmtNum(pav.areaTotal)}
+                    {fmtNum(pav.areaTotal) ?? '—'}
                   </Typography>
                 </TableCell>
 
                 {/* Data */}
-                <TableCell onClick={() => toggleRow(pav.pk)} sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
+                <TableCell onClick={() => toggleRow(pav.pk)} sx={{ cursor: 'pointer', color: 'text.secondary', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                   {formatDate(pav.submission)}
                 </TableCell>
 
                 {/* Ações */}
                 {showActions && (
                   <TableCell align="center">
-                    {canManage && (
-                      isActing ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        <>
-                          {status === 'pending' && (
-                            <Tooltip title="Executar">
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="primary"
-                                startIcon={<PlayArrowIcon />}
-                                onClick={() => onAction(pav.pk, 'execute', pav)}
-                                sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-                              >
-                                Executar
-                              </Button>
-                            </Tooltip>
-                          )}
-                          {status === 'executed' && (
-                            <Tooltip title="Marcar como Paga">
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="success"
-                                startIcon={<PaymentIcon />}
-                                onClick={() => onAction(pav.pk, 'pay', pav)}
-                                sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-                              >
-                                Marcar como Paga
-                              </Button>
-                            </Tooltip>
-                          )}
-                        </>
-                      )
+                    {isActing ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <>
+                        {status === 'pending' && canExecute && (
+                          <Tooltip title="Executar">
+                            <Button
+                              size="small" variant="contained" color="primary"
+                              startIcon={<PlayArrowIcon />}
+                              onClick={() => onAction(pav.pk, 'execute', pav)}
+                              sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                            >
+                              Executar
+                            </Button>
+                          </Tooltip>
+                        )}
+                        {status === 'executed' && canPay && (
+                          <Tooltip title="Marcar como Paga">
+                            <Button
+                              size="small" variant="contained" color="success"
+                              startIcon={<PaymentIcon />}
+                              onClick={() => onAction(pav.pk, 'pay', pav)}
+                              sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                            >
+                              Marcar como Paga
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </>
                     )}
                   </TableCell>
                 )}
               </TableRow>,
 
-              // Linha expandida
               isExpanded && (
                 <ExpandedRow
                   key={`${pav.pk}-expanded`}
