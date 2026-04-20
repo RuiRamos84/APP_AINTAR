@@ -1,5 +1,8 @@
+# Git worktrees
+.worktrees/
+
 # Dependencies
-frontend/node_modules/
+node_modules/
 backend/venv/
 backend/__pycache__/
 **/__pycache__/
