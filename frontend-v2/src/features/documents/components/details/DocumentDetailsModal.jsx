@@ -65,6 +65,8 @@ import ParametersTab from './tabs/ParametersTab';
 import DocumentMap from './tabs/DocumentMap';
 import PaymentsTab from './tabs/PaymentsTab';
 import paymentService from '@/features/payments/services/paymentService';
+import { useQuery } from '@tanstack/react-query';
+import { entitiesService } from '@/features/entities/api/entitiesService';
 
 /**
  * Tab Panel Helper
@@ -141,6 +143,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const [originOpen, setOriginOpen] = useState(false);
   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
   const [reopenUserId, setReopenUserId] = useState('');
+  const [representativeDialogOpen, setRepresentativeDialogOpen] = useState(false);
 
   // Extract identifiers
   const { pk: documentPk, regnumber: documentRegNumber } = documentData || {};
@@ -152,8 +155,17 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const { data: metaData } = useMetaData();
   const downloadComprovativo = useDownloadComprovativo();
   const reopenDocument = useReopenDocument();
+
+  // Fetch representative entity data if document was submitted by a representative
+  const { data: representativeData } = useQuery({
+    queryKey: ['entity', document?.tb_representative],
+    queryFn: () => entitiesService.getEntityById(document.tb_representative),
+    enabled: !!document?.tb_representative,
+    select: (res) => res?.entity,
+    retry: false,
+  });
   const { hasPermission, isAdmin } = usePermissionContext();
-  const canReplicate = hasPermission('admin.docs.manage');
+  const canReplicate = hasPermission('docs.edit');
   const canReopen = isAdmin();
   const canDownloadComprovativo = isCreator || hasPermission('docs.view.owner');
   // Editar campos: admin edita tudo; utilizador com pedido em sua posse edita coordenadas
@@ -279,7 +291,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
       ['Coordenadas', (doc.glat && doc.glong) ? `${doc.glat}, ${doc.glong}` : null],
     ]);
 
-    const cardsRow1 = `<div class="cards-row">${geral}${entidade}${responsaveis}${localizacao}</div>`;
+    const cardsRow1 = `<div class="cards-row">${geral}${entidade}${localizacao}${responsaveis}</div>`;
 
     const descricao = section('Descrição do Pedido',
       `<div class="memo-box">${esc(doc.memo || 'Sem descrição.')}</div>`
@@ -385,9 +397,15 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
     .empty{text-align:center;color:#aaa;font-style:italic;padding:12px}
     /* ── footer ── */
     .footer{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;display:flex;justify-content:space-between;font-size:10px;color:#aaa}
+    /* ── toolbar ── */
+    .toolbar{position:sticky;top:0;z-index:100;display:flex;gap:8px;justify-content:flex-end;padding:8px 0 12px;background:#fff;border-bottom:1px solid #e0e0e0;margin-bottom:18px}
+    .btn{padding:7px 18px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;letter-spacing:0.2px}
+    .btn-pdf{background:#1976d2;color:#fff}.btn-pdf:hover{background:#1565c0}
+    .btn-close{background:#f5f5f5;color:#444;border:1px solid #ddd}.btn-close:hover{background:#e0e0e0}
     /* ── print ── */
-    @page{size:A4 landscape;margin:12mm 14mm}
+    @page{size:A4 portrait;margin:12mm 14mm}
     @media print{
+      .toolbar{display:none}
       body{padding:0}
       .section{page-break-inside:avoid}
       tr{page-break-inside:avoid}
@@ -396,6 +414,10 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   </style>
 </head>
 <body>
+  <div class="toolbar">
+    <button class="btn btn-pdf" onclick="window.print()">⬇ Guardar / Imprimir PDF</button>
+    <button class="btn btn-close" onclick="window.close()">✕ Fechar</button>
+  </div>
   <div class="hdr">
     <div class="hdr-left">
       <h1>${esc(doc.regnumber)}</h1>
@@ -423,7 +445,6 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
     <span>AINTAR — Sistema de Gestão de Pedidos</span>
     <span>${esc(doc.regnumber)}</span>
   </div>
-  <script>window.onload=function(){window.print()}</script>
 </body>
 </html>`);
     printWindow.document.close();
@@ -488,6 +509,31 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
           label="TELEFONE"
           value={document.phone}
         />
+      )}
+
+      {representativeData && (
+        <>
+          {!isTablet && <Divider sx={{ opacity: 0.6 }} />}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <Box sx={{ color: 'secondary.main', mt: 0.2, opacity: 0.8, fontSize: 18 }}>
+              <PersonIcon fontSize="small" />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>
+                REPRESENTANTE
+              </Typography>
+              <Typography
+                variant="body2"
+                fontWeight="500"
+                sx={{ mt: 0.25, cursor: 'pointer', color: 'primary.main', textDecoration: 'underline' }}
+                noWrap
+                onClick={() => setRepresentativeDialogOpen(true)}
+              >
+                {representativeData.name}
+              </Typography>
+            </Box>
+          </Box>
+        </>
       )}
     </Box>
   ) : null;
@@ -844,6 +890,57 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
 
                 </Box>
 
+                {/* Representante */}
+                {representativeData && (
+                  <Box>
+                    <SectionHeader icon={<PersonIcon fontSize="small" />} title="Representante" />
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.secondary.main, 0.03)} 100%)`,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-start' }}>
+                        <Box sx={{ flex: '1 1 200px' }}>
+                          <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>NOME</Typography>
+                          <Typography variant="body2" fontWeight="500" sx={{ mt: 0.25 }}>{representativeData.name}</Typography>
+                        </Box>
+                        {representativeData.nipc && (
+                          <Box sx={{ flex: '1 1 120px' }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>NIPC</Typography>
+                            <Typography variant="body2" fontWeight="500" sx={{ mt: 0.25 }}>{representativeData.nipc}</Typography>
+                          </Box>
+                        )}
+                        {representativeData.phone && (
+                          <Box sx={{ flex: '1 1 120px' }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>TELEFONE</Typography>
+                            <Typography variant="body2" fontWeight="500" sx={{ mt: 0.25 }}>{representativeData.phone}</Typography>
+                          </Box>
+                        )}
+                        {representativeData.email && (
+                          <Box sx={{ flex: '1 1 200px' }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>EMAIL</Typography>
+                            <Typography variant="body2" fontWeight="500" sx={{ mt: 0.25 }}>{representativeData.email}</Typography>
+                          </Box>
+                        )}
+                        <Box sx={{ flex: '0 0 auto', alignSelf: 'center' }}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<PersonIcon />}
+                            onClick={() => setRepresentativeDialogOpen(true)}
+                          >
+                            Ver detalhes completos
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Paper>
+                  </Box>
+                )}
+
                 {/* Responsáveis */}
                 <Box>
                   <SectionHeader icon={<GroupsIcon fontSize="small" />} title="Responsáveis" />
@@ -1155,6 +1252,77 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
           isOwner={false}
           isCreator={false}
         />
+      )}
+
+      {/* Diálogo de detalhes do representante */}
+      {representativeData && (
+        <Dialog
+          open={representativeDialogOpen}
+          onClose={() => setRepresentativeDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PersonIcon color="secondary" />
+              <Typography variant="h6">Detalhes do Representante</Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setRepresentativeDialogOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ flex: '1 1 200px' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>NOME</Typography>
+                  <Typography variant="body1" fontWeight="500" sx={{ mt: 0.25 }}>{representativeData.name}</Typography>
+                </Box>
+                {representativeData.nipc && (
+                  <Box sx={{ flex: '1 1 120px' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>NIPC</Typography>
+                    <Typography variant="body1" fontWeight="500" sx={{ mt: 0.25 }}>{representativeData.nipc}</Typography>
+                  </Box>
+                )}
+              </Box>
+              <Divider />
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                {representativeData.phone && (
+                  <Box sx={{ flex: '1 1 150px' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>TELEFONE</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{representativeData.phone}</Typography>
+                  </Box>
+                )}
+                {representativeData.email && (
+                  <Box sx={{ flex: '1 1 200px' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>EMAIL</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{representativeData.email}</Typography>
+                  </Box>
+                )}
+              </Box>
+              {(representativeData.address || representativeData.postal) && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>MORADA</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{representativeData.address}</Typography>
+                    {representativeData.postal && (
+                      <Typography variant="body2" color="text.secondary">{representativeData.postal}</Typography>
+                    )}
+                    {[representativeData.nut4, representativeData.nut3, representativeData.nut2, representativeData.nut1].filter(Boolean).length > 0 && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {[representativeData.nut4, representativeData.nut3, representativeData.nut2, representativeData.nut1].filter(Boolean).join(' › ')}
+                      </Typography>
+                    )}
+                  </Box>
+                </>
+              )}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRepresentativeDialogOpen(false)}>Fechar</Button>
+          </DialogActions>
+        </Dialog>
       )}
 
       {/* Diálogo de reabertura de pedido */}

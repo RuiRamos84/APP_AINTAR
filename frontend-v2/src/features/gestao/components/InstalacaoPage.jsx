@@ -24,6 +24,7 @@ import {
   Image as ImageIcon,
   PrecisionManufacturing as EquipamentosTabIcon,
   Construction as ObrasTabIcon,
+  Block as DescargaIcon,
 } from '@mui/icons-material';
 import { InstalacaoEquipamentosTab } from '@/features/equipamentos';
 import { getMeta as getEquipamentosMeta } from '@/features/equipamentos/services/equipamentoService';
@@ -46,6 +47,7 @@ import {
   createInstalacaoDesmatacao, createInstalacaoRetiradaLamas,
   createInstalacaoReparacao, createInstalacaoVedacao,
   createInstalacaoQualidadeAmbiental,
+  createDescargaInterdita,
 } from '../services/etarEeService';
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
@@ -1124,26 +1126,124 @@ const HistoricoTab = ({ pk, color }) => {
   );
 };
 
+// ─── TAB: Descargas Interditas ────────────────────────────────────────────────
+
+const DescargasInterditasTab = ({ pk, tsEntity, color }) => {
+  const [memo, setMemo] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastDocId, setLastDocId] = useState(null);
+  const { data: associates = [] } = useAssociates();
+  const associatesMap = useMemo(() => {
+    const map = {};
+    for (const a of associates) {
+      map[a.name] = a.pk;
+      const stripped = a.name.replace(/^Município de\s+/i, '').trim();
+      if (stripped !== a.name) map[stripped] = a.pk;
+    }
+    return map;
+  }, [associates]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (memo.trim().length < 10) return;
+    setIsSubmitting(true);
+    setLastDocId(null);
+    try {
+      const pk_entity = associatesMap[tsEntity] ?? null;
+      const res = await createDescargaInterdita({ pk_instalacao: pk, pk_entity, pnmemo: memo.trim() });
+      notification.success('Descarga interdita registada com sucesso!');
+      setLastDocId(res?.document_id ?? true);
+      setMemo('');
+    } catch {
+      notification.error('Erro ao registar descarga interdita.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 3,
+          borderRadius: 2,
+          borderColor: alpha(color || '#d32f2f', 0.3),
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+          <DescargaIcon sx={{ color: 'error.main' }} />
+          <Typography variant="h6" fontWeight={700}>Registar Descarga Interdita</Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Registe uma ocorrência de descarga interdita nesta instalação.
+          Será gerado um pedido interno de acompanhamento (tipo 57).
+        </Typography>
+
+        {lastDocId && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setLastDocId(null)}>
+            Ocorrência registada com sucesso
+            {typeof lastDocId === 'number' ? ` (pedido #${lastDocId})` : ''}.
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {isSubmitting && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+          <TextField
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            label="Descrição da ocorrência *"
+            placeholder="Descreva a ocorrência: data de deteção, origem suspeita, características do efluente e observações relevantes..."
+            multiline
+            rows={5}
+            fullWidth
+            error={memo.length > 0 && memo.length < 10}
+            helperText={
+              memo.length > 0 && memo.length < 10
+                ? 'Mínimo 10 caracteres'
+                : `${memo.length} caracteres`
+            }
+            disabled={isSubmitting}
+            sx={{ mb: 2.5 }}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              type="submit"
+              variant="contained"
+              color="error"
+              disabled={isSubmitting || memo.trim().length < 10}
+              startIcon={<SendIcon />}
+            >
+              Registar Ocorrência
+            </Button>
+          </Box>
+        </form>
+      </Paper>
+    </Box>
+  );
+};
+
 // ─── InstalacaoPage (principal) ───────────────────────────────────────────────
 
 const TABS_ETAR = [
-  { label: 'Histórico',      icon: HistoryIcon },
-  { label: 'Volumes',        icon: VolumeIcon },
-  { label: 'Água',           icon: WaterIcon },
-  { label: 'Energia',        icon: EnergyIcon },
-  { label: 'Despesas',       icon: ExpenseIcon },
-  { label: 'Intervenções',   icon: IntervencoesIcon },
-  { label: 'Operações',      icon: AddIcon },
-  { label: 'Incumprimentos', icon: IncumpIcon },
-  { label: 'Equipamentos',   icon: EquipamentosTabIcon },
-  { label: 'Obras',          icon: ObrasTabIcon },
+  { label: 'Histórico',           icon: HistoryIcon },        // 0
+  { label: 'Volumes',             icon: VolumeIcon },         // 1
+  { label: 'Água',                icon: WaterIcon },          // 2
+  { label: 'Energia',             icon: EnergyIcon },         // 3
+  { label: 'Despesas',            icon: ExpenseIcon },        // 4
+  { label: 'Intervenções',        icon: IntervencoesIcon },   // 5  (ex-Operações)
+  { label: 'Incumprimentos',      icon: IncumpIcon },         // 6
+  { label: 'Descargas Interditas',icon: DescargaIcon },       // 7
+  { label: 'Equipamentos',        icon: EquipamentosTabIcon },// 8
+  { label: 'Obras',               icon: ObrasTabIcon },       // 9
 ];
 
-// EE = sem Incumprimentos mas com Equipamentos e Obras
+// EE = sem Incumprimentos
 const TABS_EE = [
-  ...TABS_ETAR.slice(0, 7),
-  { label: 'Equipamentos', icon: EquipamentosTabIcon },
-  { label: 'Obras',        icon: ObrasTabIcon },
+  ...TABS_ETAR.slice(0, 6),                                   // 0-5
+  { label: 'Descargas Interditas', icon: DescargaIcon },      // 6
+  { label: 'Equipamentos',         icon: EquipamentosTabIcon },// 7
+  { label: 'Obras',                icon: ObrasTabIcon },      // 8
 ];
 
 /**
@@ -1296,11 +1396,14 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
             <ExpensesTab pk={pk} color={color} data={expenses} isLoading={isLoadingExpenses}
               addExpense={addExpense} isAdding={isAddingExpense} />
           )}
-          {tab === 5 && <IntervencoesTab pk={pk} />}
-          {tab === 6 && <OperacoesTab pk={pk} type={type} />}
-          {tab === 7 && type === 'etar' && (
+          {tab === 5 && <OperacoesTab pk={pk} type={type} />}
+          {tab === 6 && type === 'etar' && (
             <IncumprimentosTab pk={pk} color={color} data={incumprimentos} isLoading={isLoadingIncump}
               addIncumprimento={addIncumprimento} isAdding={isAddingIncump} />
+          )}
+          {/* Descargas Interditas: tab 7 para ETAR, tab 6 para EE */}
+          {((tab === 7 && type === 'etar') || (tab === 6 && type === 'ee')) && (
+            <DescargasInterditasTab pk={pk} tsEntity={selected?.ts_entity} color={color} />
           )}
           {/* Equipamentos: tab 8 para ETAR, tab 7 para EE */}
           {((tab === 8 && type === 'etar') || (tab === 7 && type === 'ee')) && (

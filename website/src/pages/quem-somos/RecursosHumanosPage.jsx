@@ -1,0 +1,218 @@
+import { useState, useEffect } from 'react'
+import { Briefcase, CheckCircle2, Clock, FileText, ArrowUpRight, Users } from 'lucide-react'
+import PageLayout from '../../components/layout/PageLayout'
+import ScrollReveal from '../../components/ui/ScrollReveal'
+import DocumentCard from '../../components/ui/DocumentCard'
+import { getProcedimentos, getPublicacoes, fileUrl } from '../../services/cmsApi'
+
+const norm = s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ?? ''
+
+function SectionTitle({ icon: Icon, label, color = 'text-aintar-teal', bg = 'bg-aintar-teal/10' }) {
+  return (
+    <div className="flex items-center gap-3 mb-6">
+      <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
+        <Icon size={20} className={color} />
+      </div>
+      <h2 className="font-heading font-bold text-aintar-navy text-xl">{label}</h2>
+    </div>
+  )
+}
+
+function EmptySection({ msg }) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-aintar-light p-8 text-center">
+      <p className="text-gray-400 text-sm">{msg}</p>
+    </div>
+  )
+}
+
+function SkeletonList({ n = 3 }) {
+  return <div className="space-y-3">{Array.from({ length: n }, (_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+}
+
+function formatPrazo(p) {
+  const fmt = d => d ? new Date(d).toLocaleDateString('pt-PT') : null
+  const ini = fmt(p.data_abertura)
+  const fim = fmt(p.data_encerramento)
+  if (ini && fim) return `${ini} – ${fim}`
+  if (ini) return `Aberto desde ${ini}`
+  return '—'
+}
+
+export default function RecursosHumanosPage() {
+  const [loading, setLoading]       = useState(true)
+  const [abertos, setAbertos]       = useState([])
+  const [concluidos, setConcluidos] = useState([])
+  const [tolerancias, setTolerancias] = useState([])
+  const [mobilidade, setMobilidade] = useState([])
+
+  useEffect(() => {
+    Promise.all([getProcedimentos(), getPublicacoes()])
+      .then(([{ procedimentos = [] }, { publicacoes = [] }]) => {
+        setAbertos(procedimentos.filter(p => !norm(p.estado).includes('conclu')))
+        setConcluidos(procedimentos.filter(p => norm(p.estado).includes('conclu')))
+        setTolerancias(publicacoes.filter(p =>
+          norm(p.subtipo).includes('toleranc') || norm(p.tipo).includes('toleranc')
+        ))
+        setMobilidade(publicacoes.filter(p =>
+          norm(p.subtipo).includes('mobilidade') || norm(p.tipo).includes('mobilidade')
+        ))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Concluídos agrupados por ano
+  const concluByAno = concluidos.reduce((acc, c) => {
+    const d = c.data_encerramento || c.data_abertura
+    const ano = d ? new Date(d).getFullYear().toString() : 'Anteriores'
+    if (!acc[ano]) acc[ano] = []
+    acc[ano].push(c)
+    return acc
+  }, {})
+  const anosConc = Object.keys(concluByAno).sort((a, b) => b.localeCompare(a))
+
+  return (
+    <PageLayout
+      title="Recursos Humanos"
+      subtitle="Procedimentos concursais, tolerâncias de ponto e mobilidade na carreira."
+      breadcrumbs={[
+        { label: 'Quem Somos', href: '/quem-somos' },
+        { label: 'Recursos Humanos' },
+      ]}
+    >
+      <section className="section-padding bg-white">
+        <div className="section-container max-w-4xl space-y-14">
+
+          {/* Concursos em Aberto */}
+          <ScrollReveal>
+            <SectionTitle icon={Briefcase} label="Concursos em Aberto" color="text-aintar-teal" bg="bg-aintar-teal/10" />
+            {loading ? <SkeletonList /> : abertos.length === 0 ? (
+              <EmptySection msg="Não existem procedimentos concursais em aberto de momento." />
+            ) : (
+              <div className="space-y-3">
+                {abertos.map(c => (
+                  <div key={c.pk}
+                    className="flex items-start justify-between gap-4 p-5 rounded-xl border border-aintar-teal/20 bg-aintar-teal/5 hover:border-aintar-teal/40 transition-colors">
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-1">
+                        {c.referencia && <span className="text-xs font-bold text-aintar-teal bg-aintar-teal/15 px-2 py-0.5 rounded-full">{c.referencia}</span>}
+                        {c.num_vagas && <span className="text-xs text-gray-400">{c.num_vagas} {c.num_vagas === 1 ? 'vaga' : 'vagas'}</span>}
+                      </div>
+                      <div className="font-semibold text-aintar-navy text-sm">{c.titulo}</div>
+                      {c.tipo && <div className="text-xs text-gray-400 mt-1">{c.tipo}</div>}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-aintar-teal font-medium whitespace-nowrap flex-shrink-0">
+                      <Clock size={12} />
+                      {formatPrazo(c)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && (
+              <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <p className="text-xs text-amber-700">
+                  As candidaturas devem ser formalizadas através do formulário AINTAR V04 disponível em{' '}
+                  <a href="/clientes/formularios" className="font-semibold underline">Formulários</a>.
+                  Para mais informações contacte <a href="mailto:geral@aintar.pt" className="font-semibold underline">geral@aintar.pt</a>.
+                </p>
+              </div>
+            )}
+          </ScrollReveal>
+
+          {/* Mobilidade Intercarreiras — só aparece se houver dados */}
+          {!loading && mobilidade.length > 0 && (
+            <ScrollReveal delay={0.1}>
+              <SectionTitle icon={Users} label="Mobilidade Intercarreiras" color="text-aintar-blue" bg="bg-aintar-blue/10" />
+              <div className="space-y-2">
+                {mobilidade.map(p => (
+                  <DocumentCard
+                    key={p.pk}
+                    title={p.titulo}
+                    subtitle={p.referencia_dr}
+                    year={p.data_publicacao ? new Date(p.data_publicacao).toLocaleDateString('pt-PT') : p.ano?.toString()}
+                    href={fileUrl(p.ficheiro_url)}
+                    fileSize="PDF"
+                  />
+                ))}
+              </div>
+            </ScrollReveal>
+          )}
+
+          {/* Procedimentos Concluídos */}
+          <ScrollReveal delay={0.15}>
+            <SectionTitle icon={CheckCircle2} label="Procedimentos Concluídos" color="text-gray-400" bg="bg-gray-100" />
+            {loading ? <SkeletonList /> : concluidos.length === 0 ? (
+              <EmptySection msg="Nenhum procedimento concluído registado." />
+            ) : (
+              anosConc.map(ano => (
+                <div key={ano} className="mb-6">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 pl-1">{ano}</h3>
+                  <div className="space-y-2">
+                    {concluByAno[ano].map(c => (
+                      <div key={c.pk}
+                        className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 transition-colors">
+                        <div>
+                          {c.referencia && (
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full mr-2">{c.referencia}</span>
+                          )}
+                          <span className="text-sm text-aintar-navy font-medium">{c.titulo}</span>
+                          {c.num_vagas && (
+                            <span className="text-xs text-gray-400 ml-2">({c.num_vagas} {c.num_vagas === 1 ? 'posto' : 'postos'})</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full flex-shrink-0 ml-3">Concluído</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </ScrollReveal>
+
+          {/* Tolerâncias de Ponto */}
+          <ScrollReveal delay={0.2}>
+            <SectionTitle icon={FileText} label="Tolerâncias de Ponto" color="text-aintar-sky" bg="bg-aintar-sky/10" />
+            {loading ? <SkeletonList /> : tolerancias.length === 0 ? (
+              <EmptySection msg="Nenhuma tolerância de ponto publicada de momento." />
+            ) : (
+              <div className="space-y-2">
+                {tolerancias.map(t => (
+                  <a key={t.pk} href={fileUrl(t.ficheiro_url)}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-white
+                      hover:border-aintar-sky/30 hover:bg-aintar-sky/5 transition-colors group">
+                    <div>
+                      <div className="text-sm font-medium text-aintar-navy group-hover:text-aintar-blue transition-colors">{t.titulo}</div>
+                      {t.data_publicacao && (
+                        <div className="text-xs text-gray-400 mt-0.5">{new Date(t.data_publicacao).toLocaleDateString('pt-PT')}</div>
+                      )}
+                    </div>
+                    <ArrowUpRight size={15} className="text-gray-300 group-hover:text-aintar-sky flex-shrink-0 transition-colors" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </ScrollReveal>
+
+          {/* Candidatura Espontânea */}
+          <ScrollReveal delay={0.25}>
+            <div className="p-6 rounded-2xl bg-hero-gradient text-white">
+              <h3 className="font-heading font-bold text-lg mb-2">Candidatura Espontânea</h3>
+              <p className="text-white/70 text-sm leading-relaxed mb-4">
+                Não encontrou uma vaga adequada? Envie-nos a sua candidatura espontânea.
+                Guardamos o seu currículo para futuras necessidades de recrutamento.
+              </p>
+              <a href="mailto:geral@aintar.pt?subject=Candidatura%20Espontânea"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-aintar-sky text-white
+                  text-sm font-semibold hover:bg-white hover:text-aintar-blue transition-all">
+                Enviar Candidatura
+              </a>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+    </PageLayout>
+  )
+}

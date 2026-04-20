@@ -1,0 +1,37 @@
+{
+  "mandato": "2021-2025",
+  "nota": "Cargos exercidos a título gratuito, nos termos do art.º 11.º dos Estatutos.",
+  "orgaos": [
+    {
+      "titulo": "Assembleia Intermunicipal",
+      "descricao": "Órgão deliberativo composto por representantes eleitos dos quatro municípios associados.",
+      "cor": "aintar-sky",
+      "membros": [
+        { "cargo": "Presidente da Mesa", "nome": "Olga Mafalda da Cruz Nunes" },
+        { "cargo": "Vice-Presidente da Mesa", "nome": "Guilherme Coimbra Vasconcelos Duarte" },
+        { "cargo": "Secretário da Mesa", "nome": "António João Pais Ferraz" },
+        { "cargo": "Vogal da Mesa", "nome": "Paulo Filipe Rodrigues Cristo" }
+      ]
+    },
+    {
+      "titulo": "Direção",
+      "descricao": "Órgão executivo responsável pela gestão corrente e representação da associação.",
+      "cor": "aintar-blue",
+      "membros": [
+        { "cargo": "Presidente da Direção", "nome": "Paulo Catalino Ferraz" },
+        { "cargo": "Vogal", "nome": "Inês Maria Varela Matos" },
+        { "cargo": "Vogal", "nome": "Ricardo Manuel Oliveira da Silva Cruz" },
+        { "cargo": "Vogal", "nome": "Fátima Carla Antunes Borges" },
+        { "cargo": "Vogal", "nome": "José Maria Portela" }
+      ]
+    },
+    {
+      "titulo": "Fiscal Único",
+      "descricao": "Órgão de fiscalização responsável pelo controlo financeiro e contabilístico da associação.",
+      "cor": "aintar-teal",
+      "membros": [
+        { "cargo": "Fiscal Único Efectivo", "nome": "—" }
+      ]
+    }
+  ]
+}

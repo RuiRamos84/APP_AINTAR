@@ -65,6 +65,7 @@ from ..services.etar_ee_service import (
     create_ramal_desobstrucao,
     create_ramal_reparacao,
     create_requisicao_interna,
+    create_descarga_interdita,
     update_etar_details,
     update_ee_details,
     create_etar_incumprimento,
@@ -1357,15 +1358,39 @@ def add_ramal_reparacao():
 @set_session
 @api_error_handler
 def add_requisicao_interna():
-    """Criar pedido de requisição interna"""
+    """Criar pedido de requisição de material (tipo 19), instalação opcional"""
     current_user = get_jwt_identity()
     data = request.get_json()
     pnmemo = data.get('pnmemo')
+    pk_instalacao = data.get('pk_instalacao')  # opcional
 
     if not pnmemo:
         return jsonify({'error': 'Descrição do pedido é obrigatória'}), 400
 
-    result, status_code = create_requisicao_interna(pnmemo, current_user)
+    result, status_code = create_requisicao_interna(pnmemo, current_user, pk_instalacao)
+    return jsonify(result), status_code
+
+
+@bp.route('/descarga_interdita', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission(310)  # operation.access
+@set_session
+@api_error_handler
+def add_descarga_interdita():
+    """Registar descarga interdita (tipo 57) associada a uma instalação"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    pk_instalacao = data.get('pk_instalacao')
+    pk_entity = data.get('pk_entity')
+    pnmemo = data.get('pnmemo')
+
+    if not pk_instalacao:
+        return jsonify({'error': 'A instalação é obrigatória'}), 400
+    if not pnmemo:
+        return jsonify({'error': 'A descrição da ocorrência é obrigatória'}), 400
+
+    result, status_code = create_descarga_interdita(pk_instalacao, pk_entity, pnmemo, current_user)
     return jsonify(result), status_code
 
 

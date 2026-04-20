@@ -8,6 +8,13 @@
  */
 
 import {
+  Web as WebIcon,
+  Newspaper as NewsIcon,
+  NotificationsActive as AlertIcon,
+  FolderOpen as DocFolderIcon,
+  Gavel as PubIcon,
+  WorkOutline as ProcIcon,
+  AccountBalance as FinIcon,
   Dashboard as DashboardIcon,
   Grading as AvalIcon,
   People as PeopleIcon,
@@ -504,6 +511,59 @@ export const ROUTE_CONFIG = {
         text: 'Permissões',
         icon: PermissionsIcon,
         permissions: { required: 'admin.users' },
+        showInSidebar: true,
+      },
+    },
+  },
+
+  '/admin/website': {
+    id: 'website_cms',
+    text: 'Website CMS',
+    icon: WebIcon,
+    module: 'administracao',
+    permissions: { required: 'website.view' },
+    showInSidebar: true,
+    submenu: {
+      '/admin/website/noticias': {
+        id: 'website_noticias',
+        text: 'Notícias',
+        icon: NewsIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/admin/website/alertas': {
+        id: 'website_alertas',
+        text: 'Avisos',
+        icon: AlertIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/admin/website/documentos': {
+        id: 'website_documentos',
+        text: 'Documentos',
+        icon: DocFolderIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/admin/website/publicacoes': {
+        id: 'website_publicacoes',
+        text: 'Publicações',
+        icon: PubIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/admin/website/procedimentos': {
+        id: 'website_procedimentos',
+        text: 'Procedimentos RH',
+        icon: ProcIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/admin/website/financeiros': {
+        id: 'website_financeiros',
+        text: 'Processos Financeiros',
+        icon: FinIcon,
+        permissions: { required: 'website.view' },
         showInSidebar: true,
       },
     },

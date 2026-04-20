@@ -567,7 +567,7 @@ def update_document_pavpaid_route(pk):
 
 @bp.route('/document/replicate/<int:pk>', methods=['POST'])
 @jwt_required()
-@require_permission(50)  # admin.docs.manage # Replicar é uma ação administrativa
+@require_permission('docs.edit')
 @token_required
 @set_session
 @api_error_handler

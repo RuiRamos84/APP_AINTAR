@@ -67,6 +67,10 @@ import DocumentsPage from '@/features/documents/pages/DocumentsPage';
 import { InternalDashboardPage, RequisicaoInternaPage } from '@/features/internal';
 import { FleetDashboard } from '@/features/fleet';
 import {
+  WebsiteNoticiasPage, WebsiteAlertasPage, WebsiteDocumentosPage,
+  WebsitePublicacoesPage, WebsiteProcedimentosPage, WebsiteProcessosFinanceirosPage,
+} from '@/features/website/pages';
+import {
   NetworkExpensesPage, BranchesExpensesPage,
   MaintenanceExpensesPage, EquipmentExpensesPage,
 } from '@/features/expenses';
@@ -144,6 +148,14 @@ function App() {
         <Route path="/admin/session-logs" element={<SessionLogsPage />} />
         <Route path="/admin/actions" element={<AdminActionsPage />} />
         <Route path="/users" element={<Navigate to="/admin/users" replace />} />
+
+        {/* ==================== CMS WEBSITE ==================== */}
+        <Route path="/admin/website/noticias"   element={<WebsiteNoticiasPage />} />
+        <Route path="/admin/website/alertas"    element={<WebsiteAlertasPage />} />
+        <Route path="/admin/website/documentos" element={<WebsiteDocumentosPage />} />
+        <Route path="/admin/website/publicacoes" element={<WebsitePublicacoesPage />} />
+        <Route path="/admin/website/procedimentos" element={<WebsiteProcedimentosPage />} />
+        <Route path="/admin/website/financeiros"   element={<WebsiteProcessosFinanceirosPage />} />
 
         {/* ==================== MÓDULO: PAGAMENTOS ==================== */}
         <Route path="/payments" element={<PaymentAdminPage />} />

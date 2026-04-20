@@ -3,8 +3,17 @@ import api from '../../../services/api/client';
 
 export const entitiesService = {
     /**
+     * Get entity by primary key
+     * @param {number|string} pk
+     */
+    async getEntityById(pk) {
+        const response = await api.get(`/entity/${pk}`);
+        return response;
+    },
+
+    /**
      * Get entity by NIPC
-     * @param {string} nipc 
+     * @param {string} nipc
      */
     async getEntityByNipc(nipc) {
         // Endpoint matches legacy: /entity/nipc/:nipc

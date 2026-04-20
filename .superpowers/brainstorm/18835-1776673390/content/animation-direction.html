@@ -1,0 +1,82 @@
+<h2>Qual é a direção de design que queres?</h2>
+<p class="subtitle">O website atual tem animações básicas (fade-up, counters). Qual das seguintes personalidades melhor representa o resultado que queres?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="cinematic" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: linear-gradient(135deg, #0a1628 0%, #1b3a5c 50%, #0d2a45 100%); padding: 20px; min-height: 160px; display:flex; flex-direction:column; justify-content:center; gap:12px; overflow:hidden; position:relative;">
+      <!-- Parallax layers mockup -->
+      <div style="position:absolute; top:0; left:0; right:0; bottom:0; background: radial-gradient(ellipse at 30% 50%, rgba(41,181,232,0.15) 0%, transparent 60%);"></div>
+      <div style="font-size:11px; letter-spacing:4px; color:rgba(255,255,255,0.3); text-transform:uppercase; position:relative;">AINTAR</div>
+      <div style="font-size:26px; font-weight:900; color:white; line-height:1.1; position:relative;">Gestão Sustentável<br/><span style="background: linear-gradient(90deg, #29B5E8, #2ABB9B); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">dos Sistemas</span></div>
+      <!-- Floating card -->
+      <div style="position:absolute; right:16px; top:16px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:10px 14px; backdrop-filter:blur(10px);">
+        <div style="color:#29B5E8; font-weight:900; font-size:18px;">700 km</div>
+        <div style="color:rgba(255,255,255,0.4); font-size:9px;">rede coletores</div>
+      </div>
+      <!-- Scroll depth layers -->
+      <div style="position:absolute; bottom:12px; left:20px; display:flex; gap:6px;">
+        <div style="width:30px; height:3px; background:rgba(41,181,232,0.6); border-radius:2px;"></div>
+        <div style="width:20px; height:3px; background:rgba(255,255,255,0.2); border-radius:2px;"></div>
+        <div style="width:15px; height:3px; background:rgba(255,255,255,0.1); border-radius:2px;"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Cinematográfico / Premium</h3>
+      <p>Parallax com profundidade, texto que revela letra a letra, transições de página fluidas, efeito magnético no cursor, scroll suave e pesado. Estilo: Apple, Linear, Stripe.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dynamic" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: linear-gradient(135deg, #0a1628 0%, #0d3a2a 50%, #0a1628 100%); padding: 20px; min-height: 160px; display:flex; flex-direction:column; justify-content:center; gap:10px; overflow:hidden; position:relative;">
+      <!-- Particle dots -->
+      <div style="position:absolute; top:0; left:0; right:0; bottom:0;">
+        <div style="position:absolute; width:4px; height:4px; background:#29B5E8; border-radius:50%; top:20%; left:15%; opacity:0.8;"></div>
+        <div style="position:absolute; width:3px; height:3px; background:#2ABB9B; border-radius:50%; top:60%; left:40%; opacity:0.6;"></div>
+        <div style="position:absolute; width:2px; height:2px; background:#29B5E8; border-radius:50%; top:30%; left:70%; opacity:0.5;"></div>
+        <div style="position:absolute; width:5px; height:5px; background:#2ABB9B; border-radius:50%; top:75%; left:80%; opacity:0.7;"></div>
+        <div style="position:absolute; width:3px; height:3px; background:#29B5E8; border-radius:50%; top:50%; left:25%; opacity:0.4;"></div>
+        <!-- SVG water flow lines -->
+        <svg style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0.15;" viewBox="0 0 300 160">
+          <path d="M 0 80 Q 75 40 150 80 Q 225 120 300 80" fill="none" stroke="#29B5E8" stroke-width="1.5"/>
+          <path d="M 0 100 Q 75 60 150 100 Q 225 140 300 100" fill="none" stroke="#2ABB9B" stroke-width="1"/>
+        </svg>
+      </div>
+      <div style="font-size:11px; letter-spacing:3px; color:rgba(42,187,155,0.7); text-transform:uppercase; position:relative;">AINTAR</div>
+      <div style="font-size:24px; font-weight:900; color:white; line-height:1.1; position:relative;">Sistemas<br/>de Saneamento</div>
+      <div style="display:flex; gap:8px; position:relative;">
+        <div style="background:rgba(41,181,232,0.2); border:1px solid rgba(41,181,232,0.4); border-radius:20px; padding:4px 10px; font-size:10px; color:#29B5E8;">145 ETARs</div>
+        <div style="background:rgba(42,187,155,0.2); border:1px solid rgba(42,187,155,0.4); border-radius:20px; padding:4px 10px; font-size:10px; color:#2ABB9B;">26mil clientes</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Dinâmico / Vivo</h3>
+      <p>Partículas flutuantes, SVG animados (fluxo de água), contadores que rebentam, formas que se transformam, efeito de "liquid" nas transições. Estilo: Notion, Vercel, Linear.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="editorial" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: linear-gradient(180deg, #0a1628 0%, #0a1628 100%); padding: 20px; min-height: 160px; display:flex; flex-direction:column; justify-content:flex-end; gap:8px; overflow:hidden; position:relative;">
+      <!-- Full bleed typography -->
+      <div style="position:absolute; top:10px; left:20px; font-size:72px; font-weight:900; color:rgba(255,255,255,0.04); line-height:1; letter-spacing:-2px; pointer-events:none;">AINTAR</div>
+      <div style="position:absolute; top:0; right:0; width:40%; height:100%; background:linear-gradient(90deg, transparent, rgba(41,181,232,0.06));"></div>
+      <!-- Horizontal scroll indicator -->
+      <div style="position:absolute; top:50%; right:20px; transform:translateY(-50%); display:flex; flex-direction:column; gap:4px; opacity:0.5;">
+        <div style="width:20px; height:1px; background:rgba(255,255,255,0.5);"></div>
+        <div style="width:12px; height:1px; background:rgba(41,181,232,0.8);"></div>
+        <div style="width:8px; height:1px; background:rgba(255,255,255,0.3);"></div>
+      </div>
+      <div style="font-size:9px; letter-spacing:4px; color:rgba(255,255,255,0.3); text-transform:uppercase; position:relative;">Gestão Sustentável</div>
+      <div style="font-size:28px; font-weight:900; color:white; line-height:1; position:relative; letter-spacing:-1px;">dos Sistemas<br/><span style="color:#29B5E8;">de Saneamento →</span></div>
+      <div style="display:flex; align-items:center; gap:8px; position:relative; margin-top:4px;">
+        <div style="width:40px; height:1px; background:rgba(255,255,255,0.2);"></div>
+        <div style="font-size:9px; color:rgba(255,255,255,0.3); letter-spacing:2px;">SCROLL</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Editorial / Imersivo</h3>
+      <p>Scroll horizontal numa secção, tipografia gigante que ancora o scroll, revelações full-screen, storytelling visual com pin. Estilo: Awwwards, Spotify for Artists, NYT.</p>
+    </div>
+  </div>
+
+</div>

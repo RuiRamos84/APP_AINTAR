@@ -24,8 +24,8 @@ export const deleteInventory = async (pk) => {
 
 // ─── Requisição Interna ───────────────────────────────────────────────────────
 
-export const createRequisicaoInterna = async (pnmemo) => {
-  const response = await api.post('/requisicao_interna', { pnmemo });
+export const createRequisicaoInterna = async (pnmemo, pk_instalacao = null) => {
+  const response = await api.post('/requisicao_interna', { pnmemo, pk_instalacao });
   return response;
 };
 

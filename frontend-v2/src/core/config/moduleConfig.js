@@ -144,6 +144,7 @@ export const MODULES = {
       required: [
         'admin.users',
         'admin.system.settings',
+        'website.view',
       ]
     },
     description: 'Administração do sistema, utilizadores e logs',
@@ -242,6 +243,7 @@ export const detectModuleFromPath = (pathname) => {
     '/permissions': 'administracao',
     '/offices-admin': 'administracao',
     '/requests': 'administracao',
+    '/admin/website': 'administracao',
     '/offices': 'administrativo',
   };
 

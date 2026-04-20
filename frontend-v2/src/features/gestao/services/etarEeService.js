@@ -60,6 +60,13 @@ export const createETARIncumprimento = async (data) => {
   return res;
 };
 
+// ─── Descarga Interdita ───────────────────────────────────────────────────────
+
+export const createDescargaInterdita = async ({ pk_instalacao, pk_entity, pnmemo }) => {
+  const res = await api.post('/descarga_interdita', { pk_instalacao, pk_entity, pnmemo });
+  return res;
+};
+
 // ─── Pedidos de Intervenção ───────────────────────────────────────────────────
 
 export const createInstalacaoDesmatacao = async (data) => {

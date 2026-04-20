@@ -3,7 +3,7 @@ import {
     Box, Typography, CircularProgress, Chip, Stack,
     Card, CardContent, CardActions, Button, Accordion, AccordionSummary, AccordionDetails,
     LinearProgress, Alert, useTheme, alpha, Fab, Tooltip, Collapse,
-    Dialog, DialogTitle, DialogContent, IconButton,
+    Dialog, DialogTitle, DialogContent, DialogActions, IconButton, TextField, MenuItem,
 } from '@mui/material';
 import {
     Assignment as AssignmentIcon,
@@ -24,6 +24,8 @@ import {
     Close as CloseIcon,
     Send as SendIcon,
     InfoOutlined as InfoIcon,
+    Description as RequisicaoIcon,
+    Block as DescargaIcon,
 } from '@mui/icons-material';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
@@ -41,6 +43,10 @@ import MESSAGES from '../constants/messages';
 import ExportButton from '../components/ExportButton';
 import DetailsDrawer from '../components/DetailsDrawer';
 import TaskCompletionDialog from '../components/TaskCompletionDialog';
+import { useETARList, useEEList, useAssociates } from '@/core/hooks/useMetaData';
+import { createRequisicaoInterna } from '@/features/internal/services/internalService';
+import { createDescargaInterdita } from '@/features/gestao/services/etarEeService';
+import notification from '@/core/services/notification';
 
 const TASK_TYPE = {
     1: { label: 'Numérico',     color: 'primary' },
@@ -65,6 +71,18 @@ const TasksPage = () => {
     const [completionOpen, setCompletionOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
 
+    const [requisicaoOpen, setRequisicaoOpen] = useState(false);
+    const [requisicaoMemo, setRequisicaoMemo] = useState('');
+    const [requisicaoMunicipio, setRequisicaoMunicipio] = useState('');
+    const [requisicaoInstalacao, setRequisicaoInstalacao] = useState(null);
+    const [isSubmittingReq, setIsSubmittingReq] = useState(false);
+
+    const [descargaOpen, setDescargaOpen] = useState(false);
+    const [descargaMemo, setDescargaMemo] = useState('');
+    const [descargaMunicipio, setDescargaMunicipio] = useState('');
+    const [descargaInstalacao, setDescargaInstalacao] = useState(null);
+    const [isSubmittingDesc, setIsSubmittingDesc] = useState(false);
+
     const {
         tasks,
         pendingTasks,
@@ -78,6 +96,50 @@ const TasksPage = () => {
         completeTask,
         createTask,
     } = useOperationTasks();
+
+    const { data: etarList = [] } = useETARList();
+    const { data: eeList = [] } = useEEList();
+    const { data: associates = [] } = useAssociates();
+
+    const instalacaoCombinada = useMemo(() => [
+        ...etarList.map((e) => ({ ...e, grupo: 'ETAR' })),
+        ...eeList.map((e) => ({ ...e, grupo: 'EE' })),
+    ], [etarList, eeList]);
+
+    const municipios = useMemo(() => {
+        const seen = new Set();
+        const result = [];
+        for (const item of instalacaoCombinada) {
+            if (item.ts_entity && !seen.has(item.ts_entity)) {
+                seen.add(item.ts_entity);
+                result.push(item.ts_entity);
+            }
+        }
+        return result.sort((a, b) => a.localeCompare(b, 'pt'));
+    }, [instalacaoCombinada]);
+
+    const associatesMap = useMemo(() => {
+        const map = {};
+        for (const a of associates) {
+            map[a.name] = a.pk;
+            // "Município de Carregal do Sal" → "Carregal do Sal" (ts_entity usa nome curto)
+            const stripped = a.name.replace(/^Município de\s+/i, '').trim();
+            if (stripped !== a.name) map[stripped] = a.pk;
+        }
+        return map;
+    }, [associates]);
+
+    const reqInstalacoes = useMemo(() =>
+        instalacaoCombinada
+            .filter((i) => i.ts_entity === requisicaoMunicipio)
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt')),
+    [instalacaoCombinada, requisicaoMunicipio]);
+
+    const descInstalacoes = useMemo(() =>
+        instalacaoCombinada
+            .filter((i) => i.ts_entity === descargaMunicipio)
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt')),
+    [instalacaoCombinada, descargaMunicipio]);
 
     const {
         data: pedidos = [],
@@ -140,6 +202,40 @@ const TasksPage = () => {
 
     const handleExportExcel = () => {
         exportTasksToExcel(tasks, { filename: 'Minhas_Tarefas' });
+    };
+
+    const handleRequisicaoSubmit = async () => {
+        if (requisicaoMemo.trim().length < 10) return;
+        setIsSubmittingReq(true);
+        try {
+            await createRequisicaoInterna(requisicaoMemo.trim(), requisicaoInstalacao?.pk ?? null);
+            notification.success('Requisição de material criada com sucesso!');
+            setRequisicaoOpen(false);
+            setRequisicaoMemo('');
+            setRequisicaoInstalacao(null);
+        } catch (err) {
+            notification.error(`Erro ao criar requisição: ${err.message}`);
+        } finally {
+            setIsSubmittingReq(false);
+        }
+    };
+
+    const handleDescargaSubmit = async () => {
+        if (!descargaInstalacao || descargaMemo.trim().length < 10) return;
+        setIsSubmittingDesc(true);
+        try {
+            const pk_entity = associatesMap[descargaInstalacao.ts_entity] ?? null;
+            await createDescargaInterdita({ pk_instalacao: descargaInstalacao.pk, pk_entity, pnmemo: descargaMemo.trim() });
+            notification.success('Descarga interdita registada com sucesso!');
+            setDescargaOpen(false);
+            setDescargaMemo('');
+            setDescargaInstalacao(null);
+            setDescargaMunicipio('');
+        } catch (err) {
+            notification.error(`Erro ao registar descarga: ${err.message}`);
+        } finally {
+            setIsSubmittingDesc(false);
+        }
     };
 
     return (
@@ -230,8 +326,9 @@ const TasksPage = () => {
                         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
                             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, flexShrink: 0 }}>
                                 <AssignmentIcon sx={{ color: 'primary.main' }} />
-                                <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>Tarefas Pendentes</Typography>
+                                <Typography variant="subtitle1" fontWeight={600}>Tarefas Pendentes</Typography>
                                 <Chip label={stats.pending} size="small" color="primary" />
+                                <Box sx={{ flex: 1 }} />
                                 <Tooltip title="Criar tarefa pontual">
                                     <Button
                                         variant="outlined"
@@ -394,6 +491,31 @@ const TasksPage = () => {
                                     ? <CircularProgress size={18} />
                                     : <Chip label={pedidos.length} size="small" color="info" />
                                 }
+                                <Box sx={{ flex: 1 }} />
+                                <Tooltip title="Criar requisição de material">
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<RequisicaoIcon />}
+                                        onClick={() => setRequisicaoOpen(true)}
+                                        color="warning"
+                                        sx={{ whiteSpace: 'nowrap' }}
+                                    >
+                                        Requisição
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip title="Registar descarga interdita">
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<DescargaIcon />}
+                                        onClick={() => setDescargaOpen(true)}
+                                        color="error"
+                                        sx={{ whiteSpace: 'nowrap' }}
+                                    >
+                                        Descarga
+                                    </Button>
+                                </Tooltip>
                             </Stack>
                             <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: { md: 0.5 } }}>
 
@@ -599,6 +721,167 @@ const TasksPage = () => {
                 task={selectedTask}
                 onComplete={handleCompleteTask}
             />
+
+            {/* Dialog — Requisição de Material */}
+            <Dialog
+                open={requisicaoOpen}
+                onClose={() => { setRequisicaoOpen(false); setRequisicaoMemo(''); setRequisicaoInstalacao(null); setRequisicaoMunicipio(''); }}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <RequisicaoIcon color="warning" />
+                            <Typography variant="h6">Requisição de Material</Typography>
+                        </Stack>
+                        <IconButton onClick={() => { setRequisicaoOpen(false); setRequisicaoMemo(''); setRequisicaoInstalacao(null); setRequisicaoMunicipio(''); }} size="small">
+                            <CloseIcon />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={2.5} sx={{ pt: 0.5 }}>
+                        <TextField
+                            select size="small" label="Município" fullWidth
+                            value={requisicaoMunicipio}
+                            onChange={(e) => { setRequisicaoMunicipio(e.target.value); setRequisicaoInstalacao(null); }}
+                            disabled={isSubmittingReq}
+                            helperText="Opcional — filtre por município para associar uma instalação"
+                        >
+                            <MenuItem value=""><em>— Nenhum —</em></MenuItem>
+                            {municipios.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                        </TextField>
+                        <TextField
+                            select size="small" label="Instalação associada" fullWidth
+                            value={requisicaoInstalacao ? String(requisicaoInstalacao.pk) : ''}
+                            onChange={(e) => {
+                                const pkVal = Number(e.target.value);
+                                setRequisicaoInstalacao(reqInstalacoes.find((i) => i.pk === pkVal) || null);
+                            }}
+                            disabled={isSubmittingReq || !requisicaoMunicipio}
+                            helperText="Opcional — selecione a instalação se o pedido for relativo a uma específica"
+                        >
+                            <MenuItem value=""><em>— Nenhuma —</em></MenuItem>
+                            {reqInstalacoes.map((i) => (
+                                <MenuItem key={i.pk} value={String(i.pk)}>{i.nome} ({i.grupo})</MenuItem>
+                            ))}
+                        </TextField>
+                        <TextField
+                            label="Descrição da Requisição *"
+                            placeholder="Descreva o material ou serviço necessário, quantidade, urgência e qualquer informação relevante..."
+                            multiline
+                            rows={5}
+                            fullWidth
+                            value={requisicaoMemo}
+                            onChange={(e) => setRequisicaoMemo(e.target.value)}
+                            disabled={isSubmittingReq}
+                            error={requisicaoMemo.length > 0 && requisicaoMemo.trim().length < 10}
+                            helperText={
+                                requisicaoMemo.length > 0 && requisicaoMemo.trim().length < 10
+                                    ? 'Mínimo 10 caracteres'
+                                    : `${requisicaoMemo.length} caracteres`
+                            }
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button color="inherit" onClick={() => { setRequisicaoOpen(false); setRequisicaoMemo(''); setRequisicaoInstalacao(null); setRequisicaoMunicipio(''); }} disabled={isSubmittingReq}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="warning"
+                        startIcon={isSubmittingReq ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+                        onClick={handleRequisicaoSubmit}
+                        disabled={isSubmittingReq || requisicaoMemo.trim().length < 10}
+                    >
+                        Submeter
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog — Descarga Interdita */}
+            <Dialog
+                open={descargaOpen}
+                onClose={() => { setDescargaOpen(false); setDescargaMemo(''); setDescargaInstalacao(null); setDescargaMunicipio(''); }}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <DescargaIcon color="error" />
+                            <Typography variant="h6">Descarga Interdita</Typography>
+                        </Stack>
+                        <IconButton onClick={() => { setDescargaOpen(false); setDescargaMemo(''); setDescargaInstalacao(null); setDescargaMunicipio(''); }} size="small">
+                            <CloseIcon />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={2.5} sx={{ pt: 0.5 }}>
+                        <TextField
+                            select size="small" label="Município *" fullWidth
+                            value={descargaMunicipio}
+                            onChange={(e) => { setDescargaMunicipio(e.target.value); setDescargaInstalacao(null); }}
+                            disabled={isSubmittingDesc}
+                            error={!descargaMunicipio}
+                            helperText={!descargaMunicipio ? 'Selecione o município da instalação' : ''}
+                        >
+                            <MenuItem value=""><em>— Selecionar —</em></MenuItem>
+                            {municipios.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                        </TextField>
+                        <TextField
+                            select size="small" label="Instalação *" fullWidth
+                            value={descargaInstalacao ? String(descargaInstalacao.pk) : ''}
+                            onChange={(e) => {
+                                const pkVal = Number(e.target.value);
+                                setDescargaInstalacao(descInstalacoes.find((i) => i.pk === pkVal) || null);
+                            }}
+                            disabled={isSubmittingDesc || !descargaMunicipio}
+                            error={descargaMunicipio && !descargaInstalacao}
+                            helperText="Obrigatório — selecione a instalação onde ocorreu a descarga"
+                        >
+                            <MenuItem value=""><em>— Selecionar —</em></MenuItem>
+                            {descInstalacoes.map((i) => (
+                                <MenuItem key={i.pk} value={String(i.pk)}>{i.nome} ({i.grupo})</MenuItem>
+                            ))}
+                        </TextField>
+                        <TextField
+                            label="Descrição *"
+                            placeholder="Descreva a situação de descarga interdita, origem, substâncias envolvidas e impacto observado..."
+                            multiline
+                            rows={5}
+                            fullWidth
+                            value={descargaMemo}
+                            onChange={(e) => setDescargaMemo(e.target.value)}
+                            disabled={isSubmittingDesc}
+                            error={descargaMemo.length > 0 && descargaMemo.trim().length < 10}
+                            helperText={
+                                descargaMemo.length > 0 && descargaMemo.trim().length < 10
+                                    ? 'Mínimo 10 caracteres'
+                                    : `${descargaMemo.length} caracteres`
+                            }
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button color="inherit" onClick={() => { setDescargaOpen(false); setDescargaMemo(''); setDescargaInstalacao(null); setDescargaMunicipio(''); }} disabled={isSubmittingDesc}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={isSubmittingDesc ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+                        onClick={handleDescargaSubmit}
+                        disabled={isSubmittingDesc || !descargaInstalacao || descargaMemo.trim().length < 10}
+                    >
+                        Registar
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </ModulePage>
         </Box>
     );

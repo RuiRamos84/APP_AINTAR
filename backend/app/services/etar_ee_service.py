@@ -548,13 +548,29 @@ def create_ramal_reparacao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, 
 
 
 @api_error_handler
-def create_requisicao_interna(pnmemo, current_user):
-    """Criar pedido de requisição interna"""
+def create_requisicao_interna(pnmemo, current_user, pk_instalacao=None):
+    """Criar pedido de requisição de material (tipo 19), com instalação opcional"""
     with db_session_manager(current_user) as session:
         query = text(
-            "SELECT fbo_document_createintern(19, NULL, :pnmemo, NULL)")
-        result = session.execute(query, {'pnmemo': pnmemo}).scalar()
-        return {'message': 'Pedido de requisição interna criado com sucesso', 'document_id': result}, 201
+            "SELECT fbo_document_createintern(19, NULL, :pnmemo, :pk_instalacao)")
+        result = session.execute(query, {
+            'pnmemo': pnmemo,
+            'pk_instalacao': pk_instalacao,
+        }).scalar()
+        return {'message': 'Pedido de requisição de material criado com sucesso', 'document_id': result}, 201
+
+
+def create_descarga_interdita(pk_instalacao, pk_entity, pnmemo, current_user):
+    """Criar pedido de descarga interdita (tipo 57) associado a uma instalação"""
+    with db_session_manager(current_user) as session:
+        query = text(
+            "SELECT fbo_document_createintern(57, :ts_entity, :pnmemo, :pk_instalacao)")
+        result = session.execute(query, {
+            'ts_entity': pk_entity,
+            'pnmemo': pnmemo,
+            'pk_instalacao': pk_instalacao,
+        }).scalar()
+        return {'message': 'Descarga interdita registada com sucesso', 'document_id': result}, 201
 
 
 def create_instalacao_incumprimento(data: dict, current_user: str):
