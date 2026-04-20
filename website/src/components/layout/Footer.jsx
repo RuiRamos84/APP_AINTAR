@@ -224,8 +224,8 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/40">
             <span>© {new Date().getFullYear()} AINTAR — Todos os direitos reservados</span>
             <div className="flex items-center gap-4">
-              <a href="#" className="hover:text-white/70 transition-colors">Política de Privacidade</a>
-              <a href="#" className="hover:text-white/70 transition-colors">Termos de Utilização</a>
+              <Link to="/politica-privacidade" className="hover:text-white/70 transition-colors">Política de Privacidade</Link>
+              <Link to="/termos-utilizacao" className="hover:text-white/70 transition-colors">Termos de Utilização</Link>
               <a
                 href="https://www.livroreclamacoes.pt"
                 target="_blank"

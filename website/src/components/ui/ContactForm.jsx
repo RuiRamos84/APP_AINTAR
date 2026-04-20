@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react'
 
 const inputClass = `w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-aintar-navy text-sm
@@ -140,7 +141,7 @@ export default function ContactForm({ rows = 5 }) {
 
       <p className="text-xs text-gray-400 text-center">
         Os seus dados são tratados de acordo com a nossa{' '}
-        <a href="#" className="text-aintar-blue hover:underline">Política de Privacidade</a>
+        <Link to="/politica-privacidade" className="text-aintar-blue hover:underline">Política de Privacidade</Link>
       </p>
     </form>
   )

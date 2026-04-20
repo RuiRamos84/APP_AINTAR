@@ -33,6 +33,8 @@ import EditaisPage from './pages/comunicacao/EditaisPage'
 
 // Contactos
 import ContactosPage from './pages/ContactosPage'
+import PoliticaPrivacidadePage from './pages/PoliticaPrivacidadePage'
+import TermosUtilizacaoPage from './pages/TermosUtilizacaoPage'
 
 // 404
 import NotFoundPage from './pages/NotFoundPage'
@@ -74,6 +76,10 @@ export default function App() {
 
         {/* Contactos */}
         <Route path="/contactos" element={<ContactosPage />} />
+
+        {/* Legal */}
+        <Route path="/politica-privacidade" element={<PoliticaPrivacidadePage />} />
+        <Route path="/termos-utilizacao" element={<TermosUtilizacaoPage />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFoundPage />} />
