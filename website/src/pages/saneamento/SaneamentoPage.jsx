@@ -17,20 +17,20 @@ export default function SaneamentoPage() {
       subtitle="Infraestruturas de saneamento de águas residuais geridas pela AINTAR na região Centro."
       breadcrumbs={[{ label: 'Saneamento' }]}
     >
-      {/* Overview */}
-      <section className="section-padding bg-white">
+      {/* Saneamento em Alta */}
+      <section id="alta" className="section-padding bg-white">
         <div className="section-container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
             <ScrollReveal>
               <span className="section-tag bg-aintar-sky/10 text-aintar-sky border border-aintar-sky/20 mb-4">
-                Infraestruturas
+                Saneamento em Alta
               </span>
               <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
                 style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
                 Rede de saneamento <span className="text-gradient">integrada e moderna</span>
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4">
-                A AINTAR opera uma rede integrada de infraestruturas de saneamento em alta e em baixa,
+                A AINTAR opera uma rede integrada de infraestruturas de saneamento em alta,
                 que incluem estações de tratamento de águas residuais (ETAR), sistemas de águas residuais (SAR),
                 redes de emissários e estações elevatórias.
               </p>
@@ -62,7 +62,7 @@ export default function SaneamentoPage() {
           <ScrollReveal>
             <h2 className="font-heading font-bold text-aintar-navy text-xl mb-6">Principais Instalações</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {instalacoes.map((inst, i) => (
+              {instalacoes.map((inst) => (
                 <div key={inst.nome}
                   className="p-5 rounded-2xl border border-gray-100 bg-white hover:border-aintar-sky/30
                     hover:shadow-md transition-all">
@@ -76,9 +76,63 @@ export default function SaneamentoPage() {
               ))}
             </div>
           </ScrollReveal>
+        </div>
+      </section>
 
-          {/* Quality link */}
-          <ScrollReveal delay={0.2} className="mt-10 text-center">
+      {/* Saneamento em Baixa */}
+      <section id="baixa" className="section-padding bg-aintar-light">
+        <div className="section-container">
+          <ScrollReveal>
+            <span className="section-tag bg-aintar-teal/10 text-aintar-teal border border-aintar-teal/20 mb-4">
+              Saneamento em Baixa
+            </span>
+            <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
+              style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
+              Redes de recolha e transporte <span className="text-gradient">de águas residuais</span>
+            </h2>
+            <p className="text-gray-600 leading-relaxed max-w-3xl">
+              A AINTAR gere cerca de 700 km de coletores e 91 estações elevatórias distribuídas pelos
+              quatro municípios associados — Carregal do Sal, Santa Comba Dão, Tábua e Tondela —
+              assegurando a recolha e transporte das águas residuais domésticas e industriais até
+              às instalações de tratamento.
+            </p>
+          </ScrollReveal>
+          <ScrollReveal delay={0.15}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+              {[
+                { value: '700 km', label: 'Rede de Coletores', sub: 'Distribuídos pelos 4 municípios' },
+                { value: '91', label: 'Estações Elevatórias', sub: 'Em operação contínua' },
+                { value: '26 mil', label: 'Clientes Servidos', sub: 'Cerca de 56.000 habitantes' },
+              ].map((s) => (
+                <div key={s.label} className="p-6 rounded-2xl bg-white border border-aintar-blue/10 text-center">
+                  <div className="text-3xl font-extrabold font-heading text-aintar-blue mb-1">{s.value}</div>
+                  <div className="font-semibold text-aintar-navy text-sm mb-1">{s.label}</div>
+                  <div className="text-xs text-gray-400">{s.sub}</div>
+                </div>
+              ))}
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* Tratamento de Efluentes */}
+      <section id="efluentes" className="section-padding bg-white">
+        <div className="section-container">
+          <ScrollReveal>
+            <span className="section-tag bg-aintar-blue/10 text-aintar-blue border border-aintar-blue/20 mb-4">
+              Tratamento de Efluentes
+            </span>
+            <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
+              style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
+              Processo de tratamento <span className="text-gradient">ambientalmente responsável</span>
+            </h2>
+            <p className="text-gray-600 leading-relaxed max-w-3xl mb-8">
+              O tratamento das águas residuais é realizado em conformidade com a legislação ambiental
+              em vigor, garantindo que os efluentes tratados apresentam a qualidade necessária para
+              rejeição no meio hídrico sem comprometer os ecossistemas locais.
+            </p>
+          </ScrollReveal>
+          <ScrollReveal delay={0.2} className="text-center">
             <Link to="/saneamento/qualidade" className="btn-outline-blue">
               Consultar Qualidade do Serviço
               <ArrowRight size={16} />

@@ -10,10 +10,10 @@ const footerLinks = {
     { label: 'Projetos', href: '/projetos' },
   ],
   servicos: [
-    { label: 'Saneamento em Alta', href: '/saneamento' },
-    { label: 'Saneamento em Baixa', href: '/saneamento' },
-    { label: 'Tratamento de Efluentes', href: '/saneamento' },
-    { label: 'Qualidade do Serviço', href: '/saneamento/qualidade' },
+    { label: 'Saneamento em Alta',      href: '/saneamento#alta' },
+    { label: 'Saneamento em Baixa',     href: '/saneamento#baixa' },
+    { label: 'Tratamento de Efluentes', href: '/saneamento#efluentes' },
+    { label: 'Qualidade do Serviço',    href: '/saneamento/qualidade' },
   ],
   documentos: [
     { label: 'Tarifário 2026', href: '/clientes/tarifario' },
