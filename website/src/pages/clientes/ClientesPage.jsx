@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { FileText, Euro, ClipboardList, HelpCircle, AlertTriangle, ArrowRight } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
+import DarkBgDecorations from '../../components/ui/DarkBgDecorations'
 
 const areas = [
   {
@@ -98,7 +99,8 @@ export default function ClientesPage() {
       </section>
 
       {/* Avaria urgente banner */}
-      <section className="py-10 bg-aintar-navy">
+      <section className="py-10 bg-hero-gradient relative overflow-hidden">
+        <DarkBgDecorations particles={false} intensity="low" />
         <div className="section-container">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
             <div className="flex items-center gap-4">
@@ -106,13 +108,13 @@ export default function ClientesPage() {
                 <AlertTriangle size={22} className="text-amber-400" />
               </div>
               <div>
-                <div className="font-heading font-bold text-white text-base">Linha de Emergência</div>
+                <div className="font-heading font-bold text-white text-base">Piquete 24 Horas</div>
                 <div className="text-white/60 text-sm">Para avarias urgentes fora do horário normal</div>
               </div>
             </div>
-            <a href="tel:+351000000000"
+            <a href="tel:+351963612484"
               className="px-6 py-3 rounded-full bg-amber-500 text-white font-bold text-sm hover:bg-amber-400 transition-colors flex-shrink-0">
-              +351 000 000 000
+              963 612 484
             </a>
           </div>
         </div>
