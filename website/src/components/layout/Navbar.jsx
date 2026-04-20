@@ -17,6 +17,7 @@ const navMenu = [
   {
     label: 'Clientes',
     children: [
+      { label: 'Área de Clientes', href: '/clientes' },
       { label: 'Regulamento de Serviço', href: '/clientes/regulamento' },
       { label: 'Tarifário', href: '/clientes/tarifario' },
       { label: 'Formulários', href: '/clientes/formularios' },
@@ -92,13 +93,47 @@ export default function Navbar() {
   const hoverTimeout = useRef(null)
 
   const isHomePage = location.pathname === '/'
-  const isLight = scrolled || !isHomePage
 
+  // IDs das secções com fundo escuro na homepage
+  const DARK_SECTIONS = new Set(['inicio', 'numeros', 'municipios', 'portal'])
+
+  // Para páginas internas: isLight = scrolled (PageHeader é escuro no topo)
+  // Para homepage: isLight depende de qual secção está sob o navbar
+  const [darkUnderNav, setDarkUnderNav] = useState(true) // arranca no Hero (escuro)
+  const isLight = isHomePage ? !darkUnderNav : scrolled
+
+  // Scroll simples — para páginas internas e para o estado scrolled
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 60)
     window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Deteção da secção sob o navbar — só na homepage
+  useEffect(() => {
+    if (!isHomePage) return
+
+    const detectSection = () => {
+      const NAVBAR_H = 70
+      const sections = document.querySelectorAll('section[id]')
+      let found = null
+      sections.forEach(section => {
+        const rect = section.getBoundingClientRect()
+        if (rect.top <= NAVBAR_H && rect.bottom > NAVBAR_H) {
+          found = section.id
+        }
+      })
+      if (found !== null) {
+        setDarkUnderNav(DARK_SECTIONS.has(found))
+      }
+    }
+
+    window.addEventListener('scroll', detectSection, { passive: true })
+    detectSection() // estado inicial
+    return () => window.removeEventListener('scroll', detectSection)
+  }, [isHomePage])
+
 
   useEffect(() => {
     setMobileOpen(false)
