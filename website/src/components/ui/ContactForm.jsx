@@ -18,7 +18,7 @@ export default function ContactForm({ rows = 5 }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/contact', {
+      const res = await fetch('/api/v1/website/contacto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
