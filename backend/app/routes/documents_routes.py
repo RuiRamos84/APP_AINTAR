@@ -294,7 +294,7 @@ def get_document_params(document_id):
 
 @bp.route('/document/<int:document_id>/params', methods=['PUT'])
 @jwt_required()
-@require_permission('docs.view.assigned') — quem tem o pedido em sua posse
+@require_permission('docs.view.assigned') # quem tem o pedido em sua posse
 @token_required
 @set_session
 @api_error_handler
