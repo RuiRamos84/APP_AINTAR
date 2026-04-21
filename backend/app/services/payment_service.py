@@ -190,11 +190,14 @@ class PaymentService:
 
                 if sibs_result:
                     sibs_data = dict(sibs_result._mapping)
+                    invoice_data['payment_status'] = sibs_data.get('payment_status')
+                    invoice_data['payment_method'] = sibs_data.get('payment_method')
+                    invoice_data['payment_reference'] = sibs_data.get('payment_reference')
                     invoice_data['sibs_expiry'] = str(sibs_data.get('expiry_date', '')) if sibs_data.get('expiry_date') else None
                     invoice_data['sibs_entity'] = sibs_data.get('entity')
                     invoice_data['sibs_reference'] = sibs_data.get('pref')
-                    invoice_data['sibs_method'] = sibs_data.get('method')
-                    invoice_data['sibs_status'] = sibs_data.get('status')
+                    invoice_data['sibs_method'] = sibs_data.get('payment_method')
+                    invoice_data['sibs_status'] = sibs_data.get('payment_status')
 
                 return invoice_data
 
@@ -827,9 +830,10 @@ class PaymentService:
                                 f"para pagamento {payment_pk} (doc={document_id}, valor={amount})"
                             )
                         except Exception as caixa_err:
-                            logger.warning(
+                            logger.error(
                                 f"Falha ao criar movimento de caixa para pagamento {payment_pk}: {caixa_err}"
                             )
+                            raise
 
             return {"success": True, "message": "Pagamento aprovado"}
 
