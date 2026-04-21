@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
 import { LogIn, ChevronRight, Users, Activity } from 'lucide-react'
+import DarkBgDecorations from '../ui/DarkBgDecorations'
+import WaveDivider from '../ui/WaveDivider'
 
 const containerVariants = {
   hidden: {},
@@ -22,23 +24,8 @@ export default function HeroSection() {
       id="inicio"
       className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-hero-gradient"
     >
-      {/* Background glows */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/4 -translate-x-1/2 w-[800px] h-[800px] rounded-full opacity-15"
-          style={{ background: 'radial-gradient(ellipse, #29B5E8 0%, transparent 65%)' }} />
-        <div className="absolute bottom-0 right-1/3 w-[500px] h-[500px] rounded-full opacity-10"
-          style={{ background: 'radial-gradient(ellipse, #2ABB9B 0%, transparent 65%)' }} />
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full opacity-[0.08]"
-          style={{ background: 'radial-gradient(ellipse, #1B5E8E 0%, transparent 70%)' }} />
-      </div>
+      <DarkBgDecorations intensity="high" />
 
-      {/* Dot grid */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
-        style={{
-          backgroundImage: 'radial-gradient(circle, rgba(41,181,232,1) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }}
-      />
 
       {/* Content — flex-grow so it fills the space above the wave */}
       <div className="section-container relative z-10 w-full pt-28 pb-16">
@@ -177,7 +164,7 @@ export default function HeroSection() {
           </motion.div>
         </div>
       </div>
-
+      <WaveDivider direction="down" color="#EFF6FC" />
     </section>
   )
 }

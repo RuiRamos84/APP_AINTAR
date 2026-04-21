@@ -18,8 +18,8 @@ export default function HomePage() {
       <AlertBanner />
       <main>
         <HeroSection />
-        <StatsSection />
         <AboutSection />
+        <StatsSection />
         <ServicesSection />
         <MunicipalitiesSection />
         <NewsSection />

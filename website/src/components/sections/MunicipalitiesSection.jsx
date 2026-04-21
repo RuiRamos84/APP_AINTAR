@@ -1,6 +1,8 @@
 import { MapPin, ExternalLink } from 'lucide-react'
 import ScrollReveal from '../ui/ScrollReveal'
 import { motion } from 'framer-motion'
+import DarkBgDecorations from '../ui/DarkBgDecorations'
+import WaveDivider from '../ui/WaveDivider'
 
 
 const municipalities = [
@@ -12,15 +14,12 @@ const municipalities = [
 
 export default function MunicipalitiesSection() {
   return (
-    <section id="municipios" className="bg-aintar-navy flex flex-col min-h-screen overflow-hidden">
+    <section id="municipios" className="bg-hero-gradient flex flex-col min-h-screen overflow-hidden relative">
 
+      <WaveDivider direction="up" color="#ffffff" />
+      <DarkBgDecorations intensity="low" />
 
       <div className="flex-grow flex items-center w-full relative z-10">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full opacity-[0.06] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #29B5E8 0%, transparent 70%)' }} />
-        <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full opacity-[0.06] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #2ABB9B 0%, transparent 70%)' }} />
 
         <div className="section-container w-full py-12">
 
@@ -95,6 +94,7 @@ export default function MunicipalitiesSection() {
         </div>
       </div>
 
+      <WaveDivider direction="down" color="#EFF6FC" />
     </section>
   )
 }

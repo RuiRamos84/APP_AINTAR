@@ -87,7 +87,8 @@
       "Bash(node -e \"const code = require\\('fs'\\).readFileSync\\('src/components/sections/StatsSection.jsx', 'utf8'\\); console.log\\('✓ File syntax valid'\\)\")",
       "Bash(node /tmp/verify_stats.js)",
       "Bash(powershell.exe -Command ' *)",
-      "Bash(vssadmin list *)"
+      "Bash(vssadmin list *)",
+      "Bash(C:/Users/rui.ramos/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir \"c:/Users/rui.ramos/Desktop/APP\")"
     ],
     "deny": [],
     "ask": [],

@@ -1,5 +1,7 @@
 import { FileText, Gauge, AlertTriangle, ClipboardList, Phone, ArrowRight, LogIn, Sparkles } from 'lucide-react'
 import ScrollReveal from '../ui/ScrollReveal'
+import DarkBgDecorations from '../ui/DarkBgDecorations'
+import WaveDivider from '../ui/WaveDivider'
 import { motion } from 'framer-motion'
 
 
@@ -18,16 +20,10 @@ export default function PortalSection() {
   }
 
   return (
-    <section id="portal" className="bg-aintar-navy flex flex-col min-h-screen relative overflow-hidden">
-      {/* NewsSection já entrega a transição aintar-light → navy — sem wave aqui */}
+    <section id="portal" className="bg-hero-gradient flex flex-col min-h-screen relative overflow-hidden">
 
-      {/* Background glows */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/3 w-[400px] h-[400px] rounded-full opacity-[0.08]"
-          style={{ background: 'radial-gradient(circle, #29B5E8 0%, transparent 70%)' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full opacity-[0.08]"
-          style={{ background: 'radial-gradient(circle, #2ABB9B 0%, transparent 70%)' }} />
-      </div>
+      <WaveDivider direction="up" color="#EFF6FC" />
+      <DarkBgDecorations intensity="low" />
 
       <div className="flex-grow flex items-center w-full relative z-10">
         <div className="section-container w-full py-12">
@@ -104,6 +100,7 @@ export default function PortalSection() {
         </div>
       </div>
 
+      <WaveDivider direction="down" color="#ffffff" />
     </section>
   )
 }

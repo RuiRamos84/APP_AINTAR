@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
   Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, FormControlLabel, Grid, IconButton, InputLabel,
+  Divider, FormControl, FormControlLabel, Grid, IconButton, InputLabel,
   MenuItem, Select, Switch, TextField, Tooltip, Typography, Stack,
 } from '@mui/material';
 import {
   Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon,
-  Image as ImageIcon, Newspaper as NewsIcon,
+  Newspaper as NewsIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -14,8 +14,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import notification from '@/core/services/notification';
 import {
-  getNoticias, saveNoticia, deleteNoticia, uploadNoticiaImagem, getMetadados,
+  getNoticias, saveNoticia, deleteNoticia, getMetadados,
 } from '../api/websiteCmsService';
+import NoticiasImagePanel from '../NoticiasImagePanel';
 
 // ─── Estado lookup ────────────────────────────────────────────────────────────
 
@@ -35,8 +36,8 @@ export default function WebsiteNoticiasPage() {
   const qc = useQueryClient();
   const [open, setOpen]         = useState(false);
   const [form, setForm]         = useState(EMPTY);
-  const [imgFile, setImgFile]   = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [savedPk, setSavedPk]   = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['cms', 'noticias'],
@@ -54,13 +55,12 @@ export default function WebsiteNoticiasPage() {
 
   const saveMut = useMutation({
     mutationFn: saveNoticia,
-    onSuccess: async (res) => {
-      if (imgFile && res?.pk) {
-        try { await uploadNoticiaImagem(res.pk, imgFile); } catch { /* continua */ }
-      }
+    onSuccess: (res) => {
       qc.invalidateQueries(['cms', 'noticias']);
       notification.success(form.pk ? 'Notícia atualizada' : 'Notícia criada');
       setOpen(false);
+      setForm(EMPTY);
+      setSavedPk(null);
     },
     onError: (e) => notification.error(e.message),
   });
@@ -75,10 +75,14 @@ export default function WebsiteNoticiasPage() {
     onError: (e) => notification.error(e.message),
   });
 
-  const openNew  = () => { setForm(EMPTY); setImgFile(null); setOpen(true); };
+  const openNew  = () => { setForm(EMPTY); setSavedPk(null); setOpen(true); };
   const openEdit = (row) => {
-    setForm({ ...row, data_publicacao: row.data_publicacao ? new Date(row.data_publicacao) : null });
-    setImgFile(null);
+    setForm({
+      ...EMPTY,
+      ...row,
+      data_publicacao: row.data_publicacao ? new Date(row.data_publicacao) : null
+    });
+    setSavedPk(row.pk);
     setOpen(true);
   };
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
@@ -148,15 +152,15 @@ export default function WebsiteNoticiasPage() {
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ pt: 1 }}>
             <Grid size={12}>
-              <TextField label="Título" fullWidth required value={form.titulo} onChange={set('titulo')} />
+              <TextField label="Título" fullWidth required value={form.titulo || ''} onChange={set('titulo')} />
             </Grid>
             <Grid size={12}>
-              <TextField label="Resumo" fullWidth multiline rows={2} value={form.resumo} onChange={set('resumo')} />
+              <TextField label="Resumo" fullWidth multiline rows={2} value={form.resumo || ''} onChange={set('resumo')} />
             </Grid>
             <Grid size={12}>
               <TextField
                 label="Conteúdo (HTML)" fullWidth multiline rows={6}
-                value={form.conteudo_html} onChange={set('conteudo_html')}
+                value={form.conteudo_html || ''} onChange={set('conteudo_html')}
                 helperText="Aceita HTML básico: <p>, <b>, <ul>, <li>, <a>, etc."
               />
             </Grid>
@@ -191,19 +195,21 @@ export default function WebsiteNoticiasPage() {
                 label="Notícia em destaque"
               />
             </Grid>
-            <Grid size={12}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Button variant="outlined" component="label" startIcon={<ImageIcon />}>
-                  {imgFile ? imgFile.name : 'Escolher Imagem'}
-                  <input type="file" hidden accept="image/*" onChange={(e) => setImgFile(e.target.files[0])} />
-                </Button>
-                {form.imagem_url && !imgFile && (
-                  <Typography variant="caption" color="text.secondary">
-                    Atual: {form.imagem_url}
-                  </Typography>
-                )}
-              </Stack>
-            </Grid>
+            {(form.pk || savedPk) && (
+              <>
+                <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Imagens</Typography></Divider></Grid>
+                <Grid size={12}>
+                  <NoticiasImagePanel noticiaId={form.pk ?? savedPk} />
+                </Grid>
+              </>
+            )}
+            {!form.pk && !savedPk && (
+              <Grid size={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Guarda a notícia para adicionar imagens.
+                </Typography>
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions>

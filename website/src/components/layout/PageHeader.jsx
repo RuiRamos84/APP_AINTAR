@@ -1,20 +1,19 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
 import { motion } from 'framer-motion'
+import DarkBgDecorations from '../ui/DarkBgDecorations'
 
 // breadcrumbs: [{ label: 'Quem Somos', href: '/quem-somos' }, { label: 'Documentos Financeiros' }]
 export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
   return (
-    <div className="bg-hero-gradient pt-28 pb-12 relative overflow-hidden">
-      {/* Decorative glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div
-          className="absolute top-0 right-1/4 w-96 h-64 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(ellipse, #29B5E8 0%, transparent 70%)' }}
-        />
-      </div>
+    <div className="bg-hero-gradient pt-28 pb-20 relative overflow-hidden min-h-[220px]">
 
+      {/* Decorações de fundo */}
+      <DarkBgDecorations intensity="medium" />
+
+      {/* Conteúdo */}
       <div className="section-container relative z-10">
+
         {/* Breadcrumb */}
         {breadcrumbs.length > 0 && (
           <nav className="flex items-center gap-1.5 mb-4 flex-wrap">
@@ -37,7 +36,7 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
           </nav>
         )}
 
-        {/* Title */}
+        {/* Título */}
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -60,13 +59,55 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
         )}
       </div>
 
-      {/* Bottom wave */}
-      <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
-        <svg viewBox="0 0 1440 40" xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="none" className="w-full block" style={{ height: '40px' }}>
-          <path d="M0,20 C360,40 720,0 1080,20 C1260,30 1380,15 1440,20 L1440,40 L0,40 Z" fill="white" />
-        </svg>
+      {/* Onda animada — transição suave para o conteúdo branco */}
+      <div className="absolute bottom-0 left-0 right-0 h-16 overflow-hidden pointer-events-none">
+
+        {/* Camada 1 — fundo, semi-transparente, flui devagar */}
+        <div
+          className="absolute bottom-0 left-0 h-full"
+          style={{
+            width: '200%',
+            animationName: 'waveSlide',
+            animationDuration: '12s',
+            animationTimingFunction: 'linear',
+            animationIterationCount: 'infinite',
+          }}
+        >
+          <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="none" className="w-full h-full">
+            <path
+              d="M0,32 C180,52 360,12 540,32 C720,52 900,12 1080,32
+                 C1260,52 1440,12 1620,32 C1800,52 1980,12 2160,32
+                 C2340,52 2520,12 2700,32 C2880,52 2880,64 0,64 Z"
+              fill="rgba(255,255,255,0.25)"
+            />
+          </svg>
+        </div>
+
+        {/* Camada 2 — frente, branca sólida, flui mais rápido e em sentido inverso */}
+        <div
+          className="absolute bottom-0 left-0 h-full"
+          style={{
+            width: '200%',
+            animationName: 'waveSlide',
+            animationDuration: '8s',
+            animationTimingFunction: 'linear',
+            animationIterationCount: 'infinite',
+            animationDirection: 'reverse',
+          }}
+        >
+          <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="none" className="w-full h-full">
+            <path
+              d="M0,24 C240,48 480,8 720,24 C960,40 1200,8 1440,24
+                 C1680,40 1920,8 2160,24 C2400,40 2640,8 2880,24
+                 L2880,64 L0,64 Z"
+              fill="white"
+            />
+          </svg>
+        </div>
       </div>
+
     </div>
   )
 }

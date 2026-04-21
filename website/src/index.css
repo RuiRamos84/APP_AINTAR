@@ -106,3 +106,27 @@
     background-color: rgba(10, 22, 40, 0.85);
   }
 }
+
+/* Keyframes globais — usados via animationName inline style em DarkBgDecorations e HeroSection */
+@keyframes rise {
+  0%   { transform: translateY(0) scale(1);      opacity: 0;   }
+  8%   {                                          opacity: 1;   }
+  88%  {                                          opacity: 0.7; }
+  100% { transform: translateY(-90px) scale(0.3); opacity: 0;   }
+}
+
+@keyframes gpulse {
+  0%, 100% { opacity: 0.3; transform: scale(1);    }
+  50%       { opacity: 0.7; transform: scale(1.04); }
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0);   }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes waveSlide {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+

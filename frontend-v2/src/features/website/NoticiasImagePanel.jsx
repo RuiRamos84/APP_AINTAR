@@ -6,7 +6,6 @@ import {
 import {
   AddPhotoAlternate as AddPhotoIcon,
   Delete as DeleteIcon,
-  DragHandle as DragIcon,
 } from '@mui/icons-material';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -55,15 +54,12 @@ function ImageCard({ img, index, isPrimary, moveImage, onDelete, onLegendaBlur }
         transition: 'opacity 0.2s',
       }}
     >
-      <Box ref={drag} sx={{ cursor: 'grab', color: 'text.disabled', pt: 0.5 }}>
-        <DragIcon fontSize="small" />
-      </Box>
-
       <Box
+        ref={drag}
         component="img"
         src={img.url}
         alt={legenda || `Imagem ${index + 1}`}
-        sx={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }}
+        sx={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 1, flexShrink: 0, cursor: 'grab' }}
         onError={(e) => { e.target.style.display = 'none'; }}
       />
 

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { Calendar, ArrowLeft } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import { getNoticia, fileUrl } from '../../services/cmsApi'
+import ImageGallery from '../../components/ui/ImageGallery'
 
 const formatDate = (iso) => {
   if (!iso) return ''
@@ -96,6 +97,9 @@ export default function NoticiaPage() {
                   dangerouslySetInnerHTML={{ __html: noticia.conteudo_html }}
                 />
               )}
+
+              {/* Galeria */}
+              <ImageGallery images={noticia.imagens ?? []} />
             </article>
           )}
         </div>
