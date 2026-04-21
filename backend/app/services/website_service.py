@@ -428,6 +428,15 @@ def cms_delete_noticia(pk: int, current_user: str):
         ).fetchone()
         if not row:
             raise ResourceNotFoundError('Notícia', pk)
+
+        # Delete all gallery image files before removing DB rows
+        gallery = session.execute(
+            text("SELECT imagem_url FROM tb_site_noticia_imagem WHERE noticia_fk = :pk"),
+            {'pk': pk}
+        ).fetchall()
+        for img in gallery:
+            _delete_website_file('noticias', img[0])
+
         _delete_website_file('noticias', row[0])
         session.execute(text("DELETE FROM tb_site_noticia WHERE pk = :pk"), {'pk': pk})
         logger.info(f"Notícia {pk} eliminada por {current_user}")
@@ -476,7 +485,7 @@ def _sync_noticia_imagem_url(session, noticia_pk: int):
     """), {'pk': noticia_pk}).fetchone()
     new_url = row[0] if row else None
     session.execute(
-        text("UPDATE tb_site_noticia SET imagem_url = :url WHERE pk = :pk"),
+        text("UPDATE vbf_site_noticia SET imagem_url = :url WHERE pk = :pk"),
         {'url': new_url, 'pk': noticia_pk}
     )
 
@@ -512,15 +521,22 @@ def cms_upload_noticia_imagens(pk: int, files: list, current_user: str):
         """), {'pk': pk}).scalar()
 
         uploaded = []
-        for i, file in enumerate(files):
-            img_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
-            filename = _save_website_file(file, 'noticias', img_pk)
-            ordem = max_ordem + 1 + i
-            session.execute(text("""
-                INSERT INTO tb_site_noticia_imagem (pk, noticia_fk, imagem_url, ordem)
-                VALUES (:pk, :noticia_fk, :imagem_url, :ordem)
-            """), {'pk': img_pk, 'noticia_fk': pk, 'imagem_url': filename, 'ordem': ordem})
-            uploaded.append({'pk': img_pk, 'url': _file_url('noticias', filename), 'ordem': ordem, 'legenda': None})
+        saved_files = []
+        try:
+            for i, file in enumerate(files):
+                img_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+                filename = _save_website_file(file, 'noticias', img_pk)
+                saved_files.append(filename)
+                ordem = max_ordem + 1 + i
+                session.execute(text("""
+                    INSERT INTO tb_site_noticia_imagem (pk, noticia_fk, imagem_url, ordem)
+                    VALUES (:pk, :noticia_fk, :imagem_url, :ordem)
+                """), {'pk': img_pk, 'noticia_fk': pk, 'imagem_url': filename, 'ordem': ordem})
+                uploaded.append({'pk': img_pk, 'url': _file_url('noticias', filename), 'ordem': ordem, 'legenda': None})
+        except Exception:
+            for fname in saved_files:
+                _delete_website_file('noticias', fname)
+            raise
 
         _sync_noticia_imagem_url(session, pk)
         logger.info(f"{len(files)} imagem(ns) adicionada(s) à notícia {pk} por {current_user}")
@@ -543,6 +559,12 @@ def cms_reorder_noticia_imagens(pk: int, ordem_list: list, current_user: str):
 @api_error_handler
 def cms_update_noticia_imagem_legenda(noticia_pk: int, img_pk: int, legenda: str, current_user: str):
     with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            SELECT pk FROM tb_site_noticia_imagem
+            WHERE pk = :img_pk AND noticia_fk = :noticia_pk
+        """), {'img_pk': img_pk, 'noticia_pk': noticia_pk}).fetchone()
+        if not row:
+            raise ResourceNotFoundError('Imagem', img_pk)
         session.execute(text("""
             UPDATE tb_site_noticia_imagem
             SET legenda = :legenda
