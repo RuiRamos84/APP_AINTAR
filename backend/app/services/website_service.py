@@ -340,6 +340,9 @@ def get_metadados(current_user: str):
             'procedimento_tipos':           _lookup('ts_site_procedimento_tipo'),
             'procedimento_estados':         _lookup('ts_site_procedimento_estado'),
             'procedimento_fase_tipos':      _lookup('ts_site_procedimento_fase_tipo'),
+            'procedimento_tipos_contrato':  [dict(r) for r in session.execute(
+                text("SELECT pk, descricao AS name FROM ts_concursal_tipo_contrato ORDER BY pk")
+            ).mappings().all()],
             'processo_financeiro_tipos':    _lookup('ts_site_processo_financeiro_tipo'),
             'processo_financeiro_estados':  _lookup('ts_site_processo_financeiro_estado'),
             'processo_financeiro_doc_tipos':_lookup('ts_site_processo_financeiro_doc_tipo'),
@@ -884,7 +887,8 @@ def cms_get_procedimento(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
         proc = session.execute(text("""
             SELECT pk, referencia, ts_tipo, tipo, titulo, carreira,
-                   categoria_prof, num_vagas, municipio, ts_estado, estado,
+                   categoria_prof, area_atividade, tt_tipo_contrato,
+                   num_vagas, municipio, ts_estado, estado,
                    descricao, data_abertura, data_encerramento, visivel
             FROM vbl_site_procedimento WHERE pk = :pk
         """), {'pk': pk}).mappings().fetchone()
@@ -922,23 +926,26 @@ def cms_save_procedimento(data: dict, current_user: str):
             SELECT fbf_site_procedimento(
                 CAST(:pop AS SMALLINT), :pk, :referencia, CAST(:ts_tipo AS SMALLINT), :titulo, :carreira,
                 :categoria_prof, CAST(:num_vagas AS SMALLINT), :municipio, CAST(:ts_estado AS SMALLINT),
-                :descricao, :data_abertura, :data_enc, :visivel, :criado_por
+                :descricao, :data_abertura, :data_enc, :visivel, :criado_por,
+                :area_atividade, CAST(:tt_tipo_contrato AS SMALLINT)
             )
         """), {
             'pop': pop, 'pk': pk,
-            'referencia':     data.get('referencia'),
-            'ts_tipo':        data.get('ts_tipo'),
-            'titulo':         data.get('titulo'),
-            'carreira':       data.get('carreira'),
-            'categoria_prof': data.get('categoria_prof'),
-            'num_vagas':      data.get('num_vagas'),
-            'municipio':      data.get('municipio'),
-            'ts_estado':      data.get('ts_estado', 1),
-            'descricao':      data.get('descricao'),
-            'data_abertura':  data.get('data_abertura'),
-            'data_enc':       data.get('data_encerramento'),
-            'visivel':        data.get('visivel', True),
-            'criado_por':     user_pk,
+            'referencia':        data.get('referencia'),
+            'ts_tipo':           data.get('ts_tipo'),
+            'titulo':            data.get('titulo'),
+            'carreira':          data.get('carreira'),
+            'categoria_prof':    data.get('categoria_prof'),
+            'num_vagas':         data.get('num_vagas'),
+            'municipio':         data.get('municipio'),
+            'ts_estado':         data.get('ts_estado', 1),
+            'descricao':         data.get('descricao'),
+            'data_abertura':     data.get('data_abertura'),
+            'data_enc':          data.get('data_encerramento'),
+            'visivel':           data.get('visivel', True),
+            'criado_por':        user_pk,
+            'area_atividade':    data.get('area_atividade') or None,
+            'tt_tipo_contrato':  data.get('tt_tipo_contrato') or None,
         })
         action = 'criado' if pop == 0 else 'atualizado'
         return {'pk': pk, 'message': f'Procedimento {action} com sucesso'}, 200
@@ -1187,6 +1194,49 @@ def cms_upload_processo_doc_file(pk: int, file, current_user: str):
 
 
 # ─── PÚBLICA — Procedimentos Concursais (RH) ─────────────────────────────────
+
+@api_error_handler
+def get_concursal_proc_for_site(site_proc_pk: int):
+    from app import db
+
+    # Valida que o procedimento de site existe e está visível
+    site_proc = db.session.execute(text("""
+        SELECT pk, titulo, carreira, data_abertura, data_encerramento
+        FROM tb_site_procedimento
+        WHERE pk = :pk AND visivel = TRUE
+    """), {'pk': site_proc_pk}).mappings().fetchone()
+
+    if not site_proc:
+        raise ResourceNotFoundError('Procedimento', site_proc_pk)
+
+    # Procura um concursal_procedimento já ligado a este site_proc
+    existing = db.session.execute(text("""
+        SELECT pk FROM tb_concursal_procedimento
+        WHERE site_proc_fk = :pk AND ativo = TRUE
+        LIMIT 1
+    """), {'pk': site_proc_pk}).fetchone()
+
+    if existing:
+        return {'concursal_pk': existing[0]}, 200
+
+    # Cria automaticamente um concursal_procedimento a partir dos dados do site
+    new_pk = db.session.execute(text("SELECT nextval('sq_codes')")).scalar()
+    db.session.execute(text("""
+        INSERT INTO tb_concursal_procedimento
+            (pk, carreira, categoria, data_abertura, data_encerramento, site_proc_fk, ativo)
+        VALUES
+            (:pk, :carreira, :categoria, :data_abertura, :data_encerramento, :site_proc_fk, TRUE)
+    """), {
+        'pk':               new_pk,
+        'carreira':         site_proc['carreira'],
+        'categoria':        site_proc['titulo'],
+        'data_abertura':    site_proc['data_abertura'],
+        'data_encerramento': site_proc['data_encerramento'],
+        'site_proc_fk':     site_proc_pk,
+    })
+    db.session.commit()
+
+    return {'concursal_pk': new_pk}, 200
 
 @api_error_handler
 def list_concursal_procedimentos_public():
