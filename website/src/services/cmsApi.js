@@ -26,6 +26,19 @@ export const sendContacto = (data) =>
     body: JSON.stringify(data),
   }).then(r => { if (!r.ok) throw new Error(); return r.json() })
 
+export const getConcursalProcedimentos  = ()     => get('/concursal/procedimentos')
+export const getConcursalReferencias    = ()     => get('/concursal/referencias')
+export const submitConcursalCandidatura = (data) =>
+  fetch(`${API}/website/concursal/candidatura`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(async r => {
+    const json = await r.json()
+    if (!r.ok) throw new Error(json.erro || json.message || 'Erro ao submeter candidatura')
+    return json
+  })
+
 export function fileUrl(path) {
   if (!path) return null
   if (path.startsWith('http') || path.startsWith('/api')) return path
