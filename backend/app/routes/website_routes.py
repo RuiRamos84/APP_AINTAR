@@ -14,6 +14,9 @@ from ..services.website_service import (
     get_procedimento_public,
     list_processos_financeiros_public,
     send_contacto,
+    list_concursal_procedimentos_public,
+    get_concursal_referencias,
+    submit_concursal_candidatura,
     # CMS
     get_metadados,
     cms_list_noticias, cms_get_noticia, cms_save_noticia, cms_delete_noticia, cms_upload_noticia_imagem,
@@ -118,6 +121,27 @@ def post_contacto():
         subject = data.get('subject', ''),
         message = data.get('message', ''),
     )
+
+
+# ─── Procedimentos Concursais (RH) ────────────────────────────────────────────
+
+@website_public_bp.route('/concursal/procedimentos', methods=['GET'])
+@api_error_handler
+def get_concursal_procedimentos():
+    return list_concursal_procedimentos_public()
+
+
+@website_public_bp.route('/concursal/referencias', methods=['GET'])
+@api_error_handler
+def get_concursal_refs():
+    return get_concursal_referencias()
+
+
+@website_public_bp.route('/concursal/candidatura', methods=['POST'])
+@api_error_handler
+def post_concursal_candidatura():
+    data = request.get_json() or {}
+    return submit_concursal_candidatura(data)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -1026,3 +1026,121 @@ def cms_upload_processo_doc_file(pk: int, file, current_user: str):
             {'f': rel_path, 'pk': pk}
         )
         return {'ficheiro_url': _file_url('financeiros', rel_path), 'filename': rel_path}, 200
+
+
+# ─── PÚBLICA — Procedimentos Concursais (RH) ─────────────────────────────────
+
+@api_error_handler
+def list_concursal_procedimentos_public():
+    from app import db
+    rows = db.session.execute(text("""
+        SELECT pk, codigo_bep, carreira, categoria, area_atividade,
+               tipo_contrato_descricao, empregador,
+               data_abertura, data_encerramento, total_candidaturas
+        FROM vbl_concursal_procedimento
+        WHERE ativo = TRUE
+        ORDER BY data_abertura DESC NULLS LAST
+    """)).mappings().all()
+    return {'procedimentos': [_serialize(r) for r in rows]}, 200
+
+
+@api_error_handler
+def get_concursal_referencias():
+    from app import db
+    niveis = db.session.execute(text("""
+        SELECT pk, codigo, descricao FROM ts_concursal_nivel_hab ORDER BY pk
+    """)).mappings().all()
+    vinculos = db.session.execute(text("""
+        SELECT pk, descricao FROM ts_concursal_tipo_vinculo ORDER BY pk
+    """)).mappings().all()
+    tipos_doc = db.session.execute(text("""
+        SELECT pk, descricao, obrigatorio FROM ts_concursal_tipo_documento ORDER BY pk
+    """)).mappings().all()
+    return {
+        'niveis_hab': [dict(r) for r in niveis],
+        'tipos_vinculo': [dict(r) for r in vinculos],
+        'tipos_documento': [dict(r) for r in tipos_doc],
+    }, 200
+
+
+@api_error_handler
+def submit_concursal_candidatura(data: dict):
+    from app import db
+
+    # Validações mínimas
+    required = ['tb_procedimento', 'nome_completo', 'nif', 'email',
+                'declara_requisitos', 'declara_veracidade']
+    for field in required:
+        if not data.get(field):
+            raise APIError(f"Campo obrigatório em falta: {field}", 400)
+
+    if not data.get('declara_requisitos'):
+        raise APIError("É necessário declarar que reúne os requisitos do artigo 17.º da LTFP", 400)
+    if not data.get('declara_veracidade'):
+        raise APIError("É necessário declarar a veracidade das informações prestadas", 400)
+
+    result = db.session.execute(text("""
+        SELECT fbo_concursal_candidatura_create(
+            :tb_procedimento,
+            :nome_completo, :data_nascimento, :sexo, :tipo_doc_id, :num_doc_id,
+            :nacionalidade, :pais_residencia, :nif, :morada, :codigo_postal, :localidade,
+            :distrito, :concelho, :telemovel, :telefone, :email,
+            :tt_nivel_hab, :area_formacao_academica, :area_formacao_profissional,
+            :outras_formacoes, :formacao_substitutiva,
+            :titular_vinculo_publico, :tt_tipo_vinculo, :modalidade_vinculo,
+            :situacao_profissional_atual, :orgao_servico, :carreira_categoria,
+            :atividade_exercida, :posicao_nivel_remuneratorio, :avaliacao_desempenho,
+            :afasta_metodos_obrigatorios,
+            :grau_incapacidade, :tipo_incapacidade, :condicoes_especiais,
+            :declara_requisitos, :declara_veracidade, :localidade_assinatura, :data_assinatura
+        )
+    """), {
+        'tb_procedimento':             data.get('tb_procedimento'),
+        'nome_completo':               data.get('nome_completo'),
+        'data_nascimento':             data.get('data_nascimento') or None,
+        'sexo':                        data.get('sexo') or None,
+        'tipo_doc_id':                 data.get('tipo_doc_id') or None,
+        'num_doc_id':                  data.get('num_doc_id') or None,
+        'nacionalidade':               data.get('nacionalidade') or None,
+        'pais_residencia':             data.get('pais_residencia') or None,
+        'nif':                         data.get('nif'),
+        'morada':                      data.get('morada') or None,
+        'codigo_postal':               data.get('codigo_postal') or None,
+        'localidade':                  data.get('localidade') or None,
+        'distrito':                    data.get('distrito') or None,
+        'concelho':                    data.get('concelho') or None,
+        'telemovel':                   data.get('telemovel') or None,
+        'telefone':                    data.get('telefone') or None,
+        'email':                       data.get('email'),
+        'tt_nivel_hab':                data.get('tt_nivel_hab') or None,
+        'area_formacao_academica':     data.get('area_formacao_academica') or None,
+        'area_formacao_profissional':  data.get('area_formacao_profissional') or None,
+        'outras_formacoes':            data.get('outras_formacoes') or None,
+        'formacao_substitutiva':       data.get('formacao_substitutiva') or None,
+        'titular_vinculo_publico':     bool(data.get('titular_vinculo_publico', False)),
+        'tt_tipo_vinculo':             data.get('tt_tipo_vinculo') or None,
+        'modalidade_vinculo':          data.get('modalidade_vinculo') or None,
+        'situacao_profissional_atual': data.get('situacao_profissional_atual') or None,
+        'orgao_servico':               data.get('orgao_servico') or None,
+        'carreira_categoria':          data.get('carreira_categoria') or None,
+        'atividade_exercida':          data.get('atividade_exercida') or None,
+        'posicao_nivel_remuneratorio': data.get('posicao_nivel_remuneratorio') or None,
+        'avaliacao_desempenho':        data.get('avaliacao_desempenho') or None,
+        'afasta_metodos_obrigatorios': bool(data.get('afasta_metodos_obrigatorios', False)),
+        'grau_incapacidade':           data.get('grau_incapacidade') or None,
+        'tipo_incapacidade':           data.get('tipo_incapacidade') or None,
+        'condicoes_especiais':         data.get('condicoes_especiais') or None,
+        'declara_requisitos':          bool(data.get('declara_requisitos')),
+        'declara_veracidade':          bool(data.get('declara_veracidade')),
+        'localidade_assinatura':       data.get('localidade_assinatura') or None,
+        'data_assinatura':             data.get('data_assinatura') or None,
+    }).scalar()
+
+    db.session.commit()
+
+    if result and result.startswith('<error>'):
+        msg = result.replace('<error>', '').replace('</error>', '')
+        raise APIError(msg, 400)
+
+    pk = result.replace('<sucess>pk=', '').replace('</sucess>', '') if result else None
+    return {'message': 'Candidatura submetida com sucesso', 'pk': pk}, 201

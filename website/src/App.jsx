@@ -15,6 +15,7 @@ import ClientesPage from './pages/clientes/ClientesPage'
 import RegulamentoPage from './pages/clientes/RegulamentoPage'
 import TarifarioPage from './pages/clientes/TarifarioPage'
 import FormulariosPage from './pages/clientes/FormulariosPage'
+import CandidaturaPage from './pages/clientes/CandidaturaPage'
 import FAQPage from './pages/clientes/FAQPage'
 
 // Saneamento
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/clientes/regulamento" element={<RegulamentoPage />} />
         <Route path="/clientes/tarifario" element={<TarifarioPage />} />
         <Route path="/clientes/formularios" element={<FormulariosPage />} />
+        <Route path="/clientes/formularios/candidatura/:pk" element={<CandidaturaPage />} />
         <Route path="/clientes/faq" element={<FAQPage />} />
 
         {/* Saneamento */}
