@@ -17,6 +17,8 @@ from ..services.website_service import (
     # CMS
     get_metadados,
     cms_list_noticias, cms_get_noticia, cms_save_noticia, cms_delete_noticia, cms_upload_noticia_imagem,
+    cms_get_noticia_imagens, cms_upload_noticia_imagens, cms_reorder_noticia_imagens,
+    cms_update_noticia_imagem_legenda, cms_delete_noticia_imagem,
     cms_list_alertas, cms_save_alerta, cms_delete_alerta,
     cms_list_documentos, cms_save_documento, cms_delete_documento, cms_upload_documento_file,
     cms_list_publicacoes, cms_save_publicacao, cms_delete_publicacao, cms_upload_publicacao_file,
@@ -197,6 +199,70 @@ def cms_noticia_upload(pk):
     if not file:
         return jsonify({'erro': 'Ficheiro não fornecido'}), 400
     return cms_upload_noticia_imagem(pk, file, current_user)
+
+
+@website_cms_bp.route('/noticias/<int:pk>/imagens', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('website.view')
+@set_session
+@api_error_handler
+def cms_noticia_imagens_list(pk):
+    current_user = get_jwt_identity()
+    return cms_get_noticia_imagens(pk, current_user)
+
+
+@website_cms_bp.route('/noticias/<int:pk>/imagens', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_noticia_imagens_upload(pk):
+    current_user = get_jwt_identity()
+    files = request.files.getlist('files[]')
+    if not files or all(f.filename == '' for f in files):
+        return jsonify({'erro': 'Nenhum ficheiro fornecido'}), 400
+    allowed = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+    for f in files:
+        if f.mimetype not in allowed:
+            return jsonify({'erro': f'Tipo de ficheiro não permitido: {f.mimetype}'}), 400
+    return cms_upload_noticia_imagens(pk, files, current_user)
+
+
+@website_cms_bp.route('/noticias/<int:pk>/imagens/ordem', methods=['PATCH'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_noticia_imagens_reorder(pk):
+    current_user = get_jwt_identity()
+    data = request.get_json() or []
+    return cms_reorder_noticia_imagens(pk, data, current_user)
+
+
+@website_cms_bp.route('/noticias/<int:pk>/imagens/<int:img_pk>', methods=['PATCH'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_noticia_imagem_legenda(pk, img_pk):
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    return cms_update_noticia_imagem_legenda(pk, img_pk, data.get('legenda'), current_user)
+
+
+@website_cms_bp.route('/noticias/<int:pk>/imagens/<int:img_pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_noticia_imagem_delete(pk, img_pk):
+    current_user = get_jwt_identity()
+    return cms_delete_noticia_imagem(pk, img_pk, current_user)
 
 
 # ─── Alertas ──────────────────────────────────────────────────────────────────
