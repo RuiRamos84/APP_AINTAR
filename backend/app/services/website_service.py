@@ -493,6 +493,12 @@ def _sync_noticia_imagem_url(session, noticia_pk: int):
 @api_error_handler
 def cms_get_noticia_imagens(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
+        noticia = session.execute(
+            text("SELECT pk FROM tb_site_noticia WHERE pk = :pk"), {'pk': pk}
+        ).fetchone()
+        if not noticia:
+            raise ResourceNotFoundError('Notícia', pk)
+
         rows = session.execute(text("""
             SELECT pk, imagem_url, ordem, legenda
             FROM tb_site_noticia_imagem
@@ -546,7 +552,15 @@ def cms_upload_noticia_imagens(pk: int, files: list, current_user: str):
 @api_error_handler
 def cms_reorder_noticia_imagens(pk: int, ordem_list: list, current_user: str):
     with db_session_manager(current_user) as session:
+        noticia = session.execute(
+            text("SELECT pk FROM tb_site_noticia WHERE pk = :pk"), {'pk': pk}
+        ).fetchone()
+        if not noticia:
+            raise ResourceNotFoundError('Notícia', pk)
+
         for item in ordem_list:
+            if not isinstance(item, dict) or 'pk' not in item or 'ordem' not in item:
+                raise APIError('Formato inválido em ordem_list', 400)
             session.execute(text("""
                 UPDATE tb_site_noticia_imagem
                 SET ordem = :ordem
