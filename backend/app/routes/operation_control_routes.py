@@ -16,7 +16,7 @@ bp = Blueprint('operation_control', __name__, url_prefix='/api/v1/operation_cont
 @bp.route('/query', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # Mesma permissão de operações
+@require_permission('operation.access')  # Mesma permissão de operações
 @set_session
 def query_control():
     """
@@ -54,7 +54,7 @@ def query_control():
 @bp.route('/update', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def update_control():
     """
@@ -104,7 +104,7 @@ def update_control():
 @bp.route('/municipalities', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def get_municipalities():
     """
@@ -128,7 +128,7 @@ def get_municipalities():
 @bp.route('/installation_types', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def get_installation_types():
     """
@@ -152,7 +152,7 @@ def get_installation_types():
 @bp.route('/installations', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def get_installations():
     """
@@ -193,7 +193,7 @@ def get_installations():
 @bp.route('/annexes/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def get_annexes(pk):
     """
@@ -221,7 +221,7 @@ def get_annexes(pk):
 @bp.route('/annex/<int:annex_pk>/download', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def download_annex(annex_pk):
     """
@@ -268,7 +268,7 @@ def download_annex(annex_pk):
 @bp.route('/download/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 def download_attachment(pk):
     """
     Ponto de Partilha/Acesso Seguro ao Storage

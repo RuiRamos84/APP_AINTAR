@@ -14,8 +14,6 @@ logger = get_logger(__name__)
 
 signature_bp = Blueprint('signature', __name__, url_prefix='/api/v1/signature')
 
-# Permissão reutilizada das emissões
-PERMISSION_SIGN = 220
 
 
 def _get_pdf_path(document_type: str, document_id: int, current_user: str):
@@ -126,7 +124,7 @@ def _mark_as_signed(document_type: str, document_id: int, current_user: str, met
 
 @signature_bp.route('/internal', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def sign_internal():
     """
     Assina documento com o certificado interno da AINTAR.
@@ -227,7 +225,7 @@ def validate_signature():
 
 @signature_bp.route('/hash', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def get_document_hash():
     """
     Obtém hash SHA256 do PDF para assinatura com Cartão de Cidadão
@@ -273,7 +271,7 @@ def get_document_hash():
 
 @signature_bp.route('/cmd/init', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def init_cmd_signature():
     """
     Inicia processo de assinatura com Chave Móvel Digital
@@ -316,7 +314,7 @@ def init_cmd_signature():
 
 @signature_bp.route('/cmd/status/<string:request_id>', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def check_cmd_status(request_id):
     """
     Verifica estado da assinatura CMD
@@ -337,7 +335,7 @@ def check_cmd_status(request_id):
 
 @signature_bp.route('/cmd/complete', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def complete_cmd_signature():
     """
     Completa assinatura CMD e atualiza estado do documento
@@ -406,7 +404,7 @@ def complete_cmd_signature():
 
 @signature_bp.route('/cc', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def sign_with_cc():
     """
     Assina documento com Cartão de Cidadão
@@ -477,7 +475,7 @@ def sign_with_cc():
 
 @signature_bp.route('/cmd/init-batch', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def init_cmd_batch_signature():
     """
     Inicia assinatura CMD em lote — 1 SMS/OTP confirma todos os documentos.
@@ -542,7 +540,7 @@ def init_cmd_batch_signature():
 
 @signature_bp.route('/cmd/complete-batch', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_SIGN)
+@require_permission('letters.manage')
 def complete_cmd_batch_signature():
     """
     Completa assinatura CMD em lote após confirmação do utilizador.

@@ -17,7 +17,7 @@ bp = Blueprint('dashboard_routes', __name__)
 
 @bp.route('/dashboard/test', methods=['GET'])
 @jwt_required()
-@require_permission(400)  # dashboard.view
+@require_permission('dashboard.view')  # dashboard.view
 @api_error_handler
 def test_dashboard():
     """
@@ -84,7 +84,7 @@ def test_dashboard():
 
 @bp.route('/dashboard/structure', methods=['GET'])
 @jwt_required()
-@require_permission(400)  # dashboard.view
+@require_permission('dashboard.view')  # dashboard.view
 @api_error_handler
 def get_structure():
     """
@@ -105,7 +105,7 @@ def get_structure():
 
 @bp.route('/dashboard/all', methods=['GET'])
 @jwt_required()
-@require_permission(400)  # dashboard.view
+@require_permission('dashboard.view')  # dashboard.view
 @api_error_handler
 @cache.cached(timeout=300, key_prefix=lambda: f"dashboard_all_{request.args.get('year', '')}_{request.args.get('month', '')}")
 def get_all_data():
@@ -147,7 +147,7 @@ def get_all_data():
 
 @bp.route('/dashboard/category/<category>', methods=['GET'])
 @jwt_required()
-@require_permission(400)  # dashboard.view
+@require_permission('dashboard.view')  # dashboard.view
 @api_error_handler
 def get_category_data(category):
     """
@@ -197,7 +197,7 @@ def get_category_data(category):
 
 @bp.route('/dashboard/cache/clear', methods=['POST'])
 @jwt_required()
-@require_permission(400)
+@require_permission('dashboard.view')
 @api_error_handler
 def clear_dashboard_cache():
     """Limpa o cache do dashboard, forçando nova leitura da base de dados."""
@@ -207,7 +207,7 @@ def clear_dashboard_cache():
 
 @bp.route('/dashboard/landing', methods=['GET'])
 @jwt_required()
-@require_permission(400)  # dashboard.view
+@require_permission('dashboard.view')  # dashboard.view
 @api_error_handler
 @cache.cached(timeout=300, key_prefix="dashboard_landing")
 def get_landing():
@@ -232,7 +232,7 @@ def get_landing():
 
 @bp.route('/dashboard/view/<view_name>', methods=['GET'])
 @jwt_required()
-@require_permission(400)  # dashboard.view
+@require_permission('dashboard.view')  # dashboard.view
 @api_error_handler
 def get_view_data(view_name):
     """

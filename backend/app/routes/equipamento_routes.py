@@ -21,7 +21,7 @@ bp = Blueprint('equipamento_routes', __name__)
 @bp.route('/equipamento_list', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('equipamentos.view')
 @set_session
 @api_error_handler
 def list_equipamentos_route():
@@ -44,7 +44,7 @@ def list_equipamentos_route():
 @bp.route('/equipamento_list/<int:tb_instalacao>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('equipamentos.view')
 @set_session
 @api_error_handler
 def list_equipamentos_instalacao_route(tb_instalacao):
@@ -72,7 +72,7 @@ def list_equipamentos_instalacao_route(tb_instalacao):
 @bp.route('/equipamento_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('equipamentos.edit')
 @set_session
 @api_error_handler
 def create_equipamento_route():
@@ -99,7 +99,7 @@ def create_equipamento_route():
 @bp.route('/equipamento_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('equipamentos.edit')
 @set_session
 @api_error_handler
 def update_equipamento_route(pk):
@@ -131,7 +131,7 @@ def update_equipamento_route(pk):
 @bp.route('/equipamento_delete/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('equipamentos.edit')
 @set_session
 @api_error_handler
 def delete_equipamento_route(pk):

@@ -160,6 +160,13 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
             case 'MULTIBANCO':
             case 'REFERENCE':
                 return 'Referência Multibanco';
+            case 'CASH':
+            case 'DINHEIRO':
+                return 'Dinheiro (Pagamento Manual)';
+            case 'BANK_TRANSFER':
+                return 'Transferência Bancária';
+            case 'MUNICIPALITY':
+                return 'Pagamento Município';
             default:
                 return method;
         }
@@ -472,6 +479,27 @@ const PaymentsTab = ({ document, invoiceAmount, loading = false, onPayment }) =>
                     {(invoiceAmount.invoice_data.payment_method === 'MULTIBANCO' ||
                         invoiceAmount.invoice_data.payment_method === 'REFERENCE') &&
                         renderMultibancoContent()}
+
+                    {['CASH', 'DINHEIRO', 'BANK_TRANSFER', 'MUNICIPALITY'].includes(invoiceAmount?.invoice_data?.payment_method?.toUpperCase()) && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Detalhes do Registo Manual
+                            </Typography>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+                                <Alert severity={paymentStatus.status === 'success' ? 'success' : 'info'} sx={{ mb: 0 }}>
+                                    <AlertTitle>
+                                        {paymentStatus.status === 'success' ? 'Pagamento Aprovado' : 'Aguardando Aprovação de Backoffice'}
+                                    </AlertTitle>
+                                    Este pagamento manual foi registado e {paymentStatus.status === 'success' ? 'aprovado' : 'encontra-se pendente de validação pela tesouraria'}.
+                                    {paymentDetails?.payment_details && (
+                                        <Typography variant="body2" sx={{ mt: 1 }}>
+                                            <strong>Detalhes Adicionais:</strong> {paymentDetails.payment_details}
+                                        </Typography>
+                                    )}
+                                </Alert>
+                            </Paper>
+                        </Box>
+                    )}
                 </>
             )}
 

@@ -250,7 +250,7 @@ def vacation_status():
 
 @bp.route('/users', methods=['GET'])
 @jwt_required()
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def get_users():
@@ -260,7 +260,7 @@ def get_users():
 
 @bp.route('/interfaces', methods=['GET'])
 @jwt_required()
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def get_interfaces():
@@ -270,7 +270,7 @@ def get_interfaces():
 
 @bp.route('/users/<int:user_id>/interfaces', methods=['PUT'])
 @jwt_required()
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def update_user_interfaces(user_id):
@@ -283,7 +283,7 @@ def update_user_interfaces(user_id):
 
 @bp.route('/interfaces/groups', methods=['GET'])
 @jwt_required()
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def list_permission_groups():
@@ -294,7 +294,7 @@ def list_permission_groups():
 
 @bp.route('/interfaces/groups/<string:name>', methods=['POST'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def create_or_sync_permission_group(name):
@@ -306,7 +306,7 @@ def create_or_sync_permission_group(name):
 
 @bp.route('/interfaces/groups/<string:name>', methods=['PUT'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def update_permission_group_name(name):
@@ -318,7 +318,7 @@ def update_permission_group_name(name):
 
 @bp.route('/interfaces/groups/<string:name>', methods=['DELETE'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def remove_permission_group(name):
@@ -334,7 +334,7 @@ def remove_permission_group(name):
 @bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_get_users():
@@ -357,7 +357,7 @@ def admin_get_users():
 @bp.route('/admin/users/<int:user_id>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_get_user(user_id):
@@ -385,7 +385,7 @@ def admin_get_user(user_id):
 @bp.route('/admin/users', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_create_user():
@@ -417,7 +417,7 @@ def admin_create_user():
 @bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_update_user(user_id):
@@ -430,7 +430,7 @@ def admin_update_user(user_id):
 @bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_delete_user(user_id):
@@ -442,7 +442,7 @@ def admin_delete_user(user_id):
 @bp.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_reset_user_password(user_id):
@@ -454,7 +454,7 @@ def admin_reset_user_password(user_id):
 @bp.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_toggle_user_status(user_id):
@@ -468,7 +468,7 @@ def admin_toggle_user_status(user_id):
 @bp.route('/admin/users/<int:user_id>/permissions', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_update_user_permissions(user_id):
@@ -481,7 +481,7 @@ def admin_update_user_permissions(user_id):
 @bp.route('/admin/users/bulk-permissions', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(20)  # admin.users
+@require_permission('admin.users')  # admin.users
 @set_session
 @api_error_handler
 def admin_bulk_update_permissions():

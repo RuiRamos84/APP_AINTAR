@@ -19,7 +19,7 @@ bp = Blueprint('inventory_routes', __name__)
 @bp.route('/inventory_list', methods=['GET'])
 @jwt_required()          # exige token JWT
 @token_required           # verifica token customizado
-@require_permission(500)  # verifica permissão
+@require_permission('operation.access')
 @set_session              # cria/gera sessão
 @api_error_handler        # captura erros e responde 
 def list_inventory_route():
@@ -43,7 +43,7 @@ def list_inventory_route():
 @bp.route('/inventory_create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.manage')
 @set_session
 @api_error_handler
 def insert_inventory_route():
@@ -78,7 +78,7 @@ def insert_inventory_route():
 @bp.route('/inventory_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.manage')
 @set_session
 @api_error_handler
 def update_inventory_route(pk):
@@ -117,7 +117,7 @@ def update_inventory_route(pk):
 @bp.route('/inventory_delete/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.manage')
 @set_session
 @api_error_handler
 def delete_inventory_route(pk):

@@ -16,7 +16,7 @@ bp = Blueprint('offices_routes', __name__)
 @bp.route('/offices', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(1300)  # offices.view
+@require_permission('offices.view')  # offices.view
 @set_session
 @api_error_handler
 def get_offices():
@@ -40,7 +40,7 @@ def get_offices():
 @bp.route('/offices/<int:pk>/open', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(1310)  # offices.create
+@require_permission('offices.create')  # offices.create
 @set_session
 @api_error_handler
 def open_office_route(pk):
@@ -69,7 +69,7 @@ def open_office_route(pk):
 @bp.route('/offices/<int:pk>/close', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(1330)  # offices.close
+@require_permission('offices.close')  # offices.close
 @set_session
 @api_error_handler
 def close_office_route(pk):
@@ -98,7 +98,7 @@ def close_office_route(pk):
 @bp.route('/offices/<int:pk>/replicate', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(1340)  # offices.replicate
+@require_permission('offices.replicate')  # offices.replicate
 @set_session
 @api_error_handler
 def replicate_office_route(pk):
@@ -127,7 +127,7 @@ def replicate_office_route(pk):
 @bp.route('/offices/<int:pk>/view', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(1300)  # offices.view
+@require_permission('offices.view')  # offices.view
 @set_session
 @api_error_handler
 def view_office_route(pk):

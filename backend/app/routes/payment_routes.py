@@ -1,12 +1,9 @@
-# backend/app/routes/payment_routes.py - MIGRAÇÃO PARA NOVO SISTEMA
+# backend/app/routes/payment_routes.py
 #
 # MAPEAMENTO DE PERMISSÕES (ts_interface):
-# - 30:  admin.payments (Gestão de pagamentos)
-# - 700: payments.mbway
-# - 710: payments.multibanco
-# - 720: payments.bank_transfer
-# - 730: payments.cash.action
-# - 740: payments.municipality
+# - payments.manage (890): Validar/aprovar pagamentos, histórico, reembolsos, isenções
+# - payments.mbway (700), payments.multibanco (710), payments.bank_transfer (720)
+# - payments.cash.action (730), payments.municipality (740)
 
 from app.services.payment_service import payment_service
 from app.utils.error_handler import api_error_handler
@@ -98,21 +95,16 @@ def check_payment_method_permission(payment_method):
 
 
 def check_payment_admin_permission():
-    """Verificar permissão de administração de pagamentos"""
+    """Verificar permissão de gestão de pagamentos (payments.manage)"""
     user_id, user_profile, user_interfaces, _ = get_user_permissions_from_jwt()
 
     if not user_id:
         return False, user_id, user_profile
 
-    # Super admin sempre tem acesso
     if user_profile == "0":
         return True, user_id, user_profile
 
-    # Verificar se tem a permissão de admin de pagamentos (ID 30)
-    has_permission = 30 in (user_interfaces or [])  # admin.payments
-
-    logger.debug(
-        f"Permissão admin.payments (ID 30) para user {user_id}: {has_permission}")
+    has_permission = permission_manager.check_permission('payments.manage', str(user_profile), user_interfaces or [])
     return has_permission, user_id, user_profile
 
 # ===== ENDPOINTS ATUALIZADOS =====
@@ -239,7 +231,7 @@ def create_checkout():
 @jwt_required()
 @token_required
 @set_session
-@require_permission(700)  # payments.mbway
+@require_permission('payments.mbway')
 @api_error_handler
 def process_mbway():
     """
@@ -271,7 +263,7 @@ def process_mbway():
 @jwt_required()
 @token_required
 @set_session
-@require_permission(710)  # payments.multibanco
+@require_permission('payments.multibanco')
 @api_error_handler
 def process_multibanco():
     """
@@ -339,7 +331,7 @@ def register_manual_payment():
 
 @bp.route("/payments/pending", methods=["GET"])
 @jwt_required()
-@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -363,7 +355,7 @@ def get_pending_payments():
 
 @bp.route("/payments/details/<int:payment_pk>", methods=["GET"])
 @jwt_required()
-@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -394,7 +386,7 @@ def get_payment_details(payment_pk):
 
 @bp.route("/payments/approve/<int:payment_pk>", methods=["PUT"])
 @jwt_required()
-@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -425,7 +417,7 @@ def approve_payment(payment_pk):
 
 @bp.route("/payments/history", methods=["GET"])
 @jwt_required()
-@require_permission(30)  # admin.payments  # ✅ USAR DECORATOR
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -477,7 +469,7 @@ def get_payment_history():
 
 @bp.route("/payments/refund/<int:payment_pk>", methods=["POST"])
 @jwt_required()
-@require_permission(30)  # admin.payments
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -594,7 +586,7 @@ def submit_exemption():
 
 @bp.route("/payments/exemptions/pending", methods=["GET"])
 @jwt_required()
-@require_permission(30)  # admin.payments
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -618,7 +610,7 @@ def get_pending_exemptions():
 
 @bp.route("/payments/exemptions/<int:payment_pk>/approve", methods=["PUT"])
 @jwt_required()
-@require_permission(30)  # admin.payments
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler
@@ -648,7 +640,7 @@ def approve_exemption(payment_pk):
 
 @bp.route("/payments/exemptions/<int:payment_pk>/reject", methods=["PUT"])
 @jwt_required()
-@require_permission(30)  # admin.payments
+@require_permission('payments.manage')
 @token_required
 @set_session
 @api_error_handler

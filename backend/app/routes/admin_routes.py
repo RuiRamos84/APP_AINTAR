@@ -27,7 +27,7 @@ bp = Blueprint('admin', __name__)
 
 @bp.route('/system/status', methods=['GET'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def system_status():
@@ -37,7 +37,7 @@ def system_status():
 
 @bp.route('/system/config', methods=['POST'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def system_config():
@@ -48,7 +48,7 @@ def system_config():
 
 @bp.route('/system/reload-config', methods=['POST'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def reload_config():
@@ -60,7 +60,7 @@ def reload_config():
 
 @bp.route('/cache/clear', methods=['POST'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def clear_cache():
@@ -72,7 +72,7 @@ def clear_cache():
 
 @bp.route('/actions/<string:key>', methods=['POST'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def admin_action(key):
@@ -84,7 +84,7 @@ def admin_action(key):
 
 @bp.route('/logs/activity', methods=['GET'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def activity_logs():
@@ -98,7 +98,7 @@ def activity_logs():
 
 @bp.route('/logs/sessions', methods=['GET'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def session_logs():
@@ -112,7 +112,7 @@ def session_logs():
 
 @bp.route('/logs/sessions/kill', methods=['POST'])
 @jwt_required()
-@require_permission(20)
+@require_permission('admin.users')
 @set_session
 @api_error_handler
 def kill_user_sessions():

@@ -15,7 +15,7 @@ bp = Blueprint('client_contracts', __name__)
 @bp.route('/clients/contracts', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(880) # payments.view ou entities.view
+@require_permission('payments.view')
 @set_session
 @api_error_handler
 def get_contracts_list():
@@ -26,7 +26,7 @@ def get_contracts_list():
 @bp.route('/clients/contracts/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(880)
+@require_permission('payments.view')
 @set_session
 @api_error_handler
 def get_contract_detail(pk):
@@ -36,7 +36,7 @@ def get_contract_detail(pk):
 @bp.route('/clients/contracts', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(890) # payments.manage
+@require_permission('payments.manage')
 @set_session
 @api_error_handler
 def add_contract():
@@ -47,7 +47,7 @@ def add_contract():
 @bp.route('/clients/contracts/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(890) # payments.manage
+@require_permission('payments.manage')
 @set_session
 @api_error_handler
 def edit_contract(pk):
@@ -58,7 +58,7 @@ def edit_contract(pk):
 @bp.route('/clients/contracts/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(890) # payments.manage
+@require_permission('payments.manage')
 @set_session
 @api_error_handler
 def remove_contract(pk):
@@ -77,7 +77,7 @@ def get_contract_frequencies():
 @bp.route('/clients/contracts/<int:contract_id>/payments', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(880) # payments.view ou entities.view
+@require_permission('payments.view') # payments.view ou entities.view
 @set_session
 @api_error_handler
 def get_contract_payments(contract_id):
@@ -87,7 +87,7 @@ def get_contract_payments(contract_id):
 @bp.route('/clients/contracts/<int:contract_id>/payments', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(890) # payments.manage
+@require_permission('payments.manage')
 @set_session
 @api_error_handler
 def add_contract_payment(contract_id):
@@ -98,7 +98,7 @@ def add_contract_payment(contract_id):
 @bp.route('/clients/contracts/payments/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(890) # payments.manage
+@require_permission('payments.manage')
 @set_session
 @api_error_handler
 def edit_contract_payment(pk):
@@ -109,7 +109,7 @@ def edit_contract_payment(pk):
 @bp.route('/clients/contracts/payments/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(890) # payments.manage
+@require_permission('payments.manage')
 @set_session
 @api_error_handler
 def remove_contract_payment(pk):

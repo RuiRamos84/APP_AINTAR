@@ -15,7 +15,7 @@ bp = Blueprint('analysis', __name__, url_prefix='/api/v1/analysis')
 @bp.route('/query', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # Mesma permissão de operações
+@require_permission('analyses.view')
 @set_session
 def query_analysis():
     """
@@ -60,7 +60,7 @@ def query_analysis():
 @bp.route('/update', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('analyses.edit')
 @set_session
 def update_analysis():
     """
@@ -98,7 +98,7 @@ def update_analysis():
 @bp.route('/search/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('analyses.view')
 @set_session
 def search_analysis(pk):
     """
@@ -127,7 +127,7 @@ def search_analysis(pk):
 @bp.route('/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('analyses.view')
 @set_session
 def get_analysis(pk):
     """

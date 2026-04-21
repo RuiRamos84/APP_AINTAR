@@ -16,8 +16,6 @@ logger = get_logger(__name__)
 # Blueprint
 emission_bp = Blueprint('emissions', __name__, url_prefix='/api/v1/emissions')
 
-# Permissão necessária (reutilizar a mesma dos ofícios)
-PERMISSION_MANAGE_EMISSIONS = 220
 
 
 # =============================================================================
@@ -26,7 +24,7 @@ PERMISSION_MANAGE_EMISSIONS = 220
 
 @emission_bp.route('/types', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def get_document_types():
     """
     Listar Tipos de Documento/Ofício
@@ -71,7 +69,7 @@ def get_document_types():
 
 @emission_bp.route('/templates', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def create_template():
     """
     Criar Novo Template
@@ -152,7 +150,7 @@ def create_template():
 
 @emission_bp.route('/templates', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def list_templates():
     """
     Listar Templates com Filtros
@@ -212,7 +210,7 @@ def list_templates():
 
 @emission_bp.route('/templates/<int:template_id>', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def get_template(template_id):
     """
     Obter Template Específico
@@ -255,7 +253,7 @@ def get_template(template_id):
 
 @emission_bp.route('/templates/<int:template_id>', methods=['PUT'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def update_template(template_id):
     """
     Atualizar um Template Existente
@@ -321,7 +319,7 @@ def update_template(template_id):
 
 @emission_bp.route('/templates/<int:template_id>', methods=['DELETE'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def delete_template(template_id):
     """
     Desativar Template (Soft Delete)
@@ -368,7 +366,7 @@ def delete_template(template_id):
 
 @emission_bp.route('/', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def create_emission():
     """
     Criar Nova Emissão/Ofício
@@ -423,7 +421,7 @@ def create_emission():
 
 @emission_bp.route('/', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def list_emissions():
     """
     Listar Caixa de Emissões Expedidas / Rascunhos
@@ -486,7 +484,7 @@ def list_emissions():
 
 @emission_bp.route('/<int:emission_id>', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def get_emission(emission_id):
     """
     Detalhes de Uma Emissão
@@ -530,7 +528,7 @@ def get_emission(emission_id):
 
 @emission_bp.route('/<int:emission_id>', methods=['PUT'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def update_emission(emission_id):
     """
     Atualizar Conteúdo / Destinatário na Emissão
@@ -583,7 +581,7 @@ def update_emission(emission_id):
 
 @emission_bp.route('/<int:emission_id>', methods=['DELETE'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def delete_emission(emission_id):
     """
     Anular / Apagar Emissão
@@ -629,7 +627,7 @@ def delete_emission(emission_id):
 
 @emission_bp.route('/numbering/preview', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def preview_next_number():
     """
     Previsão do Próximo Número
@@ -691,7 +689,7 @@ def preview_next_number():
 
 @emission_bp.route('/numbering/statistics/<int:year>', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def get_year_statistics(year):
     """
     Estatísticas de Emissões por Ano Fiscal
@@ -743,7 +741,7 @@ def get_year_statistics(year):
 
 @emission_bp.route('/variables/<string:type_code>', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def get_variables_for_type(type_code):
     """
     Dicionário de Variáveis Dinâmicas
@@ -791,7 +789,7 @@ def get_variables_for_type(type_code):
 
 @emission_bp.route('/audit', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def get_audit_logs():
     """
     Eventos de Rastreio em Emissões
@@ -878,7 +876,7 @@ def test_minimal_generate(emission_id):
 
 @emission_bp.route('/<int:emission_id>/generate', methods=['POST', 'OPTIONS'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def generate_document(emission_id):
     """
     Compilar PDF para Emissão Restante (Converter Rascunho)
@@ -1025,7 +1023,7 @@ def generate_document(emission_id):
 
 @emission_bp.route('/<int:emission_id>/upload-pdf', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def upload_pdf(emission_id):
     """
     Oficializar Emissão c/ Assinatura de Ficheiro Ad-Hoc
@@ -1138,7 +1136,7 @@ def upload_pdf(emission_id):
 
 @emission_bp.route('/<int:emission_id>/download', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def download_document(emission_id):
     """Download do PDF da emissão"""
     try:
@@ -1176,7 +1174,7 @@ def download_document(emission_id):
 
 @emission_bp.route('/<int:emission_id>/view', methods=['GET'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def view_document(emission_id):
     """Visualizar PDF inline"""
     try:
@@ -1216,7 +1214,7 @@ def view_document(emission_id):
 
 @emission_bp.route('/templates/preview', methods=['POST'])
 @jwt_required()
-@require_permission(PERMISSION_MANAGE_EMISSIONS)
+@require_permission('letters.manage')
 def preview_template():
     """
     Gera pré-visualização de um template com dados de exemplo

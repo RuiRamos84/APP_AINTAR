@@ -47,7 +47,7 @@ ALLOWED_OPERATION_REFS = [
 @bp.route('/operations', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def get_operations():
@@ -90,7 +90,7 @@ def get_operations():
 @bp.route('/internal_document', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def add_internal_document():
@@ -137,7 +137,7 @@ def cleanup_session(response):
 @bp.route('/operacao_meta', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def get_operacao_meta():
@@ -187,7 +187,7 @@ def get_operacao_meta():
 @bp.route('/operacao_meta', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def create_operacao_meta_route():
@@ -221,7 +221,7 @@ def create_operacao_meta_route():
 @bp.route('/operacao_meta/<int:meta_id>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def get_operacao_meta_by_id_route(meta_id):
@@ -251,7 +251,7 @@ def get_operacao_meta_by_id_route(meta_id):
 @bp.route('/operacao_meta/<int:meta_id>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def update_operacao_meta_route(meta_id):
@@ -287,7 +287,7 @@ def update_operacao_meta_route(meta_id):
 @bp.route('/operacao_meta/<int:meta_id>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def delete_operacao_meta_route(meta_id):
@@ -317,7 +317,7 @@ def delete_operacao_meta_route(meta_id):
 @bp.route('/operacao', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def get_operacao():
@@ -360,7 +360,7 @@ def get_operacao():
 @bp.route('/operacao_self', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def get_operacao_self():
@@ -394,7 +394,7 @@ def get_operacao_self():
 @bp.route('/operacao_complete/<int:task_id>', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def complete_task(task_id):
@@ -462,7 +462,7 @@ def complete_task(task_id):
 @bp.route('/operacao_analysis/<int:operation_id>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @api_error_handler
 @set_session
 def get_operation_analysis(operation_id):
@@ -481,7 +481,7 @@ def get_operation_analysis(operation_id):
 @bp.route('/operacao_reference/<string:ref_obj>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @api_error_handler
 @set_session
 def get_operation_reference_options(ref_obj):
@@ -532,7 +532,7 @@ def get_operation_reference_options(ref_obj):
 @bp.route('/operacao', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def create_operacao_route():
@@ -566,7 +566,7 @@ def create_operacao_route():
 @bp.route('/operacao_direct', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def create_operacao_direct_route():
@@ -621,7 +621,7 @@ def create_operacao_direct_route():
 @bp.route('/operacao/<int:operacao_id>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @set_session
 @api_error_handler
 def update_operacao_route(operacao_id):
@@ -657,7 +657,7 @@ def update_operacao_route(operacao_id):
 @bp.route('/operacao_photo/<path:photo_path>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)  # operation.access
+@require_permission('operation.access')  # operation.access
 @api_error_handler
 def download_operation_photo_route(photo_path):
     """
@@ -694,7 +694,7 @@ def download_operation_photo_route(photo_path):
 @bp.route('/operacao_init', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(312)  # operation.supervise
+@require_permission('operation.supervise')  # operation.supervise
 @api_error_handler
 def operacao_init_route():
     """
@@ -718,7 +718,7 @@ def operacao_init_route():
 @bp.route('/operacao_init_remaining', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(312)  # operation.supervise
+@require_permission('operation.supervise')  # operation.supervise
 @api_error_handler
 def operacao_init_remaining_route():
     """

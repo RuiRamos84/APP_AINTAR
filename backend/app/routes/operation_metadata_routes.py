@@ -15,7 +15,7 @@ bp = Blueprint('operation_metadata', __name__, url_prefix='/api/v1/operation_met
 @bp.route('/query', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)  # Mesma permissão de operações
+@require_permission('operation.access')  # Mesma permissão de operações
 @set_session
 def query_metadata():
     """
@@ -53,7 +53,7 @@ def query_metadata():
 @bp.route('/create', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def create_metadata():
     """
@@ -99,7 +99,7 @@ def create_metadata():
 @bp.route('/update', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def update_metadata():
     """
@@ -135,7 +135,7 @@ def update_metadata():
 @bp.route('/delete/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def delete_metadata(pk):
     """
@@ -164,7 +164,7 @@ def delete_metadata(pk):
 @bp.route('/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('operation.access')
 @set_session
 def get_metadata(pk):
     """

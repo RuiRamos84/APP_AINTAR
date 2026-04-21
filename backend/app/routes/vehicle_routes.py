@@ -83,7 +83,7 @@ def add_vehicle_route():
 @bp.route('/vehicle_update/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission(310)
+@require_permission('fleet.edit')
 @set_session
 @api_error_handler
 def update_vehicle_route(pk):
