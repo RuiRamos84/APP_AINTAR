@@ -21,8 +21,9 @@ import {
 
 const EMPTY_PROC = {
   pk: null, referencia: '', ts_tipo: '', titulo: '', carreira: '',
-  categoria_prof: '', num_vagas: '', municipio: '', ts_estado: 1,
-  descricao: '', data_abertura: null, data_encerramento: null, visivel: true,
+  categoria_prof: '', area_atividade: '', tt_tipo_contrato: '', num_vagas: '',
+  municipio: '', ts_estado: 1, descricao: '',
+  data_abertura: null, data_encerramento: null, visivel: true,
 };
 const EMPTY_FASE = { pk: null, procedimento_fk: null, ts_tipo_fase: '', label_custom: '', data: null, notas: '', publicado: false, ordem: 0 };
 
@@ -56,9 +57,10 @@ export default function WebsiteProcedimentosPage() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const tipos       = meta?.procedimento_tipos       ?? [];
-  const estados     = meta?.procedimento_estados     ?? [];
-  const faseTipos   = meta?.procedimento_fase_tipos  ?? [];
+  const tipos           = meta?.procedimento_tipos           ?? [];
+  const estados         = meta?.procedimento_estados         ?? [];
+  const faseTipos       = meta?.procedimento_fase_tipos      ?? [];
+  const tiposContrato   = meta?.procedimento_tipos_contrato  ?? [];
 
   const saveMut = useMutation({
     mutationFn: saveProcedimento,
@@ -246,6 +248,18 @@ export default function WebsiteProcedimentosPage() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField label="Categoria Profissional" fullWidth value={form.categoria_prof || ''} onChange={set('categoria_prof')} />
+            </Grid>
+            <Grid size={12}>
+              <TextField label="Área de Atividade" fullWidth value={form.area_atividade || ''} onChange={set('area_atividade')} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormControl fullWidth>
+                <InputLabel>Tipo de Contrato</InputLabel>
+                <Select label="Tipo de Contrato" value={form.tt_tipo_contrato || ''} onChange={set('tt_tipo_contrato')}>
+                  <MenuItem value=""><em>Nenhum</em></MenuItem>
+                  {tiposContrato.map(t => <MenuItem key={t.pk} value={t.pk}>{t.name}</MenuItem>)}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
               <TextField label="Nº Vagas" type="number" fullWidth value={form.num_vagas || ''} onChange={set('num_vagas')} />

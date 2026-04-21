@@ -27,6 +27,7 @@ export const sendContacto = (data) =>
   }).then(r => { if (!r.ok) throw new Error(); return r.json() })
 
 export const getConcursalProcedimentos  = ()     => get('/concursal/procedimentos')
+export const getConcursalForSiteProc    = (pk)   => get(`/concursal/for-site-proc/${pk}`)
 export const getConcursalReferencias    = ()     => get('/concursal/referencias')
 export const submitConcursalCandidatura = (data) =>
   fetch(`${API}/website/concursal/candidatura`, {

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Briefcase, CheckCircle2, Clock, FileText, ArrowUpRight, Users } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import DocumentCard from '../../components/ui/DocumentCard'
 import { getProcedimentos, getPublicacoes, fileUrl } from '../../services/cmsApi'
 
-const norm = s => s?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ?? ''
+const norm = s => s?.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') ?? ''
 
 function SectionTitle({ icon: Icon, label, color = 'text-aintar-teal', bg = 'bg-aintar-teal/10' }) {
   return (
@@ -40,11 +41,11 @@ function formatPrazo(p) {
 }
 
 export default function RecursosHumanosPage() {
-  const [loading, setLoading]       = useState(true)
-  const [abertos, setAbertos]       = useState([])
-  const [concluidos, setConcluidos] = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [abertos, setAbertos]         = useState([])
+  const [concluidos, setConcluidos]   = useState([])
   const [tolerancias, setTolerancias] = useState([])
-  const [mobilidade, setMobilidade] = useState([])
+  const [mobilidade, setMobilidade]   = useState([])
 
   useEffect(() => {
     Promise.all([getProcedimentos(), getPublicacoes()])
@@ -92,21 +93,27 @@ export default function RecursosHumanosPage() {
             ) : (
               <div className="space-y-3">
                 {abertos.map(c => (
-                  <div key={c.pk}
-                    className="flex items-start justify-between gap-4 p-5 rounded-xl border border-aintar-teal/20 bg-aintar-teal/5 hover:border-aintar-teal/40 transition-colors">
-                    <div className="flex-grow">
+                  <Link
+                    key={c.pk}
+                    to={`/quem-somos/recursos-humanos/${c.pk}`}
+                    className="flex items-start justify-between gap-4 p-5 rounded-xl border border-aintar-teal/20 bg-aintar-teal/5 hover:border-aintar-teal/50 hover:bg-aintar-teal/10 hover:shadow-sm transition-all group"
+                  >
+                    <div className="flex-grow min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         {c.referencia && <span className="text-xs font-bold text-aintar-teal bg-aintar-teal/15 px-2 py-0.5 rounded-full">{c.referencia}</span>}
                         {c.num_vagas && <span className="text-xs text-gray-400">{c.num_vagas} {c.num_vagas === 1 ? 'vaga' : 'vagas'}</span>}
                       </div>
-                      <div className="font-semibold text-aintar-navy text-sm">{c.titulo}</div>
+                      <div className="font-semibold text-aintar-navy text-sm group-hover:text-aintar-teal transition-colors">{c.titulo}</div>
                       {c.tipo && <div className="text-xs text-gray-400 mt-1">{c.tipo}</div>}
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-aintar-teal font-medium whitespace-nowrap flex-shrink-0">
-                      <Clock size={12} />
-                      {formatPrazo(c)}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs text-aintar-teal font-medium whitespace-nowrap">
+                        <Clock size={12} />
+                        {formatPrazo(c)}
+                      </div>
+                      <ArrowUpRight size={14} className="text-aintar-teal/40 group-hover:text-aintar-teal transition-colors" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
