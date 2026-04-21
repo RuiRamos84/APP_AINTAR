@@ -140,6 +140,24 @@ def get_noticia_public(pk: int):
 
     item = _serialize(row)
     item['imagem_url'] = _file_url('noticias', item.get('imagem_url'))
+
+    imgs = db.session.execute(text("""
+        SELECT pk, imagem_url, ordem, legenda
+        FROM tb_site_noticia_imagem
+        WHERE noticia_fk = :pk
+        ORDER BY ordem ASC
+    """), {'pk': pk}).mappings().all()
+
+    item['imagens'] = [
+        {
+            'pk': i['pk'],
+            'url': _file_url('noticias', i['imagem_url']),
+            'ordem': i['ordem'],
+            'legenda': i['legenda'],
+        }
+        for i in imgs
+    ]
+
     return {'noticia': item}, 200
 
 
@@ -446,6 +464,110 @@ def cms_upload_noticia_imagem(pk: int, file, current_user: str):
             {'f': rel_path, 'pk': pk}
         )
         return {'imagem_url': _file_url('noticias', rel_path), 'filename': rel_path}, 200
+
+
+def _sync_noticia_imagem_url(session, noticia_pk: int):
+    """Sincroniza imagem_url da notícia com a 1ª imagem da galeria (menor ordem)."""
+    row = session.execute(text("""
+        SELECT imagem_url FROM tb_site_noticia_imagem
+        WHERE noticia_fk = :pk
+        ORDER BY ordem ASC
+        LIMIT 1
+    """), {'pk': noticia_pk}).fetchone()
+    new_url = row[0] if row else None
+    session.execute(
+        text("UPDATE tb_site_noticia SET imagem_url = :url WHERE pk = :pk"),
+        {'url': new_url, 'pk': noticia_pk}
+    )
+
+
+@api_error_handler
+def cms_get_noticia_imagens(pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("""
+            SELECT pk, imagem_url, ordem, legenda
+            FROM tb_site_noticia_imagem
+            WHERE noticia_fk = :pk
+            ORDER BY ordem ASC
+        """), {'pk': pk}).mappings().all()
+        result = []
+        for r in rows:
+            item = dict(r)
+            item['url'] = _file_url('noticias', item['imagem_url'])
+            result.append(item)
+        return {'imagens': result}, 200
+
+
+@api_error_handler
+def cms_upload_noticia_imagens(pk: int, files: list, current_user: str):
+    with db_session_manager(current_user) as session:
+        noticia = session.execute(
+            text("SELECT pk FROM tb_site_noticia WHERE pk = :pk"), {'pk': pk}
+        ).fetchone()
+        if not noticia:
+            raise ResourceNotFoundError('Notícia', pk)
+
+        max_ordem = session.execute(text("""
+            SELECT COALESCE(MAX(ordem), -1) FROM tb_site_noticia_imagem WHERE noticia_fk = :pk
+        """), {'pk': pk}).scalar()
+
+        uploaded = []
+        for i, file in enumerate(files):
+            img_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+            filename = _save_website_file(file, 'noticias', img_pk)
+            ordem = max_ordem + 1 + i
+            session.execute(text("""
+                INSERT INTO tb_site_noticia_imagem (pk, noticia_fk, imagem_url, ordem)
+                VALUES (:pk, :noticia_fk, :imagem_url, :ordem)
+            """), {'pk': img_pk, 'noticia_fk': pk, 'imagem_url': filename, 'ordem': ordem})
+            uploaded.append({'pk': img_pk, 'url': _file_url('noticias', filename), 'ordem': ordem, 'legenda': None})
+
+        _sync_noticia_imagem_url(session, pk)
+        logger.info(f"{len(files)} imagem(ns) adicionada(s) à notícia {pk} por {current_user}")
+        return {'imagens': uploaded}, 200
+
+
+@api_error_handler
+def cms_reorder_noticia_imagens(pk: int, ordem_list: list, current_user: str):
+    with db_session_manager(current_user) as session:
+        for item in ordem_list:
+            session.execute(text("""
+                UPDATE tb_site_noticia_imagem
+                SET ordem = :ordem
+                WHERE pk = :img_pk AND noticia_fk = :noticia_pk
+            """), {'ordem': item['ordem'], 'img_pk': item['pk'], 'noticia_pk': pk})
+        _sync_noticia_imagem_url(session, pk)
+        return {'message': 'Ordem atualizada'}, 200
+
+
+@api_error_handler
+def cms_update_noticia_imagem_legenda(noticia_pk: int, img_pk: int, legenda: str, current_user: str):
+    with db_session_manager(current_user) as session:
+        session.execute(text("""
+            UPDATE tb_site_noticia_imagem
+            SET legenda = :legenda
+            WHERE pk = :img_pk AND noticia_fk = :noticia_pk
+        """), {'legenda': legenda or None, 'img_pk': img_pk, 'noticia_pk': noticia_pk})
+        return {'message': 'Legenda atualizada'}, 200
+
+
+@api_error_handler
+def cms_delete_noticia_imagem(noticia_pk: int, img_pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            SELECT imagem_url FROM tb_site_noticia_imagem
+            WHERE pk = :img_pk AND noticia_fk = :noticia_pk
+        """), {'img_pk': img_pk, 'noticia_pk': noticia_pk}).fetchone()
+        if not row:
+            raise ResourceNotFoundError('Imagem', img_pk)
+
+        _delete_website_file('noticias', row[0])
+        session.execute(text("""
+            DELETE FROM tb_site_noticia_imagem WHERE pk = :img_pk AND noticia_fk = :noticia_pk
+        """), {'img_pk': img_pk, 'noticia_pk': noticia_pk})
+        _sync_noticia_imagem_url(session, noticia_pk)
+        logger.info(f"Imagem {img_pk} removida da notícia {noticia_pk} por {current_user}")
+        return {'message': 'Imagem eliminada'}, 200
 
 
 # ─── CMS — Alertas ───────────────────────────────────────────────────────────
