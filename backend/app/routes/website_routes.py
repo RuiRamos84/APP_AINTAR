@@ -17,6 +17,7 @@ from ..services.website_service import (
     list_concursal_procedimentos_public,
     get_concursal_referencias,
     submit_concursal_candidatura,
+    get_concursal_proc_for_site,
     # CMS
     get_metadados,
     cms_list_noticias, cms_get_noticia, cms_save_noticia, cms_delete_noticia, cms_upload_noticia_imagem,
@@ -142,6 +143,12 @@ def get_concursal_refs():
 def post_concursal_candidatura():
     data = request.get_json() or {}
     return submit_concursal_candidatura(data)
+
+
+@website_public_bp.route('/concursal/for-site-proc/<int:pk>', methods=['GET'])
+@api_error_handler
+def get_concursal_for_site_proc(pk):
+    return get_concursal_proc_for_site(pk)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

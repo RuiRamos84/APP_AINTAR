@@ -8,6 +8,7 @@ import QuemSomosPage from './pages/quem-somos/QuemSomosPage'
 import OrgaosSociaisPage from './pages/quem-somos/OrgaosSociaisPage'
 import DocumentosFinanceirosPage from './pages/quem-somos/DocumentosFinanceirosPage'
 import RecursosHumanosPage from './pages/quem-somos/RecursosHumanosPage'
+import ProcedimentoPage from './pages/quem-somos/ProcedimentoPage'
 import ContratacaoPublicaPage from './pages/quem-somos/ContratacaoPublicaPage'
 
 // Clientes
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/quem-somos/orgaos-sociais" element={<OrgaosSociaisPage />} />
         <Route path="/quem-somos/documentos-financeiros" element={<DocumentosFinanceirosPage />} />
         <Route path="/quem-somos/recursos-humanos" element={<RecursosHumanosPage />} />
+        <Route path="/quem-somos/recursos-humanos/:pk" element={<ProcedimentoPage />} />
         <Route path="/quem-somos/contratacao-publica" element={<ContratacaoPublicaPage />} />
 
         {/* Clientes */}
