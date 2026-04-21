@@ -20,6 +20,26 @@ export const uploadNoticiaImagem = (pk, file) => {
   return api.post(`${BASE}/noticias/${pk}/imagem`, fd, { headers: { 'Content-Type': undefined } });
 };
 
+// ─── Galeria de imagens ───────────────────────────────────────────────────────
+
+export const getNoticiasImagens = (pk) =>
+  api.get(`${BASE}/noticias/${pk}/imagens`);
+
+export const uploadNoticiasImagens = (pk, files) => {
+  const fd = new FormData();
+  files.forEach(f => fd.append('files[]', f));
+  return api.post(`${BASE}/noticias/${pk}/imagens`, fd, { headers: { 'Content-Type': undefined } });
+};
+
+export const reorderNoticiasImagens = (pk, ordemList) =>
+  api.patch(`${BASE}/noticias/${pk}/imagens/ordem`, ordemList);
+
+export const updateNoticiasImagemLegenda = (pk, imgPk, legenda) =>
+  api.patch(`${BASE}/noticias/${pk}/imagens/${imgPk}`, { legenda });
+
+export const deleteNoticiasImagem = (pk, imgPk) =>
+  api.delete(`${BASE}/noticias/${pk}/imagens/${imgPk}`);
+
 // ─── Alertas ──────────────────────────────────────────────────────────────────
 
 export const getAlertas    = ()     => api.get(`${BASE}/alertas`);
