@@ -12,18 +12,17 @@ import {
     Close, PhotoCamera, GppGood, Download, ZoomIn,
     Business, CalendarToday, Engineering, LocationOn, Map as MapIcon,
 } from '@mui/icons-material';
-import { SearchBar, SortableHeadCell } from '@/shared/components/data';
-import { useSortable } from '@/shared/hooks/useSortable';
+import { SortableHeadCell } from '@/shared/components/data';
+import { useSortable, useSearch } from '@/shared/hooks';
 import { formatDate, formatDateOnly, formatCompletedTaskValue, getUserNameByPk } from '../../utils/formatters';
 import DirectTaskForm from '../DirectTaskForm';
 import LocationPickerMap from '@/features/documents/components/forms/LocationPickerMap';
 
 const OperationTaskManager = ({
-    operations, metaData, onCreateTask, onCreateDirect, onUpdateMeta, onDeleteMeta,
-    onValidate, isLoading
+    operations, metaData, searchTerm = '', onCreateTask, onCreateDirect, onUpdateMeta,
+    onDeleteMeta, onValidate, isLoading
 }) => {
     const theme = useTheme();
-    const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(50);
     const [directOpen, setDirectOpen] = useState(false);
@@ -37,18 +36,9 @@ const OperationTaskManager = ({
 
     const classificationOptions = metaData?.opcontrolo || [];
 
-    // Filtrar operações — reset de página ao mudar pesquisa
-    const filteredOps = useMemo(() => {
-        setPage(0);
-        if (!searchTerm) return operations;
-        const lower = searchTerm.toLowerCase();
-        return operations.filter(op =>
-            (op.instalacao_nome || '').toLowerCase().includes(lower) ||
-            (op.acao_nome || '').toLowerCase().includes(lower) ||
-            (op.modo_nome || '').toLowerCase().includes(lower) ||
-            (op.operador1_nome || '').toLowerCase().includes(lower)
-        );
-    }, [operations, searchTerm]);
+    // Pesquisa — todos os campos; reset de página ao mudar termo
+    const filteredOps = useSearch(operations, searchTerm);
+    useMemo(() => { setPage(0); }, [searchTerm]);
 
     // Ordenação
     const { sorted: sortedOps, sortKey, sortDir, requestSort } = useSortable(filteredOps, 'instalacao_nome');
@@ -108,11 +98,8 @@ const OperationTaskManager = ({
 
     return (
         <Stack spacing={2}>
-            {/* Header: search + create buttons */}
-            <Stack direction="row" spacing={2} alignItems="center">
-                <Box sx={{ flex: 1 }}>
-                    <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
-                </Box>
+            {/* Header: create button */}
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-end">
                 <Tooltip title="Registar execução direta (ETAR / EE / Rede / Caixa)">
                     <Button
                         variant="contained"

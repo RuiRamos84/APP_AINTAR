@@ -283,7 +283,7 @@ def download_file(regnumber, filename, current_user):
                 break
 
         if not file_path:
-            print(f"❌ Não encontrado: {unique_variations}")
+            logger.warning(f"Ficheiro não encontrado: {unique_variations}")
             return jsonify({'error': 'Ficheiro não encontrado'}), 404
 
         # Verificar permissões

@@ -42,6 +42,32 @@ Domain: app.aintar.pt | Production server: Windows Server 2019
 - **Forms:** React Hook Form + Zod validation
 - **Structure:** Feature-based modular architecture (`features/`, `core/`, `shared/`)
 
+### Search Pattern (frontend-v2) — Standard Obrigatório
+- **Hook:** `useSearch` em `@/shared/hooks` — SEMPRE usar para pesquisa client-side
+- **Nunca** fazer `.filter()` manual com campos hardcoded. O hook pesquisa dinamicamente em todos os campos primitivos do objeto, sem necessitar de enumeração.
+- **Uso básico** (pesquisa em todos os campos automaticamente):
+  ```js
+  import { useSearch } from '@/shared/hooks';
+  const results = useSearch(data, searchTerm);
+  ```
+- **Com resolução de label** (quando um campo é ID numérico com label legível):
+  ```js
+  const results = useSearch(data, searchTerm, {
+    extraText: (item) => getLabelForId(item.fieldId, metaData),
+  });
+  ```
+- **Com filtros estruturados** (dropdowns, datas — separados da pesquisa de texto):
+  ```js
+  // 1. Filtros estruturados em useMemo
+  const filtered = useMemo(() => applyStructuralFilters(data, filters), [data, filters]);
+  // 2. Pesquisa de texto via hook (inclui useDeferredValue)
+  const results = useSearch(filtered, searchTerm);
+  ```
+- **Adicionar novo módulo com lista:** wiring mínimo obrigatório:
+  1. `SearchBar` de `@/shared/components/data` para o input
+  2. `useSearch` de `@/shared/hooks` para o filtro — nunca `.filter()` inline
+  3. Registar rota em `routeConfig.js` + módulo em `moduleConfig.js`
+
 ## Key Patterns
 
 ### Backend

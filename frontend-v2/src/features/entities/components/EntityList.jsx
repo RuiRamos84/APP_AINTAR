@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useSearch } from '@/shared/hooks';
 import { Box, Typography, Avatar, Chip, Link, Stack, Grid, Button } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -49,19 +50,12 @@ export const EntityList = () => {
     fetchEntities();
   }, [fetchEntities]);
 
-  // Filtragem local
-  const filteredData = useMemo(() => {
-    let result = entities;
+  // Pesquisa de texto — todos os campos
+  const searchedEntities = useSearch(entities, searchQuery);
 
-    // Filtro de Texto (Search Query)
-    if (searchQuery) {
-        const lowerQuery = searchQuery.toLowerCase();
-        result = result.filter(entity => 
-            entity.name?.toLowerCase().includes(lowerQuery) ||
-            entity.nipc?.toString().includes(lowerQuery) ||
-            entity.email?.toLowerCase().includes(lowerQuery)
-        );
-    }
+  // Filtragem local — filtros avançados sobre o resultado da pesquisa
+  const filteredData = useMemo(() => {
+    let result = searchedEntities;
 
     // Filtros Avançados
     if (filters.ident_type) {
@@ -92,7 +86,7 @@ export const EntityList = () => {
     }
 
     return result;
-  }, [entities, searchQuery, filters]);
+  }, [searchedEntities, filters]);
 
   // Dados Ordenados
   const sortedData = useMemo(() => {

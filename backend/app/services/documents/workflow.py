@@ -223,9 +223,6 @@ def add_document_step(data, pk, current_user):
                         }
                     }
 
-                debug_msg = f"🔥 BACKEND DEBUG: workflow.py - Preparando notificação {notification_data['notification_id']}"
-                print(debug_msg)
-                logger.info(debug_msg)
                 emit_socket_notification(notification_data, f"user_{who}")
 
                 return {'sucesso': 'Passo do pedido criado ou atualizado com sucesso'}, 201

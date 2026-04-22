@@ -338,24 +338,16 @@ def document_owner(current_user):
 def create_document(data, files, current_user):
     """Criar novo documento com anexos"""
     try:
-        logger.warning(f"📝 INÍCIO create_document - User: {current_user}")
-        logger.warning(f"📝 Data recebida: {dict(data)}")
-        logger.warning(f"📝 Files recebidos: {[f.filename for f in files] if files else 'Nenhum'}")
-
         with db_session_manager(current_user) as session:
             # Validar dados obrigatórios
-            logger.warning("📝 Validando dados do documento...")
             valid, error_msg = validate_document_data(data)
             if not valid:
-                logger.error(f"🔴 Validação falhou: {error_msg}")
+                logger.error(f"Validação falhou: {error_msg}")
                 raise APIError(error_msg, 400, "ERR_INVALID_INPUT")
 
-            logger.warning("📝 Validação OK! Processando campos...")
-
             ts_entity = sanitize_input(data.get('ts_entity'), 'int')
-            logger.warning(f"📝 ts_entity: {ts_entity}")
             if not ts_entity:
-                logger.error("🔴 ts_entity não fornecido")
+                logger.error("ts_entity não fornecido")
                 raise APIError('ID da entidade não fornecido',
                                400, "ERR_MISSING_ENTITY")
 
@@ -365,22 +357,18 @@ def create_document(data, files, current_user):
             tt_presentation = sanitize_input(
                 data.get('tt_presentation'), 'int')
 
-            logger.warning(f"📝 Campos principais: tt_type={tt_type}, ts_associate={ts_associate}, representative_nipc={representative_nipc}")
-
             # Buscar o PK do representante usando o NIF
             tb_representative = None
             if representative_nipc:
-                logger.warning(f"📝 Buscando representante com NIPC: {representative_nipc}")
                 representative_query = text(
                     "SELECT pk FROM vbf_entity WHERE nipc = :nipc")
                 representative_result = session.execute(
                     representative_query, {'nipc': representative_nipc}).scalar()
                 if not representative_result:
-                    logger.error(f"🔴 Representante com NIPC {representative_nipc} não encontrado")
+                    logger.error(f"Representante com NIPC {representative_nipc} não encontrado")
                     raise APIError(
                         'O representante fornecido não existe', 400, "ERR_INVALID_REP")
                 tb_representative = representative_result
-                logger.warning(f"📝 Representante encontrado: PK={tb_representative}")
 
             memo = data.get('memo')
             is_different_address = data.get('isDifferentAddress') == 'true'
@@ -407,10 +395,8 @@ def create_document(data, files, current_user):
                         f'shipping_{field}', doc_fields[field])
 
             # Gerar PK do documento
-            logger.warning("📝 Gerando PK do documento...")
             pk_query = text("SELECT fs_nextcode()")
             pk_result = session.execute(pk_query).scalar()
-            logger.warning(f"📝 PK gerado: {pk_result}")
 
             # Construir a query de inserção
             fields = ['pk', 'ts_entity', 'tt_type', 'ts_associate',
@@ -432,17 +418,13 @@ def create_document(data, files, current_user):
                 **doc_fields
             }
 
-            logger.warning(f"📝 Inserindo documento no BD...")
-            logger.warning(f"📝 Query params: {query_params}")
-
             try:
                 session.execute(insert_query, query_params)
                 # Commit necessário para o trigger DEFERRED gerar o regnumber
                 session.commit()
-                logger.warning(f"✅ Documento inserido com sucesso! PK={pk_result}")
             except IntegrityError as ie:
                 session.rollback()
-                logger.error(f"🔴 IntegrityError ao inserir documento: {str(ie)}")
+                logger.error(f"IntegrityError ao inserir documento {pk_result}: {str(ie)}")
                 if "unique constraint" in str(ie).lower():
                     raise DuplicateResourceError("Documento", "regnumber", "")
                 if "check constraint" in str(ie).lower() or "nn05" in str(ie).lower():
@@ -618,21 +600,11 @@ def create_document(data, files, current_user):
                     }
                 }
 
-            debug_msg = f"🔥 BACKEND DEBUG: core.py - Preparando notificação {notification_data['notification_id']}"
-            print(debug_msg)
-            logger.info(debug_msg)
             emit_socket_notification(notification_data, f"user_{who}")
 
             # Buscar e atualizar parâmetros
             try:
-                # DEBUG: Log de TODOS os dados recebidos do frontend
-                all_data_keys = list(data.keys())
-                logger.info(f"🔍 TODAS as chaves recebidas do frontend: {all_data_keys}")
-
-                # DEBUG: Log de todos os parâmetros recebidos do frontend
                 frontend_params = {k: v for k, v in data.items() if k.startswith('param_')}
-                logger.info(f"📥 Parâmetros (param_*) recebidos do frontend para documento {pk_result}: {frontend_params}")
-                logger.info(f"📥 Total de parâmetros param_*: {len(frontend_params)}")
 
                 param_query = text("""
                     SELECT tb_param, value, memo
@@ -642,23 +614,13 @@ def create_document(data, files, current_user):
                 params = session.execute(
                     param_query, {'pk': pk_result}).fetchall()
 
-                # DEBUG: Log dos parâmetros encontrados na BD
-                logger.info(f"📋 Parâmetros encontrados na BD para documento {pk_result}: {[(p.tb_param, p.value) for p in params]}")
-
-                # Inserir ou atualizar os parâmetros adicionais
-                updated_params = []
-                logger.info(f"🔄 A processar {len(params)} parâmetros da BD para documento {pk_result}")
                 for param in params:
                     param_key = f'param_{param.tb_param}'
                     param_memo_key = f'param_memo_{param.tb_param}'
                     param_value = data.get(param_key)
                     param_memo = data.get(param_memo_key)
-                    logger.info(f"  🔎 Param tb_param={param.tb_param}: key='{param_key}', value='{param_value}', memo='{param_memo}'")
 
                     if param_value is not None or param_memo is not None:
-                        logger.info(f"    ✅ A atualizar param {param.tb_param} com value={param_value}, memo={param_memo}")
-
-                        # Usar a VIEW vbf_document_param que faz o tratamento correcto dos dados
                         update_query = text("""
                             UPDATE vbf_document_param
                             SET value = :value, memo = :memo
@@ -670,10 +632,6 @@ def create_document(data, files, current_user):
                             'doc_id': pk_result,
                             'param_id': param.tb_param
                         })
-                        updated_params.append((param.tb_param, param_value))
-
-                # DEBUG: Log dos parâmetros actualizados
-                logger.info(f"✅ Parâmetros actualizados para documento {pk_result}: {updated_params}")
 
                 # session.commit()
 
@@ -697,38 +655,25 @@ def create_document(data, files, current_user):
                     # Obter tipo do documento da view (resolve para texto)
                     type_query = text("SELECT tt_type FROM vbl_document WHERE pk = :pk")
                     doc_type = session.execute(type_query, {'pk': pk_result}).scalar()
-                    logger.info(f"🔍 Tipo do documento para invoice: '{doc_type}' (type: {type(doc_type).__name__})")
 
                     invoice_info = None
                     if isinstance(doc_type, str) and doc_type in TYPE_TO_INVOICE:
                         invoice_info = TYPE_TO_INVOICE[doc_type]
-                        logger.info(f"✅ Match por string: '{doc_type}' → {invoice_info['function']}")
                     elif isinstance(doc_type, (int, float)):
                         for type_name, info in TYPE_TO_INVOICE.items():
                             if info["id"] == int(doc_type):
                                 invoice_info = info
-                                logger.info(f"✅ Match por ID: {doc_type} → {info['function']}")
                                 break
 
                     if invoice_info:
                         invoice_function = invoice_info["function"]
-                        logger.info(f"🧮 A chamar função de invoice: {invoice_function}({pk_result})")
                         try:
                             savepoint = session.begin_nested()
                             invoice_query = text(f"SELECT {invoice_function}(:pnpk) AS result")
-                            invoice_result = session.execute(invoice_query, {'pnpk': pk_result}).scalar()
-                            # session.commit()
-                            logger.info(f"💰 Invoice calculado na criação do documento {pk_result}: resultado={invoice_result}")
-
-                            # Verificar se o valor foi gravado
-                            check_invoice = text("SELECT invoice FROM vbl_document_invoice WHERE tb_document = :pk")
-                            saved_invoice = session.execute(check_invoice, {'pk': pk_result}).scalar()
-                            logger.info(f"💾 Invoice gravado na BD para documento {pk_result}: {saved_invoice}")
+                            session.execute(invoice_query, {'pnpk': pk_result})
                         except SQLAlchemyError as inv_err:
                             savepoint.rollback()
-                            logger.warning(f"⚠️ Invoice não calculado na criação do documento {pk_result} (campos em falta?): {inv_err}")
-                    else:
-                        logger.info(f"❌ Documento {pk_result} tipo '{doc_type}' não tem função de invoice configurada. Tipos disponíveis: {list(TYPE_TO_INVOICE.keys())}")
+                            logger.warning(f"Invoice não calculado na criação do documento {pk_result}: {inv_err}")
 
                 except Exception as inv_e:
                     logger.warning(f"Erro ao calcular invoice na criação: {inv_e}")

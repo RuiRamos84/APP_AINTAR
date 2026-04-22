@@ -112,24 +112,16 @@ export const formatDate = (dateStr) => {
  * @param {Object} filters - { status, associate, type, notification }
  * @param {string} searchTerm
  * @param {Object} dateRange - { startDate, endDate } (YYYY-MM-DD strings)
+ * @param {Object} metaData - metadados para resolver nome do estado
  */
-export const filterDocuments = (documents, filters, searchTerm, dateRange) => {
+/**
+ * Filtros estruturados (dropdowns + intervalo de datas).
+ * Pesquisa de texto é gerida separadamente por useSearch (@shared/hooks/useSearch).
+ */
+export const filterDocuments = (documents, filters, dateRange) => {
     if (!documents || !Array.isArray(documents)) return [];
 
     return documents.filter(doc => {
-        // Text Search
-        if (searchTerm) {
-            const searchLower = searchTerm.toLowerCase();
-            const matchesSearch =
-                (doc.regnumber && doc.regnumber.toLowerCase().includes(searchLower)) ||
-                (doc.origin && doc.origin.toLowerCase().includes(searchLower)) ||
-                (doc.address && doc.address.toLowerCase().includes(searchLower)) ||
-                (doc.memo && doc.memo.toLowerCase().includes(searchLower)) ||
-                (doc.ts_entity_name && doc.ts_entity_name.toLowerCase().includes(searchLower));
-
-            if (!matchesSearch) return false;
-        }
-
         // Status Filter
         if (filters.status !== '' && filters.status != null) {
             if (parseInt(doc.what) !== parseInt(filters.status)) return false;
@@ -140,7 +132,7 @@ export const filterDocuments = (documents, filters, searchTerm, dateRange) => {
             if (String(doc.ts_associate) !== String(filters.associate)) return false;
         }
 
-        // Document Type Filter (compares by type name string)
+        // Document Type Filter
         if (filters.type !== '' && filters.type != null) {
             if (String(doc.tt_type || '') !== String(filters.type)) return false;
         }

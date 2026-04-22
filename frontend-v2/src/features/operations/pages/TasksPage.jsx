@@ -30,6 +30,7 @@ import {
 import { useAuth } from '@/core/contexts/AuthContext';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
+import { useSearch } from '@/shared/hooks';
 import { useOperationTasks } from '../hooks/useOperationTasks';
 import { useDocuments } from '@/features/documents/hooks/useDocuments';
 import DocumentDetailsModal from '@/features/documents/components/details/DocumentDetailsModal';
@@ -167,21 +168,25 @@ const TasksPage = () => {
         });
     }, [pedidos]);
 
-    // Pesquisa
+    // Pesquisa tarefas — flatten → useSearch → re-agrupar
+    const allTasks = useMemo(
+        () => tasksByInstallation.flatMap(([, data]) => data.tasks),
+        [tasksByInstallation]
+    );
+    const searchedTasks = useSearch(allTasks, searchTerm);
     const filteredInstallations = useMemo(() => {
-        if (!searchTerm) return tasksByInstallation;
+        if (!searchTerm.trim()) return tasksByInstallation;
+        const matched = new Set(searchedTasks.map(t => t.pk));
         return tasksByInstallation
             .map(([name, data]) => {
-                const filtered = data.tasks.filter(t =>
-                    textIncludes(t.instalacao_nome, searchTerm) ||
-                    textIncludes(t.acao_operacao, searchTerm) ||
-                    textIncludes(t.modo_operacao, searchTerm) ||
-                    textIncludes(t.operador1_nome, searchTerm)
-                );
+                const filtered = data.tasks.filter(t => matched.has(t.pk));
                 return filtered.length > 0 ? [name, { ...data, tasks: filtered }] : null;
             })
             .filter(Boolean);
-    }, [tasksByInstallation, searchTerm]);
+    }, [tasksByInstallation, searchedTasks, searchTerm]);
+
+    // Pesquisa pedidos — array plano, useSearch direto
+    const filteredPedidos = useSearch(sortedPedidos, searchTerm);
 
     const handleOpenDetails = (task) => {
         setSelectedTask(task);
@@ -285,9 +290,9 @@ const TasksPage = () => {
                     )}
                 </Stack>
             }
+            search={<SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />}
             actions={
                 <Stack direction="row" spacing={1} alignItems="center">
-                    <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
                     <ExportButton
                         onExportExcel={handleExportExcel}
                         count={tasks.length}
@@ -489,7 +494,7 @@ const TasksPage = () => {
                                 <Typography variant="subtitle1" fontWeight={600}>Pedidos Atribuídos</Typography>
                                 {pedidosLoading
                                     ? <CircularProgress size={18} />
-                                    : <Chip label={pedidos.length} size="small" color="info" />
+                                    : <Chip label={filteredPedidos.length} size="small" color="info" />
                                 }
                                 <Box sx={{ flex: 1 }} />
                                 <Tooltip title="Criar requisição de material">
@@ -519,15 +524,17 @@ const TasksPage = () => {
                             </Stack>
                             <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: { md: 0.5 } }}>
 
-                            {!pedidosLoading && pedidos.length === 0 && (
+                            {!pedidosLoading && filteredPedidos.length === 0 && (
                                 <Box textAlign="center" py={6}>
                                     <InboxIcon sx={{ fontSize: 56, color: 'info.main', mb: 1.5, opacity: 0.4 }} />
-                                    <Typography variant="body1" color="text.secondary">Sem pedidos atribuídos</Typography>
+                                    <Typography variant="body1" color="text.secondary">
+                                        {searchTerm ? 'Nenhum pedido encontrado' : 'Sem pedidos atribuídos'}
+                                    </Typography>
                                 </Box>
                             )}
 
                             <Stack spacing={2}>
-                                {sortedPedidos.map(pedido => {
+                                {filteredPedidos.map(pedido => {
                                     const addressParts = [pedido.address?.trim()];
                                     if (pedido.door) addressParts.push(`Porta ${pedido.door}`);
                                     if (pedido.floor) addressParts.push(`Piso ${pedido.floor}`);

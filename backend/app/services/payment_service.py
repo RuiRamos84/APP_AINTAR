@@ -173,31 +173,38 @@ class PaymentService:
 
                 # Enriquecer com dados da tabela SIBS (expiry, entity, etc.)
                 # A view vbl_document_invoice não tem tb_sibs, usar order_id ou tb_document
-                order_id = invoice_data.get('order_id')
-                sibs_result = None
-                if order_id:
-                    sibs_query = text("SELECT * FROM vbl_sibs WHERE order_id = :order_id ORDER BY created_at DESC LIMIT 1")
-                    sibs_result = session.execute(sibs_query, {"order_id": order_id}).fetchone()
+                # vbl_document_invoice já inclui payment_status, payment_method,
+                # payment_reference e order_id via join interno com tb_sibs.
+                view_payment_status = invoice_data.get('payment_status')
 
-                if not sibs_result:
-                    # Fallback: procurar via tb_document_invoice -> tb_sibs
-                    sibs_query = text("""
+                if view_payment_status:
+                    invoice_data['sibs_status'] = view_payment_status
+                    invoice_data['sibs_method'] = invoice_data.get('payment_method')
+                    invoice_data['sibs_reference'] = invoice_data.get('payment_reference')
+                else:
+                    # Fallback: procurar em vbl_sibs via JOIN com tb_document_invoice
+                    sibs_result = session.execute(text("""
                         SELECT s.* FROM vbl_sibs s
                         JOIN tb_document_invoice di ON di.tb_sibs = s.pk
                         WHERE di.tb_document = :document_id
-                    """)
-                    sibs_result = session.execute(sibs_query, {"document_id": document_id}).fetchone()
+                        ORDER BY s.created_at DESC LIMIT 1
+                    """), {"document_id": document_id}).fetchone()
 
-                if sibs_result:
-                    sibs_data = dict(sibs_result._mapping)
-                    invoice_data['payment_status'] = sibs_data.get('payment_status')
-                    invoice_data['payment_method'] = sibs_data.get('payment_method')
-                    invoice_data['payment_reference'] = sibs_data.get('payment_reference')
-                    invoice_data['sibs_expiry'] = str(sibs_data.get('expiry_date', '')) if sibs_data.get('expiry_date') else None
-                    invoice_data['sibs_entity'] = sibs_data.get('entity')
-                    invoice_data['sibs_reference'] = sibs_data.get('pref')
-                    invoice_data['sibs_method'] = sibs_data.get('payment_method')
-                    invoice_data['sibs_status'] = sibs_data.get('payment_status')
+                    if not sibs_result:
+                        sibs_result = session.execute(text(
+                            "SELECT * FROM vbl_sibs WHERE tb_document = :document_id ORDER BY created_at DESC LIMIT 1"
+                        ), {"document_id": document_id}).fetchone()
+
+                    if sibs_result:
+                        sibs_data = dict(sibs_result._mapping)
+                        invoice_data['payment_status'] = sibs_data.get('payment_status')
+                        invoice_data['payment_method'] = sibs_data.get('payment_method')
+                        invoice_data['payment_reference'] = sibs_data.get('payment_reference')
+                        invoice_data['sibs_expiry'] = str(sibs_data.get('expiry_date', '')) if sibs_data.get('expiry_date') else None
+                        invoice_data['sibs_entity'] = sibs_data.get('entity')
+                        invoice_data['sibs_reference'] = sibs_data.get('pref')
+                        invoice_data['sibs_method'] = sibs_data.get('payment_method')
+                        invoice_data['sibs_status'] = sibs_data.get('payment_status')
 
                 return invoice_data
 
@@ -561,18 +568,28 @@ class PaymentService:
 
             # Inserir na base de dados usando session manager
             with db_session_manager(user_session) as db:
+                # Garantir que o registo de fatura existe antes de fazer o link SIBS.
+                # fbo_document_invoice$link faz UPDATE em tb_document_invoice — se o registo
+                # não existir, o UPDATE afecta 0 linhas e tb_sibs fica NULL para sempre.
+                db.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
+
+                # Obter regnumber do documento para usar como order_id (igual aos pagamentos automáticos)
+                regnumber = db.execute(text(
+                    "SELECT regnumber FROM tb_document WHERE pk = :doc_id"
+                ), {"doc_id": document_id}).scalar() or f"MANUAL-{document_id}"
+
                 # Gerar nova PK
                 new_pk = db.execute(text("SELECT nextval('sq_codes')")).scalar()
 
                 # Inserir utilizando a função fbf_sibs existente
                 sibs_result = db.execute(text("""
-                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                NULL, :amount, 'EUR', 
-                                :method, :status, :pref, NULL, 
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id,
+                                NULL, :amount, 'EUR',
+                                :method, :status, :pref, NULL,
                                 NULL, :created_at, NULL, NULL, NULL)
                 """), {
                     "pk": new_pk,
-                    "order_id": f"MANUAL-{document_id}",
+                    "order_id": regnumber,
                     "transaction_id": transaction_id,
                     "amount": float(payment_data.amount),
                     "method": payment_data.payment_type,
@@ -581,12 +598,22 @@ class PaymentService:
                     "created_at": datetime.now()
                 })
 
-                sibs_pk = sibs_result.scalar()
+                # fbf_sibs pode retornar NULL em algumas versões — usar new_pk como fallback
+                sibs_pk = sibs_result.scalar() or new_pk
 
                 # Associar SIBS à fatura do documento
                 db.execute(text("""
                     SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
                 """), {"sibs_pk": sibs_pk, "document_id": document_id})
+
+                # Garantir que tb_sibs ficou preenchido (fbo_document_invoice$link pode falhar silenciosamente)
+                verify = db.execute(text(
+                    "SELECT tb_sibs FROM tb_document_invoice WHERE tb_document = :doc_id LIMIT 1"
+                ), {"doc_id": document_id}).scalar()
+                if verify != sibs_pk:
+                    db.execute(text(
+                        "UPDATE tb_document_invoice SET tb_sibs = :sibs_pk WHERE tb_document = :doc_id"
+                    ), {"sibs_pk": sibs_pk, "doc_id": document_id})
 
                 # Actualizar parâmetro "Método de pagamento" automaticamente
                 payment_method_pk = self._map_payment_method_to_param(payment_data.payment_type)
@@ -770,6 +797,15 @@ class PaymentService:
                 payment_method = payment_info[2] if payment_info else None
                 amount = float(payment_info[3]) if payment_info and payment_info[3] else None
 
+                # Fallback: tb_document pode ser NULL em registos manuais antigos
+                if not document_id:
+                    document_id = db.execute(text("""
+                        SELECT di.tb_document
+                        FROM tb_document_invoice di
+                        WHERE di.tb_sibs = :payment_pk
+                        LIMIT 1
+                    """), {"payment_pk": payment_pk}).scalar()
+
                 if document_id:
                     db.execute(text("""
                         SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
@@ -801,8 +837,8 @@ class PaymentService:
                     if amount and amount > 0:
                         try:
                             caixa_pk = db.execute(text("SELECT fs_nextcode()")).scalar()
-                            
-                            # Usar sessão de sistema (None) para contornar verificações de permissões 
+
+                            # Usar sessão de sistema (None) para contornar verificações de permissões
                             # da view vbf_caixa e garantir inserção do movimento automático
                             with db_session_manager(None) as admin_db:
                                 admin_db.execute(text("""
@@ -825,14 +861,9 @@ class PaymentService:
                                 })
                                 admin_db.commit()
 
-                            logger.info(
-                                f"Movimento de caixa {caixa_pk} criado automaticamente "
-                                f"para pagamento {payment_pk} (doc={document_id}, valor={amount})"
-                            )
+                            logger.info(f"Movimento de caixa {caixa_pk} criado para pagamento {payment_pk} (doc={document_id} valor={amount})")
                         except Exception as caixa_err:
-                            logger.error(
-                                f"Falha ao criar movimento de caixa para pagamento {payment_pk}: {caixa_err}"
-                            )
+                            logger.error(f"[APPROVE_CAIXA] FALHA caixa_pk={caixa_pk} doc={document_id}: {caixa_err}", exc_info=True)
                             raise
 
             return {"success": True, "message": "Pagamento aprovado"}

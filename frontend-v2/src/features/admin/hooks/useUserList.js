@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearch } from '@/shared/hooks';
 import {
   listUsers,
   deleteUser,
@@ -89,19 +90,12 @@ export const useUserList = () => {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
+  // ── Pesquisa de texto — todos os campos ─────────────────────────────────
+  const searchedUsers = useSearch(allUsers, search);
+
   // ── Filtrar + ordenar (client-side) ─────────────────────────────────────
   const filteredSorted = useMemo(() => {
-    let result = allUsers;
-
-    // Pesquisa
-    if (search) {
-      const s = search.toLowerCase();
-      result = result.filter(u =>
-        u.username?.toLowerCase().includes(s) ||
-        u.name?.toLowerCase().includes(s) ||
-        u.email?.toLowerCase().includes(s)
-      );
-    }
+    let result = searchedUsers;
 
     // Filtro de estado
     if (statusFilter !== 'all') result = result.filter(u => u.status === statusFilter);
@@ -119,7 +113,7 @@ export const useUserList = () => {
     });
 
     return result;
-  }, [allUsers, search, statusFilter, sortBy, sortOrder]);
+  }, [searchedUsers, statusFilter, sortBy, sortOrder]);
 
   // ── Paginar (client-side) ────────────────────────────────────────────────
   const users = useMemo(() => {

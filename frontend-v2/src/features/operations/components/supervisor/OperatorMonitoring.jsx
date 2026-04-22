@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Stack, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -7,23 +7,18 @@ import {
 import {
     People, CheckCircle, Schedule, Assignment, OpenInNew
 } from '@mui/icons-material';
-import { SortableHeadCell, SearchBar } from '@/shared/components/data';
-import { useSortable } from '@/shared/hooks/useSortable';
-import { useState } from 'react';
+import { SortableHeadCell } from '@/shared/components/data';
+import { useSortable, useSearch } from '@/shared/hooks';
 import { formatDate } from '../../utils/formatters';
 
 /**
  * OperatorMonitoring — Painel de equipa (read-only).
  * Validação de execuções centralizada no tab "Controlo de Tarefas".
  */
-const OperatorMonitoring = ({ operatorStats, recentActivity, onNavigateToControl }) => {
+const OperatorMonitoring = ({ operatorStats, recentActivity, searchTerm = '', onNavigateToControl }) => {
     const theme = useTheme();
-    const [searchOp, setSearchOp] = useState('');
 
-    const filteredOps = useMemo(() => {
-        if (!searchOp.trim()) return operatorStats;
-        return operatorStats.filter(op => (op.name || '').toLowerCase().includes(searchOp.toLowerCase()));
-    }, [operatorStats, searchOp]);
+    const filteredOps = useSearch(operatorStats, searchTerm);
 
     const { sorted: sortedActivity, sortKey, sortDir, requestSort } = useSortable(recentActivity, 'updt_time', 'desc');
 
@@ -65,12 +60,9 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onNavigateToControl
             {/* Operator Performance */}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
                 <CardContent>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                        <Typography variant="subtitle1" fontWeight={600}>
-                            Desempenho por Operador
-                        </Typography>
-                        <SearchBar searchTerm={searchOp} onSearch={setSearchOp} />
-                    </Stack>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                        Desempenho por Operador
+                    </Typography>
                     <Stack spacing={2}>
                         {filteredOps.map(op => (
                             <Box key={op.pk} sx={{
@@ -122,7 +114,7 @@ const OperatorMonitoring = ({ operatorStats, recentActivity, onNavigateToControl
                         ))}
                         {filteredOps.length === 0 && (
                             <Alert severity="info">
-                                {searchOp ? 'Nenhum operador encontrado.' : 'Sem dados de operadores para os filtros selecionados.'}
+                                {searchTerm ? 'Nenhum operador encontrado.' : 'Sem dados de operadores para os filtros selecionados.'}
                             </Alert>
                         )}
                     </Stack>

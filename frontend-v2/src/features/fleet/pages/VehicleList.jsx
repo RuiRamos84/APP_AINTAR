@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearch } from '@/shared/hooks';
 import { Box, Typography, Button, Chip, Avatar, Tooltip, IconButton, Stack } from '@mui/material';
 import {
   Add as AddIcon,
@@ -51,6 +52,7 @@ const VehicleList = () => {
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [overviewVehicle, setOverviewVehicle] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const filteredVehicles = useSearch(vehicles, searchQuery);
 
   const handleOpenModal = (vehicle = null) => {
     setSelectedVehicle(vehicle);
@@ -200,7 +202,7 @@ const VehicleList = () => {
       </Box>
 
       <DataGrid
-        rows={vehicles}
+        rows={filteredVehicles}
         columns={columns}
         loading={isLoading}
         getRowId={(row) => row.pk}
@@ -208,10 +210,6 @@ const VehicleList = () => {
         disableRowSelectionOnClick
         autoHeight
         getRowHeight={() => 'auto'}
-        filterModel={{
-          items: [],
-          quickFilterValues: searchQuery.trim() ? searchQuery.trim().split(/\s+/) : [],
-        }}
         slots={{ toolbar: GridToolbar }}
         slotProps={{ toolbar: { showQuickFilter: false } }}
         initialState={{

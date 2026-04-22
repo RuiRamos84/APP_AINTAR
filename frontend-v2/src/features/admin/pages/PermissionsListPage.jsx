@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useSearch } from '@/shared/hooks';
 import {
   Box,
   Paper,
@@ -301,17 +302,7 @@ const PermissionsListPage = () => {
   }), [interfaces]);
 
   // ── Filtrar permissões ────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    if (!searchTerm) return interfaces;
-    const s = searchTerm.toLowerCase();
-    return interfaces.filter(p =>
-      p.label?.toLowerCase().includes(s) ||
-      p.value?.toLowerCase().includes(s) ||
-      p.description?.toLowerCase().includes(s) ||
-      p.category?.toLowerCase().includes(s) ||
-      String(p.pk).includes(s)
-    );
-  }, [interfaces, searchTerm]);
+  const filtered = useSearch(interfaces, searchTerm);
 
   const grouped    = useMemo(() => groupPermissionsByCategory(filtered), [filtered]);
   const categories = useMemo(() => Object.keys(grouped), [grouped]);
@@ -359,13 +350,11 @@ const PermissionsListPage = () => {
     }
   };
 
-  const filteredGroups = useMemo(() => {
-    const list = groupSearch
-      ? groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()))
-      : groups;
-    // Ordenação locale-aware (suporta acentos PT: Ç, Ã, Ê, etc.)
-    return [...list].sort((a, b) => a.name.localeCompare(b.name, 'pt', { sensitivity: 'base' }));
-  }, [groups, groupSearch]);
+  const searchedGroups = useSearch(groups, groupSearch);
+  const filteredGroups = useMemo(
+    () => [...searchedGroups].sort((a, b) => a.name.localeCompare(b.name, 'pt', { sensitivity: 'base' })),
+    [searchedGroups]
+  );
 
   // ── Actions do ModulePage (direita do header) ─────────────────────────────
   const headerActions = (

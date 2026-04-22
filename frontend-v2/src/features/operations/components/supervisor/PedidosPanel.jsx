@@ -5,7 +5,7 @@ import {
     Paper, CircularProgress, Alert, Tooltip,
     alpha, useTheme,
 } from '@mui/material';
-import { SortableHeadCell, SearchBar } from '@/shared/components/data';
+import { SortableHeadCell } from '@/shared/components/data';
 import { useSortable } from '@/shared/hooks/useSortable';
 import {
     ExpandMore as ExpandMoreIcon,
@@ -161,28 +161,24 @@ const PedidosTable = ({ rows, metaData, onRowClick }) => {
 // ──────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────
-const PedidosPanel = ({ pedidos, metaData, isLoading, error }) => {
+const PedidosPanel = ({ pedidos, metaData, searchTerm = '', isLoading, error }) => {
     const theme = useTheme();
-    const [search, setSearch] = useState('');
     const [expanded, setExpanded] = useState(null);
     const [selectedDoc, setSelectedDoc] = useState(null);
 
     // Construir lista de categorias com pedidos filtrados
     const categories = useMemo(() => {
         if (!pedidos || typeof pedidos !== 'object') return [];
+        const q = searchTerm.trim().toLowerCase();
 
         return Object.entries(pedidos)
             .map(([viewKey, group]) => {
                 const rows = (group?.data || []).filter((row) => {
-                    if (!search.trim()) return true;
-                    const q = search.toLowerCase();
-                    return (
-                        String(row.regnumber || '').toLowerCase().includes(q) ||
-                        String(row.tipo || '').toLowerCase().includes(q) ||
-                        String(row.address || '').toLowerCase().includes(q) ||
-                        String(row.nut4 || '').toLowerCase().includes(q) ||
-                        String(row.ts_entity || '').toLowerCase().includes(q)
-                    );
+                    if (!q) return true;
+                    return Object.entries(row).some(([, val]) => {
+                        if (val === null || val === undefined || val === '' || typeof val === 'boolean' || typeof val === 'object') return false;
+                        return String(val).toLowerCase().includes(q);
+                    });
                 });
                 return {
                     key: viewKey,
@@ -195,7 +191,7 @@ const PedidosPanel = ({ pedidos, metaData, isLoading, error }) => {
             })
             .filter(c => c.rows.length > 0)
             .sort((a, b) => a.name.localeCompare(b.name, 'pt'));
-    }, [pedidos, search]);
+    }, [pedidos, searchTerm]);
 
     // Totais globais
     const totals = useMemo(() => {
@@ -242,15 +238,10 @@ const PedidosPanel = ({ pedidos, metaData, isLoading, error }) => {
                 </Paper>
             </Stack>
 
-            {/* ── Pesquisa ── */}
-            <Box sx={{ mb: 2 }}>
-                <SearchBar searchTerm={search} onSearch={setSearch} />
-            </Box>
-
             {/* ── Acordeões por categoria ── */}
             {categories.length === 0 ? (
                 <Alert severity="info">
-                    {search ? 'Nenhum pedido corresponde à pesquisa.' : 'Sem pedidos disponíveis.'}
+                    {searchTerm ? 'Nenhum pedido corresponde à pesquisa.' : 'Sem pedidos disponíveis.'}
                 </Alert>
             ) : (
                 categories.map((cat) => (

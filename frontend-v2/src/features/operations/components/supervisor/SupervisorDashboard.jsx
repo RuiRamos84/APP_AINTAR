@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Stack, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Avatar, Chip, alpha, useTheme, InputAdornment, TextField
+    Avatar, Chip, alpha, useTheme
 } from '@mui/material';
 import {
     Assignment, Warning, TrendingUp,
-    People, CalendarMonth, Today, CheckCircle, Search
+    People, CalendarMonth, Today, CheckCircle
 } from '@mui/icons-material';
 import SortableHeadCell from '@/shared/components/data/SortableHeadCell';
-import { useSortable } from '@/shared/hooks/useSortable';
+import { SearchBar } from '@/shared/components/data';
+import { useSortable, useSearch } from '@/shared/hooks';
 
 const StatCard = ({ label, value, icon, color, subtitle }) => {
     const theme = useTheme();
@@ -82,15 +83,11 @@ const DistributionBar = ({ data, title, icon, colorFn }) => {
 const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDistribution, filterInfo }) => {
     const theme = useTheme();
     const { overview } = analytics;
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = React.useState('');
 
     const weekColors = { W1: '#2196f3', W2: '#4caf50', W3: '#ff9800', W4: '#9c27b0' };
 
-    // Filtrar por pesquisa
-    const filteredStats = search.trim()
-        ? operatorStats.filter(op => (op.name || '').toLowerCase().includes(search.toLowerCase()))
-        : operatorStats;
-
+    const filteredStats = useSearch(operatorStats, search);
     const { sorted, sortKey, sortDir, requestSort } = useSortable(filteredStats, 'completedTasks', 'desc');
 
     return (
@@ -226,20 +223,7 @@ const SupervisorDashboard = ({ analytics, operatorStats, weekDistribution, dayDi
                             <Typography variant="subtitle1" fontWeight={600}>
                                 Atividade por Operador
                             </Typography>
-                            <TextField
-                                size="small"
-                                placeholder="Pesquisar operador..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                sx={{ width: 220 }}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <Search fontSize="small" color="action" />
-                                        </InputAdornment>
-                                    )
-                                }}
-                            />
+                            <SearchBar searchTerm={search} onSearch={setSearch} />
                         </Stack>
                         <TableContainer>
                             <Table size="small">

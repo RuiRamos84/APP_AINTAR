@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { useQueryClient, useIsFetching } from '@tanstack/react-query';
 import DocumentsLayout from './DocumentsLayout';
@@ -7,7 +7,7 @@ import DocumentGroupedList from '../components/list/DocumentGroupedList';
 import DocumentGrid from '../components/card/DocumentGrid';
 import { useDocumentsStore } from '../store/documentsStore';
 import { useDocuments, useClearNotification, documentKeys } from '../hooks/useDocuments';
-import { filterDocuments, sortDocuments } from '../utils/documentUtils';
+import { filterDocuments, sortDocuments, getStatusLabel } from '../utils/documentUtils';
 import LateDocumentsAlert from '../components/alerts/LateDocumentsAlert';
 import { exportDocumentsToExcel } from '../utils/excelExport';
 import { useMetaData } from '@/core/hooks/useMetaData';
@@ -15,6 +15,7 @@ import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import KeyboardShortcutsHelp from '../components/keyboard/KeyboardShortcutsHelp';
+import { useSearch } from '@/shared/hooks';
 
 
 // Lazy-loaded modals (only loaded when opened)
@@ -64,9 +65,6 @@ const DocumentsPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
 
-  // Defer search input to avoid blocking render on every keystroke
-  const deferredSearchTerm = useDeferredValue(searchTerm);
-
   // Determine which API to call based on activeTab.
   // null = ainda a carregar o user, não fazer fetch.
   const queryType = useMemo(() => {
@@ -82,12 +80,22 @@ const DocumentsPage = () => {
   // Fetch Data — enabled:false enquanto user não estiver disponível
   const { data: documents, isLoading, error } = useDocuments(queryType, { enabled: queryType !== null });
 
-  // Client-side Filter & Sort (deferredSearchTerm avoids blocking on every keystroke)
-  const processedDocuments = useMemo(() => {
-    let result = filterDocuments(documents, filters, deferredSearchTerm, dateRange);
-    result = sortDocuments(result, sortConfig);
-    return result;
-  }, [documents, filters, deferredSearchTerm, dateRange, sortConfig]);
+  // 1. Filtros estruturados (dropdowns + datas)
+  const structurallyFiltered = useMemo(
+    () => filterDocuments(documents, filters, dateRange),
+    [documents, filters, dateRange]
+  );
+
+  // 2. Pesquisa de texto — dinâmica em todos os campos (useDeferredValue incluído no hook)
+  const searched = useSearch(structurallyFiltered, searchTerm, {
+    extraText: (doc) => getStatusLabel(doc.what, metaData),
+  });
+
+  // 3. Ordenação
+  const processedDocuments = useMemo(
+    () => sortDocuments(searched, sortConfig),
+    [searched, sortConfig]
+  );
 
   const clearNotificationMutation = useClearNotification();
 

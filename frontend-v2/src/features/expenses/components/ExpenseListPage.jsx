@@ -13,6 +13,8 @@ import { Add as AddIcon, Euro as EuroIcon, CalendarMonth as CalIcon } from '@mui
 import { useForm, Controller } from 'react-hook-form';
 import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout';
+import { SearchBar } from '@/shared/components/data';
+import { useSearch } from '@/shared/hooks';
 import { useExpenseTypes, useAssociates } from '@/core/hooks/useMetaData';
 import { usePermissions } from '@/core/contexts/PermissionContext';
 
@@ -184,17 +186,19 @@ export default function ExpenseListPage({
   const [order, setOrder]     = useState('desc');
   const [orderBy, setOrderBy] = useState('data');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const totalValue = useMemo(() => expenses.reduce((s, e) => s + (e.valor ?? 0), 0), [expenses]);
+  const filtered = useSearch(expenses, searchTerm);
+  const totalValue = useMemo(() => filtered.reduce((s, e) => s + (e.valor ?? 0), 0), [filtered]);
 
   const handleSort = (col) => {
     setOrder(orderBy === col && order === 'asc' ? 'desc' : 'asc');
     setOrderBy(col);
   };
 
-  const sorted = useMemo(() => [...expenses].sort((a, b) =>
+  const sorted = useMemo(() => [...filtered].sort((a, b) =>
     order === 'desc' ? desc(a, b, orderBy) : -desc(a, b, orderBy)
-  ), [expenses, order, orderBy]);
+  ), [filtered, order, orderBy]);
 
   const handleSubmit = useCallback(async (values) => {
     try {
@@ -221,12 +225,13 @@ export default function ExpenseListPage({
       icon={Icon}
       color={color}
       breadcrumbs={breadcrumbs}
+      search={expenses.length > 0 ? <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} /> : null}
       actions={actions}
     >
       {/* Totais */}
       <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
         <Chip
-          label={`${expenses.length} registo${expenses.length !== 1 ? 's' : ''}`}
+          label={`${filtered.length}${filtered.length !== expenses.length ? ` de ${expenses.length}` : ''} registo${expenses.length !== 1 ? 's' : ''}`}
           size="small" variant="outlined"
         />
         {totalValue > 0 && (
@@ -239,10 +244,10 @@ export default function ExpenseListPage({
 
       {loading ? (
         <Box>{[...Array(5)].map((_, i) => <Skeleton key={i} height={52} sx={{ mb: 0.5 }} />)}</Box>
-      ) : expenses.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
           <EuroIcon sx={{ fontSize: 48, opacity: 0.2, mb: 1 }} />
-          <Typography variant="body2">Nenhuma despesa registada.</Typography>
+          <Typography variant="body2">{searchTerm ? 'Nenhuma despesa encontrada.' : 'Nenhuma despesa registada.'}</Typography>
         </Box>
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>

@@ -6,15 +6,13 @@
 import { useState, useMemo } from 'react';
 import {
   Box, Paper, Typography, TextField, Button, Chip, Stack,
-  IconButton, InputAdornment, Alert, Divider, Tooltip,
-  Select, MenuItem, FormControl, InputLabel, useTheme, alpha,
+  IconButton, Alert, Divider, Tooltip,
+  Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import {
   History as LogIcon,
-  Search as SearchIcon,
   Refresh as RefreshIcon,
   Close as CloseIcon,
-  FilterList as FilterIcon,
   Person as PersonIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -22,6 +20,8 @@ import {
   Login as LoginIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+import { SearchBar } from '@/shared/components/data';
+import { useSearch } from '@/shared/hooks';
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
@@ -66,16 +66,7 @@ const ActivityLogsPage = () => {
 
   const { data: logs = [], isLoading, isError, refetch } = useLogs(filters);
 
-  const filtered = useMemo(() => {
-    if (!search) return logs;
-    const s = search.toLowerCase();
-    return logs.filter((l) =>
-      l.user_name?.toLowerCase().includes(s) ||
-      l.action?.toLowerCase().includes(s) ||
-      l.resource?.toLowerCase().includes(s) ||
-      l.ip?.toLowerCase().includes(s)
-    );
-  }, [logs, search]);
+  const filtered = useSearch(logs, search);
 
   const columns = [
     {
@@ -124,15 +115,9 @@ const ActivityLogsPage = () => {
       {/* Filtros */}
       <Paper sx={{ p: 2, mb: 2, borderRadius: 2 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" alignItems="center">
-          <TextField
-            size="small" placeholder="Utilizador, recurso, IP..."
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            sx={{ flex: 1, minWidth: 200 }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-              endAdornment: search ? <InputAdornment position="end"><IconButton size="small" onClick={() => setSearch('')}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : null,
-            }}
-          />
+          <Box sx={{ flex: 1, minWidth: 200 }}>
+            <SearchBar searchTerm={search} onSearch={setSearch} />
+          </Box>
           <FormControl size="small" sx={{ minWidth: 140 }}>
             <InputLabel>Tipo de Ação</InputLabel>
             <Select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} label="Tipo de Ação">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearch } from '@/shared/hooks';
 import { Box, Typography, Button, Chip, Stack, Tooltip } from '@mui/material';
 import { Add as AddIcon, EuroSymbol as EuroIcon } from '@mui/icons-material';
 import { SearchBar } from '@/shared/components/data';
@@ -45,6 +46,7 @@ const MaintenanceList = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedLicence, setSelectedLicence] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const filteredMaintenances = useSearch(maintenances, searchQuery);
 
   const handleLicenceClick = (licence) => {
     setSelectedLicence(licence);
@@ -190,7 +192,7 @@ const MaintenanceList = () => {
       </Box>
 
       <DataGrid
-        rows={maintenances}
+        rows={filteredMaintenances}
         columns={columns}
         loading={isLoading}
         getRowId={(row) => row.pk}
@@ -198,10 +200,6 @@ const MaintenanceList = () => {
         disableRowSelectionOnClick
         autoHeight
         getRowHeight={() => 'auto'}
-        filterModel={{
-          items: [],
-          quickFilterValues: searchQuery.trim() ? searchQuery.trim().split(/\s+/) : [],
-        }}
         slots={{ toolbar: GridToolbar }}
         slotProps={{ toolbar: { showQuickFilter: false } }}
         initialState={{

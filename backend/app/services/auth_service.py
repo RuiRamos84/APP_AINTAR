@@ -443,7 +443,7 @@ def fs_passwd_recover(email):
                     return success
             return None
     except Exception as e:
-        print(f"Erro ao recuperar a password: {str(e)}")
+        logger.error(f"Erro ao recuperar a password: {str(e)}")
         return None
 
 

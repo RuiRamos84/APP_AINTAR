@@ -64,17 +64,8 @@ def emit_socket_notification(notification_data, room=None):
     try:
         socketio = current_app.extensions.get('socketio')
         if socketio:
-            debug_msg = f"🔥 BACKEND DEBUG: Emitindo notificação para {room} - {notification_data}"
-            print(debug_msg)
-            logger.info(debug_msg)
-
             socketio.emit('new_notification', notification_data, room=room)
-
-            success_msg = f"🔥 BACKEND DEBUG: Notificação emitida com sucesso!"
-            print(success_msg)
-            logger.info(success_msg)
-            logger.info(
-                f"Notificação enviada para {room}: {notification_data['message']}")
+            logger.info(f"Notificação enviada para {room}: {notification_data['message']}")
             return True
         else:
             logger.warning(

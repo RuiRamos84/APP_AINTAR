@@ -74,13 +74,8 @@ def send_mail(subject, body, recipient, sender_email):
         'Content-Type': 'application/json'
     }
 
-    # print("Enviando e-mail com a seguinte requisição:", email_msg)
     response = requests.post(url, json=email_msg, headers=headers)
-
-    # print("Resposta da API:", response.text)
-    # Isto irá levantar uma exceção se a resposta não for 200 OK
     response.raise_for_status()
-    print(f'Email enviado com sucesso para {recipient}')
 
 
 def init_cache(app):

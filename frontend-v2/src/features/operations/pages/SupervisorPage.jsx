@@ -4,6 +4,7 @@ import {
     FormControl, InputLabel, Select, MenuItem, CircularProgress, Alert,
     alpha, useTheme, Collapse, Badge, TextField
 } from '@mui/material';
+import { SearchBar } from '@/shared/components/data';
 import {
     Dashboard as DashboardIcon,
     Assignment as AssignmentIcon,
@@ -15,7 +16,6 @@ import {
     DateRange as DateRangeIcon,
 } from '@mui/icons-material';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
-import { SearchBar } from '@/shared/components/data';
 import { useSupervisorData } from '../hooks/useSupervisorData';
 import { exportSupervisorDataToExcel } from '../services/exportService';
 import ExportButton from '../components/ExportButton';
@@ -37,6 +37,7 @@ const SupervisorPage = () => {
     const [activeTab, setActiveTab] = useState(0);
     const [showFilters, setShowFilters] = useState(false);
     const [pedidosVisited, setPedidosVisited] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const handleTabChange = useCallback((_, val) => {
         setActiveTab(val);
@@ -79,6 +80,7 @@ const SupervisorPage = () => {
                 { label: 'Operação', path: '/operation' },
                 { label: 'Supervisão' },
             ]}
+            search={[1, 2, 4].includes(activeTab) ? <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} /> : null}
             actions={
                 <Stack direction="row" spacing={1} alignItems="center">
                     <Chip
@@ -267,6 +269,7 @@ const SupervisorPage = () => {
                         <OperationTaskManager
                             operations={operations}
                             metaData={metaData}
+                            searchTerm={searchTerm}
                             onCreateTask={(data) => createTask.mutate(data)}
                             onCreateDirect={(data) => createDirect.mutateAsync(data)}
                             onUpdateMeta={(id, data) => updateMeta.mutate({ id, data })}
@@ -280,6 +283,7 @@ const SupervisorPage = () => {
                         <OperatorMonitoring
                             operatorStats={operatorStats}
                             recentActivity={recentActivity}
+                            searchTerm={searchTerm}
                             onNavigateToControl={() => setActiveTab(1)}
                         />
                     )}
@@ -295,6 +299,7 @@ const SupervisorPage = () => {
                         <PedidosPanel
                             pedidos={pedidos}
                             metaData={metaData}
+                            searchTerm={searchTerm}
                             isLoading={pedidosLoading}
                             error={pedidosError}
                         />

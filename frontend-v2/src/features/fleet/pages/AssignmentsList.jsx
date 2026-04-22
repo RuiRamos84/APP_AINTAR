@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearch } from '@/shared/hooks';
 import { Box, Typography, Button, Chip, Avatar, Stack, Tooltip } from '@mui/material';
 import { Add as AddIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { SearchBar } from '@/shared/components/data';
@@ -34,6 +35,7 @@ const AssignmentsList = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedLicence, setSelectedLicence] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const filteredAssignments = useSearch(assignments, searchQuery);
 
   const handleLicenceClick = (licence) => {
     setSelectedLicence(licence);
@@ -132,7 +134,7 @@ const AssignmentsList = () => {
       </Box>
 
       <DataGrid
-        rows={assignments}
+        rows={filteredAssignments}
         columns={columns}
         loading={isLoading}
         getRowId={(row) => row.pk}
@@ -140,10 +142,6 @@ const AssignmentsList = () => {
         disableRowSelectionOnClick
         autoHeight
         getRowHeight={() => 'auto'}
-        filterModel={{
-          items: [],
-          quickFilterValues: searchQuery.trim() ? searchQuery.trim().split(/\s+/) : [],
-        }}
         slots={{ toolbar: GridToolbar }}
         slotProps={{ toolbar: { showQuickFilter: false } }}
         initialState={{

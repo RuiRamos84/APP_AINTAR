@@ -15,7 +15,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { useUIStore } from '@/core/store/uiStore';
 import { getModuleById } from '@/core/config/moduleConfig';
 
-export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, center, children, compact = false, fillHeight = false }) => {
+export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, search, center, children, compact = false, fillHeight = false }) => {
   const navigate = useNavigate();
   const currentModule = useUIStore((state) => state.currentModule);
   const moduleConfig = currentModule ? getModuleById(currentModule) : null;
@@ -122,6 +122,11 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               '& > *': { pointerEvents: 'auto' },
             }}>
               {center}
+            </Box>
+          )}
+          {search && (
+            <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
+              {search}
             </Box>
           )}
           {actions && (

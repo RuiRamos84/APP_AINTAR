@@ -50,7 +50,7 @@ import notification from '@/core/services/notification/notificationService';
 import { operationService } from '../services/operationService';
 import metadataService from '@/services/metadataService';
 import { SearchBar, SortableHeadCell } from '@/shared/components/data';
-import { useSortable } from '@/shared/hooks/useSortable';
+import { useSortable, useSearch } from '@/shared/hooks';
 import {
     OPERATION_TYPES,
     formatBooleanValue,
@@ -135,14 +135,7 @@ const OperationControlPage = () => {
     // Pesquisa + ordenação na tabela de resultados
     const [searchTerm, setSearchTerm] = useState('');
     const rawTasks = tasksData?.data || [];
-    const filteredTasks = useMemo(() => {
-        if (!searchTerm.trim()) return rawTasks;
-        const q = searchTerm.toLowerCase();
-        return rawTasks.filter(t =>
-            (t.tt_operacaoaccao || '').toLowerCase().includes(q) ||
-            (t.updt_client || '').toLowerCase().includes(q)
-        );
-    }, [rawTasks, searchTerm]);
+    const filteredTasks = useSearch(rawTasks, searchTerm);
     const { sorted: sortedTasks, sortKey, sortDir, requestSort } = useSortable(filteredTasks, 'data', 'desc');
 
     // Filtros derivados
@@ -316,75 +309,65 @@ const OperationControlPage = () => {
                 { label: 'Operação', path: '/operation' },
                 { label: 'Controlo Operacional' },
             ]}
+            search={rawTasks.length > 0 ? <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} /> : null}
         >
 
             {/* Filtros */}
-            <Paper sx={{ p: 3, mb: 3, ...glassCard }}>
-                <Stack spacing={3}>
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Município/Associado</InputLabel>
-                                <Select
-                                    value={selectedEntity}
-                                    onChange={(e) => { setSelectedEntity(e.target.value); setSelectedInstalacao(''); }}
-                                    label="Município/Associado"
-                                >
-                                    {entities.map(e => <MenuItem key={e} value={e}>{e}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Tipo Instalação</InputLabel>
-                                <Select
-                                    value={selectedTipo}
-                                    onChange={(e) => { setSelectedTipo(e.target.value); setSelectedInstalacao(''); }}
-                                    label="Tipo Instalação"
-                                >
-                                    <MenuItem value="ETAR">ETAR</MenuItem>
-                                    <MenuItem value="EE">EE</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 4 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Instalação</InputLabel>
-                                <Select
-                                    value={selectedInstalacao}
-                                    onChange={(e) => setSelectedInstalacao(e.target.value)}
-                                    label="Instalação"
-                                    disabled={!selectedEntity || !selectedTipo}
-                                >
-                                    {installations.map(i => (
-                                        <MenuItem key={i.pk} value={i.pk}>
-                                            {i.nome} {i.subsistema && `(${i.subsistema})`}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 2 }}>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                label="Dias atrás"
-                                type="number"
-                                value={lastDays}
-                                onChange={(e) => setLastDays(e.target.value)}
-                            />
-                        </Grid>
-                    </Grid>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button
-                            variant="contained"
-                            startIcon={<SearchIcon />}
-                            onClick={handleSearch}
-                            disabled={!selectedInstalacao || loadingMetaData}
+            <Paper sx={{ p: 2, mb: 3, ...glassCard }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} flexWrap="wrap" useFlexGap>
+                    <FormControl size="small" sx={{ flex: 1, minWidth: 160 }}>
+                        <InputLabel>Município/Associado</InputLabel>
+                        <Select
+                            value={selectedEntity}
+                            onChange={(e) => { setSelectedEntity(e.target.value); setSelectedInstalacao(''); }}
+                            label="Município/Associado"
                         >
-                            Pesquisar
-                        </Button>
-                    </Box>
+                            {entities.map(e => <MenuItem key={e} value={e}>{e}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 110 }}>
+                        <InputLabel>Tipo</InputLabel>
+                        <Select
+                            value={selectedTipo}
+                            onChange={(e) => { setSelectedTipo(e.target.value); setSelectedInstalacao(''); }}
+                            label="Tipo"
+                        >
+                            <MenuItem value="ETAR">ETAR</MenuItem>
+                            <MenuItem value="EE">EE</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ flex: 2, minWidth: 200 }}>
+                        <InputLabel>Instalação</InputLabel>
+                        <Select
+                            value={selectedInstalacao}
+                            onChange={(e) => setSelectedInstalacao(e.target.value)}
+                            label="Instalação"
+                            disabled={!selectedEntity || !selectedTipo}
+                        >
+                            {installations.map(i => (
+                                <MenuItem key={i.pk} value={i.pk}>
+                                    {i.nome} {i.subsistema && `(${i.subsistema})`}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <TextField
+                        size="small"
+                        label="Dias atrás"
+                        type="number"
+                        value={lastDays}
+                        onChange={(e) => setLastDays(e.target.value)}
+                        sx={{ width: { xs: '100%', sm: 100 } }}
+                    />
+                    <Button
+                        variant="contained"
+                        startIcon={<SearchIcon />}
+                        onClick={handleSearch}
+                        disabled={!selectedInstalacao || loadingMetaData}
+                        sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                        Pesquisar
+                    </Button>
                 </Stack>
             </Paper>
 
@@ -395,9 +378,6 @@ const OperationControlPage = () => {
 
             {!loadingTasks && rawTasks.length > 0 && (
                 <Paper sx={{ ...glassCard, overflow: 'hidden' }}>
-                    <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-                        <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} placeholder="Pesquisar por ação ou executor..." />
-                    </Box>
                     <TableContainer>
                         <Table size="small">
                             <TableHead>
