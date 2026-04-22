@@ -886,7 +886,7 @@ def cms_list_procedimentos(current_user: str):
 def cms_get_procedimento(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
         proc = session.execute(text("""
-            SELECT pk, referencia, ts_tipo, tipo, titulo, carreira,
+            SELECT pk, referencia, ref_letra, ts_tipo, tipo, titulo, carreira,
                    categoria_prof, area_atividade, tt_tipo_contrato,
                    num_vagas, municipio, ts_estado, estado,
                    descricao, data_abertura, data_encerramento, visivel
@@ -922,19 +922,27 @@ def cms_save_procedimento(data: dict, current_user: str):
 
         user_pk = session.execute(text("SELECT fs_client()")).scalar()
 
+        num_vagas    = data.get('num_vagas') or ''
+        carreira     = data.get('carreira') or ''
+        area_atv     = data.get('area_atividade') or ''
+        ref_letra    = (data.get('ref_letra') or '').upper()
+        area_part    = f' ({area_atv})' if area_atv else ''
+        posto        = 'posto de trabalho' if str(num_vagas) == '1' else 'postos de trabalho'
+        titulo       = f"{num_vagas} {posto} para {carreira}{area_part} - REFª {ref_letra}"
+
         session.execute(text("""
             SELECT fbf_site_procedimento(
                 CAST(:pop AS SMALLINT), :pk, :referencia, CAST(:ts_tipo AS SMALLINT), :titulo, :carreira,
                 :categoria_prof, CAST(:num_vagas AS SMALLINT), :municipio, CAST(:ts_estado AS SMALLINT),
                 :descricao, :data_abertura, :data_enc, :visivel, :criado_por,
-                :area_atividade, CAST(:tt_tipo_contrato AS SMALLINT)
+                :area_atividade, CAST(:tt_tipo_contrato AS SMALLINT), CAST(:ref_letra AS CHAR)
             )
         """), {
             'pop': pop, 'pk': pk,
             'referencia':        data.get('referencia'),
             'ts_tipo':           data.get('ts_tipo'),
-            'titulo':            data.get('titulo'),
-            'carreira':          data.get('carreira'),
+            'titulo':            titulo,
+            'carreira':          carreira,
             'categoria_prof':    data.get('categoria_prof'),
             'num_vagas':         data.get('num_vagas'),
             'municipio':         data.get('municipio'),
@@ -946,6 +954,7 @@ def cms_save_procedimento(data: dict, current_user: str):
             'criado_por':        user_pk,
             'area_atividade':    data.get('area_atividade') or None,
             'tt_tipo_contrato':  data.get('tt_tipo_contrato') or None,
+            'ref_letra':         data.get('ref_letra') or None,
         })
         action = 'criado' if pop == 0 else 'atualizado'
         return {'pk': pk, 'message': f'Procedimento {action} com sucesso'}, 200
