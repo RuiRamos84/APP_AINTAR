@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, FormControlLabel, Grid, IconButton, InputLabel,
-  MenuItem, Select, Step, StepLabel, Stepper, Switch, TextField,
-  Tooltip, Typography, Stack, Paper,
+  List, ListItem, ListItemIcon, ListItemText,
+  MenuItem, Select, Step, StepLabel, Stepper, Switch, Tab, Tabs,
+  TextField, Tooltip, Typography, Stack, Paper,
 } from '@mui/material';
 import {
   Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon,
   AttachFile as FileIcon, WorkOutline as ProcIcon, ExpandMore as ExpandIcon,
   ArrowForward as NextIcon, ArrowBack as BackIcon,
+  PictureAsPdf as PdfIcon, Description as DocIcon, CheckCircle as DoneIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -17,7 +19,9 @@ import { ModulePage } from '@/shared/components/layout/ModulePage';
 import notification from '@/core/services/notification';
 import {
   getProcedimentos, getProcedimento, saveProcedimento,
-  saveProcedimentoFase, deleteProcedimentoFase, uploadFaseFile, getMetadados,
+  saveProcedimentoFase, deleteProcedimentoFase, uploadFaseFile,
+  uploadProcedimentoImagem, getProcedimentoDocs,
+  uploadProcedimentoDoc, deleteProcedimentoDoc, getMetadados,
 } from '../api/websiteCmsService';
 
 const EMPTY_PROC = {
@@ -35,19 +39,125 @@ function buildTitulo(form) {
   return `${n} ${posto} para ${form.carreira}${area} - REFª ${(form.ref_letra || '').toUpperCase()}`;
 }
 
-const STEPS = ['Cabeçalho', 'Corpo do Procedimento'];
+const STEPS = ['Cabeçalho', 'Corpo do Procedimento', 'Documentos'];
+
+const DOC_TABS = [
+  { key: 'publicacao',  label: 'Publicações',               folder: 'publicacoes' },
+  { key: 'referencia',  label: 'Referências Bibliográficas', folder: 'referencias bibliograficas' },
+  { key: 'formulario',  label: 'Formulários',                folder: 'formularios' },
+];
+
+function DocSection({ procPk, categoria }) {
+  const qc = useQueryClient();
+  const fileRef = useRef();
+  const [titulo, setTitulo] = useState('');
+
+  const { data: docs = { publicacao: [], referencia: [], formulario: [] } } = useQuery({
+    queryKey: ['cms', 'proc-docs', procPk],
+    queryFn: () => getProcedimentoDocs(procPk),
+    enabled: !!procPk,
+  });
+
+  const uploadMut = useMutation({
+    mutationFn: ({ file }) => uploadProcedimentoDoc(procPk, categoria, titulo, file),
+    onSuccess: () => {
+      qc.invalidateQueries(['cms', 'proc-docs', procPk]);
+      notification.success('Documento adicionado');
+      setTitulo('');
+    },
+    onError: (e) => notification.error(e.message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteProcedimentoDoc,
+    onSuccess: () => {
+      qc.invalidateQueries(['cms', 'proc-docs', procPk]);
+      notification.success('Documento eliminado');
+    },
+    onError: (e) => notification.error(e.message),
+  });
+
+  const list = docs[categoria] ?? [];
+
+  return (
+    <Stack spacing={2}>
+      {list.length > 0 && (
+        <List dense disablePadding>
+          {list.map(doc => (
+            <ListItem
+              key={doc.pk}
+              disableGutters
+              sx={{ borderBottom: '1px solid', borderColor: 'grey.100', py: 0.5 }}
+              secondaryAction={
+                <IconButton size="small" color="error" onClick={() => deleteMut.mutate(doc.pk)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              }
+            >
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <PdfIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <ListItemText
+                primary={doc.titulo || doc.nome_original}
+                secondary={doc.nome_original}
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+          ))}
+        </List>
+      )}
+
+      <Stack direction="row" spacing={1} alignItems="flex-end">
+        <TextField
+          label="Título (opcional)"
+          size="small"
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          sx={{ flex: 1 }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<AddIcon />}
+          disabled={uploadMut.isPending}
+          onClick={() => fileRef.current?.click()}
+        >
+          Adicionar
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          hidden
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          onChange={(e) => {
+            const f = e.target.files[0];
+            if (f) uploadMut.mutate({ file: f });
+            e.target.value = '';
+          }}
+        />
+      </Stack>
+    </Stack>
+  );
+}
 
 export default function WebsiteProcedimentosPage() {
   const qc = useQueryClient();
   const [open, setOpen]           = useState(false);
   const [step, setStep]           = useState(0);
+  const [docTab, setDocTab]       = useState(0);
   const [form, setForm]           = useState(EMPTY_PROC);
+  const [savedPk, setSavedPk]     = useState(null);
+  const [procImage, setProcImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [faseOpen, setFaseOpen]   = useState(false);
   const [faseForm, setFaseForm]   = useState(EMPTY_FASE);
   const [faseFile, setFaseFile]   = useState(null);
   const [selected, setSelected]   = useState(null);
   const [deleteTarget, setDeleteTarget]         = useState(null);
   const [deleteFaseTarget, setDeleteFaseTarget] = useState(null);
+
+  const effectivePk = form.pk || savedPk;
 
   const { data, isLoading } = useQuery({
     queryKey: ['cms', 'procedimentos'],
@@ -74,11 +184,23 @@ export default function WebsiteProcedimentosPage() {
   const tiposContrato = meta?.procedimento_tipos_contrato ?? [];
 
   const saveMut = useMutation({
-    mutationFn: saveProcedimento,
-    onSuccess: () => {
+    mutationFn: async ({ data, continueToStep3 }) => {
+      const res = await saveProcedimento(data);
+      if (procImage && res?.pk) {
+        try { await uploadProcedimentoImagem(res.pk, procImage); } catch { /* continua */ }
+      }
+      return { ...res, continueToStep3 };
+    },
+    onSuccess: (res) => {
       qc.invalidateQueries(['cms', 'procedimentos']);
-      notification.success(form.pk ? 'Procedimento atualizado' : 'Procedimento criado');
-      setOpen(false);
+      if (res.continueToStep3) {
+        setSavedPk(res.pk);
+        setStep(2);
+        notification.success(form.pk ? 'Procedimento atualizado' : 'Procedimento guardado');
+      } else {
+        notification.success(form.pk ? 'Procedimento atualizado' : 'Procedimento criado');
+        setOpen(false);
+      }
     },
     onError: (e) => notification.error(e.message),
   });
@@ -109,30 +231,33 @@ export default function WebsiteProcedimentosPage() {
     onError: (e) => notification.error(e.message),
   });
 
-  const openNew  = () => { setForm(EMPTY_PROC); setStep(0); setOpen(true); };
+  const openNew = () => {
+    setForm(EMPTY_PROC); setStep(0); setDocTab(0);
+    setSavedPk(null); setProcImage(null); setImagePreview(null);
+    setOpen(true);
+  };
   const openEdit = (row) => {
     setForm({
       ...row,
       data_abertura:     row.data_abertura     ? new Date(row.data_abertura)     : null,
       data_encerramento: row.data_encerramento ? new Date(row.data_encerramento) : null,
     });
-    setStep(0);
+    setStep(0); setDocTab(0); setSavedPk(null); setProcImage(null);
+    setImagePreview(row.imagem_url ? `/api/v1/website/procedimento-imagem/${row.imagem_url}` : null);
     setOpen(true);
   };
   const openNewFase  = () => { setFaseForm({ ...EMPTY_FASE, procedimento_fk: selected }); setFaseFile(null); setFaseOpen(true); };
   const openEditFase = (fase) => {
     setFaseForm({ ...fase, procedimento_fk: selected, data: fase.data ? new Date(fase.data) : null });
-    setFaseFile(null);
-    setFaseOpen(true);
+    setFaseFile(null); setFaseOpen(true);
   };
 
-  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
+  const set     = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
   const setFase = (field) => (e) => setFaseForm(f => ({ ...f, [field]: e.target.value }));
 
   const step1Valid = form.num_vagas && form.carreira && form.ref_letra;
   const step2Valid = form.referencia && form.ts_tipo && form.categoria_prof && form.tt_tipo_contrato && form.municipio;
-
-  const previewTitulo = (form.num_vagas && form.carreira && form.ref_letra) ? buildTitulo(form) : null;
+  const previewTitulo = step1Valid ? buildTitulo(form) : null;
 
   const columns = [
     { field: 'referencia', headerName: 'Referência', width: 140 },
@@ -148,18 +273,12 @@ export default function WebsiteProcedimentosPage() {
       field: '_actions', headerName: '', width: 120, sortable: false,
       renderCell: ({ row }) => (
         <Stack direction="row" spacing={0.5}>
-          <Tooltip title="Editar">
-            <IconButton size="small" onClick={() => openEdit(row)}><EditIcon fontSize="small" /></IconButton>
-          </Tooltip>
+          <Tooltip title="Editar"><IconButton size="small" onClick={() => openEdit(row)}><EditIcon fontSize="small" /></IconButton></Tooltip>
           <Tooltip title="Gerir Fases">
-            <IconButton size="small" color="primary" onClick={() => setSelected(row.pk)}>
-              <ExpandIcon fontSize="small" />
-            </IconButton>
+            <IconButton size="small" color="primary" onClick={() => setSelected(row.pk)}><ExpandIcon fontSize="small" /></IconButton>
           </Tooltip>
           <Tooltip title="Eliminar">
-            <IconButton size="small" color="error" onClick={() => setDeleteTarget(row.pk)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
+            <IconButton size="small" color="error" onClick={() => setDeleteTarget(row.pk)}><DeleteIcon fontSize="small" /></IconButton>
           </Tooltip>
         </Stack>
       ),
@@ -167,28 +286,16 @@ export default function WebsiteProcedimentosPage() {
   ];
 
   const faseColumns = [
-    { field: 'label',     headerName: 'Fase',     flex: 1 },
-    {
-      field: 'data', headerName: 'Data', width: 110,
-      renderCell: ({ value }) => value ? new Date(value).toLocaleDateString('pt-PT') : '—',
-    },
-    { field: 'notas',     headerName: 'Notas',    flex: 1 },
-    {
-      field: 'publicado', headerName: 'Publicada', width: 100,
-      renderCell: ({ value }) => <Chip size="small" label={value ? 'Sim' : 'Não'} color={value ? 'success' : 'default'} />,
-    },
+    { field: 'label', headerName: 'Fase', flex: 1 },
+    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => value ? new Date(value).toLocaleDateString('pt-PT') : '—' },
+    { field: 'notas', headerName: 'Notas', flex: 1 },
+    { field: 'publicado', headerName: 'Publicada', width: 100, renderCell: ({ value }) => <Chip size="small" label={value ? 'Sim' : 'Não'} color={value ? 'success' : 'default'} /> },
     {
       field: '_a', headerName: '', width: 90, sortable: false,
       renderCell: ({ row }) => (
         <Stack direction="row" spacing={0.5}>
-          <Tooltip title="Editar">
-            <IconButton size="small" onClick={() => openEditFase(row)}><EditIcon fontSize="small" /></IconButton>
-          </Tooltip>
-          <Tooltip title="Eliminar">
-            <IconButton size="small" color="error" onClick={() => setDeleteFaseTarget(row.pk)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Tooltip title="Editar"><IconButton size="small" onClick={() => openEditFase(row)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Eliminar"><IconButton size="small" color="error" onClick={() => setDeleteFaseTarget(row.pk)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
         </Stack>
       ),
     },
@@ -201,51 +308,31 @@ export default function WebsiteProcedimentosPage() {
       icon={ProcIcon}
       color="#e91e63"
       breadcrumbs={[{ label: 'CMS Website' }, { label: 'Procedimentos RH' }]}
-      actions={
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
-          Novo Procedimento
-        </Button>
-      }
+      actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>Novo Procedimento</Button>}
     >
       <Box sx={{ height: 420 }}>
-        <DataGrid
-          rows={data ?? []}
-          columns={columns}
-          loading={isLoading}
-          getRowId={(r) => r.pk}
-          disableRowSelectionOnClick
-          pageSizeOptions={[25]}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        />
+        <DataGrid rows={data ?? []} columns={columns} loading={isLoading} getRowId={(r) => r.pk}
+          disableRowSelectionOnClick pageSizeOptions={[25]}
+          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }} />
       </Box>
 
-      {/* ─── Painel de Fases ──────────────────────────────────────────────── */}
+      {/* ─── Painel de Fases ─────────────────────────────────────────────── */}
       {selected && procDetail && (
         <Paper sx={{ mt: 3, p: 2 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="subtitle1" fontWeight={600}>
-              Fases — {procDetail.titulo}
-            </Typography>
+            <Typography variant="subtitle1" fontWeight={600}>Fases — {procDetail.titulo}</Typography>
             <Stack direction="row" spacing={1}>
-              <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={openNewFase}>
-                Adicionar Fase
-              </Button>
+              <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={openNewFase}>Adicionar Fase</Button>
               <Button size="small" onClick={() => setSelected(null)}>Fechar</Button>
             </Stack>
           </Stack>
           <Box sx={{ height: 300 }}>
-            <DataGrid
-              rows={procDetail.fases ?? []}
-              columns={faseColumns}
-              getRowId={(r) => r.pk}
-              disableRowSelectionOnClick
-              hideFooter
-            />
+            <DataGrid rows={procDetail.fases ?? []} columns={faseColumns} getRowId={(r) => r.pk} disableRowSelectionOnClick hideFooter />
           </Box>
         </Paper>
       )}
 
-      {/* ─── Proc Dialog (2 passos) ───────────────────────────────────────── */}
+      {/* ─── Proc Dialog (3 passos) ──────────────────────────────────────── */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack spacing={2}>
@@ -253,15 +340,14 @@ export default function WebsiteProcedimentosPage() {
               {form.pk ? 'Editar Procedimento' : 'Novo Procedimento'}
             </Typography>
             <Stepper activeStep={step} alternativeLabel>
-              {STEPS.map((label) => (
-                <Step key={label}><StepLabel>{label}</StepLabel></Step>
-              ))}
+              {STEPS.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
             </Stepper>
           </Stack>
         </DialogTitle>
 
         <DialogContent dividers>
-          {/* ── Passo 1: Cabeçalho ── */}
+
+          {/* ── Passo 0: Cabeçalho ── */}
           {step === 0 && (
             <Grid container spacing={2} sx={{ pt: 1 }}>
               <Grid size={{ xs: 12, sm: 8 }}>
@@ -275,9 +361,7 @@ export default function WebsiteProcedimentosPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
-                  label="REFª"
-                  fullWidth
-                  required
+                  label="REFª" fullWidth required
                   inputProps={{ maxLength: 1, style: { textTransform: 'uppercase' } }}
                   value={form.ref_letra || ''}
                   onChange={(e) => {
@@ -297,7 +381,7 @@ export default function WebsiteProcedimentosPage() {
             </Grid>
           )}
 
-          {/* ── Passo 2: Corpo do Procedimento ── */}
+          {/* ── Passo 1: Corpo do Procedimento ── */}
           {step === 1 && (
             <Grid container spacing={2} sx={{ pt: 1 }}>
               <Grid size={{ xs: 12, sm: 8 }}>
@@ -341,6 +425,26 @@ export default function WebsiteProcedimentosPage() {
                 <DatePicker label="Encerramento" value={form.data_encerramento} onChange={(v) => setForm(f => ({ ...f, data_encerramento: v }))} slotProps={{ textField: { fullWidth: true } }} />
               </Grid>
               <Grid size={12}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Fotografia do Concurso</Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  {imagePreview && (
+                    <Box component="img" src={imagePreview} alt="preview"
+                      sx={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 1, border: '1px solid', borderColor: 'grey.300' }} />
+                  )}
+                  <Button variant="outlined" component="label" startIcon={<FileIcon />} size="small">
+                    {procImage ? procImage.name : imagePreview ? 'Alterar imagem' : 'Carregar imagem'}
+                    <input type="file" hidden accept="image/*"
+                      onChange={(e) => {
+                        const f = e.target.files[0];
+                        if (f) { setProcImage(f); setImagePreview(URL.createObjectURL(f)); }
+                      }} />
+                  </Button>
+                  {imagePreview && (
+                    <Button size="small" color="error" onClick={() => { setProcImage(null); setImagePreview(null); }}>Remover</Button>
+                  )}
+                </Stack>
+              </Grid>
+              <Grid size={12}>
                 <TextField label="Descrição" fullWidth multiline rows={3} value={form.descricao || ''} onChange={set('descricao')} />
               </Grid>
               <Grid size={12}>
@@ -351,26 +455,65 @@ export default function WebsiteProcedimentosPage() {
               </Grid>
             </Grid>
           )}
+
+          {/* ── Passo 2: Documentos ── */}
+          {step === 2 && (
+            <Box sx={{ pt: 1 }}>
+              {!effectivePk ? (
+                <Typography color="text.secondary" variant="body2">
+                  Guarda o procedimento primeiro para poder adicionar documentos.
+                </Typography>
+              ) : (
+                <>
+                  <Tabs value={docTab} onChange={(_, v) => setDocTab(v)} sx={{ mb: 2 }} variant="fullWidth">
+                    {DOC_TABS.map((t, i) => <Tab key={t.key} label={t.label} value={i} />)}
+                  </Tabs>
+                  {DOC_TABS.map((t, i) => (
+                    <Box key={t.key} hidden={docTab !== i}>
+                      <DocSection procPk={effectivePk} categoria={t.key} />
+                    </Box>
+                  ))}
+                </>
+              )}
+            </Box>
+          )}
         </DialogContent>
 
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancelar</Button>
-          {step === 0 ? (
+
+          {step === 0 && (
             <Button variant="contained" endIcon={<NextIcon />} disabled={!step1Valid} onClick={() => setStep(1)}>
               Seguinte
             </Button>
-          ) : (
+          )}
+
+          {step === 1 && (
             <>
               <Button startIcon={<BackIcon />} onClick={() => setStep(0)}>Voltar</Button>
-              <Button variant="contained" disabled={!step2Valid || saveMut.isPending} onClick={() => saveMut.mutate(form)}>
+              <Button variant="outlined" disabled={!step2Valid || saveMut.isPending}
+                onClick={() => saveMut.mutate({ data: form, continueToStep3: false })}>
                 Guardar
+              </Button>
+              <Button variant="contained" endIcon={<NextIcon />} disabled={!step2Valid || saveMut.isPending}
+                onClick={() => saveMut.mutate({ data: form, continueToStep3: true })}>
+                Seguinte
+              </Button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <Button startIcon={<BackIcon />} onClick={() => setStep(1)}>Voltar</Button>
+              <Button variant="contained" startIcon={<DoneIcon />} onClick={() => { qc.invalidateQueries(['cms', 'procedimentos']); setOpen(false); }}>
+                Concluir
               </Button>
             </>
           )}
         </DialogActions>
       </Dialog>
 
-      {/* ─── Fase Dialog ──────────────────────────────────────────────────── */}
+      {/* ─── Fase Dialog ─────────────────────────────────────────────────── */}
       <Dialog open={faseOpen} onClose={() => setFaseOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{faseForm.pk ? 'Editar Fase' : 'Nova Fase'}</DialogTitle>
         <DialogContent dividers>
@@ -395,8 +538,7 @@ export default function WebsiteProcedimentosPage() {
             <Grid size={{ xs: 12, sm: 3 }} sx={{ display: 'flex', alignItems: 'center' }}>
               <FormControlLabel
                 control={<Switch checked={!!faseForm.publicado} onChange={(e) => setFaseForm(f => ({ ...f, publicado: e.target.checked }))} />}
-                label="Publicada"
-              />
+                label="Publicada" />
             </Grid>
             <Grid size={12}>
               <TextField label="Notas" fullWidth multiline rows={2} value={faseForm.notas || ''} onChange={setFase('notas')} />
@@ -413,9 +555,7 @@ export default function WebsiteProcedimentosPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setFaseOpen(false)}>Cancelar</Button>
-          <Button variant="contained" disabled={saveFaseMut.isPending} onClick={() => saveFaseMut.mutate(faseForm)}>
-            Guardar
-          </Button>
+          <Button variant="contained" disabled={saveFaseMut.isPending} onClick={() => saveFaseMut.mutate(faseForm)}>Guardar</Button>
         </DialogActions>
       </Dialog>
 
@@ -424,9 +564,7 @@ export default function WebsiteProcedimentosPage() {
         <DialogContent><Typography>Esta ação é irreversível.</Typography></DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={() => { setDeleteTarget(null); }}>
-            Eliminar
-          </Button>
+          <Button color="error" variant="contained" onClick={() => setDeleteTarget(null)}>Eliminar</Button>
         </DialogActions>
       </Dialog>
 

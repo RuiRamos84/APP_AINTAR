@@ -68,7 +68,7 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    FILES_DIR = 'C:/Users/rui.ramos/Desktop/APP/files'
+    FILES_DIR = os.getenv('UPLOAD_FOLDER', 'C:/Users/rui.ramos/Desktop/APP/files')
     CACHE_TYPE = 'simple'
 
     # Caminhos para recursos de emissões (desenvolvimento)

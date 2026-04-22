@@ -91,29 +91,77 @@ export default function RecursosHumanosPage() {
             {loading ? <SkeletonList /> : abertos.length === 0 ? (
               <EmptySection msg="Não existem procedimentos concursais em aberto de momento." />
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {abertos.map(c => (
-                  <Link
-                    key={c.pk}
-                    to={`/quem-somos/recursos-humanos/${c.pk}`}
-                    className="flex items-start justify-between gap-4 p-5 rounded-xl border border-aintar-teal/20 bg-aintar-teal/5 hover:border-aintar-teal/50 hover:bg-aintar-teal/10 hover:shadow-sm transition-all group"
-                  >
-                    <div className="flex-grow min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {c.referencia && <span className="text-xs font-bold text-aintar-teal bg-aintar-teal/15 px-2 py-0.5 rounded-full">{c.referencia}</span>}
-                        {c.num_vagas && <span className="text-xs text-gray-400">{c.num_vagas} {c.num_vagas === 1 ? 'vaga' : 'vagas'}</span>}
+                  <div key={c.pk} className="rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow flex flex-col overflow-hidden">
+                    {/* Imagem / cabeçalho colorido */}
+                    <div className="h-44 relative overflow-hidden flex-shrink-0">
+                      {c.imagem_url ? (
+                        <img
+                          src={`/api/v1/website/procedimento-imagem/${c.imagem_url}`}
+                          alt={c.titulo}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-hero-gradient flex items-center justify-center">
+                          {c.ref_letra && (
+                            <span className="text-7xl font-heading font-black text-white/20 select-none">
+                              {c.ref_letra}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* Badge REFª sobreposto */}
+                      <div className="absolute top-3 left-3 flex gap-1.5">
+                        {c.ref_letra && (
+                          <span className="text-xs font-bold bg-aintar-teal text-white px-2.5 py-1 rounded-full shadow">
+                            REFª {c.ref_letra}
+                          </span>
+                        )}
+                        {c.referencia && (
+                          <span className="text-xs font-semibold bg-white/90 text-aintar-teal px-2.5 py-1 rounded-full shadow">
+                            {c.referencia}
+                          </span>
+                        )}
                       </div>
-                      <div className="font-semibold text-aintar-navy text-sm group-hover:text-aintar-teal transition-colors">{c.titulo}</div>
-                      {c.tipo && <div className="text-xs text-gray-400 mt-1">{c.tipo}</div>}
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="flex items-center gap-1.5 text-xs text-aintar-teal font-medium whitespace-nowrap">
-                        <Clock size={12} />
+
+                    {/* Conteúdo */}
+                    <div className="flex flex-col flex-grow p-5">
+                      <h3 className="font-heading font-bold text-aintar-navy text-sm leading-snug mb-3 line-clamp-3">
+                        {c.titulo}
+                      </h3>
+
+                      {/* Descrição / meta */}
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {c.tipo_contrato && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">{c.tipo_contrato}</span>
+                        )}
+                        {c.municipio && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">📍 {c.municipio}</span>
+                        )}
+                        {c.num_vagas && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+                            {c.num_vagas} {Number(c.num_vagas) === 1 ? 'posto' : 'postos'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Prazo */}
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4 mt-auto">
+                        <Clock size={11} />
                         {formatPrazo(c)}
                       </div>
-                      <ArrowUpRight size={14} className="text-aintar-teal/40 group-hover:text-aintar-teal transition-colors" />
+
+                      {/* Botão */}
+                      <Link
+                        to={`/quem-somos/recursos-humanos/${c.pk}`}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-aintar-teal text-white text-sm font-semibold hover:bg-aintar-blue transition-colors w-full"
+                      >
+                        Abrir
+                      </Link>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}

@@ -45,3 +45,9 @@ export function fileUrl(path) {
   if (path.startsWith('http') || path.startsWith('/api')) return path
   return `${API}/website/files/${path}`
 }
+
+export function procDocUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http') || path.startsWith('/api')) return path
+  return `${API}/website/procedimento-doc/${path}`
+}

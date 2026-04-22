@@ -70,6 +70,20 @@ export const uploadFaseFile = (pk, file) => {
   fd.append('file', file);
   return api.post(`${BASE}/procedimentos/fases/${pk}/ficheiro`, fd, { headers: { 'Content-Type': undefined } });
 };
+export const uploadProcedimentoImagem = (pk, file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api.post(`${BASE}/procedimentos/${pk}/imagem`, fd, { headers: { 'Content-Type': undefined } });
+};
+export const getProcedimentoDocs      = (pk)                        => api.get(`${BASE}/procedimentos/${pk}/documentos`);
+export const deleteProcedimentoDoc    = (docPk)                     => api.delete(`${BASE}/procedimentos/documentos/${docPk}`);
+export const uploadProcedimentoDoc    = (pk, categoria, titulo, file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('categoria', categoria);
+  if (titulo) fd.append('titulo', titulo);
+  return api.post(`${BASE}/procedimentos/${pk}/documentos`, fd, { headers: { 'Content-Type': undefined } });
+};
 
 // ─── Processos Financeiros ────────────────────────────────────────────────────
 
