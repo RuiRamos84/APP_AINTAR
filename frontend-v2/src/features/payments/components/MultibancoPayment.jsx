@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Box, Button, Typography, Alert, CircularProgress, Paper, Grid,
-    IconButton, Avatar, Fade
+    IconButton, Avatar, Fade, Chip
 } from '@mui/material';
 import {
     ContentCopy as CopyIcon,
@@ -12,7 +12,7 @@ import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
 import { getSocket, SOCKET_EVENTS, isSocketConnected } from '@/services/websocket/socketService';
 
-const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, onRetry }) => {
+const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, regnumber, onRetry }) => {
     const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
     const [step, setStep] = useState('generate');
@@ -139,6 +139,9 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, onRet
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
                     Referência Multibanco
                 </Typography>
+                {regnumber && (
+                    <Chip label={`Processo: ${regnumber}`} size="small" variant="outlined" sx={{ mb: 2 }} />
+                )}
                 <Paper sx={{
                     p: 3,
                     mb: 4,
@@ -182,6 +185,9 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, onRet
                     <Typography variant="body2" color="text.secondary">
                         Pague no Multibanco ou Homebanking
                     </Typography>
+                    {regnumber && (
+                        <Chip label={`Processo: ${regnumber}`} size="small" variant="outlined" sx={{ mt: 1 }} />
+                    )}
                 </Box>
                 <Paper elevation={8} sx={{
                     p: 4,

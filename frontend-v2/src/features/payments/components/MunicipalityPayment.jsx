@@ -16,7 +16,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
 import { documentsService } from '@/features/documents/api/documentsService';
 
-const MunicipalityPayment = ({ onSuccess, documentId, amount }) => {
+const MunicipalityPayment = ({ onSuccess, documentId, amount, regnumber }) => {
     const { data: metaData } = useMetaData();
     const { hasPermission } = usePermissionContext();
     const { user } = useAuth();
@@ -35,7 +35,7 @@ const MunicipalityPayment = ({ onSuccess, documentId, amount }) => {
 
     const { mutate: registerPayment, isLoading } = useMutation({
         mutationFn: async () => {
-            const referenceInfo = `Pagamento no ${formData.municipality} em ${new Date(formData.paymentDate).toLocaleDateString('pt-PT')}. Ref: ${formData.reference.trim()}`;
+            const referenceInfo = `Pedido: ${regnumber || documentId} | Pagamento no ${formData.municipality} em ${new Date(formData.paymentDate).toLocaleDateString('pt-PT')}. Ref: ${formData.reference.trim()}`;
 
             const result = await paymentService.processManual(documentId, amount, 'MUNICIPALITY', referenceInfo);
 
@@ -147,6 +147,9 @@ const MunicipalityPayment = ({ onSuccess, documentId, amount }) => {
                     <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
                         Pagamento nos Municípios
                     </Typography>
+                    {regnumber && (
+                        <Chip label={`Processo: ${regnumber}`} size="small" variant="outlined" sx={{ mb: 1 }} />
+                    )}
                     <Paper sx={{
                         p: 2, mt: 2,
                         background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',

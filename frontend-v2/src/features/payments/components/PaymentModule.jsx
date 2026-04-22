@@ -21,6 +21,7 @@ import PaymentStatus from './PaymentStatus';
 const PaymentModule = ({
     documentId,
     amount,
+    regnumber,
     step: externalStep,
     onStepChange,
     onLoadingChange,
@@ -124,11 +125,12 @@ const PaymentModule = ({
 
     const renderPaymentMethod = () => {
         const props = {
-            documentId: documentId, // or orderId
-            amount: amount,
+            documentId,
+            amount,
+            regnumber,
             onComplete,
             userInfo: user,
-            transactionId: transactionId,
+            transactionId,
             onSuccess: (result) => setStatus(result.payment_status || 'SUCCESS'),
             onRetry: handlePaymentRetry,
         };

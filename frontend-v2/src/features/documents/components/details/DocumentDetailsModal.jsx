@@ -53,6 +53,7 @@ import WorkflowViewer from './tabs/WorkflowViewer';
 import { useDocumentDetails, useDocumentSteps, useDownloadComprovativo, useReopenDocument } from '../../hooks/useDocuments';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
+import { useAuth } from '@/core/contexts/AuthContext';
 import { getStatusColor, getStatusLabel, formatDate } from '../../utils/documentUtils';
 import { isDocumentClosed } from '../../utils/statusUtils';
 import DocumentTimeline from './DocumentTimeline';
@@ -135,6 +136,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   const [activeTab, setActiveTab] = useState(0);
+  const { user: currentUser } = useAuth();
   const [isAddStepOpen, setIsAddStepOpen] = useState(false);
   const [isReplicateOpen, setIsReplicateOpen] = useState(false);
   const [isAddAnnexOpen, setIsAddAnnexOpen] = useState(false);
@@ -167,10 +169,14 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const { hasPermission, isAdmin } = usePermissionContext();
   const canReplicate = hasPermission('docs.edit');
   const canReopen = isAdmin();
-  const canDownloadComprovativo = isCreator || hasPermission('docs.view.owner');
-  // Editar campos: admin edita tudo; utilizador com pedido em sua posse edita coordenadas
+
+  // Auto-detect ownership from document data when not explicitly passed by parent
+  const effectiveIsOwner   = isOwner   || (document && currentUser && Number(document.who)    === Number(currentUser.user_id)) || (documentData?.who && currentUser && Number(documentData.who) === Number(currentUser.user_id));
+  const effectiveIsCreator = isCreator || (document && currentUser && Number(document.creator) === Number(currentUser.user_id));
+
+  const canDownloadComprovativo = effectiveIsCreator || hasPermission('docs.view.owner');
   const canEditAll = isAdmin();
-  const canEditCoords = isOwner && hasPermission('docs.view.assigned'); // tem o pedido em sua posse
+  const canEditCoords = effectiveIsOwner && hasPermission('docs.view.assigned');
   const showEditButton = canEditAll || canEditCoords;
 
   const findMetaValue = (metaArray, key, value) => {
@@ -1156,7 +1162,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
             </Button>
           )}
         </Box>
-        {isOwner && (
+        {effectiveIsOwner && (
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="outlined"
@@ -1185,7 +1191,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
             startIcon={<EditIcon />}
             onClick={() => setIsEditOpen(true)}
             disabled={!document}
-            sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, ml: isOwner ? 0 : 'auto' }}
+            sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, ml: effectiveIsOwner ? 0 : 'auto' }}
           >
             {isMobile ? 'Editar' : 'Editar Pedido'}
           </Button>

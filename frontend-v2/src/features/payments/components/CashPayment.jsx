@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
-    Box, Button, TextField, Typography, Alert, CircularProgress, Avatar, Fade, Paper
+    Box, Button, TextField, Typography, Alert, CircularProgress, Avatar, Fade, Paper, Chip
 } from '@mui/material';
 import { Euro as CashIcon, Receipt as ReceiptIcon } from '@mui/icons-material';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
 
-const CashPayment = ({ onSuccess, documentId, amount }) => {
+const CashPayment = ({ onSuccess, documentId, amount, regnumber }) => {
     const [reference, setReference] = useState('');
     const [error, setError] = useState('');
     const { hasPermission } = usePermissionContext();
@@ -15,7 +15,7 @@ const CashPayment = ({ onSuccess, documentId, amount }) => {
     const canProcess = hasPermission(730); // payments.cash.action
 
     const { mutate: registerPayment, isLoading } = useMutation({
-        mutationFn: () => paymentService.processManual(documentId, amount, 'CASH', reference.trim()),
+        mutationFn: () => paymentService.processManual(documentId, amount, 'CASH', `Pedido: ${regnumber || documentId} | ${reference.trim()}`),
         onSuccess: (result) => onSuccess?.(result),
         onError: (err) => setError(err.message || 'Ocorreu um erro ao registar o pagamento.'),
     });
@@ -50,6 +50,9 @@ const CashPayment = ({ onSuccess, documentId, amount }) => {
                     <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
                         Pagamento em Numerário
                     </Typography>
+                    {regnumber && (
+                        <Chip label={`Processo: ${regnumber}`} size="small" variant="outlined" sx={{ mb: 1 }} />
+                    )}
                     <Paper sx={{
                         p: 2, mt: 2,
                         background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',

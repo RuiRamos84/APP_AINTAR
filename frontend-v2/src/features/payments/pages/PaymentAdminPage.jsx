@@ -1,21 +1,24 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
-    Container, Typography, Paper, Box, Table, TableBody, TableCell,
+    Typography, Paper, Box, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Button, Chip, IconButton,
     Dialog, DialogTitle, DialogContent, DialogActions, Alert, CircularProgress,
-    Grid, Card, CardContent, Avatar, Tabs, Tab, TextField,
-    Select, MenuItem, FormControl, InputLabel, Pagination, useTheme, useMediaQuery
+    Grid, Card, CardContent, Tabs, Tab, TextField,
+    Select, MenuItem, FormControl, InputLabel, Pagination, Tooltip, useTheme, useMediaQuery
 } from '@mui/material';
 import {
     CheckCircle, Visibility, Refresh, Assignment, Schedule,
     Euro, History, Close as CloseIcon, Cancel, VerifiedUser, Undo
 } from '@mui/icons-material';
+import { ModulePage } from '@/shared/components/layout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification';
 import { useAuth } from '@/core/contexts/AuthContext';
 import useMetaData from '@/core/hooks/useMetaData';
 import paymentService from '../services/paymentService';
 import { PAYMENT_STATUS_COLORS, PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
+
+const DocumentDetailsModal = lazy(() => import('@/features/documents/components/details/DocumentDetailsModal'));
 
 const PaymentAdminPage = () => {
     const theme = useTheme();
@@ -31,6 +34,7 @@ const PaymentAdminPage = () => {
     const [rejectOpen, setRejectOpen] = useState(false);
     const [refundOpen, setRefundOpen] = useState(false);
     const [refundReason, setRefundReason] = useState('');
+    const [selectedDoc, setSelectedDoc]   = useState(null);
     const [filters, setFilters] = useState({
         startDate: '', endDate: '', method: '', status: ''
     });
@@ -182,18 +186,25 @@ const PaymentAdminPage = () => {
         return labels[status] || status;
     };
 
-    return (
-        <Container maxWidth="lg" sx={{ py: 3 }}>
-            {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
-                <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, bgcolor: 'primary.main' }}>
-                    <Assignment sx={{ fontSize: 40 }} />
-                </Avatar>
-                <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
-                    Gestão de Pagamentos
-                </Typography>
-            </Box>
+    const refreshAction = (
+        <Button
+            variant="outlined" size="small" startIcon={<Refresh />}
+            onClick={tab === 0 ? fetchPending : tab === 2 ? fetchExemptions : () => queryClient.invalidateQueries({ queryKey: ['paymentHistory'] })}
+            disabled={isLoading}
+        >
+            Actualizar
+        </Button>
+    );
 
+    return (
+        <ModulePage
+            title="Gestão de Pagamentos"
+            subtitle="Validação, histórico e isenções de pagamentos SIBS"
+            icon={Assignment}
+            color="#1976d2"
+            breadcrumbs={[{ label: 'Pagamentos', path: '/payments' }]}
+            actions={refreshAction}
+        >
             {/* Tabs */}
             <Paper sx={{ mb: 3 }}>
                 <Tabs value={tab} onChange={(_, v) => { setTab(v); setPage(1); }} variant={isMobile ? 'fullWidth' : 'standard'}>
@@ -293,15 +304,15 @@ const PaymentAdminPage = () => {
                     <Grid size={{ xs: 12, sm: 4 }}>
                         <Card>
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                                <Button
-                                    variant="contained" fullWidth
-                                    startIcon={(isLoadingPending || isLoadingExemptions) ? null : <Refresh />}
-                                    onClick={tab === 0 ? fetchPending : fetchExemptions}
-                                    disabled={isLoadingPending || isLoadingExemptions}
-                                    sx={{ mt: 1 }}
-                                >
-                                    {(isLoadingPending || isLoadingExemptions) ? 'A carregar...' : 'Actualizar'}
-                                </Button>
+                                <Schedule sx={{ fontSize: 36, color: 'info.main', mb: 0.5 }} />
+                                <Typography variant="h4">
+                                    {tab === 0
+                                        ? new Set(payments.map(p => p.tb_document)).size
+                                        : exemptions.length}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    {tab === 0 ? 'Pedidos distintos' : 'Pedidos a validar'}
+                                </Typography>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -342,12 +353,19 @@ const PaymentAdminPage = () => {
                             ) : currentData.map((payment) => (
                                 <TableRow key={payment.pk} hover>
                                     <TableCell>
-                                        <Typography variant="body2" fontWeight={600}>
-                                            {payment.regnumber || payment.order_id}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {payment.document_descr || ''}
-                                        </Typography>
+                                        <Tooltip title="Clique para consultar o pedido">
+                                            <Chip
+                                                label={payment.regnumber || payment.order_id}
+                                                size="small" variant="outlined" color="primary"
+                                                onClick={() => setSelectedDoc({ pk: payment.tb_document, regnumber: payment.regnumber || payment.order_id, who: payment.who })}
+                                                sx={{ cursor: 'pointer', fontWeight: 600, mb: payment.document_descr ? 0.5 : 0 }}
+                                            />
+                                        </Tooltip>
+                                        {payment.document_descr && (
+                                            <Typography variant="caption" color="text.secondary" display="block">
+                                                {payment.document_descr}
+                                            </Typography>
+                                        )}
                                     </TableCell>
                                     {!isMobile && (
                                         <TableCell>
@@ -611,7 +629,17 @@ const PaymentAdminPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Container>
+            {selectedDoc && (
+                <Suspense fallback={null}>
+                    <DocumentDetailsModal
+                        open={!!selectedDoc}
+                        onClose={() => setSelectedDoc(null)}
+                        documentData={selectedDoc}
+                        isOwner={selectedDoc?.who && user ? Number(selectedDoc.who) === Number(user.user_id) : undefined}
+                    />
+                </Suspense>
+            )}
+        </ModulePage>
     );
 };
 

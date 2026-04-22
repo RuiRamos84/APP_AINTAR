@@ -143,9 +143,11 @@ def list_movements(current_user: str, date_from=None, date_to=None):
                    b.tt_caixamovimento                         AS tt_caixamovimento_raw,
                    b.ts_client1                                AS ts_client1_pk,
                    b.ts_client2                                AS ts_client2_pk,
-                   (b.tt_caixamovimento = ANY(:two_person_tipos) AND b.ts_client2 IS NULL) AS is_pending_validation
+                   (b.tt_caixamovimento = ANY(:two_person_tipos) AND b.ts_client2 IS NULL) AS is_pending_validation,
+                   d.regnumber                                 AS document_regnumber
             FROM vbl_caixa v
             JOIN tb_caixa b ON b.pk = v.pk
+            LEFT JOIN tb_document d ON d.pk = b.tb_document
             {where_clause}
             ORDER BY b.hist_time DESC, v.pk DESC
         """), {**params, 'two_person_tipos': list(TIPOS_TWO_PERSON)}).mappings().all()

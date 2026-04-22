@@ -378,7 +378,7 @@ export const ROUTE_CONFIG = {
 
   '/caixa': {
     id: 'caixa',
-    text: 'Fundo de Caixa',
+    text: 'Caixa',
     icon: CaixaIcon,
     module: 'pagamentos',
     permissions: { required: 'payments.caixa.view' },

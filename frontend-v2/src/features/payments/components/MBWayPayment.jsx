@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Box, Button, TextField, Alert, CircularProgress, Typography,
-    InputAdornment, Avatar, Fade, Stepper, Step, StepLabel
+    InputAdornment, Avatar, Fade, Stepper, Step, StepLabel, Chip
 } from '@mui/material';
 import {
     PhoneAndroid, CheckCircle, Send, Timer, EmojiEvents
@@ -12,7 +12,7 @@ import { getSocket, SOCKET_EVENTS, isSocketConnected } from '@/services/websocke
 
 const steps = ['Telemóvel', 'Confirmação', 'Pagamento'];
 
-const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
+const MBWayPayment = ({ onSuccess, transactionId, amount, regnumber, onRetry }) => {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
     const [phoneError, setPhoneError] = useState('');
@@ -292,6 +292,9 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, onRetry }) => {
                 <Typography variant="body2" color="text.secondary">
                     Pagamento de €{Number(amount || 0).toFixed(2)}
                 </Typography>
+                {regnumber && (
+                    <Chip label={`Processo: ${regnumber}`} size="small" variant="outlined" sx={{ mt: 1 }} />
+                )}
             </Box>
 
             <Stepper activeStep={localStep} sx={{ mb: 4 }}>

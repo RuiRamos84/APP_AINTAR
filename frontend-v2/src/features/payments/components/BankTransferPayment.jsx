@@ -1,32 +1,39 @@
 import React, { useState, useCallback } from 'react';
 import {
     Box, Button, TextField, Typography, Alert, CircularProgress,
-    Paper, InputAdornment, Grid, Avatar, Fade, IconButton, Chip
+    Paper, InputAdornment, Grid, Avatar, Fade, IconButton, Chip,
+    Dialog, DialogTitle, DialogContent, DialogActions, alpha, useTheme,
 } from '@mui/material';
 import {
     AccountBalance as BankIcon, CloudUpload as UploadIcon,
-    Delete as DeleteIcon, InsertDriveFile as FileIcon
+    InsertDriveFile as FileIcon, WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
 import { documentsService } from '@/features/documents/api/documentsService';
 
-const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
+const BankTransferPayment = ({ onSuccess, documentId, regnumber, amount }) => {
+    const theme = useTheme();
     const queryClient = useQueryClient();
 
     const [formData, setFormData] = useState({
         accountHolder: '',
         transferDate: new Date().toISOString().split('T')[0],
         transferReference: '',
-        notes: ''
+        notes: '',
     });
     const [attachments, setAttachments] = useState([]);
     const [error, setError] = useState('');
+    const [warnOpen, setWarnOpen] = useState(false);
 
     const { mutate: registerPayment, isLoading } = useMutation({
         mutationFn: async () => {
-            const referenceInfo = `Transferência de ${formData.accountHolder} em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''}`;
+            const holderPart = formData.accountHolder.trim()
+                ? `Transferência de ${formData.accountHolder.trim()}`
+                : 'Transferência (titular não identificado)';
+            const baseRef = `Pedido: ${regnumber || documentId} | ${holderPart} em ${new Date(formData.transferDate).toLocaleDateString('pt-PT')}`;
+            const referenceInfo = `${baseRef}${formData.transferReference ? `, Ref: ${formData.transferReference}` : ''}${formData.notes ? `, Obs: ${formData.notes}` : ''}`;
 
             const result = await paymentService.processManual(documentId, amount, 'BANK_TRANSFER', referenceInfo);
 
@@ -35,7 +42,7 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
                 fd.append('tb_document', documentId);
                 attachments.forEach((item) => {
                     fd.append('files', item.file);
-                    fd.append('descr', `Comprovativo transferência - ${formData.accountHolder}`);
+                    fd.append('descr', `Comprovativo transferência${formData.accountHolder.trim() ? ` - ${formData.accountHolder.trim()}` : ''}`);
                 });
                 try {
                     await documentsService.addAnnex(fd);
@@ -53,11 +60,11 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
     });
 
     const handleChange = (field) => (e) => {
-        setFormData(prev => ({ ...prev, [field]: e.target.value }));
+        setFormData((prev) => ({ ...prev, [field]: e.target.value }));
         setError('');
     };
 
-    const onDrop = useCallback(async (acceptedFiles) => {
+    const onDrop = useCallback((acceptedFiles) => {
         if (acceptedFiles.length + attachments.length > 3) {
             setError('Máximo 3 comprovativos.');
             return;
@@ -66,21 +73,18 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
             file,
             preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
         }));
-        setAttachments(prev => [...prev, ...newFiles]);
+        setAttachments((prev) => [...prev, ...newFiles]);
         setError('');
     }, [attachments.length]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: {
-            'application/pdf': ['.pdf'],
-            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-        },
-        maxFiles: 3
+        accept: { 'application/pdf': ['.pdf'], 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] },
+        maxFiles: 3,
     });
 
     const handleRemove = (index) => {
-        setAttachments(prev => {
+        setAttachments((prev) => {
             const updated = [...prev];
             if (updated[index].preview) URL.revokeObjectURL(updated[index].preview);
             updated.splice(index, 1);
@@ -89,68 +93,99 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
     };
 
     const handlePay = () => {
-        if (!formData.accountHolder.trim()) { setError('Nome do titular obrigatório'); return; }
-        if (!formData.transferDate) { setError('Data obrigatória'); return; }
+        if (!formData.transferDate) { setError('Data da transferência obrigatória'); return; }
         if (attachments.length === 0) { setError('Comprovativo obrigatório'); return; }
         setError('');
+
+        // Sem titular → aviso de confirmação
+        if (!formData.accountHolder.trim()) {
+            setWarnOpen(true);
+            return;
+        }
         registerPayment();
     };
+
+    const handleConfirmWithoutHolder = () => {
+        setWarnOpen(false);
+        registerPayment();
+    };
+
+    const displayRef = regnumber || documentId;
 
     return (
         <Fade in>
             <Box sx={{ maxWidth: 600, mx: 'auto', p: 3 }}>
+                {/* Header */}
                 <Box sx={{ textAlign: 'center', mb: 3 }}>
                     <Avatar sx={{
-                        width: 80, height: 80, mx: 'auto', mb: 2,
-                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-                    }}>
-                        <BankIcon sx={{ fontSize: 40 }} />
-                    </Avatar>
-                    <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-                        Transferência Bancária
-                    </Typography>
-                    <Paper sx={{
-                        p: 2, mt: 2,
+                        width: 72, height: 72, mx: 'auto', mb: 1.5,
                         background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                        color: 'white', borderRadius: 3
                     }}>
-                        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                        <BankIcon sx={{ fontSize: 36 }} />
+                    </Avatar>
+                    <Typography variant="h6" fontWeight={700}>Transferência Bancária</Typography>
+                    <Paper sx={{
+                        display: 'inline-block', px: 3, py: 1, mt: 1.5,
+                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                        borderRadius: 4,
+                    }}>
+                        <Typography variant="h5" fontWeight={700} color="white">
                             €{Number(amount || 0).toFixed(2)}
                         </Typography>
                     </Paper>
                 </Box>
 
-                {/* Dados para transferência */}
-                <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                {/* Dados para transferência — numa única linha */}
+                <Paper
+                    variant="outlined"
+                    sx={{
+                        p: 2, mb: 3, borderRadius: 2,
+                        bgcolor: alpha(theme.palette.primary.main, 0.03),
+                    }}
+                >
+                    <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                         Dados para transferência
                     </Typography>
-                    <Grid container spacing={1}>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <Typography variant="body2"><strong>IBAN:</strong> PT50 0033 0000 4570 8378 2190 5</Typography>
-                            <Typography variant="body2"><strong>Titular:</strong> AINTAR</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <Typography variant="body2"><strong>Valor:</strong> €{Number(amount || 0).toFixed(2)}</Typography>
-                            <Typography variant="body2"><strong>Referência:</strong> {documentId}</Typography>
-                        </Grid>
-                    </Grid>
+                    <Box sx={{
+                        display: 'flex', flexWrap: 'wrap', gap: { xs: 0.5, sm: 2 },
+                        alignItems: 'center',
+                    }}>
+                        <Typography variant="body2">
+                            <strong>IBAN:</strong> PT50 0033 0000 4570 8378 2190 5
+                        </Typography>
+                        <Typography variant="body2" color="text.disabled" sx={{ display: { xs: 'none', sm: 'block' } }}>·</Typography>
+                        <Typography variant="body2">
+                            <strong>Titular:</strong> AINTAR
+                        </Typography>
+                        <Typography variant="body2" color="text.disabled" sx={{ display: { xs: 'none', sm: 'block' } }}>·</Typography>
+                        <Typography variant="body2">
+                            <strong>Valor:</strong> €{Number(amount || 0).toFixed(2)}
+                        </Typography>
+                        <Typography variant="body2" color="text.disabled" sx={{ display: { xs: 'none', sm: 'block' } }}>·</Typography>
+                        <Typography variant="body2">
+                            <strong>Referência:</strong> {displayRef}
+                        </Typography>
+                    </Box>
                 </Paper>
 
                 {/* Formulário */}
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>
                     Dados da transferência realizada
                 </Typography>
 
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid size={{ xs: 12, sm: 4 }}>
                         <TextField
-                            fullWidth required
+                            fullWidth
                             label="Titular da conta origem"
                             value={formData.accountHolder}
                             onChange={handleChange('accountHolder')}
                             InputProps={{
-                                startAdornment: <InputAdornment position="start"><BankIcon fontSize="small" /></InputAdornment>
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <BankIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
                             }}
                         />
                     </Grid>
@@ -181,8 +216,8 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
                     </Grid>
                 </Grid>
 
-                {/* Upload de comprovativos */}
-                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                {/* Upload */}
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                     Comprovativos (Obrigatório)
                 </Typography>
 
@@ -190,13 +225,13 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
                     <Box
                         {...getRootProps()}
                         sx={{
-                            border: isDragActive ? '2px dashed' : '2px dashed',
+                            border: '2px dashed',
                             borderColor: isDragActive ? 'primary.main' : 'divider',
                             borderRadius: 2, p: 3, textAlign: 'center',
                             bgcolor: isDragActive ? 'action.hover' : 'background.paper',
                             cursor: 'pointer', mb: 2,
                             transition: 'all 0.2s',
-                            '&:hover': { bgcolor: 'action.hover' }
+                            '&:hover': { bgcolor: 'action.hover', borderColor: 'primary.main' },
                         }}
                     >
                         <input {...getInputProps()} disabled={isLoading} />
@@ -235,7 +270,7 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
                     sx={{
                         py: 1.5,
                         background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                        '&:hover': { background: 'linear-gradient(135deg, #3f9cfe 0%, #00e2fe 100%)' }
+                        '&:hover': { background: 'linear-gradient(135deg, #3f9cfe 0%, #00e2fe 100%)' },
                     }}
                 >
                     {isLoading ? 'A registar...' : 'Confirmar Transferência'}
@@ -246,10 +281,48 @@ const BankTransferPayment = ({ onSuccess, documentId, amount }) => {
                         <strong>Importante:</strong><br />
                         • Este registo confirma que a transferência foi realizada<br />
                         • Será necessária validação posterior<br />
-                        {attachments.length > 0 && <>• {attachments.length} comprovativo(s) será(ão) anexado(s)<br /></>}
                         • Certifique-se de que os dados estão corretos
                     </Typography>
                 </Alert>
+
+                {/* Diálogo de aviso — titular em branco */}
+                <Dialog
+                    open={warnOpen}
+                    onClose={() => setWarnOpen(false)}
+                    maxWidth="xs"
+                    fullWidth
+                    PaperProps={{ sx: { borderRadius: 3 } }}
+                >
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <WarningIcon color="warning" />
+                        Titular não identificado
+                    </DialogTitle>
+                    <DialogContent>
+                        <Alert severity="warning" sx={{ mb: 1.5 }}>
+                            Está a guardar a transferência <strong>sem indicar o titular da conta de origem</strong>.
+                        </Alert>
+                        <Typography variant="body2" color="text.secondary">
+                            Quando o pagamento é feito diretamente no MB, o nome do titular pode não constar no comprovativo.
+                            No entanto, a sua ausência <strong>poderá dificultar a identificação do movimento</strong> durante a validação.
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1.5 }}>
+                            Deseja continuar sem esse campo?
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                        <Button onClick={() => setWarnOpen(false)} color="inherit">
+                            Voltar e preencher
+                        </Button>
+                        <Button
+                            onClick={handleConfirmWithoutHolder}
+                            variant="contained"
+                            color="warning"
+                            disabled={isLoading}
+                        >
+                            Guardar assim mesmo
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </Box>
         </Fade>
     );

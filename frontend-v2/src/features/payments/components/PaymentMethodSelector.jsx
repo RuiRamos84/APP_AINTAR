@@ -1,19 +1,20 @@
 import {
+    CheckCircle,
     Euro,
     LocationCity,
     Lock,
     Payments,
-    Schedule
+    Schedule,
 } from '@mui/icons-material';
-import { Avatar, Box, Card, CardContent, Chip, Grid, Radio, Typography } from '@mui/material';
+import { alpha, Avatar, Box, Chip, Grid, Typography, useTheme } from '@mui/material';
 import { PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
 
-const MBWayIcon = ({ sx }) => (
-    <img src="/mbway.svg" alt="MB Way" style={{ width: 48, height: 24, objectFit: 'contain', ...sx }} />
+const MBWayIcon = () => (
+    <img src="/mbway.svg" alt="MB Way" style={{ width: 44, height: 22, objectFit: 'contain' }} />
 );
 
-const MultibancoIcon = ({ sx }) => (
-    <img src="/multibanco.svg" alt="Multibanco" style={{ width: 28, height: 28, objectFit: 'contain', ...sx }} />
+const MultibancoIcon = () => (
+    <img src="/multibanco.svg" alt="Multibanco" style={{ width: 26, height: 26, objectFit: 'contain' }} />
 );
 
 const methods = {
@@ -21,54 +22,49 @@ const methods = {
         label: PAYMENT_METHOD_LABELS.MBWAY,
         icon: MBWayIcon,
         isImage: true,
-        color: '#3b5998',
+        color: '#5c6bc0',
         description: 'Pagamento via telemóvel',
-        features: ['Imediato'],
+        feature: 'Imediato',
         time: 'Instantâneo',
-        bgGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        requiresCheckout: true
+        requiresCheckout: true,
     },
     MULTIBANCO: {
         label: PAYMENT_METHOD_LABELS.MULTIBANCO,
         icon: MultibancoIcon,
         isImage: true,
-        color: '#0066cc',
+        color: '#e91e8c',
         description: 'Referência ATM/homebanking',
-        features: ['Tradicional'],
+        feature: 'Tradicional',
         time: '24h',
-        bgGradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        requiresCheckout: true
+        requiresCheckout: true,
     },
     BANK_TRANSFER: {
         label: PAYMENT_METHOD_LABELS.BANK_TRANSFER,
         icon: Payments,
-        color: '#00897b',
+        color: '#0288d1',
         description: 'Transferência bancária',
-        features: ['Manual'],
+        feature: 'Manual',
         time: '1-3 dias',
-        bgGradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        requiresCheckout: false
+        requiresCheckout: false,
     },
     CASH: {
         label: PAYMENT_METHOD_LABELS.CASH,
         icon: Euro,
-        color: '#4caf50',
+        color: '#2e7d32',
         description: 'Pagamento presencial',
-        features: ['Presencial'],
+        feature: 'Presencial',
         time: 'Imediato',
-        bgGradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-        requiresCheckout: false
+        requiresCheckout: false,
     },
     MUNICIPALITY: {
         label: PAYMENT_METHOD_LABELS.MUNICIPALITY,
         icon: LocationCity,
-        color: '#795548',
+        color: '#e65100',
         description: 'Balcões municipais',
-        features: ['Presencial'],
+        feature: 'Presencial',
         time: '1-2 dias',
-        bgGradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-        requiresCheckout: false
-    }
+        requiresCheckout: false,
+    },
 };
 
 const PaymentMethodSelector = ({
@@ -79,35 +75,43 @@ const PaymentMethodSelector = ({
     sibsReady = false,
     internalReady = false,
     loading = false,
-    user
 }) => {
+    const theme = useTheme();
 
     const isMethodAvailable = (methodId) => {
         const method = methods[methodId];
         if (!method || loading) return false;
-
-        // SIBS: precisa de sibsReady
-        if (method.requiresCheckout) return sibsReady;
-
-        // Manual: precisa de internalReady
-        return internalReady;
+        return method.requiresCheckout ? sibsReady : internalReady;
     };
 
-    // Filter availableMethods that we actually have definitions for
-    const filteredMethods = availableMethods ? availableMethods.filter(m => methods[m]) : [];
+    const filteredMethods = availableMethods ? availableMethods.filter((m) => methods[m]) : [];
 
     return (
-        <Box sx={{ p: 2 }}>
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-                <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            {/* Amount header */}
+            <Box sx={{ textAlign: 'center', mb: 3.5 }}>
+                <Typography variant="subtitle1" color="text.secondary" gutterBottom>
                     Escolha como pagar
                 </Typography>
-                <Typography variant="h6" color="primary" sx={{ fontWeight: 500 }}>
-                    €{Number(amount || 0).toFixed(2)}
-                </Typography>
+                <Box
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        px: 3,
+                        py: 1,
+                        borderRadius: 6,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                        boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    }}
+                >
+                    <Typography variant="h5" fontWeight={700} color="white" letterSpacing={1}>
+                        €{Number(amount || 0).toFixed(2)}
+                    </Typography>
+                </Box>
             </Box>
 
-            <Grid container spacing={2}>
+            {/* Method cards */}
+            <Grid container spacing={1.5}>
                 {filteredMethods.map((methodId) => {
                     const method = methods[methodId];
                     if (!method) return null;
@@ -118,106 +122,91 @@ const PaymentMethodSelector = ({
 
                     return (
                         <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={methodId}>
-                            <Card
-                                sx={{
-                                    cursor: isAvailable ? 'pointer' : 'not-allowed',
-                                    height: '100%',
-                                    border: isSelected ? 2 : 1,
-                                    borderColor: isSelected ? method.color : 'divider',
-                                    transform: isSelected ? 'scale(1.02)' : 'scale(1)',
-                                    transition: 'all 0.3s ease',
-                                    background: isSelected ? method.bgGradient : 'white',
-                                    color: isSelected ? 'white' : 'inherit',
-                                    opacity: isAvailable ? 1 : 0.4,
-                                    position: 'relative',
-                                    '&:hover': isAvailable ? {
-                                        transform: 'scale(1.02)',
-                                        borderColor: method.color
-                                    } : {}
-                                }}
+                            <Box
                                 onClick={() => isAvailable && onSelect(methodId)}
+                                sx={{
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    p: 1.5,
+                                    borderRadius: 2.5,
+                                    border: `1.5px solid`,
+                                    borderColor: isSelected ? method.color : alpha(theme.palette.divider, 0.8),
+                                    borderLeft: isSelected ? `4px solid ${method.color}` : `1.5px solid ${alpha(theme.palette.divider, 0.8)}`,
+                                    bgcolor: isSelected ? alpha(method.color, 0.06) : theme.palette.background.paper,
+                                    cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                    opacity: isAvailable ? 1 : 0.45,
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: isSelected
+                                        ? `0 2px 12px ${alpha(method.color, 0.2)}`
+                                        : '0 1px 3px rgba(0,0,0,0.06)',
+                                    '&:hover': isAvailable ? {
+                                        borderColor: method.color,
+                                        borderLeft: `4px solid ${method.color}`,
+                                        boxShadow: `0 4px 16px ${alpha(method.color, 0.18)}`,
+                                        bgcolor: alpha(method.color, 0.04),
+                                    } : {},
+                                }}
                             >
-                                <CardContent sx={{ p: 2 }}>
-                                    {!isAvailable && (
-                                        <Lock sx={{
-                                            position: 'absolute',
-                                            top: 8,
-                                            right: 8,
-                                            fontSize: 16,
-                                            opacity: 0.5
-                                        }} />
-                                    )}
+                                {/* Icon avatar */}
+                                <Avatar
+                                    sx={{
+                                        width: 44,
+                                        height: 44,
+                                        bgcolor: alpha(method.color, isSelected ? 0.15 : 0.08),
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    {method.isImage
+                                        ? <Icon />
+                                        : <Icon sx={{ color: method.color, fontSize: 22 }} />
+                                    }
+                                </Avatar>
 
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                                        <Avatar
-                                            sx={{
-                                                bgcolor: isSelected ? 'rgba(255,255,255,0.2)' : `${method.color}15`,
-                                                width: 40,
-                                                height: 40
-                                            }}
-                                        >
-                                            {method.isImage
-                                                ? <Icon />
-                                                : <Icon sx={{ color: isSelected ? 'white' : method.color }} />
-                                            }
-                                        </Avatar>
-                                        <Radio
-                                            checked={isSelected}
-                                            disabled={!isAvailable}
-                                            size="small"
-                                            sx={{
-                                                color: isSelected ? 'white' : method.color,
-                                                '&.Mui-checked': { color: isSelected ? 'white' : method.color }
-                                            }}
-                                        />
-                                    </Box>
-
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                {/* Content */}
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="subtitle2" fontWeight={600} noWrap>
                                         {method.label}
                                     </Typography>
-
-                                    <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mb: 1.5 }}>
+                                    <Typography variant="caption" color="text.secondary" display="block" noWrap>
                                         {method.description}
                                     </Typography>
-
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5, alignItems: 'center' }}>
                                         <Chip
-                                            label={method.features[0]}
+                                            label={method.feature}
                                             size="small"
                                             sx={{
-                                                bgcolor: isSelected ? 'rgba(255,255,255,0.2)' : `${method.color}15`,
-                                                color: isSelected ? 'white' : method.color,
-                                                fontSize: '0.7rem',
-                                                height: 24
+                                                height: 18,
+                                                fontSize: '0.65rem',
+                                                bgcolor: alpha(method.color, 0.1),
+                                                color: method.color,
+                                                fontWeight: 600,
                                             }}
                                         />
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Schedule sx={{ fontSize: 12, opacity: 0.7 }} />
-                                            <Typography variant="caption" sx={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                            <Schedule sx={{ fontSize: 11, color: 'text.disabled' }} />
+                                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
                                                 {method.time}
                                             </Typography>
                                         </Box>
                                     </Box>
+                                </Box>
 
-                                    <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                        {method.requiresCheckout ? (
-                                            <Chip
-                                                label={sibsReady ? "Pronto" : "A preparar..."}
-                                                size="small"
-                                                color={sibsReady ? "success" : "warning"}
-                                                sx={{ fontSize: '0.65rem', height: 20 }}
-                                            />
-                                        ) : (
-                                            <Chip
-                                                label={internalReady ? "Disponível" : "A preparar..."}
-                                                size="small"
-                                                color={internalReady ? "success" : "warning"}
-                                                sx={{ fontSize: '0.65rem', height: 20 }}
-                                            />
-                                        )}
-                                    </Box>
-                                </CardContent>
-                            </Card>
+                                {/* Right indicator */}
+                                <Box sx={{ flexShrink: 0 }}>
+                                    {!isAvailable ? (
+                                        <Lock sx={{ fontSize: 16, color: 'text.disabled' }} />
+                                    ) : isSelected ? (
+                                        <CheckCircle sx={{ fontSize: 22, color: method.color }} />
+                                    ) : (
+                                        <Box sx={{
+                                            width: 20, height: 20, borderRadius: '50%',
+                                            border: `2px solid ${alpha(theme.palette.text.disabled, 0.3)}`,
+                                        }} />
+                                    )}
+                                </Box>
+                            </Box>
                         </Grid>
                     );
                 })}

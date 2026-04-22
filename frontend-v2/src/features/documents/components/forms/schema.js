@@ -23,7 +23,7 @@ export const createDocumentSchema = z.object({
   ]).refine(val => val !== '', { message: "Selecione a forma de apresentação" }),
 
   // Step 2: Content
-  text: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres"),
+  text: z.string().min(1, "A descrição é obrigatória"),
 
   // Step 3: Address (billing) - relaxed max for NUTs (some names are long)
   address: z.string().max(255, "Morada demasiado longa").optional().or(z.literal('')),

@@ -1,6 +1,6 @@
 /**
  * CaixaPage
- * Gestão de Fundo de Caixa — movimentos, saldo cumulativo e resumo financeiro
+ * Gestão de Caixa — movimentos, saldo cumulativo e resumo financeiro
  *
  * Regras de negócio:
  *  Tipo 1 — Entrada manual           (valor positivo)
@@ -15,7 +15,7 @@
  *  3. Rotação: próximo criador = último validador; próximo validador = último criador
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import {
   Box, Grid, Paper, Typography, TextField, Button, Chip, Stack,
   Alert, Skeleton, Card, CardContent, Badge,
@@ -50,6 +50,8 @@ import { exportToExcel } from '@/features/epi/utils/exportUtils';
 import apiClient from '@/services/api/client';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAuth } from '@/core/contexts/AuthContext';
+
+const DocumentDetailsModal = lazy(() => import('@/features/documents/components/details/DocumentDetailsModal'));
 
 // ─── Constantes de tipo ───────────────────────────────────────────────────────
 
@@ -362,7 +364,7 @@ const MovementDialog = ({ open, onClose, initial, tipos, currentUserId, fechoSta
 
 const exportToPdf = (rows) => {
   const html = `
-    <html><head><meta charset="utf-8"><title>Fundo de Caixa</title>
+    <html><head><meta charset="utf-8"><title>Caixa</title>
     <style>
       body { font-family: Arial, sans-serif; font-size: 12px; }
       h2 { margin-bottom: 4px; }
@@ -372,7 +374,7 @@ const exportToPdf = (rows) => {
       td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
       tr:nth-child(even) td { background: #fafafa; }
     </style></head><body>
-    <h2>Fundo de Caixa</h2>
+    <h2>Caixa</h2>
     <p>Exportado em ${new Date().toLocaleString('pt-PT')}</p>
     <table>
       <thead><tr>
@@ -430,6 +432,7 @@ const CaixaPage = () => {
   const [formOpen, setFormOpen]         = useState(false);
   const [editRow, setEditRow]           = useState(null);
   const [exportAnchor, setExportAnchor] = useState(null);
+  const [selectedDoc, setSelectedDoc]   = useState(null);
 
   const serverFilters = useMemo(() => {
     // Base: ano selecionado
@@ -526,7 +529,7 @@ const CaixaPage = () => {
       'Pedido':        r.tb_document ?? '',
       'Ordem Pag.':    r.ordempagamento ?? '',
     }));
-    exportToExcel(rows, 'fundo_de_caixa');
+    exportToExcel(rows, 'caixa');
     setExportAnchor(null);
     notification.success('Ficheiro Excel gerado com sucesso.');
   }, [movements]);
@@ -548,8 +551,7 @@ const CaixaPage = () => {
     {
       field: 'data',
       headerName: 'Data',
-      flex: 0.7,
-      minWidth: 95,
+      flex: 0.8,
       headerAlign: 'center',
       align: 'center',
       valueFormatter: (v) => fmtDate(v),
@@ -557,14 +559,12 @@ const CaixaPage = () => {
     {
       field: 'tt_caixamovimento',
       headerName: 'Tipo',
-      flex: 1.2,
-      minWidth: 130,
+      flex: 1.4,
     },
     {
       field: 'valor',
       headerName: 'Valor',
       flex: 1,
-      minWidth: 120,
       headerAlign: 'right',
       align: 'right',
       renderCell: ({ row, value }) => {
@@ -591,7 +591,6 @@ const CaixaPage = () => {
       field: 'saldo',
       headerName: 'Saldo',
       flex: 1,
-      minWidth: 120,
       headerAlign: 'right',
       align: 'right',
       renderCell: ({ value }) => (
@@ -604,8 +603,7 @@ const CaixaPage = () => {
     {
       field: 'ts_client1',
       headerName: 'Registado por',
-      flex: 1.5,
-      minWidth: 130,
+      flex: 1.1,
       renderCell: ({ value }) => (
         <Typography variant="body2" noWrap title={value}>{value || '—'}</Typography>
       ),
@@ -614,7 +612,6 @@ const CaixaPage = () => {
       field: 'ts_client2',
       headerName: 'Validado por',
       flex: 1.5,
-      minWidth: 140,
       renderCell: ({ row }) => {
         const isTwoPerson = TIPOS_TWO_PERSON.includes(row.tt_caixamovimento_raw);
         if (!isTwoPerson) return <Typography variant="body2" color="text.disabled">—</Typography>;
@@ -632,19 +629,27 @@ const CaixaPage = () => {
     {
       field: 'tb_document',
       headerName: 'Pedido',
-      flex: 0.8,
-      minWidth: 110,
+      flex: 1.5,
       headerAlign: 'center',
       align: 'center',
-      renderCell: ({ value }) => value
-        ? <Chip label={value} size="small" variant="outlined" sx={{ fontSize: 11 }} />
-        : <Typography variant="body2" color="text.disabled">—</Typography>,
+      renderCell: ({ value, row }) => {
+        const regnumber = row.document_regnumber;
+        const label = regnumber || value;
+        return value ? (
+          <Tooltip title="Clique para consultar o pedido">
+            <Chip
+              label={label} size="small" variant="outlined"
+              onClick={() => setSelectedDoc({ pk: value, regnumber, who: row.document_who || row.who })}
+              sx={{ fontSize: 11, cursor: 'pointer' }}
+            />
+          </Tooltip>
+        ) : <Typography variant="body2" color="text.disabled">—</Typography>;
+      },
     },
     {
       field: 'ordempagamento',
       headerName: 'Ordem Pag.',
-      flex: 0.9,
-      minWidth: 110,
+      flex: 1,
       renderCell: ({ value }) => (
         <Typography variant="body2" noWrap title={value}>{value || '—'}</Typography>
       ),
@@ -669,7 +674,7 @@ const CaixaPage = () => {
 
   return (
     <ModulePage
-      title="Fundo de Caixa"
+      title="Caixa"
       subtitle="Gestão de movimentos e controlo do saldo de caixa"
       icon={CaixaIcon}
       color="#ff9800"
@@ -864,11 +869,24 @@ const CaixaPage = () => {
                 '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
                 '& .MuiDataGrid-row:hover': { bgcolor: alpha(theme.palette.action.hover, 0.15) },
                 '& .row-pending': { bgcolor: alpha(theme.palette.warning.main, 0.06) },
+                '& .MuiDataGrid-columnHeader': { whiteSpace: 'normal' },
+                '& .MuiDataGrid-virtualScroller': { overflowX: 'hidden' },
               }}
             />
           )}
         </Box>
       </Paper>
+
+      {selectedDoc && (
+        <Suspense fallback={null}>
+          <DocumentDetailsModal
+            open={!!selectedDoc}
+            onClose={() => setSelectedDoc(null)}
+            documentData={selectedDoc}
+            isOwner={selectedDoc?.who && currentUser ? Number(selectedDoc.who) === Number(currentUser.user_id) : undefined}
+          />
+        </Suspense>
+      )}
 
       <MovementDialog
         open={formOpen}
