@@ -1,17 +1,34 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, MapPin, Users2, Calendar, Download, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, FileText, Loader2, Download } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
-import { getProcedimento, getConcursalForSiteProc, fileUrl } from '../../services/cmsApi'
+import { getProcedimento, getConcursalForSiteProc, procDocUrl } from '../../services/cmsApi'
 
 const fmt = d => d ? new Date(d).toLocaleDateString('pt-PT') : null
 
-function formatPrazo(p) {
-  const ini = fmt(p.data_abertura)
-  const fim = fmt(p.data_encerramento)
-  if (ini && fim) return `${ini} – ${fim}`
-  if (ini) return `Aberto desde ${ini}`
-  return '—'
+function DocList({ titulo, items }) {
+  if (!items?.length) return null
+  return (
+    <div>
+      <h2 className="font-heading font-bold text-aintar-navy text-base mb-3">{titulo}</h2>
+      <ul className="space-y-2">
+        {items.map(doc => (
+          <li key={doc.pk} className="flex items-center gap-2">
+            <span className="text-aintar-navy font-medium">–</span>
+            <a
+              href={procDocUrl(doc.ficheiro_url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-aintar-teal hover:text-aintar-blue hover:underline transition-colors flex items-center gap-1.5"
+            >
+              {doc.titulo || doc.nome_original}
+              <Download size={12} className="opacity-60 flex-shrink-0" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 export default function ProcedimentoPage() {
@@ -41,6 +58,9 @@ export default function ProcedimentoPage() {
     }
   }
 
+  const docs = proc?.documentos ?? {}
+  const hasDocs = (docs.publicacao?.length || docs.referencia?.length || docs.formulario?.length)
+
   return (
     <PageLayout
       title={loading ? 'A carregar…' : error ? 'Procedimento não encontrado' : proc?.titulo ?? ''}
@@ -61,12 +81,10 @@ export default function ProcedimentoPage() {
 
           {loading && (
             <div className="space-y-4">
-              <div className="h-7 bg-gray-100 rounded animate-pulse w-2/3" />
-              <div className="h-4 bg-gray-100 rounded animate-pulse w-1/3" />
-              <div className="grid grid-cols-3 gap-3 mt-6">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
-              </div>
-              <div className="h-32 bg-gray-100 rounded-xl animate-pulse mt-4" />
+              <div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />
+              <div className="h-7 bg-gray-100 rounded animate-pulse w-2/3 mt-4" />
+              <div className="h-4 bg-gray-100 rounded animate-pulse w-full" />
+              <div className="h-4 bg-gray-100 rounded animate-pulse w-5/6" />
             </div>
           )}
 
@@ -78,12 +96,23 @@ export default function ProcedimentoPage() {
 
           {!loading && !error && proc && (
             <article className="space-y-8">
+              {/* Imagem */}
+              {proc.imagem_url && (
+                <div className="rounded-2xl overflow-hidden h-56 sm:h-72 bg-aintar-light">
+                  <img
+                    src={proc.imagem_url}
+                    alt={proc.titulo}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
               {/* Título e badges */}
               <div>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   {proc.referencia && (
                     <span className="text-xs font-bold text-aintar-teal bg-aintar-teal/15 px-2.5 py-1 rounded-full">
-                      {proc.referencia}
+                      REFª {proc.ref_letra ?? proc.referencia}
                     </span>
                   )}
                   {proc.tipo && (
@@ -91,86 +120,51 @@ export default function ProcedimentoPage() {
                       {proc.tipo}
                     </span>
                   )}
+                  {proc.tipo_contrato && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                      {proc.tipo_contrato}
+                    </span>
+                  )}
                 </div>
-                <h1 className="font-heading font-bold text-aintar-navy text-2xl leading-snug">{proc.titulo}</h1>
-              </div>
-
-              {/* Meta grid */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {proc.carreira && (
-                  <div className="p-4 rounded-xl bg-aintar-light">
-                    <div className="text-xs text-gray-400 mb-1">Carreira</div>
-                    <div className="text-sm font-semibold text-aintar-navy">{proc.carreira}</div>
-                  </div>
-                )}
-                {proc.categoria_prof && (
-                  <div className="p-4 rounded-xl bg-aintar-light">
-                    <div className="text-xs text-gray-400 mb-1">Categoria</div>
-                    <div className="text-sm font-semibold text-aintar-navy">{proc.categoria_prof}</div>
-                  </div>
-                )}
-                {proc.num_vagas && (
-                  <div className="p-4 rounded-xl bg-aintar-light">
-                    <div className="flex items-center gap-1 text-xs text-gray-400 mb-1"><Users2 size={11} /> Vagas</div>
-                    <div className="text-sm font-semibold text-aintar-navy">{proc.num_vagas}</div>
-                  </div>
-                )}
-                {proc.municipio && (
-                  <div className="p-4 rounded-xl bg-aintar-light">
-                    <div className="flex items-center gap-1 text-xs text-gray-400 mb-1"><MapPin size={11} /> Município</div>
-                    <div className="text-sm font-semibold text-aintar-navy">{proc.municipio}</div>
-                  </div>
-                )}
-                {(proc.data_abertura || proc.data_encerramento) && (
-                  <div className="p-4 rounded-xl bg-aintar-light col-span-2 sm:col-span-1">
-                    <div className="flex items-center gap-1 text-xs text-gray-400 mb-1"><Calendar size={11} /> Prazo</div>
-                    <div className="text-sm font-semibold text-aintar-navy">{formatPrazo(proc)}</div>
-                  </div>
-                )}
+                <h1 className="font-heading font-bold text-aintar-navy text-2xl leading-snug">
+                  {proc.titulo}
+                </h1>
               </div>
 
               {/* Descrição */}
               {proc.descricao && (
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Descrição</h2>
-                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{proc.descricao}</p>
-                </div>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                  {proc.descricao}
+                </p>
               )}
 
-              {/* Fases */}
-              {proc.fases?.length > 0 && (
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Fases do Procedimento</h2>
-                  <ol className="space-y-3">
-                    {proc.fases.map((fase, i) => (
-                      <li key={fase.pk} className="flex items-start gap-4 p-4 rounded-xl border border-gray-100 bg-white">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-aintar-teal/10 text-aintar-teal text-xs font-bold flex items-center justify-center mt-0.5">
-                          {i + 1}
-                        </div>
-                        <div className="flex-grow min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-semibold text-aintar-navy">{fase.label}</span>
-                            {fase.data && (
-                              <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-                                <Clock size={11} /> {fmt(fase.data)}
-                              </span>
-                            )}
-                          </div>
-                          {fase.notas && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{fase.notas}</p>}
-                          {fase.ficheiro_url && (
-                            <a
-                              href={fileUrl(fase.ficheiro_url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-aintar-teal hover:text-aintar-blue transition-colors"
-                            >
-                              <Download size={12} /> Descarregar documento
-                            </a>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
+              {/* Datas e local */}
+              <div className="space-y-2 text-sm text-gray-700">
+                {proc.data_abertura && (
+                  <p>
+                    <span className="font-semibold text-aintar-navy">Data de início de candidaturas: </span>
+                    {fmt(proc.data_abertura)}
+                  </p>
+                )}
+                {proc.data_encerramento && (
+                  <p>
+                    <span className="font-semibold text-aintar-navy">Data de fim de candidaturas: </span>
+                    {fmt(proc.data_encerramento)}
+                  </p>
+                )}
+                {proc.municipio && (
+                  <p>
+                    <span className="font-semibold text-aintar-navy">Local de trabalho</span>
+                    {' – '}{proc.municipio}
+                  </p>
+                )}
+              </div>
+
+              {/* Documentos */}
+              {hasDocs > 0 && (
+                <div className="space-y-6 pt-2">
+                  <DocList titulo="Publicações" items={docs.publicacao} />
+                  <DocList titulo="Referências Bibliográficas" items={docs.referencia} />
                 </div>
               )}
 

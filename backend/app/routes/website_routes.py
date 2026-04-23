@@ -27,6 +27,8 @@ from ..services.website_service import (
     cms_list_documentos, cms_save_documento, cms_delete_documento, cms_upload_documento_file,
     cms_list_publicacoes, cms_save_publicacao, cms_delete_publicacao, cms_upload_publicacao_file,
     cms_list_procedimentos, cms_get_procedimento, cms_save_procedimento,
+    cms_upload_procedimento_imagem,
+    cms_list_procedimento_docs, cms_upload_procedimento_doc, cms_delete_procedimento_doc,
     cms_save_procedimento_fase, cms_delete_procedimento_fase, cms_upload_fase_file,
     cms_list_processos_financeiros, cms_get_processo_financeiro,
     cms_save_processo_financeiro, cms_save_processo_financeiro_doc,
@@ -111,6 +113,18 @@ def get_processos_financeiros():
 @website_public_bp.route('/files/<tipo>/<path:filepath>', methods=['GET'])
 def serve_website_file(tipo, filepath):
     folder = os.path.join(current_app.config['FILES_DIR'], 'website', tipo)
+    return send_from_directory(folder, filepath)
+
+
+@website_public_bp.route('/procedimento-imagem/<path:filepath>', methods=['GET'])
+def serve_procedimento_imagem(filepath):
+    folder = os.path.join(current_app.config['FILES_DIR'], 'procedimento')
+    return send_from_directory(folder, filepath)
+
+
+@website_public_bp.route('/procedimento-doc/<path:filepath>', methods=['GET'])
+def serve_procedimento_doc(filepath):
+    folder = os.path.join(current_app.config['FILES_DIR'], 'procedimento')
     return send_from_directory(folder, filepath)
 
 
@@ -518,6 +532,60 @@ def cms_procedimento_fase_upload(pk):
     if not file:
         return jsonify({'erro': 'Ficheiro não fornecido'}), 400
     return cms_upload_fase_file(pk, file, current_user)
+
+
+@website_cms_bp.route('/procedimentos/<int:pk>/imagem', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_procedimento_imagem_upload(pk):
+    current_user = get_jwt_identity()
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'erro': 'Ficheiro não fornecido'}), 400
+    return cms_upload_procedimento_imagem(pk, file, current_user)
+
+
+@website_cms_bp.route('/procedimentos/<int:pk>/documentos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('website.view')
+@set_session
+@api_error_handler
+def cms_procedimento_docs_list(pk):
+    current_user = get_jwt_identity()
+    return cms_list_procedimento_docs(pk, current_user)
+
+
+@website_cms_bp.route('/procedimentos/<int:pk>/documentos', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_procedimento_doc_upload(pk):
+    current_user = get_jwt_identity()
+    file      = request.files.get('file')
+    categoria = request.form.get('categoria')
+    titulo    = request.form.get('titulo', '')
+    if not file:
+        return jsonify({'erro': 'Ficheiro não fornecido'}), 400
+    if not categoria:
+        return jsonify({'erro': 'Categoria não fornecida'}), 400
+    return cms_upload_procedimento_doc(pk, categoria, titulo, file, current_user)
+
+
+@website_cms_bp.route('/procedimentos/documentos/<int:doc_pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_procedimento_doc_delete(doc_pk):
+    current_user = get_jwt_identity()
+    return cms_delete_procedimento_doc(doc_pk, current_user)
 
 
 # ─── Processos Financeiros ────────────────────────────────────────────────────

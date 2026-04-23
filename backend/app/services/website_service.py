@@ -223,9 +223,9 @@ def list_publicacoes_public(tipo_pk: int = None):
 def list_procedimentos_public():
     from app import db
     rows = db.session.execute(text("""
-        SELECT pk, referencia, tipo, titulo, carreira, categoria_prof,
-               num_vagas, municipio, estado, data_abertura,
-               data_encerramento, ultima_fase_data, ultima_fase_nome
+        SELECT pk, referencia, ref_letra, tipo, titulo, carreira, categoria_prof,
+               area_atividade, tipo_contrato, imagem_url, num_vagas, municipio, estado,
+               data_abertura, data_encerramento, ultima_fase_data, ultima_fase_nome
         FROM vbl_site_procedimento
         WHERE visivel = TRUE
         ORDER BY data_abertura DESC NULLS LAST
@@ -238,9 +238,9 @@ def list_procedimentos_public():
 def get_procedimento_public(pk: int):
     from app import db
     proc = db.session.execute(text("""
-        SELECT pk, referencia, tipo, titulo, carreira, categoria_prof,
-               num_vagas, municipio, estado, descricao,
-               data_abertura, data_encerramento
+        SELECT pk, referencia, ref_letra, tipo, tipo_contrato, titulo, carreira,
+               categoria_prof, area_atividade, num_vagas, municipio, estado,
+               descricao, imagem_url, data_abertura, data_encerramento
         FROM vbl_site_procedimento
         WHERE pk = :pk AND visivel = TRUE
     """), {'pk': pk}).mappings().fetchone()
@@ -255,12 +255,30 @@ def get_procedimento_public(pk: int):
         ORDER BY ordem
     """), {'pk': pk}).mappings().all()
 
+    docs = db.session.execute(text("""
+        SELECT pk, categoria, titulo, ficheiro_url, nome_original, ordem
+        FROM vbl_site_procedimento_doc
+        WHERE proc_fk = :pk
+        ORDER BY categoria, ordem
+    """), {'pk': pk}).mappings().all()
+
     result = _serialize(proc)
+    if result.get('imagem_url'):
+        result['imagem_url'] = f"/api/v1/website/procedimento-imagem/{result['imagem_url']}"
+
     result['fases'] = []
     for f in fases:
         item = _serialize(f)
         item['ficheiro_url'] = _file_url('procedimentos', item.get('ficheiro_url'))
         result['fases'].append(item)
+
+    result['documentos'] = {'publicacao': [], 'referencia': []}
+    for d in docs:
+        item = _serialize(d)
+        item['ficheiro_url_display'] = f"/api/v1/website/procedimento-doc/{item['ficheiro_url']}"
+        cat = d['categoria']
+        if cat in result['documentos']:
+            result['documentos'][cat].append(item)
 
     return {'procedimento': result}, 200
 
@@ -889,7 +907,7 @@ def cms_get_procedimento(pk: int, current_user: str):
             SELECT pk, referencia, ref_letra, ts_tipo, tipo, titulo, carreira,
                    categoria_prof, area_atividade, tt_tipo_contrato,
                    num_vagas, municipio, ts_estado, estado,
-                   descricao, data_abertura, data_encerramento, visivel
+                   descricao, imagem_url, data_abertura, data_encerramento, visivel
             FROM vbl_site_procedimento WHERE pk = :pk
         """), {'pk': pk}).mappings().fetchone()
         if not proc:
@@ -958,6 +976,120 @@ def cms_save_procedimento(data: dict, current_user: str):
         })
         action = 'criado' if pop == 0 else 'atualizado'
         return {'pk': pk, 'message': f'Procedimento {action} com sucesso'}, 200
+
+
+@api_error_handler
+def cms_upload_procedimento_imagem(pk: int, file, current_user: str):
+    with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            SELECT referencia, imagem_url FROM tb_site_procedimento WHERE pk = :pk
+        """), {'pk': pk}).mappings().fetchone()
+        if not row:
+            raise ResourceNotFoundError('Procedimento', pk)
+
+        ref   = _slugify(row['referencia'] or f'proc-{pk}')
+        base  = current_app.config['FILES_DIR']
+        folder = os.path.join(base, 'procedimento', ref, 'imagem do procedimento')
+        os.makedirs(folder, exist_ok=True)
+
+        # Apagar imagem anterior
+        old = row['imagem_url']
+        if old:
+            old_path = os.path.join(base, 'procedimento', old)
+            if os.path.exists(old_path):
+                os.remove(old_path)
+
+        ext      = os.path.splitext(file.filename)[1].lower() if file.filename else '.jpg'
+        filename = f"imagem_{pk}{ext}"
+        file.save(os.path.join(folder, filename))
+
+        rel_path = f"{ref}/imagem do procedimento/{filename}"
+        session.execute(
+            text("UPDATE tb_site_procedimento SET imagem_url = :f WHERE pk = :pk"),
+            {'f': rel_path, 'pk': pk}
+        )
+        return {'imagem_url': f"/api/v1/website/procedimento-imagem/{rel_path}"}, 200
+
+
+_DOC_FOLDERS = {
+    'publicacao':  'publicacoes',
+    'referencia':  'referencias bibliograficas',
+    'formulario':  'formularios',
+}
+
+
+@api_error_handler
+def cms_list_procedimento_docs(proc_pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("""
+            SELECT pk, categoria, titulo, ficheiro_url, nome_original, ordem
+            FROM vbl_site_procedimento_doc
+            WHERE proc_fk = :pk
+        """), {'pk': proc_pk}).mappings().all()
+        result = {'publicacao': [], 'referencia': [], 'formulario': []}
+        for r in rows:
+            item = _serialize(r)
+            item['ficheiro_url_display'] = f"/api/v1/website/procedimento-doc/{item['ficheiro_url']}"
+            result[r['categoria']].append(item)
+        return result, 200
+
+
+@api_error_handler
+def cms_upload_procedimento_doc(proc_pk: int, categoria: str, titulo: str, file, current_user: str):
+    if categoria not in _DOC_FOLDERS:
+        raise APIError(f"Categoria inválida: {categoria}", 400)
+    with db_session_manager(current_user) as session:
+        ref_row = session.execute(text(
+            "SELECT referencia FROM tb_site_procedimento WHERE pk = :pk"
+        ), {'pk': proc_pk}).fetchone()
+        if not ref_row:
+            raise ResourceNotFoundError('Procedimento', proc_pk)
+
+        ref     = _slugify(ref_row[0] or f'proc-{proc_pk}')
+        base    = current_app.config['FILES_DIR']
+        folder  = os.path.join(base, 'procedimento', ref, _DOC_FOLDERS[categoria])
+        os.makedirs(folder, exist_ok=True)
+
+        ext           = os.path.splitext(file.filename)[1].lower() if file.filename else '.pdf'
+        nome_original = file.filename or f'documento{ext}'
+        pk            = session.execute(text("SELECT fs_nextcode()")).scalar()
+        filename      = f"{pk}{ext}"
+        file.save(os.path.join(folder, filename))
+
+        rel_path = f"{ref}/{_DOC_FOLDERS[categoria]}/{filename}"
+        session.execute(text("""
+            INSERT INTO tb_site_procedimento_doc
+                (pk, proc_fk, categoria, titulo, ficheiro_url, nome_original)
+            VALUES (:pk, :proc_fk, :cat, :titulo, :url, :nome)
+        """), {
+            'pk': pk, 'proc_fk': proc_pk, 'cat': categoria,
+            'titulo': titulo or nome_original,
+            'url': rel_path, 'nome': nome_original,
+        })
+        return {
+            'pk': pk,
+            'titulo': titulo or nome_original,
+            'nome_original': nome_original,
+            'ficheiro_url': rel_path,
+            'ficheiro_url_display': f"/api/v1/website/procedimento-doc/{rel_path}",
+        }, 201
+
+
+@api_error_handler
+def cms_delete_procedimento_doc(doc_pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        row = session.execute(text(
+            "SELECT ficheiro_url FROM tb_site_procedimento_doc WHERE pk = :pk"
+        ), {'pk': doc_pk}).fetchone()
+        if not row:
+            raise ResourceNotFoundError('Documento', doc_pk)
+        path = os.path.join(current_app.config['FILES_DIR'], 'procedimento', row[0])
+        if os.path.exists(path):
+            os.remove(path)
+        session.execute(text(
+            "DELETE FROM tb_site_procedimento_doc WHERE pk = :pk"
+        ), {'pk': doc_pk})
+        return {'message': 'Documento eliminado'}, 200
 
 
 @api_error_handler
