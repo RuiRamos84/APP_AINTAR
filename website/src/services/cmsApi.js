@@ -27,18 +27,24 @@ export const sendContacto = (data) =>
   }).then(r => { if (!r.ok) throw new Error(); return r.json() })
 
 export const getConcursalProcedimentos  = ()     => get('/concursal/procedimentos')
+export const getConcursalProcedimento   = (pk)   => get(`/concursal/procedimentos/${pk}`)
 export const getConcursalForSiteProc    = (pk)   => get(`/concursal/for-site-proc/${pk}`)
 export const getConcursalReferencias    = ()     => get('/concursal/referencias')
-export const submitConcursalCandidatura = (data) =>
-  fetch(`${API}/website/concursal/candidatura`, {
+export const submitConcursalCandidatura = (data, docFiles = {}) => {
+  const fd = new FormData()
+  fd.append('data', JSON.stringify(data))
+  for (const [tipoPk, files] of Object.entries(docFiles)) {
+    files.forEach((f, i) => fd.append(`doc_${tipoPk}_${i}`, f))
+  }
+  return fetch(`${API}/website/concursal/candidatura`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: fd,
   }).then(async r => {
     const json = await r.json()
     if (!r.ok) throw new Error(json.erro || json.message || 'Erro ao submeter candidatura')
     return json
   })
+}
 
 export function fileUrl(path) {
   if (!path) return null

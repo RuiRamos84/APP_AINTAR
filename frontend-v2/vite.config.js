@@ -28,6 +28,12 @@ export default defineConfig(({ mode }) => ({
     open: true,
     cors: true,
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
   },
 
   // Preview configuration

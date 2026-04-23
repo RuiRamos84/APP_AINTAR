@@ -11,6 +11,8 @@ import {
   AttachFile as FileIcon, WorkOutline as ProcIcon, ExpandMore as ExpandIcon,
   ArrowForward as NextIcon, ArrowBack as BackIcon,
   PictureAsPdf as PdfIcon, Description as DocIcon, CheckCircle as DoneIcon,
+  Visibility as VisibleIcon, VisibilityOff as HiddenIcon,
+  PeopleAlt as CandidatosIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -18,10 +20,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import notification from '@/core/services/notification';
 import {
-  getProcedimentos, getProcedimento, saveProcedimento,
+  getProcedimentos, getProcedimento, saveProcedimento, toggleProcedimentoVisivel,
   saveProcedimentoFase, deleteProcedimentoFase, uploadFaseFile,
   uploadProcedimentoImagem, getProcedimentoDocs,
   uploadProcedimentoDoc, deleteProcedimentoDoc, getMetadados,
+  getProcedimentoCandidatos,
 } from '../api/websiteCmsService';
 
 const EMPTY_PROC = {
@@ -154,8 +157,8 @@ export default function WebsiteProcedimentosPage() {
   const [faseForm, setFaseForm]   = useState(EMPTY_FASE);
   const [faseFile, setFaseFile]   = useState(null);
   const [selected, setSelected]   = useState(null);
-  const [deleteTarget, setDeleteTarget]         = useState(null);
   const [deleteFaseTarget, setDeleteFaseTarget] = useState(null);
+  const [candidatosProcPk, setCandidatosProcPk] = useState(null);
 
   const effectivePk = form.pk || savedPk;
 
@@ -176,6 +179,13 @@ export default function WebsiteProcedimentosPage() {
     queryKey: ['cms', 'metadados'],
     queryFn: getMetadados,
     staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: candidatosData, isLoading: candidatosLoading } = useQuery({
+    queryKey: ['cms', 'proc-candidatos', candidatosProcPk],
+    queryFn: () => getProcedimentoCandidatos(candidatosProcPk),
+    enabled: !!candidatosProcPk,
+    select: (r) => r?.candidatos ?? [],
   });
 
   const tipos         = meta?.procedimento_tipos          ?? [];
@@ -201,6 +211,15 @@ export default function WebsiteProcedimentosPage() {
         notification.success(form.pk ? 'Procedimento atualizado' : 'Procedimento criado');
         setOpen(false);
       }
+    },
+    onError: (e) => notification.error(e.message),
+  });
+
+  const toggleVisivelMut = useMutation({
+    mutationFn: ({ pk, visivel }) => toggleProcedimentoVisivel(pk, visivel),
+    onSuccess: (_, { visivel }) => {
+      qc.invalidateQueries(['cms', 'procedimentos']);
+      notification.success(visivel ? 'Procedimento agora visível no website' : 'Procedimento ocultado do website');
     },
     onError: (e) => notification.error(e.message),
   });
@@ -239,11 +258,12 @@ export default function WebsiteProcedimentosPage() {
   const openEdit = (row) => {
     setForm({
       ...row,
+      referencia:        row.referencia || row.codigo_bep || '',
       data_abertura:     row.data_abertura     ? new Date(row.data_abertura)     : null,
       data_encerramento: row.data_encerramento ? new Date(row.data_encerramento) : null,
     });
     setStep(0); setDocTab(0); setSavedPk(null); setProcImage(null);
-    setImagePreview(row.imagem_url ? `/api/v1/website/procedimento-imagem/${row.imagem_url}` : null);
+    setImagePreview(row.imagem_url || null);
     setOpen(true);
   };
   const openNewFase  = () => { setFaseForm({ ...EMPTY_FASE, procedimento_fk: selected }); setFaseFile(null); setFaseOpen(true); };
@@ -256,7 +276,8 @@ export default function WebsiteProcedimentosPage() {
   const setFase = (field) => (e) => setFaseForm(f => ({ ...f, [field]: e.target.value }));
 
   const step1Valid = form.num_vagas && form.carreira && form.ref_letra;
-  const step2Valid = form.referencia && form.ts_tipo && form.categoria_prof && form.tt_tipo_contrato && form.municipio;
+  const step2Valid = form.referencia && form.ts_tipo && form.categoria_prof && form.tt_tipo_contrato && form.municipio
+    && form.data_abertura && form.data_encerramento && form.descricao?.trim() && (imagePreview || procImage);
   const previewTitulo = step1Valid ? buildTitulo(form) : null;
 
   const columns = [
@@ -270,15 +291,27 @@ export default function WebsiteProcedimentosPage() {
       renderCell: ({ value }) => <Chip size="small" label={value ? 'Sim' : 'Não'} color={value ? 'success' : 'default'} />,
     },
     {
-      field: '_actions', headerName: '', width: 120, sortable: false,
+      field: '_actions', headerName: '', width: 155, sortable: false,
       renderCell: ({ row }) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="Editar"><IconButton size="small" onClick={() => openEdit(row)}><EditIcon fontSize="small" /></IconButton></Tooltip>
           <Tooltip title="Gerir Fases">
             <IconButton size="small" color="primary" onClick={() => setSelected(row.pk)}><ExpandIcon fontSize="small" /></IconButton>
           </Tooltip>
-          <Tooltip title="Eliminar">
-            <IconButton size="small" color="error" onClick={() => setDeleteTarget(row.pk)}><DeleteIcon fontSize="small" /></IconButton>
+          <Tooltip title={row.visivel ? 'Ocultar do website' : 'Tornar visível no website'}>
+            <IconButton
+              size="small"
+              color={row.visivel ? 'success' : 'default'}
+              disabled={toggleVisivelMut.isPending}
+              onClick={() => toggleVisivelMut.mutate({ pk: row.pk, visivel: !row.visivel })}
+            >
+              {row.visivel ? <VisibleIcon fontSize="small" /> : <HiddenIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Lista de Candidatos">
+            <IconButton size="small" color="info" onClick={() => setCandidatosProcPk(row.pk)}>
+              <CandidatosIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
         </Stack>
       ),
@@ -408,7 +441,7 @@ export default function WebsiteProcedimentosPage() {
                 </FormControl>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Município" fullWidth required value={form.municipio || ''} onChange={set('municipio')} />
+                <TextField label="Local de Trabalho" fullWidth required value={form.municipio || ''} onChange={set('municipio')} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <FormControl fullWidth>
@@ -419,33 +452,58 @@ export default function WebsiteProcedimentosPage() {
                 </FormControl>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <DatePicker label="Abertura" value={form.data_abertura} onChange={(v) => setForm(f => ({ ...f, data_abertura: v }))} slotProps={{ textField: { fullWidth: true } }} />
+                <DatePicker label="Abertura *" value={form.data_abertura} onChange={(v) => setForm(f => ({ ...f, data_abertura: v }))} slotProps={{ textField: { fullWidth: true, required: true, error: !form.data_abertura } }} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <DatePicker label="Encerramento" value={form.data_encerramento} onChange={(v) => setForm(f => ({ ...f, data_encerramento: v }))} slotProps={{ textField: { fullWidth: true } }} />
+                <DatePicker label="Encerramento *" value={form.data_encerramento} onChange={(v) => setForm(f => ({ ...f, data_encerramento: v }))} slotProps={{ textField: { fullWidth: true, required: true, error: !form.data_encerramento } }} />
               </Grid>
               <Grid size={12}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Fotografia do Concurso</Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  {imagePreview && (
-                    <Box component="img" src={imagePreview} alt="preview"
-                      sx={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 1, border: '1px solid', borderColor: 'grey.300' }} />
-                  )}
+                <Typography variant="caption" color={!imagePreview && !procImage ? 'error' : 'text.secondary'} display="block" mb={1}>
+                  Fotografia do Concurso <span style={{ color: 'red' }}>*</span>
+                </Typography>
+                {imagePreview ? (
+                  <Stack spacing={1}>
+                    <Box sx={{ position: 'relative', display: 'inline-block', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'grey.300', width: 'fit-content' }}>
+                      <Box component="img" src={imagePreview} alt="Fotografia do concurso"
+                        sx={{ display: 'block', width: 240, height: 160, objectFit: 'cover' }} />
+                      {procImage && (
+                        <Box sx={{ position: 'absolute', top: 6, right: 6, bgcolor: 'success.main', color: '#fff', borderRadius: 1, px: 0.8, py: 0.2 }}>
+                          <Typography variant="caption" fontWeight={600}>Nova</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" component="label" startIcon={<FileIcon />} size="small">
+                        Alterar imagem
+                        <input type="file" hidden accept="image/*"
+                          onChange={(e) => {
+                            const f = e.target.files[0];
+                            if (f) { setProcImage(f); setImagePreview(URL.createObjectURL(f)); }
+                          }} />
+                      </Button>
+                      <Button size="small" color="error" variant="outlined" onClick={() => { setProcImage(null); setImagePreview(null); }}>
+                        Remover
+                      </Button>
+                    </Stack>
+                    {procImage && (
+                      <Typography variant="caption" color="text.secondary">{procImage.name}</Typography>
+                    )}
+                  </Stack>
+                ) : (
                   <Button variant="outlined" component="label" startIcon={<FileIcon />} size="small">
-                    {procImage ? procImage.name : imagePreview ? 'Alterar imagem' : 'Carregar imagem'}
+                    Carregar imagem
                     <input type="file" hidden accept="image/*"
                       onChange={(e) => {
                         const f = e.target.files[0];
                         if (f) { setProcImage(f); setImagePreview(URL.createObjectURL(f)); }
                       }} />
                   </Button>
-                  {imagePreview && (
-                    <Button size="small" color="error" onClick={() => { setProcImage(null); setImagePreview(null); }}>Remover</Button>
-                  )}
-                </Stack>
+                )}
               </Grid>
               <Grid size={12}>
-                <TextField label="Descrição" fullWidth multiline rows={3} value={form.descricao || ''} onChange={set('descricao')} />
+                <TextField label="Descrição" fullWidth multiline rows={3} required
+                  value={form.descricao || ''} onChange={set('descricao')}
+                  error={!form.descricao?.trim()} />
               </Grid>
               <Grid size={12}>
                 <FormControlLabel
@@ -559,21 +617,62 @@ export default function WebsiteProcedimentosPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Eliminar Procedimento?</DialogTitle>
-        <DialogContent><Typography>Esta ação é irreversível.</Typography></DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={() => setDeleteTarget(null)}>Eliminar</Button>
-        </DialogActions>
-      </Dialog>
-
       <Dialog open={!!deleteFaseTarget} onClose={() => setDeleteFaseTarget(null)}>
         <DialogTitle>Eliminar Fase?</DialogTitle>
         <DialogContent><Typography>Esta ação é irreversível.</Typography></DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteFaseTarget(null)}>Cancelar</Button>
           <Button color="error" variant="contained" onClick={() => deleteFaseMut.mutate(deleteFaseTarget)}>Eliminar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ─── Dialog Lista de Candidatos ──────────────────────────────────── */}
+      <Dialog open={!!candidatosProcPk} onClose={() => setCandidatosProcPk(null)} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <CandidatosIcon color="info" />
+            <Typography variant="h6" fontWeight={600}>Lista de Candidatos</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box sx={{ height: 460 }}>
+            <DataGrid
+              rows={candidatosData ?? []}
+              loading={candidatosLoading}
+              getRowId={(r) => r.pk}
+              disableRowSelectionOnClick
+              hideFooterSelectedRowCount
+              pageSizeOptions={[25]}
+              initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+              columns={[
+                { field: 'nome_completo', headerName: 'Nome', flex: 2, minWidth: 180 },
+                { field: 'nif',           headerName: 'NIF',  width: 110 },
+                { field: 'num_doc_id',    headerName: 'N.º Doc. ID', width: 130,
+                  renderCell: ({ row }) => row.num_doc_id
+                    ? `${row.tipo_doc_id ? row.tipo_doc_id + ' ' : ''}${row.num_doc_id}`
+                    : '—'
+                },
+                { field: 'email',         headerName: 'Email', flex: 1, minWidth: 180 },
+                { field: 'telemovel',     headerName: 'Telemóvel', width: 120,
+                  renderCell: ({ value }) => value || '—'
+                },
+                { field: 'nivel_hab_codigo', headerName: 'Hab.', width: 70,
+                  renderCell: ({ row }) => row.nivel_hab_codigo
+                    ? <Tooltip title={row.nivel_hab_descricao || ''}><span>{row.nivel_hab_codigo}</span></Tooltip>
+                    : '—'
+                },
+                { field: 'created_at', headerName: 'Data de Submissão', width: 155,
+                  renderCell: ({ value }) => value ? new Date(value).toLocaleString('pt-PT') : '—'
+                },
+              ]}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Typography variant="caption" color="text.secondary" sx={{ flex: 1, pl: 1 }}>
+            {candidatosData?.length ?? 0} candidato(s)
+          </Typography>
+          <Button onClick={() => setCandidatosProcPk(null)}>Fechar</Button>
         </DialogActions>
       </Dialog>
     </ModulePage>

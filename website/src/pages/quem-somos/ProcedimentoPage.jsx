@@ -96,6 +96,11 @@ export default function ProcedimentoPage() {
 
           {!loading && !error && proc && (
             <article className="space-y-8">
+              {/* Título */}
+              <h1 className="font-heading font-bold text-aintar-navy text-2xl leading-snug">
+                {proc.titulo}
+              </h1>
+
               {/* Imagem */}
               {proc.imagem_url && (
                 <div className="rounded-2xl overflow-hidden h-56 sm:h-72 bg-aintar-light">
@@ -107,7 +112,7 @@ export default function ProcedimentoPage() {
                 </div>
               )}
 
-              {/* Título e badges */}
+              {/* Badges + Descrição */}
               <div>
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                   {proc.referencia && (
@@ -126,17 +131,12 @@ export default function ProcedimentoPage() {
                     </span>
                   )}
                 </div>
-                <h1 className="font-heading font-bold text-aintar-navy text-2xl leading-snug">
-                  {proc.titulo}
-                </h1>
+                {proc.descricao && (
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                    {proc.descricao}
+                  </p>
+                )}
               </div>
-
-              {/* Descrição */}
-              {proc.descricao && (
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                  {proc.descricao}
-                </p>
-              )}
 
               {/* Datas e local */}
               <div className="space-y-2 text-sm text-gray-700">
@@ -172,7 +172,7 @@ export default function ProcedimentoPage() {
               <div className="p-6 rounded-2xl bg-hero-gradient text-white">
                 <h3 className="font-heading font-bold text-base mb-1">Pretende candidatar-se?</h3>
                 <p className="text-white/70 text-sm mb-4">
-                  Preencha o formulário de candidatura DAGF_RH_FR_01 para este procedimento.
+                  Preencha o formulário de candidatura para este procedimento.
                 </p>
                 <button
                   onClick={handleCandidatura}
