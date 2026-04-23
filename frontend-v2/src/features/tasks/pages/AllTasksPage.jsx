@@ -250,7 +250,7 @@ export const AllTasksPage = () => {
       icon={TaskIcon}
       breadcrumbs={[
         { label: 'Início', path: '/' },
-        { label: 'Tarefas', path: '/tasks' },
+        { label: 'Tarefas', path: '/intern/tasks' },
         { label: 'Todas' },
       ]}
     >

@@ -150,12 +150,12 @@ function App() {
         <Route path="/users" element={<Navigate to="/admin/users" replace />} />
 
         {/* ==================== CMS WEBSITE ==================== */}
-        <Route path="/admin/website/noticias"   element={<WebsiteNoticiasPage />} />
-        <Route path="/admin/website/alertas"    element={<WebsiteAlertasPage />} />
-        <Route path="/admin/website/documentos" element={<WebsiteDocumentosPage />} />
-        <Route path="/admin/website/publicacoes" element={<WebsitePublicacoesPage />} />
-        <Route path="/admin/website/procedimentos" element={<WebsiteProcedimentosPage />} />
-        <Route path="/admin/website/financeiros"   element={<WebsiteProcessosFinanceirosPage />} />
+        <Route path="/intern/website/noticias"   element={<WebsiteNoticiasPage />} />
+        <Route path="/intern/website/alertas"    element={<WebsiteAlertasPage />} />
+        <Route path="/intern/website/documentos" element={<WebsiteDocumentosPage />} />
+        <Route path="/intern/website/publicacoes" element={<WebsitePublicacoesPage />} />
+        <Route path="/intern/website/procedimentos" element={<WebsiteProcedimentosPage />} />
+        <Route path="/intern/website/financeiros"   element={<WebsiteProcessosFinanceirosPage />} />
 
         {/* ==================== MÓDULO: PAGAMENTOS ==================== */}
         <Route path="/payments" element={<PaymentAdminPage />} />
@@ -174,8 +174,8 @@ function App() {
         <Route path="/invoices/payment-plans" element={<Navigate to="/invoices" replace />} />
 
         {/* ==================== MÓDULO: OPERAÇÃO ==================== */}
-        <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/tasks/*" element={<TasksPage />} />
+        <Route path="/intern/tasks" element={<TasksPage />} />
+        <Route path="/intern/tasks/*" element={<TasksPage />} />
         <Route path="/operation" element={<Navigate to="/operation/tasks" replace />} />
         <Route path="/operation/tasks" element={<OperationTasksPage />} />
         <Route path="/operation/control" element={<OperationControlPage />} />
@@ -231,7 +231,7 @@ function App() {
         <Route path="/dashboards/tramitacoes" element={<DashboardTramitacoesPage />} />
 
         {/* ==================== EMISSÕES (Ofícios, Notificações, etc.) ==================== */}
-        <Route path="/emissoes" element={<EmissoesPage />} />
+        <Route path="/intern/emissoes" element={<EmissoesPage />} />
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />

@@ -344,7 +344,7 @@ export const MyTasksPage = () => {
       icon={TaskIcon}
       breadcrumbs={[
         { label: 'Início', path: '/' },
-        { label: 'Tarefas', path: '/tasks' },
+        { label: 'Tarefas', path: '/intern/tasks' },
         { label: 'Minhas Tarefas' },
       ]}
     >

@@ -131,7 +131,7 @@ export const MODULES = {
       ]
     },
     description: 'Tarefas administrativas e emissões',
-    defaultRoute: '/tasks',
+    defaultRoute: '/intern/tasks',
   },
 
   ADMINISTRACAO: {
@@ -232,9 +232,9 @@ export const detectModuleFromPath = (pathname) => {
     '/analytics': 'dashboards',
 
     // ADMINISTRATIVO (Interno)
-    '/tasks': 'administrativo',
-    '/emissoes': 'administrativo',
-    '/inventory': 'administrativo',
+    '/intern/tasks': 'administrativo',
+    '/intern/emissoes': 'administrativo',
+    '/intern/inventory': 'administrativo',
 
     // ADMINISTRAÇÃO (Sistema)
     '/admin': 'administracao',
@@ -243,8 +243,8 @@ export const detectModuleFromPath = (pathname) => {
     '/permissions': 'administracao',
     '/offices-admin': 'administracao',
     '/requests': 'administracao',
-    '/admin/website': 'administracao',
-    '/offices': 'administrativo',
+    '/intern/website': 'administrativo',
+    '/intern/offices': 'administrativo',
   };
 
   // Remove trailing slash

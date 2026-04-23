@@ -196,7 +196,7 @@ export const TaskBoardPage = () => {
         icon={KanbanIcon}
         breadcrumbs={[
           { label: 'Início', path: '/' },
-          { label: 'Tarefas', path: '/tasks' },
+          { label: 'Tarefas', path: '/intern/tasks' },
           { label: 'Quadro Kanban' },
         ]}
       >

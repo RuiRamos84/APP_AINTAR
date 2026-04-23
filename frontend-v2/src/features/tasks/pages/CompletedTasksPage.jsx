@@ -157,7 +157,7 @@ export const CompletedTasksPage = () => {
   );
 
   return (
-    <ModulePage title="Tarefas Concluídas" subtitle="Histórico de tarefas completas" icon={CompletedIcon} breadcrumbs={[{ label: 'Início', path: '/' }, { label: 'Tarefas', path: '/tasks' }, { label: 'Concluídas' }]}>
+    <ModulePage title="Tarefas Concluídas" subtitle="Histórico de tarefas completas" icon={CompletedIcon} breadcrumbs={[{ label: 'Início', path: '/' }, { label: 'Tarefas', path: '/intern/tasks' }, { label: 'Concluídas' }]}>
       <Container maxWidth="xl" sx={{ py: 3 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} mb={3}>
           <Typography variant="h5" fontWeight={700} color="success.main">{totalCount} Tarefa{totalCount !== 1 ? 's' : ''} Concluída{totalCount !== 1 ? 's' : ''}</Typography>

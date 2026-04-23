@@ -93,8 +93,8 @@ export const ROUTE_CONFIG = {
     text: 'Início',
     icon: HomeIcon,
     module: null,
-    permissions: null, // Sem permissão específica - qualquer utilizador autenticado
-    showInSidebar: false, // Rota default, não aparece na sidebar
+    permissions: null,
+    showInSidebar: false,
   },
 
   '/dashboard': {
@@ -102,8 +102,8 @@ export const ROUTE_CONFIG = {
     text: 'Dashboard',
     icon: DashboardIcon,
     module: null,
-    permissions: null, // Sem permissão específica
-    showInSidebar: false, // Dashboard específico está em outro módulo
+    permissions: null,
+    showInSidebar: false,
   },
 
   '/settings': {
@@ -121,7 +121,7 @@ export const ROUTE_CONFIG = {
     icon: PeopleIcon,
     module: null,
     permissions: null,
-    showInSidebar: false, // Acedido via menu do utilizador
+    showInSidebar: false,
   },
 
   '/change-password': {
@@ -133,15 +133,16 @@ export const ROUTE_CONFIG = {
     showInSidebar: false,
   },
 
-  // ==================== MÓDULO: INTERNO ====================
+  // ==================== MÓDULO: OPERAÇÃO ====================
+  // Ordem: Minhas Tarefas, Controlo Operacional, Gestão de Voltas, Supervisão
 
-  '/tasks': {
-    id: 'tasks',
-    text: 'Tarefas',
+  '/operation': {
+    id: 'operation',
+    text: 'Operação',
     icon: TasksIcon,
-    module: 'administrativo',
-    permissions: { required: 'tasks.view' },
-    showInSidebar: true,
+    module: 'operacao',
+    permissions: { required: 'operation.access' },
+    showInSidebar: false,
   },
 
   '/operation/tasks': {
@@ -151,15 +152,6 @@ export const ROUTE_CONFIG = {
     module: 'operacao',
     permissions: { required: 'operation.access' },
     showInSidebar: true,
-  },
-
-  '/operation': {
-    id: 'operation',
-    text: 'Operação',
-    icon: TasksIcon,
-    module: 'operacao',
-    permissions: { required: 'operation.access' },
-    showInSidebar: false,
   },
 
   '/operation/control': {
@@ -198,7 +190,88 @@ export const ROUTE_CONFIG = {
     showInSidebar: false,
   },
 
-  // '/branches' e '/septic-tanks' removidos - não implementados
+  // ==================== MÓDULO: ADMINISTRATIVO (INTERNO) ====================
+  // Ordem: Tarefas, Emissões, Website (CMS), Gestão de Ofícios
+
+  '/intern/tasks': {
+    id: 'tasks',
+    text: 'Tarefas',
+    icon: TasksIcon,
+    module: 'administrativo',
+    permissions: { required: 'tasks.view' },
+    showInSidebar: true,
+  },
+
+  '/intern/emissoes': {
+    id: 'emissoes',
+    text: 'Emissões',
+    icon: EmissoesIcon,
+    module: 'administrativo',
+    permissions: { required: 'offices.view' },
+    showInSidebar: true,
+  },
+
+  '/intern/website': {
+    id: 'website_cms',
+    text: 'Website',
+    icon: WebIcon,
+    module: 'administrativo',
+    permissions: { required: 'website.view' },
+    showInSidebar: true,
+    submenu: {
+      '/intern/website/noticias': {
+        id: 'website_noticias',
+        text: 'Notícias',
+        icon: NewsIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/intern/website/alertas': {
+        id: 'website_alertas',
+        text: 'Avisos',
+        icon: AlertIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/intern/website/documentos': {
+        id: 'website_documentos',
+        text: 'Documentos',
+        icon: DocFolderIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/intern/website/publicacoes': {
+        id: 'website_publicacoes',
+        text: 'Publicações',
+        icon: PubIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/intern/website/procedimentos': {
+        id: 'website_procedimentos',
+        text: 'Procedimentos RH',
+        icon: ProcIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+      '/intern/website/financeiros': {
+        id: 'website_financeiros',
+        text: 'Processos Financeiros',
+        icon: FinIcon,
+        permissions: { required: 'website.view' },
+        showInSidebar: true,
+      },
+    },
+  },
+
+  '/intern/offices': {
+    id: 'offices',
+    text: 'Gestão de Ofícios',
+    icon: OfficesIcon,
+    module: 'administrativo',
+    permissions: { required: 'letters.manage' },
+    showInSidebar: false,
+  },
 
   // ==================== MÓDULO: GESTÃO ====================
   // Ordem: ETAR, EE, Equipamentos, Obras, Análises, Gestão de Frota, Despesas, Telemetria
@@ -305,17 +378,8 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
-  '/emissoes': {
-    id: 'emissoes',
-    text: 'Emissões',
-    icon: EmissoesIcon,
-    module: 'administrativo',
-    permissions: { required: 'offices.view' },
-    showInSidebar: true,
-  },
-
   // ==================== MÓDULO: PAGAMENTOS ====================
-  // Ordem: SIBS/Pagamentos, Faturas, Clientes/contratos
+  // Ordem: SIBS/Pagamentos, Faturas, Clientes/Contratos, Caixa
 
   '/payments': {
     id: 'payments',
@@ -386,6 +450,7 @@ export const ROUTE_CONFIG = {
   },
 
   // ==================== MÓDULO: DASHBOARDS ====================
+  // Ordem: Visão Geral, Pedidos, Ramais, Fossas, Instalações, Incumprimentos, Análises
 
   '/dashboards/overview': {
     id: 'dashboards_overview',
@@ -451,6 +516,7 @@ export const ROUTE_CONFIG = {
   },
 
   // ==================== MÓDULO: ADMINISTRAÇÃO ====================
+  // Ordem: Sistema, Utilizadores, Ofícios, Configuração de Avaliações
 
   '/admin': {
     id: 'admin',
@@ -516,57 +582,22 @@ export const ROUTE_CONFIG = {
     },
   },
 
-  '/admin/website': {
-    id: 'website_cms',
-    text: 'Website CMS',
-    icon: WebIcon,
+  '/offices-admin': {
+    id: 'offices_admin',
+    text: 'Ofícios',
+    icon: OfficesIcon,
     module: 'administracao',
-    permissions: { required: 'website.view' },
+    permissions: { required: 'offices.view' },
     showInSidebar: true,
-    submenu: {
-      '/admin/website/noticias': {
-        id: 'website_noticias',
-        text: 'Notícias',
-        icon: NewsIcon,
-        permissions: { required: 'website.view' },
-        showInSidebar: true,
-      },
-      '/admin/website/alertas': {
-        id: 'website_alertas',
-        text: 'Avisos',
-        icon: AlertIcon,
-        permissions: { required: 'website.view' },
-        showInSidebar: true,
-      },
-      '/admin/website/documentos': {
-        id: 'website_documentos',
-        text: 'Documentos',
-        icon: DocFolderIcon,
-        permissions: { required: 'website.view' },
-        showInSidebar: true,
-      },
-      '/admin/website/publicacoes': {
-        id: 'website_publicacoes',
-        text: 'Publicações',
-        icon: PubIcon,
-        permissions: { required: 'website.view' },
-        showInSidebar: true,
-      },
-      '/admin/website/procedimentos': {
-        id: 'website_procedimentos',
-        text: 'Procedimentos RH',
-        icon: ProcIcon,
-        permissions: { required: 'website.view' },
-        showInSidebar: true,
-      },
-      '/admin/website/financeiros': {
-        id: 'website_financeiros',
-        text: 'Processos Financeiros',
-        icon: FinIcon,
-        permissions: { required: 'website.view' },
-        showInSidebar: true,
-      },
-    },
+  },
+
+  '/aval/admin': {
+    id: 'aval_admin',
+    text: 'Configuração de Avaliações',
+    icon: AvalIcon,
+    module: 'administracao',
+    permissions: { required: 'admin.users' },
+    showInSidebar: true,
   },
 
   '/admin/users/new': {
@@ -587,12 +618,33 @@ export const ROUTE_CONFIG = {
     showInSidebar: false,
   },
 
-  '/offices-admin': {
-    id: 'offices_admin',
-    text: 'Ofícios',
-    icon: OfficesIcon,
-    module: 'administracao',
-    permissions: { required: 'offices.view' },
+  // ==================== MÓDULO: PEDIDOS ====================
+  // Ordem: Pedidos, Pavimentações, Entidades, Pedidos Gestão, Requisição Interna
+
+  '/pedidos': {
+    id: 'pedidos',
+    text: 'Pedidos',
+    icon: PedidosIcon,
+    module: 'pedidos',
+    permissions: { required: 'docs.view.all' },
+    showInSidebar: true,
+  },
+
+  '/pavements': {
+    id: 'pavements',
+    text: 'Pavimentações',
+    icon: PavementIcon,
+    module: 'pedidos',
+    permissions: { required: 'pav.view' },
+    showInSidebar: true,
+  },
+
+  '/entities': {
+    id: 'entities',
+    text: 'Entidades',
+    icon: EntitiesIcon,
+    module: 'pedidos',
+    permissions: { required: 'entities.view' },
     showInSidebar: true,
   },
 
@@ -628,36 +680,6 @@ export const ROUTE_CONFIG = {
     },
   },
 
-  '/entities': {
-    id: 'entities',
-    text: 'Entidades',
-    icon: EntitiesIcon,
-    module: 'pedidos',
-    permissions: { required: 'entities.view' },
-    showInSidebar: true,
-  },
-
-  // ==================== MÓDULO: PEDIDOS ====================
-  // Ordem: Pedidos, Pavimentações, Requisição Interna
-
-  '/pedidos': {
-    id: 'pedidos',
-    text: 'Pedidos',
-    icon: PedidosIcon,
-    module: 'pedidos',
-    permissions: { required: 'docs.view.all' },
-    showInSidebar: true,
-  },
-
-  '/pavements': {
-    id: 'pavements',
-    text: 'Pavimentações',
-    icon: PavementIcon,
-    module: 'pedidos',
-    permissions: { required: 'pav.view' },
-    showInSidebar: true,
-  },
-
   '/internal': {
     id: 'internal',
     text: 'Área Interna',
@@ -677,7 +699,7 @@ export const ROUTE_CONFIG = {
   },
 
   // ==================== MÓDULO: RECURSOS HUMANOS ====================
-  // Ordem: EPI (topo), Gestão Pessoal (submenu), Avaliação, Análise de Avaliações
+  // Ordem: EPI, Gestão Pessoal (submenu), Avaliação, Análise de Avaliações
 
   '/epi': {
     id: 'epi',
@@ -745,33 +767,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
-  '/aval/admin': {
-    id: 'aval_admin',
-    text: 'Configuração de Avaliações',
-    icon: AvalIcon,
-    module: 'administracao',
-    permissions: { required: 'admin.users' },
-    showInSidebar: true,
-  },
-
-  '/offices': {
-    id: 'offices',
-    text: 'Gestão de Ofícios',
-    icon: OfficesIcon,
-    module: 'administrativo',
-    permissions: { required: 'letters.manage' },
-    showInSidebar: false,
-  },
-
   // ==================== ROTAS LEGACY (mantidas para compatibilidade) ====================
 
   '/documents': {
     id: 'documents',
     text: 'Documentos',
     icon: DocumentsIcon,
-    module: null, // Sem módulo específico
+    module: null,
     permissions: { required: 'docs.view.all' },
-    showInSidebar: false, // Desativado na sidebar (usar ofícios administrativos)
+    showInSidebar: false,
     submenu: {
       '/documents/all': {
         id: 'documents_all',

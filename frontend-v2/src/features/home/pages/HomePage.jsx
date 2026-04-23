@@ -53,7 +53,7 @@ const SERVICES = [
   {
     title: 'Gestão Documental',
     description: 'Plataforma centralizada para contratos, processos, relatórios e compliance regulatório',
-    icon: DescriptionIcon, color: '#40C4FF', route: '/tasks',
+    icon: DescriptionIcon, color: '#40C4FF', route: '/intern/tasks',
     badge: 'Digital', features: ['Cloud Storage', 'Compliance', 'Auditoria'],
   },
   {
