@@ -152,8 +152,9 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const printRef = useRef(null);
 
   // Fetch Data
-  const { data: document, isLoading: isLoadingDoc } = useDocumentDetails(documentRegNumber);
-  const { data: steps, isLoading: isLoadingSteps } = useDocumentSteps(documentPk);
+  const { data: document, isLoading: isLoadingDoc } = useDocumentDetails(documentRegNumber || documentPk);
+  const safeDocumentPk = document?.pk || (!isNaN(Number(documentPk)) ? documentPk : null);
+  const { data: steps, isLoading: isLoadingSteps } = useDocumentSteps(safeDocumentPk);
   const { data: metaData } = useMetaData();
   const downloadComprovativo = useDownloadComprovativo();
   const reopenDocument = useReopenDocument();
@@ -1101,7 +1102,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
           </TabPanel>
 
           <TabPanel value={activeTab} index={4}>
-            <DocumentAnnexes documentId={documentPk} regnumber={document?.regnumber} />
+            <DocumentAnnexes documentId={safeDocumentPk} regnumber={document?.regnumber} />
           </TabPanel>
 
           <TabPanel value={activeTab} index={5}>
@@ -1130,7 +1131,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               variant="outlined"
               size="small"
               startIcon={downloadComprovativo.isPending ? <CircularProgress size={16} /> : <DownloadIcon />}
-              onClick={() => documentPk && downloadComprovativo.mutate(documentPk)}
+              onClick={() => safeDocumentPk && downloadComprovativo.mutate(safeDocumentPk)}
               disabled={!document || downloadComprovativo.isPending}
               sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
             >
@@ -1202,7 +1203,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
       <AddStepModal
         open={isAddStepOpen}
         onClose={() => setIsAddStepOpen(false)}
-        documentId={documentPk}
+        documentId={safeDocumentPk}
         document={document}
         onSuccess={() => {
           setIsAddStepOpen(false);
@@ -1214,7 +1215,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
       <AddAnnexModal
         open={isAddAnnexOpen}
         onClose={() => setIsAddAnnexOpen(false)}
-        documentId={documentPk}
+        documentId={safeDocumentPk}
         document={document}
       />
 

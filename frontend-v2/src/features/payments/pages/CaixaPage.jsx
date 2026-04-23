@@ -639,7 +639,7 @@ const CaixaPage = () => {
           <Tooltip title="Clique para consultar o pedido">
             <Chip
               label={label} size="small" variant="outlined"
-              onClick={() => setSelectedDoc({ pk: value, regnumber, who: row.document_who || row.who })}
+              onClick={() => setSelectedDoc({ pk: value, regnumber: label, who: row.document_who || row.who })}
               sx={{ fontSize: 11, cursor: 'pointer' }}
             />
           </Tooltip>
@@ -757,10 +757,12 @@ const CaixaPage = () => {
 
           {/* Exportar */}
           <Tooltip title="Exportar">
-            <IconButton size="small" onClick={(e) => setExportAnchor(e.currentTarget)}
-              disabled={movements.length === 0}>
-              <ExportIcon fontSize="small" />
-            </IconButton>
+            <span>
+              <IconButton size="small" onClick={(e) => setExportAnchor(e.currentTarget)}
+                disabled={movements.length === 0}>
+                <ExportIcon fontSize="small" />
+              </IconButton>
+            </span>
           </Tooltip>
           <Menu anchorEl={exportAnchor} open={!!exportAnchor} onClose={() => setExportAnchor(null)}>
             <MenuItem onClick={handleExportExcel} sx={{ gap: 1 }}>
