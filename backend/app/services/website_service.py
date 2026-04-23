@@ -891,24 +891,36 @@ def cms_upload_publicacao_file(pk: int, file, current_user: str):
 def cms_list_procedimentos(current_user: str):
     with db_session_manager(current_user) as session:
         rows = session.execute(text("""
-            SELECT pk, referencia, ts_tipo, tipo, titulo, ts_estado, estado,
-                   num_vagas, municipio, visivel, data_abertura,
-                   data_encerramento, num_fases, ultima_fase_data, ultima_fase_nome
-            FROM vbl_site_procedimento
-            ORDER BY data_abertura DESC NULLS LAST
+            SELECT p.pk, p.referencia, p.ref_letra, p.ts_tipo, p.tipo, p.titulo, p.ts_estado, p.estado,
+                   p.carreira, p.categoria_prof, p.area_atividade, p.tt_tipo_contrato,
+                   p.num_vagas, p.municipio, p.descricao, p.imagem_url, p.visivel, p.data_abertura,
+                   p.data_encerramento, p.num_fases, p.ultima_fase_data, p.ultima_fase_nome,
+                   cp.codigo_bep
+            FROM vbl_site_procedimento p
+            LEFT JOIN tb_concursal_procedimento cp ON cp.site_proc_fk = p.pk
+            ORDER BY p.data_abertura DESC NULLS LAST
         """)).mappings().all()
-        return {'procedimentos': [_serialize(r) for r in rows]}, 200
+        result = []
+        for r in rows:
+            item = _serialize(r)
+            if item.get('imagem_url'):
+                item['imagem_url'] = f"/api/v1/website/procedimento-imagem/{item['imagem_url']}"
+            result.append(item)
+        return {'procedimentos': result}, 200
 
 
 @api_error_handler
 def cms_get_procedimento(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
         proc = session.execute(text("""
-            SELECT pk, referencia, ref_letra, ts_tipo, tipo, titulo, carreira,
-                   categoria_prof, area_atividade, tt_tipo_contrato,
-                   num_vagas, municipio, ts_estado, estado,
-                   descricao, imagem_url, data_abertura, data_encerramento, visivel
-            FROM vbl_site_procedimento WHERE pk = :pk
+            SELECT p.pk, p.referencia, p.ref_letra, p.ts_tipo, p.tipo, p.titulo, p.carreira,
+                   p.categoria_prof, p.area_atividade, p.tt_tipo_contrato,
+                   p.num_vagas, p.municipio, p.ts_estado, p.estado,
+                   p.descricao, p.imagem_url, p.data_abertura, p.data_encerramento, p.visivel,
+                   cp.codigo_bep
+            FROM vbl_site_procedimento p
+            LEFT JOIN tb_concursal_procedimento cp ON cp.site_proc_fk = p.pk
+            WHERE p.pk = :pk
         """), {'pk': pk}).mappings().fetchone()
         if not proc:
             raise ResourceNotFoundError('Procedimento', pk)
@@ -1090,6 +1102,38 @@ def cms_delete_procedimento_doc(doc_pk: int, current_user: str):
             "DELETE FROM tb_site_procedimento_doc WHERE pk = :pk"
         ), {'pk': doc_pk})
         return {'message': 'Documento eliminado'}, 200
+
+
+@api_error_handler
+def cms_toggle_procedimento_visivel(pk: int, visivel: bool, current_user: str):
+    with db_session_manager(current_user) as session:
+        row = session.execute(
+            text("SELECT pk FROM tb_site_procedimento WHERE pk = :pk"), {'pk': pk}
+        ).fetchone()
+        if not row:
+            raise ResourceNotFoundError('Procedimento', pk)
+        session.execute(
+            text("UPDATE tb_site_procedimento SET visivel = :v WHERE pk = :pk"),
+            {'v': visivel, 'pk': pk}
+        )
+        estado = 'visível' if visivel else 'oculto'
+        logger.info(f"Procedimento {pk} agora {estado} por {current_user}")
+        return {'pk': pk, 'visivel': visivel, 'message': f'Procedimento agora {estado} no website'}, 200
+
+
+@api_error_handler
+def cms_list_candidatos_proc(proc_pk: int):
+    from app import db
+    rows = db.session.execute(text("""
+        SELECT c.pk, c.nome_completo, c.nif, c.tipo_doc_id, c.num_doc_id,
+               c.email, c.telemovel, c.nivel_hab_codigo, c.nivel_hab_descricao,
+               c.estado, c.created_at
+        FROM vbl_concursal_candidatura c
+        JOIN tb_concursal_procedimento p ON p.pk = c.tb_procedimento
+        WHERE p.site_proc_fk = :pk
+        ORDER BY c.created_at DESC NULLS LAST
+    """), {'pk': proc_pk}).mappings().all()
+    return {'candidatos': [_serialize(r) for r in rows]}, 200
 
 
 @api_error_handler
@@ -1342,7 +1386,7 @@ def get_concursal_proc_for_site(site_proc_pk: int):
 
     # Valida que o procedimento de site existe e está visível
     site_proc = db.session.execute(text("""
-        SELECT pk, titulo, carreira, data_abertura, data_encerramento
+        SELECT pk, titulo, carreira, categoria_prof, referencia, area_atividade, tt_tipo_contrato, data_abertura, data_encerramento
         FROM tb_site_procedimento
         WHERE pk = :pk AND visivel = TRUE
     """), {'pk': site_proc_pk}).mappings().fetchone()
@@ -1364,13 +1408,16 @@ def get_concursal_proc_for_site(site_proc_pk: int):
     new_pk = db.session.execute(text("SELECT nextval('sq_codes')")).scalar()
     db.session.execute(text("""
         INSERT INTO tb_concursal_procedimento
-            (pk, carreira, categoria, data_abertura, data_encerramento, site_proc_fk, ativo)
+            (pk, carreira, categoria, codigo_bep, area_atividade, tt_tipo_contrato, data_abertura, data_encerramento, site_proc_fk, ativo)
         VALUES
-            (:pk, :carreira, :categoria, :data_abertura, :data_encerramento, :site_proc_fk, TRUE)
+            (:pk, :carreira, :categoria, :codigo_bep, :area_atividade, :tt_tipo_contrato, :data_abertura, :data_encerramento, :site_proc_fk, TRUE)
     """), {
         'pk':               new_pk,
         'carreira':         site_proc['carreira'],
-        'categoria':        site_proc['titulo'],
+        'categoria':        site_proc['categoria_prof'],
+        'codigo_bep':       site_proc['referencia'],
+        'area_atividade':   site_proc['area_atividade'],
+        'tt_tipo_contrato': site_proc['tt_tipo_contrato'],
         'data_abertura':    site_proc['data_abertura'],
         'data_encerramento': site_proc['data_encerramento'],
         'site_proc_fk':     site_proc_pk,
@@ -1394,6 +1441,30 @@ def list_concursal_procedimentos_public():
 
 
 @api_error_handler
+def get_concursal_procedimento_public(pk: int):
+    from app import db
+    row = db.session.execute(text("""
+        SELECT
+            p.pk,
+            COALESCE(p.codigo_bep, sp.referencia)     AS codigo_bep,
+            COALESCE(p.carreira, sp.carreira)          AS carreira,
+            COALESCE(p.categoria, sp.categoria_prof)   AS categoria,
+            COALESCE(p.area_atividade, sp.area_atividade) AS area_atividade,
+            c.descricao                                AS tipo_contrato_descricao,
+            COALESCE(p.empregador, 'AINTAR')           AS empregador,
+            p.data_abertura,
+            p.data_encerramento
+        FROM tb_concursal_procedimento p
+        LEFT JOIN tb_site_procedimento sp ON sp.pk = p.site_proc_fk
+        LEFT JOIN ts_concursal_tipo_contrato c ON c.pk = COALESCE(p.tt_tipo_contrato, sp.tt_tipo_contrato)
+        WHERE p.pk = :pk AND p.ativo = TRUE
+    """), {'pk': pk}).mappings().fetchone()
+    if not row:
+        raise ResourceNotFoundError('Procedimento', pk)
+    return {'procedimento': _serialize(row)}, 200
+
+
+@api_error_handler
 def get_concursal_referencias():
     from app import db
     niveis = db.session.execute(text("""
@@ -1413,7 +1484,7 @@ def get_concursal_referencias():
 
 
 @api_error_handler
-def submit_concursal_candidatura(data: dict):
+def submit_concursal_candidatura(data: dict, files=None):
     from app import db
 
     # Validações mínimas
@@ -1428,20 +1499,38 @@ def submit_concursal_candidatura(data: dict):
     if not data.get('declara_veracidade'):
         raise APIError("É necessário declarar a veracidade das informações prestadas", 400)
 
+    telemovel = (data.get('telemovel') or '').replace(' ', '').replace('-', '')
+    if telemovel:
+        if not re.match(r'^\+?351?9\d{8}$', telemovel):
+            raise APIError("Telemóvel inválido. Introduza um número português válido (ex: 9XXXXXXXX)", 400)
+
+    telefone = (data.get('telefone') or '').replace(' ', '').replace('-', '')
+    if telefone:
+        if not re.match(r'^\+?351?[2-9]\d{8}$', telefone):
+            raise APIError("Telefone inválido. Introduza um número português válido (ex: 2XXXXXXXX)", 400)
+
     result = db.session.execute(text("""
         SELECT fbo_concursal_candidatura_create(
-            :tb_procedimento,
-            :nome_completo, :data_nascimento, :sexo, :tipo_doc_id, :num_doc_id,
-            :nacionalidade, :pais_residencia, :nif, :morada, :codigo_postal, :localidade,
-            :distrito, :concelho, :telemovel, :telefone, :email,
-            :tt_nivel_hab, :area_formacao_academica, :area_formacao_profissional,
-            :outras_formacoes, :formacao_substitutiva,
-            :titular_vinculo_publico, :tt_tipo_vinculo, :modalidade_vinculo,
-            :situacao_profissional_atual, :orgao_servico, :carreira_categoria,
-            :atividade_exercida, :posicao_nivel_remuneratorio, :avaliacao_desempenho,
-            :afasta_metodos_obrigatorios,
-            :grau_incapacidade, :tipo_incapacidade, :condicoes_especiais,
-            :declara_requisitos, :declara_veracidade, :localidade_assinatura, :data_assinatura
+            CAST(:tb_procedimento AS INTEGER),
+            CAST(:nome_completo AS VARCHAR), CAST(:data_nascimento AS DATE), CAST(:sexo AS VARCHAR),
+            CAST(:tipo_doc_id AS VARCHAR), CAST(:num_doc_id AS VARCHAR),
+            CAST(:nacionalidade AS VARCHAR), CAST(:pais_residencia AS VARCHAR), CAST(:nif AS VARCHAR),
+            CAST(:morada AS TEXT), CAST(:codigo_postal AS VARCHAR), CAST(:localidade AS VARCHAR),
+            CAST(:distrito AS VARCHAR), CAST(:concelho AS VARCHAR), CAST(:telemovel AS VARCHAR),
+            CAST(:telefone AS VARCHAR), CAST(:email AS VARCHAR),
+            CAST(:tt_nivel_hab AS SMALLINT), CAST(:area_formacao_academica AS VARCHAR),
+            CAST(:area_formacao_profissional AS VARCHAR),
+            CAST(:outras_formacoes AS TEXT), CAST(:formacao_substitutiva AS TEXT),
+            CAST(:titular_vinculo_publico AS BOOLEAN), CAST(:tt_tipo_vinculo AS SMALLINT),
+            CAST(:modalidade_vinculo AS VARCHAR), CAST(:situacao_profissional_atual AS VARCHAR),
+            CAST(:orgao_servico AS VARCHAR), CAST(:carreira_categoria AS VARCHAR),
+            CAST(:atividade_exercida AS TEXT), CAST(:posicao_nivel_remuneratorio AS VARCHAR),
+            CAST(:avaliacao_desempenho AS VARCHAR),
+            CAST(:afasta_metodos_obrigatorios AS BOOLEAN),
+            CAST(:grau_incapacidade AS VARCHAR), CAST(:tipo_incapacidade AS VARCHAR),
+            CAST(:condicoes_especiais AS TEXT),
+            CAST(:declara_requisitos AS BOOLEAN), CAST(:declara_veracidade AS BOOLEAN),
+            CAST(:localidade_assinatura AS VARCHAR), CAST(:data_assinatura AS DATE)
         )
     """), {
         'tb_procedimento':             data.get('tb_procedimento'),
@@ -1491,5 +1580,71 @@ def submit_concursal_candidatura(data: dict):
         msg = result.replace('<error>', '').replace('</error>', '')
         raise APIError(msg, 400)
 
-    pk = result.replace('<sucess>pk=', '').replace('</sucess>', '') if result else None
-    return {'message': 'Candidatura submetida com sucesso', 'pk': pk}, 201
+    candidatura_pk = result.replace('<sucess>pk=', '').replace('</sucess>', '') if result else None
+
+    # ── Guardar documentos anexos (Secção 9) ──────────────────────────────────
+    if files and candidatura_pk:
+        proc_ref = db.session.execute(text("""
+            SELECT COALESCE(p.codigo_bep, sp.referencia, p.pk::text) AS ref,
+                   p.pk
+            FROM tb_concursal_procedimento p
+            LEFT JOIN tb_site_procedimento sp ON sp.pk = p.site_proc_fk
+            WHERE p.pk = :pk
+        """), {'pk': data.get('tb_procedimento')}).mappings().fetchone()
+
+        tipos = {str(r['pk']): r['descricao'] for r in db.session.execute(text(
+            "SELECT pk, descricao FROM ts_concursal_tipo_documento"
+        )).mappings().all()}
+
+        nome_slug = _slugify(data.get('nome_completo', 'candidato'))
+        doc_slug  = _slugify(data.get('num_doc_id') or data.get('nif', ''))
+        candidato_dir = f"{nome_slug}_{doc_slug}"
+        ref_slug = _slugify(str(proc_ref['ref'])) if proc_ref else 'proc'
+
+        base = current_app.config['FILES_DIR']
+
+        for key, file in files.items():
+            # key format: doc_<tipo_pk>_<index>
+            if not key.startswith('doc_'):
+                continue
+            parts = key.split('_')
+            if len(parts) < 3:
+                continue
+            tipo_pk = parts[1]
+
+            if not file or not file.filename:
+                continue
+            if not file.filename.lower().endswith('.pdf'):
+                raise APIError(f"Apenas são aceites ficheiros PDF. Ficheiro inválido: {file.filename}", 400)
+
+            tipo_dir = _slugify(tipos.get(tipo_pk, f'tipo-{tipo_pk}'))
+            folder = os.path.join(base, 'procedimento', ref_slug, 'candidatos', candidato_dir, tipo_dir)
+            os.makedirs(folder, exist_ok=True)
+
+            safe_name = _slugify(os.path.splitext(file.filename)[0]) + '.pdf'
+            dest = os.path.join(folder, safe_name)
+            counter = 1
+            while os.path.exists(dest):
+                safe_name = _slugify(os.path.splitext(file.filename)[0]) + f'_{counter}.pdf'
+                dest = os.path.join(folder, safe_name)
+                counter += 1
+
+            file.save(dest)
+
+            rel_path = os.path.join(ref_slug, 'candidatos', candidato_dir, tipo_dir, safe_name).replace('\\', '/')
+
+            db.session.execute(text("""
+                INSERT INTO tb_concursal_documento_anexo
+                    (tb_candidatura, tt_tipo_documento, nome_ficheiro, ficheiro_url, data_upload)
+                VALUES
+                    (:cand_pk, :tipo_pk, :nome, :url, CURRENT_TIMESTAMP)
+            """), {
+                'cand_pk': int(candidatura_pk),
+                'tipo_pk': int(tipo_pk) if tipo_pk.isdigit() else None,
+                'nome':    file.filename,
+                'url':     rel_path,
+            })
+
+        db.session.commit()
+
+    return {'message': 'Candidatura submetida com sucesso', 'pk': candidatura_pk}, 201

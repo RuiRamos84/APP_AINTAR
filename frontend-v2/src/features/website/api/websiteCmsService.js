@@ -76,7 +76,8 @@ export const uploadPublicacaoFile = (pk, file) => {
 
 // ─── Procedimentos RH ─────────────────────────────────────────────────────────
 
-export const getProcedimentos     = ()     => api.get(`${BASE}/procedimentos`);
+export const getProcedimentos          = ()             => api.get(`${BASE}/procedimentos`);
+export const toggleProcedimentoVisivel = (pk, visivel) => api.patch(`${BASE}/procedimentos/${pk}/visivel`, { visivel });
 export const getProcedimento      = (pk)   => api.get(`${BASE}/procedimentos/${pk}`);
 export const saveProcedimento     = (data) => data.pk
   ? api.put(`${BASE}/procedimentos/${data.pk}`, data)
@@ -96,6 +97,7 @@ export const uploadProcedimentoImagem = (pk, file) => {
   return api.post(`${BASE}/procedimentos/${pk}/imagem`, fd, { headers: { 'Content-Type': undefined } });
 };
 export const getProcedimentoDocs      = (pk)                        => api.get(`${BASE}/procedimentos/${pk}/documentos`);
+export const getProcedimentoCandidatos = (pk)                       => api.get(`${BASE}/procedimentos/${pk}/candidatos`);
 export const deleteProcedimentoDoc    = (docPk)                     => api.delete(`${BASE}/procedimentos/documentos/${docPk}`);
 export const uploadProcedimentoDoc    = (pk, categoria, titulo, file) => {
   const fd = new FormData();

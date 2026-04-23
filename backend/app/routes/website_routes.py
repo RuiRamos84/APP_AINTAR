@@ -15,6 +15,7 @@ from ..services.website_service import (
     list_processos_financeiros_public,
     send_contacto,
     list_concursal_procedimentos_public,
+    get_concursal_procedimento_public,
     get_concursal_referencias,
     submit_concursal_candidatura,
     get_concursal_proc_for_site,
@@ -27,9 +28,10 @@ from ..services.website_service import (
     cms_list_documentos, cms_save_documento, cms_delete_documento, cms_upload_documento_file,
     cms_list_publicacoes, cms_save_publicacao, cms_delete_publicacao, cms_upload_publicacao_file,
     cms_list_procedimentos, cms_get_procedimento, cms_save_procedimento,
-    cms_upload_procedimento_imagem,
+    cms_toggle_procedimento_visivel, cms_upload_procedimento_imagem,
     cms_list_procedimento_docs, cms_upload_procedimento_doc, cms_delete_procedimento_doc,
     cms_save_procedimento_fase, cms_delete_procedimento_fase, cms_upload_fase_file,
+    cms_list_candidatos_proc,
     cms_list_processos_financeiros, cms_get_processo_financeiro,
     cms_save_processo_financeiro, cms_save_processo_financeiro_doc,
     cms_delete_processo_financeiro_doc, cms_upload_processo_doc_file,
@@ -119,12 +121,14 @@ def serve_website_file(tipo, filepath):
 @website_public_bp.route('/procedimento-imagem/<path:filepath>', methods=['GET'])
 def serve_procedimento_imagem(filepath):
     folder = os.path.join(current_app.config['FILES_DIR'], 'procedimento')
+    os.makedirs(folder, exist_ok=True)
     return send_from_directory(folder, filepath)
 
 
 @website_public_bp.route('/procedimento-doc/<path:filepath>', methods=['GET'])
 def serve_procedimento_doc(filepath):
     folder = os.path.join(current_app.config['FILES_DIR'], 'procedimento')
+    os.makedirs(folder, exist_ok=True)
     return send_from_directory(folder, filepath)
 
 
@@ -148,6 +152,12 @@ def get_concursal_procedimentos():
     return list_concursal_procedimentos_public()
 
 
+@website_public_bp.route('/concursal/procedimentos/<int:pk>', methods=['GET'])
+@api_error_handler
+def get_concursal_procedimento(pk):
+    return get_concursal_procedimento_public(pk)
+
+
 @website_public_bp.route('/concursal/referencias', methods=['GET'])
 @api_error_handler
 def get_concursal_refs():
@@ -157,8 +167,13 @@ def get_concursal_refs():
 @website_public_bp.route('/concursal/candidatura', methods=['POST'])
 @api_error_handler
 def post_concursal_candidatura():
-    data = request.get_json() or {}
-    return submit_concursal_candidatura(data)
+    import json
+    raw = request.form.get('data') or request.get_data(as_text=True)
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        data = request.get_json() or {}
+    return submit_concursal_candidatura(data, request.files)
 
 
 @website_public_bp.route('/concursal/for-site-proc/<int:pk>', methods=['GET'])
@@ -586,6 +601,28 @@ def cms_procedimento_doc_upload(pk):
 def cms_procedimento_doc_delete(doc_pk):
     current_user = get_jwt_identity()
     return cms_delete_procedimento_doc(doc_pk, current_user)
+
+
+@website_cms_bp.route('/procedimentos/<int:pk>/visivel', methods=['PATCH'])
+@jwt_required()
+@token_required
+@require_permission('website.edit')
+@set_session
+@api_error_handler
+def cms_procedimento_toggle_visivel(pk):
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    return cms_toggle_procedimento_visivel(pk, bool(data.get('visivel', False)), current_user)
+
+
+@website_cms_bp.route('/procedimentos/<int:pk>/candidatos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('website.view')
+@set_session
+@api_error_handler
+def get_procedimento_candidatos(pk):
+    return cms_list_candidatos_proc(pk)
 
 
 # ─── Processos Financeiros ────────────────────────────────────────────────────
