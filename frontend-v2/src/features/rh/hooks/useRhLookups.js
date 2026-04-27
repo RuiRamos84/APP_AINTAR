@@ -1,38 +1,34 @@
-import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import notification from '@/core/services/notification';
-import { getLookups, getColaboradoresLista } from '../services/rhService';
+import { useMetadata } from '@/core/contexts/MetadataContext';
 
+/**
+ * Devolve os lookups RH directamente do MetadataContext (carregados no arranque).
+ * Sem requests adicionais.
+ */
 export const useRhLookups = () => {
-  const q = useQuery({
-    queryKey: ['rh-lookups'],
-    queryFn: () => getLookups(),
-    staleTime: 10 * 60 * 1000,
-  });
-
-  useEffect(() => {
-    if (q.isError) notification.error('Erro ao carregar lookups RH');
-  }, [q.isError]);
+  const { metadata, isLoading } = useMetadata();
 
   return {
-    lookups: q.data || {},
-    isLoading: q.isLoading,
+    lookups: {
+      tipos_jornada:    metadata.rhTipoJornada       || [],
+      eventos_ponto:    metadata.rhPontoEvento        || [],
+      tipos_ferias:     metadata.rhTipoFerias         || [],
+      tipos_falta:      metadata.rhTipoFalta          || [],
+      estados_workflow: metadata.rhEstadoWorkflow     || [],
+      tipos_ocorrencia: metadata.rhPiqueteOcorrencia  || [],
+    },
+    isLoading,
   };
 };
 
+/**
+ * Lista de colaboradores internos (ts_profile 0, 1, 6) do MetadataContext.
+ * Usada nos dropdowns dos modais de férias, faltas, horários, piquete.
+ */
 export const useColaboradores = () => {
-  const q = useQuery({
-    queryKey: ['rh-colaboradores-lista'],
-    queryFn: () => getColaboradoresLista(),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  useEffect(() => {
-    if (q.isError) notification.error('Erro ao carregar lista de colaboradores');
-  }, [q.isError]);
+  const { metadata, isLoading } = useMetadata();
 
   return {
-    colaboradores: Array.isArray(q.data) ? q.data : [],
-    isLoading: q.isLoading,
+    colaboradores: metadata.rhColaboradores || [],
+    isLoading,
   };
 };

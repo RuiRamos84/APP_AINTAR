@@ -64,6 +64,14 @@ def fetch_meta_data(current_user):
         'despesaobra': "SELECT * FROM vbl_despesaobra ORDER BY pk",
         'contractfrequency': "SELECT * FROM vbl_contractfrequency ORDER BY pk",
         'entities': "SELECT pk, name FROM ts_entity ORDER BY name",
+        # ── Recursos Humanos ──────────────────────────────────────────────
+        'rh_colaboradores':      "SELECT pk, name FROM ts_client WHERE ts_profile IN (0, 1, 6) AND COALESCE(active, 1) = 1 ORDER BY name",
+        'rh_tipo_jornada':       "SELECT pk, descr FROM tt_rh_tipo_jornada ORDER BY pk",
+        'rh_ponto_evento':       "SELECT pk, descr, ordem FROM tt_rh_ponto_evento ORDER BY ordem",
+        'rh_tipo_ferias':        "SELECT pk, descr, debita_saldo FROM tt_rh_tipo_ferias ORDER BY pk",
+        'rh_tipo_falta':         "SELECT pk, descr, requer_justificativo FROM tt_rh_tipo_falta ORDER BY pk",
+        'rh_estado_workflow':    "SELECT pk, descr, cor FROM tt_rh_estado_workflow ORDER BY pk",
+        'rh_piquete_ocorrencia': "SELECT pk, descr FROM tt_rh_piquete_ocorrencia ORDER BY pk",
     }
 
     response_data = {}
