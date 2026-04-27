@@ -207,6 +207,7 @@ def create_app(config_class):
             equipamento_bp, obras_bp, obra_despesa_bp, offices_bp,
             client_contracts_bp, caixa_bp,
             website_public_bp, website_cms_bp,
+            rh_bp,
         )
         from .routes.emission_routes import emission_bp
         from .routes.signature_routes import signature_bp
@@ -244,6 +245,7 @@ def create_app(config_class):
         app.register_blueprint(caixa_bp, url_prefix='/api/v1')
         app.register_blueprint(website_public_bp, url_prefix='/api/v1/website')
         app.register_blueprint(website_cms_bp, url_prefix='/api/v1/cms')
+        app.register_blueprint(rh_bp, url_prefix='/api/v1')
 
 
         # Configuração do search_path para o PostgreSQL (ligações novas)
