@@ -14,6 +14,26 @@ logger = get_logger(__name__)
 # Pydantic models
 # ---------------------------------------------------------------------------
 
+class ColaboradorUpsert(BaseModel):
+    pk: int
+    data_nascimento: Optional[date] = None
+    data_admissao: Optional[date] = None
+    categoria: Optional[str] = None
+    tipo_contrato: Optional[str] = None
+    num_mecanografico: Optional[str] = None
+    departamento: Optional[str] = None
+    superior_fk: Optional[int] = None
+    dias_ferias_base: Optional[int] = None
+    elegivel_piquete: Optional[bool] = None
+    notas: Optional[str] = None
+
+
+class ConfigAnoInit(BaseModel):
+    user_fk: int
+    ano: int
+    force: bool = False
+
+
 class PontoEventoCreate(BaseModel):
     user_fk: int
     tt_evento_fk: int
@@ -589,3 +609,63 @@ def editar_ocorrencia(pk: int, data: dict, current_user: str):
         """), {'pk': pk, **payload.model_dump()}).scalar()
         _assert_success(result, 'Erro ao editar ocorrência')
         return jsonify({'message': 'Ocorrência actualizada', 'result': format_message(result)}), 200
+
+
+# ---------------------------------------------------------------------------
+# Perfil RH do colaborador (ts_rh_colaborador)
+# ---------------------------------------------------------------------------
+
+@api_error_handler
+def get_colaborador_perfil(pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        row = session.execute(
+            text('SELECT * FROM vbl_rh_colaborador WHERE pk = :pk'),
+            {'pk': pk}
+        ).mappings().first()
+        if not row:
+            raise ResourceNotFoundError('Colaborador', pk)
+        return jsonify(dict(row)), 200
+
+
+@api_error_handler
+def upsert_colaborador_perfil(data: dict, current_user: str):
+    payload = ColaboradorUpsert.model_validate(data)
+    p = payload.model_dump()
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_colaborador(
+                0, :pk,
+                :data_nascimento, :data_admissao, :categoria, :tipo_contrato,
+                :num_mecanografico, :departamento, :superior_fk,
+                :dias_ferias_base, :elegivel_piquete, :notas
+            ) AS result
+        """), p).scalar()
+        _assert_success(result, 'Erro ao guardar perfil RH')
+        return jsonify({'message': 'Perfil RH guardado', 'result': format_message(result)}), 200
+
+
+@api_error_handler
+def init_config_ano(data: dict, current_user: str):
+    payload = ConfigAnoInit.model_validate(data)
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_config_ano_init(:user_fk, :ano, :force) AS result
+        """), payload.model_dump()).scalar()
+        _assert_success(result, 'Erro ao inicializar configuração anual')
+        return jsonify({'message': 'Configuração anual inicializada', 'result': format_message(result)}), 200
+
+
+@api_error_handler
+def init_config_ano_todos(ano: int, current_user: str):
+    """Inicializa saldo anual para TODOS os colaboradores com perfil RH."""
+    with db_session_manager(current_user) as session:
+        rows = session.execute(
+            text('SELECT pk FROM ts_rh_colaborador')
+        ).fetchall()
+        results = []
+        for (pk,) in rows:
+            r = session.execute(text("""
+                SELECT fbo_rh_config_ano_init(:user_fk, :ano, FALSE) AS result
+            """), {'user_fk': pk, 'ano': ano}).scalar()
+            results.append({'user_fk': pk, 'result': format_message(r) if r else None})
+        return jsonify({'ano': ano, 'total': len(results), 'detalhes': results}), 200

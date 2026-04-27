@@ -17,6 +17,8 @@ from ..services.rh_service import (
     upsert_config, get_config,
     get_piquete, gerar_escala_piquete, confirmar_piquete,
     get_ocorrencias, criar_ocorrencia, editar_ocorrencia,
+    get_colaborador_perfil, upsert_colaborador_perfil,
+    init_config_ano, init_config_ano_todos,
 )
 
 logger = get_logger(__name__)
@@ -396,3 +398,54 @@ def ocorrencias_create_route():
 def ocorrencias_update_route(pk):
     current_user = get_jwt_identity()
     return editar_ocorrencia(pk, request.get_json(), current_user)
+
+
+# ---------------------------------------------------------------------------
+# Perfil RH do colaborador
+# ---------------------------------------------------------------------------
+
+@bp.route('/rh/colaboradores/<int:pk>/perfil', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def colaborador_perfil_get(pk):
+    current_user = get_jwt_identity()
+    return get_colaborador_perfil(pk, current_user)
+
+
+@bp.route('/rh/colaboradores/perfil', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def colaborador_perfil_upsert():
+    current_user = get_jwt_identity()
+    return upsert_colaborador_perfil(request.get_json(), current_user)
+
+
+@bp.route('/rh/config/ano/init', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def config_ano_init_route():
+    """Inicializa saldo anual para um colaborador (cálculo automático por antiguidade)."""
+    current_user = get_jwt_identity()
+    return init_config_ano(request.get_json(), current_user)
+
+
+@bp.route('/rh/config/ano/init-todos', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def config_ano_init_todos_route():
+    """Inicializa saldo anual para TODOS os colaboradores com perfil RH."""
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    ano = data.get('ano', __import__('datetime').date.today().year)
+    return init_config_ano_todos(ano, current_user)
