@@ -5,7 +5,7 @@ CREATE OR REPLACE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
-    c.email,
+    e.email,
     COALESCE(cfg.dias_ferias_total, 22)  AS dias_ferias_total,
     COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_gozados,
     COALESCE(cfg.dias_ferias_total, 22) - COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_disponiveis,
@@ -19,6 +19,8 @@ SELECT
     h.hora_inicio_almoco,
     h.hora_fim_almoco
 FROM ts_client c
+LEFT JOIN ts_entity e
+    ON e.pk = c.ts_entity
 LEFT JOIN ts_rh_config cfg
     ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
 LEFT JOIN ts_rh_horario h

@@ -1,12 +1,11 @@
 -- =============================================================
--- RH PESSOAL — SCHEMA COMPLETO
--- AINTAR · Módulo Recursos Humanos
+-- RH PESSOAL - SCHEMA COMPLETO
+-- AINTAR - Modulo Recursos Humanos
 -- =============================================================
--- INSTRUÇÕES DBEAVER:
+-- INSTRUCOES DBEAVER:
 --   1. File > Open File -> seleccionar este ficheiro
 --   2. Ctrl+A (seleccionar tudo)
---   3. Alt+X (Execute SQL Script) <- OBRIGATÓRIO este botão
---      NAO usar Ctrl+Enter (executa apenas 1 statement)
+--   3. Alt+X (Execute SQL Script) <- OBRIGATORIO este botao
 -- =============================================================
 
 
@@ -1061,7 +1060,7 @@ CREATE OR REPLACE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
-    c.email,
+    e.email,
     COALESCE(cfg.dias_ferias_total, 22)  AS dias_ferias_total,
     COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_gozados,
     COALESCE(cfg.dias_ferias_total, 22) - COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_disponiveis,
@@ -1075,6 +1074,8 @@ SELECT
     h.hora_inicio_almoco,
     h.hora_fim_almoco
 FROM ts_client c
+LEFT JOIN ts_entity e
+    ON e.pk = c.ts_entity
 LEFT JOIN ts_rh_config cfg
     ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
 LEFT JOIN ts_rh_horario h
@@ -1486,7 +1487,7 @@ CREATE OR REPLACE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
-    c.email,
+    e.email,
     -- Perfil RH
     col.data_nascimento,
     col.data_admissao,
@@ -1522,6 +1523,8 @@ SELECT
          ELSE NULL
     END                                   AS anos_antiguidade
 FROM ts_client c
+LEFT JOIN ts_entity e
+    ON e.pk = c.ts_entity
 LEFT JOIN ts_rh_colaborador col
     ON col.pk = c.pk
 LEFT JOIN ts_client sup
@@ -1661,7 +1664,7 @@ CREATE OR REPLACE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
-    c.email,
+    e.email,
     c.ts_profile                          AS perfil,
     -- Perfil RH
     col.data_nascimento,
@@ -1698,8 +1701,8 @@ SELECT
          ELSE NULL
     END                                   AS anos_antiguidade
 FROM ts_client c
--- FILTRO: só colaboradores internos
-WHERE c.ts_profile IN (0, 1, 6)
+LEFT JOIN ts_entity e
+    ON e.pk = c.ts_entity
 LEFT JOIN ts_rh_colaborador col
     ON col.pk = c.pk
 LEFT JOIN ts_client sup
@@ -1709,7 +1712,9 @@ LEFT JOIN ts_rh_config cfg
 LEFT JOIN ts_rh_horario h
     ON h.tb_user_fk = c.pk AND h.data_fim IS NULL
 LEFT JOIN tt_rh_tipo_jornada j
-    ON j.pk = h.tt_jornada_fk;
+    ON j.pk = h.tt_jornada_fk
+-- FILTRO: só colaboradores internos (WHERE depois dos JOINs)
+WHERE c.ts_profile IN (0, 1, 6);
 
 
 -- ─── 2. vbl_rh_saldo_ferias — idem ──────────────────────────────────────────
@@ -1740,9 +1745,9 @@ SELECT
               AND ts_estado_fk IN (1, 2) AND tt_tipo_fk = 1
           ), 0)                     AS dias_disponiveis
 FROM ts_client c
-WHERE c.ts_profile IN (0, 1, 6)
 LEFT JOIN ts_rh_config cfg
-    ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT;
+    ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
+WHERE c.ts_profile IN (0, 1, 6);
 
 
 -- ─── 3. fbo_rh_colaborador — validar perfil antes de criar ──────────────────

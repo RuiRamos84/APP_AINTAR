@@ -212,7 +212,7 @@ CREATE OR REPLACE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
-    c.email,
+    e.email,
     -- Perfil RH
     col.data_nascimento,
     col.data_admissao,
@@ -248,6 +248,8 @@ SELECT
          ELSE NULL
     END                                   AS anos_antiguidade
 FROM ts_client c
+LEFT JOIN ts_entity e
+    ON e.pk = c.ts_entity
 LEFT JOIN ts_rh_colaborador col
     ON col.pk = c.pk
 LEFT JOIN ts_client sup
