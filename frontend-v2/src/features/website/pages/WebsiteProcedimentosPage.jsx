@@ -12,19 +12,21 @@ import {
   ArrowForward as NextIcon, ArrowBack as BackIcon,
   PictureAsPdf as PdfIcon, Description as DocIcon, CheckCircle as DoneIcon,
   Visibility as VisibleIcon, VisibilityOff as HiddenIcon,
-  PeopleAlt as CandidatosIcon,
+  PeopleAlt as CandidatosIcon, OpenInNew as OpenIcon, ArrowBack as BackDetailIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
+import { SearchBar } from '@/shared/components/data';
+import { useSearch } from '@/shared/hooks';
 import notification from '@/core/services/notification';
 import {
   getProcedimentos, getProcedimento, saveProcedimento, toggleProcedimentoVisivel,
   saveProcedimentoFase, deleteProcedimentoFase, uploadFaseFile,
   uploadProcedimentoImagem, getProcedimentoDocs,
   uploadProcedimentoDoc, deleteProcedimentoDoc, getMetadados,
-  getProcedimentoCandidatos,
+  getProcedimentoCandidatos, getCandidatoDetalhe,
 } from '../api/websiteCmsService';
 
 const EMPTY_PROC = {
@@ -47,7 +49,6 @@ const STEPS = ['Cabeçalho', 'Corpo do Procedimento', 'Documentos'];
 const DOC_TABS = [
   { key: 'publicacao',  label: 'Publicações',               folder: 'publicacoes' },
   { key: 'referencia',  label: 'Referências Bibliográficas', folder: 'referencias bibliograficas' },
-  { key: 'formulario',  label: 'Formulários',                folder: 'formularios' },
 ];
 
 function DocSection({ procPk, categoria }) {
@@ -159,6 +160,8 @@ export default function WebsiteProcedimentosPage() {
   const [selected, setSelected]   = useState(null);
   const [deleteFaseTarget, setDeleteFaseTarget] = useState(null);
   const [candidatosProcPk, setCandidatosProcPk] = useState(null);
+  const [candidatoDetalhePk, setCandidatoDetalhePk] = useState(null);
+  const [candidatosSearch, setCandidatosSearch] = useState('');
 
   const effectivePk = form.pk || savedPk;
 
@@ -187,6 +190,15 @@ export default function WebsiteProcedimentosPage() {
     enabled: !!candidatosProcPk,
     select: (r) => r?.candidatos ?? [],
   });
+
+  const { data: candidatoDetalhe, isLoading: detalheLoading } = useQuery({
+    queryKey: ['cms', 'candidato', candidatoDetalhePk],
+    queryFn: () => getCandidatoDetalhe(candidatoDetalhePk),
+    enabled: !!candidatoDetalhePk,
+    select: (r) => r?.candidato,
+  });
+
+  const candidatosFiltrados = useSearch(candidatosData ?? [], candidatosSearch);
 
   const tipos         = meta?.procedimento_tipos          ?? [];
   const estados       = meta?.procedimento_estados        ?? [];
@@ -501,9 +513,8 @@ export default function WebsiteProcedimentosPage() {
                 )}
               </Grid>
               <Grid size={12}>
-                <TextField label="Descrição" fullWidth multiline rows={3} required
-                  value={form.descricao || ''} onChange={set('descricao')}
-                  error={!form.descricao?.trim()} />
+                <TextField label="Descrição" fullWidth multiline minRows={3} maxRows={10} required
+                  value={form.descricao || ''} onChange={set('descricao')} />
               </Grid>
               <Grid size={12}>
                 <FormControlLabel
@@ -626,8 +637,128 @@ export default function WebsiteProcedimentosPage() {
         </DialogActions>
       </Dialog>
 
+      {/* ─── Dialog Detalhe Candidato ───────────────────────────────────── */}
+      <Dialog open={!!candidatoDetalhePk} onClose={() => setCandidatoDetalhePk(null)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <IconButton size="small" onClick={() => setCandidatoDetalhePk(null)}><BackDetailIcon fontSize="small" /></IconButton>
+            <Typography variant="h6" fontWeight={600}>
+              {detalheLoading ? 'A carregar…' : candidatoDetalhe?.nome_completo}
+            </Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers>
+          {detalheLoading && <Typography color="text.secondary" variant="body2">A carregar ficha…</Typography>}
+          {candidatoDetalhe && (() => {
+            const c = candidatoDetalhe
+            const fmt = (v) => v || '—'
+            const fmtDate = (v) => v ? new Date(v).toLocaleDateString('pt-PT') : '—'
+            const fmtBool = (v) => v ? 'Sim' : 'Não'
+            const SectionTitle = ({ children }) => (
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 3, mb: 1, color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1, fontSize: 11 }}>
+                {children}
+              </Typography>
+            )
+            const Row = ({ label, value }) => (
+              <Box sx={{ display: 'grid', gridTemplateColumns: '180px 1fr', borderBottom: '1px solid', borderColor: 'grey.100', py: 0.75 }}>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>{label}</Typography>
+                <Typography variant="body2">{fmt(value)}</Typography>
+              </Box>
+            )
+            const API = import.meta.env.VITE_API_URL || '/api/v1'
+            return (
+              <Box>
+                <SectionTitle>3. Identificação do Candidato</SectionTitle>
+                <Row label="Nome completo"        value={c.nome_completo} />
+                <Row label="Data de nascimento"   value={fmtDate(c.data_nascimento)} />
+                <Row label="Sexo"                 value={c.sexo} />
+                <Row label="Tipo doc. identidade" value={c.tipo_doc_id} />
+                <Row label="N.º identificação"    value={c.num_doc_id} />
+                <Row label="Nacionalidade"        value={c.nacionalidade} />
+                <Row label="País de residência"   value={c.pais_residencia} />
+                <Row label="NIF"                  value={c.nif} />
+                <Row label="Morada"               value={c.morada} />
+                <Row label="Código Postal"        value={c.codigo_postal} />
+                <Row label="Localidade"           value={c.localidade} />
+                <Row label="Distrito"             value={c.distrito} />
+                <Row label="Concelho"             value={c.concelho} />
+                <Row label="Telemóvel"            value={c.telemovel} />
+                <Row label="Telefone"             value={c.telefone} />
+                <Row label="Email"                value={c.email} />
+
+                <SectionTitle>4. Habilitações</SectionTitle>
+                <Row label="Nível habilitacional"      value={c.nivel_hab_codigo ? `${c.nivel_hab_codigo} — ${c.nivel_hab_descricao}` : null} />
+                <Row label="Área formação académica"   value={c.area_formacao_academica} />
+                <Row label="Área formação profissional" value={c.area_formacao_profissional} />
+                <Row label="Outras formações"          value={c.outras_formacoes} />
+                <Row label="Formação substitutiva"     value={c.formacao_substitutiva} />
+
+                <SectionTitle>5. Situação Jurídico-Funcional</SectionTitle>
+                <Row label="Titular vínculo público"   value={fmtBool(c.titular_vinculo_publico)} />
+                {c.titular_vinculo_publico && <>
+                  <Row label="Modalidade de vínculo"     value={c.modalidade_vinculo} />
+                  <Row label="Situação profissional"     value={c.situacao_profissional_atual} />
+                  <Row label="Órgão / Serviço"           value={c.orgao_servico} />
+                  <Row label="Carreira e categoria"      value={c.carreira_categoria} />
+                  <Row label="Atividade exercida"        value={c.atividade_exercida} />
+                  <Row label="Posição / Nível remun."    value={c.posicao_nivel_remuneratorio} />
+                  <Row label="Avaliação de desempenho"   value={c.avaliacao_desempenho} />
+                </>}
+
+                <SectionTitle>6. Métodos de Seleção</SectionTitle>
+                <Row label="Afasta métodos obrigatórios" value={fmtBool(c.afasta_metodos_obrigatorios)} />
+
+                <SectionTitle>7. Necessidades Especiais</SectionTitle>
+                <Row label="Grau de incapacidade"  value={c.grau_incapacidade} />
+                <Row label="Tipo de incapacidade"  value={c.tipo_incapacidade} />
+                <Row label="Condições especiais"   value={c.condicoes_especiais} />
+
+                <SectionTitle>8. Declarações</SectionTitle>
+                <Row label="Declara requisitos"  value={fmtBool(c.declara_requisitos)} />
+                <Row label="Declara veracidade"  value={fmtBool(c.declara_veracidade)} />
+                <Row label="Localidade"          value={c.localidade_assinatura} />
+                <Row label="Data"                value={fmtDate(c.data_assinatura)} />
+
+                {c.documentos?.length > 0 && <>
+                  <SectionTitle>9. Documentos Anexos</SectionTitle>
+                  <List dense disablePadding>
+                    {c.documentos.map(d => (
+                      <ListItem key={d.pk} disableGutters sx={{ borderBottom: '1px solid', borderColor: 'grey.100', py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}><PdfIcon fontSize="small" color="error" /></ListItemIcon>
+                        <ListItemText
+                          primary={d.tipo_documento_descricao || 'Documento'}
+                          secondary={d.nome_ficheiro}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                          secondaryTypographyProps={{ variant: 'caption' }}
+                        />
+                        {d.ficheiro_url && (
+                          <Tooltip title="Abrir / Descarregar">
+                            <IconButton size="small" component="a"
+                              href={`${API}/website/procedimento-doc/${d.ficheiro_url}`}
+                              target="_blank" rel="noopener noreferrer">
+                              <OpenIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </ListItem>
+                    ))}
+                  </List>
+                </>}
+
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
+                  Submetido em: {new Date(c.created_at).toLocaleString('pt-PT')}
+                </Typography>
+              </Box>
+            )
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCandidatoDetalhePk(null)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ─── Dialog Lista de Candidatos ──────────────────────────────────── */}
-      <Dialog open={!!candidatosProcPk} onClose={() => setCandidatosProcPk(null)} maxWidth="lg" fullWidth>
+      <Dialog open={!!candidatosProcPk} onClose={() => { setCandidatosProcPk(null); setCandidatosSearch(''); }} maxWidth="lg" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" gap={1}>
             <CandidatosIcon color="info" />
@@ -635,9 +766,12 @@ export default function WebsiteProcedimentosPage() {
           </Stack>
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0 }}>
-          <Box sx={{ height: 460 }}>
+          <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+            <SearchBar value={candidatosSearch} onChange={setCandidatosSearch} placeholder="Pesquisar candidatos…" size="small" />
+          </Box>
+          <Box sx={{ height: 420 }}>
             <DataGrid
-              rows={candidatosData ?? []}
+              rows={candidatosFiltrados}
               loading={candidatosLoading}
               getRowId={(r) => r.pk}
               disableRowSelectionOnClick
@@ -664,15 +798,26 @@ export default function WebsiteProcedimentosPage() {
                 { field: 'created_at', headerName: 'Data de Submissão', width: 155,
                   renderCell: ({ value }) => value ? new Date(value).toLocaleString('pt-PT') : '—'
                 },
+                { field: '_ver', headerName: '', width: 60, sortable: false,
+                  renderCell: ({ row }) => (
+                    <Tooltip title="Ver ficha completa">
+                      <IconButton size="small" color="primary" onClick={() => setCandidatoDetalhePk(row.pk)}>
+                        <OpenIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  ),
+                },
               ]}
             />
           </Box>
         </DialogContent>
         <DialogActions>
           <Typography variant="caption" color="text.secondary" sx={{ flex: 1, pl: 1 }}>
-            {candidatosData?.length ?? 0} candidato(s)
+            {candidatosFiltrados.length !== (candidatosData?.length ?? 0)
+              ? `${candidatosFiltrados.length} de ${candidatosData?.length ?? 0} candidato(s)`
+              : `${candidatosData?.length ?? 0} candidato(s)`}
           </Typography>
-          <Button onClick={() => setCandidatosProcPk(null)}>Fechar</Button>
+          <Button onClick={() => { setCandidatosProcPk(null); setCandidatosSearch(''); }}>Fechar</Button>
         </DialogActions>
       </Dialog>
     </ModulePage>
