@@ -60,6 +60,26 @@ def colaboradores_route():
     return get_colaboradores(current_user)
 
 
+@bp.route('/rh/colaboradores/lista', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def colaboradores_lista_route():
+    """Lista simplificada (pk + name) para dropdowns — não depende da vbl_rh_colaborador."""
+    current_user = get_jwt_identity()
+    from flask import jsonify
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("""
+            SELECT pk, name
+            FROM ts_client
+            WHERE ts_profile IN (0, 1, 6)
+              AND COALESCE(active, 1) = 1
+            ORDER BY name
+        """)).mappings().all()
+        return jsonify([dict(r) for r in rows]), 200
+
+
 @bp.route('/rh/colaboradores/<int:pk>', methods=['GET'])
 @jwt_required()
 @token_required

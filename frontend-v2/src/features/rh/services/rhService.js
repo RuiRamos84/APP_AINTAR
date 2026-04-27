@@ -3,7 +3,8 @@ import api from '@/services/api/client';
 const BASE = '/rh';
 
 export const getLookups       = ()      => api.get(`${BASE}/lookups`);
-export const getColaboradores = ()      => api.get(`${BASE}/colaboradores`);
+export const getColaboradores     = ()  => api.get(`${BASE}/colaboradores`);
+export const getColaboradoresLista = () => api.get(`${BASE}/colaboradores/lista`);
 export const getSaldoFerias   = (pk)    => api.get(`${BASE}/colaboradores/${pk}/saldo`);
 
 // Ponto

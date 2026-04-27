@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLookups, getColaboradores } from '../services/rhService';
+import { useEffect } from 'react';
+import notification from '@/core/services/notification';
+import { getLookups, getColaboradoresLista } from '../services/rhService';
 
 export const useRhLookups = () => {
   const q = useQuery({
@@ -7,6 +9,10 @@ export const useRhLookups = () => {
     queryFn: () => getLookups(),
     staleTime: 10 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (q.isError) notification.error('Erro ao carregar lookups RH');
+  }, [q.isError]);
 
   return {
     lookups: q.data || {},
@@ -16,10 +22,14 @@ export const useRhLookups = () => {
 
 export const useColaboradores = () => {
   const q = useQuery({
-    queryKey: ['rh-colaboradores'],
-    queryFn: () => getColaboradores(),
+    queryKey: ['rh-colaboradores-lista'],
+    queryFn: () => getColaboradoresLista(),
     staleTime: 5 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (q.isError) notification.error('Erro ao carregar lista de colaboradores');
+  }, [q.isError]);
 
   return {
     colaboradores: Array.isArray(q.data) ? q.data : [],
