@@ -28,7 +28,11 @@ export const usePontoHoje = (userFk) => {
 export const usePontoMes = (userFk, ano, mes) => {
   const query = useQuery({
     queryKey: ['rh-ponto-mes', userFk, ano, mes],
-    queryFn: () => getPonto({ user_fk: userFk, data_inicio: `${ano}-${String(mes).padStart(2,'0')}-01`, data_fim: `${ano}-${String(mes).padStart(2,'0')}-31` }),
+    queryFn: () => {
+      const mm = String(mes).padStart(2, '0');
+      const lastDay = new Date(ano, mes, 0).getDate(); // dia 0 do mês seguinte = último dia do mês actual
+      return getPonto({ user_fk: userFk, data_inicio: `${ano}-${mm}-01`, data_fim: `${ano}-${mm}-${lastDay}` });
+    },
     enabled: !!userFk && !!ano && !!mes,
     staleTime: 2 * 60 * 1000,
   });
