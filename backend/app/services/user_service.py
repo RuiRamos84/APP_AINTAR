@@ -723,18 +723,56 @@ def bulk_update_permissions(data: dict, current_user: str):
             'templateName': 'Template Name'  # for template
         }
     """
-    # Permission templates — PKs reais da ts_interface
-    # Usado apenas como fallback quando o frontend envia templateName (templates hardcoded)
+    # Permission templates — valores string da ts_interface (resolvidos em runtime)
     # Grupos da BD são enviados directamente como lista de permissions pelo frontend
-    PERMISSION_TEMPLATES = {
-        'Operador Básico':      [300, 310, 311, 201, 750, 520, 400],
-        'Gestor de Documentos': [500, 560, 561, 562],
-        'Gestor de Tarefas':    [200, 201, 750, 760],
-        'Administrador':        [20, 30, 80, 90, 300],
-        'Gestor de Entidades':  [800, 810, 820],
-        'Financeiro — Básico':  [880, 700, 710, 800, 530, 400],
-        'Financeiro — Completo': [880, 700, 710, 720, 730, 740, 800, 530, 90, 400],
+    PERMISSION_TEMPLATES_VALUES = {
+        'Operador Básico': [
+            'operation.access', 'operation.execute', 'tasks.view', 'tasks.manage',
+            'docs.view.assigned', 'dashboard.view',
+        ],
+        'Gestor de Documentos': [
+            'docs.view.all', 'docs.create', 'docs.edit', 'docs.delete',
+        ],
+        'Gestor de Tarefas': [
+            'tasks.all', 'tasks.view', 'tasks.manage', 'tasks.edit',
+        ],
+        'Administrador': [
+            'admin.system.settings', 'admin.users', 'admin.logs.view',
+            'operation.access', 'dashboard.view',
+        ],
+        'Gestor de Entidades': [
+            'entities.view', 'entities.create', 'entities.manage',
+        ],
+        'Financeiro — Básico': [
+            'payments.caixa.view', 'payments.manage', 'entities.view',
+            'docs.view.all', 'dashboard.view',
+        ],
+        'Financeiro — Completo': [
+            'payments.caixa.view', 'payments.manage', 'payments.mbway',
+            'entities.view', 'docs.view.all', 'admin.users', 'dashboard.view',
+        ],
+        # ── Recursos Humanos ────────────────────────────────────────────────
+        'RH — Colaborador': [
+            'rh.view', 'rh.pessoal.view', 'rh.edit',
+        ],
+        'RH — Superior': [
+            'rh.view', 'rh.pessoal.view', 'rh.edit', 'rh.validate',
+        ],
+        'RH — Admin': [
+            'rh.view', 'rh.pessoal.view', 'rh.edit', 'rh.validate', 'rh.admin',
+        ],
     }
+
+    # Resolver values → PKs em runtime
+    def _resolve_template(name, session):
+        values = PERMISSION_TEMPLATES_VALUES.get(name)
+        if values is None:
+            return None
+        rows = session.execute(
+            text(f"SELECT pk FROM ts_interface WHERE value = ANY(:v)"),
+            {'v': values}
+        ).fetchall()
+        return [r[0] for r in rows]
 
     user_ids = data.get('user_ids', [])
     action = data.get('action')
@@ -774,10 +812,13 @@ def bulk_update_permissions(data: dict, current_user: str):
                 # Se vieram permissions directas (grupo da BD), usar essas
                 if permissions:
                     new_permissions = list(permissions)
-                elif template_name and template_name in PERMISSION_TEMPLATES:
-                    new_permissions = PERMISSION_TEMPLATES[template_name]
+                elif template_name:
+                    resolved = _resolve_template(template_name, session)
+                    if resolved is None:
+                        raise APIError(f"Template '{template_name}' não encontrado", 400, "ERR_TEMPLATE_NOT_FOUND")
+                    new_permissions = resolved
                 else:
-                    raise APIError(f"Template '{template_name}' não encontrado", 400, "ERR_TEMPLATE_NOT_FOUND")
+                    raise APIError("templateName em falta", 400, "ERR_TEMPLATE_NOT_FOUND")
 
             # Update user permissions
             query_update = text("""

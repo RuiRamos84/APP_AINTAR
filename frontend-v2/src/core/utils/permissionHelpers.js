@@ -105,6 +105,25 @@ export const PERMISSION_TEMPLATES = {
       PERMISSIONS.DASHBOARD_VIEW,
     ],
   },
+  // ── Recursos Humanos (PKs resolvidos pelo backend via string) ────────────
+  'RH — Colaborador': {
+    description: 'Ver e registar ponto, férias e faltas',
+    icon: 'badge',
+    color: '#E11D48',
+    permissions: [],
+  },
+  'RH — Superior': {
+    description: 'Colaborador + validar pedidos de subordinados',
+    icon: 'how_to_reg',
+    color: '#E11D48',
+    permissions: [],
+  },
+  'RH — Admin': {
+    description: 'Gestão completa: aprovações, piquete e configuração de saldos',
+    icon: 'admin_panel_settings',
+    color: '#E11D48',
+    permissions: [],
+  },
 };
 
 
