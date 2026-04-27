@@ -5,7 +5,8 @@
 -- Executa APÓS 17_ts_rh_colaborador.sql
 
 -- ─── 1. vbl_rh_colaborador — apenas colaboradores internos ──────────────────
-CREATE OR REPLACE VIEW vbl_rh_colaborador AS
+DROP VIEW IF EXISTS vbl_rh_colaborador CASCADE;
+CREATE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
@@ -228,7 +229,7 @@ BEGIN
         SELECT c.pk INTO v_user_fk
         FROM ts_client c
         LEFT JOIN ts_rh_colaborador col ON col.pk = c.pk
-        WHERE c.ativo = TRUE
+        WHERE COALESCE(c.active, 1) = 1
           -- FILTRO: apenas colaboradores internos
           AND c.ts_profile IN (0, 1, 6)
           -- Apenas elegíveis para piquete

@@ -47,7 +47,7 @@ BEGIN
 
         SELECT c.pk INTO v_user_fk
         FROM ts_client c
-        WHERE c.ativo = TRUE
+        WHERE COALESCE(c.active, 1) = 1
           AND (NOT v_regra_ferias OR NOT EXISTS (
               SELECT 1 FROM tb_rh_ferias f
               WHERE f.tb_user_fk = c.pk

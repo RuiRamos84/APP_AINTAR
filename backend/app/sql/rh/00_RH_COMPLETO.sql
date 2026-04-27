@@ -1,11 +1,11 @@
 -- =============================================================
--- RH PESSOAL - SCHEMA COMPLETO
+-- RH PESSOAL - SCHEMA COMPLETO v3
 -- AINTAR - Modulo Recursos Humanos
 -- =============================================================
 -- INSTRUCOES DBEAVER:
 --   1. File > Open File -> seleccionar este ficheiro
---   2. Ctrl+A (seleccionar tudo)
---   3. Alt+X (Execute SQL Script) <- OBRIGATORIO este botao
+--   2. Ctrl+A  (seleccionar tudo)
+--   3. Alt+X   (Execute SQL Script)
 -- =============================================================
 
 
@@ -933,7 +933,7 @@ BEGIN
 
         SELECT c.pk INTO v_user_fk
         FROM ts_client c
-        WHERE c.ativo = TRUE
+        WHERE COALESCE(c.active, 1) = 1
           AND (NOT v_regra_ferias OR NOT EXISTS (
               SELECT 1 FROM tb_rh_ferias f
               WHERE f.tb_user_fk = c.pk
@@ -1483,7 +1483,8 @@ $$ LANGUAGE plpgsql;
 
 
 -- ─── 6. Actualizar vbl_rh_colaborador ────────────────────────────────────────
-CREATE OR REPLACE VIEW vbl_rh_colaborador AS
+DROP VIEW IF EXISTS vbl_rh_colaborador CASCADE;
+CREATE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
@@ -1660,7 +1661,8 @@ SELECT 'fn_rh_calcular_ferias_ano' AS check_name,
 -- Executa APÓS 17_ts_rh_colaborador.sql
 
 -- ─── 1. vbl_rh_colaborador — apenas colaboradores internos ──────────────────
-CREATE OR REPLACE VIEW vbl_rh_colaborador AS
+DROP VIEW IF EXISTS vbl_rh_colaborador CASCADE;
+CREATE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
@@ -1883,7 +1885,7 @@ BEGIN
         SELECT c.pk INTO v_user_fk
         FROM ts_client c
         LEFT JOIN ts_rh_colaborador col ON col.pk = c.pk
-        WHERE c.ativo = TRUE
+        WHERE COALESCE(c.active, 1) = 1
           -- FILTRO: apenas colaboradores internos
           AND c.ts_profile IN (0, 1, 6)
           -- Apenas elegíveis para piquete

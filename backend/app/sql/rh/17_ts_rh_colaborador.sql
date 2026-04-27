@@ -208,7 +208,8 @@ $$ LANGUAGE plpgsql;
 
 
 -- ─── 6. Actualizar vbl_rh_colaborador ────────────────────────────────────────
-CREATE OR REPLACE VIEW vbl_rh_colaborador AS
+DROP VIEW IF EXISTS vbl_rh_colaborador CASCADE;
+CREATE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
