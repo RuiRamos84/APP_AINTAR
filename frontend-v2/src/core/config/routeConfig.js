@@ -700,16 +700,7 @@ export const ROUTE_CONFIG = {
   },
 
   // ==================== MÓDULO: RECURSOS HUMANOS ====================
-  // Ordem: EPI, Gestão Pessoal (submenu), Avaliação, Análise de Avaliações
-
-  '/epi': {
-    id: 'epi',
-    text: 'Gestão de EPI',
-    icon: EPIIcon,
-    module: 'rh',
-    permissions: { required: 'epi.view' },
-    showInSidebar: true,
-  },
+  // Ordem: Gestão Pessoal (landing + submenu), EPI, Avaliação
 
   '/rh/pessoal': {
     id: 'rh_pessoal',
@@ -755,6 +746,15 @@ export const ROUTE_CONFIG = {
         showInSidebar: true,
       },
     },
+  },
+
+  '/epi': {
+    id: 'epi',
+    text: 'Gestão de EPI',
+    icon: EPIIcon,
+    module: 'rh',
+    permissions: { required: 'epi.view' },
+    showInSidebar: true,
   },
 
   '/aval': {

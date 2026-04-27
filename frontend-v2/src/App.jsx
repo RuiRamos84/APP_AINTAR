@@ -57,6 +57,7 @@ import { ObrasPage } from '@/features/obras';
 import { PavimentosPage } from '@/features/pavimentos';
 import { EPIPage } from '@/features/administrativo/pages';
 import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
+import RhPessoalPage from '@/features/rh/pages/RhPessoalPage';
 import FeriasPage from '@/features/rh/pages/FeriasPage';
 import FaltasPage from '@/features/rh/pages/FaltasPage';
 import HorariosPage from '@/features/rh/pages/HorariosPage';
@@ -236,7 +237,7 @@ function App() {
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />
-        <Route path="/rh/pessoal" element={<Navigate to="/rh/pessoal/ponto" replace />} />
+        <Route path="/rh/pessoal"          element={<RhPessoalPage />} />
         <Route path="/rh/pessoal/ponto"    element={<PontoPage />} />
         <Route path="/rh/pessoal/ferias"   element={<FeriasPage />} />
         <Route path="/rh/pessoal/faltas"   element={<FaltasPage />} />

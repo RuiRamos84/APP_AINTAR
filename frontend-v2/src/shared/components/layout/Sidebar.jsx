@@ -133,8 +133,10 @@ export const Sidebar = ({
       <ListItemButton
         selected={active}
         onClick={(event) => {
-          if (hasSubmenu && !collapsed) handleToggleSubmenu(route.id);
-          else if (hasSubmenu && collapsed) handleOpenPopover(event, route);
+          if (hasSubmenu && !collapsed) {
+            handleNavigation(route.path);
+            if (!isSubmenuOpen) handleToggleSubmenu(route.id);
+          } else if (hasSubmenu && collapsed) handleOpenPopover(event, route);
           else handleNavigation(route.path);
         }}
         sx={{
@@ -183,9 +185,17 @@ export const Sidebar = ({
           }}
         />
         {hasSubmenu && !collapsed && (
-          <Box sx={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); handleToggleSubmenu(route.id); }}
+            sx={{
+              p: 0.25,
+              color: active ? 'rgba(255,255,255,0.8)' : theme.palette.text.secondary,
+              '&:hover': { color: active ? 'white' : moduleColor },
+            }}
+          >
             {isSubmenuOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </Box>
+          </IconButton>
         )}
       </ListItemButton>
     );
