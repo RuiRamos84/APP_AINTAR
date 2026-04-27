@@ -27,11 +27,9 @@ bp = Blueprint('rh_routes', __name__)
 
 
 def _get_user_pk(current_user, session):
-    row = session.execute(
-        text("SELECT pk FROM ts_client WHERE email = :email"),
-        {'email': current_user}
-    ).scalar()
-    return row
+    # get_jwt_identity() devolve session_id, não email.
+    # fs_entity() usa a sessão activa (set_session) para devolver o pk do utilizador actual.
+    return session.execute(text("SELECT fs_entity() AS pk")).scalar()
 
 
 # ---------------------------------------------------------------------------
