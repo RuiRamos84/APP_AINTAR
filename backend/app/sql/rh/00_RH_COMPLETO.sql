@@ -3,13 +3,10 @@
 -- AINTAR · Módulo Recursos Humanos
 -- =============================================================
 -- INSTRUÇÕES DBEAVER:
---   1. File > Open File → seleccionar este ficheiro
+--   1. File > Open File -> seleccionar este ficheiro
 --   2. Ctrl+A (seleccionar tudo)
---   3. Alt+X (Execute SQL Script) ← OBRIGATÓRIO este botão
+--   3. Alt+X (Execute SQL Script) <- OBRIGATÓRIO este botão
 --      NAO usar Ctrl+Enter (executa apenas 1 statement)
--- =============================================================
--- Idempotente: pode correr mais do que uma vez sem problemas.
--- Os checks finais devem mostrar todos OK.
 -- =============================================================
 
 
@@ -76,7 +73,7 @@ CREATE TABLE IF NOT EXISTS tt_rh_estado_workflow (
 );
 INSERT INTO tt_rh_estado_workflow (pk, descr, cor) VALUES
     (1, 'Pendente',            'warning'),
-    (2, 'Validado Superior',   'info'),  0
+    (2, 'Validado Superior',   'info'),
     (3, 'Aprovado RH',         'success'),
     (4, 'Rejeitado',           'error')
 ON CONFLICT (pk) DO NOTHING;
