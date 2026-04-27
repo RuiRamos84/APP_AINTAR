@@ -1,19 +1,21 @@
 -- =============================================================
 -- RH PESSOAL — SCHEMA COMPLETO
 -- AINTAR · Módulo Recursos Humanos
--- Gerado automaticamente — executar de uma só vez no DBeaver
 -- =============================================================
 -- INSTRUÇÕES DBEAVER:
---   1. Abrir este ficheiro (File > Open File)
---   2. Seleccionar tudo (Ctrl+A)
---   3. Executar script (Alt+X ou botão "Execute SQL Script")
---      NÃO usar o botão "Execute Statement" (Ctrl+Enter) — executa só 1 statement
+--   1. File > Open File → seleccionar este ficheiro
+--   2. Ctrl+A (seleccionar tudo)
+--   3. Alt+X (Execute SQL Script) ← OBRIGATÓRIO este botão
+--      NAO usar Ctrl+Enter (executa apenas 1 statement)
+-- =============================================================
+-- Idempotente: pode correr mais do que uma vez sem problemas.
+-- Os checks finais devem mostrar todos OK.
 -- =============================================================
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [01] 01_lookups.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/01_lookups.sql
 -- Lookups do módulo RH Pessoal
 -- Executar como superuser ou owner da BD
@@ -92,9 +94,9 @@ INSERT INTO tt_rh_piquete_ocorrencia (pk, descr) VALUES
 ON CONFLICT (pk) DO NOTHING;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [02] 02_tables_config.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/02_tables_config.sql
 
 -- Saldo anual de férias por colaborador
@@ -148,9 +150,9 @@ CREATE TABLE IF NOT EXISTS ts_feriados (
 CREATE INDEX IF NOT EXISTS idx_ts_feriados_data ON ts_feriados (data);
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [03] 03_tables_ponto.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/03_tables_ponto.sql
 
 -- Registo diário de ponto (cada evento: entrada, almoço, saída)
@@ -191,9 +193,9 @@ CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_mensal_user ON tb_rh_ponto_mensal (tb
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_mensal_ano  ON tb_rh_ponto_mensal (ano, mes);
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [04] 04_tables_ferias_faltas.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/04_tables_ferias_faltas.sql
 
 -- Pedidos de férias e tolerâncias
@@ -252,9 +254,9 @@ CREATE INDEX IF NOT EXISTS idx_tb_rh_workflow_ref  ON tb_rh_workflow (tipo_ref, 
 CREATE INDEX IF NOT EXISTS idx_tb_rh_workflow_user ON tb_rh_workflow (tb_user_fk);
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [05] 05_tables_piquete.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/05_tables_piquete.sql
 
 -- Escala semanal de piquete
@@ -310,9 +312,9 @@ INSERT INTO ts_rh_piquete_regras (pk, codigo, descr, valor, ativo) VALUES
 ON CONFLICT (codigo) DO NOTHING;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [06] 06_feriados_seed.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/06_feriados_seed.sql
 -- Feriados nacionais obrigatórios PT (fixos + móveis pré-calculados)
 
@@ -362,9 +364,9 @@ INSERT INTO ts_feriados (pk, data, descr, nacional) VALUES
 ON CONFLICT (data) DO NOTHING;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [07] 07_fn_dias_uteis.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/07_fn_dias_uteis.sql
 
 CREATE OR REPLACE FUNCTION fn_rh_dias_uteis(
@@ -401,9 +403,9 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [08] 08_fbo_ponto.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/08_fbo_ponto.sql
 
 -- Registar um evento de ponto (entrada, almoço, saída)
@@ -547,9 +549,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [09] 09_fbo_workflow.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/09_fbo_workflow.sql
 
 -- Workflow genérico — valida ou aprova ponto mensal, férias ou falta
@@ -635,9 +637,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [10] 10_fbo_ferias.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/10_fbo_ferias.sql
 
 -- INSERT/UPDATE de pedido de férias
@@ -757,9 +759,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [11] 11_fbo_faltas.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/11_fbo_faltas.sql
 
 CREATE OR REPLACE FUNCTION fbo_rh_faltas(
@@ -815,9 +817,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [12] 12_fbo_horario.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/12_fbo_horario.sql
 
 CREATE OR REPLACE FUNCTION fbo_rh_horario(
@@ -883,9 +885,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [13] 13_fbo_piquete.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/13_fbo_piquete.sql
 
 -- Gerar escala mensal de piquete aplicando as regras activas
@@ -1052,9 +1054,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [14] 14_views.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/14_views.sql
 
 -- Vista de colaboradores com saldo e horário activo
@@ -1270,9 +1272,9 @@ JOIN tt_rh_piquete_ocorrencia t   ON t.pk = o.tt_tipo_fk
 LEFT JOIN ts_client cb            ON cb.pk = o.created_by;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [17] 17_ts_rh_colaborador.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/17_ts_rh_colaborador.sql
 -- Tabela de extensão RH — perfil de colaborador (herança 1-to-1 de ts_client)
 --
@@ -1648,9 +1650,9 @@ SELECT 'fn_rh_calcular_ferias_ano' AS check_name,
     THEN 'OK (user sem perfil → 22 dias)' ELSE 'FALHOU' END AS resultado;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [18] 18_filtro_perfis_rh.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/18_filtro_perfis_rh.sql
 -- Restringe toda a gestão RH Pessoal a utilizadores internos:
 --   ts_profile IN (0, 1, 6) — Super Admin, AINTAR, perfil 6
@@ -1995,50 +1997,64 @@ FROM ts_client
 WHERE ts_profile IN (0, 1, 6) AND ativo = TRUE;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [15] 15_verify.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/15_verify.sql
 -- Executar após toda a BD estar criada — verifica integridade do esquema
 
--- 1. Todas as tabelas existem (deve retornar 17)
+-- ─── 1. Todas as tabelas existem (deve retornar 18) ──────────────────────────
 SELECT
-    CASE WHEN COUNT(*) = 17 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/17)' END AS tabelas_check,
+    CASE WHEN COUNT(*) = 18 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/18)' END AS tabelas_check,
     COUNT(*) AS total
 FROM information_schema.tables
 WHERE table_schema = 'public'
   AND table_name IN (
+    -- Lookups (6)
     'tt_rh_tipo_jornada', 'tt_rh_ponto_evento', 'tt_rh_tipo_ferias',
     'tt_rh_tipo_falta', 'tt_rh_estado_workflow', 'tt_rh_piquete_ocorrencia',
-    'ts_rh_config', 'ts_rh_horario', 'ts_feriados',
+    -- Config (4)
+    'ts_rh_config', 'ts_rh_horario', 'ts_feriados', 'ts_rh_colaborador',
+    -- Piquete regras (1)
+    'ts_rh_piquete_regras',
+    -- Transaccionais (7)
     'tb_rh_ponto', 'tb_rh_ponto_mensal', 'tb_rh_ferias',
     'tb_rh_faltas', 'tb_rh_workflow', 'tb_rh_piquete_escala',
-    'tb_rh_piquete_ocorrencia', 'ts_rh_piquete_regras'
+    'tb_rh_piquete_ocorrencia'
   );
 
--- 2. Todas as views existem (deve retornar 9)
+-- ─── 2. Todas as views existem (deve retornar 9) ─────────────────────────────
 SELECT
     CASE WHEN COUNT(*) = 9 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/9)' END AS views_check,
     COUNT(*) AS total
 FROM information_schema.views
 WHERE table_name LIKE 'vbl_rh_%';
 
--- 3. Todas as funções existem (deve retornar >= 12)
+-- ─── 3. Todas as funções existem (deve retornar >= 15) ───────────────────────
 SELECT
-    CASE WHEN COUNT(*) >= 12 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/12)' END AS funcoes_check,
+    CASE WHEN COUNT(*) >= 15 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/15)' END AS funcoes_check,
     COUNT(*) AS total
 FROM information_schema.routines
 WHERE routine_name IN (
+    -- Utilitárias (3)
     'fn_rh_dias_uteis',
+    'fn_rh_calcular_ferias_ano',
+    'fn_rh_col_updated_at',
+    -- Ponto (3)
     'fbo_rh_ponto_evento', 'fbo_rh_ponto_submeter', 'fbo_rh_ponto_corrigir',
+    -- Workflow (1)
     'fbo_rh_workflow',
-    'fbo_rh_ferias', 'fbo_rh_config_upsert',
-    'fbo_rh_faltas',
-    'fbo_rh_horario',
-    'fbo_rh_piquete_generate', 'fbo_rh_piquete_confirmar', 'fbo_rh_ocorrencia'
+    -- Férias + Config (3)
+    'fbo_rh_ferias', 'fbo_rh_config_upsert', 'fbo_rh_config_ano_init',
+    -- Faltas + Horário (2)
+    'fbo_rh_faltas', 'fbo_rh_horario',
+    -- Piquete (3)
+    'fbo_rh_piquete_generate', 'fbo_rh_piquete_confirmar', 'fbo_rh_ocorrencia',
+    -- Colaborador (1)
+    'fbo_rh_colaborador'
 );
 
--- 4. Seed data correcta
+-- ─── 4. Seed data ─────────────────────────────────────────────────────────────
 SELECT 'Feriados 2026' AS check_name,
     CASE WHEN COUNT(*) = 13 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/13)' END AS resultado
 FROM ts_feriados WHERE EXTRACT(YEAR FROM data) = 2026;
@@ -2059,42 +2075,59 @@ SELECT 'Lookups tipo falta' AS check_name,
     CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
 FROM tt_rh_tipo_falta;
 
--- 5. Função dias_uteis correcta
+-- ─── 5. Funções utilitárias ───────────────────────────────────────────────────
 SELECT 'fn_rh_dias_uteis semana normal' AS check_name,
     CASE WHEN fn_rh_dias_uteis('2026-05-04', '2026-05-08') = 5 THEN 'OK'
          ELSE 'FALHOU (esperado 5, obtido ' || fn_rh_dias_uteis('2026-05-04', '2026-05-08') || ')' END AS resultado;
 
-SELECT 'fn_rh_dias_uteis com feriado' AS check_name,
+SELECT 'fn_rh_dias_uteis com feriado (1 Mai)' AS check_name,
     CASE WHEN fn_rh_dias_uteis('2026-04-27', '2026-05-01') = 4 THEN 'OK'
          ELSE 'FALHOU (esperado 4, obtido ' || fn_rh_dias_uteis('2026-04-27', '2026-05-01') || ')' END AS resultado;
 
 SELECT 'fn_rh_dias_uteis fim-de-semana' AS check_name,
     CASE WHEN fn_rh_dias_uteis('2026-05-09', '2026-05-10') = 0 THEN 'OK'
-         ELSE 'FALHOU (esperado 0, obtido ' || fn_rh_dias_uteis('2026-05-09', '2026-05-10') || ')' END AS resultado;
+         ELSE 'FALHOU (esperado 0)' END AS resultado;
 
--- 6. Smoke test: cada view executa sem erros
-SELECT 'vbl_rh_colaborador'       AS view_name, COUNT(*) AS rows FROM vbl_rh_colaborador
+SELECT 'fn_rh_calcular_ferias_ano (sem perfil → 22)' AS check_name,
+    CASE WHEN fn_rh_calcular_ferias_ano(0, 2026) = 22 THEN 'OK'
+         ELSE 'FALHOU (esperado 22, obtido ' || fn_rh_calcular_ferias_ano(0, 2026) || ')' END AS resultado;
+
+-- ─── 6. Filtro de perfis aplicado nas views ───────────────────────────────────
+SELECT 'Filtro perfis vbl_rh_colaborador' AS check_name,
+    CASE WHEN (
+        SELECT view_definition FROM information_schema.views
+        WHERE table_name = 'vbl_rh_colaborador'
+    ) ILIKE '%ts_profile%' THEN 'OK' ELSE 'FALHOU (filtro ts_profile em falta)' END AS resultado;
+
+-- ─── 7. Permissões RH na ts_interface ────────────────────────────────────────
+SELECT 'Permissões RH' AS check_name,
+    CASE WHEN COUNT(*) = 5 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/5 — correr 16_permissions.sql)' END AS resultado
+FROM ts_interface
+WHERE value LIKE 'rh.%';
+
+-- ─── 8. Smoke test: views executam sem erros ─────────────────────────────────
+SELECT 'vbl_rh_colaborador'          AS view_name, COUNT(*) AS rows FROM vbl_rh_colaborador
 UNION ALL
-SELECT 'vbl_rh_ponto',             COUNT(*) FROM vbl_rh_ponto
+SELECT 'vbl_rh_ponto',                COUNT(*) FROM vbl_rh_ponto
 UNION ALL
-SELECT 'vbl_rh_ponto_mensal',      COUNT(*) FROM vbl_rh_ponto_mensal
+SELECT 'vbl_rh_ponto_mensal',         COUNT(*) FROM vbl_rh_ponto_mensal
 UNION ALL
-SELECT 'vbl_rh_ferias',            COUNT(*) FROM vbl_rh_ferias
+SELECT 'vbl_rh_ferias',               COUNT(*) FROM vbl_rh_ferias
 UNION ALL
-SELECT 'vbl_rh_saldo_ferias',      COUNT(*) FROM vbl_rh_saldo_ferias
+SELECT 'vbl_rh_saldo_ferias',         COUNT(*) FROM vbl_rh_saldo_ferias
 UNION ALL
-SELECT 'vbl_rh_faltas',            COUNT(*) FROM vbl_rh_faltas
+SELECT 'vbl_rh_faltas',               COUNT(*) FROM vbl_rh_faltas
 UNION ALL
-SELECT 'vbl_rh_horario',           COUNT(*) FROM vbl_rh_horario
+SELECT 'vbl_rh_horario',              COUNT(*) FROM vbl_rh_horario
 UNION ALL
-SELECT 'vbl_rh_piquete',           COUNT(*) FROM vbl_rh_piquete
+SELECT 'vbl_rh_piquete',              COUNT(*) FROM vbl_rh_piquete
 UNION ALL
-SELECT 'vbl_rh_piquete_ocorrencias', COUNT(*) FROM vbl_rh_piquete_ocorrencias;
+SELECT 'vbl_rh_piquete_ocorrencias',  COUNT(*) FROM vbl_rh_piquete_ocorrencias;
 
 
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- [16] 16_permissions.sql
--- ─────────────────────────────────────────────────────────────
+-- =============================================================
 -- backend/app/sql/rh/16_permissions.sql
 -- Permissões do módulo RH Pessoal → ts_interface
 -- Executar APÓS os ficheiros 01-15 (BD Foundation)
