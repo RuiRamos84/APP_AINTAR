@@ -1,17 +1,11 @@
 -- =============================================================
--- RH PESSOAL - SCHEMA COMPLETO v3
+-- RH PESSOAL - SCHEMA COMPLETO v4
 -- AINTAR - Modulo Recursos Humanos
 -- =============================================================
--- INSTRUCOES DBEAVER:
---   1. File > Open File -> seleccionar este ficheiro
---   2. Ctrl+A  (seleccionar tudo)
---   3. Alt+X   (Execute SQL Script)
+-- INSTRUCOES DBEAVER: Ctrl+A -> Alt+X (Execute SQL Script)
 -- =============================================================
 
-
--- =============================================================
 -- [01] 01_lookups.sql
--- =============================================================
 -- backend/app/sql/rh/01_lookups.sql
 -- Lookups do módulo RH Pessoal
 -- Executar como superuser ou owner da BD
@@ -89,10 +83,7 @@ INSERT INTO tt_rh_piquete_ocorrencia (pk, descr) VALUES
     (4, 'Outro')
 ON CONFLICT (pk) DO NOTHING;
 
-
--- =============================================================
 -- [02] 02_tables_config.sql
--- =============================================================
 -- backend/app/sql/rh/02_tables_config.sql
 
 -- Saldo anual de férias por colaborador
@@ -145,10 +136,7 @@ CREATE TABLE IF NOT EXISTS ts_feriados (
 
 CREATE INDEX IF NOT EXISTS idx_ts_feriados_data ON ts_feriados (data);
 
-
--- =============================================================
 -- [03] 03_tables_ponto.sql
--- =============================================================
 -- backend/app/sql/rh/03_tables_ponto.sql
 
 -- Registo diário de ponto (cada evento: entrada, almoço, saída)
@@ -188,10 +176,7 @@ CREATE TABLE IF NOT EXISTS tb_rh_ponto_mensal (
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_mensal_user ON tb_rh_ponto_mensal (tb_user_fk);
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_mensal_ano  ON tb_rh_ponto_mensal (ano, mes);
 
-
--- =============================================================
 -- [04] 04_tables_ferias_faltas.sql
--- =============================================================
 -- backend/app/sql/rh/04_tables_ferias_faltas.sql
 
 -- Pedidos de férias e tolerâncias
@@ -249,10 +234,7 @@ CREATE TABLE IF NOT EXISTS tb_rh_workflow (
 CREATE INDEX IF NOT EXISTS idx_tb_rh_workflow_ref  ON tb_rh_workflow (tipo_ref, ref_pk);
 CREATE INDEX IF NOT EXISTS idx_tb_rh_workflow_user ON tb_rh_workflow (tb_user_fk);
 
-
--- =============================================================
 -- [05] 05_tables_piquete.sql
--- =============================================================
 -- backend/app/sql/rh/05_tables_piquete.sql
 
 -- Escala semanal de piquete
@@ -307,10 +289,7 @@ INSERT INTO ts_rh_piquete_regras (pk, codigo, descr, valor, ativo) VALUES
     (fs_nextcode(), 'equitativo',       'Distribuir equitativamente por todos os elegíveis',  NULL,  TRUE)
 ON CONFLICT (codigo) DO NOTHING;
 
-
--- =============================================================
 -- [06] 06_feriados_seed.sql
--- =============================================================
 -- backend/app/sql/rh/06_feriados_seed.sql
 -- Feriados nacionais obrigatórios PT (fixos + móveis pré-calculados)
 
@@ -359,10 +338,7 @@ INSERT INTO ts_feriados (pk, data, descr, nacional) VALUES
 (fs_nextcode(), '2027-12-25', 'Natal',                             TRUE)
 ON CONFLICT (data) DO NOTHING;
 
-
--- =============================================================
 -- [07] 07_fn_dias_uteis.sql
--- =============================================================
 -- backend/app/sql/rh/07_fn_dias_uteis.sql
 
 CREATE OR REPLACE FUNCTION fn_rh_dias_uteis(
@@ -398,10 +374,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
-
--- =============================================================
 -- [08] 08_fbo_ponto.sql
--- =============================================================
 -- backend/app/sql/rh/08_fbo_ponto.sql
 
 -- Registar um evento de ponto (entrada, almoço, saída)
@@ -544,10 +517,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =============================================================
 -- [09] 09_fbo_workflow.sql
--- =============================================================
 -- backend/app/sql/rh/09_fbo_workflow.sql
 
 -- Workflow genérico — valida ou aprova ponto mensal, férias ou falta
@@ -632,10 +602,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =============================================================
 -- [10] 10_fbo_ferias.sql
--- =============================================================
 -- backend/app/sql/rh/10_fbo_ferias.sql
 
 -- INSERT/UPDATE de pedido de férias
@@ -754,10 +721,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =============================================================
 -- [11] 11_fbo_faltas.sql
--- =============================================================
 -- backend/app/sql/rh/11_fbo_faltas.sql
 
 CREATE OR REPLACE FUNCTION fbo_rh_faltas(
@@ -812,10 +776,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =============================================================
 -- [12] 12_fbo_horario.sql
--- =============================================================
 -- backend/app/sql/rh/12_fbo_horario.sql
 
 CREATE OR REPLACE FUNCTION fbo_rh_horario(
@@ -880,10 +841,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =============================================================
 -- [13] 13_fbo_piquete.sql
--- =============================================================
 -- backend/app/sql/rh/13_fbo_piquete.sql
 
 -- Gerar escala mensal de piquete aplicando as regras activas
@@ -1049,10 +1007,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =============================================================
 -- [14] 14_views.sql
--- =============================================================
 -- backend/app/sql/rh/14_views.sql
 
 -- Vista de colaboradores com saldo e horário activo
@@ -1269,10 +1224,7 @@ JOIN ts_client c                  ON c.pk = e.tb_user_fk
 JOIN tt_rh_piquete_ocorrencia t   ON t.pk = o.tt_tipo_fk
 LEFT JOIN ts_client cb            ON cb.pk = o.created_by;
 
-
--- =============================================================
 -- [17] 17_ts_rh_colaborador.sql
--- =============================================================
 -- backend/app/sql/rh/17_ts_rh_colaborador.sql
 -- Tabela de extensão RH — perfil de colaborador (herança 1-to-1 de ts_client)
 --
@@ -1587,7 +1539,7 @@ BEGIN
         FROM ts_client c
         -- Apenas colaboradores elegíveis para piquete
         LEFT JOIN ts_rh_colaborador col ON col.pk = c.pk
-        WHERE c.ativo = TRUE
+        WHERE COALESCE(c.active, 1) = 1
           AND COALESCE(col.elegivel_piquete, TRUE) = TRUE
           AND (NOT v_regra_ferias OR NOT EXISTS (
               SELECT 1 FROM tb_rh_ferias f
@@ -1650,10 +1602,7 @@ SELECT 'fn_rh_calcular_ferias_ano' AS check_name,
     CASE WHEN fn_rh_calcular_ferias_ano(0, EXTRACT(YEAR FROM NOW())::INT) = 22
     THEN 'OK (user sem perfil → 22 dias)' ELSE 'FALHOU' END AS resultado;
 
-
--- =============================================================
 -- [18] 18_filtro_perfis_rh.sql
--- =============================================================
 -- backend/app/sql/rh/18_filtro_perfis_rh.sql
 -- Restringe toda a gestão RH Pessoal a utilizadores internos:
 --   ts_profile IN (0, 1, 6) — Super Admin, AINTAR, perfil 6
@@ -1998,12 +1947,9 @@ SELECT 'Filtro perfis aplicado' AS check_name,
 SELECT 'Colaboradores elegíveis (ts_profile IN 0,1,6)' AS info,
     COUNT(*) AS total
 FROM ts_client
-WHERE ts_profile IN (0, 1, 6) AND ativo = TRUE;
+WHERE ts_profile IN (0, 1, 6) AND COALESCE(active, 1) = 1;
 
-
--- =============================================================
 -- [15] 15_verify.sql
--- =============================================================
 -- backend/app/sql/rh/15_verify.sql
 -- Executar após toda a BD estar criada — verifica integridade do esquema
 
@@ -2128,10 +2074,7 @@ SELECT 'vbl_rh_piquete',              COUNT(*) FROM vbl_rh_piquete
 UNION ALL
 SELECT 'vbl_rh_piquete_ocorrencias',  COUNT(*) FROM vbl_rh_piquete_ocorrencias;
 
-
--- =============================================================
 -- [16] 16_permissions.sql
--- =============================================================
 -- backend/app/sql/rh/16_permissions.sql
 -- Permissões do módulo RH Pessoal → ts_interface
 -- Executar APÓS os ficheiros 01-15 (BD Foundation)

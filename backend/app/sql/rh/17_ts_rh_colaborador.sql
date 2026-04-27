@@ -312,7 +312,7 @@ BEGIN
         FROM ts_client c
         -- Apenas colaboradores elegíveis para piquete
         LEFT JOIN ts_rh_colaborador col ON col.pk = c.pk
-        WHERE c.ativo = TRUE
+        WHERE COALESCE(c.active, 1) = 1
           AND COALESCE(col.elegivel_piquete, TRUE) = TRUE
           AND (NOT v_regra_ferias OR NOT EXISTS (
               SELECT 1 FROM tb_rh_ferias f

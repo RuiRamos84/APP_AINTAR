@@ -342,4 +342,4 @@ SELECT 'Filtro perfis aplicado' AS check_name,
 SELECT 'Colaboradores elegíveis (ts_profile IN 0,1,6)' AS info,
     COUNT(*) AS total
 FROM ts_client
-WHERE ts_profile IN (0, 1, 6) AND ativo = TRUE;
+WHERE ts_profile IN (0, 1, 6) AND COALESCE(active, 1) = 1;
