@@ -98,6 +98,7 @@ export const uploadProcedimentoImagem = (pk, file) => {
 };
 export const getProcedimentoDocs      = (pk)                        => api.get(`${BASE}/procedimentos/${pk}/documentos`);
 export const getProcedimentoCandidatos = (pk)                       => api.get(`${BASE}/procedimentos/${pk}/candidatos`);
+export const getCandidatoDetalhe       = (pk)                       => api.get(`${BASE}/candidatos/${pk}`);
 export const deleteProcedimentoDoc    = (docPk)                     => api.delete(`${BASE}/procedimentos/documentos/${docPk}`);
 export const uploadProcedimentoDoc    = (pk, categoria, titulo, file) => {
   const fd = new FormData();

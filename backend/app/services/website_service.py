@@ -1137,6 +1137,31 @@ def cms_list_candidatos_proc(proc_pk: int):
 
 
 @api_error_handler
+def cms_get_candidato(candidato_pk: int):
+    from app import db
+
+    row = db.session.execute(text("""
+        SELECT * FROM vbl_concursal_candidatura WHERE pk = :pk
+    """), {'pk': candidato_pk}).mappings().fetchone()
+
+    if not row:
+        raise ResourceNotFoundError('Candidato', candidato_pk)
+
+    docs = db.session.execute(text("""
+        SELECT d.pk, d.nome_ficheiro, d.ficheiro_url, d.data_upload,
+               td.descricao AS tipo_documento_descricao
+        FROM tb_concursal_documento_anexo d
+        LEFT JOIN ts_concursal_tipo_documento td ON td.pk = d.tt_tipo_documento
+        WHERE d.tb_candidatura = :pk
+        ORDER BY td.pk, d.data_upload
+    """), {'pk': candidato_pk}).mappings().all()
+
+    result = _serialize(row)
+    result['documentos'] = [_serialize(d) for d in docs]
+    return {'candidato': result}, 200
+
+
+@api_error_handler
 def cms_save_procedimento_fase(data: dict, current_user: str):
     with db_session_manager(current_user) as session:
         pk = data.get('pk')

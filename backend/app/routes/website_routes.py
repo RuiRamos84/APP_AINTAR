@@ -31,7 +31,7 @@ from ..services.website_service import (
     cms_toggle_procedimento_visivel, cms_upload_procedimento_imagem,
     cms_list_procedimento_docs, cms_upload_procedimento_doc, cms_delete_procedimento_doc,
     cms_save_procedimento_fase, cms_delete_procedimento_fase, cms_upload_fase_file,
-    cms_list_candidatos_proc,
+    cms_list_candidatos_proc, cms_get_candidato,
     cms_list_processos_financeiros, cms_get_processo_financeiro,
     cms_save_processo_financeiro, cms_save_processo_financeiro_doc,
     cms_delete_processo_financeiro_doc, cms_upload_processo_doc_file,
@@ -623,6 +623,16 @@ def cms_procedimento_toggle_visivel(pk):
 @api_error_handler
 def get_procedimento_candidatos(pk):
     return cms_list_candidatos_proc(pk)
+
+
+@website_cms_bp.route('/candidatos/<int:pk>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('website.view')
+@set_session
+@api_error_handler
+def get_candidato(pk):
+    return cms_get_candidato(pk)
 
 
 # ─── Processos Financeiros ────────────────────────────────────────────────────
