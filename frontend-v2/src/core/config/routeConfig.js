@@ -63,6 +63,7 @@ import {
   BuildCircle as MaintenanceIcon,
   Gavel as ContractIcon,
   ManageAccounts as GestPessoalIcon,
+  AccessTime as PontoIcon,
   BeachAccess as FeriasIcon,
   EventBusy as FaltasIcon,
   Schedule as HorariosIcon,
@@ -591,7 +592,7 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
-  '/aval/admin': {
+  '/admin/aval': {
     id: 'aval_admin',
     text: 'Configuração de Avaliações',
     icon: AvalIcon,
@@ -718,6 +719,13 @@ export const ROUTE_CONFIG = {
     permissions: { required: 'rh.pessoal.view' },
     showInSidebar: true,
     submenu: {
+      '/rh/pessoal/ponto': {
+        id: 'rh_ponto',
+        text: 'Registo de Ponto',
+        icon: PontoIcon,
+        permissions: { required: 'rh.pessoal.view' },
+        showInSidebar: true,
+      },
       '/rh/pessoal/ferias': {
         id: 'rh_ferias',
         text: 'Férias',

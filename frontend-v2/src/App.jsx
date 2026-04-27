@@ -61,6 +61,7 @@ import FeriasPage from '@/features/rh/pages/FeriasPage';
 import FaltasPage from '@/features/rh/pages/FaltasPage';
 import HorariosPage from '@/features/rh/pages/HorariosPage';
 import PiquetePage from '@/features/rh/pages/PiquetePage';
+import PontoPage from '@/features/rh/pages/PontoPage';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
@@ -235,13 +236,14 @@ function App() {
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />
-        <Route path="/rh/pessoal" element={<Navigate to="/rh/pessoal/ferias" replace />} />
+        <Route path="/rh/pessoal" element={<Navigate to="/rh/pessoal/ponto" replace />} />
+        <Route path="/rh/pessoal/ponto"    element={<PontoPage />} />
         <Route path="/rh/pessoal/ferias"   element={<FeriasPage />} />
         <Route path="/rh/pessoal/faltas"   element={<FaltasPage />} />
         <Route path="/rh/pessoal/horarios" element={<HorariosPage />} />
         <Route path="/rh/pessoal/piquete"  element={<PiquetePage />} />
         <Route path="/aval" element={<AvalPage />} />
-        <Route path="/aval/admin" element={<AvalAdminPage />} />
+        <Route path="/admin/aval" element={<AvalAdminPage />} />
         <Route path="/aval/analytics" element={<AvalAnalyticsPage />} />
 
         {/* ==================== ÁREA INTERNA ==================== */}
