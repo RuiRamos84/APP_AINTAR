@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
     Box, Typography, CircularProgress, Chip, Stack,
     Card, CardContent, CardActions, Button, Accordion, AccordionSummary, AccordionDetails,
-    LinearProgress, Alert, useTheme, alpha, Fab, Tooltip, Collapse,
+    LinearProgress, Alert, useTheme, useMediaQuery, alpha, Fab, Tooltip, Collapse,
     Dialog, DialogTitle, DialogContent, DialogActions, IconButton, TextField, MenuItem,
 } from '@mui/material';
 import {
@@ -60,6 +60,7 @@ const TASK_TYPE = {
 
 const TasksPage = () => {
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { user } = useAuth();
     const { isOnline, hasPendingActions } = useOffline();
 
@@ -678,7 +679,14 @@ const TasksPage = () => {
             )}
 
             {/* Dialog — Criar Tarefa Pontual */}
-            <Dialog open={directOpen} onClose={() => setDirectOpen(false)} maxWidth="sm" fullWidth>
+            <Dialog
+              open={directOpen}
+              onClose={() => setDirectOpen(false)}
+              maxWidth="sm"
+              fullWidth
+              fullScreen={isMobile}
+              slotProps={{ paper: { sx: { borderRadius: isMobile ? 0 : 3 } } }}
+            >
                 <DialogTitle>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                         <Typography variant="h6">Criar Tarefa Pontual</Typography>

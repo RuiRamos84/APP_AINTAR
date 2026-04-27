@@ -134,3 +134,61 @@ cd frontend-v2 && npm run dev   # Vite dev server
 - Two frontends exist: `frontend/` (production CRA) and `frontend-v2/` (Vite, in development)
 - All changes should follow existing patterns - check similar modules before implementing new features
 - Portuguese language for all user-facing text
+
+---
+
+## Knowledge Base — Obsidian Vault
+
+### Arquitectura
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Visão Geral.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Backend Flask.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Frontend v2 Vite.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Autenticação & Permissões.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Base de Dados.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Componentes Partilhados.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Guia para Novos Módulos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Sistema de Notificações.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Fluxo de Trabalho Git.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Guia do Desenvolvedor.md
+
+### Módulos
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Administração.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Dashboards.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Documentos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Gestão (ETARs).md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Interno.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Operação.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Pagamentos.md
+
+### Integrações
+@C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\Email Office365.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\SIBS Pagamentos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\Socket.IO.md
+
+### Backlog & Roadmap
+@C:\Users\rui.ramos\Documents\Obsidian Vault\08 - Backlog & Roadmap\Roadmap.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\08 - Backlog & Roadmap\Endpoints em Falta.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\08 - Backlog & Roadmap\Melhorias Pendentes.md
+
+### Bugs & Soluções Conhecidas
+@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\Padrões de Erro.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\AnimatePresence Race Condition.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\Double Unwrap API Response.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\MUI Grid v7 Syntax.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\PermissionContext Race Condition.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\Session Pool Checkout BD.md
+
+### API Reference
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Auth.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Dashboards & Admin.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Documentos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Gestão ETARs.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Interno.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Operação.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Pagamentos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Telemetria.md
+
+### Socket.IO
+@C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Socket.IO — Referência Completa.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Hooks Universais.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Componentes Universais.md

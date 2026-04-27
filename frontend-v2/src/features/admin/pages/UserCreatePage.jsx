@@ -64,7 +64,7 @@ const UserCreatePage = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Perfis 0 (Admin) e 1 (AINTAR) são utilizadores internos — não precisam de município
-  const isInternalProfile = formData.profil === '0' || formData.profil === '1';
+  const isInternalProfile = formData.profil === '0' || formData.profil === '1' || formData.profil === '6';
 
   /**
    * Atualizar campo
@@ -73,7 +73,7 @@ const UserCreatePage = () => {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
       // Se mudar para perfil interno, limpar município
-      if (field === 'profil' && (value === '0' || value === '1')) {
+      if (field === 'profil' && (value === '0' || value === '1' || value === '6')) {
         updated.entity_pk = '';
       }
       return updated;

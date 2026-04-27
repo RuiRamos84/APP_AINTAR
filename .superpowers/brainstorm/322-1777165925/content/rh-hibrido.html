@@ -1,0 +1,194 @@
+<h2>RH — Abordagem Híbrida B+C</h2>
+<p class="subtitle">Páginas independentes (B) com elementos de visão global (C). Escolhe qual o grau de integração que preferes.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="H1" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a2e;border-radius:8px;padding:12px;font-size:11px;font-family:monospace">
+        <!-- Sidebar -->
+        <div style="display:flex;gap:8px">
+          <div style="width:110px;flex-shrink:0">
+            <div style="color:#E11D48;font-size:9px;letter-spacing:1px;margin-bottom:5px">RECURSOS HUMANOS</div>
+            <div style="color:#aaa;padding:4px 6px;background:#E11D4818;border-radius:3px;margin-bottom:2px;font-size:10px;border-left:2px solid #E11D48">🏠 Visão Geral</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">📅 Férias</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">📋 Faltas</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">🕐 Horário</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">🚨 Piquete</div>
+          </div>
+          <!-- Main content - overview page -->
+          <div style="flex:1;background:#2d2d2d;border-radius:6px;padding:8px">
+            <div style="color:#E11D48;font-size:10px;margin-bottom:6px">VISÃO GERAL · João Silva</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <div style="background:#E11D4812;border:1px solid #E11D4825;border-radius:4px;padding:6px">
+                <div style="color:#E11D48;font-size:9px">📅 FÉRIAS</div>
+                <div style="color:#fff;font-size:14px;font-weight:bold;margin:2px 0">22 dias</div>
+                <div style="color:#555;font-size:9px">3 aguardam aprovação</div>
+                <div style="color:#E11D48;font-size:9px;margin-top:3px;cursor:pointer">→ Ver Férias</div>
+              </div>
+              <div style="background:#0891B212;border:1px solid #0891B225;border-radius:4px;padding:6px">
+                <div style="color:#0891B2;font-size:9px">📋 FALTAS</div>
+                <div style="color:#fff;font-size:14px;font-weight:bold;margin:2px 0">2 faltas</div>
+                <div style="color:#555;font-size:9px">1 por justificar</div>
+                <div style="color:#0891B2;font-size:9px;margin-top:3px;cursor:pointer">→ Ver Faltas</div>
+              </div>
+              <div style="background:#05966912;border:1px solid #05966925;border-radius:4px;padding:6px">
+                <div style="color:#059669;font-size:9px">🕐 HORÁRIO</div>
+                <div style="color:#fff;font-size:14px;font-weight:bold;margin:2px 0">Manhã</div>
+                <div style="color:#555;font-size:9px">07:00 – 16:00</div>
+                <div style="color:#059669;font-size:9px;margin-top:3px;cursor:pointer">→ Ver Horário</div>
+              </div>
+              <div style="background:#D9770612;border:1px solid #D9770625;border-radius:4px;padding:6px">
+                <div style="color:#D97706;font-size:9px">🚨 PIQUETE</div>
+                <div style="color:#fff;font-size:14px;font-weight:bold;margin:2px 0">12 Jul</div>
+                <div style="color:#555;font-size:9px">Próximo serviço</div>
+                <div style="color:#D97706;font-size:9px;margin-top:3px;cursor:pointer">→ Ver Escala</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>H1 — Overview + Sub-páginas</h3>
+      <p><strong>Página de entrada</strong> <code>/rh/pessoal</code> com dashboard geral do colaborador. Cada serviço tem também a sua página própria na sidebar como sub-item. Clicar num card navega para a página detalhada.</p>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+        <span style="background:#05966920;color:#059669;padding:3px 8px;border-radius:4px;font-size:11px">✓ Entrada com contexto</span>
+        <span style="background:#E11D4820;color:#E11D48;padding:3px 8px;border-radius:4px;font-size:11px">✓ Navegação clara</span>
+        <span style="background:#7C3AED20;color:#7C3AED;padding:3px 8px;border-radius:4px;font-size:11px">✓ 5 páginas no total</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="H2" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a2e;border-radius:8px;padding:12px;font-size:11px;font-family:monospace">
+        <div style="display:flex;gap:8px">
+          <div style="width:110px;flex-shrink:0">
+            <div style="color:#E11D48;font-size:9px;letter-spacing:1px;margin-bottom:5px">RECURSOS HUMANOS</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px">🦺 EPI</div>
+            <div style="color:#aaa;padding:4px 6px;background:#E11D4818;border-radius:3px;margin-bottom:2px;font-size:10px;border-left:2px solid #E11D48">📅 Férias</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px">📋 Faltas</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px">🕐 Horário</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px">🚨 Piquete</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;font-size:10px">⭐ Avaliação</div>
+          </div>
+          <!-- Página Férias com banner de resumo no topo -->
+          <div style="flex:1">
+            <!-- Stats strip no topo -->
+            <div style="display:flex;gap:4px;margin-bottom:6px">
+              <div style="background:#E11D4818;border:1px solid #E11D4830;border-radius:4px;padding:5px 8px;flex:1;text-align:center">
+                <div style="color:#E11D48;font-size:13px;font-weight:bold">22</div>
+                <div style="color:#666;font-size:9px">Restantes</div>
+              </div>
+              <div style="background:#05966912;border:1px solid #05966930;border-radius:4px;padding:5px 8px;flex:1;text-align:center">
+                <div style="color:#059669;font-size:13px;font-weight:bold">8</div>
+                <div style="color:#666;font-size:9px">Gozados</div>
+              </div>
+              <div style="background:#D9770612;border:1px solid #D9770630;border-radius:4px;padding:5px 8px;flex:1;text-align:center">
+                <div style="color:#D97706;font-size:13px;font-weight:bold">3</div>
+                <div style="color:#666;font-size:9px">Pendentes</div>
+              </div>
+            </div>
+            <!-- Tabela -->
+            <div style="background:#2d2d2d;border-radius:4px;padding:6px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                <div style="color:#E11D48;font-size:10px">PEDIDOS DE FÉRIAS</div>
+                <div style="background:#E11D48;color:white;padding:2px 6px;border-radius:3px;font-size:9px">+ Pedir</div>
+              </div>
+              <div style="background:#1a1a2e;border-radius:3px;padding:5px">
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;color:#555;font-size:9px;margin-bottom:3px">
+                  <span>Período</span><span>Dias</span><span>Estado</span>
+                </div>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;color:#ccc;font-size:9px;margin-bottom:2px">
+                  <span>01/08–15/08</span><span>11</span><span style="color:#059669">✓ Aprovado</span>
+                </div>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;color:#ccc;font-size:9px">
+                  <span>20/08–23/08</span><span>4</span><span style="color:#D97706">⏳ Pendente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>H2 — Página própria com Stats no topo</h3>
+      <p>Cada página (Férias, Faltas...) começa com uma <strong>faixa de estatísticas</strong> contextualizada, seguida da tabela/lista detalhada. Sem página de overview separada — o contexto vem com os dados.</p>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+        <span style="background:#05966920;color:#059669;padding:3px 8px;border-radius:4px;font-size:11px">✓ Tudo numa página</span>
+        <span style="background:#E11D4820;color:#E11D48;padding:3px 8px;border-radius:4px;font-size:11px">✓ 4 páginas apenas</span>
+        <span style="background:#0891B220;color:#0891B2;padding:3px 8px;border-radius:4px;font-size:11px">✓ Padrão ModulePage</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="H3" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a2e;border-radius:8px;padding:12px;font-size:11px;font-family:monospace">
+        <div style="display:flex;gap:8px">
+          <div style="width:110px;flex-shrink:0">
+            <div style="color:#E11D48;font-size:9px;letter-spacing:1px;margin-bottom:5px">RECURSOS HUMANOS</div>
+            <div style="color:#aaa;padding:4px 6px;background:#E11D4818;border-radius:3px;margin-bottom:2px;font-size:10px;border-left:2px solid #E11D48">🏠 Visão Geral</div>
+            <div style="color:#aaa;padding:4px 6px;background:#E11D4810;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">📅 Férias</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">📋 Faltas</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">🕐 Horário</div>
+            <div style="color:#666;padding:4px 6px;border-radius:3px;margin-bottom:2px;font-size:10px;padding-left:14px">🚨 Piquete</div>
+          </div>
+          <!-- Página Férias com mini-overview lateral -->
+          <div style="flex:1">
+            <div style="background:#2d2d2d;border-radius:4px;padding:6px;margin-bottom:5px">
+              <div style="color:#E11D48;font-size:10px;margin-bottom:4px">📅 FÉRIAS — João Silva · 2026</div>
+              <!-- Mini calendário visual -->
+              <div style="display:flex;gap:3px;margin-bottom:4px">
+                <div style="flex:1;background:#E11D4820;border-radius:3px;padding:3px;text-align:center">
+                  <div style="color:#E11D48;font-size:11px;font-weight:bold">22</div>
+                  <div style="color:#666;font-size:8px">Disponíveis</div>
+                </div>
+                <div style="flex:1;background:#05966912;border-radius:3px;padding:3px;text-align:center">
+                  <div style="color:#059669;font-size:11px;font-weight:bold">8</div>
+                  <div style="color:#666;font-size:8px">Gozados</div>
+                </div>
+                <div style="flex:3;background:#1a1a2e;border-radius:3px;padding:3px">
+                  <div style="color:#666;font-size:8px;margin-bottom:2px">Progresso 2026</div>
+                  <div style="background:#333;border-radius:2px;height:5px">
+                    <div style="background:#E11D48;height:5px;width:27%;border-radius:2px"></div>
+                  </div>
+                  <div style="color:#555;font-size:8px;margin-top:1px">8 de 30 dias usados</div>
+                </div>
+              </div>
+            </div>
+            <div style="background:#2d2d2d;border-radius:4px;padding:5px">
+              <div style="background:#1a1a2e;border-radius:3px;padding:4px">
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;color:#555;font-size:8px;margin-bottom:2px">
+                  <span>Período</span><span>Dias</span><span>Estado</span>
+                </div>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;color:#ccc;font-size:8px;margin-bottom:1px">
+                  <span>Ago 01–15</span><span>11</span><span style="color:#059669">Aprovado</span>
+                </div>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;color:#ccc;font-size:8px">
+                  <span>Ago 20–23</span><span>4</span><span style="color:#D97706">Pendente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>H3 — Overview + Páginas com contexto rico</h3>
+      <p>Página de entrada <strong>+ cada página tem o seu próprio mini-dashboard</strong> contextual (progress bar, calendário, métricas do colaborador). O mais completo dos três.</p>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+        <span style="background:#05966920;color:#059669;padding:3px 8px;border-radius:4px;font-size:11px">✓ Mais rico</span>
+        <span style="background:#7C3AED20;color:#7C3AED;padding:3px 8px;border-radius:4px;font-size:11px">✓ Melhor UX</span>
+        <span style="background:#D9770620;color:#D97706;padding:3px 8px;border-radius:4px;font-size:11px">↗ Mais esforço</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:14px;padding:10px 14px;background:#ffffff06;border-radius:8px;border:1px solid #ffffff10">
+  <p class="label">Nota de implementação</p>
+  <p style="font-size:12px;color:#888;margin:0">Todos os híbridos mantêm URLs independentes por serviço (<code>/rh/pessoal/ferias</code>, etc.) e seguem os padrões <strong>ModulePage + useSearch + React Query</strong> já estabelecidos.</p>
+</div>

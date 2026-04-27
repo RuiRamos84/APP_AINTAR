@@ -7,9 +7,9 @@
 export const typographyTokens = {
   // Famílias de Fontes
   fontFamily: {
-    primary: '"Roboto", "Helvetica", "Arial", sans-serif',
-    secondary: '"Inter", "Segoe UI", sans-serif',
-    monospace: '"Roboto Mono", "Courier New", monospace',
+    primary: '"Manrope", "Segoe UI", system-ui, sans-serif',
+    display: '"Outfit", "Manrope", system-ui, sans-serif',
+    monospace: '"JetBrains Mono", "Roboto Mono", monospace',
   },
 
   // Tamanhos de Fonte - Mobile (valores base)
@@ -25,16 +25,16 @@ export const typographyTokens = {
       '4xl': '2rem',    // 32px
     },
 
-    // Tamanhos de Fonte - Desktop (mais generosos)
+    // Tamanhos de Fonte - Desktop (ajustados para Manrope/Outfit com x-height maior)
     desktop: {
       xs: '0.75rem',    // 12px
       sm: '0.875rem',   // 14px
       md: '1rem',       // 16px (base)
-      lg: '1.25rem',    // 20px
-      xl: '1.5rem',     // 24px
-      '2xl': '1.875rem', // 30px
-      '3xl': '2.25rem', // 36px
-      '4xl': '3rem',    // 48px
+      lg: '1.125rem',   // 18px  (era 20px)
+      xl: '1.35rem',    // 21.6px (era 24px)
+      '2xl': '1.625rem', // 26px  (era 30px)
+      '3xl': '1.875rem', // 30px  (era 36px)
+      '4xl': '2.5rem',  // 40px  (era 48px)
     },
   },
 

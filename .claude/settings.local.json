@@ -88,7 +88,17 @@
       "Bash(node /tmp/verify_stats.js)",
       "Bash(powershell.exe -Command ' *)",
       "Bash(vssadmin list *)",
-      "Bash(C:/Users/rui.ramos/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir \"c:/Users/rui.ramos/Desktop/APP\")"
+      "Bash(C:/Users/rui.ramos/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir \"c:/Users/rui.ramos/Desktop/APP\")",
+      "Bash(node -e \"const p = require\\('./node_modules/@lordicon/react/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const m = require\\('C:/Users/rui.ramos/Desktop/APP/frontend-v2/node_modules/@lordicon/react'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['nm']\\)\")",
+      "Bash(git -C c:/Users/rui.ramos/Desktop/APP diff frontend-v2/src/App.jsx)",
+      "Bash(git -C c:/Users/rui.ramos/Desktop/APP diff frontend-v2/package.json frontend-v2/package-lock.json)",
+      "Bash(claude plugin *)",
+      "Bash(npx claude-mem *)",
+      "Bash(git -C \"C:/Users/rui.ramos/Desktop/APP\" add backend/app/sql/rh/ backend/app/services/rh_service.py backend/app/routes/rh_routes.py backend/app/routes/__init__.py backend/app/__init__.py)",
+      "Bash(git -C \"C:/Users/rui.ramos/Desktop/APP\" status --short)",
+      "Bash(git *)"
     ],
     "deny": [],
     "ask": [],

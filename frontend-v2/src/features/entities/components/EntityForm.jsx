@@ -13,7 +13,9 @@ import {
   Box,
   Divider,
   InputAdornment,
-  MenuItem
+  MenuItem,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Business,
@@ -27,8 +29,8 @@ import {
 import { useEntityStore } from '../store/entityStore';
 import { entitySchema } from '../schemas/entitySchema';
 import { useMetaData } from '@/core/hooks/useMetaData';
-import { getAddressByPostalCode, isValidPostalCode, extractStreets, extractAdministrativeData } from '@/services/postalCodeService';
 import notification from '@/core/services/notification';
+import AddressForm from '@/shared/components/AddressForm/AddressForm';
 
 // Sub-componente para títulos de secção
 const SectionHeader = ({ icon: Icon, title }) => (
@@ -56,6 +58,9 @@ export const EntityForm = () => {
   const { data: metaData } = useMetaData();
   const identTypes = metaData?.ident_types || [];
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const isEditMode = modalOpen;
   const isOpen = createModalOpen || modalOpen;
   const onClose = isEditMode ? closeModal : closeCreateModal;
@@ -65,6 +70,7 @@ export const EntityForm = () => {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(entitySchema),
@@ -88,14 +94,21 @@ export const EntityForm = () => {
   });
 
   // Watch fields
-  const identType = watch('ident_type');
-  const postalValue = watch('postal');
-  const nipcValue = watch('nipc');
+  const {
+    ident_type: identType,
+    nipc: nipcValue,
+    postal: postalW = '',
+    address: addressW = '',
+    door: doorW = '',
+    floor: floorW = '',
+    nut1: nut1W = '',
+    nut2: nut2W = '',
+    nut3: nut3W = '',
+    nut4: nut4W = '',
+  } = watch();
 
   // Estado local
-  const [submitting, setSubmitting] = React.useState(false); // Local loading for form submission
-  const [addressOptions, setAddressOptions] = React.useState([]);
-  const [showAddressSelect, setShowAddressSelect] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
   const [nifStatus, setNifStatus] = React.useState('default'); // default, valid, invalid, exists
   const [existingData, setExistingData] = React.useState(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = React.useState(false);
@@ -120,72 +133,6 @@ export const EntityForm = () => {
     const expectedDigit = checkDigit < 2 ? 0 : 11 - checkDigit;
     return parseInt(nifStr[8]) === expectedDigit;
   };
-
-  // Efeito: Código Postal
-  useEffect(() => {
-    const checkPostal = async () => {
-        // Ignorar se o valor for igual ao que estava na BD (ao abrir em modo edição)
-        const isInitialValue = isEditMode && selectedEntity?.postal === postalValue;
-
-        if (isInitialValue) return;
-
-        // Se tiver valor mas for inválido (incompleto) -> Limpar dados geográficos
-        // Ex: User apaga um dígito
-        if (postalValue && !isValidPostalCode(postalValue)) {
-            // Apenas limpar se já tivermos 'sujado' o form ou se não for o valor inicial
-             const currentValues = control._formValues; 
-             reset({
-                ...currentValues,
-                nut1: '', nut2: '', nut3: '', nut4: '', 
-                address: '', door: '', floor: '',
-                postal: postalValue // Manter o que o user está a escrever
-             }, { keepDefaultValues: true });
-             setAddressOptions([]);
-             setShowAddressSelect(false);
-             return;
-        }
-
-        // Se for válido -> Fetch dados
-        if (postalValue && isValidPostalCode(postalValue)) {
-            try {
-                const addresses = await getAddressByPostalCode(postalValue);
-                if (addresses && addresses.length > 0) {
-                    const adminData = extractAdministrativeData(addresses);
-                    const streets = extractStreets(addresses);
-                    
-                    const currentValues = control._formValues; 
-                    reset({
-                        ...currentValues,
-                        ...adminData,
-                        postal: postalValue
-                    }, { keepDefaultValues: true });
-
-                    if (streets.length > 1) {
-                        setAddressOptions(streets);
-                        setShowAddressSelect(true);
-                        notification.info('Múltiplas moradas encontradas.');
-                    } else if (streets.length === 1) {
-                        reset({
-                            ...control._formValues,
-                            ...adminData,
-                            address: streets[0],
-                            postal: postalValue
-                        }, { keepDefaultValues: true });
-                        setShowAddressSelect(false);
-                        notification.success('Morada preenchida.');
-                    } else {
-                        setShowAddressSelect(false);
-                    }
-                }
-            } catch (error) {
-                console.warn('Erro CP:', error);
-            }
-        }
-    };
-    // Debounce
-    const timer = setTimeout(checkPostal, 500); 
-    return () => clearTimeout(timer);
-  }, [postalValue, isEditMode, reset, control, selectedEntity]);
 
   // Efeito: NIPC Duplicado
   useEffect(() => {
@@ -256,9 +203,6 @@ export const EntityForm = () => {
           // Cleanup ao fechar
           setNifStatus('default');
           setExistingData(null);
-          setAddressOptions([]);
-          setShowAddressSelect(false);
-          setShowAddressSelect(false);
           setShowDuplicateDialog(false);
           setSubmissionWarnings([]);
           setShowWarningDialog(false);
@@ -369,7 +313,14 @@ export const EntityForm = () => {
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      fullScreen={isMobile}
+      slotProps={{ paper: { sx: { borderRadius: isMobile ? 0 : 3 } } }}
+    >
       <DialogTitle sx={{ pb: 1 }}>
         <Typography variant="h5" component="div" fontWeight="bold">
           {isEditMode ? 'Editar Entidade' : 'Nova Entidade'}
@@ -518,171 +469,29 @@ export const EntityForm = () => {
           
           {/* SECÇÃO: LOCALIZAÇÃO */}
           <SectionHeader icon={LocationOn} title="Localização" />
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid size={{ xs: 12, md: 2 }}>
-              <Controller
-                name="postal"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Código Postal"
-                    fullWidth
-                    required
-                    placeholder="0000-000"
-                    error={!!errors.postal}
-                    helperText={errors.postal?.message}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Controller
-                name="address"
-                control={control}
-                render={({ field }) => (
-                  showAddressSelect && addressOptions.length > 0 ? (
-                    <TextField
-                        {...field}
-                        value={field.value ?? ''}
-                        select
-                        label="Selecione a Morada"
-                        fullWidth
-                        helperText="Várias moradas encontradas para este Código Postal"
-                        SelectProps={{ native: false }}
-                    >
-                        {addressOptions.map((addr, idx) => (
-                            <MenuItem key={idx} value={addr}>{addr}</MenuItem>
-                        ))}
-                        <MenuItem value=""><em>Outra... (Inserir manualmente)</em></MenuItem>
-                    </TextField>
-                  ) : (
-                    <TextField
-                        {...field}
-                        value={field.value ?? ''}
-                        label="Morada Completa"
-                        fullWidth
-                        required
-                        error={!!errors.address}
-                        helperText={errors.address?.message}
-                        InputProps={{
-                            endAdornment: addressOptions.length > 0 && (
-                                <InputAdornment position="end">
-                                    <Badge color="primary" variant="dot" invisible={!showAddressSelect}>
-                                        <LocationOn cursor="pointer" onClick={() => setShowAddressSelect(!showAddressSelect)} />
-                                    </Badge>
-                                </InputAdornment>
-                            )
-                        }}
-                    />
-                  )
-                )}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 2 }}>
-              <Controller
-                name="door"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    value={field.value ?? ''}
-                    label="Porta/Nº"
-                    fullWidth
-                    error={!!errors.door}
-                    helperText={errors.door?.message}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 2 }}>
-              <Controller
-                name="floor"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    value={field.value ?? ''}
-                    label="Andar"
-                    fullWidth
-                    error={!!errors.floor}
-                    helperText={errors.floor?.message}
-                  />
-                )}
-              />
-            </Grid>
-            
-            {/* ROW 2: Regiões (Read-only) */}
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="nut4"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    value={field.value ?? ''}
-                    label="Localidade (NUT4)"
-                    fullWidth
-                    disabled
-                    variant="filled"
-                    error={!!errors.nut4}
-                    helperText={errors.nut4?.message}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="nut3"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Freguesia (NUT3)"
-                    fullWidth
-                    disabled
-                    variant="filled"
-                    error={!!errors.nut3}
-                    helperText={errors.nut3?.message}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="nut2"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Concelho (NUT2)"
-                    fullWidth
-                    disabled
-                    variant="filled"
-                    error={!!errors.nut2}
-                    helperText={errors.nut2?.message}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Controller
-                name="nut1"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Distrito (NUT1)"
-                    fullWidth
-                    disabled
-                    variant="filled"
-                    error={!!errors.nut1}
-                    helperText={errors.nut1?.message}
-                  />
-                )}
-              />
-            </Grid>
-          </Grid>
+          <Box sx={{ mb: 3 }}>
+            <AddressForm
+              values={{
+                postal: postalW,
+                address: addressW,
+                door: doorW,
+                floor: floorW,
+                nut1: nut1W,
+                nut2: nut2W,
+                nut3: nut3W,
+                nut4: nut4W,
+              }}
+              onChange={(field, value) => setValue(field, value, { shouldValidate: true })}
+              errors={{
+                postal: errors.postal?.message,
+                address: errors.address?.message,
+                nut1: errors.nut1?.message,
+                nut2: errors.nut2?.message,
+                nut3: errors.nut3?.message,
+                nut4: errors.nut4?.message,
+              }}
+            />
+          </Box>
 
           <Divider sx={{ mb: 3 }} />
 

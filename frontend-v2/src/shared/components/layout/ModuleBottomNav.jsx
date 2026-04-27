@@ -7,6 +7,8 @@ import { BottomNavigation, BottomNavigationAction, Box, Paper, useTheme, alpha }
 
 export const ModuleBottomNav = ({ modules, currentModule, onModuleChange }) => {
   const theme = useTheme();
+  // Mostrar labels apenas se os módulos cabem confortavelmente
+  const showLabels = modules.length <= 5;
 
   return (
     <Box
@@ -22,31 +24,35 @@ export const ModuleBottomNav = ({ modules, currentModule, onModuleChange }) => {
       <Paper
         elevation={0}
         sx={{
-          backgroundColor: alpha(theme.palette.background.paper, 0.92),
-          backdropFilter: 'blur(16px)',
-          borderTop: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+          backgroundColor: alpha(theme.palette.background.paper, 0.94),
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          // Suporte iPhone notch / home indicator
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
         <BottomNavigation
           value={currentModule || false}
           onChange={(_event, newValue) => onModuleChange(newValue)}
-          showLabels
-          sx={{ backgroundColor: 'transparent', height: 58 }}
+          showLabels={showLabels}
+          sx={{ backgroundColor: 'transparent', height: 62 }}
         >
           {modules.map((module) => (
             <BottomNavigationAction
               key={module.id}
               value={module.id}
               label={module.label}
-              icon={<module.icon sx={{ fontSize: 22 }} />}
+              icon={<module.icon sx={{ fontSize: showLabels ? 22 : 24 }} />}
               sx={{
                 minWidth: 0,
-                px: 0.5,
+                px: { xs: 0.25, sm: 1 },
                 color: theme.palette.text.secondary,
                 transition: 'color 0.2s',
                 '& .MuiBottomNavigationAction-label': {
-                  fontSize: '0.62rem',
-                  '&.Mui-selected': { fontSize: '0.65rem', fontWeight: 600 },
+                  fontSize: '0.72rem',
+                  mt: 0.25,
+                  '&.Mui-selected': { fontSize: '0.74rem', fontWeight: 600 },
                 },
                 '&.Mui-selected': { color: module.color },
               }}

@@ -87,10 +87,9 @@ const DetailsStep = ({
     const [currentTypeCount, setCurrentTypeCount] = useState(null);
     const [loadingCounts, setLoadingCounts] = useState(false);
 
-    // Encontrar o nome de AINTAR para exibição
     const getAintarName = () => {
-        const aintar = metaData?.associates?.find(a => a.pk === 1 || a.pk === "1");
-        return aintar ? aintar.name : "AINTAR";
+        const aintar = metaData?.associates?.find(a => Number(a.pk) === 1);
+        return aintar?.name || 'AINTAR';
     };
 
     // ✅ CORRECÇÃO: Buscar contagens quando entityData mudar
@@ -205,7 +204,6 @@ const DetailsStep = ({
         }
     };
 
-    // Componente especial para renderizar quando é pedido interno
     const renderAssociateField = () => {
         if (isInternal) {
             return (
@@ -213,7 +211,8 @@ const DetailsStep = ({
                     fullWidth
                     label="Associado"
                     value={getAintarName()}
-                    disabled={true}
+                    disabled
+                    InputLabelProps={{ shrink: true }}
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
@@ -222,12 +221,7 @@ const DetailsStep = ({
                         ),
                         endAdornment: (
                             <InputAdornment position="end">
-                                <Chip
-                                    size="small"
-                                    color="primary"
-                                    label="Interno"
-                                    variant="outlined"
-                                />
+                                <Chip size="small" color="primary" label="Interno" variant="outlined" />
                             </InputAdornment>
                         )
                     }}
@@ -241,15 +235,14 @@ const DetailsStep = ({
                 fullWidth
                 label="Associado"
                 name="ts_associate"
-                value={formData.ts_associate || ''}
+                value={Number(formData.ts_associate) || ''}
                 onChange={handleChange}
                 error={!!errors.ts_associate}
                 helperText={errors.ts_associate}
-                required={!isInternal}
-                disabled={isInternal}
+                required
             >
                 {metaData?.associates?.map((associate) => (
-                    <MenuItem key={associate.pk} value={associate.pk}>
+                    <MenuItem key={associate.pk} value={Number(associate.pk)}>
                         {associate.name}
                     </MenuItem>
                 ))}

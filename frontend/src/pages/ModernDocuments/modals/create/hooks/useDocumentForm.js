@@ -54,7 +54,8 @@ export const useDocumentForm = (initialNipc, onClose, onInternalSwitch) => {
             ...prev,
             tt_type: "",
             nipc: isInternalChecked ? '516132822' : (initialNipc || ''),
-            tb_representative: isInternalChecked ? '' : prev.tb_representative // ✅ Limpar representante
+            ts_associate: isInternalChecked ? '1' : '',
+            tb_representative: isInternalChecked ? '' : prev.tb_representative
         }));
 
         // ✅ Chamar callback para limpar dados do representante no hook de entidades

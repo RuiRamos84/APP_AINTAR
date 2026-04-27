@@ -77,10 +77,18 @@ def emit_socket_notification(notification_data, room=None):
         return False
 
 
+AINTAR_PK = 1
+AINTAR_NIPC = '516132822'
+
+
 def validate_document_data(data):
     """
     Valida os dados de um documento com verificações detalhadas
     """
+    # Para pedidos internos (entidade AINTAR) o associate é sempre 1
+    if not data.get('ts_associate') and data.get('nipc') == AINTAR_NIPC:
+        data['ts_associate'] = str(AINTAR_PK)
+
     # Verificar campos sempre obrigatórios
     basic_fields = ['tt_type', 'ts_associate']
     missing = [

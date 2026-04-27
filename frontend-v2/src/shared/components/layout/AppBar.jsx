@@ -111,10 +111,10 @@ export const AppBar = ({ onMenuClick }) => {
 
   // Dimensões que variam com o scroll
   const toolbarHeight = { xs: scrolled ? 48 : 64, sm: scrolled ? 54 : 72 };
-  const logoHeight   = { xs: scrolled ? 24 : 32, sm: scrolled ? 30 : 40 };
+  const logoHeight   = { xs: scrolled ? 28 : 34, sm: scrolled ? 30 : 40 };
   const tabHeight    = scrolled ? 54 : 64;
-  const avatarSize   = scrolled ? 30 : 36;
-  const tabFontSize  = scrolled ? '0.82rem' : '0.9rem';
+  const avatarSize   = scrolled ? 36 : 40; // mínimo 36px — touch target WCAG
+  const tabFontSize  = scrolled ? '0.74rem' : '0.79rem';
   const tabIconSize  = scrolled ? 18 : 20;
 
   // Glass: mais opaco + sombra mais forte quando scrolled
@@ -148,7 +148,12 @@ export const AppBar = ({ onMenuClick }) => {
 
         {/* Mobile: hamburger quando há módulo ativo */}
         {isMobile && currentModule && (
-          <IconButton color="inherit" edge="start" onClick={onMenuClick} sx={{ flexShrink: 0 }}>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={onMenuClick}
+            sx={{ flexShrink: 0, width: 44, height: 44 }}
+          >
             <MenuIcon />
           </IconButton>
         )}
@@ -194,7 +199,7 @@ export const AppBar = ({ onMenuClick }) => {
                 textTransform: 'none',
                 fontWeight: 500,
                 fontSize: tabFontSize,
-                minWidth: { sm: 60, md: 100 },
+                minWidth: { sm: 80, md: 100 },
                 px: { sm: 1.5, md: 2 },
                 color: theme.palette.text.secondary,
                 transition: 'min-height 0.35s ease, font-size 0.35s ease, color 0.2s',
@@ -234,9 +239,11 @@ export const AppBar = ({ onMenuClick }) => {
               backgroundColor: alpha(activeModule.color, 0.12),
               color: activeModule.color,
               fontWeight: 600,
-              fontSize: '0.78rem',
+              fontSize: '0.82rem',
               border: `1px solid ${alpha(activeModule.color, 0.3)}`,
+              maxWidth: 140,
               mr: 1,
+              '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' },
             }}
           />
         )}

@@ -23,7 +23,7 @@ export const MODULES = {
     id: 'operacao',
     label: 'Operação',
     icon: Engineering,
-    color: '#2196f3',
+    color: '#0891B2', // Cyan-600 — operações de campo, fluxo de água
     order: 1,
     permissions: {
       required: [
@@ -39,7 +39,7 @@ export const MODULES = {
     id: 'gestao',
     label: 'Gestão',
     icon: AccountTree,
-    color: '#4caf50',
+    color: '#059669', // Emerald-600 — gestão ambiental/infraestruturas
     order: 2,
     permissions: {
       required: [
@@ -58,7 +58,7 @@ export const MODULES = {
     id: 'pedidos',
     label: 'Pedidos',
     icon: Inbox,
-    color: '#ff5722',
+    color: '#7C3AED', // Violet-600 — pedidos, documentos, processos
     order: 3,
     permissions: {
       required: [
@@ -77,7 +77,7 @@ export const MODULES = {
     id: 'rh',
     label: 'Recursos Humanos',
     icon: Badge,
-    color: '#e91e63',
+    color: '#E11D48', // Rose-600 — recursos humanos, pessoas
     order: 4,
     permissions: {
       required: [
@@ -92,7 +92,7 @@ export const MODULES = {
     id: 'pagamentos',
     label: 'Pagamentos',
     icon: Payment,
-    color: '#ff9800',
+    color: '#D97706', // Amber-600 — financeiro, pagamentos
     order: 5,
     permissions: {
       required: [
@@ -107,7 +107,7 @@ export const MODULES = {
     id: 'dashboards',
     label: 'Dashboards',
     icon: Analytics,
-    color: '#9c27b0',
+    color: '#0D9488', // Teal-600 — analytics, dados, dashboards
     order: 6,
     permissions: {
       required: [
@@ -122,7 +122,7 @@ export const MODULES = {
     id: 'administrativo',
     label: 'Interno',
     icon: BusinessCenter,
-    color: '#607d8b',
+    color: '#475569', // Slate-600 — interno, administrativo (tom neutro intencional)
     order: 7,
     permissions: {
       required: [
@@ -138,7 +138,7 @@ export const MODULES = {
     id: 'administracao',
     label: 'Sistema',
     icon: AdminPanelSettings,
-    color: '#f44336',
+    color: '#DC2626', // Red-600 — sistema, administração (sinal de acesso restrito)
     order: 8,
     permissions: {
       required: [

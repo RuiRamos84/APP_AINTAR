@@ -4,18 +4,18 @@
  */
 
 export const colorTokens = {
-  // Cores Primárias
+  // Cores Primárias — Steel Institutional Blue
   primary: {
-    50: '#e3f2fd',
-    100: '#bbdefb',
-    200: '#90caf9',
-    300: '#64b5f6',
-    400: '#42a5f5',
-    500: '#1976d2', // Main
-    600: '#1e88e5',
-    700: '#1565c0',
-    800: '#0d47a1',
-    900: '#0a3d91',
+    50: '#E8F1FB',
+    100: '#C5DBF5',
+    200: '#9DC2EE',
+    300: '#6BA5E4',
+    400: '#3D8ED9',
+    500: '#0E63B5', // Main
+    600: '#0B559E',
+    700: '#094686',
+    800: '#07376D',
+    900: '#042650',
   },
 
   // Cores Secundárias
@@ -77,16 +77,16 @@ export const colorTokens = {
 
   // Background - Modo Claro
   background: {
-    default: '#fafafa',
+    default: '#F0F4F8',
     paper: '#ffffff',
     elevated: '#ffffff',
   },
 
   // Background - Modo Escuro
   backgroundDark: {
-    default: '#121212',
-    paper: '#1e1e1e',
-    elevated: '#2a2a2a',
+    default: '#0D1117',
+    paper: '#161B22',
+    elevated: '#1C2128',
   },
 
   // Texto - Modo Claro

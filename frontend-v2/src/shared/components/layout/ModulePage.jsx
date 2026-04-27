@@ -100,7 +100,7 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
             <Typography
               variant={compact ? 'h6' : 'h4'}
               fontWeight={600}
-              sx={compact ? {} : { fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' }, mb: 0.5 }}
+              sx={compact ? {} : { fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.75rem' }, mb: 0.5 }}
             >
               {title}
             </Typography>
@@ -124,13 +124,18 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               {center}
             </Box>
           )}
-          {search && (
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
+          {/* Search + Actions agrupados — em xs passam para linha própria, alinhados à direita */}
+          {(search || actions) && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              ml: { xs: 0, sm: 'auto' },
+              width: { xs: '100%', sm: 'auto' },
+              justifyContent: { xs: 'flex-end', sm: 'flex-start' },
+              flexShrink: 0,
+            }}>
               {search}
-            </Box>
-          )}
-          {actions && (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               {actions}
             </Box>
           )}

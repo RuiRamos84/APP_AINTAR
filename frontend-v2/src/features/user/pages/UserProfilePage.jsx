@@ -519,7 +519,7 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Localidade"
                   value={formData.nut4}
-                  onChange={handleChange('nut4')}
+                  onChange={(e) => updateField('nut4', e.target.value)}
                   disabled={!isEditing || postalCodeHook.success}
                   helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
                 />
@@ -530,7 +530,7 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Freguesia"
                   value={formData.nut3}
-                  onChange={handleChange('nut3')}
+                  onChange={(e) => updateField('nut3', e.target.value)}
                   disabled={!isEditing || postalCodeHook.success}
                   helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
                 />
@@ -542,7 +542,7 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Concelho"
                   value={formData.nut2}
-                  onChange={handleChange('nut2')}
+                  onChange={(e) => updateField('nut2', e.target.value)}
                   disabled={!isEditing || postalCodeHook.success}
                   helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
                 />
@@ -553,7 +553,7 @@ const UserProfilePage = () => {
                   fullWidth
                   label="Distrito"
                   value={formData.nut1}
-                  onChange={handleChange('nut1')}
+                  onChange={(e) => updateField('nut1', e.target.value)}
                   disabled={!isEditing || postalCodeHook.success}
                   helperText={isEditing && postalCodeHook.success ? 'Auto-preenchido' : ''}
                 />

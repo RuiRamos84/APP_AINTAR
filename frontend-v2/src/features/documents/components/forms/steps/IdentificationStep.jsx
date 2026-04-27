@@ -98,12 +98,29 @@ const IdentificationStep = ({
 }) => {
     const theme = useTheme();
     
-    // Entity Creation Logic
-    const { openCreateModal, selectedEntity } = useEntityStore();
+    // Entity Creation/Edit Logic
+    const { openCreateModal, openModal, selectedEntity } = useEntityStore();
     const [searchStatus, setSearchStatus] = useState(null); // 'loading', 'success', 'error', 'not_found'
+
+    // Helper to check entity completeness
+    const getEntityValidationStatus = (ent) => {
+        if (!ent) return null;
+        // Consistent with CreateDocumentModal validation
+        const requiredFields = ['nut1', 'nut2', 'nut3', 'nut4', 'address', 'postal', 'phone'];
+        const missingFields = requiredFields.filter(f => !ent[f] || String(ent[f]).trim() === '');
+        return { isComplete: missingFields.length === 0, missingFields };
+    };
+
+    const entityValidation = getEntityValidationStatus(entityData);
 
     const handleCreateEntity = () => {
         openCreateModal({ nipc: formData.nipc });
+    };
+
+    const handleEditEntity = () => {
+        if (entityData) {
+            openModal(entityData);
+        }
     };
     
     // Wrap in useCallback to prevent stale closures
@@ -203,10 +220,7 @@ const IdentificationStep = ({
                 return;
             }
 
-            if (entityData) {
-                console.log('[IdentificationStep] ⏭️ Skipping: Entity data already exists:', entityData.name);
-                return;
-            }
+            // Removed check for entityData to allow updates/refreshes
 
             console.log('[IdentificationStep] ✅ Conditions met! Starting entity fetch for:', selectedEntity.nipc);
             
@@ -247,6 +261,20 @@ const IdentificationStep = ({
             });
         }
     }, [searchStatus]);
+
+    // Toast notification for incomplete data
+    useEffect(() => {
+        if (entityData && entityValidation && !entityValidation.isComplete) {
+            notification.warning('Ficha de entidade incompleta.', {
+                description: `Faltam dados obrigatórios: ${entityValidation.missingFields.join(', ')}.`,
+                action: {
+                    label: 'Completar Dados',
+                    onClick: handleEditEntity
+                },
+                duration: 8000
+            });
+        }
+    }, [entityData?.pk, entityValidation?.isComplete]);
 
     const handleInternalSwitch = (e) => {
         setIsInternal(e.target.checked);
@@ -336,6 +364,21 @@ const IdentificationStep = ({
                                     }
                                 >
                                     Entidade não encontrada.
+                                </Alert>
+                            )}
+
+                            {/* Entity Incomplete Alert */}
+                            {entityData && entityValidation && !entityValidation.isComplete && (
+                                <Alert 
+                                    severity="error" 
+                                    sx={{ mt: 2 }}
+                                    action={
+                                        <Button color="inherit" size="small" onClick={handleEditEntity}>
+                                            EDITAR
+                                        </Button>
+                                    }
+                                >
+                                    Ficha incompleta. Faltam: {entityValidation.missingFields.join(', ')}
                                 </Alert>
                             )}
                         </Box>

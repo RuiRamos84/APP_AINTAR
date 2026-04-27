@@ -395,7 +395,7 @@ export const Sidebar = ({
           width: variant === 'temporary' ? 'auto' : drawerWidth,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: variant === 'temporary' ? DRAWER_WIDTH_EXPANDED : drawerWidth,
+            width: variant === 'temporary' ? `min(${DRAWER_WIDTH_EXPANDED}px, 85vw)` : drawerWidth,
             boxSizing: 'border-box',
             ...glassStyles,
             marginTop: variant === 'permanent' ? `${navbarH}px` : 0,

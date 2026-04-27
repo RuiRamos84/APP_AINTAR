@@ -95,15 +95,15 @@ export const MainLayout = () => {
           flexGrow: 1,
           minHeight: '100vh',
           bgcolor: 'background.default',
-          p: { xs: 2, sm: 3 },
-          // Padding-bottom extra em mobile para não ficar atrás do BottomNav
-          pb: { xs: '74px', sm: 3 },
+          p: { xs: 1.5, sm: 3 },
+          // Padding-bottom extra em mobile para não ficar atrás do BottomNav + safe-area iPhone
+          pb: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 82px)', sm: 3 },
           overflowX: 'hidden',
           position: 'relative',
         }}
       >
-        {/* Spacer com a altura total da navbar — conteúdo nunca fica por trás */}
-        <Toolbar sx={{ minHeight: { xs: 64, sm: 72 } }} />
+        {/* Spacer com a altura total da navbar — sincronizado com NAVBAR_HEIGHT */}
+        <Toolbar sx={{ minHeight: { xs: 64, sm: 72 }, flexShrink: 0 }} />
         <AnimatePresence mode="popLayout">
           <PageTransition key={location.pathname}>
             <Outlet />

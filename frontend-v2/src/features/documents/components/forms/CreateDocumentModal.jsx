@@ -18,6 +18,7 @@ import {
   Divider,
   Alert,
   useTheme,
+  useMediaQuery,
   alpha,
   Button,
   CircularProgress,
@@ -70,7 +71,8 @@ const MAX_FILES = 10;
 
 const CreateDocumentModal = ({ open, onClose }) => {
   const theme = useTheme();
-  
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   // Wizard State
   const [activeStep, setActiveStep] = useState(0);
   const steps = ['Identificação', 'Detalhes', 'Localização', 'Parâmetros', 'Ficheiros', 'Confirmação'];
@@ -80,6 +82,8 @@ const CreateDocumentModal = ({ open, onClose }) => {
   const [isRepresentative, setIsRepresentative] = useState(false);
   const [entityData, setEntityData] = useState(null);
   const [representativeData, setRepresentativeData] = useState(null);
+
+  const AINTAR_NIPC = '516132822';
 
   // Address Logic State
   const [useCustomAddress, setUseCustomAddress] = useState(false);
@@ -187,6 +191,26 @@ const CreateDocumentModal = ({ open, onClose }) => {
   }, [entityData, useCustomAddress, isInternal, setValue]);
 
 
+  // Fetch AINTAR entity when switching to internal
+  useEffect(() => {
+    if (!isInternal) return;
+    (async () => {
+      try {
+        const { entitiesService } = await import('@/features/entities/api/entitiesService');
+        const response = await entitiesService.getEntityByNipc(AINTAR_NIPC);
+        const aintar = response?.entity || response;
+        if (aintar?.pk) {
+          setEntityData(aintar);
+          setValue('ts_entity', aintar.pk);
+          const aintarOption = associateOptions.find(a => Number(a.pk) === 1);
+          setValue('associate', aintarOption ? aintarOption.pk : 1);
+        }
+      } catch {
+        setValue('associate', 1);
+      }
+    })();
+  }, [isInternal]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Navigation Handlers
   const handleNext = async () => {
     let fieldsToValidate = [];
@@ -199,7 +223,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
                 return; 
             }
             // Validate Entity Completeness (Legacy Parity)
-            const requiredFields = ['nut1', 'nut2', 'nut3', 'nut4', 'address', 'postal'];
+            const requiredFields = ['nut1', 'nut2', 'nut3', 'nut4', 'address', 'postal', 'phone'];
             const missing = requiredFields.filter(f => !entityData[f] || String(entityData[f]).trim() === '');
             
             if (missing.length > 0) {
@@ -347,20 +371,19 @@ const CreateDocumentModal = ({ open, onClose }) => {
     formData.append('memo', data.text || '');
     
     // Entity Logic
-    if (isInternal) {
-        // Internal usually doesn't send ts_entity or sends specific flag? 
-        // Legacy: if isInternal, cleans representative. Backend handles empty entity?
-        // Actually legacy code sends ts_entity if not internal.
-    } else if (entityData) {
+    if (entityData?.pk) {
         formData.append('ts_entity', entityData.pk);
     }
 
-    if (isRepresentative && representativeData) {
-        // Backend expects NIPC (NIF), not PK
+    if (!isInternal && isRepresentative && representativeData) {
         formData.append('tb_representative', representativeData.nipc || representativeData.nif || representativeData.pk);
     }
 
-    if (data.associate) formData.append('ts_associate', data.associate);
+    if (isInternal) {
+        formData.append('ts_associate', 1);
+    } else if (data.associate) {
+        formData.append('ts_associate', data.associate);
+    }
     
     // Address
     // Address
@@ -530,10 +553,17 @@ const CreateDocumentModal = ({ open, onClose }) => {
                       <Autocomplete
                         options={associateOptions}
                         getOptionLabel={(option) => option.label}
-                        value={associateOptions.find((e) => e.pk === value) || null}
+                        value={associateOptions.find((e) => Number(e.pk) === Number(value)) || null}
                         onChange={(_, newValue) => onChange(newValue ? newValue.pk : null)}
                         disabled={isInternal}
-                        renderInput={(params) => <TextField {...params} label="Associado" required={!isInternal} />}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Associado"
+                            required={!isInternal}
+                            InputLabelProps={{ shrink: isInternal ? true : undefined }}
+                          />
+                        )}
                       />
                     )}
                   />
@@ -1035,7 +1065,14 @@ const CreateDocumentModal = ({ open, onClose }) => {
 
   return (
     <>
-        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+        <Dialog
+          open={open}
+          onClose={handleClose}
+          maxWidth="md"
+          fullWidth
+          fullScreen={isMobile}
+          slotProps={{ paper: { sx: { borderRadius: isMobile ? 0 : 3 } } }}
+        >
             <DialogTitle>Novo Pedido</DialogTitle>
              <StepWizard
                 activeStep={activeStep}

@@ -56,47 +56,55 @@ export const getTheme = (mode = 'light') => {
     // Tipografia
     typography: {
       fontFamily: typographyTokens.fontFamily.primary,
-      fontSize: 16, // Base font size
+      fontSize: 16,
 
-      // Headings - Responsivos
+      // Headings - Outfit (display) + Responsivos
       h1: {
+        fontFamily: typographyTokens.fontFamily.display,
         fontSize: typographyTokens.fontSize.mobile['3xl'],
         fontWeight: typographyTokens.fontWeight.bold,
         lineHeight: typographyTokens.lineHeight.tight,
-        // Desktop
+        letterSpacing: '-0.02em',
         '@media (min-width:960px)': {
           fontSize: typographyTokens.fontSize.desktop['4xl'],
         },
       },
 
       h2: {
+        fontFamily: typographyTokens.fontFamily.display,
         fontSize: typographyTokens.fontSize.mobile['2xl'],
         fontWeight: typographyTokens.fontWeight.semibold,
         lineHeight: typographyTokens.lineHeight.tight,
+        letterSpacing: '-0.015em',
         '@media (min-width:960px)': {
           fontSize: typographyTokens.fontSize.desktop['3xl'],
         },
       },
 
       h3: {
+        fontFamily: typographyTokens.fontFamily.display,
         fontSize: typographyTokens.fontSize.mobile.xl,
         fontWeight: typographyTokens.fontWeight.semibold,
         lineHeight: typographyTokens.lineHeight.snug,
+        letterSpacing: '-0.01em',
         '@media (min-width:960px)': {
           fontSize: typographyTokens.fontSize.desktop['2xl'],
         },
       },
 
       h4: {
+        fontFamily: typographyTokens.fontFamily.display,
         fontSize: typographyTokens.fontSize.mobile.lg,
-        fontWeight: typographyTokens.fontWeight.medium,
+        fontWeight: typographyTokens.fontWeight.semibold,
         lineHeight: typographyTokens.lineHeight.snug,
+        letterSpacing: '-0.01em',
         '@media (min-width:960px)': {
           fontSize: typographyTokens.fontSize.desktop.xl,
         },
       },
 
       h5: {
+        fontFamily: typographyTokens.fontFamily.display,
         fontSize: typographyTokens.fontSize.mobile.md,
         fontWeight: typographyTokens.fontWeight.medium,
         lineHeight: typographyTokens.lineHeight.normal,
@@ -106,6 +114,7 @@ export const getTheme = (mode = 'light') => {
       },
 
       h6: {
+        fontFamily: typographyTokens.fontFamily.display,
         fontSize: typographyTokens.fontSize.mobile.sm,
         fontWeight: typographyTokens.fontWeight.medium,
         lineHeight: typographyTokens.lineHeight.normal,
@@ -280,6 +289,112 @@ export const getTheme = (mode = 'light') => {
             borderRadius: 6,
             fontSize: typographyTokens.fontSize.mobile.xs,
             padding: '8px 12px',
+          },
+        },
+      },
+
+      // Chip
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            borderRadius: 6,
+            fontFamily: typographyTokens.fontFamily.primary,
+            fontWeight: typographyTokens.fontWeight.medium,
+            fontSize: '0.75rem',
+            letterSpacing: '0.02em',
+            height: 26,
+          },
+          label: {
+            paddingLeft: 10,
+            paddingRight: 10,
+          },
+        },
+      },
+
+      // Tabs
+      MuiTabs: {
+        styleOverrides: {
+          root: {
+            minHeight: 44,
+          },
+          indicator: {
+            height: 3,
+            borderRadius: '3px 3px 0 0',
+          },
+        },
+      },
+
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            fontFamily: typographyTokens.fontFamily.primary,
+            fontWeight: typographyTokens.fontWeight.medium, // 500 — menos pesado que semibold
+            fontSize: '0.8rem', // reduzido face ao x-height maior do Manrope
+            letterSpacing: '0.02em',
+            textTransform: 'none',
+            minHeight: 44,
+            padding: '8px 14px',
+          },
+        },
+      },
+
+      // ListItemButton
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+            transition: 'background-color 0.15s ease, transform 0.15s ease',
+          },
+        },
+      },
+
+      // TableCell
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            fontFamily: typographyTokens.fontFamily.primary,
+            fontWeight: typographyTokens.fontWeight.semibold,
+            fontSize: typographyTokens.fontSize.mobile.xs,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)',
+          },
+        },
+      },
+
+      // CssBaseline — atmosfera e estilos globais theme-aware
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: {
+            backgroundImage: isLight
+              ? 'radial-gradient(circle, rgba(14, 99, 181, 0.045) 1px, transparent 1px)'
+              : 'none',
+            backgroundSize: '28px 28px',
+            fontFeatureSettings: '"cv02", "cv03", "cv04"',
+          },
+          '::selection': {
+            backgroundColor: isLight
+              ? 'rgba(14, 99, 181, 0.18)'
+              : 'rgba(61, 142, 217, 0.35)',
+            color: 'inherit',
+          },
+          '::-webkit-scrollbar': {
+            width: '7px',
+            height: '7px',
+          },
+          '::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '::-webkit-scrollbar-thumb': {
+            background: isLight
+              ? 'rgba(14, 99, 181, 0.2)'
+              : 'rgba(255, 255, 255, 0.15)',
+            borderRadius: '100vw',
+          },
+          '::-webkit-scrollbar-thumb:hover': {
+            background: isLight
+              ? 'rgba(14, 99, 181, 0.35)'
+              : 'rgba(255, 255, 255, 0.25)',
           },
         },
       },
