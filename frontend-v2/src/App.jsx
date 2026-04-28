@@ -63,6 +63,7 @@ import FaltasPage from '@/features/rh/pages/FaltasPage';
 import HorariosPage from '@/features/rh/pages/HorariosPage';
 import PiquetePage from '@/features/rh/pages/PiquetePage';
 import PontoPage from '@/features/rh/pages/PontoPage';
+import GestaoColaboradoresPage from '@/features/rh/pages/GestaoColaboradoresPage';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
@@ -237,12 +238,13 @@ function App() {
 
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi" element={<EPIPage />} />
-        <Route path="/rh/pessoal"          element={<RhPessoalPage />} />
-        <Route path="/rh/pessoal/ponto"    element={<PontoPage />} />
-        <Route path="/rh/pessoal/ferias"   element={<FeriasPage />} />
-        <Route path="/rh/pessoal/faltas"   element={<FaltasPage />} />
-        <Route path="/rh/pessoal/horarios" element={<HorariosPage />} />
-        <Route path="/rh/pessoal/piquete"  element={<PiquetePage />} />
+        <Route path="/rh/pessoal"                   element={<RhPessoalPage />} />
+        <Route path="/rh/pessoal/ponto"              element={<PontoPage />} />
+        <Route path="/rh/pessoal/ferias"             element={<FeriasPage />} />
+        <Route path="/rh/pessoal/faltas"             element={<FaltasPage />} />
+        <Route path="/rh/pessoal/horarios"           element={<HorariosPage />} />
+        <Route path="/rh/pessoal/piquete"            element={<PiquetePage />} />
+        <Route path="/rh/gestao/colaboradores"       element={<GestaoColaboradoresPage />} />
         <Route path="/aval" element={<AvalPage />} />
         <Route path="/admin/aval" element={<AvalAdminPage />} />
         <Route path="/aval/analytics" element={<AvalAnalyticsPage />} />

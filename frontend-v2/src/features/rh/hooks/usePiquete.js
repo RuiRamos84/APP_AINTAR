@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 import notification from '@/core/services/notification';
 import {
   getPiquete, gerarEscala, confirmarPiquete,
+  criarEscalaPiquete, editarEscalaPiquete,
+  getPiqueteRegras, upsertPiqueteRegras,
   getOcorrencias, criarOcorrencia, editarOcorrencia,
 } from '../services/rhService';
 
@@ -37,6 +39,18 @@ export const usePiquete = (params = {}) => {
     onError: (e) => notification.apiError(e, 'Erro ao confirmar piquete'),
   });
 
+  const criar = useMutation({
+    mutationFn: criarEscalaPiquete,
+    onSuccess: () => { invalidateEscala(); notification.success('Escala criada com sucesso'); },
+    onError: (e) => notification.apiError(e, 'Erro ao criar escala'),
+  });
+
+  const editar = useMutation({
+    mutationFn: ({ pk, ...data }) => editarEscalaPiquete(pk, data),
+    onSuccess: () => { invalidateEscala(); notification.success('Escala atualizada com sucesso'); },
+    onError: (e) => notification.apiError(e, 'Erro ao atualizar escala'),
+  });
+
   return {
     escalas: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
@@ -44,6 +58,36 @@ export const usePiquete = (params = {}) => {
     isGerando: gerar.isPending,
     confirmar: confirmar.mutateAsync,
     isConfirmando: confirmar.isPending,
+    criar: criar.mutateAsync,
+    isCriando: criar.isPending,
+    editar: editar.mutateAsync,
+    isEditando: editar.isPending,
+  };
+};
+
+export const usePiqueteRegras = () => {
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ['rh-piquete-regras'],
+    queryFn: getPiqueteRegras,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const save = useMutation({
+    mutationFn: upsertPiqueteRegras,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rh-piquete-regras'] });
+      notification.success('Regras de piquete actualizadas');
+    },
+    onError: (e) => notification.apiError(e, 'Erro ao actualizar regras'),
+  });
+
+  return {
+    regras: Array.isArray(query.data) ? query.data : [],
+    isLoading: query.isLoading,
+    save: save.mutateAsync,
+    isSaving: save.isPending,
   };
 };
 

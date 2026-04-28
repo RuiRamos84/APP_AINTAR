@@ -748,6 +748,15 @@ export const ROUTE_CONFIG = {
     },
   },
 
+  '/rh/gestao/colaboradores': {
+    id: 'rh_gestao_colaboradores',
+    text: 'Colaboradores',
+    icon: GestPessoalIcon,
+    module: 'rh',
+    permissions: { required: 'rh.admin' },
+    showInSidebar: true,
+  },
+
   '/epi': {
     id: 'epi',
     text: 'Gestão de EPI',

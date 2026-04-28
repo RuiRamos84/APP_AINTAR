@@ -2,10 +2,16 @@ import api from '@/services/api/client';
 
 const BASE = '/rh';
 
-export const getLookups       = ()      => api.get(`${BASE}/lookups`);
-export const getColaboradores     = ()  => api.get(`${BASE}/colaboradores`);
-export const getColaboradoresLista = () => api.get(`${BASE}/colaboradores/lista`);
-export const getSaldoFerias   = (pk)    => api.get(`${BASE}/colaboradores/${pk}/saldo`);
+export const getLookups           = ()      => api.get(`${BASE}/lookups`);
+export const getColaboradores     = ()      => api.get(`${BASE}/colaboradores`);
+export const getColaboradoresLista = ()     => api.get(`${BASE}/colaboradores/lista`);
+export const getColaborador       = (pk)    => api.get(`${BASE}/colaboradores/${pk}`);
+export const getSaldoFerias       = (pk)    => api.get(`${BASE}/colaboradores/${pk}/saldo`);
+export const upsertColaboradorPerfil = (data) => api.post(`${BASE}/colaboradores/perfil`, data);
+export const getConfigColaborador = (pk)    => api.get(`${BASE}/config`, { params: { user_fk: pk } });
+export const upsertConfigAno      = (data)  => api.post(`${BASE}/config`, data);
+export const initConfigAno        = (data)  => api.post(`${BASE}/config/ano/init`, data);
+export const initConfigAnoTodos   = (data)  => api.post(`${BASE}/config/ano/init-todos`, data);
 
 // Ponto
 export const registarPontoEvento  = (data) => api.post(`${BASE}/ponto/evento`, data);
@@ -37,9 +43,25 @@ export const getConfig    = (p)    => api.get(`${BASE}/config`, { params: p });
 export const upsertConfig = (data) => api.post(`${BASE}/config`, data);
 
 // Piquete
-export const getPiquete        = (p)    => api.get(`${BASE}/piquete`, { params: p });
-export const gerarEscala       = (data) => api.post(`${BASE}/piquete/gerar`, data);
-export const confirmarPiquete  = (pk)   => api.put(`${BASE}/piquete/${pk}/confirmar`, {});
+export const getPiquete = (params) => api.get('/rh/piquete', { params });
+export const gerarEscala = (data) => api.post('/rh/piquete/gerar', data);
+export const confirmarPiquete = (pk) => api.put(`/rh/piquete/${pk}/confirmar`);
+export const criarEscalaPiquete = (data) => api.post('/rh/piquete', data);
+export const editarEscalaPiquete = (pk, data) => api.put(`/rh/piquete/${pk}`, data);
+
+export const getPiqueteRegras = () => api.get('/rh/piquete/regras');
+export const upsertPiqueteRegras = (data) => api.post('/rh/piquete/regras', data);
+
 export const getOcorrencias    = (p)    => api.get(`${BASE}/piquete/ocorrencias`, { params: p });
 export const criarOcorrencia   = (data) => api.post(`${BASE}/piquete/ocorrencias`, data);
 export const editarOcorrencia  = (pk, d) => api.put(`${BASE}/piquete/ocorrencias/${pk}`, d);
+
+// Geofencing — Locais
+export const getLocais          = ()      => api.get(`${BASE}/locais`);
+export const criarLocal         = (data)  => api.post(`${BASE}/locais`, data);
+export const editarLocal        = (pk, d) => api.put(`${BASE}/locais/${pk}`, d);
+export const eliminarLocal      = (pk)    => api.delete(`${BASE}/locais/${pk}`);
+export const setLocalColaborador = (pk, d) => api.put(`${BASE}/colaboradores/${pk}/local`, d);
+
+// Geofencing — Alertas
+export const getPontoAlertas = (p) => api.get(`${BASE}/ponto/alertas`, { params: p });

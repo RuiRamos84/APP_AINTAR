@@ -1,5 +1,6 @@
 from flask import Blueprint, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import date
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.utils.permissions_decorator import require_permission
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
@@ -16,9 +17,13 @@ from ..services.rh_service import (
     criar_horario, editar_horario, get_horarios,
     upsert_config, get_config,
     get_piquete, gerar_escala_piquete, confirmar_piquete,
+    criar_escala_piquete, editar_escala_piquete,
+    get_piquete_regras, upsert_piquete_regras,
     get_ocorrencias, criar_ocorrencia, editar_ocorrencia,
-    get_colaborador_perfil, upsert_colaborador_perfil,
+    upsert_colaborador_perfil,
     init_config_ano, init_config_ano_todos,
+    get_locais, criar_local, editar_local, eliminar_local,
+    set_local_colaborador, get_ponto_alertas,
 )
 
 logger = get_logger(__name__)
@@ -27,9 +32,10 @@ bp = Blueprint('rh_routes', __name__)
 
 
 def _get_user_pk(current_user, session):
-    # get_jwt_identity() devolve session_id, não email.
-    # fs_entity() usa a sessão activa (set_session) para devolver o pk do utilizador actual.
-    return session.execute(text("SELECT fs_entity() AS pk")).scalar()
+    # get_jwt_identity() devolve session_id.
+    # Em vez de fs_entity() (que retorna o ts_user.pk, ex: 1), obtemos o ts_client.pk do token
+    claims = get_jwt()
+    return claims.get('user_id')
 
 
 # ---------------------------------------------------------------------------
@@ -66,15 +72,13 @@ def colaboradores_route():
 @require_permission('rh.view')
 @api_error_handler
 def colaboradores_lista_route():
-    """Lista simplificada (pk + name) para dropdowns — não depende da vbl_rh_colaborador."""
+    """Lista simplificada (pk + name) para dropdowns — usa vbl_rh_colaborador (filtro de perfis aplicado)."""
     current_user = get_jwt_identity()
     from flask import jsonify
     with db_session_manager(current_user) as session:
         rows = session.execute(text("""
             SELECT pk, name
-            FROM ts_client
-            WHERE ts_profile IN (0, 1, 6)
-              AND COALESCE(active, 1) = 1
+            FROM vbl_rh_colaborador
             ORDER BY name
         """)).mappings().all()
         return jsonify([dict(r) for r in rows]), 200
@@ -379,6 +383,49 @@ def piquete_confirmar_route(pk):
     return confirmar_piquete(pk, user_pk, current_user)
 
 
+@bp.route('/rh/piquete', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def piquete_criar_route():
+    current_user = get_jwt_identity()
+    return criar_escala_piquete(request.get_json(), current_user)
+
+
+@bp.route('/rh/piquete/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def piquete_editar_route(pk):
+    current_user = get_jwt_identity()
+    return editar_escala_piquete(pk, request.get_json(), current_user)
+
+
+@bp.route('/rh/piquete/regras', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@api_error_handler
+def regras_list_route():
+    current_user = get_jwt_identity()
+    return get_piquete_regras(current_user)
+
+
+@bp.route('/rh/piquete/regras', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def regras_upsert_route():
+    current_user = get_jwt_identity()
+    return upsert_piquete_regras(request.get_json(), current_user)
+
+
 @bp.route('/rh/piquete/ocorrencias', methods=['GET'])
 @jwt_required()
 @token_required
@@ -422,16 +469,6 @@ def ocorrencias_update_route(pk):
 # Perfil RH do colaborador
 # ---------------------------------------------------------------------------
 
-@bp.route('/rh/colaboradores/<int:pk>/perfil', methods=['GET'])
-@jwt_required()
-@token_required
-@require_permission('rh.view')
-@api_error_handler
-def colaborador_perfil_get(pk):
-    current_user = get_jwt_identity()
-    return get_colaborador_perfil(pk, current_user)
-
-
 @bp.route('/rh/colaboradores/perfil', methods=['POST'])
 @jwt_required()
 @token_required
@@ -465,5 +502,75 @@ def config_ano_init_todos_route():
     """Inicializa saldo anual para TODOS os colaboradores com perfil RH."""
     current_user = get_jwt_identity()
     data = request.get_json() or {}
-    ano = data.get('ano', __import__('datetime').date.today().year)
+    ano = data.get('ano', date.today().year)
     return init_config_ano_todos(ano, current_user)
+
+
+# ---------------------------------------------------------------------------
+# Geofencing — Locais predefinidos
+# ---------------------------------------------------------------------------
+
+@bp.route('/rh/locais', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def locais_list_route():
+    return get_locais(get_jwt_identity())
+
+
+@bp.route('/rh/locais', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def locais_create_route():
+    return criar_local(request.get_json(), get_jwt_identity())
+
+
+@bp.route('/rh/locais/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def locais_update_route(pk):
+    return editar_local(pk, request.get_json(), get_jwt_identity())
+
+
+@bp.route('/rh/locais/<int:pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def locais_delete_route(pk):
+    return eliminar_local(pk, get_jwt_identity())
+
+
+@bp.route('/rh/colaboradores/<int:pk>/local', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def colaborador_set_local_route(pk):
+    data = request.get_json() or {}
+    local_fk = data.get('local_fk')
+    return set_local_colaborador(pk, local_fk, get_jwt_identity())
+
+
+@bp.route('/rh/ponto/alertas', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.validate')
+@set_session
+@api_error_handler
+def ponto_alertas_route():
+    current_user = get_jwt_identity()
+    user_fk     = request.args.get('user_fk',     type=int)
+    data_inicio = request.args.get('data_inicio')
+    data_fim    = request.args.get('data_fim')
+    return get_ponto_alertas(current_user, user_fk, data_inicio, data_fim)

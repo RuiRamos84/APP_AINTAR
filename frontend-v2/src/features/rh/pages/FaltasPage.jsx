@@ -12,8 +12,7 @@ import EstadoBadge from '../components/EstadoBadge';
 import FaltaFormModal from '../components/FaltaFormModal';
 import WorkflowDialog from '../components/WorkflowDialog';
 
-const COLOR = '#E11D48';
-const fmtDate = (v) => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-PT') : '—';
+import { RH_COLOR as COLOR, fmtDate } from '../utils/rhUtils';
 
 const FaltasPage = () => {
   const [search, setSearch]       = useState('');
@@ -89,7 +88,7 @@ const FaltasPage = () => {
       }
     >
       <Box sx={{ mb: 2 }}>
-        <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
       </Box>
 
       <DataGrid

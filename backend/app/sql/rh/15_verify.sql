@@ -21,9 +21,9 @@ WHERE table_schema = 'public'
     'tb_rh_piquete_ocorrencia'
   );
 
--- ─── 2. Todas as views existem (deve retornar 9) ─────────────────────────────
+-- ─── 2. Todas as views existem (deve retornar 16) ───────────────────────────────────
 SELECT
-    CASE WHEN COUNT(*) = 9 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/9)' END AS views_check,
+    CASE WHEN COUNT(*) = 16 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/16)' END AS views_check,
     COUNT(*) AS total
 FROM information_schema.views
 WHERE table_name LIKE 'vbl_rh_%';
@@ -94,7 +94,7 @@ SELECT 'fn_rh_calcular_ferias_ano (sem perfil → 22)' AS check_name,
 SELECT 'Filtro perfis vbl_rh_colaborador' AS check_name,
     CASE WHEN (
         SELECT view_definition FROM information_schema.views
-        WHERE table_name = 'vbl_rh_colaborador'
+        WHERE table_name = 'vbl_rh_colaborador' AND table_schema = 'public'
     ) ILIKE '%ts_profile%' THEN 'OK' ELSE 'FALHOU (filtro ts_profile em falta)' END AS resultado;
 
 -- ─── 7. Permissões RH na ts_interface ────────────────────────────────────────
@@ -120,4 +120,20 @@ SELECT 'vbl_rh_horario',              COUNT(*) FROM vbl_rh_horario
 UNION ALL
 SELECT 'vbl_rh_piquete',              COUNT(*) FROM vbl_rh_piquete
 UNION ALL
-SELECT 'vbl_rh_piquete_ocorrencias',  COUNT(*) FROM vbl_rh_piquete_ocorrencias;
+SELECT 'vbl_rh_piquete_ocorrencias',  COUNT(*) FROM vbl_rh_piquete_ocorrencias
+UNION ALL
+-- Lookups
+SELECT 'vbl_rh_tipo_jornada',         COUNT(*) FROM vbl_rh_tipo_jornada
+UNION ALL
+SELECT 'vbl_rh_ponto_evento',         COUNT(*) FROM vbl_rh_ponto_evento
+UNION ALL
+SELECT 'vbl_rh_tipo_ferias',          COUNT(*) FROM vbl_rh_tipo_ferias
+UNION ALL
+SELECT 'vbl_rh_tipo_falta',           COUNT(*) FROM vbl_rh_tipo_falta
+UNION ALL
+SELECT 'vbl_rh_estado_workflow',      COUNT(*) FROM vbl_rh_estado_workflow
+UNION ALL
+SELECT 'vbl_rh_tipo_ocorrencia',      COUNT(*) FROM vbl_rh_tipo_ocorrencia
+UNION ALL
+-- Config
+SELECT 'vbl_rh_config',               COUNT(*) FROM vbl_rh_config;

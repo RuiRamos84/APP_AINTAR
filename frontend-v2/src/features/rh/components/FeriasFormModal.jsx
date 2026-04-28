@@ -7,6 +7,17 @@ import {
 } from '@mui/material';
 import { useColaboradores } from '../hooks/useRhLookups';
 
+const toISODate = (v) => {
+  if (!v) return '';
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
+};
+
 const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) => {
   const { colaboradores } = useColaboradores();
   const tipos = lookups?.tipos_ferias || [];
@@ -21,8 +32,8 @@ const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) 
   useEffect(() => {
     if (open) reset(initial
       ? { user_fk: initial.tb_user_fk, tt_tipo_fk: initial.tt_tipo_fk,
-          data_inicio: initial.data_inicio?.slice(0, 10) || '',
-          data_fim: initial.data_fim?.slice(0, 10) || '',
+          data_inicio: toISODate(initial.data_inicio),
+          data_fim: toISODate(initial.data_fim),
           notas: initial.notas || '' }
       : { user_fk: '', tt_tipo_fk: 1, data_inicio: '', data_fim: '', notas: '' }
     );

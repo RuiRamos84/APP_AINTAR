@@ -1,7 +1,19 @@
 -- backend/app/sql/rh/14_views.sql
+-- Idempotente: DROP ... CASCADE antes de cada CREATE VIEW para evitar o erro
+-- "cannot drop columns from view" quando corrido sobre uma BD com versões mais recentes.
+
+DROP VIEW IF EXISTS vbl_rh_colaborador         CASCADE;
+DROP VIEW IF EXISTS vbl_rh_ponto               CASCADE;
+DROP VIEW IF EXISTS vbl_rh_ponto_mensal        CASCADE;
+DROP VIEW IF EXISTS vbl_rh_ferias              CASCADE;
+DROP VIEW IF EXISTS vbl_rh_saldo_ferias        CASCADE;
+DROP VIEW IF EXISTS vbl_rh_faltas              CASCADE;
+DROP VIEW IF EXISTS vbl_rh_horario             CASCADE;
+DROP VIEW IF EXISTS vbl_rh_piquete             CASCADE;
+DROP VIEW IF EXISTS vbl_rh_piquete_ocorrencias CASCADE;
 
 -- Vista de colaboradores com saldo e horário activo
-CREATE OR REPLACE VIEW vbl_rh_colaborador AS
+CREATE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
     c.name,
@@ -45,10 +57,15 @@ SELECT
     p.precisao_metros,
     p.fonte,
     p.notas,
+    p.fora_local,
+    p.distancia_metros,
+    l.nome                          AS local_nome,
     CASE WHEN p.latitude IS NOT NULL THEN TRUE ELSE FALSE END AS tem_gps
 FROM tb_rh_ponto p
 JOIN ts_client c          ON c.pk = p.tb_user_fk
-JOIN tt_rh_ponto_evento e ON e.pk = p.tt_evento_fk;
+JOIN tt_rh_ponto_evento e ON e.pk = p.tt_evento_fk
+LEFT JOIN ts_rh_colaborador col ON col.pk = p.tb_user_fk
+LEFT JOIN ts_rh_local l         ON l.pk = col.ts_rh_local_fk;
 
 
 -- Vista de mapas mensais

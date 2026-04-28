@@ -11,24 +11,19 @@ import {
   NightShelter as PiqueteIcon,
   ManageAccounts as GestPessoalIcon,
   ChevronRight as ArrowIcon,
+  Cake as AniversarioIcon,
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { useColaboradores } from '../hooks/useRhLookups';
 import { usePontoHoje } from '../hooks/usePonto';
 import { useFerias } from '../hooks/useFerias';
 import { useFaltas } from '../hooks/useFaltas';
 import { useHorarios } from '../hooks/useHorarios';
 import { usePiquete } from '../hooks/usePiquete';
 
-const COLOR = '#E11D48';
-
-const now = new Date();
-const fmtTime = (ts) => {
-  if (!ts) return null;
-  const d = new Date(ts);
-  return isNaN(d) ? null : d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-};
+import { RH_COLOR as COLOR, fmtTime } from '../utils/rhUtils';
 
 // ─── Card de secção ──────────────────────────────────────────────────────────
 
@@ -118,7 +113,7 @@ const PontoContent = ({ userFk }) => {
 // ─── Conteúdo: Saldo Férias ──────────────────────────────────────────────────
 
 const FeriasContent = ({ userFk }) => {
-  const { ferias, isLoading } = useFerias({ user_fk: userFk, ano: now.getFullYear() });
+  const { ferias, isLoading } = useFerias({ user_fk: userFk, ano: new Date().getFullYear() });
 
   if (isLoading) return <Skeleton />;
 
@@ -135,7 +130,7 @@ const FeriasContent = ({ userFk }) => {
         )}
       </Stack>
       <Typography variant="caption" color="text.secondary">
-        {totalDias} dias úteis gozados em {now.getFullYear()}
+        {totalDias} dias úteis gozados em {new Date().getFullYear()}
       </Typography>
     </Stack>
   );
@@ -144,7 +139,7 @@ const FeriasContent = ({ userFk }) => {
 // ─── Conteúdo: Faltas recentes ───────────────────────────────────────────────
 
 const FaltasContent = ({ userFk }) => {
-  const { faltas, isLoading } = useFaltas({ user_fk: userFk, ano: now.getFullYear() });
+  const { faltas, isLoading } = useFaltas({ user_fk: userFk, ano: new Date().getFullYear() });
 
   if (isLoading) return <Skeleton />;
 
@@ -197,6 +192,7 @@ const PiqueteContent = ({ userFk }) => {
 
   if (isLoading) return <Skeleton />;
 
+  const now = new Date();
   const proxima = escalas
     .filter(e => new Date(e.data_inicio + 'T00:00:00') >= now)
     .sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio))[0];
@@ -221,6 +217,62 @@ const PiqueteContent = ({ userFk }) => {
           variant="outlined"
         />
       </Stack>
+    </Stack>
+  );
+};
+
+// ─── Conteúdo: Próximos Aniversários ─────────────────────────────────────────
+
+const AniversariosContent = () => {
+  const { colaboradores, isLoading } = useColaboradores();
+
+  if (isLoading) return <Skeleton />;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+
+  const proximos = colaboradores
+    .filter(c => c.data_nascimento)
+    .map(c => {
+      const birthDate = new Date(c.data_nascimento);
+      const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+      
+      // Se já passou este ano, o próximo é para o ano
+      if (nextBirthday < today) {
+        nextBirthday.setFullYear(today.getFullYear() + 1);
+      }
+      
+      const diffTime = Math.abs(nextBirthday - today);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return { ...c, nextBirthday, diffDays, ageTurning: nextBirthday.getFullYear() - birthDate.getFullYear() };
+    })
+    .sort((a, b) => a.diffDays - b.diffDays)
+    .slice(0, 3); // Top 3
+
+  if (proximos.length === 0) {
+    return <Typography variant="body2" color="text.secondary">Sem aniversários registados.</Typography>;
+  }
+
+  return (
+    <Stack spacing={1}>
+      {proximos.map(c => (
+        <Stack key={c.pk} direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="body2" fontWeight={500} noWrap sx={{ maxWidth: '65%' }}>
+            {c.name}
+          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {c.diffDays === 0 ? (
+              <Chip label={`É Hoje! (${c.ageTurning} anos)`} size="small" color="primary" />
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                {c.nextBirthday.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })} ({c.diffDays}d)
+              </Typography>
+            )}
+          </Stack>
+        </Stack>
+      ))}
     </Stack>
   );
 };
@@ -262,6 +314,13 @@ const SECTIONS = [
     title: 'Piquete',
     color: '#be123c',
     Content: PiqueteContent,
+  },
+  {
+    to: '/rh/gestao',
+    icon: AniversarioIcon,
+    title: 'Aniversários',
+    color: '#eab308',
+    Content: AniversariosContent,
   },
 ];
 

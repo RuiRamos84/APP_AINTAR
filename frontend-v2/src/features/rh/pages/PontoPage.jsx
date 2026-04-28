@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   Box, Button, Stack, Tabs, Tab, Typography, Card, CardContent,
   CardActionArea, Tooltip, Chip, CircularProgress, Alert,
-  Switch, FormControlLabel, Grid, Divider,
+  Switch, FormControlLabel, Grid, Divider, FormControl, Select, MenuItem,
 } from '@mui/material';
 import {
   AccessTime as PontoIcon,
@@ -20,11 +20,12 @@ import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 import { usePontoHoje, usePontoMes, usePontoMensal, usePontoActions } from '../hooks/usePonto';
 import EstadoBadge from '../components/EstadoBadge';
 import WorkflowDialog from '../components/WorkflowDialog';
 
-const COLOR = '#E11D48';
+import { RH_COLOR as COLOR, fmtDate, fmtTime } from '../utils/rhUtils';
 
 const EVENTOS = [
   { pk: 1, label: 'Entrada',       icon: EntradaIcon,     color: '#16a34a' },
@@ -33,15 +34,6 @@ const EVENTOS = [
   { pk: 4, label: 'Saída',         icon: SaidaIcon,        color: '#dc2626' },
 ];
 
-const fmtTime = (ts) => {
-  if (!ts) return null;
-  const d = new Date(ts);
-  return isNaN(d) ? ts : d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-};
-
-const fmtDate = (v) => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-PT') : '—';
-
-const now = new Date();
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
@@ -51,7 +43,8 @@ function TabPanel({ children, value, index }) {
 
 const HojeTab = ({ userFk }) => {
   const theme = useTheme();
-  const [useGps, setUseGps]       = useState(false);
+  const { hasPermission } = usePermissions();
+  const [useGps, setUseGps]       = useState(true);
   const [gpsLoading, setGpsLoading] = useState(false);
   const { eventosHoje, isLoading } = usePontoHoje(userFk);
   const { registar, isRegistando } = usePontoActions(userFk);
@@ -93,7 +86,14 @@ const HojeTab = ({ userFk }) => {
           {hoje}
         </Typography>
         <FormControlLabel
-          control={<Switch checked={useGps} onChange={e => setUseGps(e.target.checked)} size="small" />}
+          control={
+            <Switch
+              checked={useGps}
+              onChange={e => setUseGps(e.target.checked)}
+              size="small"
+              disabled={!hasPermission('rh.admin')}
+            />
+          }
           label={<Typography variant="body2">GPS</Typography>}
         />
       </Stack>
@@ -168,6 +168,7 @@ const HojeTab = ({ userFk }) => {
 // ─── Tab 2: Histórico mensal ─────────────────────────────────────────────────
 
 const HistoricoTab = ({ userFk }) => {
+  const now = new Date();
   const [ano, setAno]   = useState(now.getFullYear());
   const [mes, setMes]   = useState(now.getMonth() + 1);
   const [search, setSearch] = useState('');
@@ -203,22 +204,24 @@ const HistoricoTab = ({ userFk }) => {
     <Box>
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1}>
-          <select value={mes} onChange={e => setMes(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
-              </option>
-            ))}
-          </select>
-          <select value={ano} onChange={e => setAno(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {[now.getFullYear() - 1, now.getFullYear()].map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select value={mes} onChange={e => setMes(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <MenuItem key={i + 1} value={i + 1}>
+                  {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 90 }}>
+            <Select value={ano} onChange={e => setAno(Number(e.target.value))}>
+              {[now.getFullYear() - 1, now.getFullYear()].map(y => (
+                <MenuItem key={y} value={y}>{y}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
-        <SearchBar value={search} onChange={setSearch} placeholder="Filtrar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Filtrar…" />
       </Stack>
 
       {/* Resumo do mês */}
@@ -260,6 +263,7 @@ const HistoricoTab = ({ userFk }) => {
 // ─── Tab 3: Aprovação (Admin) ─────────────────────────────────────────────────
 
 const AprovacaoTab = () => {
+  const now = new Date();
   const [ano, setAno]       = useState(now.getFullYear());
   const [mes, setMes]       = useState(now.getMonth() + 1);
   const [search, setSearch] = useState('');
@@ -307,22 +311,24 @@ const AprovacaoTab = () => {
     <Box>
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap">
         <Stack direction="row" spacing={1}>
-          <select value={mes} onChange={e => setMes(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
-              </option>
-            ))}
-          </select>
-          <select value={ano} onChange={e => setAno(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {[now.getFullYear() - 1, now.getFullYear()].map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select value={mes} onChange={e => setMes(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <MenuItem key={i + 1} value={i + 1}>
+                  {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 90 }}>
+            <Select value={ano} onChange={e => setAno(Number(e.target.value))}>
+              {[now.getFullYear() - 1, now.getFullYear()].map(y => (
+                <MenuItem key={y} value={y}>{y}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
-        <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
       </Stack>
 
       <DataGrid

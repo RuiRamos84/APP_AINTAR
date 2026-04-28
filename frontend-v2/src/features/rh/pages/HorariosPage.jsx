@@ -10,8 +10,8 @@ import { useHorarios } from '../hooks/useHorarios';
 import { useRhLookups } from '../hooks/useRhLookups';
 import HorarioFormModal from '../components/HorarioFormModal';
 
-const COLOR = '#E11D48';
-const fmtDate = (v) => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-PT') : '—';
+import { RH_COLOR as COLOR, fmtDate } from '../utils/rhUtils';
+
 const fmtTime = (v) => v ? v.slice(0, 5) : '—';
 
 const HorariosPage = () => {
@@ -106,7 +106,7 @@ const HorariosPage = () => {
       }
     >
       <Box sx={{ mb: 2 }}>
-        <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
       </Box>
 
       <DataGrid

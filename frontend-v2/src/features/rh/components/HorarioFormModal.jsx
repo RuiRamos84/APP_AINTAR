@@ -7,6 +7,17 @@ import {
 } from '@mui/material';
 import { useColaboradores } from '../hooks/useRhLookups';
 
+const toISODate = (v) => {
+  if (!v) return '';
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
+};
+
 const HorarioFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) => {
   const { colaboradores } = useColaboradores();
   const jornadas = lookups?.tipos_jornada || [];
@@ -33,8 +44,8 @@ const HorarioFormModal = ({ open, onClose, onSave, isSaving, initial, lookups })
         hora_saida: initial.hora_saida?.slice(0, 5) || '17:00',
         hora_inicio_almoco: initial.hora_inicio_almoco?.slice(0, 5) || '',
         hora_fim_almoco: initial.hora_fim_almoco?.slice(0, 5) || '',
-        data_inicio: initial.data_inicio?.slice(0, 10) || '',
-        data_fim: initial.data_fim?.slice(0, 10) || '',
+        data_inicio: toISODate(initial.data_inicio),
+        data_fim: toISODate(initial.data_fim),
       });
     } else if (open) {
       reset({

@@ -15,6 +15,7 @@ export const useRhLookups = () => {
       tipos_falta:      metadata.rhTipoFalta          || [],
       estados_workflow: metadata.rhEstadoWorkflow     || [],
       tipos_ocorrencia: metadata.rhPiqueteOcorrencia  || [],
+      colaboradores:    metadata.rhColaboradores      || [],
     },
     isLoading,
   };

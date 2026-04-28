@@ -7,6 +7,17 @@ import {
 } from '@mui/material';
 import { useColaboradores } from '../hooks/useRhLookups';
 
+const toISODate = (v) => {
+  if (!v) return '';
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
+};
+
 const FaltaFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) => {
   const { colaboradores } = useColaboradores();
   const tipos = lookups?.tipos_falta || [];
@@ -20,7 +31,7 @@ const FaltaFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) =
   useEffect(() => {
     if (open) reset(initial
       ? { user_fk: initial.tb_user_fk, tt_tipo_falta_fk: initial.tt_tipo_falta_fk,
-          data: initial.data?.slice(0, 10) || '', notas: initial.notas || '',
+          data: toISODate(initial.data), notas: initial.notas || '',
           comunicado_por: initial.comunicado_por || '' }
       : { user_fk: '', tt_tipo_falta_fk: 1, data: '', notas: '', comunicado_por: '' }
     );

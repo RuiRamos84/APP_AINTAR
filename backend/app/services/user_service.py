@@ -425,7 +425,7 @@ def create_user_admin(data: dict, current_user: str):
         profil = int(data.get('profil', 2))
         entity_pk = data.get('entity_pk')
 
-        if profil in (0, 1):
+        if profil in (0, 1, 6):
             # Utilizador interno AINTAR — associar à entidade AINTAR (pk=1)
             entity_pk = 1
         else:

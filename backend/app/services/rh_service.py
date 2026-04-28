@@ -1,7 +1,7 @@
 from flask import jsonify
 from sqlalchemy import text
 from typing import Optional
-from datetime import date
+from datetime import date, time, datetime
 from pydantic import BaseModel, Field, field_validator
 from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError, ResourceNotFoundError
@@ -88,7 +88,7 @@ class FaltaCreate(BaseModel):
 
 
 class FaltaUpdate(BaseModel):
-    tt_tipo_falta_fk: Optional[int] = 0
+    tt_tipo_falta_fk: Optional[int] = None
     justificativo_path: Optional[str] = None
     notas: Optional[str] = None
 
@@ -122,11 +122,33 @@ class ConfigUpsert(BaseModel):
     ano: int
     dias_total: int
     notas: Optional[str] = None
+    dias_transitados: Optional[int] = None
+    data_limite_transitados: Optional[date] = None
 
 
 class PiqueteGerar(BaseModel):
     ano: int
     mes: int
+
+
+class EscalaCreate(BaseModel):
+    tb_user_fk: int
+    data_inicio: date
+    data_fim: date
+
+
+class EscalaUpdate(BaseModel):
+    tb_user_fk: int
+    data_inicio: date
+    data_fim: date
+
+
+class RegrasItem(BaseModel):
+    pk: Optional[int] = None
+    codigo: str
+    descr: str
+    valor: Optional[str] = None
+    ativo: bool = True
 
 
 class OcorrenciaCreate(BaseModel):
@@ -155,7 +177,14 @@ def _assert_success(result: Optional[str], msg: str):
 
 
 def _rows_to_list(rows):
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        for k, v in d.items():
+            if isinstance(v, (date, datetime, time)):
+                d[k] = v.isoformat()
+        out.append(d)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -169,12 +198,12 @@ def get_lookups(current_user: str):
             return _rows_to_list(session.execute(text(q)).mappings().all())
 
         return jsonify({
-            'tipos_jornada':    fetch('SELECT * FROM tt_rh_tipo_jornada ORDER BY pk'),
-            'eventos_ponto':    fetch('SELECT * FROM tt_rh_ponto_evento ORDER BY ordem'),
-            'tipos_ferias':     fetch('SELECT * FROM tt_rh_tipo_ferias ORDER BY pk'),
-            'tipos_falta':      fetch('SELECT * FROM tt_rh_tipo_falta ORDER BY pk'),
-            'estados_workflow': fetch('SELECT * FROM tt_rh_estado_workflow ORDER BY pk'),
-            'tipos_ocorrencia': fetch('SELECT * FROM tt_rh_piquete_ocorrencia ORDER BY pk'),
+            'tipos_jornada':    fetch('SELECT * FROM vbl_rh_tipo_jornada'),
+            'eventos_ponto':    fetch('SELECT * FROM vbl_rh_ponto_evento'),
+            'tipos_ferias':     fetch('SELECT * FROM vbl_rh_tipo_ferias'),
+            'tipos_falta':      fetch('SELECT * FROM vbl_rh_tipo_falta'),
+            'estados_workflow': fetch('SELECT * FROM vbl_rh_estado_workflow'),
+            'tipos_ocorrencia': fetch('SELECT * FROM vbl_rh_tipo_ocorrencia'),
         }), 200
 
 
@@ -211,7 +240,20 @@ def get_saldo_ferias(pk: int, current_user: str):
             {'pk': pk}
         ).mappings().first()
         if not row:
-            raise ResourceNotFoundError('Saldo de férias', pk)
+            year = date.today().year
+            dias = session.execute(
+                text('SELECT fn_rh_calcular_ferias_ano(:pk, :ano) AS dias'),
+                {'pk': pk, 'ano': year}
+            ).scalar() or 22
+            return jsonify({
+                'tb_user_fk': pk,
+                'colaborador_nome': None,
+                'ano': year,
+                'dias_total': dias,
+                'dias_gozados': 0,
+                'dias_pendentes': 0,
+                'dias_disponiveis': dias,
+            }), 200
         return jsonify(dict(row)), 200
 
 
@@ -221,6 +263,7 @@ def get_saldo_ferias(pk: int, current_user: str):
 
 @api_error_handler
 def registar_ponto_evento(data: dict, current_user: str):
+    from flask import current_app
     payload = PontoEventoCreate.model_validate(data)
     with db_session_manager(current_user) as session:
         result = session.execute(text("""
@@ -229,6 +272,28 @@ def registar_ponto_evento(data: dict, current_user: str):
             ) AS result
         """), payload.model_dump()).scalar()
         _assert_success(result, 'Erro ao registar evento de ponto')
+
+        # Emitir alerta de geofencing ao superior hierárquico se fora do local
+        if result and 'fora_local=true' in result.lower():
+            try:
+                row = session.execute(text("""
+                    SELECT c.name AS colaborador_nome, col.superior_fk
+                    FROM ts_client c
+                    LEFT JOIN ts_rh_colaborador col ON col.pk = c.pk
+                    WHERE c.pk = :user_fk
+                """), {'user_fk': payload.user_fk}).fetchone()
+
+                if row and row.superior_fk:
+                    socketio = current_app.extensions.get('socketio')
+                    if socketio:
+                        socketio.emit('rh_ponto_fora_local', {
+                            'colaborador_nome': row.colaborador_nome,
+                            'user_fk': payload.user_fk,
+                            'tt_evento_fk': payload.tt_evento_fk,
+                        }, room=f'user_{row.superior_fk}', namespace='/')
+            except Exception as e:
+                logger.warning(f'Falhou notificação geofencing: {e}')
+
         return jsonify({'message': 'Evento registado', 'result': format_message(result)}), 201
 
 
@@ -437,8 +502,8 @@ def criar_horario(data: dict, current_user: str):
         result = session.execute(text("""
             SELECT fbo_rh_horario(
                 0, NULL, :user_fk, :tt_jornada_fk, :descr,
-                :hora_entrada::TIME, :hora_saida::TIME,
-                :hora_inicio_almoco::TIME, :hora_fim_almoco::TIME,
+                CAST(:hora_entrada AS TIME), CAST(:hora_saida AS TIME),
+                CAST(:hora_inicio_almoco AS TIME), CAST(:hora_fim_almoco AS TIME),
                 :dias_semana, :data_inicio, :data_fim
             ) AS result
         """), payload.model_dump()).scalar()
@@ -453,8 +518,8 @@ def editar_horario(pk: int, data: dict, current_user: str):
         result = session.execute(text("""
             SELECT fbo_rh_horario(
                 1, :pk, NULL, :tt_jornada_fk, :descr,
-                :hora_entrada::TIME, :hora_saida::TIME,
-                :hora_inicio_almoco::TIME, :hora_fim_almoco::TIME,
+                CAST(:hora_entrada AS TIME), CAST(:hora_saida AS TIME),
+                CAST(:hora_inicio_almoco AS TIME), CAST(:hora_fim_almoco AS TIME),
                 :dias_semana, CURRENT_DATE, :data_fim
             ) AS result
         """), {'pk': pk, **payload.model_dump()}).scalar()
@@ -471,7 +536,8 @@ def get_horarios(current_user: str, user_fk: Optional[int], apenas_activos: bool
             filters.append('tb_user_fk = :user_fk')
             params['user_fk'] = user_fk
         if apenas_activos:
-            filters.append('activo = TRUE')
+            # Filtra pela coluna base (data_fim IS NULL) — mais seguro que a coluna calculada
+            filters.append('data_fim IS NULL')
         where = ' AND '.join(filters)
         rows = session.execute(
             text(f'SELECT * FROM vbl_rh_horario WHERE {where} ORDER BY colaborador_nome, data_inicio DESC'),
@@ -487,10 +553,14 @@ def get_horarios(current_user: str, user_fk: Optional[int], apenas_activos: bool
 @api_error_handler
 def upsert_config(data: dict, current_user: str):
     payload = ConfigUpsert.model_validate(data)
+    p = payload.model_dump()
     with db_session_manager(current_user) as session:
         result = session.execute(text("""
-            SELECT fbo_rh_config_upsert(:user_fk, :ano, :dias_total, :notas) AS result
-        """), payload.model_dump()).scalar()
+            SELECT fbo_rh_config_upsert(
+                :user_fk, :ano, :dias_total, :notas,
+                :dias_transitados, :data_limite_transitados
+            ) AS result
+        """), p).scalar()
         _assert_success(result, 'Erro ao guardar configuração')
         return jsonify({'message': 'Configuração guardada', 'result': format_message(result)}), 200
 
@@ -508,7 +578,7 @@ def get_config(current_user: str, user_fk: Optional[int], ano: Optional[int]):
             params['ano'] = ano
         where = ' AND '.join(filters)
         rows = session.execute(
-            text(f'SELECT * FROM ts_rh_config WHERE {where} ORDER BY ano DESC'),
+            text(f'SELECT * FROM vbl_rh_config WHERE {where} ORDER BY ano DESC'),
             params
         ).mappings().all()
         return jsonify(_rows_to_list(rows)), 200
@@ -557,8 +627,95 @@ def confirmar_piquete(pk: int, current_user_pk: int, current_user: str):
         result = session.execute(text("""
             SELECT fbo_rh_piquete_confirmar(:pk, :user_fk) AS result
         """), {'pk': pk, 'user_fk': current_user_pk}).scalar()
+        
+        if result and "<sucess>" in result:
+            # Forçar atualização do estado para "Aprovado RH" (3) na base de dados
+            session.execute(text("UPDATE tb_rh_piquete_escala SET ts_estado_fk = 3 WHERE pk = :pk"), {'pk': pk})
+            
         _assert_success(result, 'Erro ao confirmar piquete')
         return jsonify({'message': 'Piquete confirmado', 'result': format_message(result)}), 200
+
+
+@api_error_handler
+def criar_escala_piquete(data: dict, current_user: str):
+    payload = EscalaCreate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        exists = session.execute(text("""
+            SELECT 1 FROM tb_rh_piquete_escala
+            WHERE tb_user_fk = :user_fk AND data_inicio = :data_inicio
+        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio}).scalar()
+
+        if exists:
+            raise APIError('Este colaborador já tem uma escala registada com esta data de início.', 400)
+
+        session.execute(text("""
+            INSERT INTO tb_rh_piquete_escala (pk, tb_user_fk, data_inicio, data_fim, confirmado, ts_estado_fk, gerado_auto)
+            VALUES (fs_nextcode(), :user_fk, :data_inicio, :data_fim, FALSE, 1, FALSE)
+        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'data_fim': payload.data_fim})
+        return jsonify({'message': 'Escala criada com sucesso'}), 200
+
+
+@api_error_handler
+def editar_escala_piquete(pk: int, data: dict, current_user: str):
+    payload = EscalaUpdate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        exists = session.execute(text("""
+            SELECT 1 FROM tb_rh_piquete_escala
+            WHERE tb_user_fk = :user_fk
+              AND data_inicio = :data_inicio
+              AND pk != :pk
+        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'pk': pk}).scalar()
+
+        if exists:
+            raise APIError('Este colaborador já tem outra escala registada com esta data de início.', 400)
+
+        session.execute(text("""
+            UPDATE tb_rh_piquete_escala
+            SET tb_user_fk = :user_fk,
+                data_inicio = :data_inicio,
+                data_fim = :data_fim,
+                confirmado = FALSE,
+                ts_confirmacao = NULL,
+                ts_estado_fk = 1,
+                gerado_auto = FALSE
+            WHERE pk = :pk
+        """), {'pk': pk, 'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'data_fim': payload.data_fim})
+        return jsonify({'message': 'Escala atualizada com sucesso'}), 200
+
+
+@api_error_handler
+def get_piquete_regras(current_user: str):
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("SELECT * FROM ts_rh_piquete_regras ORDER BY pk")).mappings().all()
+        return jsonify(_rows_to_list(rows)), 200
+
+
+@api_error_handler
+def upsert_piquete_regras(data: list, current_user: str):
+    items = [RegrasItem.model_validate(item) for item in data]
+    with db_session_manager(current_user) as session:
+        existing = {r.pk for r in session.execute(text("SELECT pk FROM ts_rh_piquete_regras")).all()}
+        incoming = {item.pk for item in items if item.pk}
+
+        to_delete = existing - incoming
+        if to_delete:
+            session.execute(text("DELETE FROM ts_rh_piquete_regras WHERE pk = ANY(:pks)"), {'pks': list(to_delete)})
+
+        for item in items:
+            p = item.model_dump()
+            if item.pk:
+                session.execute(text("""
+                    UPDATE ts_rh_piquete_regras
+                    SET codigo = :codigo, descr = :descr, valor = :valor, ativo = :ativo
+                    WHERE pk = :pk
+                """), p)
+            else:
+                session.execute(text("""
+                    INSERT INTO ts_rh_piquete_regras (pk, codigo, descr, valor, ativo)
+                    VALUES (fs_nextcode(), :codigo, :descr, :valor, :ativo)
+                """), p)
+
+        return jsonify({'message': 'Regras atualizadas com sucesso'}), 200
 
 
 @api_error_handler
@@ -615,17 +772,8 @@ def editar_ocorrencia(pk: int, data: dict, current_user: str):
 # Perfil RH do colaborador (ts_rh_colaborador)
 # ---------------------------------------------------------------------------
 
-@api_error_handler
-def get_colaborador_perfil(pk: int, current_user: str):
-    with db_session_manager(current_user) as session:
-        row = session.execute(
-            text('SELECT * FROM vbl_rh_colaborador WHERE pk = :pk'),
-            {'pk': pk}
-        ).mappings().first()
-        if not row:
-            raise ResourceNotFoundError('Colaborador', pk)
-        return jsonify(dict(row)), 200
-
+# Nota: get_colaborador_perfil foi removido — era duplicado de get_colaborador.
+# O route /rh/colaboradores/<pk>/perfil chama get_colaborador directamente.
 
 @api_error_handler
 def upsert_colaborador_perfil(data: dict, current_user: str):
@@ -657,10 +805,11 @@ def init_config_ano(data: dict, current_user: str):
 
 @api_error_handler
 def init_config_ano_todos(ano: int, current_user: str):
-    """Inicializa saldo anual para TODOS os colaboradores com perfil RH."""
+    """Inicializa saldo anual para TODOS os colaboradores com perfil RH elegível."""
     with db_session_manager(current_user) as session:
+        # Usa vbl_rh_colaborador para garantir o filtro de perfis (ts_profile IN 0,1,6)
         rows = session.execute(
-            text('SELECT pk FROM ts_rh_colaborador')
+            text('SELECT pk FROM vbl_rh_colaborador')
         ).fetchall()
         results = []
         for (pk,) in rows:
@@ -669,3 +818,99 @@ def init_config_ano_todos(ano: int, current_user: str):
             """), {'user_fk': pk, 'ano': ano}).scalar()
             results.append({'user_fk': pk, 'result': format_message(r) if r else None})
         return jsonify({'ano': ano, 'total': len(results), 'detalhes': results}), 200
+
+
+# ---------------------------------------------------------------------------
+# Geofencing — Locais predefinidos
+# ---------------------------------------------------------------------------
+
+class LocalCreate(BaseModel):
+    nome: str
+    descr: Optional[str] = None
+    latitude: float
+    longitude: float
+    raio_metros: int = 200
+
+
+class LocalUpdate(BaseModel):
+    nome: Optional[str] = None
+    descr: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    raio_metros: Optional[int] = None
+    ativo: Optional[bool] = None
+
+
+@api_error_handler
+def get_locais(current_user: str):
+    with db_session_manager(current_user) as session:
+        rows = session.execute(
+            text('SELECT * FROM vbl_rh_local ORDER BY nome')
+        ).mappings().all()
+        return jsonify(_rows_to_list(rows)), 200
+
+
+@api_error_handler
+def criar_local(data: dict, current_user: str):
+    payload = LocalCreate.model_validate(data)
+    p = payload.model_dump()
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_local(0, NULL, :nome, :descr, :latitude, :longitude, :raio_metros, TRUE) AS result
+        """), p).scalar()
+        _assert_success(result, 'Erro ao criar local')
+        return jsonify({'message': 'Local criado'}), 201
+
+
+@api_error_handler
+def editar_local(pk: int, data: dict, current_user: str):
+    payload = LocalUpdate.model_validate(data)
+    p = payload.model_dump()
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_local(1, :pk, :nome, :descr, :latitude, :longitude, :raio_metros, :ativo) AS result
+        """), {'pk': pk, **p}).scalar()
+        _assert_success(result, 'Erro ao editar local')
+        return jsonify({'message': 'Local actualizado'}), 200
+
+
+@api_error_handler
+def eliminar_local(pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_local(2, :pk) AS result
+        """), {'pk': pk}).scalar()
+        _assert_success(result, 'Erro ao eliminar local')
+        return jsonify({'message': 'Local eliminado'}), 200
+
+
+@api_error_handler
+def set_local_colaborador(user_pk: int, local_fk: Optional[int], current_user: str):
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_col_set_local(:user_pk, :local_fk) AS result
+        """), {'user_pk': user_pk, 'local_fk': local_fk}).scalar()
+        _assert_success(result, 'Erro ao atribuir local')
+        return jsonify({'message': 'Local atribuído'}), 200
+
+
+@api_error_handler
+def get_ponto_alertas(current_user: str, user_fk: Optional[int], data_inicio: Optional[str], data_fim: Optional[str]):
+    with db_session_manager(current_user) as session:
+        filters = ['1=1']
+        params: dict = {}
+        if user_fk:
+            filters.append('tb_user_fk = :user_fk')
+            params['user_fk'] = user_fk
+        if data_inicio:
+            filters.append('data >= :data_inicio')
+            params['data_inicio'] = data_inicio
+        if data_fim:
+            filters.append('data <= :data_fim')
+            params['data_fim'] = data_fim
+        where = ' AND '.join(filters)
+        rows = session.execute(
+            text(f'SELECT * FROM vbl_rh_ponto_alertas WHERE {where} ORDER BY ts_registo DESC'),
+            params
+        ).mappings().all()
+        return jsonify(_rows_to_list(rows)), 200

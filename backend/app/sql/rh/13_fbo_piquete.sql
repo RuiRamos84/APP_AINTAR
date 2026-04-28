@@ -31,6 +31,12 @@ BEGIN
 
     DELETE FROM tb_rh_piquete_escala
     WHERE gerado_auto = TRUE
+      AND confirmado = FALSE
+      AND ts_estado_fk = 1
+      AND NOT EXISTS (
+          SELECT 1 FROM tb_rh_piquete_ocorrencia 
+          WHERE tb_piquete_escala_fk = tb_rh_piquete_escala.pk
+      )
       AND EXTRACT(YEAR FROM data_inicio) = p_ano
       AND EXTRACT(MONTH FROM data_inicio) = p_mes;
 
@@ -44,6 +50,15 @@ BEGIN
 
     WHILE EXTRACT(MONTH FROM v_semana_inicio) = p_mes LOOP
         v_semana_fim := v_semana_inicio + INTERVAL '6 days';
+
+        -- Verificar se já existe escala (manual ou preservada) nesta semana
+        IF EXISTS (
+            SELECT 1 FROM tb_rh_piquete_escala 
+            WHERE data_inicio = v_semana_inicio AND data_fim = v_semana_fim
+        ) THEN
+            v_semana_inicio := v_semana_inicio + INTERVAL '7 days';
+            CONTINUE;
+        END IF;
 
         SELECT c.pk INTO v_user_fk
         FROM ts_client c
@@ -107,7 +122,8 @@ RETURNS TEXT AS $$
 BEGIN
     UPDATE tb_rh_piquete_escala
     SET confirmado     = TRUE,
-        ts_confirmacao = NOW()
+        ts_confirmacao = NOW(),
+        ts_estado_fk   = 3 -- Aprovado RH
     WHERE pk = p_pk AND tb_user_fk = p_user_fk;
 
     IF NOT FOUND THEN
