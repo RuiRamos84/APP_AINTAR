@@ -31,6 +31,7 @@ from .client_contracts_routes import bp as client_contracts_bp
 from .caixa_routes import bp as caixa_bp
 from .website_routes import website_public_bp, website_cms_bp
 from .rh_routes import bp as rh_bp
+from .orcamento_routes import bp as orcamento_bp
 
 __all__ = [
     'admin_bp', 'auth_bp', 'user_bp', 'entity_bp', 'document_bp', 'meta_data_bp',
@@ -41,5 +42,5 @@ __all__ = [
     'equipamento_bp', 'obras_bp', 'obra_despesa_bp', 'offices_bp',
     'client_contracts_bp', 'caixa_bp',
     'website_public_bp', 'website_cms_bp',
-    'rh_bp',
+    'rh_bp', 'orcamento_bp',
 ]
