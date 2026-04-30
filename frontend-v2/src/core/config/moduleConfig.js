@@ -208,6 +208,7 @@ export const detectModuleFromPath = (pathname) => {
     '/expenses': 'gestao',
     '/equipamentos': 'gestao',
     '/fleet': 'gestao',
+    '/orcamento': 'gestao',
 
     // PEDIDOS
     '/pedidos': 'pedidos',

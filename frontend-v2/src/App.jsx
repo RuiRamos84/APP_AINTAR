@@ -79,6 +79,8 @@ import {
   NetworkExpensesPage, BranchesExpensesPage,
   MaintenanceExpensesPage, EquipmentExpensesPage,
 } from '@/features/expenses';
+import { OrcamentoPage } from '@/features/orcamento';
+import CatalogPage from '@/features/orcamento/pages/CatalogPage';
 
 function App() {
   return (
@@ -263,6 +265,10 @@ function App() {
         {/* ==================== DOCUMENTOS ==================== */}
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/pedidos" element={<DocumentsPage />} />
+
+        {/* ==================== ORÇAMENTO ==================== */}
+        <Route path="/orcamento" element={<OrcamentoPage />} />
+        <Route path="/orcamento/catalogo" element={<CatalogPage />} />
 
         {/* ==================== ENTIDADES ==================== */}
         <Route path="/entities" element={<EntitiesPage />} />

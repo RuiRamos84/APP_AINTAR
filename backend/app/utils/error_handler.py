@@ -2,14 +2,11 @@
 from functools import wraps
 from flask import jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, DataError
+from pydantic import ValidationError
 import re
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-
-# Categorização específica de erros
 
 
 class APIError(Exception):
@@ -28,70 +25,58 @@ class APIError(Exception):
         })
         return result
 
-# Erros específicos para casos comuns
-
 
 class ResourceNotFoundError(APIError):
     def __init__(self, resource_type, resource_id, payload=None):
-        message = f"{resource_type} com ID {resource_id} não encontrado"
-        super().__init__(message, 404, "ERR_NOT_FOUND", payload)
+        super().__init__(f"{resource_type} não encontrado", 404, "ERR_NOT_FOUND", payload)
 
 
 class DuplicateResourceError(APIError):
-    def __init__(self, resource_type, field, value, payload=None):
-        message = f"{resource_type} com {field}={value} já existe"
+    def __init__(self, message_or_type="Este registo já existe.", field=None, value=None, payload=None):
+        # Suporta tanto DuplicateResourceError('msg') como DuplicateResourceError('Tipo', 'campo', 'valor')
+        # Na forma antiga (3 args), nunca expor campo/valor internos ao cliente
+        message = message_or_type if field is None else "Este registo já existe."
         super().__init__(message, 409, "ERR_DUPLICATE", payload)
 
 
 class InvalidSessionError(APIError):
-    """Exceção para sessões inválidas no banco de dados."""
     def __init__(self, message="Sessão inválida ou expirada.", status_code=419, error_code="INVALID_SESSION"):
         super().__init__(message, status_code, error_code)
 
 
 class InvalidCredentialsError(APIError):
-    """Exceção para credenciais de login inválidas."""
     def __init__(self, message="Credenciais inválidas"):
         super().__init__(message, status_code=401)
 
 
 class TokenExpiredError(APIError):
-    """Exceção para tokens expirados (login ou refresh)."""
     def __init__(self, message="Token expirado"):
-        # Usamos 419 Authentication Timeout, um status não oficial mas comum para este caso
         super().__init__(message, status_code=419)
-
-# Mapeamento de erros SQL para erros de API
 
 
 def map_sql_error(error):
     error_str = str(error)
 
-    # Violação de unicidade (ex: chave duplicada)
+    # Violação de unicidade — nunca expor o nome da constraint
     if isinstance(error, IntegrityError) and "unique constraint" in error_str.lower():
-        match = re.search(r'unique constraint "([^"]+)"', error_str.lower())
-        constraint = match.group(1) if match else "campo único"
-        return DuplicateResourceError("Registo", constraint, "", {"original_error": error_str})
+        return APIError("Este registo já existe.", 409, "ERR_DUPLICATE")
 
-    # Violação de chave estrangeira
+    # Violação de chave estrangeira — nunca expor tabelas referenciadas
     if isinstance(error, IntegrityError) and "foreign key constraint" in error_str.lower():
-        return APIError("Referência inválida ou recurso não existente", 400, "ERR_INVALID_REF")
+        return APIError("Referência inválida.", 400, "ERR_INVALID_REF")
 
-    # Erro de tipo de dados
+    # Erro de tipo/formato de dados
     if isinstance(error, DataError):
-        return APIError("Dados inválidos para a operação", 400, "ERR_INVALID_DATA")
+        return APIError("Formato de dados inválido.", 400, "ERR_INVALID_DATA")
 
-    # Erro em função armazenada (normalmente com tags XML)
+    # Erros de lógica de negócio devolvidos por funções armazenadas via tags XML
     if "<error>" in error_str:
-        # Extrair mensagem entre tags <error></error>
         match = re.search(r'<error>(.*?)</error>', error_str)
         if match:
-            return APIError(match.group(1), 400, "ERR_DB_FUNCTION")
+            return APIError(match.group(1), 400, "ERR_BUSINESS")
 
-    # Erro genérico de BD
-    return APIError("Erro interno na base de dados", 500, "ERR_DATABASE")
-
-# Decorador melhorado
+    # Qualquer outro erro de BD — nunca expor detalhes internos
+    return APIError("Ocorreu um erro ao processar o pedido. Tente novamente.", 500, "ERR_DATABASE")
 
 
 def api_error_handler(f):
@@ -100,29 +85,29 @@ def api_error_handler(f):
         try:
             return f(*args, **kwargs)
         except ResourceNotFoundError as e:
-            logger.warning(f"Recurso não encontrado: {str(e)}")
+            logger.warning(f"Recurso não encontrado: {e.message}")
             return jsonify(e.to_dict()), e.status_code
         except DuplicateResourceError as e:
-            logger.warning(f"Recurso duplicado: {str(e)}")
+            logger.warning(f"Recurso duplicado: {e.message}")
             return jsonify(e.to_dict()), e.status_code
         except APIError as e:
-            logger.error(f"Erro de API: {str(e)}")
+            logger.error(f"Erro de API [{e.error_code}]: {e.message}")
             return jsonify(e.to_dict()), e.status_code
+        except ValidationError as e:
+            # Pydantic: nunca expor nomes de campos internos do modelo
+            logger.warning(f"Validação falhou: {e}")
+            err = APIError("Dados inválidos no pedido.", 400, "ERR_VALIDATION")
+            return jsonify(err.to_dict()), 400
         except SQLAlchemyError as e:
-            mapped_error = map_sql_error(e)
-            if "<error>" in str(e):
-                logger.warning(f"Erro de negócio: {mapped_error.message}")
-            else:
-                logger.error(f"Erro de BD: {str(e)}", exc_info=True)
-            return jsonify(mapped_error.to_dict()), mapped_error.status_code
+            mapped = map_sql_error(e)
+            logger.error(f"Erro de BD [{mapped.error_code}]: {e}", exc_info=True)
+            return jsonify(mapped.to_dict()), mapped.status_code
         except Exception as e:
-            logger.error(
-                f"Erro não tratado: {str(e)}", exc_info=True)
-            api_error = APIError(str(e), 500, "ERR_INTERNAL")
-            return jsonify(api_error.to_dict()), 500
+            # Nunca expor detalhes internos ao cliente
+            logger.error(f"Erro não tratado: {e}", exc_info=True)
+            err = APIError("Ocorreu um erro interno. Tente novamente.", 500, "ERR_INTERNAL")
+            return jsonify(err.to_dict()), 500
     return decorated_function
-
-# Função auxiliar para lançar erros de recursos não encontrados
 
 
 def ensure_resource_exists(resource, resource_type, resource_id):

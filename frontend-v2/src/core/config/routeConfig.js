@@ -71,6 +71,7 @@ import {
   AccountBalanceWallet as CaixaIcon,
   LocationOn as LocalIcon,
   Map as MapaIcon,
+  AccountBalance as OrcamentoIcon,
 } from '@mui/icons-material';
 
 // Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
@@ -378,6 +379,15 @@ export const ROUTE_CONFIG = {
     icon: TelemetryIcon,
     module: 'gestao',
     permissions: { required: 'telemetry.view' },
+    showInSidebar: true,
+  },
+
+  '/orcamento': {
+    id: 'orcamento',
+    text: 'Orçamento',
+    icon: OrcamentoIcon,
+    module: 'gestao',
+    permissions: { required: 'expenses.view' },
     showInSidebar: true,
   },
 
