@@ -1,53 +1,38 @@
 -- backend/app/sql/rh/19_vbl_lookups_config.sql
---
 -- Views de leitura para tabelas de lookup do módulo RH e para ts_rh_config.
--- Seguindo o padrão da aplicação: todas as interacções fazem-se por views (vbl_)
--- e funções (fbo_ / fn_), nunca directamente nas tabelas base.
---
--- Executar após 18_filtro_perfis_rh.sql
+-- Idempotente: DROP ... CASCADE antes de cada CREATE VIEW
 
 -- ─── Lookups ─────────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_tipo_jornada AS
-    SELECT pk, descr
-    FROM tt_rh_tipo_jornada
-    ORDER BY pk;
+DROP VIEW IF EXISTS vbl_rh_tipo_jornada CASCADE;
+CREATE VIEW vbl_rh_tipo_jornada AS
+    SELECT pk, descr FROM tt_rh_tipo_jornada ORDER BY pk;
 
+DROP VIEW IF EXISTS vbl_rh_ponto_evento CASCADE;
+CREATE VIEW vbl_rh_ponto_evento AS
+    SELECT pk, descr, ordem FROM tt_rh_ponto_evento ORDER BY ordem;
 
-CREATE OR REPLACE VIEW vbl_rh_ponto_evento AS
-    SELECT pk, descr, ordem
-    FROM tt_rh_ponto_evento
-    ORDER BY ordem;
+DROP VIEW IF EXISTS vbl_rh_tipo_ferias CASCADE;
+CREATE VIEW vbl_rh_tipo_ferias AS
+    SELECT pk, descr, debita_saldo FROM tt_rh_tipo_ferias ORDER BY pk;
 
+DROP VIEW IF EXISTS vbl_rh_tipo_falta CASCADE;
+CREATE VIEW vbl_rh_tipo_falta AS
+    SELECT pk, descr, requer_justificativo FROM tt_rh_tipo_falta ORDER BY pk;
 
-CREATE OR REPLACE VIEW vbl_rh_tipo_ferias AS
-    SELECT pk, descr, debita_saldo
-    FROM tt_rh_tipo_ferias
-    ORDER BY pk;
+DROP VIEW IF EXISTS vbl_rh_estado_workflow CASCADE;
+CREATE VIEW vbl_rh_estado_workflow AS
+    SELECT pk, descr, cor FROM tt_rh_estado_workflow ORDER BY pk;
 
-
-CREATE OR REPLACE VIEW vbl_rh_tipo_falta AS
-    SELECT pk, descr, requer_justificativo
-    FROM tt_rh_tipo_falta
-    ORDER BY pk;
-
-
-CREATE OR REPLACE VIEW vbl_rh_estado_workflow AS
-    SELECT pk, descr, cor
-    FROM tt_rh_estado_workflow
-    ORDER BY pk;
-
-
--- Nota: usa o nome da tabela (tt_rh_piquete_ocorrencia) mas expõe com alias coerente
-CREATE OR REPLACE VIEW vbl_rh_tipo_ocorrencia AS
-    SELECT pk, descr
-    FROM tt_rh_piquete_ocorrencia
-    ORDER BY pk;
+DROP VIEW IF EXISTS vbl_rh_tipo_ocorrencia CASCADE;
+CREATE VIEW vbl_rh_tipo_ocorrencia AS
+    SELECT pk, descr FROM tt_rh_piquete_ocorrencia ORDER BY pk;
 
 
 -- ─── Config anual de saldo ────────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_config AS
+DROP VIEW IF EXISTS vbl_rh_config CASCADE;
+CREATE VIEW vbl_rh_config AS
 SELECT
     cfg.pk,
     cfg.tb_user_fk,

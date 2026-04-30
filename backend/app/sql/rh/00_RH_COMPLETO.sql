@@ -1,11 +1,18 @@
--- =============================================================
--- RH PESSOAL - SCHEMA COMPLETO v4
--- AINTAR - Modulo Recursos Humanos
--- =============================================================
--- INSTRUCOES DBEAVER: Ctrl+A -> Alt+X (Execute SQL Script)
--- =============================================================
+﻿-- =============================================================================
+-- RH_COMPLETO.sql — Script único idempotente do módulo RH Pessoal
+-- Gerado automaticamente a partir dos ficheiros individuais (01 … 21).
+-- Para alterar: editar o ficheiro individual correspondente e regenerar.
+--
+-- Ordem: 01 lookups → 02-05 tabelas → 06-07 auxiliares → 08-13 funções
+--        → 14 views → 15 verify → 16 permissões → 17-20 extensões → 21 geofencing
+--
+-- Idempotente: todas as views usam DROP … CASCADE + CREATE VIEW
+-- =============================================================================
 
--- [01] 01_lookups.sql
+-- ═════════════════════════════════════════════════════════════════════════
+-- [01_lookups.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/01_lookups.sql
 -- Lookups do módulo RH Pessoal
 -- Executar como superuser ou owner da BD
@@ -83,7 +90,11 @@ INSERT INTO tt_rh_piquete_ocorrencia (pk, descr) VALUES
     (4, 'Outro')
 ON CONFLICT (pk) DO NOTHING;
 
--- [02] 02_tables_config.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [02_tables_config.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/02_tables_config.sql
 
 -- Saldo anual de férias por colaborador
@@ -136,7 +147,11 @@ CREATE TABLE IF NOT EXISTS ts_feriados (
 
 CREATE INDEX IF NOT EXISTS idx_ts_feriados_data ON ts_feriados (data);
 
--- [03] 03_tables_ponto.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [03_tables_ponto.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/03_tables_ponto.sql
 
 -- Registo diário de ponto (cada evento: entrada, almoço, saída)
@@ -176,7 +191,11 @@ CREATE TABLE IF NOT EXISTS tb_rh_ponto_mensal (
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_mensal_user ON tb_rh_ponto_mensal (tb_user_fk);
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_mensal_ano  ON tb_rh_ponto_mensal (ano, mes);
 
--- [04] 04_tables_ferias_faltas.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [04_tables_ferias_faltas.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/04_tables_ferias_faltas.sql
 
 -- Pedidos de férias e tolerâncias
@@ -234,7 +253,11 @@ CREATE TABLE IF NOT EXISTS tb_rh_workflow (
 CREATE INDEX IF NOT EXISTS idx_tb_rh_workflow_ref  ON tb_rh_workflow (tipo_ref, ref_pk);
 CREATE INDEX IF NOT EXISTS idx_tb_rh_workflow_user ON tb_rh_workflow (tb_user_fk);
 
--- [05] 05_tables_piquete.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [05_tables_piquete.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/05_tables_piquete.sql
 
 -- Escala semanal de piquete
@@ -289,7 +312,11 @@ INSERT INTO ts_rh_piquete_regras (pk, codigo, descr, valor, ativo) VALUES
     (fs_nextcode(), 'equitativo',       'Distribuir equitativamente por todos os elegíveis',  NULL,  TRUE)
 ON CONFLICT (codigo) DO NOTHING;
 
--- [06] 06_feriados_seed.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [06_feriados_seed.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/06_feriados_seed.sql
 -- Feriados nacionais obrigatórios PT (fixos + móveis pré-calculados)
 
@@ -338,7 +365,11 @@ INSERT INTO ts_feriados (pk, data, descr, nacional) VALUES
 (fs_nextcode(), '2027-12-25', 'Natal',                             TRUE)
 ON CONFLICT (data) DO NOTHING;
 
--- [07] 07_fn_dias_uteis.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [07_fn_dias_uteis.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/07_fn_dias_uteis.sql
 
 CREATE OR REPLACE FUNCTION fn_rh_dias_uteis(
@@ -374,66 +405,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- [08] 08_fbo_ponto.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [08_fbo_ponto.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/08_fbo_ponto.sql
-
--- Registar um evento de ponto (entrada, almoço, saída)
-CREATE OR REPLACE FUNCTION fbo_rh_ponto_evento(
-    p_user_fk       INTEGER,
-    p_tt_evento_fk  INTEGER,
-    p_latitude      DECIMAL,
-    p_longitude     DECIMAL,
-    p_precisao      INTEGER,
-    p_notas         TEXT DEFAULT NULL
-)
-RETURNS TEXT AS $$
-DECLARE
-    v_pk      INTEGER;
-    v_data    DATE := CURRENT_DATE;
-    v_jornada INTEGER;
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM tb_rh_ponto
-        WHERE tb_user_fk = p_user_fk
-          AND data = v_data
-          AND tt_evento_fk = p_tt_evento_fk
-    ) THEN
-        RETURN '<error>Evento já registado para hoje</error>';
-    END IF;
-
-    IF p_tt_evento_fk IN (2, 3) THEN
-        SELECT tt_jornada_fk INTO v_jornada
-        FROM ts_rh_horario
-        WHERE tb_user_fk = p_user_fk AND data_fim IS NULL
-        LIMIT 1;
-
-        IF v_jornada = 2 THEN
-            RETURN '<error>Jornada contínua não tem registo de almoço</error>';
-        END IF;
-    END IF;
-
-    IF p_tt_evento_fk = 4 THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM tb_rh_ponto
-            WHERE tb_user_fk = p_user_fk AND data = v_data AND tt_evento_fk = 1
-        ) THEN
-            RETURN '<error>Não é possível registar saída sem entrada</error>';
-        END IF;
-    END IF;
-
-    v_pk := fs_nextcode();
-
-    INSERT INTO tb_rh_ponto (
-        pk, tb_user_fk, data, tt_evento_fk, ts_registo,
-        latitude, longitude, precisao_metros, fonte, notas
-    ) VALUES (
-        v_pk, p_user_fk, v_data, p_tt_evento_fk, NOW(),
-        p_latitude, p_longitude, p_precisao, 'app', p_notas
-    );
-
-    RETURN '<sucess>|pk=' || v_pk;
-END;
-$$ LANGUAGE plpgsql;
+-- NOTA: fbo_rh_ponto_evento está em 21_geofencing.sql (versão com geofencing)
 
 
 -- Submeter mapa mensal para aprovação
@@ -517,7 +495,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- [09] 09_fbo_workflow.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [09_fbo_workflow.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/09_fbo_workflow.sql
 
 -- Workflow genérico — valida ou aprova ponto mensal, férias ou falta
@@ -602,7 +584,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- [10] 10_fbo_ferias.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [10_fbo_ferias.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/10_fbo_ferias.sql
 
 -- INSERT/UPDATE de pedido de férias
@@ -721,7 +707,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- [11] 11_fbo_faltas.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [11_fbo_faltas.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/11_fbo_faltas.sql
 
 CREATE OR REPLACE FUNCTION fbo_rh_faltas(
@@ -776,7 +766,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- [12] 12_fbo_horario.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [12_fbo_horario.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/12_fbo_horario.sql
 
 CREATE OR REPLACE FUNCTION fbo_rh_horario(
@@ -841,7 +835,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- [13] 13_fbo_piquete.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [13_fbo_piquete.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/13_fbo_piquete.sql
 
 -- Gerar escala mensal de piquete aplicando as regras activas
@@ -875,6 +873,12 @@ BEGIN
 
     DELETE FROM tb_rh_piquete_escala
     WHERE gerado_auto = TRUE
+      AND confirmado = FALSE
+      AND ts_estado_fk = 1
+      AND NOT EXISTS (
+          SELECT 1 FROM tb_rh_piquete_ocorrencia 
+          WHERE tb_piquete_escala_fk = tb_rh_piquete_escala.pk
+      )
       AND EXTRACT(YEAR FROM data_inicio) = p_ano
       AND EXTRACT(MONTH FROM data_inicio) = p_mes;
 
@@ -888,6 +892,15 @@ BEGIN
 
     WHILE EXTRACT(MONTH FROM v_semana_inicio) = p_mes LOOP
         v_semana_fim := v_semana_inicio + INTERVAL '6 days';
+
+        -- Verificar se já existe escala (manual ou preservada) nesta semana
+        IF EXISTS (
+            SELECT 1 FROM tb_rh_piquete_escala 
+            WHERE data_inicio = v_semana_inicio AND data_fim = v_semana_fim
+        ) THEN
+            v_semana_inicio := v_semana_inicio + INTERVAL '7 days';
+            CONTINUE;
+        END IF;
 
         SELECT c.pk INTO v_user_fk
         FROM ts_client c
@@ -951,7 +964,8 @@ RETURNS TEXT AS $$
 BEGIN
     UPDATE tb_rh_piquete_escala
     SET confirmado     = TRUE,
-        ts_confirmacao = NOW()
+        ts_confirmacao = NOW(),
+        ts_estado_fk   = 3 -- Aprovado RH
     WHERE pk = p_pk AND tb_user_fk = p_user_fk;
 
     IF NOT FOUND THEN
@@ -1007,11 +1021,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- [14] 14_views.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [14_views.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/14_views.sql
--- Nota: usa DROP VIEW IF EXISTS ... CASCADE para garantir idempotência quando
--- o ficheiro consolidado é corrido numa BD que já tem versões mais recentes das views.
--- As versões definitivas (com filtro de perfis) são geradas nas secções [17] e [18].
+-- Idempotente: DROP ... CASCADE antes de cada CREATE VIEW
 
 DROP VIEW IF EXISTS vbl_rh_colaborador         CASCADE;
 DROP VIEW IF EXISTS vbl_rh_ponto               CASCADE;
@@ -1023,7 +1039,8 @@ DROP VIEW IF EXISTS vbl_rh_horario             CASCADE;
 DROP VIEW IF EXISTS vbl_rh_piquete             CASCADE;
 DROP VIEW IF EXISTS vbl_rh_piquete_ocorrencias CASCADE;
 
--- Vista de colaboradores com saldo e horário activo (versão intermédia — será substituída em [17]/[18])
+
+-- Vista de colaboradores com saldo e horário activo
 CREATE VIEW vbl_rh_colaborador AS
 SELECT
     c.pk,
@@ -1052,7 +1069,7 @@ LEFT JOIN tt_rh_tipo_jornada j
     ON j.pk = h.tt_jornada_fk;
 
 
--- Vista de registos de ponto com informação do utilizador
+-- Vista de registos de ponto
 CREATE VIEW vbl_rh_ponto AS
 SELECT
     p.pk,
@@ -1068,10 +1085,15 @@ SELECT
     p.precisao_metros,
     p.fonte,
     p.notas,
+    p.fora_local,
+    p.distancia_metros,
+    l.nome                          AS local_nome,
     CASE WHEN p.latitude IS NOT NULL THEN TRUE ELSE FALSE END AS tem_gps
 FROM tb_rh_ponto p
 JOIN ts_client c          ON c.pk = p.tb_user_fk
-JOIN tt_rh_ponto_evento e ON e.pk = p.tt_evento_fk;
+JOIN tt_rh_ponto_evento e ON e.pk = p.tt_evento_fk
+LEFT JOIN ts_rh_colaborador col ON col.pk = p.tb_user_fk
+LEFT JOIN ts_rh_local l         ON l.pk = col.ts_rh_local_fk;
 
 
 -- Vista de mapas mensais
@@ -1117,7 +1139,7 @@ JOIN tt_rh_tipo_ferias t      ON t.pk = f.tt_tipo_fk
 JOIN tt_rh_estado_workflow es ON es.pk = f.ts_estado_fk;
 
 
--- Vista de saldo de férias (total - gozados - pendentes)
+-- Vista de saldo de férias
 CREATE VIEW vbl_rh_saldo_ferias AS
 SELECT
     c.pk                            AS tb_user_fk,
@@ -1238,7 +1260,249 @@ JOIN tt_rh_piquete_ocorrencia t   ON t.pk = o.tt_tipo_fk
 LEFT JOIN ts_client cb            ON cb.pk = o.created_by;
 
 
--- [17] 17_ts_rh_colaborador.sql
+-- ═════════════════════════════════════════════════════════════════════════
+-- [15_verify.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
+-- backend/app/sql/rh/15_verify.sql
+-- Executar após toda a BD estar criada — verifica integridade do esquema
+
+-- ─── 1. Todas as tabelas existem (deve retornar 18) ──────────────────────────
+SELECT
+    CASE WHEN COUNT(*) = 18 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/18)' END AS tabelas_check,
+    COUNT(*) AS total
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+    -- Lookups (6)
+    'tt_rh_tipo_jornada', 'tt_rh_ponto_evento', 'tt_rh_tipo_ferias',
+    'tt_rh_tipo_falta', 'tt_rh_estado_workflow', 'tt_rh_piquete_ocorrencia',
+    -- Config (4)
+    'ts_rh_config', 'ts_rh_horario', 'ts_feriados', 'ts_rh_colaborador',
+    -- Piquete regras (1)
+    'ts_rh_piquete_regras',
+    -- Transaccionais (7)
+    'tb_rh_ponto', 'tb_rh_ponto_mensal', 'tb_rh_ferias',
+    'tb_rh_faltas', 'tb_rh_workflow', 'tb_rh_piquete_escala',
+    'tb_rh_piquete_ocorrencia'
+  );
+
+-- ─── 2. Todas as views existem (deve retornar 16) ───────────────────────────────────
+SELECT
+    CASE WHEN COUNT(*) = 16 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/16)' END AS views_check,
+    COUNT(*) AS total
+FROM information_schema.views
+WHERE table_name LIKE 'vbl_rh_%';
+
+-- ─── 3. Todas as funções existem (deve retornar >= 15) ───────────────────────
+SELECT
+    CASE WHEN COUNT(*) >= 15 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/15)' END AS funcoes_check,
+    COUNT(*) AS total
+FROM information_schema.routines
+WHERE routine_name IN (
+    -- Utilitárias (3)
+    'fn_rh_dias_uteis',
+    'fn_rh_calcular_ferias_ano',
+    'fn_rh_col_updated_at',
+    -- Ponto (3)
+    'fbo_rh_ponto_evento', 'fbo_rh_ponto_submeter', 'fbo_rh_ponto_corrigir',
+    -- Workflow (1)
+    'fbo_rh_workflow',
+    -- Férias + Config (3)
+    'fbo_rh_ferias', 'fbo_rh_config_upsert', 'fbo_rh_config_ano_init',
+    -- Faltas + Horário (2)
+    'fbo_rh_faltas', 'fbo_rh_horario',
+    -- Piquete (3)
+    'fbo_rh_piquete_generate', 'fbo_rh_piquete_confirmar', 'fbo_rh_ocorrencia',
+    -- Colaborador (1)
+    'fbo_rh_colaborador'
+);
+
+-- ─── 4. Seed data ─────────────────────────────────────────────────────────────
+SELECT 'Feriados 2026' AS check_name,
+    CASE WHEN COUNT(*) = 13 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/13)' END AS resultado
+FROM ts_feriados WHERE EXTRACT(YEAR FROM data) = 2026;
+
+SELECT 'Regras piquete' AS check_name,
+    CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
+FROM ts_rh_piquete_regras;
+
+SELECT 'Lookups estado workflow' AS check_name,
+    CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
+FROM tt_rh_estado_workflow;
+
+SELECT 'Lookups tipo jornada' AS check_name,
+    CASE WHEN COUNT(*) = 2 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/2)' END AS resultado
+FROM tt_rh_tipo_jornada;
+
+SELECT 'Lookups tipo falta' AS check_name,
+    CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
+FROM tt_rh_tipo_falta;
+
+-- ─── 5. Funções utilitárias ───────────────────────────────────────────────────
+SELECT 'fn_rh_dias_uteis semana normal' AS check_name,
+    CASE WHEN fn_rh_dias_uteis('2026-05-04', '2026-05-08') = 5 THEN 'OK'
+         ELSE 'FALHOU (esperado 5, obtido ' || fn_rh_dias_uteis('2026-05-04', '2026-05-08') || ')' END AS resultado;
+
+SELECT 'fn_rh_dias_uteis com feriado (1 Mai)' AS check_name,
+    CASE WHEN fn_rh_dias_uteis('2026-04-27', '2026-05-01') = 4 THEN 'OK'
+         ELSE 'FALHOU (esperado 4, obtido ' || fn_rh_dias_uteis('2026-04-27', '2026-05-01') || ')' END AS resultado;
+
+SELECT 'fn_rh_dias_uteis fim-de-semana' AS check_name,
+    CASE WHEN fn_rh_dias_uteis('2026-05-09', '2026-05-10') = 0 THEN 'OK'
+         ELSE 'FALHOU (esperado 0)' END AS resultado;
+
+SELECT 'fn_rh_calcular_ferias_ano (sem perfil → 22)' AS check_name,
+    CASE WHEN fn_rh_calcular_ferias_ano(0, 2026) = 22 THEN 'OK'
+         ELSE 'FALHOU (esperado 22, obtido ' || fn_rh_calcular_ferias_ano(0, 2026) || ')' END AS resultado;
+
+-- ─── 6. Filtro de perfis aplicado nas views ───────────────────────────────────
+SELECT 'Filtro perfis vbl_rh_colaborador' AS check_name,
+    CASE WHEN (
+        SELECT view_definition FROM information_schema.views
+        WHERE table_name = 'vbl_rh_colaborador' AND table_schema = 'public'
+    ) ILIKE '%ts_profile%' THEN 'OK' ELSE 'FALHOU (filtro ts_profile em falta)' END AS resultado;
+
+-- ─── 7. Permissões RH na ts_interface ────────────────────────────────────────
+SELECT 'Permissões RH' AS check_name,
+    CASE WHEN COUNT(*) = 5 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/5 — correr 16_permissions.sql)' END AS resultado
+FROM ts_interface
+WHERE value LIKE 'rh.%';
+
+-- ─── 8. Smoke test: views executam sem erros ─────────────────────────────────
+SELECT 'vbl_rh_colaborador'          AS view_name, COUNT(*) AS rows FROM vbl_rh_colaborador
+UNION ALL
+SELECT 'vbl_rh_ponto',                COUNT(*) FROM vbl_rh_ponto
+UNION ALL
+SELECT 'vbl_rh_ponto_mensal',         COUNT(*) FROM vbl_rh_ponto_mensal
+UNION ALL
+SELECT 'vbl_rh_ferias',               COUNT(*) FROM vbl_rh_ferias
+UNION ALL
+SELECT 'vbl_rh_saldo_ferias',         COUNT(*) FROM vbl_rh_saldo_ferias
+UNION ALL
+SELECT 'vbl_rh_faltas',               COUNT(*) FROM vbl_rh_faltas
+UNION ALL
+SELECT 'vbl_rh_horario',              COUNT(*) FROM vbl_rh_horario
+UNION ALL
+SELECT 'vbl_rh_piquete',              COUNT(*) FROM vbl_rh_piquete
+UNION ALL
+SELECT 'vbl_rh_piquete_ocorrencias',  COUNT(*) FROM vbl_rh_piquete_ocorrencias
+UNION ALL
+-- Lookups
+SELECT 'vbl_rh_tipo_jornada',         COUNT(*) FROM vbl_rh_tipo_jornada
+UNION ALL
+SELECT 'vbl_rh_ponto_evento',         COUNT(*) FROM vbl_rh_ponto_evento
+UNION ALL
+SELECT 'vbl_rh_tipo_ferias',          COUNT(*) FROM vbl_rh_tipo_ferias
+UNION ALL
+SELECT 'vbl_rh_tipo_falta',           COUNT(*) FROM vbl_rh_tipo_falta
+UNION ALL
+SELECT 'vbl_rh_estado_workflow',      COUNT(*) FROM vbl_rh_estado_workflow
+UNION ALL
+SELECT 'vbl_rh_tipo_ocorrencia',      COUNT(*) FROM vbl_rh_tipo_ocorrencia
+UNION ALL
+-- Config
+SELECT 'vbl_rh_config',               COUNT(*) FROM vbl_rh_config;
+
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [16_permissions.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
+-- backend/app/sql/rh/16_permissions.sql
+-- Permissões do módulo RH Pessoal → ts_interface
+-- Executar APÓS os ficheiros 01-15 (BD Foundation)
+--
+-- Hierarquia:
+--   rh.view
+--     └── rh.pessoal.view
+--           └── rh.edit
+--               └── rh.validate
+--                     └── rh.admin
+
+-- ─── 1. Inserir permissões (sem requires ainda) ─────────────────────────────
+INSERT INTO ts_interface (pk, value, category, label, description, icon, is_critical, is_sensitive, sort_order)
+VALUES
+    (fs_nextcode(), 'rh.view',
+        'Recursos Humanos',
+        'Ver RH',
+        'Aceder ao módulo Recursos Humanos e consultar dados.',
+        'Badge',
+        false, false, 1500),
+
+    (fs_nextcode(), 'rh.pessoal.view',
+        'Recursos Humanos',
+        'Ver Gestão Pessoal',
+        'Consultar ponto, férias, faltas, horários e piquete.',
+        'ManageAccounts',
+        false, false, 1510),
+
+    (fs_nextcode(), 'rh.edit',
+        'Recursos Humanos',
+        'Editar Gestão Pessoal',
+        'Registar ponto diário, submeter pedidos de férias e registar faltas.',
+        'EditCalendar',
+        false, false, 1520),
+
+    (fs_nextcode(), 'rh.validate',
+        'Recursos Humanos',
+        'Validar RH (Superior)',
+        'Validar pedidos de ponto, férias e faltas como superior hierárquico.',
+        'HowToReg',
+        false, true, 1530),
+
+    (fs_nextcode(), 'rh.admin',
+        'Recursos Humanos',
+        'Admin RH',
+        'Aprovação final, correcção de ponto, geração de escalas de piquete e configuração de saldos.',
+        'AdminPanelSettings',
+        false, true, 1540)
+
+ON CONFLICT (value) DO NOTHING;
+
+
+-- ─── 2. Definir cascata de dependências (requires) ──────────────────────────
+-- rh.pessoal.view requer rh.view
+UPDATE ts_interface
+SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.view')
+WHERE value = 'rh.pessoal.view';
+
+-- rh.edit requer rh.pessoal.view
+UPDATE ts_interface
+SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.pessoal.view')
+WHERE value = 'rh.edit';
+
+-- rh.validate requer rh.view
+UPDATE ts_interface
+SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.view')
+WHERE value = 'rh.validate';
+
+-- rh.admin requer rh.validate
+UPDATE ts_interface
+SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.validate')
+WHERE value = 'rh.admin';
+
+
+-- ─── 3. Verificação ─────────────────────────────────────────────────────────
+SELECT
+    pk,
+    value,
+    label,
+    sort_order,
+    CASE WHEN requires IS NOT NULL AND array_length(requires, 1) > 0
+         THEN (SELECT value FROM ts_interface r WHERE r.pk = requires[1])
+         ELSE '—'
+    END AS requer
+FROM ts_interface
+WHERE value LIKE 'rh.%'
+ORDER BY sort_order;
+-- Deve retornar 5 linhas com a cascata correcta
+
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [17_ts_rh_colaborador.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/17_ts_rh_colaborador.sql
 -- Tabela de extensão RH — perfil de colaborador (herança 1-to-1 de ts_client)
 --
@@ -1616,7 +1880,11 @@ SELECT 'fn_rh_calcular_ferias_ano' AS check_name,
     CASE WHEN fn_rh_calcular_ferias_ano(0, EXTRACT(YEAR FROM NOW())::INT) = 22
     THEN 'OK (user sem perfil → 22 dias)' ELSE 'FALHOU' END AS resultado;
 
--- [18] 18_filtro_perfis_rh.sql
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [18_filtro_perfis_rh.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/18_filtro_perfis_rh.sql
 -- Restringe toda a gestão RH Pessoal a utilizadores internos:
 --   ts_profile IN (0, 1, 6) — Super Admin, AINTAR, perfil 6
@@ -1641,6 +1909,8 @@ SELECT
     col.superior_fk,
     sup.name                              AS superior_nome,
     col.elegivel_piquete,
+    col.ts_rh_local_fk,
+    l.nome                                AS local_predefinido_nome,
     col.notas                             AS notas_rh,
     -- Saldo férias do ano corrente
     COALESCE(cfg.dias_ferias_total,
@@ -1672,6 +1942,8 @@ LEFT JOIN ts_rh_colaborador col
     ON col.pk = c.pk
 LEFT JOIN ts_client sup
     ON sup.pk = col.superior_fk
+LEFT JOIN ts_rh_local l
+    ON l.pk = col.ts_rh_local_fk
 LEFT JOIN ts_rh_config cfg
     ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
 LEFT JOIN ts_rh_horario h
@@ -1683,7 +1955,8 @@ WHERE c.ts_profile IN (0, 1, 6);
 
 
 -- ─── 2. vbl_rh_saldo_ferias — idem ──────────────────────────────────────────
-CREATE OR REPLACE VIEW vbl_rh_saldo_ferias AS
+DROP VIEW IF EXISTS vbl_rh_saldo_ferias CASCADE;
+CREATE VIEW vbl_rh_saldo_ferias AS
 SELECT
     c.pk                            AS tb_user_fk,
     c.name                          AS colaborador_nome,
@@ -1963,269 +2236,46 @@ SELECT 'Colaboradores elegíveis (ts_profile IN 0,1,6)' AS info,
 FROM ts_client
 WHERE ts_profile IN (0, 1, 6) AND COALESCE(active, 1) = 1;
 
--- [15] 15_verify.sql
--- backend/app/sql/rh/15_verify.sql
--- Executar após toda a BD estar criada — verifica integridade do esquema
 
--- ─── 1. Todas as tabelas existem (deve retornar 18) ──────────────────────────
-SELECT
-    CASE WHEN COUNT(*) = 18 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/18)' END AS tabelas_check,
-    COUNT(*) AS total
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_name IN (
-    -- Lookups (6)
-    'tt_rh_tipo_jornada', 'tt_rh_ponto_evento', 'tt_rh_tipo_ferias',
-    'tt_rh_tipo_falta', 'tt_rh_estado_workflow', 'tt_rh_piquete_ocorrencia',
-    -- Config (4)
-    'ts_rh_config', 'ts_rh_horario', 'ts_feriados', 'ts_rh_colaborador',
-    -- Piquete regras (1)
-    'ts_rh_piquete_regras',
-    -- Transaccionais (7)
-    'tb_rh_ponto', 'tb_rh_ponto_mensal', 'tb_rh_ferias',
-    'tb_rh_faltas', 'tb_rh_workflow', 'tb_rh_piquete_escala',
-    'tb_rh_piquete_ocorrencia'
-  );
+-- ═════════════════════════════════════════════════════════════════════════
+-- [19_vbl_lookups_config.sql]
+-- ═════════════════════════════════════════════════════════════════════════
 
--- ─── 2. Todas as views existem (deve retornar 16) ────────────────────────────
-SELECT
-    CASE WHEN COUNT(*) = 16 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/16)' END AS views_check,
-    COUNT(*) AS total
-FROM information_schema.views
-WHERE table_name LIKE 'vbl_rh_%';
-
--- ─── 3. Todas as funções existem (deve retornar >= 15) ───────────────────────
-SELECT
-    CASE WHEN COUNT(*) >= 15 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/15)' END AS funcoes_check,
-    COUNT(*) AS total
-FROM information_schema.routines
-WHERE routine_name IN (
-    -- Utilitárias (3)
-    'fn_rh_dias_uteis',
-    'fn_rh_calcular_ferias_ano',
-    'fn_rh_col_updated_at',
-    -- Ponto (3)
-    'fbo_rh_ponto_evento', 'fbo_rh_ponto_submeter', 'fbo_rh_ponto_corrigir',
-    -- Workflow (1)
-    'fbo_rh_workflow',
-    -- Férias + Config (3)
-    'fbo_rh_ferias', 'fbo_rh_config_upsert', 'fbo_rh_config_ano_init',
-    -- Faltas + Horário (2)
-    'fbo_rh_faltas', 'fbo_rh_horario',
-    -- Piquete (3)
-    'fbo_rh_piquete_generate', 'fbo_rh_piquete_confirmar', 'fbo_rh_ocorrencia',
-    -- Colaborador (1)
-    'fbo_rh_colaborador'
-);
-
--- ─── 4. Seed data ─────────────────────────────────────────────────────────────
-SELECT 'Feriados 2026' AS check_name,
-    CASE WHEN COUNT(*) = 13 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/13)' END AS resultado
-FROM ts_feriados WHERE EXTRACT(YEAR FROM data) = 2026;
-
-SELECT 'Regras piquete' AS check_name,
-    CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
-FROM ts_rh_piquete_regras;
-
-SELECT 'Lookups estado workflow' AS check_name,
-    CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
-FROM tt_rh_estado_workflow;
-
-SELECT 'Lookups tipo jornada' AS check_name,
-    CASE WHEN COUNT(*) = 2 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/2)' END AS resultado
-FROM tt_rh_tipo_jornada;
-
-SELECT 'Lookups tipo falta' AS check_name,
-    CASE WHEN COUNT(*) = 4 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/4)' END AS resultado
-FROM tt_rh_tipo_falta;
-
--- ─── 5. Funções utilitárias ───────────────────────────────────────────────────
-SELECT 'fn_rh_dias_uteis semana normal' AS check_name,
-    CASE WHEN fn_rh_dias_uteis('2026-05-04', '2026-05-08') = 5 THEN 'OK'
-         ELSE 'FALHOU (esperado 5, obtido ' || fn_rh_dias_uteis('2026-05-04', '2026-05-08') || ')' END AS resultado;
-
-SELECT 'fn_rh_dias_uteis com feriado (1 Mai)' AS check_name,
-    CASE WHEN fn_rh_dias_uteis('2026-04-27', '2026-05-01') = 4 THEN 'OK'
-         ELSE 'FALHOU (esperado 4, obtido ' || fn_rh_dias_uteis('2026-04-27', '2026-05-01') || ')' END AS resultado;
-
-SELECT 'fn_rh_dias_uteis fim-de-semana' AS check_name,
-    CASE WHEN fn_rh_dias_uteis('2026-05-09', '2026-05-10') = 0 THEN 'OK'
-         ELSE 'FALHOU (esperado 0)' END AS resultado;
-
-SELECT 'fn_rh_calcular_ferias_ano (sem perfil → 22)' AS check_name,
-    CASE WHEN fn_rh_calcular_ferias_ano(0, 2026) = 22 THEN 'OK'
-         ELSE 'FALHOU (esperado 22, obtido ' || fn_rh_calcular_ferias_ano(0, 2026) || ')' END AS resultado;
-
--- ─── 6. Filtro de perfis aplicado nas views ───────────────────────────────────
-SELECT 'Filtro perfis vbl_rh_colaborador' AS check_name,
-    CASE WHEN (
-        SELECT view_definition FROM information_schema.views
-        WHERE table_name = 'vbl_rh_colaborador' AND table_schema = 'public'
-    ) ILIKE '%ts_profile%' THEN 'OK' ELSE 'FALHOU (filtro ts_profile em falta)' END AS resultado;
-
--- ─── 7. Permissões RH na ts_interface ────────────────────────────────────────
-SELECT 'Permissões RH' AS check_name,
-    CASE WHEN COUNT(*) = 5 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/5 — correr 16_permissions.sql)' END AS resultado
-FROM ts_interface
-WHERE value LIKE 'rh.%';
-
--- ─── 8. Smoke test: views executam sem erros ─────────────────────────────────
-SELECT 'vbl_rh_colaborador'          AS view_name, COUNT(*) AS rows FROM vbl_rh_colaborador
-UNION ALL
-SELECT 'vbl_rh_ponto',                COUNT(*) FROM vbl_rh_ponto
-UNION ALL
-SELECT 'vbl_rh_ponto_mensal',         COUNT(*) FROM vbl_rh_ponto_mensal
-UNION ALL
-SELECT 'vbl_rh_ferias',               COUNT(*) FROM vbl_rh_ferias
-UNION ALL
-SELECT 'vbl_rh_saldo_ferias',         COUNT(*) FROM vbl_rh_saldo_ferias
-UNION ALL
-SELECT 'vbl_rh_faltas',               COUNT(*) FROM vbl_rh_faltas
-UNION ALL
-SELECT 'vbl_rh_horario',              COUNT(*) FROM vbl_rh_horario
-UNION ALL
-SELECT 'vbl_rh_piquete',              COUNT(*) FROM vbl_rh_piquete
-UNION ALL
-SELECT 'vbl_rh_piquete_ocorrencias',  COUNT(*) FROM vbl_rh_piquete_ocorrencias;
-
--- [16] 16_permissions.sql
--- backend/app/sql/rh/16_permissions.sql
--- Permissões do módulo RH Pessoal → ts_interface
--- Executar APÓS os ficheiros 01-15 (BD Foundation)
---
--- Hierarquia:
---   rh.view
---     └── rh.pessoal.view
---           └── rh.edit
---               └── rh.validate
---                     └── rh.admin
-
--- ─── 1. Inserir permissões (sem requires ainda) ─────────────────────────────
-INSERT INTO ts_interface (pk, value, category, label, description, icon, is_critical, is_sensitive, sort_order)
-VALUES
-    (fs_nextcode(), 'rh.view',
-        'Recursos Humanos',
-        'Ver RH',
-        'Aceder ao módulo Recursos Humanos e consultar dados.',
-        'Badge',
-        false, false, 1500),
-
-    (fs_nextcode(), 'rh.pessoal.view',
-        'Recursos Humanos',
-        'Ver Gestão Pessoal',
-        'Consultar ponto, férias, faltas, horários e piquete.',
-        'ManageAccounts',
-        false, false, 1510),
-
-    (fs_nextcode(), 'rh.edit',
-        'Recursos Humanos',
-        'Editar Gestão Pessoal',
-        'Registar ponto diário, submeter pedidos de férias e registar faltas.',
-        'EditCalendar',
-        false, false, 1520),
-
-    (fs_nextcode(), 'rh.validate',
-        'Recursos Humanos',
-        'Validar RH (Superior)',
-        'Validar pedidos de ponto, férias e faltas como superior hierárquico.',
-        'HowToReg',
-        false, true, 1530),
-
-    (fs_nextcode(), 'rh.admin',
-        'Recursos Humanos',
-        'Admin RH',
-        'Aprovação final, correcção de ponto, geração de escalas de piquete e configuração de saldos.',
-        'AdminPanelSettings',
-        false, true, 1540)
-
-ON CONFLICT (value) DO NOTHING;
-
-
--- ─── 2. Definir cascata de dependências (requires) ──────────────────────────
--- rh.pessoal.view requer rh.view
-UPDATE ts_interface
-SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.view')
-WHERE value = 'rh.pessoal.view';
-
--- rh.edit requer rh.pessoal.view
-UPDATE ts_interface
-SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.pessoal.view')
-WHERE value = 'rh.edit';
-
--- rh.validate requer rh.view
-UPDATE ts_interface
-SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.view')
-WHERE value = 'rh.validate';
-
--- rh.admin requer rh.validate
-UPDATE ts_interface
-SET requires = ARRAY(SELECT pk FROM ts_interface WHERE value = 'rh.validate')
-WHERE value = 'rh.admin';
-
-
--- ─── 3. Verificação ─────────────────────────────────────────────────────────
-SELECT
-    pk,
-    value,
-    label,
-    sort_order,
-    CASE WHEN requires IS NOT NULL AND array_length(requires, 1) > 0
-         THEN (SELECT value FROM ts_interface r WHERE r.pk = requires[1])
-         ELSE '—'
-    END AS requer
-FROM ts_interface
-WHERE value LIKE 'rh.%'
-ORDER BY sort_order;
--- Deve retornar 5 linhas com a cascata correcta
-
-
--- [19] 19_vbl_lookups_config.sql
 -- backend/app/sql/rh/19_vbl_lookups_config.sql
 -- Views de leitura para tabelas de lookup do módulo RH e para ts_rh_config.
--- Seguindo o padrão da aplicação: todas as interacções fazem-se por views (vbl_)
--- e funções (fbo_ / fn_), nunca directamente nas tabelas base.
+-- Idempotente: DROP ... CASCADE antes de cada CREATE VIEW
 
 -- ─── Lookups ─────────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_tipo_jornada AS
-    SELECT pk, descr
-    FROM tt_rh_tipo_jornada
-    ORDER BY pk;
+DROP VIEW IF EXISTS vbl_rh_tipo_jornada CASCADE;
+CREATE VIEW vbl_rh_tipo_jornada AS
+    SELECT pk, descr FROM tt_rh_tipo_jornada ORDER BY pk;
 
+DROP VIEW IF EXISTS vbl_rh_ponto_evento CASCADE;
+CREATE VIEW vbl_rh_ponto_evento AS
+    SELECT pk, descr, ordem FROM tt_rh_ponto_evento ORDER BY ordem;
 
-CREATE OR REPLACE VIEW vbl_rh_ponto_evento AS
-    SELECT pk, descr, ordem
-    FROM tt_rh_ponto_evento
-    ORDER BY ordem;
+DROP VIEW IF EXISTS vbl_rh_tipo_ferias CASCADE;
+CREATE VIEW vbl_rh_tipo_ferias AS
+    SELECT pk, descr, debita_saldo FROM tt_rh_tipo_ferias ORDER BY pk;
 
+DROP VIEW IF EXISTS vbl_rh_tipo_falta CASCADE;
+CREATE VIEW vbl_rh_tipo_falta AS
+    SELECT pk, descr, requer_justificativo FROM tt_rh_tipo_falta ORDER BY pk;
 
-CREATE OR REPLACE VIEW vbl_rh_tipo_ferias AS
-    SELECT pk, descr, debita_saldo
-    FROM tt_rh_tipo_ferias
-    ORDER BY pk;
+DROP VIEW IF EXISTS vbl_rh_estado_workflow CASCADE;
+CREATE VIEW vbl_rh_estado_workflow AS
+    SELECT pk, descr, cor FROM tt_rh_estado_workflow ORDER BY pk;
 
-
-CREATE OR REPLACE VIEW vbl_rh_tipo_falta AS
-    SELECT pk, descr, requer_justificativo
-    FROM tt_rh_tipo_falta
-    ORDER BY pk;
-
-
-CREATE OR REPLACE VIEW vbl_rh_estado_workflow AS
-    SELECT pk, descr, cor
-    FROM tt_rh_estado_workflow
-    ORDER BY pk;
-
-
-CREATE OR REPLACE VIEW vbl_rh_tipo_ocorrencia AS
-    SELECT pk, descr
-    FROM tt_rh_piquete_ocorrencia
-    ORDER BY pk;
+DROP VIEW IF EXISTS vbl_rh_tipo_ocorrencia CASCADE;
+CREATE VIEW vbl_rh_tipo_ocorrencia AS
+    SELECT pk, descr FROM tt_rh_piquete_ocorrencia ORDER BY pk;
 
 
 -- ─── Config anual de saldo ────────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_config AS
+DROP VIEW IF EXISTS vbl_rh_config CASCADE;
+CREATE VIEW vbl_rh_config AS
 SELECT
     cfg.pk,
     cfg.tb_user_fk,
@@ -2240,15 +2290,555 @@ JOIN ts_client c ON c.pk = cfg.tb_user_fk;
 
 -- ─── Verificação ─────────────────────────────────────────────────────────────
 SELECT
-    CASE WHEN COUNT(*) = 16 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/16)' END AS views_rh_check,
+    CASE WHEN COUNT(*) = 7 THEN 'OK' ELSE 'FALHOU (' || COUNT(*) || '/7)' END AS lookup_views_check,
     COUNT(*) AS total
 FROM information_schema.views
-WHERE table_name LIKE 'vbl_rh_%';
+WHERE table_name IN (
+    'vbl_rh_tipo_jornada',
+    'vbl_rh_ponto_evento',
+    'vbl_rh_tipo_ferias',
+    'vbl_rh_tipo_falta',
+    'vbl_rh_estado_workflow',
+    'vbl_rh_tipo_ocorrencia',
+    'vbl_rh_config'
+);
 
 
--- [21] 21_geofencing.sql
+-- ═════════════════════════════════════════════════════════════════════════
+-- [20_transitados.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
+-- backend/app/sql/rh/20_transitados.sql
+-- Implementa a transição de dias de férias não gozados para o ano seguinte.
+--
+-- Regra legal (Código do Trabalho, art. 237.º):
+--   Os dias não gozados podem transitar para o ano seguinte, mas devem ser
+--   gozados até 30 de Abril — e são os PRIMEIROS a ser consumidos.
+--
+-- Estratégia de implementação:
+--   1. ALTER TABLE ts_rh_config — adicionar dias_transitados e data_limite_transitados
+--   2. Actualizar fbo_rh_config_ano_init — calcular automaticamente o saldo transitado
+--   3. Actualizar fbo_rh_config_upsert — aceitar dias_transitados no upsert manual
+--   4. Actualizar fbo_rh_workflow — ao aprovar férias, debitar transitados primeiro
+--   5. Recrear vbl_rh_saldo_ferias — expor transitados e prazo
+--   6. Recrear vbl_rh_colaborador — incluir dias_transitados no perfil
+--   7. Smoke test
+
+
+-- ─── 1. Alterar ts_rh_config ─────────────────────────────────────────────────
+
+ALTER TABLE ts_rh_config
+    ADD COLUMN IF NOT EXISTS dias_transitados          INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS dias_transitados_gozados  INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS data_limite_transitados   DATE;
+
+COMMENT ON COLUMN ts_rh_config.dias_transitados
+    IS 'Dias de férias transitados do ano anterior (saldo remanescente)';
+COMMENT ON COLUMN ts_rh_config.dias_transitados_gozados
+    IS 'Dias transitados já gozados no ano corrente (debitados primeiro)';
+COMMENT ON COLUMN ts_rh_config.data_limite_transitados
+    IS 'Prazo legal para gozar os dias transitados (normalmente 30 Abr)';
+
+
+-- ─── 2. Actualizar fbo_rh_config_ano_init ────────────────────────────────────
+-- Calcula automaticamente o saldo transitado do ano anterior ao inicializar.
+
+CREATE OR REPLACE FUNCTION fbo_rh_config_ano_init(
+    p_user_fk   INTEGER,
+    p_ano       INTEGER,
+    p_force     BOOLEAN DEFAULT FALSE
+)
+RETURNS TEXT AS $$
+DECLARE
+    v_dias            INTEGER;
+    v_pk              INTEGER;
+    v_exists          INTEGER;
+    v_perfil          INTEGER;
+    v_prev_total      INTEGER := 0;
+    v_prev_gozados    INTEGER := 0;
+    v_prev_transitados INTEGER := 0;
+    v_prev_trans_goz  INTEGER := 0;
+    v_prev_pendentes  INTEGER := 0;
+    v_transitados     INTEGER := 0;
+    v_limite          DATE;
+BEGIN
+    -- Validar perfil
+    SELECT ts_profile INTO v_perfil FROM ts_client WHERE pk = p_user_fk;
+
+    IF v_perfil IS NULL THEN
+        RETURN '<error>Utilizador não encontrado: ' || p_user_fk || '</error>';
+    END IF;
+
+    IF v_perfil NOT IN (0, 1, 6) THEN
+        RETURN '<error>Perfil ' || v_perfil || ' não elegível para gestão RH</error>';
+    END IF;
+
+    -- Calcular dias para o novo ano
+    v_dias := fn_rh_calcular_ferias_ano(p_user_fk, p_ano);
+
+    -- ── Calcular saldo transitado do ano anterior ─────────────────────────────
+    SELECT
+        COALESCE(dias_ferias_total, 22),
+        COALESCE(dias_ferias_gozados, 0),
+        COALESCE(dias_transitados, 0),
+        COALESCE(dias_transitados_gozados, 0)
+    INTO
+        v_prev_total, v_prev_gozados, v_prev_transitados, v_prev_trans_goz
+    FROM ts_rh_config
+    WHERE tb_user_fk = p_user_fk AND ano = p_ano - 1;
+
+    IF v_prev_total IS NOT NULL THEN
+        -- Dias pendentes (aprovados mas ainda não gozados) do ano anterior
+        SELECT COALESCE(SUM(dias_uteis), 0)
+        INTO v_prev_pendentes
+        FROM tb_rh_ferias
+        WHERE tb_user_fk = p_user_fk
+          AND EXTRACT(YEAR FROM data_inicio) = p_ano - 1
+          AND ts_estado_fk = 3   -- Aprovado
+          AND tt_tipo_fk = 1     -- Férias normais (debita saldo)
+          AND data_inicio > NOW()::DATE;  -- Ainda futuras
+
+        -- Saldo remanescente = (total_ano_ant + transitados_ant) - gozados - transitados_gozados - pendentes
+        v_transitados := GREATEST(
+            (v_prev_total + v_prev_transitados)
+            - v_prev_gozados
+            - v_prev_trans_goz
+            - v_prev_pendentes,
+            0
+        );
+
+        -- Prazo legal: 30 de Abril do novo ano
+        IF v_transitados > 0 THEN
+            v_limite := make_date(p_ano, 4, 30);
+        END IF;
+    END IF;
+
+    -- ── INSERT ou UPDATE ──────────────────────────────────────────────────────
+    SELECT pk INTO v_exists
+    FROM ts_rh_config
+    WHERE tb_user_fk = p_user_fk AND ano = p_ano;
+
+    IF v_exists IS NOT NULL THEN
+        IF NOT p_force THEN
+            RETURN '<error>Configuração já existe para ' || p_user_fk || '/' || p_ano || '</error>';
+        END IF;
+        UPDATE ts_rh_config
+        SET dias_ferias_total          = v_dias,
+            dias_transitados           = v_transitados,
+            dias_transitados_gozados   = 0,
+            data_limite_transitados    = v_limite
+        WHERE pk = v_exists;
+        RETURN '<sucess>|pk=' || v_exists
+            || '|dias=' || v_dias
+            || '|transitados=' || v_transitados;
+    END IF;
+
+    v_pk := fs_nextcode();
+    INSERT INTO ts_rh_config (
+        pk, tb_user_fk, ano,
+        dias_ferias_total, dias_ferias_gozados,
+        dias_transitados, dias_transitados_gozados,
+        data_limite_transitados
+    ) VALUES (
+        v_pk, p_user_fk, p_ano,
+        v_dias, 0,
+        v_transitados, 0,
+        v_limite
+    );
+
+    RETURN '<sucess>|pk=' || v_pk
+        || '|dias=' || v_dias
+        || '|transitados=' || v_transitados;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ─── 3. Actualizar fbo_rh_config_upsert ──────────────────────────────────────
+-- Permite editar manualmente os dias transitados (e o prazo) pelo Admin RH.
+
+CREATE OR REPLACE FUNCTION fbo_rh_config_upsert(
+    p_user_fk               INTEGER,
+    p_ano                   INTEGER,
+    p_dias_total            INTEGER,
+    p_notas                 TEXT    DEFAULT NULL,
+    p_dias_transitados      INTEGER DEFAULT NULL,
+    p_data_limite           DATE    DEFAULT NULL
+)
+RETURNS TEXT AS $$
+DECLARE
+    v_pk     INTEGER;
+    v_exists BOOLEAN;
+BEGIN
+    SELECT EXISTS(
+        SELECT 1 FROM ts_rh_config WHERE tb_user_fk = p_user_fk AND ano = p_ano
+    ) INTO v_exists;
+
+    IF v_exists THEN
+        UPDATE ts_rh_config SET
+            dias_ferias_total        = p_dias_total,
+            notas                    = COALESCE(p_notas, notas),
+            dias_transitados         = COALESCE(p_dias_transitados, dias_transitados),
+            data_limite_transitados  = COALESCE(p_data_limite, data_limite_transitados)
+        WHERE tb_user_fk = p_user_fk AND ano = p_ano;
+
+        SELECT pk INTO v_pk FROM ts_rh_config WHERE tb_user_fk = p_user_fk AND ano = p_ano;
+        RETURN '<sucess>|pk=' || v_pk;
+    ELSE
+        v_pk := fs_nextcode();
+        INSERT INTO ts_rh_config (
+            pk, tb_user_fk, ano, dias_ferias_total, notas,
+            dias_transitados, data_limite_transitados
+        ) VALUES (
+            v_pk, p_user_fk, p_ano, p_dias_total, p_notas,
+            COALESCE(p_dias_transitados, 0), p_data_limite
+        );
+        RETURN '<sucess>|pk=' || v_pk;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ─── 4. Actualizar fbo_rh_workflow ───────────────────────────────────────────
+-- Ao aprovar férias (step 2, estado 3), debita transitados PRIMEIRO,
+-- e só depois debita do saldo do ano corrente.
+
+CREATE OR REPLACE FUNCTION fbo_rh_workflow(
+    p_tipo_ref      VARCHAR,
+    p_ref_pk        INTEGER,
+    p_step          INTEGER,
+    p_user_fk       INTEGER,
+    p_ts_estado_fk  INTEGER,
+    p_notas         TEXT DEFAULT NULL
+)
+RETURNS TEXT AS $$
+DECLARE
+    v_pk                  INTEGER;
+    v_estado_atual        INTEGER;
+    v_user_fk_ref         INTEGER;
+    v_tipo_ferias         INTEGER;
+    v_dias_uteis          INTEGER;
+    v_debita              BOOLEAN;
+    v_ano_ferias          INTEGER;
+    -- Campos de transição
+    v_trans_disp          INTEGER := 0;   -- transitados disponíveis
+    v_debitar_trans       INTEGER := 0;   -- a debitar dos transitados
+    v_debitar_corrente    INTEGER := 0;   -- a debitar do saldo do ano
+BEGIN
+    IF p_tipo_ref = 'ponto' THEN
+        SELECT ts_estado_fk, tb_user_fk
+        INTO v_estado_atual, v_user_fk_ref
+        FROM tb_rh_ponto_mensal WHERE pk = p_ref_pk;
+    ELSIF p_tipo_ref = 'ferias' THEN
+        SELECT ts_estado_fk, tb_user_fk
+        INTO v_estado_atual, v_user_fk_ref
+        FROM tb_rh_ferias WHERE pk = p_ref_pk;
+    ELSIF p_tipo_ref = 'faltas' THEN
+        SELECT ts_estado_fk, tb_user_fk
+        INTO v_estado_atual, v_user_fk_ref
+        FROM tb_rh_faltas WHERE pk = p_ref_pk;
+    ELSE
+        RETURN '<error>Tipo de referência inválido: ' || p_tipo_ref || '</error>';
+    END IF;
+
+    IF v_user_fk_ref IS NULL THEN
+        RETURN '<error>Registo não encontrado: ' || p_ref_pk || '</error>';
+    END IF;
+
+    IF p_ts_estado_fk NOT IN (2, 3, 4) THEN
+        RETURN '<error>Estado inválido para workflow</error>';
+    END IF;
+    IF p_step = 1 AND v_estado_atual != 1 THEN
+        RETURN '<error>Superior só pode actuar em estado Pendente</error>';
+    END IF;
+    IF p_step = 2 AND v_estado_atual NOT IN (1, 2) THEN
+        RETURN '<error>Admin RH só pode actuar em estado Pendente ou Validado</error>';
+    END IF;
+
+    -- ── Actualizar estado ─────────────────────────────────────────────────────
+    IF p_tipo_ref = 'ponto' THEN
+        UPDATE tb_rh_ponto_mensal SET ts_estado_fk = p_ts_estado_fk WHERE pk = p_ref_pk;
+
+    ELSIF p_tipo_ref = 'ferias' THEN
+        UPDATE tb_rh_ferias SET ts_estado_fk = p_ts_estado_fk WHERE pk = p_ref_pk;
+
+        -- Debitar saldo apenas na aprovação final (step 2, estado Aprovado)
+        IF p_step = 2 AND p_ts_estado_fk = 3 THEN
+            SELECT tt_tipo_fk, dias_uteis,
+                   EXTRACT(YEAR FROM data_inicio)::INT
+            INTO   v_tipo_ferias, v_dias_uteis, v_ano_ferias
+            FROM tb_rh_ferias WHERE pk = p_ref_pk;
+
+            SELECT debita_saldo INTO v_debita
+            FROM tt_rh_tipo_ferias WHERE pk = v_tipo_ferias;
+
+            IF v_debita THEN
+                -- ── Regra: debitar transitados PRIMEIRO ──────────────────────
+                SELECT
+                    GREATEST(
+                        COALESCE(dias_transitados, 0) - COALESCE(dias_transitados_gozados, 0),
+                        0
+                    )
+                INTO v_trans_disp
+                FROM ts_rh_config
+                WHERE tb_user_fk = v_user_fk_ref
+                  AND ano = v_ano_ferias;
+
+                v_debitar_trans    := LEAST(v_trans_disp, v_dias_uteis);
+                v_debitar_corrente := v_dias_uteis - v_debitar_trans;
+
+                UPDATE ts_rh_config SET
+                    dias_transitados_gozados = dias_transitados_gozados + v_debitar_trans,
+                    dias_ferias_gozados      = dias_ferias_gozados + v_debitar_corrente
+                WHERE tb_user_fk = v_user_fk_ref
+                  AND ano = v_ano_ferias;
+            END IF;
+        END IF;
+
+        -- Se rejeitado (estado 4), reverter débito se estava aprovado
+        IF p_ts_estado_fk = 4 AND v_estado_atual = 3 THEN
+            SELECT tt_tipo_fk, dias_uteis,
+                   EXTRACT(YEAR FROM data_inicio)::INT
+            INTO   v_tipo_ferias, v_dias_uteis, v_ano_ferias
+            FROM tb_rh_ferias WHERE pk = p_ref_pk;
+
+            SELECT debita_saldo INTO v_debita
+            FROM tt_rh_tipo_ferias WHERE pk = v_tipo_ferias;
+
+            IF v_debita THEN
+                -- Reverter: primeiro reverter gozados correntes, depois transitados
+                SELECT
+                    COALESCE(dias_transitados_gozados, 0),
+                    COALESCE(dias_ferias_gozados, 0)
+                INTO v_debitar_trans, v_debitar_corrente
+                FROM ts_rh_config
+                WHERE tb_user_fk = v_user_fk_ref AND ano = v_ano_ferias;
+
+                -- Calcular quanto foi debitado de cada fonte (re-derivar)
+                -- Simplificação: reverter proporcional (ou registar na tb_rh_workflow)
+                -- Neste caso revertemos: primeiro correntes, depois transitados
+                v_debitar_corrente := LEAST(v_debitar_corrente, v_dias_uteis);
+                v_debitar_trans    := v_dias_uteis - v_debitar_corrente;
+
+                UPDATE ts_rh_config SET
+                    dias_ferias_gozados      = GREATEST(dias_ferias_gozados - v_debitar_corrente, 0),
+                    dias_transitados_gozados = GREATEST(dias_transitados_gozados - v_debitar_trans, 0)
+                WHERE tb_user_fk = v_user_fk_ref AND ano = v_ano_ferias;
+            END IF;
+        END IF;
+
+    ELSIF p_tipo_ref = 'faltas' THEN
+        UPDATE tb_rh_faltas SET ts_estado_fk = p_ts_estado_fk WHERE pk = p_ref_pk;
+    END IF;
+
+    -- ── Registar no histórico de workflow ─────────────────────────────────────
+    v_pk := fs_nextcode();
+    INSERT INTO tb_rh_workflow (pk, tipo_ref, ref_pk, step, tb_user_fk, ts_estado_fk, notas)
+    VALUES (v_pk, p_tipo_ref, p_ref_pk, p_step, p_user_fk, p_ts_estado_fk, p_notas);
+
+    RETURN '<sucess>|pk=' || v_pk
+        || '|trans_debitados=' || v_debitar_trans
+        || '|corrente_debitado=' || v_debitar_corrente;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ─── 5. Recrear vbl_rh_saldo_ferias ──────────────────────────────────────────
+-- Expõe o saldo completo: dias_transitados + dias_ano + prazo + disponíveis.
+
+DROP VIEW IF EXISTS vbl_rh_saldo_ferias CASCADE;
+CREATE VIEW vbl_rh_saldo_ferias AS
+SELECT
+    c.pk                               AS tb_user_fk,
+    c.name                             AS colaborador_nome,
+    EXTRACT(YEAR FROM NOW())::INT      AS ano,
+
+    -- Saldo do ano corrente
+    COALESCE(cfg.dias_ferias_total,
+        fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+        22)                            AS dias_ano_corrente,
+
+    -- Saldo transitado do ano anterior
+    COALESCE(cfg.dias_transitados, 0)  AS dias_transitados,
+    COALESCE(cfg.dias_transitados_gozados, 0) AS dias_transitados_gozados,
+    cfg.data_limite_transitados,
+
+    -- Transitados ainda disponíveis
+    GREATEST(
+        COALESCE(cfg.dias_transitados, 0)
+        - COALESCE(cfg.dias_transitados_gozados, 0),
+        0
+    )                                  AS dias_transitados_disponiveis,
+
+    -- Total = ano corrente + transitados
+    COALESCE(cfg.dias_ferias_total,
+        fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+        22)
+    + COALESCE(cfg.dias_transitados, 0) AS dias_total,
+
+    -- Gozados (só do ano corrente; transitados têm coluna própria)
+    COALESCE(cfg.dias_ferias_gozados, 0) AS dias_gozados,
+
+    -- Pendentes de aprovação (férias submetidas ainda não aprovadas)
+    COALESCE((
+        SELECT SUM(dias_uteis) FROM tb_rh_ferias
+        WHERE tb_user_fk = c.pk
+          AND EXTRACT(YEAR FROM data_inicio) = EXTRACT(YEAR FROM NOW())::INT
+          AND ts_estado_fk IN (1, 2)
+          AND tt_tipo_fk = 1
+    ), 0)                              AS dias_pendentes,
+
+    -- Total disponível real = (ano + transitados) - gozados - trans_gozados - pendentes
+    GREATEST(
+        COALESCE(cfg.dias_ferias_total,
+            fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+            22)
+        + COALESCE(cfg.dias_transitados, 0)
+        - COALESCE(cfg.dias_ferias_gozados, 0)
+        - COALESCE(cfg.dias_transitados_gozados, 0)
+        - COALESCE((
+            SELECT SUM(dias_uteis) FROM tb_rh_ferias
+            WHERE tb_user_fk = c.pk
+              AND EXTRACT(YEAR FROM data_inicio) = EXTRACT(YEAR FROM NOW())::INT
+              AND ts_estado_fk IN (1, 2) AND tt_tipo_fk = 1
+          ), 0),
+        0
+    )                                  AS dias_disponiveis
+FROM ts_client c
+LEFT JOIN ts_rh_config cfg
+    ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
+WHERE c.ts_profile IN (0, 1, 6);
+
+
+-- ─── 6. Recrear vbl_rh_colaborador ───────────────────────────────────────────
+-- Inclui dias_transitados e data_limite_transitados no perfil.
+
+DROP VIEW IF EXISTS vbl_rh_colaborador CASCADE;
+CREATE VIEW vbl_rh_colaborador AS
+SELECT
+    c.pk,
+    c.name,
+    e.email,
+    c.ts_profile                                AS perfil,
+    -- Perfil RH
+    col.data_nascimento,
+    col.data_admissao,
+    col.categoria,
+    col.tipo_contrato,
+    col.num_mecanografico,
+    col.departamento,
+    col.superior_fk,
+    sup.name                                    AS superior_nome,
+    col.elegivel_piquete,
+    col.ts_rh_local_fk,
+    l.nome                                      AS local_predefinido_nome,
+    col.notas                                   AS notas_rh,
+    -- Saldo férias do ano corrente
+    COALESCE(cfg.dias_ferias_total,
+        fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+        22)                                     AS dias_ferias_total,
+    COALESCE(cfg.dias_ferias_gozados, 0)        AS dias_ferias_gozados,
+    -- Transitados
+    COALESCE(cfg.dias_transitados, 0)           AS dias_transitados,
+    COALESCE(cfg.dias_transitados_gozados, 0)   AS dias_transitados_gozados,
+    GREATEST(
+        COALESCE(cfg.dias_transitados, 0)
+        - COALESCE(cfg.dias_transitados_gozados, 0), 0
+    )                                           AS dias_transitados_disponiveis,
+    cfg.data_limite_transitados,
+    -- Disponíveis totais
+    GREATEST(
+        COALESCE(cfg.dias_ferias_total,
+            fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+            22)
+        + COALESCE(cfg.dias_transitados, 0)
+        - COALESCE(cfg.dias_ferias_gozados, 0)
+        - COALESCE(cfg.dias_transitados_gozados, 0),
+        0
+    )                                           AS dias_ferias_disponiveis,
+    cfg.ano                                     AS config_ano,
+    -- Horário activo
+    h.pk                                        AS horario_pk,
+    h.descr                                     AS horario_descr,
+    j.descr                                     AS jornada_descr,
+    j.pk                                        AS tt_jornada_fk,
+    h.hora_entrada,
+    h.hora_saida,
+    h.hora_inicio_almoco,
+    h.hora_fim_almoco,
+    -- Antiguidade
+    CASE WHEN col.data_admissao IS NOT NULL
+         THEN DATE_PART('year', AGE(NOW(), col.data_admissao))::INTEGER
+         ELSE NULL
+    END                                         AS anos_antiguidade
+FROM ts_client c
+LEFT JOIN ts_entity e
+    ON e.pk = c.ts_entity
+LEFT JOIN ts_rh_colaborador col
+    ON col.pk = c.pk
+LEFT JOIN ts_client sup
+    ON sup.pk = col.superior_fk
+LEFT JOIN ts_rh_local l
+    ON l.pk = col.ts_rh_local_fk
+LEFT JOIN ts_rh_config cfg
+    ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
+LEFT JOIN ts_rh_horario h
+    ON h.tb_user_fk = c.pk AND h.data_fim IS NULL
+LEFT JOIN tt_rh_tipo_jornada j
+    ON j.pk = h.tt_jornada_fk
+WHERE c.ts_profile IN (0, 1, 6);
+
+
+-- ─── 7. Actualizar vbl_rh_config ─────────────────────────────────────────────
+DROP VIEW IF EXISTS vbl_rh_config CASCADE;
+CREATE VIEW vbl_rh_config AS
+SELECT
+    cfg.pk,
+    cfg.tb_user_fk,
+    c.name                                  AS colaborador_nome,
+    cfg.ano,
+    cfg.dias_ferias_total,
+    cfg.dias_ferias_gozados,
+    cfg.dias_transitados,
+    cfg.dias_transitados_gozados,
+    GREATEST(
+        cfg.dias_transitados - cfg.dias_transitados_gozados, 0
+    )                                       AS dias_transitados_disponiveis,
+    cfg.data_limite_transitados,
+    cfg.notas
+FROM ts_rh_config cfg
+JOIN ts_client c ON c.pk = cfg.tb_user_fk;
+
+
+-- ─── 8. Smoke test ───────────────────────────────────────────────────────────
+SELECT 'Colunas transitados em ts_rh_config' AS check_name,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ts_rh_config'
+          AND column_name = 'dias_transitados'
+    ) THEN 'OK' ELSE 'FALHOU' END AS resultado;
+
+SELECT 'vbl_rh_saldo_ferias expõe transitados' AS check_name,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vbl_rh_saldo_ferias'
+          AND column_name = 'dias_transitados'
+    ) THEN 'OK' ELSE 'FALHOU (vista não actualizada)' END AS resultado;
+
+SELECT 'vbl_rh_colaborador expõe transitados' AS check_name,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vbl_rh_colaborador'
+          AND column_name = 'dias_transitados'
+    ) THEN 'OK' ELSE 'FALHOU (vista não actualizada)' END AS resultado;
+
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- [21_geofencing.sql]
+-- ═════════════════════════════════════════════════════════════════════════
+
 -- backend/app/sql/rh/21_geofencing.sql
 -- Geofencing — locais predefinidos por colaborador e alertas de registo fora do local
+-- Executar APÓS 18_filtro_perfis_rh.sql
 
 -- ─── 1. Tabela ts_rh_local ─────────────────────────────────────────────────────
 
@@ -2266,14 +2856,18 @@ CREATE TABLE IF NOT EXISTS ts_rh_local (
 
 CREATE INDEX IF NOT EXISTS idx_ts_rh_local_ativo ON ts_rh_local (ativo) WHERE ativo = TRUE;
 
+
 -- ─── 2. Extensões às tabelas existentes ───────────────────────────────────────
 
+-- Cada colaborador pode ter um local predefinido para validação GPS
 ALTER TABLE ts_rh_colaborador
     ADD COLUMN IF NOT EXISTS ts_rh_local_fk INTEGER REFERENCES ts_rh_local(pk);
 
+-- Resultado do geofencing em cada registo de ponto
 ALTER TABLE tb_rh_ponto
     ADD COLUMN IF NOT EXISTS fora_local       BOOLEAN DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS distancia_metros INTEGER;
+
 
 -- ─── 3. Função Haversine ──────────────────────────────────────────────────────
 
@@ -2293,6 +2887,7 @@ BEGIN
     RETURN ROUND(v_r * 2 * ATAN2(SQRT(v_a), SQRT(1 - v_a)))::INTEGER;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+
 
 -- ─── 4. fbo_rh_ponto_evento — com cálculo de geofencing ──────────────────────
 
@@ -2344,6 +2939,7 @@ BEGIN
         END IF;
     END IF;
 
+    -- Geofencing: calcular distância ao local predefinido (só se GPS disponível)
     IF p_latitude IS NOT NULL AND p_longitude IS NOT NULL THEN
         SELECT l.latitude, l.longitude, l.raio_metros
         INTO v_local_lat, v_local_lon, v_raio
@@ -2374,10 +2970,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ─── 5. fbo_rh_local — CRUD ───────────────────────────────────────────────────
+
+-- ─── 5. CRUD para ts_rh_local ─────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION fbo_rh_local(
-    p_op          INTEGER,
+    p_op          INTEGER,  -- 0 INSERT, 1 UPDATE, 2 DELETE
     p_pk          INTEGER  DEFAULT NULL,
     p_nome        VARCHAR  DEFAULT NULL,
     p_descr       VARCHAR  DEFAULT NULL,
@@ -2388,13 +2985,20 @@ CREATE OR REPLACE FUNCTION fbo_rh_local(
 )
 RETURNS TEXT AS $$
 BEGIN
-    IF p_op = 0 THEN
+    IF p_op = 0 THEN  -- INSERT
         INSERT INTO ts_rh_local (pk, nome, descr, latitude, longitude, raio_metros, ativo)
-        VALUES (fs_nextcode(), p_nome, p_descr, p_latitude, p_longitude,
-                COALESCE(p_raio_metros, 200), COALESCE(p_ativo, TRUE));
+        VALUES (
+            fs_nextcode(),
+            p_nome,
+            p_descr,
+            p_latitude,
+            p_longitude,
+            COALESCE(p_raio_metros, 200),
+            COALESCE(p_ativo, TRUE)
+        );
         RETURN '<sucess>Local criado';
 
-    ELSIF p_op = 1 THEN
+    ELSIF p_op = 1 THEN  -- UPDATE
         IF NOT EXISTS (SELECT 1 FROM ts_rh_local WHERE pk = p_pk) THEN
             RETURN '<error>Local não encontrado: ' || p_pk || '</error>';
         END IF;
@@ -2408,7 +3012,7 @@ BEGIN
         WHERE pk = p_pk;
         RETURN '<sucess>Local actualizado';
 
-    ELSIF p_op = 2 THEN
+    ELSIF p_op = 2 THEN  -- DELETE
         IF NOT EXISTS (SELECT 1 FROM ts_rh_local WHERE pk = p_pk) THEN
             RETURN '<error>Local não encontrado: ' || p_pk || '</error>';
         END IF;
@@ -2423,11 +3027,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ─── 6. fbo_rh_col_set_local ─────────────────────────────────────────────────
+
+-- ─── 6. Atribuir local predefinido a colaborador ───────────────────────────────
 
 CREATE OR REPLACE FUNCTION fbo_rh_col_set_local(
     p_user_fk  INTEGER,
-    p_local_fk INTEGER
+    p_local_fk INTEGER  -- NULL para remover
 )
 RETURNS TEXT AS $$
 BEGIN
@@ -2443,6 +3048,7 @@ BEGIN
     RETURN '<sucess>Local atribuído';
 END;
 $$ LANGUAGE plpgsql;
+
 
 -- ─── 7. Actualizar vbl_rh_ponto ───────────────────────────────────────────────
 
@@ -2472,9 +3078,11 @@ JOIN tt_rh_ponto_evento e ON e.pk = p.tt_evento_fk
 LEFT JOIN ts_rh_colaborador col ON col.pk = p.tb_user_fk
 LEFT JOIN ts_rh_local l         ON l.pk = col.ts_rh_local_fk;
 
--- ─── 8. vbl_rh_local ─────────────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_local AS
+-- ─── 8. Vista de locais predefinidos ──────────────────────────────────────────
+
+DROP VIEW IF EXISTS vbl_rh_local CASCADE;
+CREATE VIEW vbl_rh_local AS
 SELECT
     l.pk,
     l.nome,
@@ -2489,9 +3097,11 @@ FROM ts_rh_local l
 LEFT JOIN ts_rh_colaborador col ON col.ts_rh_local_fk = l.pk
 GROUP BY l.pk, l.nome, l.descr, l.latitude, l.longitude, l.raio_metros, l.ativo, l.created_at;
 
--- ─── 9. vbl_rh_ponto_alertas ─────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_ponto_alertas AS
+-- ─── 9. Vista de alertas de geofencing ────────────────────────────────────────
+
+DROP VIEW IF EXISTS vbl_rh_ponto_alertas CASCADE;
+CREATE VIEW vbl_rh_ponto_alertas AS
 SELECT
     p.pk,
     p.tb_user_fk,
@@ -2514,13 +3124,15 @@ LEFT JOIN ts_rh_colaborador col ON col.pk = p.tb_user_fk
 LEFT JOIN ts_rh_local l         ON l.pk = col.ts_rh_local_fk
 WHERE p.fora_local = TRUE;
 
--- ─── 10. Verificação ──────────────────────────────────────────────────────────
+
+-- ─── 10. Verificação ─────────────────────────────────────────────────────────
 
 SELECT 'ts_rh_local' AS check_name,
     CASE WHEN EXISTS (
         SELECT 1 FROM information_schema.tables WHERE table_name = 'ts_rh_local'
     ) THEN 'OK' ELSE 'FALHOU' END AS resultado;
 
-SELECT 'fn_rh_distancia_metros (≈500m)' AS check_name,
+SELECT 'fn_rh_distancia_metros (500m)' AS check_name,
     CASE WHEN fn_rh_distancia_metros(38.7169, -9.1399, 38.7213, -9.1399) BETWEEN 480 AND 520
     THEN 'OK' ELSE 'FALHOU' END AS resultado;
+

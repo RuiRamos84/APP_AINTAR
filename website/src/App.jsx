@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage'
 // Quem Somos
 import QuemSomosPage from './pages/quem-somos/QuemSomosPage'
 import OrgaosSociaisPage from './pages/quem-somos/OrgaosSociaisPage'
+import OrganogramaPage from './pages/quem-somos/OrganogramaPage'
+import EstatutosPage from './pages/quem-somos/EstatutosPage'
 import DocumentosFinanceirosPage from './pages/quem-somos/DocumentosFinanceirosPage'
 import RecursosHumanosPage from './pages/quem-somos/RecursosHumanosPage'
 import ProcedimentoPage from './pages/quem-somos/ProcedimentoPage'
@@ -50,18 +52,22 @@ export default function App() {
 
         {/* Quem Somos */}
         <Route path="/quem-somos" element={<QuemSomosPage />} />
+        <Route path="/quem-somos/organograma" element={<OrganogramaPage />} />
         <Route path="/quem-somos/orgaos-sociais" element={<OrgaosSociaisPage />} />
+        <Route path="/quem-somos/estatutos" element={<EstatutosPage />} />
         <Route path="/quem-somos/documentos-financeiros" element={<DocumentosFinanceirosPage />} />
-        <Route path="/quem-somos/recursos-humanos" element={<RecursosHumanosPage />} />
-        <Route path="/quem-somos/recursos-humanos/:pk" element={<ProcedimentoPage />} />
         <Route path="/quem-somos/contratacao-publica" element={<ContratacaoPublicaPage />} />
+
+        {/* Recursos Humanos */}
+        <Route path="/recursos-humanos" element={<RecursosHumanosPage />} />
+        <Route path="/recursos-humanos/:pk" element={<ProcedimentoPage />} />
+        <Route path="/recursos-humanos/candidatura/:pk" element={<CandidaturaPage />} />
 
         {/* Clientes */}
         <Route path="/clientes" element={<ClientesPage />} />
         <Route path="/clientes/regulamento" element={<RegulamentoPage />} />
         <Route path="/clientes/tarifario" element={<TarifarioPage />} />
         <Route path="/clientes/formularios" element={<FormulariosPage />} />
-        <Route path="/clientes/formularios/candidatura/:pk" element={<CandidaturaPage />} />
         <Route path="/clientes/faq" element={<FAQPage />} />
 
         {/* Saneamento */}

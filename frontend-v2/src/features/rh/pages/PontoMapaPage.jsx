@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  Box, Stack, Typography, Chip, FormControl, Select, MenuItem, Paper,
+  Box, Stack, Typography, Chip, TextField, FormControl, Select, MenuItem, Paper,
   List, ListItem, ListItemText, Alert, CircularProgress, Divider,
 } from '@mui/material';
 import { Warning as AlertaIcon, Map as MapIcon } from '@mui/icons-material';
@@ -8,9 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
-import { useSearch } from '@/shared/hooks';
-import { usePontoAlertas } from '../hooks/usePontoLocais';
-import { useLocais } from '../hooks/usePontoLocais';
+import { usePontoAlertas, useLocais } from '../hooks/usePontoLocais';
 import { useRhLookups } from '../hooks/useRhLookups';
 import { RH_COLOR as COLOR, fmtDate, fmtTime } from '../utils/rhUtils';
 
@@ -24,6 +22,12 @@ L.Icon.Default.mergeOptions({
 
 const alertaIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+});
+
+const localIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
 });
@@ -44,9 +48,6 @@ const PontoMapaPage = () => {
 
   const { alertas, isLoading } = usePontoAlertas(params);
   const { locais } = useLocais();
-  const { colaboradores } = useRhLookups().lookups ? { colaboradores: [] } : { colaboradores: [] };
-
-  // Collaborator list from locais hook's adjacent data — use useRhLookups instead
   const { lookups } = useRhLookups();
   const colabs = lookups?.colaboradores || [];
 
@@ -65,20 +66,29 @@ const PontoMapaPage = () => {
       breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Mapa de Ponto' }]}
     >
       {/* Filtros */}
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" alignItems="center">
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} flexWrap="wrap"
+        alignItems={{ xs: 'stretch', sm: 'center' }}>
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <Select value={userFk} onChange={e => setUserFk(e.target.value)} displayEmpty>
             <MenuItem value="">— Todos os colaboradores —</MenuItem>
             {colabs.map(c => <MenuItem key={c.pk} value={c.pk}>{c.name}</MenuItem>)}
           </Select>
         </FormControl>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
           <Typography variant="body2" color="text.secondary">De</Typography>
-          <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }} />
+          <TextField
+            type="date" size="small" value={dataInicio}
+            onChange={e => setDataInicio(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ width: 150 }}
+          />
           <Typography variant="body2" color="text.secondary">até</Typography>
-          <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }} />
+          <TextField
+            type="date" size="small" value={dataFim}
+            onChange={e => setDataFim(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ width: 150 }}
+          />
         </Stack>
         {alertas.length > 0 && (
           <Chip
@@ -109,19 +119,25 @@ const PontoMapaPage = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {/* Locais predefinidos — círculos */}
+              {/* Locais predefinidos — círculos de tolerância */}
               {locais.filter(l => l.ativo).map(l => (
                 <Circle
-                  key={l.pk}
+                  key={`circle-${l.pk}`}
                   center={[l.latitude, l.longitude]}
                   radius={l.raio_metros}
-                  pathOptions={{ color: '#16a34a', fillColor: '#16a34a', fillOpacity: 0.1 }}
-                >
+                  pathOptions={{ color: '#16a34a', weight: 2, fillColor: '#16a34a', fillOpacity: 0.12 }}
+                />
+              ))}
+
+              {/* Locais predefinidos — marcadores verdes com popup */}
+              {locais.filter(l => l.ativo).map(l => (
+                <Marker key={`local-${l.pk}`} position={[l.latitude, l.longitude]} icon={localIcon}>
                   <Popup>
-                    <strong>{l.nome}</strong><br />
-                    Raio: {l.raio_metros}m
+                    <strong>📍 {l.nome}</strong><br />
+                    {l.descr && <span>{l.descr}<br /></span>}
+                    Raio de tolerância: <strong>{l.raio_metros}m</strong>
                   </Popup>
-                </Circle>
+                </Marker>
               ))}
 
               {/* Alertas — marcadores vermelhos */}

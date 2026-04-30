@@ -1,6 +1,67 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-aintar-navy: #0A1628;
+  --color-aintar-mid: #122040;
+  --color-aintar-blue: #1B5E8E;
+  --color-aintar-blue-mid: #2074AA;
+  --color-aintar-sky: #29B5E8;
+  --color-aintar-teal: #2ABB9B;
+  --color-aintar-light: #EFF6FC;
+  --color-aintar-tag: #1A6B82;
+
+  /* Fonts */
+  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  /* Animations */
+  --animate-wave-slow: wave 12s linear infinite;
+  --animate-wave-medium: wave 8s linear infinite;
+  --animate-wave-fast: wave 6s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-fade-up: fadeUp 0.6s ease-out forwards;
+  --animate-pulse-slow: pulse 4s ease-in-out infinite;
+}
+
+/* Keyframes para animações Tailwind */
+@keyframes wave {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+
+@keyframes fadeUp {
+  0%   { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Keyframes globais — usados via animationName inline style em DarkBgDecorations e HeroSection */
+@keyframes rise {
+  0%   { transform: translateY(0) scale(1);       opacity: 0;   }
+  8%   {                                           opacity: 1;   }
+  88%  {                                           opacity: 0.7; }
+  100% { transform: translateY(-90px) scale(0.3); opacity: 0;   }
+}
+
+@keyframes gpulse {
+  0%, 100% { opacity: 0.3; transform: scale(1);    }
+  50%       { opacity: 0.7; transform: scale(1.04); }
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0);   }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes waveSlide {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 
 @layer base {
   html {
@@ -22,78 +83,79 @@
     box-sizing: border-box;
   }
 
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #EFF6FC;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1B5E8E;
+    background: #29B5E8;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2074AA;
+    background: #1B5E8E;
   }
 }
 
 @layer components {
-  /* Section container */
   .section-container {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  /* Section padding */
   .section-padding {
     @apply py-20 lg:py-28;
   }
 
-  /* Section tag/label */
   .section-tag {
     @apply inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase;
   }
 
-  /* Primary button */
   .btn-primary {
     @apply inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm
            bg-aintar-sky text-white hover:bg-aintar-blue transition-all duration-300
-           hover:shadow-lg hover:shadow-aintar-sky/30 hover:-translate-y-0.5 active:translate-y-0;
+           hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0;
   }
 
-  /* Secondary/outline button */
   .btn-outline {
     @apply inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm
            border-2 border-white/30 text-white hover:border-aintar-sky hover:text-aintar-sky
            transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0;
   }
 
-  /* Blue outline button (on light backgrounds) */
   .btn-outline-blue {
     @apply inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm
            border-2 border-aintar-blue text-aintar-blue hover:bg-aintar-blue hover:text-white
            transition-all duration-300 hover:-translate-y-0.5;
   }
 
-  /* Card base */
   .card {
     @apply bg-white rounded-2xl shadow-sm border border-gray-100
            hover:shadow-xl hover:-translate-y-1 transition-all duration-300;
   }
 
-  /* Wave divider container */
   .wave-divider {
     @apply overflow-hidden leading-none;
   }
 }
 
 @layer utilities {
-  /* Text gradient */
   .text-gradient {
     @apply bg-gradient-to-r from-aintar-sky to-aintar-teal bg-clip-text text-transparent;
   }
 
-  /* Glassmorphism */
+  .bg-hero-gradient {
+    background-image: linear-gradient(135deg, #0A1628 0%, #122040 50%, #0D1F3C 100%);
+  }
+
+  .bg-blue-gradient {
+    background-image: linear-gradient(135deg, #1B5E8E 0%, #2074AA 100%);
+  }
+
+  .bg-teal-gradient {
+    background-image: linear-gradient(135deg, #2ABB9B 0%, #29B5E8 100%);
+  }
+
   .glass {
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -101,32 +163,9 @@
   }
 
   .glass-dark {
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    background-color: rgba(10, 22, 40, 0.85);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    background-color: rgba(10, 22, 40, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
-
-/* Keyframes globais — usados via animationName inline style em DarkBgDecorations e HeroSection */
-@keyframes rise {
-  0%   { transform: translateY(0) scale(1);      opacity: 0;   }
-  8%   {                                          opacity: 1;   }
-  88%  {                                          opacity: 0.7; }
-  100% { transform: translateY(-90px) scale(0.3); opacity: 0;   }
-}
-
-@keyframes gpulse {
-  0%, 100% { opacity: 0.3; transform: scale(1);    }
-  50%       { opacity: 0.7; transform: scale(1.04); }
-}
-
-@keyframes bob {
-  0%, 100% { transform: translateY(0);   }
-  50%       { transform: translateY(-6px); }
-}
-
-@keyframes waveSlide {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-

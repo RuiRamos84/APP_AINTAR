@@ -13,6 +13,7 @@ import {
 } from '@mui/icons-material';
 import { useColaboradores } from '../hooks/useRhLookups';
 import { useColaboradorConfig, useGestaoActions } from '../hooks/useGestaoColaboradores';
+import { useLocais } from '../hooks/usePontoLocais';
 
 const currentYear = new Date().getFullYear();
 const ANOS = [currentYear - 1, currentYear, currentYear + 1];
@@ -38,7 +39,7 @@ const toISODate = (v) => {
 };
 
 // ─── Tab 1: Dados Pessoais / Perfil RH ───────────────────────────────────────
-const PerfilTab = ({ colaborador, formRef }) => {
+const PerfilTab = ({ colaborador, formRef, locais }) => {
   const { colaboradores } = useColaboradores();
 
   const { control, handleSubmit, reset } = useForm({
@@ -51,6 +52,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
       num_mecanografico: '',
       departamento: '',
       superior_fk: '',
+      ts_rh_local_fk: '',
       dias_ferias_base: 22,
       elegivel_piquete: true,
       notas: '',
@@ -68,6 +70,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
         num_mecanografico: colaborador.num_mecanografico || '',
         departamento: colaborador.departamento || '',
         superior_fk: colaborador.superior_fk || '',
+        ts_rh_local_fk: colaborador.ts_rh_local_fk || '',
         dias_ferias_base: colaborador.dias_ferias_base || 22,
         elegivel_piquete: colaborador.elegivel_piquete ?? true,
         notas: colaborador.notas_rh || '',
@@ -76,13 +79,15 @@ const PerfilTab = ({ colaborador, formRef }) => {
   }, [colaborador, reset]);
 
   const onSubmit = (data) => {
+    const { ts_rh_local_fk, ...rest } = data;
     const payload = {
-      ...data,
+      ...rest,
       pk: colaborador.pk,
       dias_ferias_base: Number(data.dias_ferias_base),
       superior_fk: data.superior_fk ? Number(data.superior_fk) : null,
       data_nascimento: data.data_nascimento || null,
       data_admissao: data.data_admissao || null,
+      ts_rh_local_fk: ts_rh_local_fk ? Number(ts_rh_local_fk) : null,
     };
     formRef.current?.(payload);
   };
@@ -95,7 +100,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
         </Typography>
 
         <Grid container spacing={2}>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="data_nascimento" control={control}
               render={({ field }) => (
                 <TextField {...field} label="Data de Nascimento" type="date"
@@ -103,7 +108,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
               )}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="data_admissao" control={control}
               render={({ field }) => (
                 <TextField {...field} label="Data de Admissão" type="date"
@@ -111,21 +116,21 @@ const PerfilTab = ({ colaborador, formRef }) => {
               )}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="num_mecanografico" control={control}
               render={({ field }) => (
                 <TextField {...field} label="Nº Mecanográfico" size="small" fullWidth />
               )}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="categoria" control={control}
               render={({ field }) => (
                 <TextField {...field} label="Categoria / Cargo" size="small" fullWidth />
               )}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="tipo_contrato" control={control}
               render={({ field }) => (
                 <FormControl fullWidth size="small">
@@ -140,7 +145,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
               )}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="departamento" control={control}
               render={({ field }) => (
                 <TextField {...field} label="Departamento / Secção" size="small" fullWidth />
@@ -164,6 +169,21 @@ const PerfilTab = ({ colaborador, formRef }) => {
               )}
             />
           </Grid>
+          <Grid size={12}>
+            <Controller name="ts_rh_local_fk" control={control}
+              render={({ field }) => (
+                <FormControl fullWidth size="small">
+                  <InputLabel>Local Predefinido (Geofencing)</InputLabel>
+                  <Select {...field} label="Local Predefinido (Geofencing)">
+                    <MenuItem value="">— Sem local predefinido —</MenuItem>
+                    {(locais || []).filter(l => l.ativo).map(l => (
+                      <MenuItem key={l.pk} value={l.pk}>{l.nome}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </Grid>
         </Grid>
 
         <Divider />
@@ -172,7 +192,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
         </Typography>
 
         <Grid container spacing={2} alignItems="center">
-          <Grid size={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Controller name="dias_ferias_base" control={control}
               render={({ field }) => (
                 <TextField {...field} label="Dias Férias Base/Ano" type="number"
@@ -182,7 +202,7 @@ const PerfilTab = ({ colaborador, formRef }) => {
               )}
             />
           </Grid>
-          <Grid size={8}>
+          <Grid size={{ xs: 12, sm: 8 }}>
             <Controller name="elegivel_piquete" control={control}
               render={({ field }) => (
                 <FormControlLabel
@@ -323,23 +343,23 @@ const SaldoTab = ({ colaborador }) => {
         <Box sx={{ p: 2, border: '1px solid', borderColor: 'primary.light', borderRadius: 2, bgcolor: 'action.hover' }}>
           <Typography variant="subtitle2" gutterBottom>A editar: {anoEdit}</Typography>
           <Stack spacing={1.5}>
-            <Stack direction="row" spacing={2} alignItems="flex-start">
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
               <TextField
                 label="Dias férias do ano" type="number"
                 value={diasEdit} onChange={e => setDiasEdit(e.target.value)}
-                size="small" sx={{ width: 180 }} inputProps={{ min: 0, max: 60 }}
+                size="small" fullWidth inputProps={{ min: 0, max: 60 }}
               />
               <TextField
                 label="Dias transitados" type="number"
                 value={transEdit} onChange={e => setTransEdit(e.target.value)}
-                size="small" sx={{ width: 160 }}
+                size="small" fullWidth
                 inputProps={{ min: 0 }}
                 helperText="Do ano anterior"
               />
               <TextField
                 label="Prazo transitados" type="date"
                 value={limiteEdit} onChange={e => setLimiteEdit(e.target.value)}
-                size="small" sx={{ width: 180 }}
+                size="small" fullWidth
                 InputLabelProps={{ shrink: true }}
                 helperText="Normalmente 30 Abr"
               />
@@ -386,11 +406,17 @@ const SaldoTab = ({ colaborador }) => {
 const ColaboradorPerfilModal = ({ open, onClose, colaborador }) => {
   const [tab, setTab] = useState(0);
   const { guardarPerfil, isGuardandoPerfil } = useGestaoActions();
-  // Ref que aponta para a função de submit do form activo
+  const { locais, setLocal } = useLocais();
   const perfilSubmitRef = useRef(null);
 
   const handleSavePerfil = async (data) => {
-    await guardarPerfil(data);
+    const { ts_rh_local_fk, ...perfilData } = data;
+    await guardarPerfil(perfilData);
+    const newLocal = ts_rh_local_fk ? Number(ts_rh_local_fk) : null;
+    const oldLocal = colaborador?.ts_rh_local_fk || null;
+    if (newLocal !== oldLocal) {
+      await setLocal({ userPk: colaborador.pk, localFk: newLocal });
+    }
     onClose();
   };
 
@@ -430,6 +456,7 @@ const ColaboradorPerfilModal = ({ open, onClose, colaborador }) => {
           <PerfilTab
             colaborador={colaborador}
             formRef={perfilSubmitRef}
+            locais={locais}
           />
         </TabPanel>
         <TabPanel value={tab} index={1}>

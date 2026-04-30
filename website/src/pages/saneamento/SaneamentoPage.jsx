@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Factory, Droplets, ArrowRight, Activity } from 'lucide-react'
+import { Factory, Droplets, ArrowRight, Activity, Leaf } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 
@@ -137,6 +137,35 @@ export default function SaneamentoPage() {
               Consultar Qualidade do Serviço
               <ArrowRight size={16} />
             </Link>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* Sustentabilidade */}
+      <section className="section-padding bg-aintar-light">
+        <div className="section-container">
+          <ScrollReveal>
+            <div className="rounded-2xl bg-hero-gradient p-8 lg:p-12 flex flex-col lg:flex-row items-center justify-between gap-8">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-aintar-teal/20 flex items-center justify-center flex-shrink-0">
+                  <Leaf size={26} className="text-aintar-teal" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-white text-xl mb-1">Sustentabilidade</h3>
+                  <p className="text-white/60 text-sm max-w-lg">
+                    Conheça o nosso compromisso com o ambiente, a eficiência energética e a gestão responsável dos recursos hídricos.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/sustentabilidade"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-aintar-teal text-white
+                  font-semibold text-sm hover:bg-white hover:text-aintar-teal transition-all duration-300 hover:-translate-y-0.5"
+              >
+                Ver mais
+                <ArrowRight size={15} />
+              </Link>
+            </div>
           </ScrollReveal>
         </div>
       </section>

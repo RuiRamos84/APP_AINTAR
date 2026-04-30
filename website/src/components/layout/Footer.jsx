@@ -4,16 +4,17 @@ import DarkBgDecorations from '../ui/DarkBgDecorations'
 
 const footerLinks = {
   empresa: [
-    { label: 'Sobre a AINTAR', href: '/quem-somos' },
-    { label: 'Órgãos Sociais', href: '/quem-somos/orgaos-sociais' },
-    { label: 'Municípios Associados', href: '/quem-somos' },
-    { label: 'Projetos', href: '/projetos' },
+    { label: 'Sobre a AINTAR',    href: '/quem-somos' },
+    { label: 'Órgãos Sociais',    href: '/quem-somos/orgaos-sociais' },
+    { label: 'Recursos Humanos',  href: '/recursos-humanos' },
+    { label: 'Projetos',          href: '/projetos' },
   ],
   servicos: [
     { label: 'Saneamento em Alta',      href: '/saneamento#alta' },
     { label: 'Saneamento em Baixa',     href: '/saneamento#baixa' },
     { label: 'Tratamento de Efluentes', href: '/saneamento#efluentes' },
     { label: 'Qualidade do Serviço',    href: '/saneamento/qualidade' },
+    { label: 'Sustentabilidade',        href: '/sustentabilidade' },
   ],
   documentos: [
     { label: 'Tarifário 2026', href: '/clientes/tarifario' },

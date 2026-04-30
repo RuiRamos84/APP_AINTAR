@@ -1,4 +1,5 @@
-import { MapPin, ExternalLink } from 'lucide-react'
+import { MapPin, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import ScrollReveal from '../ui/ScrollReveal'
 import { motion } from 'framer-motion'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
@@ -83,13 +84,13 @@ export default function MunicipalitiesSection() {
             <p className="text-white/25 text-xs">
               Entidade constituída ao abrigo da Lei n.º 73/2013, de 3 de setembro
             </p>
-            <a
-              href="/quem-somos"
+            <Link
+              to="/quem-somos"
               className="flex items-center gap-2 text-aintar-sky/60 hover:text-aintar-sky text-xs font-medium transition-colors"
             >
               Saber mais sobre a AINTAR
-              <ExternalLink size={12} />
-            </a>
+              <ArrowRight size={12} />
+            </Link>
           </ScrollReveal>
         </div>
       </div>

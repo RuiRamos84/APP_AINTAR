@@ -34,7 +34,10 @@ export default function SustentabilidadePage() {
     <PageLayout
       title="Sustentabilidade"
       subtitle="O compromisso da AINTAR com o ambiente e as gerações futuras."
-      breadcrumbs={[{ label: 'Sustentabilidade' }]}
+      breadcrumbs={[
+        { label: 'Saneamento', href: '/saneamento' },
+        { label: 'Sustentabilidade' },
+      ]}
     >
       {/* Intro */}
       <section className="section-padding bg-white">

@@ -53,7 +53,7 @@ export default function ContratacaoPublicaPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-aintar-blue text-white
-                  text-sm font-semibold hover:bg-aintar-blueMid transition-colors flex-shrink-0"
+                  text-sm font-semibold hover:bg-aintar-blue-mid transition-colors flex-shrink-0"
               >
                 Aceder ao BASE
                 <ExternalLink size={14} />

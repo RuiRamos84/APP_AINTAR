@@ -122,7 +122,7 @@ export default function ContactForm({ rows = 5 }) {
         disabled={loading}
         className="w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl
           bg-aintar-blue text-white font-semibold text-sm
-          hover:bg-aintar-blueMid transition-all duration-300
+          hover:bg-aintar-blue-mid transition-all duration-300
           hover:shadow-lg hover:shadow-aintar-blue/30 hover:-translate-y-0.5
           disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
       >

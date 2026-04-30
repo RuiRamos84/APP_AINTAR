@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Users, FileText, Briefcase, ShoppingCart, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Users, FileText, ShoppingCart, Network, ScrollText, ArrowRight, CheckCircle2 } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 
@@ -11,6 +11,13 @@ const colorMap = {
 
 const subPages = [
   {
+    icon: Network,
+    label: 'Organograma',
+    description: 'Estrutura orgânica e composição dos órgãos de gestão da associação.',
+    href: '/quem-somos/organograma',
+    color: 'aintar-blue',
+  },
+  {
     icon: Users,
     label: 'Órgãos Sociais',
     description: 'Composição da Assembleia Intermunicipal, Conselho de Administração e Fiscal Único.',
@@ -18,18 +25,18 @@ const subPages = [
     color: 'aintar-sky',
   },
   {
+    icon: ScrollText,
+    label: 'Estatutos',
+    description: 'Consulte e descarregue os estatutos oficiais da AINTAR.',
+    href: '/quem-somos/estatutos',
+    color: 'aintar-teal',
+  },
+  {
     icon: FileText,
     label: 'Documentos Financeiros',
     description: 'Prestação de contas, documentos provisórios e relatórios financeiros por ano.',
     href: '/quem-somos/documentos-financeiros',
     color: 'aintar-teal',
-  },
-  {
-    icon: Briefcase,
-    label: 'Recursos Humanos',
-    description: 'Bolsa de emprego, concursos em curso e procedimentos concluídos.',
-    href: '/quem-somos/recursos-humanos',
-    color: 'aintar-blue',
   },
   {
     icon: ShoppingCart,
@@ -115,7 +122,7 @@ export default function QuemSomosPage() {
             </p>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {subPages.map((page, i) => {
               const colors = colorMap[page.color]
               return (

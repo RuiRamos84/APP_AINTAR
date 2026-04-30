@@ -8,9 +8,10 @@ const navMenu = [
     label: 'Quem Somos',
     children: [
       { label: 'A Nossa Missão', href: '/quem-somos' },
+      { label: 'Organograma', href: '/quem-somos/organograma' },
       { label: 'Órgãos Sociais', href: '/quem-somos/orgaos-sociais' },
+      { label: 'Estatutos', href: '/quem-somos/estatutos' },
       { label: 'Documentos Financeiros', href: '/quem-somos/documentos-financeiros' },
-      { label: 'Recursos Humanos', href: '/quem-somos/recursos-humanos' },
       { label: 'Contratação Pública', href: '/quem-somos/contratacao-publica' },
     ],
   },
@@ -30,10 +31,11 @@ const navMenu = [
     children: [
       { label: 'Sistemas de Tratamento', href: '/saneamento' },
       { label: 'Qualidade do Serviço', href: '/saneamento/qualidade' },
+      { label: 'Sustentabilidade', href: '/sustentabilidade' },
     ],
   },
   { label: 'Projetos', href: '/projetos' },
-  { label: 'Sustentabilidade', href: '/sustentabilidade' },
+  { label: 'Recursos Humanos', href: '/recursos-humanos' },
   {
     label: 'Comunicação',
     children: [
@@ -162,9 +164,11 @@ export default function Navbar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isLight
-            ? 'glass shadow-lg shadow-aintar-navy/10 border-b border-gray-100'
-            : 'bg-transparent'
+          !scrolled
+            ? 'bg-transparent'
+            : isLight
+              ? 'glass shadow-lg shadow-aintar-navy/10 border-b border-gray-100'
+              : 'glass-dark'
         }`}
       >
         <div className="section-container">
@@ -236,7 +240,7 @@ export default function Navbar() {
                 rel="noopener noreferrer"
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5
                   ${isLight
-                    ? 'bg-aintar-blue text-white hover:bg-aintar-blueMid hover:shadow-lg hover:shadow-aintar-blue/30'
+                    ? 'bg-aintar-blue text-white hover:bg-aintar-blue-mid hover:shadow-lg hover:shadow-aintar-blue/30'
                     : 'bg-aintar-sky text-white hover:bg-aintar-sky/90 hover:shadow-lg hover:shadow-aintar-sky/30'
                   }`}
               >
@@ -343,7 +347,7 @@ export default function Navbar() {
                     href="https://app.aintar.pt"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-aintar-blue text-white font-semibold text-sm hover:bg-aintar-blueMid transition-colors"
+                    className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-aintar-blue text-white font-semibold text-sm hover:bg-aintar-blue-mid transition-colors"
                   >
                     <LogIn size={15} />
                     Área de Cliente

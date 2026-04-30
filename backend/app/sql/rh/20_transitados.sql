@@ -419,6 +419,8 @@ SELECT
     col.superior_fk,
     sup.name                                    AS superior_nome,
     col.elegivel_piquete,
+    col.ts_rh_local_fk,
+    l.nome                                      AS local_predefinido_nome,
     col.notas                                   AS notas_rh,
     -- Saldo férias do ano corrente
     COALESCE(cfg.dias_ferias_total,
@@ -465,6 +467,8 @@ LEFT JOIN ts_rh_colaborador col
     ON col.pk = c.pk
 LEFT JOIN ts_client sup
     ON sup.pk = col.superior_fk
+LEFT JOIN ts_rh_local l
+    ON l.pk = col.ts_rh_local_fk
 LEFT JOIN ts_rh_config cfg
     ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
 LEFT JOIN ts_rh_horario h

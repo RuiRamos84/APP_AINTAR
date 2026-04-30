@@ -1,17 +1,20 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
-  Box, Button, Stack, Chip,
-  Dialog, DialogTitle, DialogContent, DialogActions,
+  Box, Button, Stack, Chip, CircularProgress,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
   TextField, Switch, FormControlLabel, Typography,
+  useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon,
   LocationOn as LocalIcon,
   Delete as DeleteIcon,
+  GpsFixed as GpsIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
+import { toast } from 'sonner';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
@@ -21,16 +24,42 @@ import { RH_COLOR as COLOR } from '../utils/rhUtils';
 // ─── Modal Criar/Editar ────────────────────────────────────────────────────────
 
 const LocalModal = ({ open, onClose, initial, onSave, isSaving }) => {
-  const { control, handleSubmit, reset } = useForm({
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const { control, handleSubmit, reset, setValue } = useForm({
     defaultValues: { nome: '', descr: '', latitude: '', longitude: '', raio_metros: 200, ativo: true },
   });
 
-  useState(() => {
-    if (open) reset(initial
-      ? { nome: initial.nome, descr: initial.descr || '', latitude: initial.latitude, longitude: initial.longitude, raio_metros: initial.raio_metros, ativo: initial.ativo }
-      : { nome: '', descr: '', latitude: '', longitude: '', raio_metros: 200, ativo: true }
-    );
-  }, [open, initial]);
+  React.useEffect(() => {
+    if (open) {
+      reset(initial
+        ? { nome: initial.nome, descr: initial.descr || '', latitude: initial.latitude, longitude: initial.longitude, raio_metros: initial.raio_metros, ativo: initial.ativo }
+        : { nome: '', descr: '', latitude: '', longitude: '', raio_metros: 200, ativo: true }
+      );
+    }
+  }, [open, initial, reset]);
+
+  const handleGps = async () => {
+    if (!navigator.geolocation) {
+      toast.error('GPS não disponível neste dispositivo');
+      return;
+    }
+    setGpsLoading(true);
+    try {
+      const pos = await new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, {
+          timeout: 15000,
+          enableHighAccuracy: true,
+        })
+      );
+      setValue('latitude', pos.coords.latitude.toFixed(6));
+      setValue('longitude', pos.coords.longitude.toFixed(6));
+      toast.success('Localização obtida com sucesso');
+    } catch {
+      toast.error('Não foi possível obter a localização GPS');
+    } finally {
+      setGpsLoading(false);
+    }
+  };
 
   const onSubmit = (data) => onSave({
     ...data,
@@ -55,22 +84,36 @@ const LocalModal = ({ open, onClose, initial, onSave, isSaving }) => {
                 <TextField {...field} label="Descrição" size="small" fullWidth />
               )}
             />
-            <Stack direction="row" spacing={2}>
-              <Controller name="latitude" control={control} rules={{ required: true }}
+
+            {/* Preenchimento automático via GPS */}
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={gpsLoading ? <CircularProgress size={16} /> : <GpsIcon />}
+              disabled={gpsLoading}
+              onClick={handleGps}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {gpsLoading ? 'A obter localização…' : 'Usar localização actual'}
+            </Button>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <Controller name="latitude" control={control} rules={{ required: true, min: -90, max: 90 }}
                 render={({ field, fieldState }) => (
                   <TextField {...field} label="Latitude *" size="small" fullWidth
-                    type="number" inputProps={{ step: 'any' }} error={!!fieldState.error}
-                    helperText="Ex: 38.7169" />
+                    type="number" inputProps={{ step: 'any', min: -90, max: 90 }} error={!!fieldState.error}
+                    helperText={fieldState.error ? 'Latitude inválida (-90 a 90)' : 'Ex: 38.7169'} />
                 )}
               />
-              <Controller name="longitude" control={control} rules={{ required: true }}
+              <Controller name="longitude" control={control} rules={{ required: true, min: -180, max: 180 }}
                 render={({ field, fieldState }) => (
                   <TextField {...field} label="Longitude *" size="small" fullWidth
-                    type="number" inputProps={{ step: 'any' }} error={!!fieldState.error}
-                    helperText="Ex: -9.1399" />
+                    type="number" inputProps={{ step: 'any', min: -180, max: 180 }} error={!!fieldState.error}
+                    helperText={fieldState.error ? 'Longitude inválida (-180 a 180)' : 'Ex: -9.1399'} />
                 )}
               />
             </Stack>
+
             <Controller name="raio_metros" control={control} rules={{ required: true }}
               render={({ field }) => (
                 <TextField {...field} label="Raio de Tolerância (metros)" size="small" fullWidth
@@ -102,14 +145,37 @@ const LocalModal = ({ open, onClose, initial, onSave, isSaving }) => {
   );
 };
 
+// ─── Dialog de confirmação de eliminação ──────────────────────────────────────
+
+const ConfirmDeleteDialog = ({ target, onClose, onConfirm, isDeleting }) => (
+  <Dialog open={!!target} onClose={onClose} maxWidth="xs" fullWidth>
+    <DialogTitle>Eliminar local</DialogTitle>
+    <DialogContent>
+      <DialogContentText>
+        Eliminar <strong>{target?.nome}</strong>? Esta acção não pode ser revertida.
+      </DialogContentText>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Cancelar</Button>
+      <Button color="error" variant="contained" disabled={isDeleting} onClick={onConfirm}>
+        {isDeleting ? 'A eliminar…' : 'Eliminar'}
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const LocaisPage = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [search, setSearch]       = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected]   = useState(null);
+  const [toDelete, setToDelete]   = useState(null);
 
-  const { locais, isLoading, criar, isCriando, editar, isEditando, eliminar } = useLocais();
+  const { locais, isLoading, criar, isCriando, editar, isEditando, eliminar, isEliminando } = useLocais();
   const results = useSearch(locais, search);
 
   const openCreate = () => { setSelected(null); setModalOpen(true); };
@@ -121,27 +187,35 @@ const LocaisPage = () => {
     setModalOpen(false);
   };
 
-  const handleEliminar = async (pk) => {
-    if (!window.confirm('Eliminar este local? Esta acção não pode ser revertida.')) return;
-    await eliminar(pk);
+  const handleEliminar = async () => {
+    if (!toDelete) return;
+    await eliminar(toDelete.pk);
+    setToDelete(null);
   };
 
+  const columnVisibilityModel = useMemo(() => isMobile ? {
+    descr: false,
+    latitude: false,
+    longitude: false,
+    raio_metros: false,
+  } : {}, [isMobile]);
+
   const columns = useMemo(() => [
-    { field: 'nome', headerName: 'Nome', flex: 1, minWidth: 150 },
+    { field: 'nome', headerName: 'Nome', flex: 1, minWidth: 140 },
     { field: 'descr', headerName: 'Descrição', flex: 2, minWidth: 180 },
     {
       field: 'latitude', headerName: 'Latitude', width: 110,
-      renderCell: ({ value }) => value?.toFixed(6),
+      renderCell: ({ value }) => value ? Number(value).toFixed(6) : '',
     },
     {
       field: 'longitude', headerName: 'Longitude', width: 110,
-      renderCell: ({ value }) => value?.toFixed(6),
+      renderCell: ({ value }) => value ? Number(value).toFixed(6) : '',
     },
     {
       field: 'raio_metros', headerName: 'Raio (m)', width: 90, type: 'number',
     },
     {
-      field: 'total_colaboradores', headerName: 'Colaboradores', width: 120, type: 'number',
+      field: 'total_colaboradores', headerName: 'Colabs', width: 80, type: 'number',
     },
     {
       field: 'ativo', headerName: 'Estado', width: 90,
@@ -153,13 +227,13 @@ const LocaisPage = () => {
       ),
     },
     {
-      field: '_acoes', headerName: 'Acções', width: 150, sortable: false,
+      field: '_acoes', headerName: 'Acções', width: 140, sortable: false,
       renderCell: ({ row }) => (
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: '100%' }}>
           <Button size="small" onClick={() => openEdit(row)}>Editar</Button>
           {row.total_colaboradores === 0 && (
             <Button size="small" color="error" startIcon={<DeleteIcon />}
-              onClick={() => handleEliminar(row.pk)}>
+              onClick={() => setToDelete(row)}>
               Apagar
             </Button>
           )}
@@ -200,6 +274,8 @@ const LocaisPage = () => {
         pageSizeOptions={[25, 50]}
         initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+        getRowId={(row) => row.pk}
+        columnVisibilityModel={columnVisibilityModel}
         sx={{ border: 0 }}
       />
 
@@ -207,6 +283,13 @@ const LocaisPage = () => {
         open={modalOpen} onClose={() => setModalOpen(false)}
         initial={selected} onSave={handleSave}
         isSaving={isCriando || isEditando}
+      />
+
+      <ConfirmDeleteDialog
+        target={toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={handleEliminar}
+        isDeleting={isEliminando}
       />
     </ModulePage>
   );

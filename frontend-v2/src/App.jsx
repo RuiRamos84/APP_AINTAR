@@ -64,6 +64,8 @@ import HorariosPage from '@/features/rh/pages/HorariosPage';
 import PiquetePage from '@/features/rh/pages/PiquetePage';
 import PontoPage from '@/features/rh/pages/PontoPage';
 import GestaoColaboradoresPage from '@/features/rh/pages/GestaoColaboradoresPage';
+import LocaisPage from '@/features/rh/pages/LocaisPage';
+import PontoMapaPage from '@/features/rh/pages/PontoMapaPage';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
@@ -245,6 +247,8 @@ function App() {
         <Route path="/rh/pessoal/horarios"           element={<HorariosPage />} />
         <Route path="/rh/pessoal/piquete"            element={<PiquetePage />} />
         <Route path="/rh/gestao/colaboradores"       element={<GestaoColaboradoresPage />} />
+        <Route path="/rh/gestao/locais"              element={<LocaisPage />} />
+        <Route path="/rh/gestao/ponto-mapa"          element={<PontoMapaPage />} />
         <Route path="/aval" element={<AvalPage />} />
         <Route path="/admin/aval" element={<AvalAdminPage />} />
         <Route path="/aval/analytics" element={<AvalAnalyticsPage />} />

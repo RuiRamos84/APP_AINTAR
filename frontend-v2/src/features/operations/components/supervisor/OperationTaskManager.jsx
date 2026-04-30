@@ -11,6 +11,7 @@ import {
     Add, Edit, Delete, Visibility, CheckCircle, Schedule,
     Close, PhotoCamera, GppGood, Download, ZoomIn,
     Business, CalendarToday, Engineering, LocationOn, Map as MapIcon,
+    SwapHoriz,
 } from '@mui/icons-material';
 import { SortableHeadCell } from '@/shared/components/data';
 import { useSortable, useSearch } from '@/shared/hooks';
@@ -20,7 +21,7 @@ import LocationPickerMap from '@/features/documents/components/forms/LocationPic
 
 const OperationTaskManager = ({
     operations, metaData, searchTerm = '', onCreateTask, onCreateDirect, onUpdateMeta,
-    onDeleteMeta, onValidate, isLoading
+    onDeleteMeta, onValidate, onReassign, isLoading
 }) => {
     const theme = useTheme();
     const [page, setPage] = useState(0);
@@ -33,6 +34,9 @@ const OperationTaskManager = ({
     const [classification, setClassification] = useState('');
     const [controlMemo, setControlMemo] = useState('');
     const [imagePreview, setImagePreview] = useState(null);
+    const [reassignOpen, setReassignOpen] = useState(false);
+    const [reassignOp1, setReassignOp1] = useState('');
+    const [reassignOp2, setReassignOp2] = useState('');
 
     const classificationOptions = metaData?.opcontrolo || [];
 
@@ -70,6 +74,23 @@ const OperationTaskManager = ({
         onValidate?.(formData);
         setValidationOpen(false);
         setSelectedExec(null);
+        setDetailsOpen(false);
+        setSelectedOp(null);
+    };
+
+    const handleOpenReassign = () => {
+        setReassignOp1(String(selectedOp.ts_operador1 || selectedOp.who1 || ''));
+        setReassignOp2(String(selectedOp.ts_operador2 || selectedOp.who2 || ''));
+        setReassignOpen(true);
+    };
+
+    const handleSubmitReassign = () => {
+        if (!reassignOp1) return;
+        const payload = { ts_operador1: parseInt(reassignOp1, 10) };
+        if (reassignOp2) payload.ts_operador2 = parseInt(reassignOp2, 10);
+        else payload.ts_operador2 = 0; // sinaliza remoção
+        onReassign?.(selectedOp.pk, payload);
+        setReassignOpen(false);
         setDetailsOpen(false);
         setSelectedOp(null);
     };
@@ -273,9 +294,18 @@ const OperationTaskManager = ({
 
                             {/* Operadores */}
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                    Operadores
-                                </Typography>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                        Operadores
+                                    </Typography>
+                                    {!selectedOp.hasExecutions && (
+                                        <Tooltip title="Reatribuir operadores">
+                                            <Button size="small" startIcon={<SwapHoriz />} onClick={handleOpenReassign}>
+                                                Reatribuir
+                                            </Button>
+                                        </Tooltip>
+                                    )}
+                                </Stack>
                                 <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
                                     <Engineering sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
                                     <Typography variant="body2" fontWeight={500}>
@@ -425,8 +455,7 @@ const OperationTaskManager = ({
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <FormControl fullWidth required>
                             <InputLabel>Classificação</InputLabel>
-                            <Select value={classification} onChange={(e) => setClassification(e.target.value)} label="Classificação" displayEmpty>
-                                <MenuItem value="" disabled><em>Selecione uma classificação</em></MenuItem>
+                            <Select value={classification} onChange={(e) => setClassification(e.target.value)} label="Classificação">
                                 {classificationOptions.map(opt => (
                                     <MenuItem key={opt.pk} value={opt.pk}>{opt.value}</MenuItem>
                                 ))}
@@ -468,6 +497,58 @@ const OperationTaskManager = ({
                         </Box>
                     )}
                 </DialogContent>
+            </Dialog>
+
+            {/* Dialog — Reatribuição de Operadores */}
+            <Dialog open={reassignOpen} onClose={() => setReassignOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6">Reatribuir Operadores</Typography>
+                        <IconButton onClick={() => setReassignOpen(false)} size="small"><Close /></IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Operador Principal</InputLabel>
+                            <Select
+                                value={reassignOp1}
+                                onChange={(e) => setReassignOp1(e.target.value)}
+                                label="Operador Principal"
+                            >
+                                {(metaData?.who || []).map((o) => (
+                                    <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <InputLabel>Operador Secundário (Opcional)</InputLabel>
+                            <Select
+                                value={reassignOp2}
+                                onChange={(e) => setReassignOp2(e.target.value)}
+                                label="Operador Secundário (Opcional)"
+                            >
+                                <MenuItem value=""><em>Nenhum</em></MenuItem>
+                                {(metaData?.who || [])
+                                    .filter((o) => String(o.pk) !== reassignOp1)
+                                    .map((o) => (
+                                        <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>
+                                    ))}
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setReassignOpen(false)}>Cancelar</Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleSubmitReassign}
+                        disabled={!reassignOp1}
+                        startIcon={<SwapHoriz />}
+                    >
+                        Confirmar
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             {/* Dialog — Registo Rápido (DirectTaskForm) */}

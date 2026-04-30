@@ -243,7 +243,8 @@ LEFT JOIN ts_rh_local l         ON l.pk = col.ts_rh_local_fk;
 
 -- ─── 8. Vista de locais predefinidos ──────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_local AS
+DROP VIEW IF EXISTS vbl_rh_local CASCADE;
+CREATE VIEW vbl_rh_local AS
 SELECT
     l.pk,
     l.nome,
@@ -261,7 +262,8 @@ GROUP BY l.pk, l.nome, l.descr, l.latitude, l.longitude, l.raio_metros, l.ativo,
 
 -- ─── 9. Vista de alertas de geofencing ────────────────────────────────────────
 
-CREATE OR REPLACE VIEW vbl_rh_ponto_alertas AS
+DROP VIEW IF EXISTS vbl_rh_ponto_alertas CASCADE;
+CREATE VIEW vbl_rh_ponto_alertas AS
 SELECT
     p.pk,
     p.tb_user_fk,

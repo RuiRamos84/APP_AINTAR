@@ -516,9 +516,7 @@ const OperationControlPage = () => {
                                 value={controlData.control_tt_operacaocontrolo}
                                 onChange={(e) => setControlData({ ...controlData, control_tt_operacaocontrolo: e.target.value })}
                                 label="Classificação"
-                                displayEmpty
                             >
-                                <MenuItem value="" disabled><em>Selecione uma classificação</em></MenuItem>
                                 {controlOptions.map((opt) => (
                                     <MenuItem key={opt.pk} value={opt.pk}>
                                         <Stack direction="row" alignItems="center" spacing={1}>

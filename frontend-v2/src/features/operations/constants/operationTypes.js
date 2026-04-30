@@ -8,7 +8,8 @@ export const OPERATION_TYPES = {
     TEXT: 2,
     REFERENCE: 3,
     BOOLEAN: 4,
-    ANALYSIS: 5
+    ANALYSIS: 5,
+    ENERGY_METER: 6
 };
 
 export const OPERATION_TYPE_CONFIG = {
@@ -62,6 +63,17 @@ export const OPERATION_TYPE_CONFIG = {
             checked: '✓ Confirmado',
             unchecked: '✗ Não confirmado'
         }
+    },
+    [OPERATION_TYPES.ENERGY_METER]: {
+        id: 6,
+        name: 'Contador de Energia',
+        description: 'Leitura de contador de energia (vazio, ponta, cheia)',
+        inputType: 'energy',
+        label: 'Leituras do Contador',
+        displayLabel: 'Leituras:',
+        modalTitle: 'Registar Leituras do Contador',
+        fields: ['vazio', 'ponta', 'cheia'],
+        fieldLabels: { vazio: 'Vazio (kWh)', ponta: 'Ponta (kWh)', cheia: 'Cheia (kWh)' }
     },
     [OPERATION_TYPES.ANALYSIS]: {
         id: 5,

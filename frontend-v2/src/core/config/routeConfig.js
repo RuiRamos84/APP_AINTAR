@@ -69,6 +69,8 @@ import {
   Schedule as HorariosIcon,
   NightShelter as PiqueteIcon,
   AccountBalanceWallet as CaixaIcon,
+  LocationOn as LocalIcon,
+  Map as MapaIcon,
 } from '@mui/icons-material';
 
 // Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
@@ -754,6 +756,24 @@ export const ROUTE_CONFIG = {
     icon: GestPessoalIcon,
     module: 'rh',
     permissions: { required: 'rh.admin' },
+    showInSidebar: true,
+  },
+
+  '/rh/gestao/locais': {
+    id: 'rh_gestao_locais',
+    text: 'Locais Predefinidos',
+    icon: LocalIcon,
+    module: 'rh',
+    permissions: { required: 'rh.admin' },
+    showInSidebar: true,
+  },
+
+  '/rh/gestao/ponto-mapa': {
+    id: 'rh_ponto_mapa',
+    text: 'Mapa de Ponto',
+    icon: MapaIcon,
+    module: 'rh',
+    permissions: { required: 'rh.validate' },
     showInSidebar: true,
   },
 

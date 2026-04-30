@@ -73,8 +73,8 @@ const EntityDataDisplay = ({ entity, title, icon }) => {
             
             {!isComplete && (
                 <Box mt={1}>
-                     <Typography variant="caption" color="error">
-                        Falta: {validation.missingFields.join(', ')}
+                    <Typography variant="caption" color="warning.main">
+                        Os dados da entidade não estão completos.
                     </Typography>
                 </Box>
             )}
@@ -141,112 +141,62 @@ const IdentificationStep = ({
         }
     }, [setRepresentativeData, setFormData]);
     
-    // Handle entity creation success - replicate legacy pattern with retry logic
+    // Handle entity creation success - fetch and apply newly created entity data
     useEffect(() => {
-        console.log('[IdentificationStep] useEffect triggered', {
-            hasSelectedEntity: !!selectedEntity,
-            selectedEntityNipc: selectedEntity?.nipc,
-            formDataNipc: formData.nipc,
-            hasEntityData: !!entityData,
-            entityDataName: entityData?.name
-        });
-
         const fetchEntityWithRetry = async (nipc, retries = 3, delay = 500) => {
             for (let i = 0; i < retries; i++) {
                 try {
-                    console.log(`[IdentificationStep] Fetch attempt ${i + 1}/${retries} for NIF:`, nipc);
-                    
                     const { entitiesService } = await import('@/features/entities/api/entitiesService');
                     const response = await entitiesService.getEntityByNipc(nipc);
-                    
-                    console.log(`[IdentificationStep] API response for attempt ${i + 1}:`, response);
-                    
-                    // Extract entity from response
                     const entity = response?.entity || response;
-                    
-                    if (entity && entity.nipc) {
-                        console.log('[IdentificationStep] ✅ Entity data fetched successfully:', entity.name, 'NIPC:', entity.nipc);
-                        return entity;
-                    }
-                    
-                    // If we got a response but no entity data, wait before retry
+                    if (entity && entity.nipc) return entity;
                     if (i < retries - 1) {
-                        console.log(`[IdentificationStep] ⚠️ Entity not yet available (empty response), retrying in ${delay}ms...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 1.5; // Exponential backoff
+                        delay *= 1.5;
                     }
-                    
                 } catch (error) {
-                    console.error(`[IdentificationStep] ❌ Fetch attempt ${i + 1} failed:`, error);
-                    console.error(`[IdentificationStep] Error status:`, error.response?.status);
-                    
-                    // If it's a 404 or 204, retry
-                    if (error.response?.status === 404 || error.response?.status === 204) {
-                        if (i < retries - 1) {
-                            console.log(`[IdentificationStep] 🔄 Got ${error.response.status}, retrying in ${delay}ms...`);
-                            await new Promise(resolve => setTimeout(resolve, delay));
-                            delay *= 1.5; // Exponential backoff
-                            continue;
-                        }
+                    if ((error.response?.status === 404 || error.response?.status === 204) && i < retries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 1.5;
+                        continue;
                     }
-                    
                     throw error;
                 }
             }
-            
-            console.error('[IdentificationStep] ❌ All retry attempts exhausted');
             return null;
         };
 
         const handleCreateEntitySuccess = async () => {
-            // Only proceed if we have a newly created entity that matches our current NIF
-            if (!selectedEntity) {
-                console.log('[IdentificationStep] ⏭️ Skipping: No selectedEntity');
-                return;
-            }
+            if (!selectedEntity) return;
 
-            // Extract entity from potentially wrapped response
             const entity = selectedEntity?.entity || selectedEntity;
             const entityNipc = String(entity?.nipc || '');
             const formNipc = String(formData.nipc || '');
 
-            console.log('[IdentificationStep] Comparing NIPCs:', { entityNipc, formNipc, rawSelectedEntity: selectedEntity });
+            if (!entityNipc || entityNipc !== formNipc) return;
 
-            if (!entityNipc || entityNipc !== formNipc) {
-                console.log('[IdentificationStep] ⏭️ Skipping: NIPCs don\'t match', {
-                    entityNipc,
-                    formNipc
-                });
-                return;
-            }
+            // Skip if we already have this entity's data — prevents loop when edit modal opens
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            if (entityData?.pk && entity?.pk && String(entityData.pk) === String(entity.pk)) return;
 
-            // Removed check for entityData to allow updates/refreshes
-
-            console.log('[IdentificationStep] ✅ Conditions met! Starting entity fetch for:', selectedEntity.nipc);
-            
             try {
-                const entity = await fetchEntityWithRetry(selectedEntity.nipc);
-                
-                if (!entity) {
-                    console.error('[IdentificationStep] ❌ Failed to get entity data after all retries');
-                    notification.error('Erro ao obter dados da entidade criada. Por favor, pesquise novamente.');
+                const fetched = await fetchEntityWithRetry(selectedEntity.nipc);
+                if (!fetched) {
+                    notification.error('Erro ao obter dados da entidade. Por favor, pesquise novamente.');
                     return;
                 }
-                
-                console.log('[IdentificationStep] ✅ Calling handleEntityFound with entity:', entity.name);
-                
-                // Apply entity data directly (like legacy applyEntityData)
-                handleEntityFound(entity);
+                handleEntityFound(fetched);
                 notification.success('Entidade criada e selecionada com sucesso!');
-                
             } catch (error) {
-                console.error('[IdentificationStep] ❌ Error in handleCreateEntitySuccess:', error);
                 notification.error('Erro ao processar entidade criada');
             }
         };
-        
+
         handleCreateEntitySuccess();
-    }, [selectedEntity, formData.nipc, entityData, handleEntityFound]);
+    // entityData is intentionally omitted from deps — read as a guard only to prevent
+    // re-fetch loops when the edit modal is opened for an already-loaded entity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedEntity, formData.nipc, handleEntityFound]);
 
     // Toast notification for not found
     useEffect(() => {
@@ -265,8 +215,8 @@ const IdentificationStep = ({
     // Toast notification for incomplete data
     useEffect(() => {
         if (entityData && entityValidation && !entityValidation.isComplete) {
-            notification.warning('Ficha de entidade incompleta.', {
-                description: `Faltam dados obrigatórios: ${entityValidation.missingFields.join(', ')}.`,
+            notification.warning('Dados da entidade incompletos.', {
+                description: 'Alguns dados obrigatórios não foram preenchidos.',
                 action: {
                     label: 'Completar Dados',
                     onClick: handleEditEntity
@@ -369,8 +319,8 @@ const IdentificationStep = ({
 
                             {/* Entity Incomplete Alert */}
                             {entityData && entityValidation && !entityValidation.isComplete && (
-                                <Alert 
-                                    severity="error" 
+                                <Alert
+                                    severity="warning"
                                     sx={{ mt: 2 }}
                                     action={
                                         <Button color="inherit" size="small" onClick={handleEditEntity}>
@@ -378,7 +328,7 @@ const IdentificationStep = ({
                                         </Button>
                                     }
                                 >
-                                    Ficha incompleta. Faltam: {entityValidation.missingFields.join(', ')}
+                                    Os dados desta entidade não estão completos.
                                 </Alert>
                             )}
                         </Box>

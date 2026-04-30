@@ -98,7 +98,16 @@
       "Bash(npx claude-mem *)",
       "Bash(git -C \"C:/Users/rui.ramos/Desktop/APP\" add backend/app/sql/rh/ backend/app/services/rh_service.py backend/app/routes/rh_routes.py backend/app/routes/__init__.py backend/app/__init__.py)",
       "Bash(git -C \"C:/Users/rui.ramos/Desktop/APP\" status --short)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(node \"C:/Users/rui.ramos/.claude/plugins/cache/thedotmack/claude-mem/12.4.3/scripts/smart-install.js\")",
+      "Bash(npm outdated *)",
+      "mcp__plugin_playwright_playwright__browser_tabs",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__new_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_snapshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__click",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page"
     ],
     "deny": [],
     "ask": [],

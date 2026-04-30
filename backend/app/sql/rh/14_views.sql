@@ -1,6 +1,5 @@
 -- backend/app/sql/rh/14_views.sql
--- Idempotente: DROP ... CASCADE antes de cada CREATE VIEW para evitar o erro
--- "cannot drop columns from view" quando corrido sobre uma BD com versões mais recentes.
+-- Idempotente: DROP ... CASCADE antes de cada CREATE VIEW
 
 DROP VIEW IF EXISTS vbl_rh_colaborador         CASCADE;
 DROP VIEW IF EXISTS vbl_rh_ponto               CASCADE;
@@ -11,6 +10,7 @@ DROP VIEW IF EXISTS vbl_rh_faltas              CASCADE;
 DROP VIEW IF EXISTS vbl_rh_horario             CASCADE;
 DROP VIEW IF EXISTS vbl_rh_piquete             CASCADE;
 DROP VIEW IF EXISTS vbl_rh_piquete_ocorrencias CASCADE;
+
 
 -- Vista de colaboradores com saldo e horário activo
 CREATE VIEW vbl_rh_colaborador AS
@@ -41,8 +41,8 @@ LEFT JOIN tt_rh_tipo_jornada j
     ON j.pk = h.tt_jornada_fk;
 
 
--- Vista de registos de ponto com informação do utilizador
-CREATE OR REPLACE VIEW vbl_rh_ponto AS
+-- Vista de registos de ponto
+CREATE VIEW vbl_rh_ponto AS
 SELECT
     p.pk,
     p.tb_user_fk,
@@ -69,7 +69,7 @@ LEFT JOIN ts_rh_local l         ON l.pk = col.ts_rh_local_fk;
 
 
 -- Vista de mapas mensais
-CREATE OR REPLACE VIEW vbl_rh_ponto_mensal AS
+CREATE VIEW vbl_rh_ponto_mensal AS
 SELECT
     m.pk,
     m.tb_user_fk,
@@ -89,7 +89,7 @@ JOIN tt_rh_estado_workflow es ON es.pk = m.ts_estado_fk;
 
 
 -- Vista de pedidos de férias
-CREATE OR REPLACE VIEW vbl_rh_ferias AS
+CREATE VIEW vbl_rh_ferias AS
 SELECT
     f.pk,
     f.tb_user_fk,
@@ -111,8 +111,8 @@ JOIN tt_rh_tipo_ferias t      ON t.pk = f.tt_tipo_fk
 JOIN tt_rh_estado_workflow es ON es.pk = f.ts_estado_fk;
 
 
--- Vista de saldo de férias (total - gozados - pendentes)
-CREATE OR REPLACE VIEW vbl_rh_saldo_ferias AS
+-- Vista de saldo de férias
+CREATE VIEW vbl_rh_saldo_ferias AS
 SELECT
     c.pk                            AS tb_user_fk,
     c.name                          AS colaborador_nome,
@@ -140,7 +140,7 @@ LEFT JOIN ts_rh_config cfg
 
 
 -- Vista de faltas
-CREATE OR REPLACE VIEW vbl_rh_faltas AS
+CREATE VIEW vbl_rh_faltas AS
 SELECT
     fa.pk,
     fa.tb_user_fk,
@@ -165,7 +165,7 @@ LEFT JOIN ts_client cp        ON cp.pk = fa.comunicado_por;
 
 
 -- Vista de horários
-CREATE OR REPLACE VIEW vbl_rh_horario AS
+CREATE VIEW vbl_rh_horario AS
 SELECT
     h.pk,
     h.tb_user_fk,
@@ -187,7 +187,7 @@ JOIN tt_rh_tipo_jornada j   ON j.pk = h.tt_jornada_fk;
 
 
 -- Vista de escala de piquete
-CREATE OR REPLACE VIEW vbl_rh_piquete AS
+CREATE VIEW vbl_rh_piquete AS
 SELECT
     e.pk,
     e.tb_user_fk,
@@ -209,7 +209,7 @@ JOIN tt_rh_estado_workflow es ON es.pk = e.ts_estado_fk;
 
 
 -- Vista de ocorrências de piquete
-CREATE OR REPLACE VIEW vbl_rh_piquete_ocorrencias AS
+CREATE VIEW vbl_rh_piquete_ocorrencias AS
 SELECT
     o.pk,
     o.tb_piquete_escala_fk,

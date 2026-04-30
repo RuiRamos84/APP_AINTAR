@@ -827,17 +827,17 @@ def init_config_ano_todos(ano: int, current_user: str):
 class LocalCreate(BaseModel):
     nome: str
     descr: Optional[str] = None
-    latitude: float
-    longitude: float
-    raio_metros: int = 200
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    raio_metros: int = Field(200, ge=10, le=10000)
 
 
 class LocalUpdate(BaseModel):
     nome: Optional[str] = None
     descr: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    raio_metros: Optional[int] = None
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    raio_metros: Optional[int] = Field(None, ge=10, le=10000)
     ativo: Optional[bool] = None
 
 

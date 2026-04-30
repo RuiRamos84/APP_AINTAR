@@ -25,6 +25,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
 
     const [valuetext, setValuetext] = useState('');
     const [booleanValue, setBooleanValue] = useState(false);
+    const [energyValues, setEnergyValues] = useState({ vazio: '', ponta: '', cheia: '' });
     const [analysisParams, setAnalysisParams] = useState([]);
     const [analysisValues, setAnalysisValues] = useState({});
     const [referenceOptions, setReferenceOptions] = useState([]);
@@ -192,6 +193,17 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
                     }
                     break;
                 }
+                case OPERATION_TYPES.ENERGY_METER: {
+                    const { vazio, ponta, cheia } = energyValues;
+                    const nums = [vazio, ponta, cheia].map((v) => parseFloat(v));
+                    if (nums.some(isNaN) || [vazio, ponta, cheia].some((v) => v.trim() === '')) {
+                        setError('Preencha todos os campos de leitura (Vazio, Ponta, Cheia)');
+                        setSubmitting(false);
+                        return;
+                    }
+                    completionData = { valuetext: `${nums[0]};${nums[1]};${nums[2]}`, type: 6 };
+                    break;
+                }
                 default:
                     setError('Tipo de ação não reconhecido');
                     setSubmitting(false);
@@ -230,6 +242,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
     const handleClose = () => {
         setValuetext('');
         setBooleanValue(false);
+        setEnergyValues({ vazio: '', ponta: '', cheia: '' });
         setAnalysisParams([]);
         setAnalysisValues({});
         setReferenceOptions([]);
@@ -376,6 +389,27 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete }) => {
                         {analysisParams.length === 0 && !loading && (
                             <Alert severity="info">{MESSAGES.FORMS.NO_ANALYSIS_PARAMS}</Alert>
                         )}
+                    </Stack>
+                );
+
+            case OPERATION_TYPES.ENERGY_METER:
+                return (
+                    <Stack spacing={2}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                            Leituras do Contador de Energia
+                        </Typography>
+                        {['vazio', 'ponta', 'cheia'].map((field) => (
+                            <TextField
+                                key={field}
+                                fullWidth
+                                label={{ vazio: 'Vazio (kWh)', ponta: 'Ponta (kWh)', cheia: 'Cheia (kWh)' }[field]}
+                                type="number"
+                                value={energyValues[field]}
+                                onChange={(e) => setEnergyValues((prev) => ({ ...prev, [field]: e.target.value }))}
+                                inputProps={{ step: 'any', min: 0, inputMode: 'decimal' }}
+                                autoFocus={field === 'vazio' && !isMobile}
+                            />
+                        ))}
                     </Stack>
                 );
 

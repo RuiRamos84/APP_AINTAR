@@ -77,10 +77,7 @@ export default function RecursosHumanosPage() {
     <PageLayout
       title="Recursos Humanos"
       subtitle="Procedimentos concursais, tolerâncias de ponto e mobilidade na carreira."
-      breadcrumbs={[
-        { label: 'Quem Somos', href: '/quem-somos' },
-        { label: 'Recursos Humanos' },
-      ]}
+      breadcrumbs={[{ label: 'Recursos Humanos' }]}
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl space-y-14">
@@ -155,7 +152,7 @@ export default function RecursosHumanosPage() {
 
                       {/* Botão */}
                       <Link
-                        to={`/quem-somos/recursos-humanos/${c.pk}`}
+                        to={`/recursos-humanos/${c.pk}`}
                         className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-aintar-teal text-white text-sm font-semibold hover:bg-aintar-blue transition-colors w-full"
                       >
                         Abrir
