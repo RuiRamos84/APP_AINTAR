@@ -99,8 +99,15 @@ const IdentificationStep = ({
     const theme = useTheme();
     
     // Entity Creation/Edit Logic
-    const { openCreateModal, openModal, selectedEntity } = useEntityStore();
+    const { openCreateModal, openModal, selectedEntity, modalOpen } = useEntityStore();
     const [searchStatus, setSearchStatus] = useState(null); // 'loading', 'success', 'error', 'not_found'
+
+    // Refs to read current values inside effects without adding them as deps
+    const formNipcRef = React.useRef(formData.nipc);
+    formNipcRef.current = formData.nipc;
+    const entityDataRef = React.useRef(entityData);
+    entityDataRef.current = entityData;
+    const prevModalOpenRef = React.useRef(false);
 
     // Helper to check entity completeness
     const getEntityValidationStatus = (ent) => {
@@ -141,6 +148,31 @@ const IdentificationStep = ({
         }
     }, [setRepresentativeData, setFormData]);
     
+    // Refresh entity data when the edit modal closes (entity was updated)
+    useEffect(() => {
+        const wasOpen = prevModalOpenRef.current;
+        prevModalOpenRef.current = modalOpen;
+
+        // Only act on true → false transition
+        if (!wasOpen || modalOpen) return;
+
+        const nipc = formNipcRef.current;
+        const current = entityDataRef.current;
+        if (!nipc || !current) return;
+
+        const refresh = async () => {
+            try {
+                const { entitiesService } = await import('@/features/entities/api/entitiesService');
+                const response = await entitiesService.getEntityByNipc(nipc);
+                const entity = response?.entity || response;
+                if (entity?.nipc) handleEntityFound(entity);
+            } catch {
+                // Silent — entity display stays as-is
+            }
+        };
+        refresh();
+    }, [modalOpen, handleEntityFound]);
+
     // Handle entity creation success - fetch and apply newly created entity data
     useEffect(() => {
         const fetchEntityWithRetry = async (nipc, retries = 3, delay = 500) => {

@@ -116,7 +116,7 @@ const NovaSubclasseDialog = ({ open, onClose, onSave, classes, tipos }) => {
                             <MenuItem key={t.pk} value={t.pk}>{t.designacao}</MenuItem>
                         ))}
                     </TextField>
-                    <TextField label="SNCAP" value={sncap}
+                    <TextField label="SNC-AP" value={sncap}
                         onChange={(e) => {
                             const val = e.target.value;
                             if (val === '' || /^\d+$/.test(val)) setSncap(val);
@@ -198,7 +198,7 @@ const CatalogPage = () => {
                             <TableRow sx={{ bgcolor: 'grey.100' }}>
                                 <TableCell><b>Designação</b></TableCell>
                                 <TableCell><b>Tipo</b></TableCell>
-                                <TableCell><b>SNCAP</b></TableCell>
+                                <TableCell><b>SNC-AP</b></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>

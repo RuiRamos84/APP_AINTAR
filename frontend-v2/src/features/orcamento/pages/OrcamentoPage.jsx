@@ -1,95 +1,105 @@
 import React, { useEffect } from 'react';
+import { Button, IconButton, Stack, Typography } from '@mui/material';
 import {
-    Box, Button, Typography, Stack, MenuItem, TextField, Skeleton,
-} from '@mui/material';
-import {
-    Add as AddIcon,
     AccountBalance as OrcamentoIcon,
-    List as CatalogIcon,
+    Add as AddIcon,
+    TuneRounded as TuneIcon,
+    ChevronLeft as ChevronLeftIcon,
+    ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useOrcamentoStore } from '../store/orcamentoStore';
 import { OrcamentoTable } from '../components/OrcamentoTable';
+import { OrcamentoForm } from '../components/OrcamentoForm';
 
+const MODULE_COLOR = '#059669';
+
+/* ── Navegador de ano: ← 2024 → ─────────────────────────────── */
+const YearNavigator = () => {
+    const { anos, anoSelecionado, setAno, loading } = useOrcamentoStore();
+    const idx    = anos.indexOf(Number(anoSelecionado));
+    const canOld = idx < anos.length - 1; // lista desc → maior idx = mais antigo
+    const canNew = idx > 0;               // menor idx = mais recente
+
+    if (!anoSelecionado) return null;
+
+    return (
+        <Stack direction="row" alignItems="center" spacing={0.25}>
+            <IconButton
+                size="small"
+                onClick={() => setAno(anos[idx + 1])}
+                disabled={!canOld || loading}
+                sx={{ color: 'text.secondary' }}
+            >
+                <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+            <Typography
+                variant="h6"
+                fontWeight={700}
+                sx={{ minWidth: 52, textAlign: 'center', letterSpacing: 0.5 }}
+            >
+                {anoSelecionado}
+            </Typography>
+            <IconButton
+                size="small"
+                onClick={() => setAno(anos[idx - 1])}
+                disabled={!canNew || loading}
+                sx={{ color: 'text.secondary' }}
+            >
+                <ChevronRightIcon fontSize="small" />
+            </IconButton>
+        </Stack>
+    );
+};
+
+/* ── Página ──────────────────────────────────────────────────── */
 const OrcamentoPage = () => {
     const navigate = useNavigate();
-    const { anos, anoSelecionado, setAno, openModal, fetchAnos, loading } = useOrcamentoStore();
+    const { fetchAnos, setAno, openModal, loading } = useOrcamentoStore();
 
     useEffect(() => {
         const init = async () => {
             const list = await fetchAnos();
-            if (list.length > 0) {
-                setAno(list[0]);
-            } else {
-                const { fetchDetalhe, fetchSummary, fetchSubclasses } = useOrcamentoStore.getState();
-                fetchDetalhe();
-                fetchSummary();
-                fetchSubclasses();
-            }
+            if (list.length > 0) setAno(list[0]);
         };
         init();
     }, []);
 
     return (
-        <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Header */}
-            <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-                gap={2}
-            >
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <OrcamentoIcon color="primary" fontSize="large" />
-                    <Typography variant="h4" fontWeight="bold">
-                        Orçamento
-                    </Typography>
-                </Stack>
-
-                <Stack direction="row" alignItems="center" spacing={2}>
-                    {/* Seletor de Ano */}
-                    {anos.length > 0 ? (
-                        <TextField
-                            select
-                            size="small"
-                            label="Ano"
-                            value={anoSelecionado ?? ''}
-                            onChange={(e) => setAno(e.target.value)}
-                            sx={{ minWidth: 110 }}
-                        >
-                            {anos.map((a) => (
-                                <MenuItem key={a} value={a}>{a}</MenuItem>
-                            ))}
-                        </TextField>
-                    ) : (
-                        <Skeleton variant="rounded" width={110} height={40} />
-                    )}
-
+        <ModulePage
+            title="Orçamento"
+            subtitle="Gestão de dotações por classificação económica"
+            icon={OrcamentoIcon}
+            color={MODULE_COLOR}
+            breadcrumbs={[{ label: 'Orçamento' }]}
+            center={<YearNavigator />}
+            actions={
+                <Stack direction="row" spacing={1.5} alignItems="center">
                     <Button
                         variant="outlined"
-                        startIcon={<CatalogIcon />}
+                        size="small"
+                        startIcon={<TuneIcon />}
                         onClick={() => navigate('/orcamento/catalogo')}
                     >
-                        Classes e Subclasses
+                        Catálogo
                     </Button>
-
                     <Button
                         variant="contained"
+                        size="small"
                         startIcon={<AddIcon />}
                         onClick={() => openModal(null)}
                         disabled={loading}
+                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' } }}
                     >
-                        Novo Registo
+                        Nova Dotação
                     </Button>
                 </Stack>
-            </Stack>
-
-            {/* Tabela */}
-            <Box sx={{ flexGrow: 1 }}>
-                <OrcamentoTable />
-            </Box>
-
-        </Box>
+            }
+        >
+            <OrcamentoTable />
+            <OrcamentoForm />
+        </ModulePage>
     );
 };
 
