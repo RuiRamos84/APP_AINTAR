@@ -391,6 +391,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/orcamento/catalogo': {
+    id: 'orcamento_catalogo',
+    text: 'Catálogo',
+    icon: OrcamentoIcon,
+    module: 'gestao',
+    permissions: { required: 'expenses.view' },
+    showInSidebar: false,
+  },
+
   // ==================== MÓDULO: PAGAMENTOS ====================
   // Ordem: SIBS/Pagamentos, Faturas, Clientes/Contratos, Caixa
 

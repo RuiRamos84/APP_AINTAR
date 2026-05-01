@@ -3,10 +3,9 @@ import {
     Box, Typography, Chip, IconButton, Tooltip,
     Paper, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, Collapse, CircularProgress,
-    Alert, Stack, Button,
+    Alert, Stack, Button, LinearProgress,
     Dialog, DialogTitle, DialogContent, DialogActions,
-    alpha, useTheme, ToggleButtonGroup, ToggleButton,
-    LinearProgress,
+    alpha, useTheme, useMediaQuery, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -22,6 +21,7 @@ import {
 import { useOrcamentoStore } from '../store/orcamentoStore';
 import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
+import { YearNavigator } from '../pages/OrcamentoPage';
 
 /* ─── helpers ──────────────────────────────────────────────── */
 const fmt = (v) =>
@@ -30,7 +30,7 @@ const fmt = (v) =>
 const fmtDate = (d) => {
     if (!d) return '—';
     try {
-        const dt = new Date(d);
+        const dt    = new Date(d);
         const local = new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
         return new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' }).format(local);
     } catch { return '—'; }
@@ -48,7 +48,7 @@ const KpiCard = ({ label, value, total, icon: Icon, accent, count }) => {
             elevation={0}
             variant="outlined"
             sx={{
-                p: 2.5,
+                p: { xs: 1.75, sm: 2.5 },
                 borderLeft: `4px solid ${accent}`,
                 borderRadius: 2,
                 flex: 1,
@@ -63,7 +63,8 @@ const KpiCard = ({ label, value, total, icon: Icon, accent, count }) => {
                         textTransform="uppercase" letterSpacing={0.6}>
                         {label}
                     </Typography>
-                    <Typography variant="h5" fontWeight={700} mt={0.25}>
+                    <Typography variant="h5" fontWeight={700} mt={0.25}
+                        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
                         {fmt(value)}
                     </Typography>
                     {count !== undefined && (
@@ -73,11 +74,12 @@ const KpiCard = ({ label, value, total, icon: Icon, accent, count }) => {
                     )}
                 </Box>
                 <Box sx={{
-                    width: 40, height: 40, borderRadius: '50%',
+                    width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, borderRadius: '50%',
                     bgcolor: alpha(accent, 0.12),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
                 }}>
-                    <Icon sx={{ color: accent, fontSize: 20 }} />
+                    <Icon sx={{ color: accent, fontSize: { xs: 16, sm: 20 } }} />
                 </Box>
             </Stack>
             {total !== null && (
@@ -110,7 +112,7 @@ const TotalCard = ({ total, corrente, capital, accent }) => {
             elevation={0}
             variant="outlined"
             sx={{
-                p: 2.5,
+                p: { xs: 1.75, sm: 2.5 },
                 borderLeft: `4px solid ${accent}`,
                 borderRadius: 2,
                 flex: 1,
@@ -125,19 +127,20 @@ const TotalCard = ({ total, corrente, capital, accent }) => {
                         textTransform="uppercase" letterSpacing={0.6}>
                         Total Geral
                     </Typography>
-                    <Typography variant="h5" fontWeight={700} mt={0.25}>
+                    <Typography variant="h5" fontWeight={700} mt={0.25}
+                        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
                         {fmt(total)}
                     </Typography>
                 </Box>
                 <Box sx={{
-                    width: 40, height: 40, borderRadius: '50%',
+                    width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, borderRadius: '50%',
                     bgcolor: alpha(accent, 0.12),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
                 }}>
-                    <TotalIcon sx={{ color: accent, fontSize: 20 }} />
+                    <TotalIcon sx={{ color: accent, fontSize: { xs: 16, sm: 20 } }} />
                 </Box>
             </Stack>
-
             <Box sx={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', mb: 0.75, bgcolor: alpha('#0891b2', 0.12) }}>
                 {correntePct > 0 && (
                     <Box sx={{ width: `${correntePct}%`, bgcolor: '#0891b2', transition: 'width .4s ease' }} />
@@ -148,11 +151,11 @@ const TotalCard = ({ total, corrente, capital, accent }) => {
             </Box>
             <Stack direction="row" spacing={2}>
                 <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#0891b2' }} />
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#0891b2', flexShrink: 0 }} />
                     <Typography variant="caption" color="text.secondary">Corrente {correntePct}%</Typography>
                 </Stack>
                 <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#d97706' }} />
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#d97706', flexShrink: 0 }} />
                     <Typography variant="caption" color="text.secondary">Capital {100 - correntePct}%</Typography>
                 </Stack>
             </Stack>
@@ -171,7 +174,7 @@ const SummaryDashboard = ({ registos }) => {
     if (totalGeral === 0) return null;
 
     return (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={3}>
             <TotalCard total={totalGeral} corrente={totalCorrente} capital={totalCapital} accent="#059669" />
             <KpiCard label="Despesas Correntes" value={totalCorrente} total={totalGeral}
                 accent="#0891b2" icon={Corrente} count={corrente.length} />
@@ -182,12 +185,13 @@ const SummaryDashboard = ({ registos }) => {
 };
 
 /* ─── ClasseSection ─────────────────────────────────────────── */
-const TIPO_COLOR = { Corrente: { color: 'info', hex: '#0891b2' }, Capital: { color: 'warning', hex: '#d97706' } };
-const COL = 7;
+const TIPO_COLOR = { Corrente: { color: 'info' }, Capital: { color: 'warning' } };
 
-const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete }) => {
-    const theme = useTheme();
+const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isMobile }) => {
     const total = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+    // Colunas visíveis: mobile=4, desktop=7
+    const colSpanHeader = isMobile ? 3 : 6;
+    const colSpanTotal  = isMobile ? 4 : 7;
 
     return (
         <>
@@ -201,7 +205,7 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete }) =
                     transition: 'background-color .15s',
                 }}
             >
-                <TableCell colSpan={COL - 1} sx={{ py: 1.25 }}>
+                <TableCell colSpan={colSpanHeader} sx={{ py: 1.25 }}>
                     <Stack direction="row" alignItems="center" spacing={1}>
                         <Typography variant="subtitle2" fontWeight={700} color="#059669">
                             {classe}
@@ -214,7 +218,7 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete }) =
                     </Stack>
                 </TableCell>
                 <TableCell align="right" sx={{ py: 1.25 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
+                    <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={0.5}>
                         <Typography variant="subtitle2" fontWeight={700} color="#059669">
                             {fmt(total)}
                         </Typography>
@@ -227,7 +231,7 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete }) =
             </TableRow>
 
             <TableRow sx={{ p: 0 }}>
-                <TableCell colSpan={COL} sx={{ p: 0, border: 'none' }}>
+                <TableCell colSpan={colSpanTotal} sx={{ p: 0, border: 'none' }}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Table size="small" sx={{ tableLayout: 'fixed' }}>
                             <TableBody>
@@ -240,33 +244,34 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete }) =
                                             bgcolor: i % 2 === 0 ? 'background.paper' : alpha('#059669', 0.02),
                                         }}
                                     >
-                                        <TableCell sx={{ pl: 3.5 }}>
-                                            <Typography variant="body2">{r.subclasse}</Typography>
+                                        <TableCell sx={{ pl: { xs: 2, sm: 3.5 } }}>
+                                            <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                                {r.subclasse}
+                                            </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ width: 110 }}>
+                                        <TableCell sx={{ width: { xs: 80, sm: 110 } }}>
                                             {r.tipo && (
-                                                <Chip
-                                                    label={r.tipo}
-                                                    size="small"
-                                                    color={TIPO_COLOR[r.tipo]?.color || 'default'}
-                                                />
+                                                <Chip label={r.tipo} size="small"
+                                                    color={TIPO_COLOR[r.tipo]?.color || 'default'} />
                                             )}
                                         </TableCell>
-                                        <TableCell sx={{ width: 80 }}>
+                                        {/* SNC-AP — oculto em mobile */}
+                                        <TableCell sx={{ width: 80, display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.disabled" fontFamily="monospace">
                                                 {r.sncap || '—'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ width: 130 }}>
+                                        <TableCell align="right" sx={{ width: { xs: 110, sm: 130 } }}>
                                             <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ width: 130 }}>
+                                        {/* Datas — ocultas em mobile */}
+                                        <TableCell align="right" sx={{ width: 130, display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary">{fmtDate(r.data_inicio)}</Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ width: 130 }}>
+                                        <TableCell align="right" sx={{ width: 130, display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary">{fmtDate(r.data_fim)}</Typography>
                                         </TableCell>
-                                        <TableCell align="center" sx={{ width: 90 }}>
+                                        <TableCell align="center" sx={{ width: { xs: 72, sm: 90 } }}>
                                             <Tooltip title="Editar">
                                                 <IconButton size="small" onClick={() => onEdit(r)}>
                                                     <EditIcon fontSize="small" />
@@ -316,21 +321,20 @@ const DeleteDialog = ({ target, onConfirm, onClose }) => (
 /* ─── OrcamentoTable ────────────────────────────────────────── */
 export const OrcamentoTable = () => {
     const { registos, loading, error, openModal, deleteRegisto, anoSelecionado } = useOrcamentoStore();
+    const theme    = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     const [collapsed,    setCollapsed]    = useState({});
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [searchTerm,   setSearchTerm]   = useState('');
     const [tipoFilter,   setTipoFilter]   = useState('todos');
 
-    // 1. Filtro estrutural (tipo)
     const byTipo = useMemo(() =>
         tipoFilter === 'todos' ? registos : registos.filter(r => r.tipo === tipoFilter),
     [registos, tipoFilter]);
 
-    // 2. Pesquisa de texto
     const searched = useSearch(byTipo, searchTerm);
 
-    // 3. Agrupar por classe
     const porClasse = useMemo(() => {
         const map = {};
         searched.forEach(r => {
@@ -343,7 +347,7 @@ export const OrcamentoTable = () => {
     const activeClasses = useMemo(() => Object.keys(porClasse), [porClasse]);
     const isSearching   = searchTerm.trim().length > 0 || tipoFilter !== 'todos';
 
-    const isOpen = (classe) => isSearching || !collapsed[classe];
+    const isOpen       = (classe) => isSearching || !collapsed[classe];
     const toggleClasse = (classe) => setCollapsed(prev => ({ ...prev, [classe]: !prev[classe] }));
 
     const handleDeleteConfirm = async () => {
@@ -361,23 +365,37 @@ export const OrcamentoTable = () => {
 
     return (
         <Box>
-            {/* Summary — reage ao filtro activo */}
+            {/* KPIs — reagem ao filtro activo */}
             <SummaryDashboard registos={searched} />
 
             {/* Toolbar */}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} mb={2}>
-                <SearchBar
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    placeholder="Pesquisar subclasse, SNC-AP..."
-                    sx={{ flex: 1, maxWidth: { sm: 360 } }}
-                />
+            <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                alignItems={{ sm: 'center' }}
+                justifyContent="space-between"
+                mb={2}
+            >
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
+                    {/* Em mobile o YearNavigator fica aqui, não no header */}
+                    {isMobile && (
+                        <Box sx={{ flexShrink: 0 }}>
+                            <YearNavigator compact />
+                        </Box>
+                    )}
+                    <SearchBar
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Pesquisar subclasse, SNC-AP..."
+                        sx={{ flex: 1, maxWidth: { sm: 360 } }}
+                    />
+                </Stack>
                 <ToggleButtonGroup
                     size="small"
                     exclusive
                     value={tipoFilter}
                     onChange={(_, v) => v && setTipoFilter(v)}
-                    sx={{ flexShrink: 0 }}
+                    sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
                 >
                     <ToggleButton value="todos">Todos</ToggleButton>
                     <ToggleButton value="Corrente">Corrente</ToggleButton>
@@ -392,31 +410,49 @@ export const OrcamentoTable = () => {
                     justifyContent: 'center', py: 8, gap: 1.5, color: 'text.disabled',
                 }}>
                     <OrcamentoIcon sx={{ fontSize: 48, opacity: 0.25 }} />
-                    <Typography variant="body1" fontWeight={500}>
+                    <Typography variant="body1" fontWeight={500} textAlign="center">
                         {isSearching
                             ? 'Nenhum resultado encontrado'
                             : `Sem dotações registadas${anoSelecionado ? ` para ${anoSelecionado}` : ''}`
                         }
                     </Typography>
                     {isSearching && (
-                        <Typography variant="caption">
+                        <Typography variant="caption" textAlign="center">
                             Tenta ajustar os filtros ou o termo de pesquisa.
                         </Typography>
                     )}
                 </Box>
             ) : (
                 <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 2 }}>
-                    <TableContainer sx={{ maxHeight: 'calc(100vh - 380px)', overflow: 'auto' }}>
-                        <Table size="small" sx={{ tableLayout: 'auto' }}>
+                    <TableContainer sx={{
+                        maxHeight: { xs: 'none', md: 'calc(100vh - 400px)' },
+                        overflowY: { xs: 'visible', md: 'auto' },
+                        overflowX: 'auto',
+                    }}>
+                        <Table size="small" sx={{ minWidth: { xs: 360, md: 'auto' }, tableLayout: 'auto' }}>
                             <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>Subclasse</TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 110 }}>Tipo</TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 80 }}>SNC-AP</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130 }}>Dotação</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130 }}>Início</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130 }}>Fim</TableCell>
-                                    <TableCell align="center" sx={{ width: 90 }} />
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                        Subclasse
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: { xs: 80, sm: 110 } }}>
+                                        Tipo
+                                    </TableCell>
+                                    {/* SNC-AP — oculto em mobile */}
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 80, display: { xs: 'none', md: 'table-cell' } }}>
+                                        SNC-AP
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: { xs: 110, sm: 130 } }}>
+                                        Dotação
+                                    </TableCell>
+                                    {/* Datas — ocultas em mobile */}
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130, display: { xs: 'none', md: 'table-cell' } }}>
+                                        Início
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130, display: { xs: 'none', md: 'table-cell' } }}>
+                                        Fim
+                                    </TableCell>
+                                    <TableCell align="center" sx={{ width: { xs: 72, sm: 90 } }} />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -429,6 +465,7 @@ export const OrcamentoTable = () => {
                                         onToggle={() => toggleClasse(classe)}
                                         onEdit={(r) => openModal(r)}
                                         onDelete={(r) => setDeleteTarget(r)}
+                                        isMobile={isMobile}
                                     />
                                 ))}
                             </TableBody>

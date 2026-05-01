@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Button, IconButton, Stack, Typography } from '@mui/material';
+import { Button, IconButton, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import {
     AccountBalance as OrcamentoIcon,
     Add as AddIcon,
@@ -15,17 +15,17 @@ import { OrcamentoForm } from '../components/OrcamentoForm';
 
 const MODULE_COLOR = '#059669';
 
-/* ── Navegador de ano: ← 2024 → ─────────────────────────────── */
-const YearNavigator = () => {
+/* ── Navegador de ano inline (usado no toolbar da tabela) ────── */
+export const YearNavigator = ({ compact = false }) => {
     const { anos, anoSelecionado, setAno, loading } = useOrcamentoStore();
     const idx    = anos.indexOf(Number(anoSelecionado));
-    const canOld = idx < anos.length - 1; // lista desc → maior idx = mais antigo
-    const canNew = idx > 0;               // menor idx = mais recente
+    const canOld = idx < anos.length - 1;
+    const canNew = idx > 0;
 
     if (!anoSelecionado) return null;
 
     return (
-        <Stack direction="row" alignItems="center" spacing={0.25}>
+        <Stack direction="row" alignItems="center" spacing={0}>
             <IconButton
                 size="small"
                 onClick={() => setAno(anos[idx + 1])}
@@ -35,9 +35,9 @@ const YearNavigator = () => {
                 <ChevronLeftIcon fontSize="small" />
             </IconButton>
             <Typography
-                variant="h6"
+                variant={compact ? 'body1' : 'h6'}
                 fontWeight={700}
-                sx={{ minWidth: 52, textAlign: 'center', letterSpacing: 0.5 }}
+                sx={{ minWidth: compact ? 44 : 52, textAlign: 'center', letterSpacing: 0.5 }}
             >
                 {anoSelecionado}
             </Typography>
@@ -56,6 +56,8 @@ const YearNavigator = () => {
 /* ── Página ──────────────────────────────────────────────────── */
 const OrcamentoPage = () => {
     const navigate = useNavigate();
+    const theme    = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { fetchAnos, setAno, openModal, loading } = useOrcamentoStore();
 
     useEffect(() => {
@@ -69,33 +71,37 @@ const OrcamentoPage = () => {
     return (
         <ModulePage
             title="Orçamento"
-            subtitle="Gestão de dotações por classificação económica"
+            subtitle={isMobile ? undefined : 'Gestão de dotações por classificação económica'}
             icon={OrcamentoIcon}
             color={MODULE_COLOR}
             breadcrumbs={[{ label: 'Orçamento' }]}
-            center={<YearNavigator />}
             actions={
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center">
+                    {/* Em mobile o YearNavigator fica nas actions para não sobrepor o título */}
+                    {isMobile && <YearNavigator compact />}
                     <Button
                         variant="outlined"
                         size="small"
-                        startIcon={<TuneIcon />}
+                        startIcon={!isMobile && <TuneIcon />}
                         onClick={() => navigate('/orcamento/catalogo')}
+                        sx={{ minWidth: 0 }}
                     >
-                        Catálogo
+                        {isMobile ? <TuneIcon fontSize="small" /> : 'Catálogo'}
                     </Button>
                     <Button
                         variant="contained"
                         size="small"
-                        startIcon={<AddIcon />}
+                        startIcon={!isMobile && <AddIcon />}
                         onClick={() => openModal(null)}
                         disabled={loading}
-                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' } }}
+                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 0 }}
                     >
-                        Nova Dotação
+                        {isMobile ? <AddIcon fontSize="small" /> : 'Nova Dotação'}
                     </Button>
                 </Stack>
             }
+            /* Em desktop o YearNavigator fica centrado no header */
+            center={!isMobile ? <YearNavigator /> : undefined}
         >
             <OrcamentoTable />
             <OrcamentoForm />
