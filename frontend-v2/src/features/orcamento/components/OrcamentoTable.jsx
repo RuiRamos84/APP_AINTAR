@@ -3,9 +3,10 @@ import {
     Box, Typography, Chip, IconButton, Tooltip,
     Paper, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, Collapse, CircularProgress,
-    Alert, LinearProgress, Grid, Stack, Button,
+    Alert, Stack, Button,
     Dialog, DialogTitle, DialogContent, DialogActions,
     alpha, useTheme, ToggleButtonGroup, ToggleButton,
+    LinearProgress,
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -16,6 +17,7 @@ import {
     AccountTree as Capital,
     Payments as TotalIcon,
     WarningAmber as WarnIcon,
+    AccountBalance as OrcamentoIcon,
 } from '@mui/icons-material';
 import { useOrcamentoStore } from '../store/orcamentoStore';
 import { SearchBar } from '@/shared/components/data';
@@ -36,10 +38,10 @@ const fmtDate = (d) => {
 
 const pct = (part, total) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
-/* ─── Summary Dashboard ─────────────────────────────────────── */
-const KpiCard = ({ label, value, total, barColor, icon: Icon, accent }) => {
-    const theme  = useTheme();
-    const ratio  = pct(value, total);
+/* ─── KpiCard ───────────────────────────────────────────────── */
+const KpiCard = ({ label, value, total, icon: Icon, accent, count }) => {
+    const theme = useTheme();
+    const ratio = pct(value, total);
 
     return (
         <Paper
@@ -57,12 +59,18 @@ const KpiCard = ({ label, value, total, barColor, icon: Icon, accent }) => {
         >
             <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1}>
                 <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={500} textTransform="uppercase" letterSpacing={0.6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}
+                        textTransform="uppercase" letterSpacing={0.6}>
                         {label}
                     </Typography>
                     <Typography variant="h5" fontWeight={700} mt={0.25}>
                         {fmt(value)}
                     </Typography>
+                    {count !== undefined && (
+                        <Typography variant="caption" color="text.disabled">
+                            {count} dotaç{count === 1 ? 'ão' : 'ões'}
+                        </Typography>
+                    )}
                 </Box>
                 <Box sx={{
                     width: 40, height: 40, borderRadius: '50%',
@@ -72,7 +80,6 @@ const KpiCard = ({ label, value, total, barColor, icon: Icon, accent }) => {
                     <Icon sx={{ color: accent, fontSize: 20 }} />
                 </Box>
             </Stack>
-
             {total !== null && (
                 <>
                     <LinearProgress
@@ -93,9 +100,9 @@ const KpiCard = ({ label, value, total, barColor, icon: Icon, accent }) => {
     );
 };
 
-/* Total card with split bar ─ */
+/* ─── TotalCard ─────────────────────────────────────────────── */
 const TotalCard = ({ total, corrente, capital, accent }) => {
-    const theme      = useTheme();
+    const theme       = useTheme();
     const correntePct = pct(corrente, total);
 
     return (
@@ -114,7 +121,8 @@ const TotalCard = ({ total, corrente, capital, accent }) => {
         >
             <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1}>
                 <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={500} textTransform="uppercase" letterSpacing={0.6}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}
+                        textTransform="uppercase" letterSpacing={0.6}>
                         Total Geral
                     </Typography>
                     <Typography variant="h5" fontWeight={700} mt={0.25}>
@@ -130,7 +138,6 @@ const TotalCard = ({ total, corrente, capital, accent }) => {
                 </Box>
             </Stack>
 
-            {/* Barra segmentada Corrente | Capital */}
             <Box sx={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', mb: 0.75, bgcolor: alpha('#0891b2', 0.12) }}>
                 {correntePct > 0 && (
                     <Box sx={{ width: `${correntePct}%`, bgcolor: '#0891b2', transition: 'width .4s ease' }} />
@@ -153,23 +160,28 @@ const TotalCard = ({ total, corrente, capital, accent }) => {
     );
 };
 
+/* ─── SummaryDashboard ──────────────────────────────────────── */
 const SummaryDashboard = ({ registos }) => {
     const totalGeral    = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    const totalCorrente = registos.filter(r => r.tipo === 'Corrente').reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    const totalCapital  = registos.filter(r => r.tipo === 'Capital') .reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+    const corrente      = registos.filter(r => r.tipo === 'Corrente');
+    const capital       = registos.filter(r => r.tipo === 'Capital');
+    const totalCorrente = corrente.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+    const totalCapital  = capital.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
 
     if (totalGeral === 0) return null;
 
     return (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3}>
             <TotalCard total={totalGeral} corrente={totalCorrente} capital={totalCapital} accent="#059669" />
-            <KpiCard label="Despesas Correntes" value={totalCorrente} total={totalGeral} accent="#0891b2" icon={Corrente} />
-            <KpiCard label="Despesas Capital"   value={totalCapital}  total={totalGeral} accent="#d97706" icon={Capital}  />
+            <KpiCard label="Despesas Correntes" value={totalCorrente} total={totalGeral}
+                accent="#0891b2" icon={Corrente} count={corrente.length} />
+            <KpiCard label="Despesas Capital" value={totalCapital} total={totalGeral}
+                accent="#d97706" icon={Capital} count={capital.length} />
         </Stack>
     );
 };
 
-/* ─── Linha de classe colapsável ────────────────────────────── */
+/* ─── ClasseSection ─────────────────────────────────────────── */
 const TIPO_COLOR = { Corrente: { color: 'info', hex: '#0891b2' }, Capital: { color: 'warning', hex: '#d97706' } };
 const COL = 7;
 
@@ -277,7 +289,7 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete }) =
     );
 };
 
-/* ─── Diálogo de confirmação de eliminação ──────────────────── */
+/* ─── DeleteDialog ──────────────────────────────────────────── */
 const DeleteDialog = ({ target, onConfirm, onClose }) => (
     <Dialog open={Boolean(target)} onClose={onClose} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -301,7 +313,7 @@ const DeleteDialog = ({ target, onConfirm, onClose }) => (
     </Dialog>
 );
 
-/* ─── Tabela principal ──────────────────────────────────────── */
+/* ─── OrcamentoTable ────────────────────────────────────────── */
 export const OrcamentoTable = () => {
     const { registos, loading, error, openModal, deleteRegisto, anoSelecionado } = useOrcamentoStore();
 
@@ -328,7 +340,6 @@ export const OrcamentoTable = () => {
         return map;
     }, [searched]);
 
-    // Auto-expandir classes quando há pesquisa ativa
     const activeClasses = useMemo(() => Object.keys(porClasse), [porClasse]);
     const isSearching   = searchTerm.trim().length > 0 || tipoFilter !== 'todos';
 
@@ -350,8 +361,8 @@ export const OrcamentoTable = () => {
 
     return (
         <Box>
-            {/* Summary */}
-            <SummaryDashboard registos={registos} />
+            {/* Summary — reage ao filtro activo */}
+            <SummaryDashboard registos={searched} />
 
             {/* Toolbar */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} mb={2}>
@@ -376,18 +387,29 @@ export const OrcamentoTable = () => {
 
             {/* Tabela */}
             {activeClasses.length === 0 ? (
-                <Alert severity="info">
-                    {isSearching
-                        ? 'Nenhum resultado encontrado para os filtros aplicados.'
-                        : `Sem dotações registadas${anoSelecionado ? ` para ${anoSelecionado}` : ''}.`
-                    }
-                </Alert>
+                <Box sx={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', py: 8, gap: 1.5, color: 'text.disabled',
+                }}>
+                    <OrcamentoIcon sx={{ fontSize: 48, opacity: 0.25 }} />
+                    <Typography variant="body1" fontWeight={500}>
+                        {isSearching
+                            ? 'Nenhum resultado encontrado'
+                            : `Sem dotações registadas${anoSelecionado ? ` para ${anoSelecionado}` : ''}`
+                        }
+                    </Typography>
+                    {isSearching && (
+                        <Typography variant="caption">
+                            Tenta ajustar os filtros ou o termo de pesquisa.
+                        </Typography>
+                    )}
+                </Box>
             ) : (
                 <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 2 }}>
-                    <TableContainer>
+                    <TableContainer sx={{ maxHeight: 'calc(100vh - 380px)', overflow: 'auto' }}>
                         <Table size="small" sx={{ tableLayout: 'auto' }}>
-                            <TableHead>
-                                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                            <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
+                                <TableRow>
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>Subclasse</TableCell>
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 110 }}>Tipo</TableCell>
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 80 }}>SNC-AP</TableCell>

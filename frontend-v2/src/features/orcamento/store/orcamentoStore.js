@@ -1,5 +1,8 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { orcamentoService } from '../api/orcamentoService';
+
+const unwrap = (data) => Array.isArray(data) ? data : (data?.data ?? []);
 
 export const useOrcamentoStore = create((set, get) => ({
     registos: [],
@@ -27,12 +30,10 @@ export const useOrcamentoStore = create((set, get) => ({
     fetchAnos: async () => {
         try {
             const data = await orcamentoService.getAnos();
-            const raw  = Array.isArray(data) ? data : (data?.data ?? data?.anos ?? []);
-            const list = [...raw].sort((a, b) => b - a); // descendente
+            const list = [...unwrap(data)].sort((a, b) => b - a);
             set({ anos: list });
             return list;
         } catch {
-            // fallback — lista local se o endpoint falhar
             const cur  = new Date().getFullYear();
             const list = Array.from({ length: cur - 2022 }, (_, i) => cur - i);
             set({ anos: list });
@@ -43,22 +44,31 @@ export const useOrcamentoStore = create((set, get) => ({
     fetchSubclasses: async () => {
         try {
             const data = await orcamentoService.getSubclasses();
-            set({ subclasses: Array.isArray(data) ? data : (data?.data ?? []) });
-        } catch (err) { set({ error: err.message }); }
+            set({ subclasses: unwrap(data) });
+        } catch (err) {
+            toast.error('Erro ao carregar subclasses.');
+            set({ error: err.message });
+        }
     },
 
     fetchTipos: async () => {
         try {
             const data = await orcamentoService.getTipos();
-            set({ tipos: Array.isArray(data) ? data : (data?.data ?? []) });
-        } catch (err) { set({ error: err.message }); }
+            set({ tipos: unwrap(data) });
+        } catch (err) {
+            toast.error('Erro ao carregar tipos.');
+            set({ error: err.message });
+        }
     },
 
     fetchClasses: async () => {
         try {
             const data = await orcamentoService.getClasses();
-            set({ classes: Array.isArray(data) ? data : (data?.data ?? []) });
-        } catch (err) { set({ error: err.message }); }
+            set({ classes: unwrap(data) });
+        } catch (err) {
+            toast.error('Erro ao carregar classes.');
+            set({ error: err.message });
+        }
     },
 
     fetchDetalhe: async (ano = null) => {
@@ -66,16 +76,21 @@ export const useOrcamentoStore = create((set, get) => ({
         try {
             const resolved = ano ?? get().anoSelecionado;
             const data     = await orcamentoService.getDetalhe(resolved);
-            set({ registos: Array.isArray(data) ? data : (data?.data ?? []), loading: false });
-        } catch (err) { set({ error: err.message, loading: false }); }
+            set({ registos: unwrap(data), loading: false });
+        } catch (err) {
+            toast.error('Erro ao carregar dotações.');
+            set({ error: err.message, loading: false });
+        }
     },
 
     fetchSummary: async (ano = null) => {
         try {
             const resolved = ano ?? get().anoSelecionado;
             const data     = await orcamentoService.getSummary(resolved);
-            set({ summary: Array.isArray(data) ? data : (data?.data ?? []) });
-        } catch (err) { set({ error: err.message }); }
+            set({ summary: unwrap(data) });
+        } catch (err) {
+            set({ error: err.message });
+        }
     },
 
     addClasse: async (designacao) => {
@@ -90,12 +105,11 @@ export const useOrcamentoStore = create((set, get) => ({
     },
 
     addRegisto: async (payload) => {
-        const data = await orcamentoService.create(payload);
+        await orcamentoService.create(payload);
         set({ modalOpen: false, editTarget: null });
         const ano = get().anoSelecionado;
         await get().fetchDetalhe(ano);
         await get().fetchSummary(ano);
-        return data;
     },
 
     updateRegisto: async (pk, payload) => {

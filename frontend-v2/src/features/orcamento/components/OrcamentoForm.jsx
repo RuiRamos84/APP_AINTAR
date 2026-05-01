@@ -11,6 +11,7 @@ import {
     InfoOutlined as InfoIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import { toast } from 'sonner';
 import { useOrcamentoStore } from '../store/orcamentoStore';
 
 const MODULE_COLOR = '#059669';
@@ -137,6 +138,7 @@ export const OrcamentoForm = () => {
                     data_inicio: v.data_inicio || null,
                     data_fim:    v.data_fim    || null,
                 });
+                toast.success('Dotação actualizada com sucesso.');
             } else {
                 await addRegisto({
                     ano:                    parseInt(v.ano, 10),
@@ -145,13 +147,14 @@ export const OrcamentoForm = () => {
                     data_inicio:            v.data_inicio || null,
                     data_fim:               v.data_fim    || null,
                 });
+                toast.success('Dotação criada com sucesso.');
             }
         } catch (err) {
             setApiError(err?.response?.data?.error || err?.response?.data?.erro || err?.message || 'Erro ao guardar.');
         }
     };
 
-    const canSubmit = !isSubmitting && !sobreposicao && (isEdit || !!subclasseW || classesDisponiveis.length === 0);
+    const canSubmit = !isSubmitting && !sobreposicao && (isEdit || !!subclasseW);
 
     return (
         <Dialog
@@ -206,8 +209,9 @@ export const OrcamentoForm = () => {
                         {!isEdit && anoW && (
                             classesDisponiveis.length === 0 ? (
                                 <Grid size={{ xs: 12 }}>
-                                    <Alert severity="success" sx={{ py: 0.5 }}>
-                                        Todas as subclasses já têm dotação registada para {anoW} sem períodos disponíveis.
+                                    <Alert severity="info" sx={{ py: 0.5 }}>
+                                        Todas as subclasses já têm dotação activa para {anoW}. Para adicionar uma nova dotação,
+                                        edita um registo existente e define datas de início/fim para libertar o período.
                                     </Alert>
                                 </Grid>
                             ) : (
@@ -303,7 +307,7 @@ export const OrcamentoForm = () => {
                                                 {...field}
                                                 label={datasObrigatorias || dataFimW ? 'Data Início *' : 'Data Início'}
                                                 type="date"
-                                                InputLabelProps={{ shrink: true }}
+                                                slotProps={{ inputLabel: { shrink: true } }}
                                                 error={Boolean(errors.data_inicio)}
                                                 helperText={errors.data_inicio?.message}
                                                 fullWidth size="small"
@@ -325,7 +329,7 @@ export const OrcamentoForm = () => {
                                                 {...field}
                                                 label={datasObrigatorias || dataIniW ? 'Data Fim *' : 'Data Fim'}
                                                 type="date"
-                                                InputLabelProps={{ shrink: true }}
+                                                slotProps={{ inputLabel: { shrink: true } }}
                                                 error={Boolean(errors.data_fim)}
                                                 helperText={errors.data_fim?.message}
                                                 fullWidth size="small"
