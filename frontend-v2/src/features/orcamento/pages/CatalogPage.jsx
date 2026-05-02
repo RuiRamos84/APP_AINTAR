@@ -5,11 +5,14 @@ import {
     TableHead, TableRow, Chip, alpha,
     Dialog, DialogTitle, DialogContent, DialogActions,
     TextField, MenuItem, CircularProgress, Alert,
+    IconButton, useTheme, useMediaQuery,
 } from '@mui/material';
 import {
     Add as AddIcon,
     TuneRounded as TuneIcon,
     AccountBalance as OrcamentoIcon,
+    ArrowBack as ArrowBackIcon,
+    ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
@@ -139,8 +142,8 @@ const NovaSubclasseDialog = ({ open, onClose, onSave, classes, tipos }) => {
     );
 };
 
-/* ── Painel de subclasses (coluna direita) ───────────────────── */
-const SubclassesList = ({ subclasses, classeNome }) => {
+/* ── Painel de subclasses ────────────────────────────────────── */
+const SubclassesList = ({ subclasses, classeNome, onBack, isMobile }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const results = useSearch(subclasses, searchTerm);
 
@@ -156,14 +159,19 @@ const SubclassesList = ({ subclasses, classeNome }) => {
     );
 
     return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <Stack direction="row" alignItems="center" px={2} py={1.5}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+            <Stack direction="row" alignItems="center" px={isMobile ? 1 : 2} py={1.5}
                 sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-                <Typography variant="subtitle2" fontWeight={700} color={MODULE_COLOR}>
+                {isMobile && (
+                    <IconButton size="small" onClick={onBack} sx={{ mr: 0.5, color: MODULE_COLOR }}>
+                        <ArrowBackIcon fontSize="small" />
+                    </IconButton>
+                )}
+                <Typography variant="subtitle2" fontWeight={700} color={MODULE_COLOR} noWrap sx={{ flex: 1 }}>
                     {classeNome}
                 </Typography>
                 <Chip label={subclasses.length} size="small" sx={{
-                    ml: 1, height: 18, fontSize: '0.68rem',
+                    ml: 1, height: 18, fontSize: '0.68rem', flexShrink: 0,
                     bgcolor: alpha(MODULE_COLOR, 0.12), color: MODULE_COLOR, fontWeight: 700,
                 }} />
             </Stack>
@@ -186,8 +194,8 @@ const SubclassesList = ({ subclasses, classeNome }) => {
                         <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5 }}>Designação</TableCell>
-                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 100 }}>Tipo</TableCell>
-                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 90 }}>SNC-AP</TableCell>
+                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 90 }}>Tipo</TableCell>
+                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 80, display: { xs: 'none', sm: 'table-cell' } }}>SNC-AP</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -204,7 +212,7 @@ const SubclassesList = ({ subclasses, classeNome }) => {
                                                 color={s.tipo === 'Capital' ? 'warning' : 'info'} />
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                         <Typography variant="caption" fontFamily="monospace" color="text.secondary">
                                             {s.sncap ?? '—'}
                                         </Typography>
@@ -221,16 +229,20 @@ const SubclassesList = ({ subclasses, classeNome }) => {
 
 /* ── Página principal ───────────────────────────────────────── */
 const CatalogPage = () => {
+    const theme   = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
     const {
         classes, subclasses, tipos,
         fetchClasses, fetchSubclasses, fetchTipos,
         addClasse, addSubclasse,
     } = useOrcamentoStore();
 
-    const [classeSelPk, setClasseSelPk]               = useState(null);
-    const [classeDialogOpen, setClasseDialogOpen]     = useState(false);
+    const [classeSelPk, setClasseSelPk]                 = useState(null);
+    const [mobilePanel, setMobilePanel]                 = useState('classes'); // 'classes' | 'subclasses'
+    const [classeDialogOpen, setClasseDialogOpen]       = useState(false);
     const [subclasseDialogOpen, setSubclasseDialogOpen] = useState(false);
-    const [searchClasses, setSearchClasses]           = useState('');
+    const [searchClasses, setSearchClasses]             = useState('');
 
     useEffect(() => {
         fetchClasses();
@@ -238,7 +250,6 @@ const CatalogPage = () => {
         fetchTipos();
     }, []);
 
-    /* Auto-seleciona a primeira classe */
     useEffect(() => {
         if (classes.length > 0 && classeSelPk === null) {
             setClasseSelPk(classes[0].pk);
@@ -247,7 +258,6 @@ const CatalogPage = () => {
 
     const classesFiltradas = useSearch(classes, searchClasses);
 
-    /* Subclasses da classe seleccionada — join por pk */
     const subclassesDaClasse = useMemo(() => {
         if (!classeSelPk) return [];
         const classeObj = classes.find(c => c.pk === classeSelPk);
@@ -257,105 +267,135 @@ const CatalogPage = () => {
 
     const classeSelNome = classes.find(c => c.pk === classeSelPk)?.designacao ?? null;
 
+    const handleSelectClasse = (pk) => {
+        setClasseSelPk(pk);
+        if (isMobile) setMobilePanel('subclasses');
+    };
+
+    const classesList = (
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'grey.50' }}>
+            <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+                <SearchBar
+                    value={searchClasses}
+                    onChange={setSearchClasses}
+                    placeholder="Filtrar classes..."
+                    size="small"
+                    fullWidth
+                />
+            </Box>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+                {classesFiltradas.length === 0 ? (
+                    <Typography variant="body2" color="text.disabled" sx={{ p: 2, textAlign: 'center' }}>
+                        Sem classes.
+                    </Typography>
+                ) : classesFiltradas.map((c) => {
+                    const count = subclasses.filter(s => s.classe === c.designacao).length;
+                    const isSelected = c.pk === classeSelPk;
+                    return (
+                        <Box
+                            key={c.pk}
+                            onClick={() => handleSelectClasse(c.pk)}
+                            sx={{
+                                px: 2, py: 1.25,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                bgcolor: isSelected && !isMobile ? alpha(MODULE_COLOR, 0.1) : 'transparent',
+                                borderLeft: `3px solid ${isSelected && !isMobile ? MODULE_COLOR : 'transparent'}`,
+                                '&:hover': { bgcolor: alpha(MODULE_COLOR, 0.05) },
+                                transition: 'all .15s',
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                fontWeight={isSelected && !isMobile ? 700 : 400}
+                                color={isSelected && !isMobile ? MODULE_COLOR : 'text.primary'}
+                                sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            >
+                                {c.designacao}
+                            </Typography>
+                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                                <Chip label={count} size="small" sx={{
+                                    ml: 1, height: 18, fontSize: '0.65rem',
+                                    bgcolor: isSelected && !isMobile ? alpha(MODULE_COLOR, 0.15) : 'grey.200',
+                                    color: isSelected && !isMobile ? MODULE_COLOR : 'text.secondary',
+                                    fontWeight: 700,
+                                }} />
+                                {isMobile && <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />}
+                            </Stack>
+                        </Box>
+                    );
+                })}
+            </Box>
+        </Box>
+    );
+
     return (
         <ModulePage
             title="Catálogo de Orçamento"
-            subtitle="Classes e subclasses orçamentais"
+            subtitle={isMobile ? undefined : 'Classes e subclasses orçamentais'}
             icon={OrcamentoIcon}
             color={MODULE_COLOR}
             breadcrumbs={[{ label: 'Orçamento', path: '/orcamento' }, { label: 'Catálogo' }]}
             actions={
                 <Stack direction="row" spacing={1}>
-                    <Button variant="outlined" size="small" startIcon={<AddIcon />}
-                        onClick={() => setClasseDialogOpen(true)}>
-                        Nova Classe
+                    <Button variant="outlined" size="small"
+                        startIcon={!isMobile && <AddIcon />}
+                        onClick={() => setClasseDialogOpen(true)}
+                        sx={{ minWidth: 0 }}>
+                        {isMobile ? <AddIcon fontSize="small" /> : 'Nova Classe'}
                     </Button>
-                    <Button variant="contained" size="small" startIcon={<AddIcon />}
+                    <Button variant="contained" size="small"
+                        startIcon={!isMobile && <AddIcon />}
                         onClick={() => setSubclasseDialogOpen(true)}
-                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' } }}>
-                        Nova Subclasse
+                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 0 }}>
+                        {isMobile ? <TuneIcon fontSize="small" /> : 'Nova Subclasse'}
                     </Button>
                 </Stack>
             }
         >
-            {/* Layout duas colunas */}
             <Paper variant="outlined" sx={{
                 display: 'flex',
                 borderRadius: 2,
                 overflow: 'hidden',
-                minHeight: 500,
-                height: 'calc(100vh - 220px)',
+                height: { xs: 'calc(100vh - 180px)', md: 'calc(100vh - 220px)' },
+                minHeight: { xs: 400, md: 500 },
             }}>
-                {/* Coluna esquerda — classes */}
-                <Box sx={{
-                    width: 260,
-                    flexShrink: 0,
-                    borderRight: 1,
-                    borderColor: 'divider',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    bgcolor: 'grey.50',
-                }}>
-                    <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-                        <SearchBar
-                            value={searchClasses}
-                            onChange={setSearchClasses}
-                            placeholder="Filtrar classes..."
-                            size="small"
-                            fullWidth
+                {isMobile ? (
+                    /* Mobile: single-panel navigation */
+                    mobilePanel === 'classes' ? (
+                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            {classesList}
+                        </Box>
+                    ) : (
+                        <SubclassesList
+                            subclasses={subclassesDaClasse}
+                            classeNome={classeSelNome}
+                            onBack={() => setMobilePanel('classes')}
+                            isMobile
                         />
-                    </Box>
-                    <Box sx={{ flex: 1, overflow: 'auto' }}>
-                        {classesFiltradas.length === 0 ? (
-                            <Typography variant="body2" color="text.disabled"
-                                sx={{ p: 2, textAlign: 'center' }}>
-                                Sem classes.
-                            </Typography>
-                        ) : classesFiltradas.map((c) => {
-                            const count = subclasses.filter(s => s.classe === c.designacao).length;
-                            const isSelected = c.pk === classeSelPk;
-                            return (
-                                <Box
-                                    key={c.pk}
-                                    onClick={() => setClasseSelPk(c.pk)}
-                                    sx={{
-                                        px: 2, py: 1.25,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        bgcolor: isSelected ? alpha(MODULE_COLOR, 0.1) : 'transparent',
-                                        borderLeft: `3px solid ${isSelected ? MODULE_COLOR : 'transparent'}`,
-                                        '&:hover': {
-                                            bgcolor: isSelected
-                                                ? alpha(MODULE_COLOR, 0.1)
-                                                : alpha(MODULE_COLOR, 0.05),
-                                        },
-                                        transition: 'all .15s',
-                                    }}
-                                >
-                                    <Typography
-                                        variant="body2"
-                                        fontWeight={isSelected ? 700 : 400}
-                                        color={isSelected ? MODULE_COLOR : 'text.primary'}
-                                        sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                    >
-                                        {c.designacao}
-                                    </Typography>
-                                    <Chip label={count} size="small" sx={{
-                                        ml: 1, height: 18, fontSize: '0.65rem', flexShrink: 0,
-                                        bgcolor: isSelected ? alpha(MODULE_COLOR, 0.15) : 'grey.200',
-                                        color: isSelected ? MODULE_COLOR : 'text.secondary',
-                                        fontWeight: 700,
-                                    }} />
-                                </Box>
-                            );
-                        })}
-                    </Box>
-                </Box>
-
-                {/* Coluna direita — subclasses */}
-                <SubclassesList subclasses={subclassesDaClasse} classeNome={classeSelNome} />
+                    )
+                ) : (
+                    /* Desktop: two-column layout */
+                    <>
+                        <Box sx={{
+                            width: 260,
+                            flexShrink: 0,
+                            borderRight: 1,
+                            borderColor: 'divider',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}>
+                            {classesList}
+                        </Box>
+                        <SubclassesList
+                            subclasses={subclassesDaClasse}
+                            classeNome={classeSelNome}
+                            isMobile={false}
+                        />
+                    </>
+                )}
             </Paper>
 
             <NovaClasseDialog

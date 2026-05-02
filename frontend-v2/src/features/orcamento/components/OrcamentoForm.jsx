@@ -2,13 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, TextField, MenuItem, Typography, CircularProgress,
-    Alert, Grid, Divider, Box, alpha,
+    Alert, Grid, Divider, Box, IconButton,
+    useTheme, useMediaQuery,
 } from '@mui/material';
 import {
     ClassOutlined as ClassIcon,
     EuroSymbol as EuroIcon,
     CalendarMonth as DateIcon,
     InfoOutlined as InfoIcon,
+    Close as CloseIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -28,6 +30,9 @@ const SectionLabel = ({ icon: Icon, label }) => (
 const currentYear = new Date().getFullYear();
 
 export const OrcamentoForm = () => {
+    const theme    = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
     const {
         modalOpen, editTarget, closeModal,
         addRegisto, updateRegisto,
@@ -105,7 +110,11 @@ export const OrcamentoForm = () => {
 
     const temIrmaos = useMemo(() => {
         if (!isEdit || !editTarget) return false;
-        return registos.some(r => r.ano === editTarget.ano && r.ts_orcamento_subclasse === editTarget.ts_orcamento_subclasse && r.pk !== editTarget.pk);
+        return registos.some(r =>
+            r.ano === editTarget.ano &&
+            r.ts_orcamento_subclasse === editTarget.ts_orcamento_subclasse &&
+            r.pk !== editTarget.pk
+        );
     }, [isEdit, editTarget, registos]);
 
     const datasObrigatorias = jaExiste || temIrmaos;
@@ -115,14 +124,15 @@ export const OrcamentoForm = () => {
         if (!dataIniW || !dataFimW) return null;
         const ini = new Date(dataIniW), fim = new Date(dataFimW);
         if (fim < ini) return 'A data de fim não pode ser anterior à data de início.';
-        const a = parseInt(anoW, 10), s = parseInt(subclasseW, 10), pkAtual = isEdit ? editTarget?.pk : null;
+        const a = parseInt(anoW, 10), s = parseInt(subclasseW, 10);
+        const pkAtual = isEdit ? editTarget?.pk : null;
         const c = registos.find(r => {
             if (!r.data_inicio || !r.data_fim || r.ano !== a || r.ts_orcamento_subclasse !== s) return false;
             if (pkAtual && r.pk === pkAtual) return false;
             return ini <= new Date(r.data_fim) && fim >= new Date(r.data_inicio);
         });
         if (c) {
-            const f = (s) => { const [y,m,d] = String(s).split('-'); return `${d}/${m}/${y}`; };
+            const f = (d) => { const [y, m, dd] = String(d).split('-'); return `${dd}/${m}/${y}`; };
             return `Intervalo sobrepõe-se com registo existente (${f(c.data_inicio)} → ${f(c.data_fim)}).`;
         }
         return null;
@@ -162,23 +172,37 @@ export const OrcamentoForm = () => {
             onClose={closeModal}
             maxWidth="sm"
             fullWidth
-            slotProps={{ paper: { sx: { borderRadius: 3, borderTop: `4px solid ${MODULE_COLOR}` } } }}
+            fullScreen={isMobile}
+            slotProps={{
+                paper: {
+                    sx: isMobile
+                        ? {}
+                        : { borderRadius: 3, borderTop: `4px solid ${MODULE_COLOR}` },
+                },
+            }}
         >
-            <DialogTitle sx={{ pb: 0.5 }}>
-                <Typography variant="h6" fontWeight={700}>
-                    {isEdit ? 'Editar Dotação' : 'Nova Dotação'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                    {isEdit
-                        ? `A editar: ${editTarget?.subclasse ?? ''} — ${editTarget?.ano ?? ''}`
-                        : 'Preencha os dados da nova dotação orçamental.'
-                    }
-                </Typography>
+            <DialogTitle sx={{ pb: 0.5, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography variant="h6" fontWeight={700}>
+                        {isEdit ? 'Editar Dotação' : 'Nova Dotação'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {isEdit
+                            ? `A editar: ${editTarget?.subclasse ?? ''} — ${editTarget?.ano ?? ''}`
+                            : 'Preencha os dados da nova dotação orçamental.'
+                        }
+                    </Typography>
+                </Box>
+                {isMobile && (
+                    <IconButton onClick={closeModal} size="small" sx={{ ml: 1, mt: -0.5 }}>
+                        <CloseIcon />
+                    </IconButton>
+                )}
             </DialogTitle>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <DialogContent sx={{ pt: 2 }}>
-                    {apiError    && <Alert severity="error" sx={{ mb: 2 }}>{apiError}</Alert>}
+            <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <DialogContent sx={{ pt: 2, overflowY: 'auto' }}>
+                    {apiError     && <Alert severity="error" sx={{ mb: 2 }}>{apiError}</Alert>}
                     {sobreposicao && <Alert severity="error" sx={{ mb: 2 }}>{sobreposicao}</Alert>}
                     {(jaExiste || temIrmaos) && (
                         <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
@@ -199,7 +223,8 @@ export const OrcamentoForm = () => {
                                 rules={{ required: 'Obrigatório' }}
                                 render={({ field }) => (
                                     <TextField {...field} select label="Ano" disabled={isEdit}
-                                        error={Boolean(errors.ano)} helperText={errors.ano?.message} fullWidth size="small">
+                                        error={Boolean(errors.ano)} helperText={errors.ano?.message}
+                                        fullWidth size="small">
                                         {anos.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
                                     </TextField>
                                 )}
@@ -210,8 +235,9 @@ export const OrcamentoForm = () => {
                             classesDisponiveis.length === 0 ? (
                                 <Grid size={{ xs: 12 }}>
                                     <Alert severity="info" sx={{ py: 0.5 }}>
-                                        Todas as subclasses já têm dotação activa para {anoW}. Para adicionar uma nova dotação,
-                                        edita um registo existente e define datas de início/fim para libertar o período.
+                                        Todas as subclasses já têm dotação activa para {anoW}. Para adicionar
+                                        uma nova dotação, edita um registo existente e define datas de
+                                        início/fim para libertar o período.
                                     </Alert>
                                 </Grid>
                             ) : (
@@ -223,8 +249,12 @@ export const OrcamentoForm = () => {
                                             rules={{ required: 'Obrigatório' }}
                                             render={({ field }) => (
                                                 <TextField {...field} select label="Classe"
-                                                    error={Boolean(errors.classe)} helperText={errors.classe?.message} fullWidth size="small">
-                                                    {classesDisponiveis.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                                                    error={Boolean(errors.classe)}
+                                                    helperText={errors.classe?.message}
+                                                    fullWidth size="small">
+                                                    {classesDisponiveis.map(c => (
+                                                        <MenuItem key={c} value={c}>{c}</MenuItem>
+                                                    ))}
                                                 </TextField>
                                             )}
                                         />
@@ -235,14 +265,23 @@ export const OrcamentoForm = () => {
                                             control={control}
                                             rules={{ required: 'Obrigatório' }}
                                             render={({ field }) => (
-                                                <TextField {...field} select label="Subclasse" disabled={!classeW}
+                                                <TextField {...field} select label="Subclasse"
+                                                    disabled={!classeW}
                                                     error={Boolean(errors.ts_orcamento_subclasse)}
-                                                    helperText={errors.ts_orcamento_subclasse?.message || (!classeW ? 'Seleciona primeiro uma classe' : '')}
+                                                    helperText={
+                                                        errors.ts_orcamento_subclasse?.message ||
+                                                        (!classeW ? 'Seleciona primeiro uma classe' : '')
+                                                    }
                                                     fullWidth size="small">
                                                     {subclassesFiltradas.map(s => (
                                                         <MenuItem key={s.pk} value={s.pk}>
                                                             {s.designacao}
-                                                            {s.tipo && <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>({s.tipo})</Typography>}
+                                                            {s.tipo && (
+                                                                <Typography component="span" variant="caption"
+                                                                    color="text.secondary" sx={{ ml: 1 }}>
+                                                                    ({s.tipo})
+                                                                </Typography>
+                                                            )}
                                                         </MenuItem>
                                                     ))}
                                                 </TextField>
@@ -258,15 +297,13 @@ export const OrcamentoForm = () => {
                                 <TextField
                                     label="Subclasse"
                                     value={editTarget?.subclasse ?? ''}
-                                    disabled
-                                    fullWidth
-                                    size="small"
+                                    disabled fullWidth size="small"
                                 />
                             </Grid>
                         )}
                     </Grid>
 
-                    {/* Valor */}
+                    {/* Valor + Datas */}
                     {(isEdit || (anoW && subclasseW)) && (
                         <>
                             <Divider sx={{ mb: 2 }} />
@@ -283,15 +320,14 @@ export const OrcamentoForm = () => {
                                         inputProps={{ step: '0.01', min: 0 }}
                                         error={Boolean(errors.valor)}
                                         helperText={errors.valor?.message}
-                                        fullWidth
-                                        size="small"
-                                        sx={{ mb: 2 }}
+                                        fullWidth size="small" sx={{ mb: 2 }}
                                     />
                                 )}
                             />
 
                             <Divider sx={{ mb: 2 }} />
-                            <SectionLabel icon={DateIcon} label={datasObrigatorias ? 'Período (obrigatório)' : 'Período (opcional)'} />
+                            <SectionLabel icon={DateIcon}
+                                label={datasObrigatorias ? 'Período (obrigatório)' : 'Período (opcional)'} />
                             <Grid container spacing={2}>
                                 <Grid size={{ xs: 12, sm: 6 }}>
                                     <Controller
@@ -342,7 +378,7 @@ export const OrcamentoForm = () => {
                     )}
                 </DialogContent>
 
-                <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                <DialogActions sx={{ px: 3, pb: isMobile ? 3 : 2.5, gap: 1, flexShrink: 0 }}>
                     <Button onClick={closeModal} color="inherit" disabled={isSubmitting}>
                         Cancelar
                     </Button>
@@ -351,7 +387,7 @@ export const OrcamentoForm = () => {
                         variant="contained"
                         disabled={!canSubmit}
                         startIcon={isSubmitting ? <CircularProgress size={16} /> : null}
-                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 100 }}
+                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 120 }}
                     >
                         {isEdit ? 'Guardar' : 'Criar Dotação'}
                     </Button>
