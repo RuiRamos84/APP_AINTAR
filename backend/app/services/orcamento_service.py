@@ -1,7 +1,7 @@
 from flask import jsonify
 from sqlalchemy.sql import text
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 from app.utils.logger import get_logger
 
@@ -31,7 +31,42 @@ class ClasseCreate(BaseModel):
 class SubclasseCreate(BaseModel):
     designacao: str = Field(min_length=1, max_length=_STR_MAX)
     ts_orcamento_classe: int = Field(ge=1)
-    ts_orcamento_tipo: int = Field(ge=1)
+    tipos: List[int] = Field(min_length=1)
+    sncap: int = Field(ge=0)
+
+    @field_validator('designacao', mode='before')
+    @classmethod
+    def sanitize_des(cls, v):
+        if not isinstance(v, str):
+            raise ValueError('Valor inválido.')
+        return _clean(v)
+
+    @field_validator('sncap', mode='before')
+    @classmethod
+    def parse_sncap(cls, v):
+        if v is None or v == '':
+            raise ValueError('SNCAP é obrigatório.')
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            raise ValueError('SNCAP deve ser um número inteiro.')
+
+
+class ClasseUpdate(BaseModel):
+    designacao: str = Field(min_length=1, max_length=100)
+
+    @field_validator('designacao', mode='before')
+    @classmethod
+    def sanitize(cls, v):
+        if not isinstance(v, str):
+            raise ValueError('Valor inválido.')
+        return _clean(v)
+
+
+class SubclasseUpdate(BaseModel):
+    designacao: str = Field(min_length=1, max_length=_STR_MAX)
+    ts_orcamento_classe: int = Field(ge=1)
+    tipos: List[int] = Field(min_length=1)
     sncap: int = Field(ge=0)
 
     @field_validator('designacao', mode='before')
@@ -116,7 +151,12 @@ def get_orcamento_detalhe(session, ano=None):
             o.ts_orcamento_subclasse,
             c.designacao    AS classe,
             s.designacao    AS subclasse,
-            t.designacao    AS tipo,
+            COALESCE((
+                SELECT string_agg(t.designacao, ', ' ORDER BY t.pk)
+                FROM   ts_orcamento_subclasse_tipo st
+                JOIN   ts_orcamento_tipo t ON t.pk = st.ts_orcamento_tipo
+                WHERE  st.ts_orcamento_subclasse = s.pk
+            ), '') AS tipo,
             s.sncap,
             o.valor,
             o.data_inicio,
@@ -124,7 +164,6 @@ def get_orcamento_detalhe(session, ano=None):
         FROM tb_orcamento           o
         JOIN ts_orcamento_subclasse s ON s.pk = o.ts_orcamento_subclasse
         JOIN ts_orcamento_classe    c ON c.pk = s.ts_orcamento_classe
-        JOIN ts_orcamento_tipo      t ON t.pk = s.ts_orcamento_tipo
     """
     params = {}
     if ano is not None:
@@ -168,14 +207,34 @@ def get_orcamento_anos(session):
 def get_orcamento_subclasses(session):
     rows = session.execute(
         text("""
-            SELECT s.pk, s.designacao, c.designacao AS classe, t.designacao AS tipo, s.sncap
+            SELECT
+                s.pk,
+                s.designacao,
+                c.designacao AS classe,
+                s.sncap,
+                COALESCE(
+                    string_agg(t.designacao, ', ' ORDER BY t.pk), ''
+                ) AS tipo,
+                COALESCE(
+                    array_agg(st.ts_orcamento_tipo ORDER BY t.pk)
+                        FILTER (WHERE st.ts_orcamento_tipo IS NOT NULL),
+                    ARRAY[]::integer[]
+                ) AS tipo_pks
             FROM ts_orcamento_subclasse s
             JOIN ts_orcamento_classe c ON c.pk = s.ts_orcamento_classe
-            LEFT JOIN ts_orcamento_tipo t ON t.pk = s.ts_orcamento_tipo
+            LEFT JOIN ts_orcamento_subclasse_tipo st ON st.ts_orcamento_subclasse = s.pk
+            LEFT JOIN ts_orcamento_tipo t ON t.pk = st.ts_orcamento_tipo
+            GROUP BY s.pk, s.designacao, c.designacao, s.sncap
             ORDER BY c.designacao, s.designacao
         """)
     ).mappings().all()
-    return jsonify([dict(r) for r in rows]), 200
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get('tipo_pks') is None:
+            d['tipo_pks'] = []
+        result.append(d)
+    return jsonify(result), 200
 
 
 def get_orcamento_tipos(session):
@@ -323,16 +382,62 @@ def create_classe(data, session):
 
 def create_subclasse(data, session):
     payload = SubclasseCreate(**data)
-    session.execute(
+    result = session.execute(
         text("""
-            INSERT INTO ts_orcamento_subclasse (designacao, ts_orcamento_classe, ts_orcamento_tipo, sncap)
-            VALUES (:designacao, :classe, :tipo, :sncap)
+            INSERT INTO ts_orcamento_subclasse (designacao, ts_orcamento_classe, sncap)
+            VALUES (:designacao, :classe, :sncap)
+            RETURNING pk
         """),
-        {
-            'designacao': payload.designacao,
-            'classe': payload.ts_orcamento_classe,
-            'tipo': payload.ts_orcamento_tipo,
-            'sncap': payload.sncap,
-        }
+        {'designacao': payload.designacao, 'classe': payload.ts_orcamento_classe, 'sncap': payload.sncap}
     )
+    new_pk = result.scalar()
+    for tipo_pk in payload.tipos:
+        session.execute(
+            text("""
+                INSERT INTO ts_orcamento_subclasse_tipo (ts_orcamento_subclasse, ts_orcamento_tipo)
+                VALUES (:s, :t)
+                ON CONFLICT DO NOTHING
+            """),
+            {'s': new_pk, 't': tipo_pk}
+        )
     return jsonify({'message': 'Subclasse criada com sucesso.'}), 201
+
+
+def update_classe(pk, data, session):
+    payload = ClasseUpdate(**data)
+    updated = session.execute(
+        text("UPDATE ts_orcamento_classe SET designacao = :designacao WHERE pk = :pk RETURNING pk"),
+        {'designacao': payload.designacao, 'pk': pk}
+    ).fetchone()
+    if not updated:
+        return jsonify({'error': 'Classe não encontrada.'}), 404
+    return jsonify({'message': 'Classe actualizada com sucesso.'}), 200
+
+
+def update_subclasse(pk, data, session):
+    payload = SubclasseUpdate(**data)
+    updated = session.execute(
+        text("""
+            UPDATE ts_orcamento_subclasse
+            SET designacao = :designacao, ts_orcamento_classe = :classe, sncap = :sncap
+            WHERE pk = :pk
+            RETURNING pk
+        """),
+        {'designacao': payload.designacao, 'classe': payload.ts_orcamento_classe, 'sncap': payload.sncap, 'pk': pk}
+    ).fetchone()
+    if not updated:
+        return jsonify({'error': 'Subclasse não encontrada.'}), 404
+    session.execute(
+        text("DELETE FROM ts_orcamento_subclasse_tipo WHERE ts_orcamento_subclasse = :pk"),
+        {'pk': pk}
+    )
+    for tipo_pk in payload.tipos:
+        session.execute(
+            text("""
+                INSERT INTO ts_orcamento_subclasse_tipo (ts_orcamento_subclasse, ts_orcamento_tipo)
+                VALUES (:s, :t)
+                ON CONFLICT DO NOTHING
+            """),
+            {'s': pk, 't': tipo_pk}
+        )
+    return jsonify({'message': 'Subclasse actualizada com sucesso.'}), 200

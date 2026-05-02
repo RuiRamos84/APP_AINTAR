@@ -5,7 +5,8 @@ import {
     TableHead, TableRow, Chip, alpha,
     Dialog, DialogTitle, DialogContent, DialogActions,
     TextField, MenuItem, CircularProgress, Alert,
-    IconButton, useTheme, useMediaQuery,
+    IconButton, Checkbox, FormControlLabel, FormGroup,
+    useTheme, useMediaQuery,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -13,7 +14,9 @@ import {
     AccountBalance as OrcamentoIcon,
     ArrowBack as ArrowBackIcon,
     ChevronRight as ChevronRightIcon,
+    EditOutlined as EditIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
@@ -21,13 +24,16 @@ import { useOrcamentoStore } from '../store/orcamentoStore';
 
 const MODULE_COLOR = '#059669';
 
-/* ── Dialog Nova Classe ─────────────────────────────────────── */
-const NovaClasseDialog = ({ open, onClose, onSave }) => {
+/* ── Diálogo genérico de Classe (criar / editar) ─────────────── */
+const ClasseDialog = ({ open, onClose, onSave, initial = null }) => {
+    const isEdit = Boolean(initial);
     const [designacao, setDesignacao] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => { if (open) { setDesignacao(''); setError(''); } }, [open]);
+    useEffect(() => {
+        if (open) { setDesignacao(initial?.designacao ?? ''); setError(''); }
+    }, [open, initial]);
 
     const handleSave = async () => {
         if (!designacao.trim()) { setError('A designação é obrigatória.'); return; }
@@ -37,15 +43,13 @@ const NovaClasseDialog = ({ open, onClose, onSave }) => {
             onClose();
         } catch (err) {
             setError(err?.response?.data?.error || err?.response?.data?.erro || err.message || 'Erro ao guardar.');
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
             slotProps={{ paper: { sx: { borderRadius: 3, borderTop: `4px solid ${MODULE_COLOR}` } } }}>
-            <DialogTitle>Nova Classe</DialogTitle>
+            <DialogTitle>{isEdit ? 'Editar Classe' : 'Nova Classe'}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                     {error && <Alert severity="error">{error}</Alert>}
@@ -59,29 +63,42 @@ const NovaClasseDialog = ({ open, onClose, onSave }) => {
                 <Button variant="contained" onClick={handleSave} disabled={loading}
                     startIcon={loading ? <CircularProgress size={16} /> : null}
                     sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' } }}>
-                    Criar
+                    {isEdit ? 'Guardar' : 'Criar'}
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
 
-/* ── Dialog Nova Subclasse ──────────────────────────────────── */
-const NovaSubclasseDialog = ({ open, onClose, onSave, classes, tipos }) => {
+/* ── Diálogo genérico de Subclasse (criar / editar) ─────────── */
+const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null }) => {
+    const isEdit = Boolean(initial);
     const [designacao, setDesignacao] = useState('');
     const [classe, setClasse] = useState('');
-    const [tipo, setTipo] = useState('');
+    const [tiposSel, setTiposSel] = useState([]);
     const [sncap, setSncap] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (open) { setDesignacao(''); setClasse(''); setTipo(''); setSncap(''); setError(''); }
-    }, [open]);
+        if (open) {
+            setDesignacao(initial?.designacao ?? '');
+            setClasse(initial ? String(classes.find(c => c.designacao === initial.classe)?.pk ?? '') : '');
+            setTiposSel(initial?.tipo_pks ?? []);
+            setSncap(initial?.sncap != null ? String(initial.sncap) : '');
+            setError('');
+        }
+    }, [open, initial, classes]);
+
+    const toggleTipo = (pk) => {
+        setTiposSel(prev =>
+            prev.includes(pk) ? prev.filter(p => p !== pk) : [...prev, pk]
+        );
+    };
 
     const handleSave = async () => {
-        if (!designacao.trim() || !classe || !tipo || sncap === '') {
-            setError('Preenche todos os campos obrigatórios.');
+        if (!designacao.trim() || !classe || tiposSel.length === 0 || sncap === '') {
+            setError('Preenche todos os campos obrigatórios e seleciona pelo menos um tipo.');
             return;
         }
         setLoading(true);
@@ -89,21 +106,19 @@ const NovaSubclasseDialog = ({ open, onClose, onSave, classes, tipos }) => {
             await onSave({
                 designacao: designacao.trim(),
                 ts_orcamento_classe: parseInt(classe, 10),
-                ts_orcamento_tipo: parseInt(tipo, 10),
+                tipos: tiposSel,
                 sncap: parseInt(sncap, 10),
             });
             onClose();
         } catch (err) {
             setError(err?.response?.data?.error || err?.response?.data?.erro || err.message || 'Erro ao guardar.');
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth
             slotProps={{ paper: { sx: { borderRadius: 3, borderTop: `4px solid ${MODULE_COLOR}` } } }}>
-            <DialogTitle>Nova Subclasse</DialogTitle>
+            <DialogTitle>{isEdit ? 'Editar Subclasse' : 'Nova Subclasse'}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2.5} sx={{ mt: 1 }}>
                     {error && <Alert severity="error">{error}</Alert>}
@@ -113,15 +128,30 @@ const NovaSubclasseDialog = ({ open, onClose, onSave, classes, tipos }) => {
                     <TextField select label="Classe" value={classe}
                         onChange={(e) => setClasse(e.target.value)} fullWidth required size="small">
                         {classes.map((c) => (
-                            <MenuItem key={c.pk} value={c.pk}>{c.designacao}</MenuItem>
+                            <MenuItem key={c.pk} value={String(c.pk)}>{c.designacao}</MenuItem>
                         ))}
                     </TextField>
-                    <TextField select label="Tipo" value={tipo}
-                        onChange={(e) => setTipo(e.target.value)} fullWidth required size="small">
-                        {tipos.map((t) => (
-                            <MenuItem key={t.pk} value={t.pk}>{t.designacao}</MenuItem>
-                        ))}
-                    </TextField>
+                    <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                            Tipo *
+                        </Typography>
+                        <FormGroup row>
+                            {tipos.map((t) => (
+                                <FormControlLabel
+                                    key={t.pk}
+                                    control={
+                                        <Checkbox
+                                            size="small"
+                                            checked={tiposSel.includes(t.pk)}
+                                            onChange={() => toggleTipo(t.pk)}
+                                            sx={{ color: MODULE_COLOR, '&.Mui-checked': { color: MODULE_COLOR } }}
+                                        />
+                                    }
+                                    label={t.designacao}
+                                />
+                            ))}
+                        </FormGroup>
+                    </Box>
                     <TextField label="SNC-AP" value={sncap}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -135,15 +165,28 @@ const NovaSubclasseDialog = ({ open, onClose, onSave, classes, tipos }) => {
                 <Button variant="contained" onClick={handleSave} disabled={loading}
                     startIcon={loading ? <CircularProgress size={16} /> : null}
                     sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' } }}>
-                    Criar
+                    {isEdit ? 'Guardar' : 'Criar'}
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
 
+/* ── Chips de tipos ──────────────────────────────────────────── */
+const TipoChips = ({ tipo }) => {
+    if (!tipo) return null;
+    return (
+        <Stack direction="row" spacing={0.5} flexWrap="wrap">
+            {tipo.split(', ').map((t) => (
+                <Chip key={t} label={t} size="small"
+                    color={t.toLowerCase().includes('capital') ? 'warning' : 'info'} />
+            ))}
+        </Stack>
+    );
+};
+
 /* ── Painel de subclasses ────────────────────────────────────── */
-const SubclassesList = ({ subclasses, classeNome, onBack, isMobile }) => {
+const SubclassesList = ({ subclasses, classeNome, onBack, isMobile, onEditSubclasse }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const results = useSearch(subclasses, searchTerm);
 
@@ -176,13 +219,8 @@ const SubclassesList = ({ subclasses, classeNome, onBack, isMobile }) => {
                 }} />
             </Stack>
             <Box sx={{ px: 2, py: 1, flexShrink: 0 }}>
-                <SearchBar
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    placeholder="Pesquisar subclasse, SNC-AP..."
-                    size="small"
-                    fullWidth
-                />
+                <SearchBar value={searchTerm} onChange={setSearchTerm}
+                    placeholder="Pesquisar subclasse, SNC-AP..." size="small" fullWidth />
             </Box>
             <Box sx={{ flex: 1, overflow: 'auto' }}>
                 {results.length === 0 ? (
@@ -194,8 +232,9 @@ const SubclassesList = ({ subclasses, classeNome, onBack, isMobile }) => {
                         <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5 }}>Designação</TableCell>
-                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 90 }}>Tipo</TableCell>
+                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 140 }}>Tipo</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 80, display: { xs: 'none', sm: 'table-cell' } }}>SNC-AP</TableCell>
+                                <TableCell sx={{ width: 40 }} />
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -207,15 +246,18 @@ const SubclassesList = ({ subclasses, classeNome, onBack, isMobile }) => {
                                         <Typography variant="body2">{s.designacao}</Typography>
                                     </TableCell>
                                     <TableCell>
-                                        {s.tipo && (
-                                            <Chip label={s.tipo} size="small"
-                                                color={s.tipo === 'Capital' ? 'warning' : 'info'} />
-                                        )}
+                                        <TipoChips tipo={s.tipo} />
                                     </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                         <Typography variant="caption" fontFamily="monospace" color="text.secondary">
                                             {s.sncap ?? '—'}
                                         </Typography>
+                                    </TableCell>
+                                    <TableCell sx={{ p: 0.5 }}>
+                                        <IconButton size="small" onClick={() => onEditSubclasse(s)}
+                                            sx={{ color: 'text.disabled', '&:hover': { color: MODULE_COLOR } }}>
+                                            <EditIcon fontSize="small" />
+                                        </IconButton>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -229,20 +271,22 @@ const SubclassesList = ({ subclasses, classeNome, onBack, isMobile }) => {
 
 /* ── Página principal ───────────────────────────────────────── */
 const CatalogPage = () => {
-    const theme   = useTheme();
+    const theme    = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const navigate = useNavigate();
 
     const {
         classes, subclasses, tipos,
         fetchClasses, fetchSubclasses, fetchTipos,
-        addClasse, addSubclasse,
+        addClasse, addSubclasse, updateClasse, updateSubclasse,
     } = useOrcamentoStore();
 
-    const [classeSelPk, setClasseSelPk]                 = useState(null);
-    const [mobilePanel, setMobilePanel]                 = useState('classes'); // 'classes' | 'subclasses'
-    const [classeDialogOpen, setClasseDialogOpen]       = useState(false);
-    const [subclasseDialogOpen, setSubclasseDialogOpen] = useState(false);
-    const [searchClasses, setSearchClasses]             = useState('');
+    const [classeSelPk, setClasseSelPk]   = useState(null);
+    const [mobilePanel, setMobilePanel]   = useState('classes');
+
+    const [classeDialog, setClasseDialog]         = useState({ open: false, target: null });
+    const [subclasseDialog, setSubclasseDialog]   = useState({ open: false, target: null });
+    const [searchClasses, setSearchClasses]       = useState('');
 
     useEffect(() => {
         fetchClasses();
@@ -251,14 +295,11 @@ const CatalogPage = () => {
     }, []);
 
     useEffect(() => {
-        if (classes.length > 0 && classeSelPk === null) {
-            setClasseSelPk(classes[0].pk);
-        }
+        if (classes.length > 0 && classeSelPk === null) setClasseSelPk(classes[0].pk);
     }, [classes]);
 
-    const classesFiltradas = useSearch(classes, searchClasses);
-
-    const subclassesDaClasse = useMemo(() => {
+    const classesFiltradas    = useSearch(classes, searchClasses);
+    const subclassesDaClasse  = useMemo(() => {
         if (!classeSelPk) return [];
         const classeObj = classes.find(c => c.pk === classeSelPk);
         if (!classeObj) return [];
@@ -266,22 +307,34 @@ const CatalogPage = () => {
     }, [subclasses, classes, classeSelPk]);
 
     const classeSelNome = classes.find(c => c.pk === classeSelPk)?.designacao ?? null;
+    const classeSelObj  = classes.find(c => c.pk === classeSelPk) ?? null;
 
     const handleSelectClasse = (pk) => {
         setClasseSelPk(pk);
         if (isMobile) setMobilePanel('subclasses');
     };
 
+    const handleSaveClasse = async (designacao) => {
+        if (classeDialog.target) {
+            await updateClasse(classeDialog.target.pk, { designacao });
+        } else {
+            await addClasse(designacao);
+        }
+    };
+
+    const handleSaveSubclasse = async (payload) => {
+        if (subclasseDialog.target) {
+            await updateSubclasse(subclasseDialog.target.pk, payload);
+        } else {
+            await addSubclasse(payload);
+        }
+    };
+
     const classesList = (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'grey.50' }}>
             <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-                <SearchBar
-                    value={searchClasses}
-                    onChange={setSearchClasses}
-                    placeholder="Filtrar classes..."
-                    size="small"
-                    fullWidth
-                />
+                <SearchBar value={searchClasses} onChange={setSearchClasses}
+                    placeholder="Filtrar classes..." size="small" fullWidth />
             </Box>
             <Box sx={{ flex: 1, overflow: 'auto' }}>
                 {classesFiltradas.length === 0 ? (
@@ -289,39 +342,40 @@ const CatalogPage = () => {
                         Sem classes.
                     </Typography>
                 ) : classesFiltradas.map((c) => {
-                    const count = subclasses.filter(s => s.classe === c.designacao).length;
+                    const count      = subclasses.filter(s => s.classe === c.designacao).length;
                     const isSelected = c.pk === classeSelPk;
                     return (
-                        <Box
-                            key={c.pk}
+                        <Box key={c.pk}
                             onClick={() => handleSelectClasse(c.pk)}
                             sx={{
-                                px: 2, py: 1.25,
+                                px: 1.5, py: 1.25,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
                                 bgcolor: isSelected && !isMobile ? alpha(MODULE_COLOR, 0.1) : 'transparent',
                                 borderLeft: `3px solid ${isSelected && !isMobile ? MODULE_COLOR : 'transparent'}`,
                                 '&:hover': { bgcolor: alpha(MODULE_COLOR, 0.05) },
                                 transition: 'all .15s',
                             }}
                         >
-                            <Typography
-                                variant="body2"
+                            <Typography variant="body2"
                                 fontWeight={isSelected && !isMobile ? 700 : 400}
                                 color={isSelected && !isMobile ? MODULE_COLOR : 'text.primary'}
-                                sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            >
+                                sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {c.designacao}
                             </Typography>
-                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0, ml: 0.5 }}>
                                 <Chip label={count} size="small" sx={{
-                                    ml: 1, height: 18, fontSize: '0.65rem',
+                                    height: 18, fontSize: '0.65rem',
                                     bgcolor: isSelected && !isMobile ? alpha(MODULE_COLOR, 0.15) : 'grey.200',
                                     color: isSelected && !isMobile ? MODULE_COLOR : 'text.secondary',
                                     fontWeight: 700,
                                 }} />
+                                <IconButton size="small"
+                                    onClick={(e) => { e.stopPropagation(); setClasseDialog({ open: true, target: c }); }}
+                                    sx={{ color: 'text.disabled', '&:hover': { color: MODULE_COLOR }, p: 0.25 }}>
+                                    <EditIcon sx={{ fontSize: 14 }} />
+                                </IconButton>
                                 {isMobile && <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />}
                             </Stack>
                         </Box>
@@ -342,13 +396,13 @@ const CatalogPage = () => {
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" size="small"
                         startIcon={!isMobile && <AddIcon />}
-                        onClick={() => setClasseDialogOpen(true)}
+                        onClick={() => setClasseDialog({ open: true, target: null })}
                         sx={{ minWidth: 0 }}>
                         {isMobile ? <AddIcon fontSize="small" /> : 'Nova Classe'}
                     </Button>
                     <Button variant="contained" size="small"
                         startIcon={!isMobile && <AddIcon />}
-                        onClick={() => setSubclasseDialogOpen(true)}
+                        onClick={() => setSubclasseDialog({ open: true, target: null })}
                         sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 0 }}>
                         {isMobile ? <TuneIcon fontSize="small" /> : 'Nova Subclasse'}
                     </Button>
@@ -363,7 +417,6 @@ const CatalogPage = () => {
                 minHeight: { xs: 400, md: 500 },
             }}>
                 {isMobile ? (
-                    /* Mobile: single-panel navigation */
                     mobilePanel === 'classes' ? (
                         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                             {classesList}
@@ -374,18 +427,15 @@ const CatalogPage = () => {
                             classeNome={classeSelNome}
                             onBack={() => setMobilePanel('classes')}
                             isMobile
+                            onEditSubclasse={(s) => setSubclasseDialog({ open: true, target: s })}
                         />
                     )
                 ) : (
-                    /* Desktop: two-column layout */
                     <>
                         <Box sx={{
-                            width: 260,
-                            flexShrink: 0,
-                            borderRight: 1,
-                            borderColor: 'divider',
-                            display: 'flex',
-                            flexDirection: 'column',
+                            width: 260, flexShrink: 0,
+                            borderRight: 1, borderColor: 'divider',
+                            display: 'flex', flexDirection: 'column',
                         }}>
                             {classesList}
                         </Box>
@@ -393,22 +443,25 @@ const CatalogPage = () => {
                             subclasses={subclassesDaClasse}
                             classeNome={classeSelNome}
                             isMobile={false}
+                            onEditSubclasse={(s) => setSubclasseDialog({ open: true, target: s })}
                         />
                     </>
                 )}
             </Paper>
 
-            <NovaClasseDialog
-                open={classeDialogOpen}
-                onClose={() => setClasseDialogOpen(false)}
-                onSave={addClasse}
+            <ClasseDialog
+                open={classeDialog.open}
+                onClose={() => setClasseDialog({ open: false, target: null })}
+                onSave={handleSaveClasse}
+                initial={classeDialog.target}
             />
-            <NovaSubclasseDialog
-                open={subclasseDialogOpen}
-                onClose={() => setSubclasseDialogOpen(false)}
-                onSave={addSubclasse}
+            <SubclasseDialog
+                open={subclasseDialog.open}
+                onClose={() => setSubclasseDialog({ open: false, target: null })}
+                onSave={handleSaveSubclasse}
                 classes={classes}
                 tipos={tipos}
+                initial={subclasseDialog.target}
             />
         </ModulePage>
     );

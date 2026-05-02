@@ -104,6 +104,17 @@ export const useOrcamentoStore = create((set, get) => ({
         await get().fetchSubclasses();
     },
 
+    updateClasse: async (pk, payload) => {
+        await orcamentoService.updateClasse(pk, payload);
+        await get().fetchClasses();
+        await get().fetchSubclasses();
+    },
+
+    updateSubclasse: async (pk, payload) => {
+        await orcamentoService.updateSubclasse(pk, payload);
+        await get().fetchSubclasses();
+    },
+
     addRegisto: async (payload) => {
         await orcamentoService.create(payload);
         set({ modalOpen: false, editTarget: null });
