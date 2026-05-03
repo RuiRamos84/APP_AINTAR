@@ -54,6 +54,7 @@ export const ConfirmDialog = ({
   message,
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
+  loadingText = 'A processar...',
   confirmColor = 'primary',
   type = 'warning',
   loading = false,
@@ -134,7 +135,7 @@ export const ConfirmDialog = ({
           disabled={loading}
           fullWidth
         >
-          {loading ? 'A processar...' : confirmText}
+          {loading ? loadingText : confirmText}
         </Button>
       </DialogActions>
     </Dialog>
@@ -149,6 +150,7 @@ ConfirmDialog.propTypes = {
   cancelText: PropTypes.string,
   confirmColor: PropTypes.oneOf(['primary', 'secondary', 'error', 'warning', 'info', 'success']),
   type: PropTypes.oneOf(['warning', 'info', 'error', 'success']),
+  loadingText: PropTypes.string,
   loading: PropTypes.bool,
   onConfirm: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,

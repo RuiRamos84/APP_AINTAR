@@ -1,61 +1,59 @@
-/**
- * EmptyState Component
- * Estados vazios para diferentes contextos
- */
-
 import { Box, Typography, Button } from '@mui/material';
 import InboxIcon from '@mui/icons-material/Inbox';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import FolderOffIcon from '@mui/icons-material/FolderOff';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 
-/**
- * Empty State genérico
- */
+const icons = {
+  default: InboxIcon,
+  search: SearchOffIcon,
+  folder: FolderOffIcon,
+  error: ErrorOutlineIcon,
+};
+
+const iconColors = {
+  default: 'text.disabled',
+  search: 'text.disabled',
+  folder: 'text.disabled',
+  error: 'error.light',
+};
+
 export function EmptyState({
   title = 'Sem dados',
   message = 'Não existem dados para apresentar',
-  icon: CustomIcon = InboxIcon,
+  icon: CustomIcon,
   action,
   actionLabel,
-  variant = 'default', // 'default' | 'search' | 'folder'
+  variant = 'default',
+  minHeight = 400,
 }) {
-  // Ícones predefinidos por variante
-  const icons = {
-    default: InboxIcon,
-    search: SearchOffIcon,
-    folder: FolderOffIcon,
-  };
-
-  const Icon = CustomIcon || icons[variant];
+  const Icon = CustomIcon || icons[variant] || InboxIcon;
+  const color = iconColors[variant] || 'text.disabled';
 
   return (
     <Box
+      component={motion.div}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
       sx={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 400,
+        minHeight,
         p: { xs: 3, sm: 4 },
         textAlign: 'center',
       }}
     >
-      <Icon
-        sx={{
-          fontSize: { xs: 56, sm: 64 },
-          color: 'text.disabled',
-          mb: 2,
-        }}
-      />
+      <Icon sx={{ fontSize: { xs: 56, sm: 64 }, color, mb: 2 }} />
 
       <Typography
         variant="h6"
         gutterBottom
-        sx={{
-          fontSize: { xs: '1.125rem', sm: '1.25rem' },
-          fontWeight: 600,
-        }}
+        sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600 }}
       >
         {title}
       </Typography>
@@ -63,21 +61,13 @@ export function EmptyState({
       <Typography
         variant="body2"
         color="text.secondary"
-        sx={{
-          mb: 3,
-          maxWidth: 500,
-          fontSize: { xs: '0.875rem', sm: '1rem' },
-        }}
+        sx={{ mb: action ? 3 : 0, maxWidth: 500, fontSize: { xs: '0.875rem', sm: '1rem' } }}
       >
         {message}
       </Typography>
 
       {action && actionLabel && (
-        <Button
-          variant="contained"
-          onClick={action}
-          size="large"
-        >
+        <Button variant="contained" onClick={action} size="large">
           {actionLabel}
         </Button>
       )}
@@ -85,9 +75,6 @@ export function EmptyState({
   );
 }
 
-/**
- * Empty Search Results
- */
 export function EmptySearch({ searchTerm, onClear }) {
   return (
     <EmptyState
@@ -100,14 +87,12 @@ export function EmptySearch({ searchTerm, onClear }) {
   );
 }
 
-/**
- * Empty List
- */
 export function EmptyList({
   title = 'Lista vazia',
   message = 'Ainda não existem itens nesta lista',
   actionLabel = 'Adicionar item',
   onAdd,
+  minHeight,
 }) {
   return (
     <EmptyState
@@ -115,18 +100,19 @@ export function EmptyList({
       message={message}
       action={onAdd}
       actionLabel={actionLabel}
+      minHeight={minHeight}
     />
   );
 }
 
-// PropTypes
 EmptyState.propTypes = {
   title: PropTypes.string,
   message: PropTypes.string,
   icon: PropTypes.elementType,
   action: PropTypes.func,
   actionLabel: PropTypes.string,
-  variant: PropTypes.oneOf(['default', 'search', 'folder']),
+  variant: PropTypes.oneOf(['default', 'search', 'folder', 'error']),
+  minHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };
 
 EmptySearch.propTypes = {
@@ -139,4 +125,5 @@ EmptyList.propTypes = {
   message: PropTypes.string,
   actionLabel: PropTypes.string,
   onAdd: PropTypes.func,
+  minHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };

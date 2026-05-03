@@ -10,12 +10,13 @@
 
 import { useMemo } from 'react';
 import { Box, Typography, Breadcrumbs, Link } from '@mui/material';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { useUIStore } from '@/core/store/uiStore';
 import { getModuleById } from '@/core/config/moduleConfig';
 
-export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, search, center, children, compact = false, fillHeight = false }) => {
+export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, search, center, children, compact = false, fillHeight = false, loading = false }) => {
   const navigate = useNavigate();
   const currentModule = useUIStore((state) => state.currentModule);
   const moduleConfig = currentModule ? getModuleById(currentModule) : null;
@@ -44,7 +45,15 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
     <Box sx={fillHeight ? { display: 'flex', flexDirection: 'column', height: '100%' } : {}}>
       {/* Breadcrumbs */}
       {normalizedCrumbs.length > 0 && (
-        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 0.5 }}>
+        <Breadcrumbs
+          component={motion.nav}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+          aria-label="Localização na aplicação"
+          separator={<NavigateNextIcon fontSize="small" />}
+          sx={{ mb: 0.5 }}
+        >
           {normalizedCrumbs.map((crumb, index) => {
             const isLast = index === normalizedCrumbs.length - 1;
             return isLast ? (
@@ -82,6 +91,10 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
         >
           {Icon && (
             <Box
+              component={motion.div}
+              initial={{ opacity: 0, scale: 0.75 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.28, ease: [0.34, 1.56, 0.64, 1] }}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -110,13 +123,13 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               </Typography>
             )}
           </Box>
-          {/* Centro absoluto — centrado em relação ao header independentemente das larguras laterais */}
+          {/* Centro absoluto em sm+ — em xs usa fluxo normal para evitar sobreposição */}
           {center && (
             <Box sx={{
+              display: { xs: 'none', sm: 'flex' },
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)',
-              display: 'flex',
               alignItems: 'center',
               pointerEvents: 'none',
               '& > *': { pointerEvents: 'auto' },
@@ -124,8 +137,8 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               {center}
             </Box>
           )}
-          {/* Search + Actions agrupados — em xs passam para linha própria, alinhados à direita */}
-          {(search || actions) && (
+          {/* Search + Actions — desabilitados durante loading */}
+          {(search || actions || center) && (
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
@@ -134,8 +147,13 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
               width: { xs: '100%', sm: 'auto' },
               justifyContent: { xs: 'flex-end', sm: 'flex-start' },
               flexShrink: 0,
+              opacity: loading ? 0.5 : 1,
+              pointerEvents: loading ? 'none' : 'auto',
+              transition: 'opacity 0.2s',
             }}>
               {search}
+              {/* Em xs, o center aparece aqui em fluxo normal */}
+              {center && <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>{center}</Box>}
               {actions}
             </Box>
           )}

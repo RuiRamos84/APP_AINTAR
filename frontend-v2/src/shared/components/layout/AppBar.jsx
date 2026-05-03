@@ -96,7 +96,9 @@ export const AppBar = ({ onMenuClick }) => {
 
   const handleModuleChange = (_event, newModuleId) => {
     if (newModuleId !== null && newModuleId !== currentModule) {
-      setCurrentModule(newModuleId);
+      const fromIndex = accessibleModules.findIndex((m) => m.id === currentModule);
+      const toIndex   = accessibleModules.findIndex((m) => m.id === newModuleId);
+      setCurrentModule(newModuleId, fromIndex, toIndex);
       const module = getModuleById(newModuleId);
       if (module?.defaultRoute) navigate(module.defaultRoute);
     }
@@ -111,9 +113,9 @@ export const AppBar = ({ onMenuClick }) => {
 
   // Dimensões que variam com o scroll
   const toolbarHeight = { xs: scrolled ? 48 : 64, sm: scrolled ? 54 : 72 };
-  const logoHeight   = { xs: scrolled ? 28 : 34, sm: scrolled ? 30 : 40 };
+  const logoHeight   = { xs: scrolled ? 30 : 36, sm: scrolled ? 32 : 42 };
   const tabHeight    = scrolled ? 54 : 64;
-  const avatarSize   = scrolled ? 36 : 40; // mínimo 36px — touch target WCAG
+  const avatarSize   = 44; // 44px fixo — WCAG 2.5.5 touch target mínimo
   const tabFontSize  = scrolled ? '0.74rem' : '0.79rem';
   const tabIconSize  = scrolled ? 18 : 20;
 
@@ -132,6 +134,8 @@ export const AppBar = ({ onMenuClick }) => {
     <MuiAppBar
       position="fixed"
       elevation={0}
+      role="banner"
+      aria-label="Barra de navegação principal"
       sx={{
         width: '100%',
         zIndex: (t) => t.zIndex.drawer + 1,
@@ -162,7 +166,7 @@ export const AppBar = ({ onMenuClick }) => {
         <Tooltip title="Ir para Home">
           <IconButton
             onClick={() => navigate('/home')}
-            sx={{ p: 0.5, flexShrink: 0, '&:hover': { transform: 'scale(1.05)' } }}
+            sx={{ p: 0.5, flexShrink: 0, minWidth: 44, minHeight: 44, '&:hover': { transform: 'scale(1.05)' } }}
           >
             <Box
               component="img"
@@ -183,6 +187,7 @@ export const AppBar = ({ onMenuClick }) => {
             onChange={handleModuleChange}
             variant="scrollable"
             scrollButtons="auto"
+            aria-label="Módulos da aplicação"
             TabIndicatorProps={{
               style: {
                 backgroundColor: accentColor || theme.palette.primary.main,
@@ -251,7 +256,7 @@ export const AppBar = ({ onMenuClick }) => {
         {/* Notificações */}
         <NotificationCenter />
 
-        {/* Tema — apenas desktop/tablet */}
+        {/* Tema — apenas desktop/tablet (em mobile está no menu de utilizador) */}
         {!isMobile && (
           <Tooltip title={`Alternar para tema ${themeMode === 'light' ? 'escuro' : 'claro'}`}>
             <IconButton
@@ -340,6 +345,20 @@ export const AppBar = ({ onMenuClick }) => {
             <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
             <Typography variant="body2">Configurações</Typography>
           </MenuItem>
+          {/* Tema — visível em todos os dispositivos no menu */}
+          {isMobile && (
+            <MenuItem
+              onClick={(e) => { e.stopPropagation(); toggleTheme(); handleCloseMenu(); }}
+              sx={{ borderRadius: 1, mx: 1 }}
+            >
+              <ListItemIcon>
+                {themeMode === 'light' ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
+              </ListItemIcon>
+              <Typography variant="body2">
+                Tema {themeMode === 'light' ? 'Escuro' : 'Claro'}
+              </Typography>
+            </MenuItem>
+          )}
           <MenuItem
             onClick={handleToggleVacation}
             sx={{ borderRadius: 1, mx: 1, justifyContent: 'space-between' }}

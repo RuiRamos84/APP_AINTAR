@@ -54,13 +54,26 @@ export const useUIStore = create(
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 
       // Estado do Módulo Ativo
-      currentModule: null, // ID do módulo ativo (ex: 'operacao', 'gestao', etc.)
+      currentModule: null,       // ID do módulo ativo (ex: 'operacao', 'gestao', etc.)
+      moduleDirection: null,     // 'left' | 'right' | null — direção da transição entre módulos
 
       /**
-       * Set módulo ativo
-       * @param {string|null} moduleId - ID do módulo ou null
+       * Set módulo ativo com direção de transição calculada automaticamente
+       * @param {string|null} moduleId
+       * @param {number} [fromIndex] - índice do módulo anterior na lista
+       * @param {number} [toIndex]   - índice do módulo destino na lista
        */
-      setCurrentModule: (moduleId) => set({ currentModule: moduleId }),
+      setCurrentModule: (moduleId, fromIndex, toIndex) => set((state) => {
+        let direction = null;
+        if (fromIndex != null && toIndex != null && fromIndex !== toIndex) {
+          direction = toIndex > fromIndex ? 'left' : 'right';
+        }
+        state.currentModule = moduleId;
+        state.moduleDirection = direction;
+      }),
+
+      /** Limpa a direção após a transição terminar */
+      clearModuleDirection: () => set({ moduleDirection: null }),
 
       // Notificações (não persistidas)
       notifications: [],

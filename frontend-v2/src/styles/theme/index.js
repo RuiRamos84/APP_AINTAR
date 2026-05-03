@@ -194,13 +194,17 @@ export const getTheme = (mode = 'light') => {
           root: {
             borderRadius: 8,
             padding: '10px 20px',
-            minHeight: spacingTokens.touch.minTarget, // Touch-friendly
+            minHeight: 44, // WCAG 2.5.5 touch target mínimo
             textTransform: 'none',
             fontWeight: typographyTokens.fontWeight.medium,
+            '&:focus-visible': {
+              outline: `3px solid ${colorTokens.primary[500]}`,
+              outlineOffset: 2,
+            },
           },
           sizeLarge: {
             padding: '14px 28px',
-            minHeight: spacingTokens.touch.large,
+            minHeight: 48,
             fontSize: typographyTokens.fontSize.mobile.md,
           },
           sizeSmall: {
@@ -210,7 +214,7 @@ export const getTheme = (mode = 'light') => {
           },
         },
         defaultProps: {
-          disableElevation: true, // Flat buttons por padrão
+          disableElevation: true,
         },
       },
 
@@ -338,12 +342,30 @@ export const getTheme = (mode = 'light') => {
         },
       },
 
+      // IconButton
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            minWidth: 44,
+            minHeight: 44,
+            '&:focus-visible': {
+              outline: `3px solid ${colorTokens.primary[500]}`,
+              outlineOffset: 2,
+            },
+          },
+        },
+      },
+
       // ListItemButton
       MuiListItemButton: {
         styleOverrides: {
           root: {
             borderRadius: 8,
             transition: 'background-color 0.15s ease, transform 0.15s ease',
+            '&:focus-visible': {
+              outline: `3px solid ${colorTokens.primary[500]}`,
+              outlineOffset: -2,
+            },
           },
         },
       },
