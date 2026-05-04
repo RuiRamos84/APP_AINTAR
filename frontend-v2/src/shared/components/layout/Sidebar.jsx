@@ -37,7 +37,7 @@ import {
   alpha,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED, NAVBAR_HEIGHT, NAVBAR_HEIGHT_COMPACT } from './layoutConstants';
@@ -300,20 +300,16 @@ export const Sidebar = ({
       {/* Lista de navegação — com stagger ao mudar de módulo */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 0.5 }}>
         <List disablePadding aria-label={activeModule ? `Navegação de ${activeModule.label}` : 'Navegação'}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={currentModule}>
-              {visibleRoutes.map((route, i) => (
-                <motion.div
-                  key={route.path}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.18, delay: i * 0.035, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  {renderMenuItem(route)}
-                </motion.div>
-              ))}
+          {visibleRoutes.map((route, i) => (
+            <motion.div
+              key={`${currentModule}-${route.path}`}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.18, delay: i * 0.035, ease: [0.25, 0.46, 0.45, 0.94] }}
+            >
+              {renderMenuItem(route)}
             </motion.div>
-          </AnimatePresence>
+          ))}
         </List>
       </Box>
 

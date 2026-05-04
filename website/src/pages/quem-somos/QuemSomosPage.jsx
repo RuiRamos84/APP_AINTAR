@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Users, FileText, ShoppingCart, Network, ScrollText, ArrowRight, CheckCircle2 } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
+import TypewriterText from '../../components/ui/TypewriterText'
 
 const colorMap = {
   'aintar-sky':  { icon: 'bg-aintar-sky/10 group-hover:bg-aintar-sky/20 text-aintar-sky', cta: 'text-aintar-sky' },
@@ -61,7 +62,7 @@ export default function QuemSomosPage() {
       subtitle="A AINTAR é a entidade gestora responsável pelos sistemas intermunicipais de saneamento de águas residuais na região Centro de Portugal."
       breadcrumbs={[{ label: 'Quem Somos' }]}
     >
-      {/* Mission */}
+      {/* Mission & Video */}
       <section className="section-padding bg-white">
         <div className="section-container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
@@ -72,7 +73,7 @@ export default function QuemSomosPage() {
               <h2 className="font-heading font-extrabold text-aintar-navy mb-6 leading-tight"
                 style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
                 Gestão intermunicipal para um{' '}
-                <span className="text-gradient">ambiente mais saudável</span>
+                <TypewriterText text="ambiente mais saudável" gradient={true} />
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4">
                 A <strong>AINTAR — Associação de Municípios para o Sistema Intermunicipal de Águas Residuais</strong> foi
@@ -95,7 +96,19 @@ export default function QuemSomosPage() {
             </ScrollReveal>
 
             <ScrollReveal delay={0.15}>
-              <div className="grid grid-cols-2 gap-4">
+              {/* Institutional Video Embed */}
+              <div className="aspect-video rounded-3xl overflow-hidden shadow-2xl border border-gray-100 bg-aintar-navy relative group">
+                <iframe
+                  className="w-full h-full"
+                  src="https://www.youtube.com/embed/zH3qY71zG_8"
+                  title="Vídeo Institucional AINTAR"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-6">
                 {values.map((v) => (
                   <div key={v.title}
                     className="p-5 rounded-2xl bg-aintar-light border border-aintar-blue/10 hover:border-aintar-sky/30 transition-colors">

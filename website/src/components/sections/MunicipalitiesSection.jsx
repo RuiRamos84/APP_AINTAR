@@ -4,6 +4,7 @@ import ScrollReveal from '../ui/ScrollReveal'
 import { motion } from 'framer-motion'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
+import TypewriterText from '../ui/TypewriterText'
 
 
 const municipalities = [
@@ -35,7 +36,7 @@ export default function MunicipalitiesSection() {
               <h2 className="font-heading font-extrabold text-white leading-tight mb-4"
                 style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.8rem)' }}>
                 Servimos{' '}
-                <span className="text-gradient">toda a região</span>{' '}
+                <TypewriterText text="toda a região" gradient={true} />{' '}
                 com dedicação
               </h2>
             </ScrollReveal>

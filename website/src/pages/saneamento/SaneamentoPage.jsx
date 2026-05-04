@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Factory, Droplets, ArrowRight, Activity, Leaf } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
+import TypewriterText from '../../components/ui/TypewriterText'
 
 const instalacoes = [
   { nome: 'ETAR de Touriz', municipio: 'Tondela', tipo: 'ETAR', capacidade: '—' },
@@ -27,7 +28,8 @@ export default function SaneamentoPage() {
               </span>
               <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
                 style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
-                Rede de saneamento <span className="text-gradient">integrada e moderna</span>
+                Rede de saneamento{' '}
+                <TypewriterText text="integrada e moderna" gradient={true} />
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4">
                 A AINTAR opera uma rede integrada de infraestruturas de saneamento em alta,
@@ -88,7 +90,8 @@ export default function SaneamentoPage() {
             </span>
             <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
               style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
-              Redes de recolha e transporte <span className="text-gradient">de águas residuais</span>
+              Redes de recolha e transporte{' '}
+              <TypewriterText text="de águas residuais" gradient={true} />
             </h2>
             <p className="text-gray-600 leading-relaxed max-w-3xl">
               A AINTAR gere cerca de 700 km de coletores e 91 estações elevatórias distribuídas pelos
@@ -124,7 +127,8 @@ export default function SaneamentoPage() {
             </span>
             <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
               style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
-              Processo de tratamento <span className="text-gradient">ambientalmente responsável</span>
+              Processo de tratamento{' '}
+              <TypewriterText text="ambientalmente responsável" gradient={true} />
             </h2>
             <p className="text-gray-600 leading-relaxed max-w-3xl mb-8">
               O tratamento das águas residuais é realizado em conformidade com a legislação ambiental

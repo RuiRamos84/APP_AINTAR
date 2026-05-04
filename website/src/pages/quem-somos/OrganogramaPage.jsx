@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
@@ -216,63 +216,170 @@ function DivisionSection({ div, onSelect, activeId }) {
   )
 }
 
-// ── Detail panel — fixed floating overlay ────────────────────────────────────
+// ── Detail panel — responsive overlay/bottomsheet ───────────────────────────
 function DetailPanel({ node, onClose }) {
   const cfg = node ? (T[node.type] || T.servico) : null
 
   return (
     <AnimatePresence>
       {node && (
-        <motion.div
-          key={node.id}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 12 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          style={{
-            position: 'fixed',
-            top: '50%',
-            right: 32,
-            transform: 'translateY(-50%)',
-            width: 320,
-            zIndex: 200,
-            borderRadius: 18,
-            background: '#fff',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Colored top bar */}
-          <div style={{ height: 5, background: cfg.bg }} />
-          <div style={{ padding: '16px 18px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '3px 10px', borderRadius: 999,
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
-                background: cfg.solid + '18', color: cfg.solid,
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.solid, display: 'inline-block' }} />
-                {cfg.label}
-              </span>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                onClick={onClose}
-                style={{ color: '#d1d5db', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 2, borderRadius: 6 }}
-              >
-                <X size={14} />
-              </motion.button>
+        <>
+          {/* Backdrop Blur */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-[190] bg-aintar-navy/20 backdrop-blur-sm"
+          />
+          
+          <motion.div
+            key={node.id}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed z-[200] bg-white shadow-2xl overflow-hidden
+                       bottom-0 left-0 right-0 rounded-t-[32px] 
+                       lg:bottom-auto lg:top-1/2 lg:right-8 lg:left-auto lg:-translate-y-1/2 lg:w-[360px] lg:rounded-3xl"
+          >
+            {/* Colored top bar */}
+            <div className="h-1.5 w-full" style={{ background: cfg.bg }} />
+            
+            {/* Mobile Drag Indicator */}
+            <div className="lg:hidden flex justify-center py-3">
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
             </div>
-            <h3 style={{ fontWeight: 700, color: '#111827', marginBottom: 8, lineHeight: 1.3, whiteSpace: 'pre-line', fontSize: 15 }}>
-              {node.label}
-            </h3>
-            <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, margin: 0 }}>
-              {node.desc}
-            </p>
-          </div>
-        </motion.div>
+
+            <div className="p-6 lg:p-7">
+              <div className="flex items-center justify-between mb-5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase"
+                      style={{ background: cfg.solid + '15', color: cfg.solid }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.solid }} />
+                  {cfg.label}
+                </span>
+                <button
+                  onClick={onClose}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3 leading-tight whitespace-pre-line">
+                {node.label}
+              </h3>
+              <p className="text-[14px] text-gray-500 leading-relaxed">
+                {node.desc}
+              </p>
+              
+              <div className="lg:hidden mt-8">
+                <button 
+                  onClick={onClose}
+                  className="w-full py-4 bg-gray-50 text-gray-600 font-semibold rounded-2xl hover:bg-gray-100 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
+  )
+}
+
+// ── Mobile Vertical Tree ──────────────────────────────────────────────────────
+function MobileTree({ onSelect, activeId }) {
+  const [expanded, setExpanded] = useState(['direcao', 'assembleia'])
+  
+  const toggle = (id) => setExpanded(prev => 
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+  )
+
+  const NodeItem = ({ node, level = 0, hasChildren = false }) => {
+    const isExpanded = expanded.includes(node.id)
+    const cfg = T[node.type] || T.servico
+    
+    return (
+      <div className="flex flex-col">
+        <div className="flex items-center gap-3 py-2">
+          {level > 0 && (
+            <div className="flex-shrink-0 w-4 h-px bg-gray-200" />
+          )}
+          
+          <button
+            onClick={() => onSelect(node)}
+            className={`flex-1 text-left p-4 rounded-2xl border transition-all duration-300 ${
+              activeId === node.id 
+                ? 'border-aintar-blue ring-2 ring-aintar-blue/20 shadow-lg' 
+                : 'border-gray-100 bg-white hover:border-gray-200 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: cfg.solid }}>
+                  {cfg.label}
+                </div>
+                <div className="text-sm font-bold text-gray-900 whitespace-pre-line">
+                  {node.label.replace('\n', ' ')}
+                </div>
+              </div>
+              {hasChildren && (
+                <div 
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); toggle(node.id); }}
+                  onKeyDown={(e) => { if(e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggle(node.id); } }}
+                  className="p-2 bg-gray-50 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
+                >
+                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
+              )}
+            </div>
+          </button>
+        </div>
+        
+        {hasChildren && isExpanded && node.children && (
+          <div className="ml-6 border-l-2 border-gray-100 pl-4">
+            {node.children.map((child) => (
+              <NodeItem 
+                key={child.id} 
+                node={child} 
+                level={level + 1} 
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <NodeItem node={NODES.assembleia} hasChildren={true} />
+      <div className="ml-6 border-l-2 border-gray-100 pl-4">
+        {expanded.includes('assembleia') && (
+          <NodeItem node={NODES.fiscalizacao} level={1} />
+        )}
+      </div>
+      
+      <div className="flex justify-center py-1">
+        <VLine h={20} />
+      </div>
+      
+      <NodeItem node={NODES.direcao} hasChildren={true} />
+      <div className="ml-6 border-l-2 border-gray-100 pl-4">
+        {expanded.includes('direcao') && (
+          <>
+            <NodeItem node={NODES.juridico} level={1} />
+            <NodeItem node={NODES.secretariado} level={1} />
+            <NodeItem node={NODES.ti} level={1} />
+            <NodeItem node={DIV_PROJETOS} level={1} hasChildren={true} />
+            <NodeItem node={DIV_ADMIN} level={1} hasChildren={true} />
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -314,57 +421,65 @@ export default function OrganogramaPage() {
           <ScrollReveal>
             <div>
               {/* ── Tree ── */}
-              <div style={{ overflowX:'auto', paddingBottom:4 }}>
+              <div className="relative">
                 <Legend />
 
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', userSelect:'none', width:FORK_W, margin:'0 auto', paddingTop: 24 }}>
+                {/* Desktop Tree View */}
+                <div className="hidden lg:block overflow-x-auto pb-8 custom-scrollbar">
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', userSelect:'none', width:FORK_W, margin:'0 auto', paddingTop: 24 }}>
 
-                  {/* Row 1: Assembleia (centered) & Órgão Fiscalização (attached to right) */}
-                  <div style={{ display:'flex', alignItems:'center', width:'100%' }}>
-                    <div style={{ flex:1 }} />
-                    <OrgNode node={NODES.assembleia} onSelect={setSelected} activeId={selected?.id} />
-                    <div style={{ flex:1, display:'flex', alignItems:'center' }}>
-                      <Arrow />
-                      <OrgNode node={NODES.fiscalizacao} onSelect={setSelected} activeId={selected?.id} />
+                    {/* Row 1: Assembleia (centered) & Órgão Fiscalização (attached to right) */}
+                    <div style={{ display:'flex', alignItems:'center', width:'100%' }}>
+                      <div style={{ flex:1 }} />
+                      <OrgNode node={NODES.assembleia} onSelect={setSelected} activeId={selected?.id} />
+                      <div style={{ flex:1, display:'flex', alignItems:'center' }}>
+                        <Arrow />
+                        <OrgNode node={NODES.fiscalizacao} onSelect={setSelected} activeId={selected?.id} />
+                      </div>
                     </div>
+
+                    <VLine h={28} />
+
+                    {/* Row 2: Direção */}
+                    <OrgNode node={NODES.direcao} onSelect={setSelected} activeId={selected?.id} minW={150} />
+
+                    <VLine h={28} />
+
+                    {/* Row 3: Gabinete ── Secretariado (centered) ── Sistemas TI */}
+                    <div style={{ display:'flex', alignItems:'center', width:FORK_W, justifyContent:'center' }}>
+                      <div style={{ flex:1, display:'flex', justifyContent:'flex-end', alignItems:'center' }}>
+                        <OrgNode node={NODES.juridico} onSelect={setSelected} activeId={selected?.id} />
+                        <HLine w={28} />
+                      </div>
+                      <OrgNode node={NODES.secretariado} onSelect={setSelected} activeId={selected?.id} minW={165} />
+                      <div style={{ flex:1, display:'flex', justifyContent:'flex-start', alignItems:'center' }}>
+                        <HLine w={28} />
+                        <OrgNode node={NODES.ti} onSelect={setSelected} activeId={selected?.id} />
+                      </div>
+                    </div>
+
+                    <VLine h={24} />
+
+                    {/* SVG curved fork */}
+                    <ForkConnector />
+
+                    {/* Row 4: Two divisions */}
+                    <div style={{ display:'flex', width:FORK_W }}>
+                      <div style={{ width:HALF_W, display:'flex', flexDirection:'column', alignItems:'center' }}>
+                        <DivisionSection div={DIV_PROJETOS} onSelect={setSelected} activeId={selected?.id} />
+                      </div>
+                      <div style={{ width:GAP }} />
+                      <div style={{ width:HALF_W, display:'flex', flexDirection:'column', alignItems:'center' }}>
+                        <DivisionSection div={DIV_ADMIN} onSelect={setSelected} activeId={selected?.id} />
+                      </div>
+                    </div>
+
                   </div>
+                </div>
 
-                  <VLine h={28} />
-
-                  {/* Row 2: Direção */}
-                  <OrgNode node={NODES.direcao} onSelect={setSelected} activeId={selected?.id} minW={150} />
-
-                  <VLine h={28} />
-
-                  {/* Row 3: Gabinete ── Secretariado (centered) ── Sistemas TI */}
-                  <div style={{ display:'flex', alignItems:'center', width:FORK_W, justifyContent:'center' }}>
-                    <div style={{ flex:1, display:'flex', justifyContent:'flex-end', alignItems:'center' }}>
-                      <OrgNode node={NODES.juridico} onSelect={setSelected} activeId={selected?.id} />
-                      <HLine w={28} />
-                    </div>
-                    <OrgNode node={NODES.secretariado} onSelect={setSelected} activeId={selected?.id} minW={165} />
-                    <div style={{ flex:1, display:'flex', justifyContent:'flex-start', alignItems:'center' }}>
-                      <HLine w={28} />
-                      <OrgNode node={NODES.ti} onSelect={setSelected} activeId={selected?.id} />
-                    </div>
-                  </div>
-
-                  <VLine h={24} />
-
-                  {/* SVG curved fork */}
-                  <ForkConnector />
-
-                  {/* Row 4: Two divisions */}
-                  <div style={{ display:'flex', width:FORK_W }}>
-                    <div style={{ width:HALF_W, display:'flex', flexDirection:'column', alignItems:'center' }}>
-                      <DivisionSection div={DIV_PROJETOS} onSelect={setSelected} activeId={selected?.id} />
-                    </div>
-                    <div style={{ width:GAP }} />
-                    <div style={{ width:HALF_W, display:'flex', flexDirection:'column', alignItems:'center' }}>
-                      <DivisionSection div={DIV_ADMIN} onSelect={setSelected} activeId={selected?.id} />
-                    </div>
-                  </div>
-
+                {/* Mobile Vertical View */}
+                <div className="lg:hidden mt-8">
+                  <MobileTree onSelect={setSelected} activeId={selected?.id} />
                 </div>
               </div>
             </div>
@@ -372,7 +487,7 @@ export default function OrganogramaPage() {
         </div>
       </section>
 
-      {/* ── Detail panel — fixed floating, no layout impact ── */}
+      {/* ── Detail panel ── */}
       <DetailPanel node={selected} onClose={() => setSelected(null)} />
 
     </PageLayout>

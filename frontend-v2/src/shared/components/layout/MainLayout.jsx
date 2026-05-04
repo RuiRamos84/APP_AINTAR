@@ -9,7 +9,7 @@
  * - Sincronização automática de módulo com rota
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Box, Toolbar, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -52,15 +52,22 @@ export const MainLayout = () => {
     return false;
   });
 
-  // Auto-detectar e sincronizar módulo baseado na rota atual
+  // Ref sempre actualizada com o módulo actual — evita closures stale no effect abaixo
+  const currentModuleRef = useRef(currentModule);
+  currentModuleRef.current = currentModule;
+
+  // Sincroniza módulo com a rota — corre APENAS quando o pathname muda (ex: F5, URL directa, links externos).
+  // Usa ref para ler currentModule sem o colocar nas deps: se o módulo foi definido explicitamente
+  // pelo AppBar/BottomNav, o pathname antigo não deve revertê-lo antes da navegação completar.
   useEffect(() => {
     const detectedModule = detectModuleFromPath(location.pathname);
-    if (detectedModule && detectedModule !== currentModule) {
+    if (detectedModule && detectedModule !== currentModuleRef.current) {
       setCurrentModule(detectedModule);
     } else if (!detectedModule && location.pathname === '/home') {
       setCurrentModule(null);
     }
-  }, [location.pathname, currentModule, setCurrentModule]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, setCurrentModule]);
 
   // Fechar drawer mobile quando mudar para desktop
   useEffect(() => {

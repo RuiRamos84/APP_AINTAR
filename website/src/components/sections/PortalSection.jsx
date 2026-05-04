@@ -1,5 +1,6 @@
 import { FileText, Gauge, AlertTriangle, ClipboardList, Phone, ArrowRight, LogIn, Sparkles } from 'lucide-react'
 import ScrollReveal from '../ui/ScrollReveal'
+import TypewriterText from '../ui/TypewriterText'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
 import { motion } from 'framer-motion'
@@ -40,7 +41,7 @@ export default function PortalSection() {
                 <h2 className="font-heading font-extrabold text-white leading-tight"
                   style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.8rem)' }}>
                   Aceda aos serviços online{' '}
-                  <span className="text-gradient">24 horas por dia</span>
+                  <TypewriterText text="24 horas por dia" gradient={true} />
                 </h2>
               </ScrollReveal>
             </div>
