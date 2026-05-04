@@ -11,8 +11,6 @@
 import { getSidebarRoutesForModule } from '@/core/config/routeConfig';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useSocket } from '@/core/contexts/SocketContext';
-import { useUIStore } from '@/core/store/uiStore';
-import { getModuleById } from '@/core/config/moduleConfig';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -39,6 +37,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
+import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED, NAVBAR_HEIGHT, NAVBAR_HEIGHT_COMPACT } from './layoutConstants';
 
@@ -54,7 +53,9 @@ export const Sidebar = ({
   const location = useLocation();
   const { hasPermission } = usePermissionContext();
   const { isConnected } = useSocket();
-  const currentModule = useUIStore((state) => state.currentModule);
+
+  // Módulo derivado da URL — actualiza sincronamente com a navegação
+  const { moduleId: currentModule, moduleConfig: activeModule } = useCurrentModule();
 
   const navbarH = useNavbarCompact() ? NAVBAR_HEIGHT_COMPACT.sm : NAVBAR_HEIGHT.sm;
 
@@ -73,11 +74,6 @@ export const Sidebar = ({
     if (!currentModule) return [];
     return getSidebarRoutesForModule(currentModule, hasPermission);
   }, [currentModule, hasPermission]);
-
-  const activeModule = useMemo(
-    () => (currentModule ? getModuleById(currentModule) : null),
-    [currentModule]
-  );
 
   // Cor do módulo para theming consistente
   const moduleColor = activeModule?.color || theme.palette.primary.main;

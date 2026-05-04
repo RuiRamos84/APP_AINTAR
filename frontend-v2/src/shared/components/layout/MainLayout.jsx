@@ -9,7 +9,7 @@
  * - Sincronização automática de módulo com rota
  */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Box, Toolbar, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -18,7 +18,8 @@ import { Sidebar } from './Sidebar';
 import { ModuleBottomNav } from './ModuleBottomNav';
 import { PageTransition } from './PageTransition';
 import { useUIStore } from '@/core/store/uiStore';
-import { detectModuleFromPath, getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
+import { getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
+import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { NAVBAR_HEIGHT } from '@/shared/components/layout/layoutConstants';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAvalPending } from '@/features/aval/hooks/useAvalPending';
@@ -31,52 +32,29 @@ export const MainLayout = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const currentModule = useUIStore((state) => state.currentModule);
+  // Módulo derivado directamente da URL — fonte de verdade única, sem race conditions
+  const { moduleId: currentModule } = useCurrentModule();
   const setCurrentModule = useUIStore((state) => state.setCurrentModule);
 
   const { hasPermission, hasAnyPermission } = usePermissionContext();
   const { data: pendingData, open: pendingOpen, dismiss: dismissPending } = useAvalPending();
 
-  // Módulos acessíveis para o BottomNav mobile
   const accessibleModules = useMemo(
     () => getAccessibleModules(hasPermission, hasAnyPermission),
     [hasPermission, hasAnyPermission]
   );
 
-  // Estado collapsed da sidebar — persiste preferência do utilizador
   const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar_collapsed');
-      return saved !== null ? JSON.parse(saved) : false;
-    }
-    return false;
+    const saved = localStorage.getItem('sidebar_collapsed');
+    return saved !== null ? JSON.parse(saved) : false;
   });
 
-  // Ref sempre actualizada com o módulo actual — evita closures stale no effect abaixo
-  const currentModuleRef = useRef(currentModule);
-  currentModuleRef.current = currentModule;
-
-  // Sincroniza módulo com a rota — corre APENAS quando o pathname muda (ex: F5, URL directa, links externos).
-  // Usa ref para ler currentModule sem o colocar nas deps: se o módulo foi definido explicitamente
-  // pelo AppBar/BottomNav, o pathname antigo não deve revertê-lo antes da navegação completar.
-  useEffect(() => {
-    const detectedModule = detectModuleFromPath(location.pathname);
-    if (detectedModule && detectedModule !== currentModuleRef.current) {
-      setCurrentModule(detectedModule);
-    } else if (!detectedModule && location.pathname === '/home') {
-      setCurrentModule(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, setCurrentModule]);
-
-  // Fechar drawer mobile quando mudar para desktop
   useEffect(() => {
     if (!isMobile) setMobileOpen(false);
   }, [isMobile]);
 
   const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
 
-  // Handler do BottomNav mobile: troca de módulo + navega com direção
   const handleBottomNavChange = (moduleId) => {
     const fromIndex = accessibleModules.findIndex((m) => m.id === currentModule);
     const toIndex   = accessibleModules.findIndex((m) => m.id === moduleId);
