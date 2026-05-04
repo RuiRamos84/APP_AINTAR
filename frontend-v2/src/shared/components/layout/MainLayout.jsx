@@ -20,7 +20,6 @@ import { PageTransition } from './PageTransition';
 import { useUIStore } from '@/core/store/uiStore';
 import { getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
 import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
-import { NAVBAR_HEIGHT } from '@/shared/components/layout/layoutConstants';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAvalPending } from '@/features/aval/hooks/useAvalPending';
 import { AvalPendingModal } from '@/features/aval/components/AvalPendingModal';
@@ -55,39 +54,15 @@ export const MainLayout = () => {
 
   const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
 
+  // Handler do BottomNav mobile: troca de módulo + navega
   const handleBottomNavChange = (moduleId) => {
-    const fromIndex = accessibleModules.findIndex((m) => m.id === currentModule);
-    const toIndex   = accessibleModules.findIndex((m) => m.id === moduleId);
-    setCurrentModule(moduleId, fromIndex, toIndex);
+    setCurrentModule(moduleId);
     const module = getModuleById(moduleId);
     if (module?.defaultRoute) navigate(module.defaultRoute);
   };
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* Skip link — acessibilidade: permite saltar a navbar com Tab */}
-      <Box
-        component="a"
-        href="#main-content"
-        sx={{
-          position: 'absolute',
-          top: -999,
-          left: -999,
-          zIndex: 9999,
-          px: 3,
-          py: 1.5,
-          bgcolor: 'primary.main',
-          color: 'primary.contrastText',
-          borderRadius: 1,
-          fontWeight: 600,
-          fontSize: '0.9rem',
-          textDecoration: 'none',
-          '&:focus': { top: 8, left: 8 },
-        }}
-      >
-        Ir para o conteúdo principal
-      </Box>
-
       {/* AppBar — ocupa todo o topo */}
       <AppBar onMenuClick={handleDrawerToggle} />
 
@@ -101,9 +76,7 @@ export const MainLayout = () => {
 
       {/* Conteúdo principal */}
       <Box
-        id="main-content"
         component="main"
-        tabIndex={-1}
         sx={{
           flexGrow: 1,
           minHeight: '100vh',
@@ -115,8 +88,8 @@ export const MainLayout = () => {
           position: 'relative',
         }}
       >
-        {/* Spacer com a altura total da navbar — usa constante centralizada de layoutConstants */}
-        <Toolbar sx={{ minHeight: NAVBAR_HEIGHT, flexShrink: 0 }} />
+        {/* Spacer com a altura total da navbar — sincronizado com NAVBAR_HEIGHT */}
+        <Toolbar sx={{ minHeight: { xs: 64, sm: 72 }, flexShrink: 0 }} />
         <AnimatePresence mode="popLayout">
           <PageTransition key={location.pathname}>
             <Outlet />

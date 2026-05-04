@@ -35,11 +35,11 @@ import {
   alpha,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+
 import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
 import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED, NAVBAR_HEIGHT, NAVBAR_HEIGHT_COMPACT } from './layoutConstants';
+import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED } from './layoutConstants';
 
 export const Sidebar = ({
   open,
@@ -57,7 +57,7 @@ export const Sidebar = ({
   // Módulo derivado da URL — actualiza sincronamente com a navegação
   const { moduleId: currentModule, moduleConfig: activeModule } = useCurrentModule();
 
-  const navbarH = useNavbarCompact() ? NAVBAR_HEIGHT_COMPACT.sm : NAVBAR_HEIGHT.sm;
+  const navbarH = useNavbarCompact() ? 54 : 72; // sincronizado com AppBar (sm breakpoint)
 
   const collapsed = variant === 'temporary' ? false : (collapsedProp ?? true);
   const [openSubmenus, setOpenSubmenus] = useState({});
@@ -293,20 +293,9 @@ export const Sidebar = ({
         </Box>
       )}
 
-      {/* Lista de navegação — com stagger ao mudar de módulo */}
+      {/* Lista de navegação */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 0.5 }}>
-        <List disablePadding aria-label={activeModule ? `Navegação de ${activeModule.label}` : 'Navegação'}>
-          {visibleRoutes.map((route, i) => (
-            <motion.div
-              key={`${currentModule}-${route.path}`}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.18, delay: i * 0.035, ease: [0.25, 0.46, 0.45, 0.94] }}
-            >
-              {renderMenuItem(route)}
-            </motion.div>
-          ))}
-        </List>
+        <List disablePadding>{visibleRoutes.map(renderMenuItem)}</List>
       </Box>
 
       {/* Rodapé: versão + conectividade + colapso — flexShrink:0 garante que nunca é comprimido */}
@@ -409,7 +398,6 @@ export const Sidebar = ({
         variant={variant}
         open={variant === 'temporary' ? open : true}
         onClose={onClose}
-        SlotProps={{ root: { role: 'navigation', 'aria-label': activeModule ? `Módulo ${activeModule.label}` : 'Menu lateral' } }}
         sx={{
           width: variant === 'temporary' ? 'auto' : drawerWidth,
           flexShrink: 0,
