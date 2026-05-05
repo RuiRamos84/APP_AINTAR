@@ -34,9 +34,14 @@ const TIPO_COLORS = {
     'Capital': 'warning',
 };
 
-const COL_COUNT = 7;
+const formatPct = (value, total) => {
+    if (!total) return '—';
+    return `${((value / total) * 100).toFixed(1)} %`;
+};
 
-const ClasseRows = ({ classe, registos, open, onToggle, onEdit, onDelete }) => {
+const COL_COUNT = 8;
+
+const ClasseRows = ({ classe, registos, open, onToggle, onEdit, onDelete, grandTotal }) => {
     const total = registos.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
 
     return (
@@ -88,6 +93,11 @@ const ClasseRows = ({ classe, registos, open, onToggle, onEdit, onDelete }) => {
                     </TableCell>
                     <TableCell align="right">
                         <Typography fontWeight="medium">{formatEuro(r.valor)}</Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                        <Typography variant="body2" color="text.secondary">
+                            {formatPct(parseFloat(r.valor) || 0, grandTotal)}
+                        </Typography>
                     </TableCell>
                     <TableCell align="right">
                         <Typography variant="body2" color="text.secondary">{formatDate(r.data_inicio)}</Typography>
@@ -157,13 +167,15 @@ export const OrcamentoTable = () => {
     const { registos, summary, loading, error, openModal, deleteRegisto, anoSelecionado } = useOrcamentoStore();
     const [collapsed, setCollapsed] = useState({});
 
-    const porClasse = useMemo(() => {
+    const { porClasse, grandTotal } = useMemo(() => {
         const map = {};
+        let total = 0;
         registos.forEach(r => {
             if (!map[r.classe]) map[r.classe] = [];
             map[r.classe].push(r);
+            total += parseFloat(r.valor) || 0;
         });
-        return map;
+        return { porClasse: map, grandTotal: total };
     }, [registos]);
 
     const toggleClasse = (classe) =>
@@ -205,6 +217,7 @@ export const OrcamentoTable = () => {
                                 <TableCell><b>Tipo</b></TableCell>
                                 <TableCell><b>SNCAP</b></TableCell>
                                 <TableCell align="right"><b>Valor</b></TableCell>
+                                <TableCell align="right"><b>% do Total</b></TableCell>
                                 <TableCell align="right"><b>Data Início</b></TableCell>
                                 <TableCell align="right"><b>Data Fim</b></TableCell>
                                 <TableCell align="center"><b>Ações</b></TableCell>
@@ -220,6 +233,7 @@ export const OrcamentoTable = () => {
                                     onToggle={() => toggleClasse(classe)}
                                     onEdit={(r) => openModal(r)}
                                     onDelete={handleDelete}
+                                    grandTotal={grandTotal}
                                 />
                             ))}
                         </TableBody>

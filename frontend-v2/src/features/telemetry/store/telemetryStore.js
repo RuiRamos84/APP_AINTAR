@@ -49,8 +49,12 @@ export const useTelemetryStore = create((set, get) => ({
 
   setFilter: (key, value) =>
     set((state) => ({
-      filters: { ...state.filters, [key]: value },
-      // Limpar sensores e pesquisa ao alterar filtros
+      filters: {
+        ...state.filters,
+        [key]: value,
+        // Ao mudar a data de início, limpar a data de fim para forçar seleção explícita
+        ...(key === 'dateFrom' ? { dateTo: '' } : {}),
+      },
       sensors: [],
       hasSearched: false,
       selectedSlots: [null, null, null, null],

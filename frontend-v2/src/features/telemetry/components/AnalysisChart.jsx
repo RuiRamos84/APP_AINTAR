@@ -157,44 +157,53 @@ function AnalysisChart({
             <CircularProgress />
             <Typography variant="body2" color="text.secondary">A carregar dados...</Typography>
           </Box>
-        ) : chartData.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" py={4} textAlign="center">
-            Sem leituras nesta janela temporal.
-          </Typography>
         ) : (
           <Box ref={chartRef}>
-            <ResponsiveContainer width="100%" height={340}>
-              <LineChart data={chartData} margin={{ top: 4, right: 24, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="min"
-                  type="number"
-                  domain={[0, 1380]}
-                  ticks={HOUR_TICKS}
-                  tickFormatter={tickFormatter}
-                  tick={{ fontSize: 10 }}
-                  interval={0}
-                  angle={-45}
-                  textAnchor="end"
-                  height={48}
-                />
-                <YAxis tick={{ fontSize: 11 }} width={48} />
-                <RechartsTooltip labelFormatter={tooltipLabelFormatter} />
-                <Legend />
-                {activeSensors.map(({ name, color }) => (
-                  <Line
-                    key={name}
-                    type="monotone"
-                    dataKey={name}
-                    stroke={color}
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                    connectNulls={false}
+            <Box sx={{ position: 'relative' }}>
+              {chartData.length === 0 && (
+                <Box sx={{
+                  position: 'absolute', inset: 0, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  zIndex: 1, pointerEvents: 'none',
+                }}>
+                  <Typography variant="body2" color="text.disabled">
+                    Sem leituras nesta janela temporal.
+                  </Typography>
+                </Box>
+              )}
+              <ResponsiveContainer width="100%" height={340}>
+                <LineChart data={chartData} margin={{ top: 4, right: 24, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="min"
+                    type="number"
+                    domain={[0, 1380]}
+                    ticks={HOUR_TICKS}
+                    tickFormatter={tickFormatter}
+                    tick={{ fontSize: 10 }}
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={48}
                   />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
+                  <YAxis tick={{ fontSize: 11 }} width={48} />
+                  <RechartsTooltip labelFormatter={tooltipLabelFormatter} />
+                  <Legend />
+                  {activeSensors.map(({ name, color }) => (
+                    <Line
+                      key={name}
+                      type="monotone"
+                      dataKey={name}
+                      stroke={color}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                      connectNulls={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
 
             {/* Navegação temporal */}
             <Stack direction="row" justifyContent="space-between" alignItems="center" mt={1}>

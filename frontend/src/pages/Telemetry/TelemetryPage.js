@@ -395,7 +395,6 @@ export default function TelemetryPage() {
                             error={!!dateRangeError}
                             helperText={dateRangeError || ""}
                         />
-
                     </Stack>
                     {dateRangeError && (
                         <Alert severity="warning" sx={{ mb: 1 }}>{dateRangeError}</Alert>
