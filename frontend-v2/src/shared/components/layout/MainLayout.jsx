@@ -45,7 +45,7 @@ export const MainLayout = () => {
 
   const [collapsed, setCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
-    return saved !== null ? JSON.parse(saved) : false;
+    return saved !== null ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
