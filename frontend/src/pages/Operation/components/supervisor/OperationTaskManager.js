@@ -646,7 +646,7 @@ const OperationTaskManager = ({ operationsData, onCreateTask, onEditTask, onDele
                                                                 EXECUTADO POR
                                                             </Typography>
                                                             <Typography variant="body2" fontWeight="600">
-                                                                {exec.updt_client || '-'}
+                                                                {exec.ts_operador1 || exec.updt_client || '-'}
                                                             </Typography>
                                                         </Box>
                                                         <Box>
@@ -654,7 +654,11 @@ const OperationTaskManager = ({ operationsData, onCreateTask, onEditTask, onDele
                                                                 DATA DE EXECUÇÃO
                                                             </Typography>
                                                             <Typography variant="body2" fontWeight="600">
-                                                                {exec.updt_time ? new Date(exec.updt_time).toLocaleString('pt-PT') : '-'}
+                                                                {exec.updt_time
+                                                                    ? new Date(exec.updt_time).toLocaleString('pt-PT')
+                                                                    : exec.data
+                                                                        ? new Date(exec.data).toLocaleDateString('pt-PT')
+                                                                        : '-'}
                                                             </Typography>
                                                         </Box>
                                                     </Box>
