@@ -10,10 +10,12 @@ import NewsSection from '../components/sections/NewsSection'
 import PortalSection from '../components/sections/PortalSection'
 import ContactSection from '../components/sections/ContactSection'
 import FloatingScrollIndicator from '../components/ui/FloatingScrollIndicator'
+import SeoHead from '../components/ui/SeoHead'
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
+      <SeoHead description="Servimos os municípios de Carregal do Sal, Santa Comba Dão, Tábua e Tondela com rigor técnico, inovação e compromisso ambiental." />
       <Navbar />
       <AlertBanner />
       <main>
