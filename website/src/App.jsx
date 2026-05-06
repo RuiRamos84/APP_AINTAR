@@ -51,7 +51,7 @@ function AppRoutes() {
   return (
     <>
       <ScrollToTop />
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="sync" initial={false}>
         <PageTransition key={location.key}>
           <Routes location={location}>
             <Route path="/" element={<HomePage />} />
