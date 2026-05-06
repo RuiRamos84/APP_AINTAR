@@ -61,6 +61,7 @@ export default function QuemSomosPage() {
       title="Quem Somos"
       subtitle="A AINTAR é a entidade gestora responsável pelos sistemas intermunicipais de saneamento de águas residuais na região Centro de Portugal."
       breadcrumbs={[{ label: 'Quem Somos' }]}
+      seoDescription="Conheça a AINTAR — associação intermunicipal responsável pelos sistemas de saneamento de águas residuais na região Centro de Portugal."
     >
       {/* Mission & Video */}
       <section className="section-padding bg-white">

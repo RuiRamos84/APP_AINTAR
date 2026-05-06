@@ -32,6 +32,7 @@ export default function ContratacaoPublicaPage() {
         { label: 'Quem Somos', href: '/quem-somos' },
         { label: 'Contratação Pública' },
       ]}
+      seoDescription="Contratos públicos e ajustes diretos publicados pela AINTAR no portal BASE."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

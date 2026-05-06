@@ -29,6 +29,7 @@ export default function OrgaosSociaisPage() {
         { label: 'Quem Somos', href: '/quem-somos' },
         { label: 'Órgãos Sociais' },
       ]}
+      seoDescription="Composição da Assembleia Intermunicipal, Conselho de Administração e Fiscal Único da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

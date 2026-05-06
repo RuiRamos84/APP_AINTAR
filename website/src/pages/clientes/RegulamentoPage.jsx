@@ -64,6 +64,7 @@ export default function RegulamentoPage() {
         { label: 'Clientes', href: '/clientes' },
         { label: 'Regulamento de Serviço' },
       ]}
+      seoDescription="Regulamento de serviço da AINTAR — condições gerais do fornecimento do serviço de saneamento."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

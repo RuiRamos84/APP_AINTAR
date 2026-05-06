@@ -76,6 +76,7 @@ export default function FormulariosPage() {
         { label: 'Clientes', href: '/clientes' },
         { label: 'Formulários' },
       ]}
+      seoDescription="Descarregue formulários para pedidos de serviço, ligações, reclamações e outros requerimentos à AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

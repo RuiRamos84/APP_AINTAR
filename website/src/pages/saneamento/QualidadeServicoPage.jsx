@@ -25,6 +25,7 @@ export default function QualidadeServicoPage() {
         { label: 'Saneamento', href: '/saneamento' },
         { label: 'Qualidade do Serviço' },
       ]}
+      seoDescription="Indicadores de qualidade do serviço de saneamento prestado pela AINTAR — conformidade, reclamações e monitorização."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

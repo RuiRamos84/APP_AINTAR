@@ -289,6 +289,7 @@ export default function CandidaturaPage() {
           { label: 'Recursos Humanos', href: '/recursos-humanos' },
           { label: 'Candidatura' },
         ]}
+        seoDescription="Submeta a sua candidatura a um processo de recrutamento da AINTAR."
       >
         <section className="section-padding bg-white">
           <div className="section-container max-w-2xl text-center">
@@ -318,6 +319,7 @@ export default function CandidaturaPage() {
         { label: 'Recursos Humanos', href: '/recursos-humanos' },
         { label: 'Candidatura' },
       ]}
+      seoDescription="Submeta a sua candidatura a um processo de recrutamento da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-3xl">

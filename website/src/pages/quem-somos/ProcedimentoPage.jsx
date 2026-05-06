@@ -68,6 +68,7 @@ export default function ProcedimentoPage() {
         { label: 'Recursos Humanos', href: '/recursos-humanos' },
         { label: loading ? '…' : proc?.titulo ?? '' },
       ]}
+      seoDescription="Detalhe do procedimento de recrutamento da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-3xl">

@@ -46,6 +46,7 @@ export default function NoticiasPage() {
         { label: 'Comunicação' },
         { label: 'Notícias' },
       ]}
+      seoDescription="Últimas notícias, comunicados e atividades da AINTAR — Associação de Municípios para o Sistema Intermunicipal de Águas Residuais."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

@@ -17,6 +17,7 @@ export default function SaneamentoPage() {
       title="Sistemas de Tratamento"
       subtitle="Infraestruturas de saneamento de águas residuais geridas pela AINTAR na região Centro."
       breadcrumbs={[{ label: 'Saneamento' }]}
+      seoDescription="Gestão de 700 km de rede de coletores, 145 ETARs e 91 estações elevatórias nos municípios de Carregal do Sal, Santa Comba Dão, Tábua e Tondela."
     >
       {/* Saneamento em Alta */}
       <section id="alta" className="section-padding bg-white">

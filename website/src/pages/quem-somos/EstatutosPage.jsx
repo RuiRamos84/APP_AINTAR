@@ -84,6 +84,7 @@ export default function EstatutosPage() {
         { label: 'Quem Somos', href: '/quem-somos' },
         { label: 'Estatutos' },
       ]}
+      seoDescription="Consulte e descarregue os estatutos oficiais da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-5xl">

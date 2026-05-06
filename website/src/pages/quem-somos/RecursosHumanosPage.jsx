@@ -78,6 +78,7 @@ export default function RecursosHumanosPage() {
       title="Recursos Humanos"
       subtitle="Procedimentos concursais, tolerâncias de ponto e mobilidade na carreira."
       breadcrumbs={[{ label: 'Recursos Humanos' }]}
+      seoDescription="Oportunidades de emprego e concursos públicos de recrutamento na AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl space-y-14">

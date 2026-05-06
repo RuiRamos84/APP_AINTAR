@@ -42,6 +42,7 @@ export default function PoliticaPrivacidadePage() {
       title="Política de Privacidade"
       subtitle="Como recolhemos, usamos e protegemos os seus dados pessoais."
       breadcrumbs={[{ label: 'Política de Privacidade' }]}
+      seoDescription="Política de privacidade e proteção de dados pessoais da AINTAR, em conformidade com o RGPD."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

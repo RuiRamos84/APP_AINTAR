@@ -48,6 +48,7 @@ export default function ClientesPage() {
       title="Clientes"
       subtitle="Toda a informação e serviços de que necessita enquanto cliente da AINTAR."
       breadcrumbs={[{ label: 'Clientes' }]}
+      seoDescription="Informação para clientes AINTAR: regulamento, tarifário, formulários e apoio ao cliente."
     >
       {/* Quick actions */}
       <section className="py-10 bg-aintar-light border-b border-aintar-blue/10">

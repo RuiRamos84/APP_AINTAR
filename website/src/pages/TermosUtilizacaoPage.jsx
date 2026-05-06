@@ -42,6 +42,7 @@ export default function TermosUtilizacaoPage() {
       title="Termos de Utilização"
       subtitle="Condições de acesso e utilização do website da AINTAR."
       breadcrumbs={[{ label: 'Termos de Utilização' }]}
+      seoDescription="Termos e condições de utilização do website da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

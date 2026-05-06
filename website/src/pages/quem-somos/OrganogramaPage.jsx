@@ -415,6 +415,7 @@ export default function OrganogramaPage() {
         { label:'Quem Somos', href:'/quem-somos' },
         { label:'Organograma' },
       ]}
+      seoDescription="Estrutura orgânica e hierarquia de gestão da AINTAR — Associação de Municípios para o Sistema Intermunicipal de Águas Residuais."
     >
       <section className="section-padding bg-white">
         <div className="section-container" style={{ maxWidth:1160 }}>
