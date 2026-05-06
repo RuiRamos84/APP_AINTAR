@@ -227,6 +227,15 @@ export default function Footer() {
             <div className="flex items-center gap-4">
               <Link to="/politica-privacidade" className="hover:text-white/70 transition-colors">Política de Privacidade</Link>
               <Link to="/termos-utilizacao" className="hover:text-white/70 transition-colors">Termos de Utilização</Link>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('aintar_consent')
+                  window.location.reload()
+                }}
+                className="hover:text-white/70 transition-colors"
+              >
+                Gerir Cookies
+              </button>
               <a
                 href="https://www.livroreclamacoes.pt"
                 target="_blank"
