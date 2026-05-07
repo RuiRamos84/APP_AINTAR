@@ -439,21 +439,25 @@ function Invoke-BackendFrontendV2Deployment {
         $beDeployer = [BackendDeployer]::new()
         if (-not $beDeployer.Deploy()) { return $false }
 
-        # Copiar frontend-v2 para build-v2 (backoffice) e build-clientes (portal)
-        $localBuildPath     = $Global:DeployConfig.CaminhoLocalFrontendV2
-        $remoteUNC          = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
-        $remoteClientesUNC  = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
+        # dist/ → build-v2 (backoffice, base='/v2/')
+        $localBuildPath    = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $portalBuildPath   = $Global:DeployConfig.CaminhoLocalFrontendV2Portal
+        $remoteUNC         = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        $remoteClientesUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
         if (-not (Test-Path $localBuildPath)) {
-            Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"
-            return $false
+            Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"; return $false
+        }
+        if (-not (Test-Path $portalBuildPath)) {
+            Write-DeployError "dist-portal não encontrado: $portalBuildPath" "FRONTEND-V2"; return $false
         }
         $robocopyBase = @("/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
         & robocopy @(@($localBuildPath, $remoteUNC) + $robocopyBase) | Out-Null
         if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-v2 falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
         Write-DeployInfo "Frontend-v2 (backoffice) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
-        & robocopy @(@($localBuildPath, $remoteClientesUNC) + $robocopyBase) | Out-Null
+        # dist-portal/ → build-clientes (portal, base='/')
+        & robocopy @(@($portalBuildPath, $remoteClientesUNC) + $robocopyBase) | Out-Null
         if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-clientes falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
-        Write-DeployInfo "Frontend-v2 (clientes) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        Write-DeployInfo "Portal clientes copiado de dist-portal (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
         return $true
     } -OperationName "Cópia Backend + Frontend-V2"
     $timings["Cópia backend + frontend-v2"] = (Get-Date) - $t
@@ -519,21 +523,24 @@ function Invoke-FrontendAllDeployment {
         $beDeployer = [BackendDeployer]::new()
         if (-not $beDeployer.Deploy()) { return $false }
 
-        # Copiar frontend-v2 para build-v2 (backoffice) e build-clientes (portal)
-        $localBuildPath     = $Global:DeployConfig.CaminhoLocalFrontendV2
-        $remoteUNC          = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
-        $remoteClientesUNC  = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
+        # dist/ → build-v2 (backoffice) | dist-portal/ → build-clientes (portal)
+        $localBuildPath    = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $portalBuildPath   = $Global:DeployConfig.CaminhoLocalFrontendV2Portal
+        $remoteUNC         = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        $remoteClientesUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
         if (-not (Test-Path $localBuildPath)) {
-            Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"
-            return $false
+            Write-DeployError "dist não encontrado: $localBuildPath" "FRONTEND-V2"; return $false
+        }
+        if (-not (Test-Path $portalBuildPath)) {
+            Write-DeployError "dist-portal não encontrado: $portalBuildPath" "FRONTEND-V2"; return $false
         }
         $robocopyBase = @("/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
         & robocopy @(@($localBuildPath, $remoteUNC) + $robocopyBase) | Out-Null
         if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-v2 falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
         Write-DeployInfo "Frontend-v2 (backoffice) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
-        & robocopy @(@($localBuildPath, $remoteClientesUNC) + $robocopyBase) | Out-Null
+        & robocopy @(@($portalBuildPath, $remoteClientesUNC) + $robocopyBase) | Out-Null
         if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-clientes falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
-        Write-DeployInfo "Frontend-v2 (clientes) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        Write-DeployInfo "Portal clientes copiado de dist-portal (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
         return $true
     } -OperationName "Cópia Frontend + Backend + Frontend-V2"
     $timings["Cópia frontend + backend + frontend-v2"] = (Get-Date) - $t

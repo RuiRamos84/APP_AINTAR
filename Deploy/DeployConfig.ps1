@@ -32,8 +32,9 @@ $Global:DeployConfig = @{
     CaminhoLocalNginxConf = "C:\Users\rui.ramos\Desktop\APP\nginx.conf"
 
     # Caminhos locais - Frontend v2
-    CaminhoLocalFrontendV2 = "C:\Users\rui.ramos\Desktop\APP\frontend-v2\dist"
-    CaminhoProjetoFrontendV2 = "C:\Users\rui.ramos\Desktop\APP\frontend-v2"
+    CaminhoLocalFrontendV2       = "C:\Users\rui.ramos\Desktop\APP\frontend-v2\dist"
+    CaminhoLocalFrontendV2Portal = "C:\Users\rui.ramos\Desktop\APP\frontend-v2\dist-portal"
+    CaminhoProjetoFrontendV2     = "C:\Users\rui.ramos\Desktop\APP\frontend-v2"
 
     # Estrutura remota (via compartilhamento de rede)
     CaminhoRemotoApp = "\\172.16.2.35\app"

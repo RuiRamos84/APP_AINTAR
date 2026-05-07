@@ -11,8 +11,11 @@ import path from 'path';
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
 
-  // Base URL: produção serve em /v2/, dev serve em /
-  base: mode === 'production' ? '/v2/' : '/',
+  // Base URL contextual:
+  //   portal     → '/'     (clientes.aintar.pt — serve na raiz)
+  //   production → '/v2/'  (app.aintar.pt/v2/ — backoffice)
+  //   dev        → '/'     (localhost:3001)
+  base: mode === 'portal' ? '/' : (mode === 'production' ? '/v2/' : '/'),
 
   // Path aliases
   resolve: {
