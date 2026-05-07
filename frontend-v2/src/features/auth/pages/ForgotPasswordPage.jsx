@@ -12,6 +12,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import EmailIcon from '@mui/icons-material/Email';
 import { passwordRecovery } from '@/services/userService';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -43,10 +44,16 @@ const ForgotPasswordPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: (theme) =>
-          theme.palette.mode === 'light'
+        background: (theme) => {
+          if (IS_PORTAL) {
+            return theme.palette.mode === 'light'
+              ? 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)'
+              : 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
+          }
+          return theme.palette.mode === 'light'
             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+        },
         py: 4,
         px: 2,
       }}

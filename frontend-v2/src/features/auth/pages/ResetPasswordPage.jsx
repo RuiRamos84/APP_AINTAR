@@ -15,6 +15,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { resetPassword } from '@/services/userService';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 const ResetPasswordPage = () => {
   const { token } = useParams();
@@ -56,10 +57,16 @@ const ResetPasswordPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: (theme) =>
-          theme.palette.mode === 'light'
+        background: (theme) => {
+          if (IS_PORTAL) {
+            return theme.palette.mode === 'light'
+              ? 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)'
+              : 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
+          }
+          return theme.palette.mode === 'light'
             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+        },
         py: 4,
         px: 2,
       }}

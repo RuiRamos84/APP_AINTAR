@@ -761,6 +761,11 @@ def bulk_update_permissions(data: dict, current_user: str):
         'RH — Admin': [
             'rh.view', 'rh.pessoal.view', 'rh.edit', 'rh.validate', 'rh.admin',
         ],
+        # ── Portal do Cliente ───────────────────────────────────────────────
+        'Portal do Cliente': [
+            'portal.access', 'portal.invoices.view', 'portal.payments.pay', 
+            'portal.profile.edit', 'docs.view.owner', 'docs.create'
+        ],
     }
 
     # Resolver values → PKs em runtime

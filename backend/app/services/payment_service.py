@@ -1308,5 +1308,20 @@ class PaymentService:
             logger.error(f"Erro em refund_payment pk={payment_pk}: {e}")
             raise
 
+    def get_payments_by_entity(self, entity_pk, current_user):
+        """Lista faturas/pagamentos de uma entidade específica"""
+        with db_session_manager(current_user) as session:
+            # vbl_document_invoice já tem os dados de pagamento (via join com tb_sibs)
+            query = text("""
+                SELECT di.*, d.regnumber, d.tt_type_name as type_name, d.submission
+                FROM vbl_document_invoice di
+                JOIN vbl_document d ON d.pk = di.tb_document
+                WHERE d.ts_entity = :entity_pk
+                ORDER BY d.submission DESC
+            """)
+            result = session.execute(query, {"entity_pk": entity_pk})
+            # Usar .mappings().all() para converter para lista de dicts
+            return [dict(row) for row in result.mappings().all()]
+
 
 payment_service = PaymentService()

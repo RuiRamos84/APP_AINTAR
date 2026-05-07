@@ -19,6 +19,7 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useLogin } from '../hooks';
 import { useEffect, useState } from 'react';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 export const LoginPage = () => {
   const location = useLocation();
@@ -67,10 +68,16 @@ export const LoginPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: (theme) =>
-          theme.palette.mode === 'light'
-            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+        background: (theme) => {
+          if (IS_PORTAL) {
+            return theme.palette.mode === 'light'
+              ? 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)' // Gradiente Portal
+              : 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
+          }
+          return theme.palette.mode === 'light'
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' // Gradiente Backoffice
+            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+        },
         py: 4,
         px: 2,
       }}
@@ -105,10 +112,12 @@ export const LoginPage = () => {
               <LockOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
             </Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Bem-vindo de volta
+              {IS_PORTAL ? 'Portal do Cliente' : 'Bem-vindo de volta'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Entre com as suas credenciais para continuar
+              {IS_PORTAL 
+                ? 'Entre na sua área de cliente AINTAR' 
+                : 'Entre com as suas credenciais para continuar'}
             </Typography>
           </Box>
 
