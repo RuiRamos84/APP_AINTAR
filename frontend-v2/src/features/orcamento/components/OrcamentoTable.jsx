@@ -335,11 +335,12 @@ export const OrcamentoTable = () => {
 
     const searched = useSearch(byTipo, searchTerm);
 
-    const porClasse = useMemo(() => {
+    const { porClasse, grandTotal } = useMemo(() => {
         const map = {};
         searched.forEach(r => {
             if (!map[r.classe]) map[r.classe] = [];
             map[r.classe].push(r);
+            total += parseFloat(r.valor) || 0;
         });
         return map;
     }, [searched]);

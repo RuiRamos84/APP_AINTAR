@@ -21,6 +21,7 @@ from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 from app.utils.permissions_decorator import require_permission
 from app.utils.utils import token_required
+from app import limiter
 from app.services.telemetry_service import (
     insert_sensor_data,
     get_sensor_data,
@@ -376,6 +377,7 @@ def get_stats():
 @jwt_required()
 @token_required
 @require_permission('telemetry.view')  # ts_interface: telemetry.view (query é read-only)
+@limiter.limit("2000 per hour")
 @api_error_handler
 def query_data():
     """
