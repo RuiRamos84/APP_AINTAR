@@ -5,10 +5,10 @@
  */
 
 export const typographyTokens = {
-  // Famílias de Fontes
+  // Famílias de Fontes — Website Matching
   fontFamily: {
-    primary: '"Manrope", "Segoe UI", system-ui, sans-serif',
-    display: '"Outfit", "Manrope", system-ui, sans-serif',
+    primary: '"Inter", "Segoe UI", system-ui, sans-serif',
+    display: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif',
     monospace: '"JetBrains Mono", "Roboto Mono", monospace',
   },
 

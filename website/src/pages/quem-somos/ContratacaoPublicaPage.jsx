@@ -32,6 +32,7 @@ export default function ContratacaoPublicaPage() {
         { label: 'Quem Somos', href: '/quem-somos' },
         { label: 'Contratação Pública' },
       ]}
+      seoDescription="Contratos públicos e ajustes diretos publicados pela AINTAR no portal BASE."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">
@@ -53,7 +54,7 @@ export default function ContratacaoPublicaPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-aintar-blue text-white
-                  text-sm font-semibold hover:bg-aintar-blueMid transition-colors flex-shrink-0"
+                  text-sm font-semibold hover:bg-aintar-blue-mid transition-colors flex-shrink-0"
               >
                 Aceder ao BASE
                 <ExternalLink size={14} />

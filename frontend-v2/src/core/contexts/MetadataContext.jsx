@@ -94,6 +94,15 @@ export function MetadataProvider({ children }) {
         analiseForma: data.analise_forma || [],
         analisePonto: data.analise_ponto || [],
 
+        // RH Pessoal
+        rhColaboradores:      data.rh_colaboradores       || [],
+        rhTipoJornada:        data.rh_tipo_jornada        || [],
+        rhPontoEvento:        data.rh_ponto_evento        || [],
+        rhTipoFerias:         data.rh_tipo_ferias         || [],
+        rhTipoFalta:          data.rh_tipo_falta          || [],
+        rhEstadoWorkflow:     data.rh_estado_workflow     || [],
+        rhPiqueteOcorrencia:  data.rh_piquete_ocorrencia  || [],
+
         // Keep raw data for custom access
         _raw: data,
       });

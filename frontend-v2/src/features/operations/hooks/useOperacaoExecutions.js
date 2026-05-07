@@ -111,6 +111,15 @@ export const useOperacaoExecutions = (dateRange) => {
         },
     });
 
+    const reassignOperacao = useMutation({
+        mutationFn: ({ id, data }) => operationService.updateOperacao(id, data),
+        onSuccess: () => {
+            invalidateAll();
+            notification.success('Operadores reatribuídos com sucesso');
+        },
+        onError: () => notification.error('Erro ao reatribuir operadores'),
+    });
+
     return {
         executions,
         enrichedExecutions,
@@ -121,5 +130,6 @@ export const useOperacaoExecutions = (dateRange) => {
         createDirect,
         validateExecution,
         initMonth,
+        reassignOperacao,
     };
 };

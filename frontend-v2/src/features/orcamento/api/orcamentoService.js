@@ -57,4 +57,14 @@ export const orcamentoService = {
         const response = await api.post('/orcamento/subclasse', data);
         return response;
     },
+
+    async updateClasse(pk, data) {
+        const response = await api.put(`/orcamento/classe/${pk}`, data);
+        return response;
+    },
+
+    async updateSubclasse(pk, data) {
+        const response = await api.put(`/orcamento/subclasse/${pk}`, data);
+        return response;
+    },
 };

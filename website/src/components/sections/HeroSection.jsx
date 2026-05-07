@@ -3,6 +3,10 @@ import { LogIn, ChevronRight, Users, Activity } from 'lucide-react'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
 
+import TypewriterText from '../ui/TypewriterText'
+
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
+
 const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.12, delayChildren: 0.2 } },
@@ -50,16 +54,16 @@ export default function HeroSection() {
               className="font-heading font-extrabold text-white leading-[1.08] mb-6 tracking-tight"
               style={{ fontSize: 'clamp(2.6rem, 4.5vw, 5rem)' }}
             >
-              Gestão Sustentável{' '}
+              <TypewriterText text="Gestão Sustentável" startIndex={0} />
               <br className="hidden sm:block" />
-              <span className="text-gradient">dos Sistemas</span>
+              <TypewriterText text="dos Sistemas" gradient={true} startIndex={18} />
               <br />
-              de Saneamento
+              <TypewriterText text="de Saneamento" startIndex={30} />
             </motion.h1>
 
             <motion.p
               variants={itemVariants}
-              className="text-white/60 leading-relaxed mb-10 max-w-lg"
+              className="text-white/60 leading-relaxed mb-10"
               style={{ fontSize: 'clamp(1rem, 1.4vw, 1.125rem)' }}
             >
               Servimos os municípios da região Centro de Portugal com rigor técnico,
@@ -68,7 +72,7 @@ export default function HeroSection() {
 
             <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-4 mb-10">
               <a
-                href="https://app.aintar.pt"
+                href={PORTAL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary text-base px-8 py-4 shadow-lg shadow-aintar-sky/25"

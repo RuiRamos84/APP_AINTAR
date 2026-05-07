@@ -52,13 +52,9 @@ export const documentsService = {
     return extractArray(response, 'document_self');
   },
 
-  /**
-   * Fetch documents created by the current user
-   * @returns {Promise<Array>} List of owned documents
-   */
-  async fetchCreated() {
-    const response = await api.get('/document_owner');
-    return extractArray(response, 'document_owner');
+  async fetchCreated(params = {}) {
+    const response = await api.get('/document_owner', { params });
+    return response;
   },
 
   /**

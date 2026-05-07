@@ -13,6 +13,7 @@ const mapEquipamento = (eq) => ({
   fileManual: eq.file_manual ?? null,
   fileSpecs: eq.file_specs ?? null,
   fileEsquemas: eq.file_esquemas ?? null,
+  valor: eq.valor ?? null,
 });
 
 const mapAloc = (a) => ({

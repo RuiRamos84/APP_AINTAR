@@ -18,6 +18,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { useRegister } from '../hooks';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 export const RegisterPage = () => {
   const {
@@ -38,10 +39,16 @@ export const RegisterPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: (theme) =>
-          theme.palette.mode === 'light'
+        background: (theme) => {
+          if (IS_PORTAL) {
+            return theme.palette.mode === 'light'
+              ? 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)'
+              : 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
+          }
+          return theme.palette.mode === 'light'
             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+        },
         py: 4,
         px: 2,
       }}
@@ -76,10 +83,12 @@ export const RegisterPage = () => {
               <PersonAddOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
             </Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Criar Conta
+              {IS_PORTAL ? 'Criar Conta de Cliente' : 'Criar Conta'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Preencha os dados abaixo para criar a sua conta
+              {IS_PORTAL 
+                ? 'Preencha os dados abaixo para criar a sua conta de acesso ao portal' 
+                : 'Preencha os dados abaixo para criar a sua conta'}
             </Typography>
           </Box>
 

@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Factory, Droplets, ArrowRight, Activity } from 'lucide-react'
+import { Factory, Droplets, ArrowRight, Activity, Leaf } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
+import TypewriterText from '../../components/ui/TypewriterText'
 
 const instalacoes = [
   { nome: 'ETAR de Touriz', municipio: 'Tondela', tipo: 'ETAR', capacidade: '—' },
@@ -16,6 +17,7 @@ export default function SaneamentoPage() {
       title="Sistemas de Tratamento"
       subtitle="Infraestruturas de saneamento de águas residuais geridas pela AINTAR na região Centro."
       breadcrumbs={[{ label: 'Saneamento' }]}
+      seoDescription="Gestão de 700 km de rede de coletores, 145 ETARs e 91 estações elevatórias nos municípios de Carregal do Sal, Santa Comba Dão, Tábua e Tondela."
     >
       {/* Saneamento em Alta */}
       <section id="alta" className="section-padding bg-white">
@@ -27,7 +29,8 @@ export default function SaneamentoPage() {
               </span>
               <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
                 style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
-                Rede de saneamento <span className="text-gradient">integrada e moderna</span>
+                Rede de saneamento{' '}
+                <TypewriterText text="integrada e moderna" gradient={true} />
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4">
                 A AINTAR opera uma rede integrada de infraestruturas de saneamento em alta,
@@ -88,7 +91,8 @@ export default function SaneamentoPage() {
             </span>
             <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
               style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
-              Redes de recolha e transporte <span className="text-gradient">de águas residuais</span>
+              Redes de recolha e transporte{' '}
+              <TypewriterText text="de águas residuais" gradient={true} />
             </h2>
             <p className="text-gray-600 leading-relaxed max-w-3xl">
               A AINTAR gere cerca de 700 km de coletores e 91 estações elevatórias distribuídas pelos
@@ -124,7 +128,8 @@ export default function SaneamentoPage() {
             </span>
             <h2 className="font-heading font-extrabold text-aintar-navy mb-5 leading-tight"
               style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.4rem)' }}>
-              Processo de tratamento <span className="text-gradient">ambientalmente responsável</span>
+              Processo de tratamento{' '}
+              <TypewriterText text="ambientalmente responsável" gradient={true} />
             </h2>
             <p className="text-gray-600 leading-relaxed max-w-3xl mb-8">
               O tratamento das águas residuais é realizado em conformidade com a legislação ambiental
@@ -137,6 +142,35 @@ export default function SaneamentoPage() {
               Consultar Qualidade do Serviço
               <ArrowRight size={16} />
             </Link>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* Sustentabilidade */}
+      <section className="section-padding bg-aintar-light">
+        <div className="section-container">
+          <ScrollReveal>
+            <div className="rounded-2xl bg-hero-gradient p-8 lg:p-12 flex flex-col lg:flex-row items-center justify-between gap-8">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-aintar-teal/20 flex items-center justify-center flex-shrink-0">
+                  <Leaf size={26} className="text-aintar-teal" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-white text-xl mb-1">Sustentabilidade</h3>
+                  <p className="text-white/60 text-sm max-w-lg">
+                    Conheça o nosso compromisso com o ambiente, a eficiência energética e a gestão responsável dos recursos hídricos.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/sustentabilidade"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-aintar-teal text-white
+                  font-semibold text-sm hover:bg-white hover:text-aintar-teal transition-all duration-300 hover:-translate-y-0.5"
+              >
+                Ver mais
+                <ArrowRight size={15} />
+              </Link>
+            </div>
           </ScrollReveal>
         </div>
       </section>

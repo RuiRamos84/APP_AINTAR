@@ -27,10 +27,14 @@ class OperationsRepository(BaseRepository):
                 to_date = f.get('to_date')
                 instalacao_pk = f.get('instalacao_pk')
 
+                # NOTA: vbl_operacao já contém todos os campos necessários (updt_client,
+                # updt_time, tt_operacaomodo, data, etc). O JOIN anterior com tb_operacao
+                # causava colisão de nomes de colunas — o SQLAlchemy ao converter para dict
+                # sobrescrevia os campos da view com os valores da tabela (que podem ser NULL),
+                # resultando em campos "executor" e "data" vazios no modal do supervisor.
                 base = """
-                    SELECT v.*, o.tt_operacaomodo, o.data
+                    SELECT *
                     FROM vbl_operacao v
-                    LEFT JOIN tb_operacao o ON o.pk = v.pk
                 """
                 conditions = []
                 params = {}

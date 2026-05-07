@@ -286,10 +286,10 @@ export default function CandidaturaPage() {
       <PageLayout
         title="Candidatura Submetida"
         breadcrumbs={[
-          { label: 'Clientes', href: '/clientes' },
-          { label: 'Formulários', href: '/clientes/formularios' },
+          { label: 'Recursos Humanos', href: '/recursos-humanos' },
           { label: 'Candidatura' },
         ]}
+        seoDescription="Submeta a sua candidatura a um processo de recrutamento da AINTAR."
       >
         <section className="section-padding bg-white">
           <div className="section-container max-w-2xl text-center">
@@ -302,7 +302,7 @@ export default function CandidaturaPage() {
             <p className="text-gray-600 mb-8">
               A sua candidatura foi registada. A AINTAR entrará em contacto através do email indicado.
             </p>
-            <button onClick={() => navigate('/quem-somos/recursos-humanos')} className="btn-primary">
+            <button onClick={() => navigate('/recursos-humanos')} className="btn-primary">
               Voltar a Recursos Humanos
             </button>
           </div>
@@ -316,10 +316,10 @@ export default function CandidaturaPage() {
       title="Formulário de Candidatura"
       subtitle="Formulário de candidatura a procedimento concursal — DAGF_RH_FR_01"
       breadcrumbs={[
-        { label: 'Clientes', href: '/clientes' },
-        { label: 'Formulários', href: '/clientes/formularios' },
+        { label: 'Recursos Humanos', href: '/recursos-humanos' },
         { label: 'Candidatura' },
       ]}
+      seoDescription="Submeta a sua candidatura a um processo de recrutamento da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-3xl">

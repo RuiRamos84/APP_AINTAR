@@ -107,6 +107,33 @@ def check_payment_admin_permission():
     has_permission = permission_manager.check_permission('payments.manage', str(user_profile), user_interfaces or [])
     return has_permission, user_id, user_profile
 
+
+@bp.route("/payments/me", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_my_payments():
+    """Listar faturas/pagamentos do próprio utilizador"""
+    from flask_jwt_extended import get_jwt
+    current_user = get_jwt_identity()
+    jwt_data = get_jwt()
+    
+    # Tentar obter entity_pk do JWT (pode estar em chaves diferentes dependendo da versão)
+    entity_pk = (
+        jwt_data.get('entity') or 
+        jwt_data.get('ts_entity') or 
+        jwt_data.get('user', {}).get('ts_entity')
+    )
+    
+    if not entity_pk:
+        logger.warning(f"Utilizador {current_user} sem entidade associada no JWT")
+        return jsonify({"success": True, "payments": []}), 200
+        
+    payments = payment_service.get_payments_by_entity(entity_pk, current_user)
+    return jsonify({"success": True, "payments": payments}), 200
+
+
 # ===== ENDPOINTS ATUALIZADOS =====
 
 

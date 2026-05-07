@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import {
-    Box, Typography, Stack, Card, CardContent, Chip, IconButton, Tooltip,
+    Box, Typography, Stack, Card, Chip, IconButton, Tooltip,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
-    FormControl, InputLabel, Select, MenuItem, Grid, Avatar, Alert,
+    FormControl, InputLabel, Select, MenuItem, Grid,
     Paper, Divider, alpha, useTheme, CircularProgress,
-    TablePagination
+    TablePagination, Checkbox
 } from '@mui/material';
 import {
-    Add, Edit, Delete, Visibility, CheckCircle, Schedule,
-    Close, PhotoCamera, GppGood, Download, ZoomIn,
+    Add, Visibility, CheckCircle,
+    Close, PhotoCamera, GppGood,
     Business, CalendarToday, Engineering, LocationOn, Map as MapIcon,
+    SwapHoriz, PeopleAlt, FilterList, PlaylistAddCheck,
 } from '@mui/icons-material';
 import { SortableHeadCell } from '@/shared/components/data';
 import { useSortable, useSearch } from '@/shared/hooks';
@@ -20,7 +21,7 @@ import LocationPickerMap from '@/features/documents/components/forms/LocationPic
 
 const OperationTaskManager = ({
     operations, metaData, searchTerm = '', onCreateTask, onCreateDirect, onUpdateMeta,
-    onDeleteMeta, onValidate, isLoading
+    onDeleteMeta, onValidate, onReassign, isLoading
 }) => {
     const theme = useTheme();
     const [page, setPage] = useState(0);
@@ -33,12 +34,41 @@ const OperationTaskManager = ({
     const [classification, setClassification] = useState('');
     const [controlMemo, setControlMemo] = useState('');
     const [imagePreview, setImagePreview] = useState(null);
+    const [reassignOpen, setReassignOpen] = useState(false);
+    const [reassignOp1, setReassignOp1] = useState('');
+    const [reassignOp2, setReassignOp2] = useState('');
+    // Bulk reassignment
+    const [selectedPks, setSelectedPks] = useState(new Set());
+    const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
+    const [bulkOp1, setBulkOp1] = useState('');
+    const [bulkOp2, setBulkOp2] = useState('');
+    const [bulkLoading, setBulkLoading] = useState(false);
+    // Extra filters
+    const [dateFilter, setDateFilter] = useState('');
+    const [operatorFilter, setOperatorFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const classificationOptions = metaData?.opcontrolo || [];
 
     // Pesquisa — todos os campos; reset de página ao mudar termo
-    const filteredOps = useSearch(operations, searchTerm);
+    const searchedOps = useSearch(operations, searchTerm);
     useMemo(() => { setPage(0); }, [searchTerm]);
+
+    // Extra filters on top of search
+    const filteredOps = useMemo(() => {
+        let r = searchedOps;
+        if (dateFilter) r = r.filter(op => op.data?.startsWith(dateFilter));
+        if (operatorFilter) r = r.filter(op =>
+            String(op.who1) === operatorFilter || String(op.who2) === operatorFilter
+        );
+        if (statusFilter === 'pending') r = r.filter(op => !op.hasExecutions);
+        else if (statusFilter === 'executed') r = r.filter(op => op.hasExecutions);
+        return r;
+    }, [searchedOps, dateFilter, operatorFilter, statusFilter]);
+    useMemo(() => { setPage(0); }, [dateFilter, operatorFilter, statusFilter]);
+
+    // Pending tasks in current filtered view (selectable)
+    const pendingInView = useMemo(() => filteredOps.filter(op => !op.hasExecutions), [filteredOps]);
 
     // Ordenação
     const { sorted: sortedOps, sortKey, sortDir, requestSort } = useSortable(filteredOps, 'instalacao_nome');
@@ -48,6 +78,33 @@ const OperationTaskManager = ({
         () => sortedOps.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
         [sortedOps, page, rowsPerPage]
     );
+
+    // Pending on current page
+    const pendingOnPage = useMemo(() => pagedOps.filter(op => !op.hasExecutions), [pagedOps]);
+    const allPageSelected = pendingOnPage.length > 0 && pendingOnPage.every(op => selectedPks.has(op.pk));
+    const somePageSelected = pendingOnPage.some(op => selectedPks.has(op.pk)) && !allPageSelected;
+
+    const handleToggleSelect = (pk, e) => {
+        e.stopPropagation();
+        setSelectedPks(prev => { const n = new Set(prev); n.has(pk) ? n.delete(pk) : n.add(pk); return n; });
+    };
+    const handleTogglePageAll = () => {
+        setSelectedPks(prev => {
+            const n = new Set(prev);
+            allPageSelected ? pendingOnPage.forEach(op => n.delete(op.pk)) : pendingOnPage.forEach(op => n.add(op.pk));
+            return n;
+        });
+    };
+    const handleSelectAllVisible = () => setSelectedPks(new Set(pendingInView.map(op => op.pk)));
+    const handleClearSelection = () => setSelectedPks(new Set());
+
+    const handleSubmitBulkReassign = async () => {
+        if (!bulkOp1) return;
+        setBulkLoading(true);
+        const payload = { ts_operador1: parseInt(bulkOp1, 10), ts_operador2: bulkOp2 ? parseInt(bulkOp2, 10) : 0 };
+        try { await Promise.all([...selectedPks].map(pk => onReassign?.(pk, payload))); }
+        finally { setBulkLoading(false); setBulkReassignOpen(false); setSelectedPks(new Set()); }
+    };
 
     const handleOpenDetails = (op) => {
         setSelectedOp(op);
@@ -74,6 +131,23 @@ const OperationTaskManager = ({
         setSelectedOp(null);
     };
 
+    const handleOpenReassign = () => {
+        setReassignOp1(String(selectedOp.ts_operador1 || selectedOp.who1 || ''));
+        setReassignOp2(String(selectedOp.ts_operador2 || selectedOp.who2 || ''));
+        setReassignOpen(true);
+    };
+
+    const handleSubmitReassign = () => {
+        if (!reassignOp1) return;
+        const payload = { ts_operador1: parseInt(reassignOp1, 10) };
+        if (reassignOp2) payload.ts_operador2 = parseInt(reassignOp2, 10);
+        else payload.ts_operador2 = 0; // sinaliza remoção
+        onReassign?.(selectedOp.pk, payload);
+        setReassignOpen(false);
+        setDetailsOpen(false);
+        setSelectedOp(null);
+    };
+
     const getStatusChip = (op) => {
         if (op.hasExecutions) {
             return <Chip label={`Executada (${op.executionCount}x)`} size="small" color="success" variant="outlined" />;
@@ -96,21 +170,68 @@ const OperationTaskManager = ({
         return null;
     };
 
+    const operatorOptions = useMemo(() => metaData?.who || [], [metaData]);
+
     return (
         <Stack spacing={2}>
-            {/* Header: create button */}
-            <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-end">
+            {/* Header: create button + filter bar */}
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }} justifyContent="space-between">
+                {/* Filters */}
+                <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+                    <FilterList sx={{ color: 'text.disabled', fontSize: 18 }} />
+                    <TextField
+                        type="date" size="small" label="Data" InputLabelProps={{ shrink: true }}
+                        value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+                        sx={{ minWidth: 150 }}
+                    />
+                    <FormControl size="small" sx={{ minWidth: 180 }}>
+                        <InputLabel>Operador</InputLabel>
+                        <Select value={operatorFilter} onChange={e => setOperatorFilter(e.target.value)} label="Operador">
+                            <MenuItem value=""><em>Todos</em></MenuItem>
+                            {operatorOptions.map(o => <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                        <InputLabel>Estado</InputLabel>
+                        <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} label="Estado">
+                            <MenuItem value="all">Todos</MenuItem>
+                            <MenuItem value="pending">Pendentes</MenuItem>
+                            <MenuItem value="executed">Executadas</MenuItem>
+                        </Select>
+                    </FormControl>
+                    {(dateFilter || operatorFilter || statusFilter !== 'all') && (
+                        <Button size="small" onClick={() => { setDateFilter(''); setOperatorFilter(''); setStatusFilter('all'); }}>Limpar</Button>
+                    )}
+                </Stack>
                 <Tooltip title="Registar execução direta (ETAR / EE / Rede / Caixa)">
-                    <Button
-                        variant="contained"
-                        startIcon={<Add />}
-                        onClick={() => setDirectOpen(true)}
-                        sx={{ whiteSpace: 'nowrap' }}
-                    >
+                    <Button variant="contained" startIcon={<Add />} onClick={() => setDirectOpen(true)} sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                         Registar Execução
                     </Button>
                 </Tooltip>
             </Stack>
+
+            {/* Bulk action bar */}
+            {selectedPks.size > 0 && (
+                <Paper elevation={3} sx={{
+                    p: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                }}>
+                    <PlaylistAddCheck color="primary" />
+                    <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
+                        {selectedPks.size} tarefa(s) selecionada(s)
+                        {selectedPks.size < pendingInView.length && (
+                            <Button size="small" sx={{ ml: 1 }} onClick={handleSelectAllVisible}>
+                                Selecionar todas as {pendingInView.length} pendentes
+                            </Button>
+                        )}
+                    </Typography>
+                    <Button size="small" variant="contained" startIcon={<PeopleAlt />} onClick={() => setBulkReassignOpen(true)}>
+                        Reatribuir Selecionadas
+                    </Button>
+                    <Button size="small" onClick={handleClearSelection}>Cancelar</Button>
+                </Paper>
+            )}
 
             {/* Table */}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
@@ -118,9 +239,18 @@ const OperationTaskManager = ({
                     <Table size="small">
                         <TableHead>
                             <TableRow>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        size="small"
+                                        checked={allPageSelected}
+                                        indeterminate={somePageSelected}
+                                        onChange={handleTogglePageAll}
+                                        disabled={pendingOnPage.length === 0}
+                                    />
+                                </TableCell>
                                 <TableCell>Estado</TableCell>
                                 <TableCell>Validação</TableCell>
-                                <SortableHeadCell label="Instalação" field="instalacao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
+                                <TableCell><SortableHeadCell label="Instalação" field="instalacao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} /></TableCell>
                                 <SortableHeadCell label="Ação" field="acao_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <SortableHeadCell label="Modo" field="modo_nome" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
                                 <SortableHeadCell label="Data" field="data" sortKey={sortKey} sortDir={sortDir} onSort={requestSort} />
@@ -147,7 +277,12 @@ const OperationTaskManager = ({
                             ) : pagedOps.map((op) => {
                                 const instType = getInstallationType(op);
                                 return (
-                                    <TableRow key={op.pk} hover sx={{ cursor: 'pointer' }} onClick={() => handleOpenDetails(op)}>
+                                    <TableRow key={op.pk} hover sx={{ cursor: 'pointer', bgcolor: selectedPks.has(op.pk) ? alpha(theme.palette.primary.main, 0.06) : undefined }} onClick={() => handleOpenDetails(op)}>
+                                        <TableCell padding="checkbox" onClick={e => !op.hasExecutions && handleToggleSelect(op.pk, e)}>
+                                            {!op.hasExecutions && (
+                                                <Checkbox size="small" checked={selectedPks.has(op.pk)} onChange={e => handleToggleSelect(op.pk, e)} onClick={e => e.stopPropagation()} />
+                                            )}
+                                        </TableCell>
                                         <TableCell>{getStatusChip(op)}</TableCell>
                                         <TableCell>{getValidationChip(op)}</TableCell>
                                         <TableCell>
@@ -273,9 +408,18 @@ const OperationTaskManager = ({
 
                             {/* Operadores */}
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                    Operadores
-                                </Typography>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                        Operadores
+                                    </Typography>
+                                    {!selectedOp.hasExecutions && (
+                                        <Tooltip title="Reatribuir operadores">
+                                            <Button size="small" startIcon={<SwapHoriz />} onClick={handleOpenReassign}>
+                                                Reatribuir
+                                            </Button>
+                                        </Tooltip>
+                                    )}
+                                </Stack>
                                 <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
                                     <Engineering sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
                                     <Typography variant="body2" fontWeight={500}>
@@ -365,13 +509,15 @@ const OperationTaskManager = ({
                                                                 <Grid size={{ xs: 6 }}>
                                                                     <Typography variant="caption" color="text.secondary">Executor</Typography>
                                                                     <Typography variant="body2">
-                                                                        {getUserNameByPk(exec.who_exec || exec.ts_who, metaData)}
+                                                                        {exec.ts_operador1 || exec.updt_client || '-'}
                                                                     </Typography>
                                                                 </Grid>
                                                                 <Grid size={{ xs: 6 }}>
                                                                     <Typography variant="caption" color="text.secondary">Data</Typography>
                                                                     <Typography variant="body2">
-                                                                        {formatDate(exec.ts_exec || exec.data_execucao)}
+                                                                        {exec.updt_time
+                                                                            ? formatDate(exec.updt_time)
+                                                                            : exec.data ? formatDateOnly(exec.data) : '-'}
                                                                     </Typography>
                                                                 </Grid>
                                                             </Grid>
@@ -418,6 +564,42 @@ const OperationTaskManager = ({
                 </DialogActions>
             </Dialog>
 
+            {/* Bulk Reassign Dialog */}
+            <Dialog open={bulkReassignOpen} onClose={() => setBulkReassignOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6">Reatribuir {selectedPks.size} Tarefa(s)</Typography>
+                        <IconButton onClick={() => setBulkReassignOpen(false)} size="small"><Close /></IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            As {selectedPks.size} tarefas pendentes selecionadas serão reatribuídas ao novo operador.
+                        </Typography>
+                        <FormControl fullWidth required>
+                            <InputLabel>Novo Operador Principal *</InputLabel>
+                            <Select value={bulkOp1} onChange={e => setBulkOp1(e.target.value)} label="Novo Operador Principal *">
+                                {operatorOptions.map(o => <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <InputLabel>Operador Secundário (Opcional)</InputLabel>
+                            <Select value={bulkOp2} onChange={e => setBulkOp2(e.target.value)} label="Operador Secundário (Opcional)">
+                                <MenuItem value=""><em>Nenhum</em></MenuItem>
+                                {operatorOptions.filter(o => String(o.pk) !== bulkOp1).map(o => <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setBulkReassignOpen(false)} disabled={bulkLoading}>Cancelar</Button>
+                    <Button variant="contained" onClick={handleSubmitBulkReassign} disabled={!bulkOp1 || bulkLoading} startIcon={<PeopleAlt />}>
+                        {bulkLoading ? 'A reatribuir...' : `Confirmar (${selectedPks.size})`}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             {/* Validation Dialog */}
             <Dialog open={validationOpen} onClose={() => setValidationOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Validar Execução</DialogTitle>
@@ -425,8 +607,7 @@ const OperationTaskManager = ({
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <FormControl fullWidth required>
                             <InputLabel>Classificação</InputLabel>
-                            <Select value={classification} onChange={(e) => setClassification(e.target.value)} label="Classificação" displayEmpty>
-                                <MenuItem value="" disabled><em>Selecione uma classificação</em></MenuItem>
+                            <Select value={classification} onChange={(e) => setClassification(e.target.value)} label="Classificação">
                                 {classificationOptions.map(opt => (
                                     <MenuItem key={opt.pk} value={opt.pk}>{opt.value}</MenuItem>
                                 ))}
@@ -468,6 +649,58 @@ const OperationTaskManager = ({
                         </Box>
                     )}
                 </DialogContent>
+            </Dialog>
+
+            {/* Dialog — Reatribuição de Operadores */}
+            <Dialog open={reassignOpen} onClose={() => setReassignOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6">Reatribuir Operadores</Typography>
+                        <IconButton onClick={() => setReassignOpen(false)} size="small"><Close /></IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Operador Principal</InputLabel>
+                            <Select
+                                value={reassignOp1}
+                                onChange={(e) => setReassignOp1(e.target.value)}
+                                label="Operador Principal"
+                            >
+                                {(metaData?.who || []).map((o) => (
+                                    <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <InputLabel>Operador Secundário (Opcional)</InputLabel>
+                            <Select
+                                value={reassignOp2}
+                                onChange={(e) => setReassignOp2(e.target.value)}
+                                label="Operador Secundário (Opcional)"
+                            >
+                                <MenuItem value=""><em>Nenhum</em></MenuItem>
+                                {(metaData?.who || [])
+                                    .filter((o) => String(o.pk) !== reassignOp1)
+                                    .map((o) => (
+                                        <MenuItem key={o.pk} value={String(o.pk)}>{o.name}</MenuItem>
+                                    ))}
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setReassignOpen(false)}>Cancelar</Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleSubmitReassign}
+                        disabled={!reassignOp1}
+                        startIcon={<SwapHoriz />}
+                    >
+                        Confirmar
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             {/* Dialog — Registo Rápido (DirectTaskForm) */}

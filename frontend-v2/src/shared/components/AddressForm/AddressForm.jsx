@@ -131,14 +131,16 @@ const AddressForm = ({
 
       {/* Morada */}
       <Grid size={{ xs: 12, sm: 5 }}>
-        {manualMode || streets.length === 0 ? (
+        {/* Show text input when: in manual mode, OR when there's an existing address
+            and no streets have been loaded yet (edit mode with pre-filled data) */}
+        {manualMode || (!!values.address && streets.length === 0) ? (
           <TextField
             required
             label="Morada"
             value={values.address || ''}
             onChange={(e) => onChange('address', e.target.value)}
             fullWidth
-            disabled={disabled || (!values.postal && !manualMode)}
+            disabled={disabled}
             error={!!errors.address}
             helperText={errors.address}
             slotProps={{
@@ -156,6 +158,8 @@ const AddressForm = ({
             }}
           />
         ) : (
+          // Dropdown always includes "Outra" so user can type manually
+          // even when no streets were returned from the postal lookup
           <TextField
             required
             select
@@ -163,7 +167,7 @@ const AddressForm = ({
             value={values.address || ''}
             onChange={handleAddressSelect}
             fullWidth
-            disabled={disabled}
+            disabled={disabled || !values.postal}
             error={!!errors.address}
             helperText={errors.address}
           >

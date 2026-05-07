@@ -25,7 +25,7 @@ html {
 
 body {
   margin: 0;
-  font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02", "cv03", "cv04";
@@ -95,18 +95,18 @@ select:focus {
 /* ========== Scrollbar — gerido por MuiCssBaseline no tema ========== */
 /* Fallback para contextos fora do tema MUI */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #EFF6FC;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.18);
-  border-radius: 100vw;
+  background: #29B5E8;
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.28);
+  background: #1B5E8E;
 }
 
 /* ========== Mobile Optimizations ========== */
@@ -196,4 +196,26 @@ select:focus {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Premium Gradient Utilities */
+.text-gradient {
+  background: linear-gradient(135deg, #29B5E8 0%, #2ABB9B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-premium-gradient {
+  background: linear-gradient(135deg, #0A1628 0%, #122040 100%);
+}
+
+.bg-blue-gradient {
+  background: linear-gradient(135deg, #1B5E8E 0%, #2074AA 100%);
+}
+
+/* ========== Wave Animation (Portal Footer) ========== */
+@keyframes waveSlide {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }

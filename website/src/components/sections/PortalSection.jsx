@@ -1,15 +1,17 @@
 import { FileText, Gauge, AlertTriangle, ClipboardList, Phone, ArrowRight, LogIn, Sparkles } from 'lucide-react'
 import ScrollReveal from '../ui/ScrollReveal'
+import TypewriterText from '../ui/TypewriterText'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
 import { motion } from 'framer-motion'
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
 
 const portalActions = [
-  { icon: FileText,      label: '2ª Via de Fatura',   description: 'Aceda e imprima as suas faturas',    href: 'https://app.aintar.pt', external: true,  color: '#29B5E8' },
-  { icon: Gauge,         label: 'Comunicar Leitura',  description: 'Registe a leitura do seu contador',  href: 'https://app.aintar.pt', external: true,  color: '#2ABB9B' },
-  { icon: AlertTriangle, label: 'Reportar Avaria',    description: 'Comunique problemas na rede',        href: 'https://app.aintar.pt', external: true,  color: '#29B5E8' },
-  { icon: ClipboardList, label: 'Formulários',        description: 'Pedidos e requerimentos online',     href: 'https://app.aintar.pt', external: true,  color: '#2ABB9B' },
+  { icon: FileText,      label: '2ª Via de Fatura',   description: 'Aceda e imprima as suas faturas',    href: PORTAL_URL, external: true,  color: '#29B5E8' },
+  { icon: Gauge,         label: 'Comunicar Leitura',  description: 'Registe a leitura do seu contador',  href: PORTAL_URL, external: true,  color: '#2ABB9B' },
+  { icon: AlertTriangle, label: 'Reportar Avaria',    description: 'Comunique problemas na rede',        href: PORTAL_URL, external: true,  color: '#29B5E8' },
+  { icon: ClipboardList, label: 'Formulários',        description: 'Pedidos e requerimentos online',     href: PORTAL_URL, external: true,  color: '#2ABB9B' },
   { icon: Phone,         label: 'Contacto Direto',    description: 'Fale com o nosso apoio',             href: '#contactos',            external: false, color: '#2074AA' },
 ]
 
@@ -40,13 +42,13 @@ export default function PortalSection() {
                 <h2 className="font-heading font-extrabold text-white leading-tight"
                   style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.8rem)' }}>
                   Aceda aos serviços online{' '}
-                  <span className="text-gradient">24 horas por dia</span>
+                  <TypewriterText text="24 horas por dia" gradient={true} />
                 </h2>
               </ScrollReveal>
             </div>
             <ScrollReveal delay={0.2} className="flex-shrink-0">
               <a
-                href="https://app.aintar.pt"
+                href={PORTAL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 px-7 py-3.5 rounded-full font-semibold text-sm

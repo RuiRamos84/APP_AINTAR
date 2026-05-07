@@ -34,7 +34,7 @@ export const entitySchema = z.object({
   ident_value: z.string().nullable().optional().or(z.literal('')),
 
   // Contactos
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  email: z.string().email('Email inválido').nullable().optional().or(z.literal('')),
   phone: z.string().min(9, 'Telefone deve ter pelo menos 9 dígitos')
     .refine((val) => {
       // Se tiver extamente 9 dígitos, valida prefixo PT usual

@@ -80,6 +80,7 @@ export default function FAQPage() {
         { label: 'Clientes', href: '/clientes' },
         { label: 'Perguntas Frequentes' },
       ]}
+      seoDescription="Respostas às perguntas mais frequentes sobre os serviços de saneamento prestados pela AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-3xl">

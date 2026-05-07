@@ -28,6 +28,7 @@ export default function TarifarioPage() {
         { label: 'Clientes', href: '/clientes' },
         { label: 'Tarifário' },
       ]}
+      seoDescription="Tarifário em vigor para os serviços de saneamento prestados pela AINTAR em 2026."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

@@ -8,6 +8,7 @@ import { Box, Typography, Button, Paper, Container } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
 import HomeIcon from '@mui/icons-material/Home';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 const ForbiddenPage = () => {
   const navigate = useNavigate();
@@ -106,10 +107,10 @@ const ForbiddenPage = () => {
             <Button
               variant="contained"
               startIcon={<HomeIcon />}
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(IS_PORTAL ? '/' : '/dashboard')}
               size="large"
             >
-              Ir para Dashboard
+              {IS_PORTAL ? 'Ir para Início' : 'Ir para Dashboard'}
             </Button>
           </Box>
         </Paper>

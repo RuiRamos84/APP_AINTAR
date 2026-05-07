@@ -34,6 +34,7 @@ export default function AvisosPage() {
         { label: 'Comunicação' },
         { label: 'Avisos de Serviço' },
       ]}
+      seoDescription="Avisos de serviço e comunicações operacionais da AINTAR aos clientes."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

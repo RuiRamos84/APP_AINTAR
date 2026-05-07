@@ -4,6 +4,7 @@ import AnimatedCounter from '../ui/AnimatedCounter'
 import ScrollReveal from '../ui/ScrollReveal'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
+import TypewriterText from '../ui/TypewriterText'
 
 /* ─── Stats ─────────────────────────────────────────────────────── */
 const CIRCUMFERENCE = 283  // 2πr para r=45
@@ -135,7 +136,7 @@ export default function StatsSection() {
               style={{ fontSize: 'clamp(1.8rem, 3vw, 3rem)' }}
             >
               Uma infraestrutura{' '}
-              <span className="text-gradient">de referência regional</span>
+              <TypewriterText text="de referência regional" gradient={true} />
             </h2>
             <p className="text-white/50 mt-4 max-w-xl mx-auto leading-relaxed"
               style={{ fontSize: 'clamp(0.9rem, 1.2vw, 1.05rem)' }}>

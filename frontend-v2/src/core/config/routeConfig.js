@@ -69,6 +69,8 @@ import {
   Schedule as HorariosIcon,
   NightShelter as PiqueteIcon,
   AccountBalanceWallet as CaixaIcon,
+  LocationOn as LocalIcon,
+  Map as MapaIcon,
   AccountBalance as OrcamentoIcon,
 } from '@mui/icons-material';
 
@@ -387,6 +389,15 @@ export const ROUTE_CONFIG = {
     module: 'gestao',
     permissions: { required: 'expenses.view' },
     showInSidebar: true,
+  },
+
+  '/orcamento/catalogo': {
+    id: 'orcamento_catalogo',
+    text: 'Catálogo',
+    icon: OrcamentoIcon,
+    module: 'gestao',
+    permissions: { required: 'expenses.view' },
+    showInSidebar: false,
   },
 
   // ==================== MÓDULO: PAGAMENTOS ====================
@@ -710,16 +721,7 @@ export const ROUTE_CONFIG = {
   },
 
   // ==================== MÓDULO: RECURSOS HUMANOS ====================
-  // Ordem: EPI, Gestão Pessoal (submenu), Avaliação, Análise de Avaliações
-
-  '/epi': {
-    id: 'epi',
-    text: 'Gestão de EPI',
-    icon: EPIIcon,
-    module: 'rh',
-    permissions: { required: 'epi.view' },
-    showInSidebar: true,
-  },
+  // Ordem: Gestão Pessoal (landing + submenu), EPI, Avaliação
 
   '/rh/pessoal': {
     id: 'rh_pessoal',
@@ -765,6 +767,42 @@ export const ROUTE_CONFIG = {
         showInSidebar: true,
       },
     },
+  },
+
+  '/rh/gestao/colaboradores': {
+    id: 'rh_gestao_colaboradores',
+    text: 'Colaboradores',
+    icon: GestPessoalIcon,
+    module: 'rh',
+    permissions: { required: 'rh.admin' },
+    showInSidebar: true,
+  },
+
+  '/rh/gestao/locais': {
+    id: 'rh_gestao_locais',
+    text: 'Locais Predefinidos',
+    icon: LocalIcon,
+    module: 'rh',
+    permissions: { required: 'rh.admin' },
+    showInSidebar: true,
+  },
+
+  '/rh/gestao/ponto-mapa': {
+    id: 'rh_ponto_mapa',
+    text: 'Mapa de Ponto',
+    icon: MapaIcon,
+    module: 'rh',
+    permissions: { required: 'rh.validate' },
+    showInSidebar: true,
+  },
+
+  '/epi': {
+    id: 'epi',
+    text: 'Gestão de EPI',
+    icon: EPIIcon,
+    module: 'rh',
+    permissions: { required: 'epi.view' },
+    showInSidebar: true,
   },
 
   '/aval': {

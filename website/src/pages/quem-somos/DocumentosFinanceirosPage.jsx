@@ -35,6 +35,7 @@ export default function DocumentosFinanceirosPage() {
         { label: 'Quem Somos', href: '/quem-somos' },
         { label: 'Documentos Financeiros' },
       ]}
+      seoDescription="Relatórios de contas, documentos provisórios e informação financeira da AINTAR por ano."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

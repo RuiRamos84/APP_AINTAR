@@ -8,7 +8,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
   Divider,
   Button,
   Tooltip,
@@ -21,8 +20,6 @@ import {
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import EventNoteIcon from '@mui/icons-material/EventNote';
-import DescriptionIcon from '@mui/icons-material/Description';
 import ArticleIcon from '@mui/icons-material/Article';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import InfoIcon from '@mui/icons-material/Info';
@@ -32,6 +29,7 @@ import { useSocket } from '@/core/contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 export const NotificationCenter = () => {
   const theme = useTheme();
@@ -51,6 +49,15 @@ export const NotificationCenter = () => {
 
   // Filter notifications based on tab
   const getFilteredNotifications = () => {
+    // Ajustar índices se estivermos no portal (onde as tabs 1 e 2 não existem)
+    if (IS_PORTAL) {
+      switch (tabValue) {
+        case 0: return notifications;
+        case 1: return notifications.filter((n) => n.type === 'document');
+        default: return notifications;
+      }
+    }
+
     switch (tabValue) {
       case 0: return notifications;
       case 1: return notifications.filter((n) => n.type === 'task');
@@ -74,13 +81,13 @@ export const NotificationCenter = () => {
         state: { refreshData: true, timestamp: Date.now() },
       });
     } else if (notif.type === 'operacao') {
-      // Supervisor: tab "Controlo de Tarefas" (index 1); operador: as suas tarefas
       const route = notif.notification_type === 'nova_tarefa'
         ? '/operation/tasks'
         : '/operation/supervisor';
       navigate(route, { state: { tab: 1, timestamp: Date.now() } });
     } else if (notif.type === 'document' && notif.documentId) {
-      navigate('/documents');
+      // No portal, redirecionar para a lista de pedidos ou detalhe se implementado
+      navigate(IS_PORTAL ? '/pedidos' : '/documents');
     }
   };
 
@@ -99,7 +106,6 @@ export const NotificationCenter = () => {
     }
   };
 
-  // Glassmorphism Styles
   const glassStyles = {
     backgroundColor: alpha(theme.palette.background.paper, 0.8),
     backdropFilter: 'blur(12px)',
@@ -207,22 +213,26 @@ export const NotificationCenter = () => {
             }}
           >
             <Tab label={`Todas (${notifications.length})`} />
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  Tarefas
-                  {unreadTasks > 0 && <Chip label={unreadTasks} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                </Box>
-              }
-            />
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  Operações
-                  {unreadOperacoes > 0 && <Chip label={unreadOperacoes} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                </Box>
-              }
-            />
+            {!IS_PORTAL && (
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    Tarefas
+                    {unreadTasks > 0 && <Chip label={unreadTasks} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                  </Box>
+                }
+              />
+            )}
+            {!IS_PORTAL && (
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    Operações
+                    {unreadOperacoes > 0 && <Chip label={unreadOperacoes} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                  </Box>
+                }
+              />
+            )}
             <Tab
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

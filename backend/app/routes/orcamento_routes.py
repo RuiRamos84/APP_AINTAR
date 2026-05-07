@@ -16,6 +16,8 @@ from ..services.orcamento_service import (
     get_orcamento_classes,
     create_classe,
     create_subclasse,
+    update_classe,
+    update_subclasse,
 )
 
 logger = get_logger(__name__)
@@ -120,7 +122,7 @@ def get_orcamento_subclasses_route():
 @bp.route('/orcamento', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.manage')
+@require_permission('expenses.edit')
 @set_session
 @api_error_handler
 def create_orcamento_route():
@@ -164,7 +166,7 @@ def create_orcamento_route():
 @bp.route('/orcamento/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('expenses.manage')
+@require_permission('expenses.edit')
 @set_session
 @api_error_handler
 def update_orcamento_route(pk):
@@ -236,7 +238,7 @@ def get_orcamento_classes_route():
 @bp.route('/orcamento/classe', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.manage')
+@require_permission('expenses.edit')
 @set_session
 @api_error_handler
 def create_classe_route():
@@ -270,7 +272,7 @@ def create_classe_route():
 @bp.route('/orcamento/subclasse', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.manage')
+@require_permission('expenses.edit')
 @set_session
 @api_error_handler
 def create_subclasse_route():
@@ -307,10 +309,36 @@ def create_subclasse_route():
         return create_subclasse(data, session)
 
 
+@bp.route('/orcamento/classe/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('expenses.edit')
+@set_session
+@api_error_handler
+def update_classe_route(pk):
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    with db_session_manager(current_user) as session:
+        return update_classe(pk, data, session)
+
+
+@bp.route('/orcamento/subclasse/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('expenses.edit')
+@set_session
+@api_error_handler
+def update_subclasse_route(pk):
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    with db_session_manager(current_user) as session:
+        return update_subclasse(pk, data, session)
+
+
 @bp.route('/orcamento/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission('expenses.manage')
+@require_permission('expenses.edit')
 @set_session
 @api_error_handler
 def delete_orcamento_route(pk):

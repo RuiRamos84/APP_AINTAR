@@ -15,8 +15,7 @@ import EstadoBadge from '../components/EstadoBadge';
 import FeriasFormModal from '../components/FeriasFormModal';
 import WorkflowDialog from '../components/WorkflowDialog';
 
-const COLOR = '#E11D48';
-const fmtDate = (v) => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-PT') : '—';
+import { RH_COLOR as COLOR, fmtDate } from '../utils/rhUtils';
 
 const FeriasPage = () => {
   const [search, setSearch]         = useState('');
@@ -92,7 +91,7 @@ const FeriasPage = () => {
       }
     >
       <Box sx={{ mb: 2 }}>
-        <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
       </Box>
 
       <DataGrid

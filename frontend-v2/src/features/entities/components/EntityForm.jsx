@@ -97,6 +97,7 @@ export const EntityForm = () => {
   const {
     ident_type: identType,
     nipc: nipcValue,
+    email: emailW = '',
     postal: postalW = '',
     address: addressW = '',
     door: doorW = '',
@@ -225,6 +226,7 @@ export const EntityForm = () => {
             reset({
                 ...selectedEntity,
                 nipc: String(selectedEntity.nipc || ''),
+                email: selectedEntity.email || '',
                 phone: selectedEntity.phone ? String(selectedEntity.phone) : '',
                 ident_type: selectedEntity.ident_type || '',
                 ident_value: selectedEntity.ident_value || '',
@@ -286,12 +288,16 @@ export const EntityForm = () => {
 
   const handleFormSubmit = (data) => {
       const warns = [];
-      
+
       // Validação: Email Vazio
       if (!data.email || data.email.trim() === '') {
-          warns.push('Não indicou nenhum endereço de email. É recomendado fornecer um contacto digital.');
+          warns.push(
+              isEditMode
+                  ? 'Está a atualizar esta entidade sem endereço de email. O email é recomendado para comunicações e notificações.'
+                  : 'Não indicou nenhum endereço de email. O email é recomendado para comunicações e notificações.'
+          );
       }
-      
+
       // Validação: Telefone Longo
       if (data.phone && data.phone.length > 9) {
           warns.push(`O telefone tem ${data.phone.length} dígitos. Verifique se se trata de uma número internacional correto.`);
@@ -436,7 +442,8 @@ export const EntityForm = () => {
                     label="Email Institucional"
                     fullWidth
                     error={!!errors.email}
-                    helperText={errors.email?.message}
+                    helperText={errors.email?.message || (!emailW ? 'Recomendado — necessário para notificações' : undefined)}
+                    color={!emailW ? 'warning' : 'primary'}
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><Email fontSize="small" /></InputAdornment>,
                     }}

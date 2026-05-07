@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import {
   Box, Button, Stack, Tabs, Tab, Typography, Card, CardContent,
   CardActionArea, Tooltip, Chip, CircularProgress, Alert,
-  Switch, FormControlLabel, Grid, Divider,
+  Switch, FormControlLabel, Grid, Divider, FormControl, Select, MenuItem,
+  Dialog, DialogTitle, DialogContent, IconButton,
 } from '@mui/material';
 import {
   AccessTime as PontoIcon,
@@ -12,6 +13,8 @@ import {
   LunchDining as AlmocoInicioIcon,
   FreeBreakfast as AlmocoFimIcon,
   LogoutOutlined as SaidaIcon,
+  Map as MapIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { DataGrid } from '@mui/x-data-grid';
@@ -20,11 +23,35 @@ import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 import { usePontoHoje, usePontoMes, usePontoMensal, usePontoActions } from '../hooks/usePonto';
 import EstadoBadge from '../components/EstadoBadge';
 import WorkflowDialog from '../components/WorkflowDialog';
 
-const COLOR = '#E11D48';
+import { MapContainer, TileLayer, Marker, Circle, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useLocais } from '../hooks/usePontoLocais';
+import { RH_COLOR as COLOR, fmtDate, fmtTime } from '../utils/rhUtils';
+import { toast } from 'sonner';
+
+// Fix leaflet default icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+const pontoIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+});
+const localIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+});
 
 const EVENTOS = [
   { pk: 1, label: 'Entrada',       icon: EntradaIcon,     color: '#16a34a' },
@@ -33,15 +60,6 @@ const EVENTOS = [
   { pk: 4, label: 'Saída',         icon: SaidaIcon,        color: '#dc2626' },
 ];
 
-const fmtTime = (ts) => {
-  if (!ts) return null;
-  const d = new Date(ts);
-  return isNaN(d) ? ts : d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-};
-
-const fmtDate = (v) => v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-PT') : '—';
-
-const now = new Date();
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
@@ -51,7 +69,8 @@ function TabPanel({ children, value, index }) {
 
 const HojeTab = ({ userFk }) => {
   const theme = useTheme();
-  const [useGps, setUseGps]       = useState(false);
+  const { hasPermission } = usePermissions();
+  const [useGps, setUseGps]       = useState(true);
   const [gpsLoading, setGpsLoading] = useState(false);
   const { eventosHoje, isLoading } = usePontoHoje(userFk);
   const { registar, isRegistando } = usePontoActions(userFk);
@@ -69,13 +88,16 @@ const HojeTab = ({ userFk }) => {
       setGpsLoading(true);
       try {
         const pos = await new Promise((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
+          navigator.geolocation.getCurrentPosition(res, rej, {
+            timeout: 15000,
+            enableHighAccuracy: true,
+          })
         );
         lat  = pos.coords.latitude;
         lon  = pos.coords.longitude;
         prec = Math.round(pos.coords.accuracy);
       } catch {
-        // GPS falhou — continua sem coordenadas
+        toast.warning('GPS indisponível — registo efectuado sem localização');
       } finally {
         setGpsLoading(false);
       }
@@ -93,7 +115,14 @@ const HojeTab = ({ userFk }) => {
           {hoje}
         </Typography>
         <FormControlLabel
-          control={<Switch checked={useGps} onChange={e => setUseGps(e.target.checked)} size="small" />}
+          control={
+            <Switch
+              checked={useGps}
+              onChange={e => setUseGps(e.target.checked)}
+              size="small"
+              disabled={!hasPermission('rh.admin')}
+            />
+          }
           label={<Typography variant="body2">GPS</Typography>}
         />
       </Stack>
@@ -165,16 +194,78 @@ const HojeTab = ({ userFk }) => {
   );
 };
 
+// ─── Dialog: mapa do registo GPS ─────────────────────────────────────────────
+
+const PontoMapDialog = ({ registo, locais, onClose }) => {
+  if (!registo) return null;
+  const center = [Number(registo.latitude), Number(registo.longitude)];
+
+  return (
+    <Dialog open={!!registo} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700}>
+              {registo.evento_descr}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {fmtDate(registo.data)} · {fmtTime(registo.ts_registo)}
+              {registo.precisao_metros ? ` · Precisão ±${registo.precisao_metros}m` : ''}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ ml: 1 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent sx={{ p: 0 }}>
+        <Box sx={{ height: 380 }}>
+          <MapContainer center={center} zoom={16} style={{ height: '100%' }}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {/* Locais predefinidos — contexto visual */}
+            {(locais || []).filter(l => l.ativo).map(l => (
+              <Circle
+                key={`c-${l.pk}`}
+                center={[l.latitude, l.longitude]}
+                radius={l.raio_metros}
+                pathOptions={{ color: '#16a34a', weight: 2, fillColor: '#16a34a', fillOpacity: 0.12 }}
+              />
+            ))}
+            {(locais || []).filter(l => l.ativo).map(l => (
+              <Marker key={`m-${l.pk}`} position={[l.latitude, l.longitude]} icon={localIcon}>
+                <Popup><strong>{l.nome}</strong><br />Raio: {l.raio_metros}m</Popup>
+              </Marker>
+            ))}
+            {/* Ponto registado */}
+            <Marker position={center} icon={pontoIcon}>
+              <Popup>
+                <strong>{registo.evento_descr}</strong><br />
+                {fmtDate(registo.data)} {fmtTime(registo.ts_registo)}
+              </Popup>
+            </Marker>
+          </MapContainer>
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ─── Tab 2: Histórico mensal ─────────────────────────────────────────────────
 
 const HistoricoTab = ({ userFk }) => {
-  const [ano, setAno]   = useState(now.getFullYear());
-  const [mes, setMes]   = useState(now.getMonth() + 1);
-  const [search, setSearch] = useState('');
+  const now = new Date();
+  const [ano, setAno]         = useState(now.getFullYear());
+  const [mes, setMes]         = useState(now.getMonth() + 1);
+  const [search, setSearch]   = useState('');
+  const [mapTarget, setMapTarget] = useState(null);
 
   const { registosMes, isLoading } = usePontoMes(userFk, ano, mes);
   const { mapas } = usePontoMensal({ user_fk: userFk, ano, mes });
   const { submeter, isSubmetendo } = usePontoActions(userFk);
+  const { locais } = useLocais();
   const results = useSearch(registosMes, search);
 
   const mapaDoMes = mapas.find(m => m.ano === ano && m.mes === mes);
@@ -194,7 +285,15 @@ const HistoricoTab = ({ userFk }) => {
     { field: 'fonte', headerName: 'Fonte', width: 100 },
     {
       field: 'tem_gps', headerName: 'GPS', width: 70,
-      renderCell: ({ value }) => value ? '📍' : '—',
+      renderCell: ({ row }) => row.tem_gps
+        ? (
+          <Tooltip title="Ver localização no mapa">
+            <IconButton size="small" color="primary" onClick={() => setMapTarget(row)}>
+              <MapIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )
+        : <Typography variant="body2" color="text.disabled" sx={{ pl: 1 }}>—</Typography>,
     },
     { field: 'notas', headerName: 'Notas', flex: 1 },
   ], []);
@@ -203,22 +302,24 @@ const HistoricoTab = ({ userFk }) => {
     <Box>
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1}>
-          <select value={mes} onChange={e => setMes(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
-              </option>
-            ))}
-          </select>
-          <select value={ano} onChange={e => setAno(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {[now.getFullYear() - 1, now.getFullYear()].map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select value={mes} onChange={e => setMes(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <MenuItem key={i + 1} value={i + 1}>
+                  {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 90 }}>
+            <Select value={ano} onChange={e => setAno(Number(e.target.value))}>
+              {[now.getFullYear() - 1, now.getFullYear()].map(y => (
+                <MenuItem key={y} value={y}>{y}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
-        <SearchBar value={search} onChange={setSearch} placeholder="Filtrar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Filtrar…" />
       </Stack>
 
       {/* Resumo do mês */}
@@ -253,6 +354,12 @@ const HistoricoTab = ({ userFk }) => {
         localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
         sx={{ border: 0 }}
       />
+
+      <PontoMapDialog
+        registo={mapTarget}
+        locais={locais}
+        onClose={() => setMapTarget(null)}
+      />
     </Box>
   );
 };
@@ -260,6 +367,7 @@ const HistoricoTab = ({ userFk }) => {
 // ─── Tab 3: Aprovação (Admin) ─────────────────────────────────────────────────
 
 const AprovacaoTab = () => {
+  const now = new Date();
   const [ano, setAno]       = useState(now.getFullYear());
   const [mes, setMes]       = useState(now.getMonth() + 1);
   const [search, setSearch] = useState('');
@@ -307,22 +415,24 @@ const AprovacaoTab = () => {
     <Box>
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap">
         <Stack direction="row" spacing={1}>
-          <select value={mes} onChange={e => setMes(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
-              </option>
-            ))}
-          </select>
-          <select value={ano} onChange={e => setAno(Number(e.target.value))}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}>
-            {[now.getFullYear() - 1, now.getFullYear()].map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select value={mes} onChange={e => setMes(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <MenuItem key={i + 1} value={i + 1}>
+                  {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 90 }}>
+            <Select value={ano} onChange={e => setAno(Number(e.target.value))}>
+              {[now.getFullYear() - 1, now.getFullYear()].map(y => (
+                <MenuItem key={y} value={y}>{y}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
-        <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar…" />
+        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
       </Stack>
 
       <DataGrid
