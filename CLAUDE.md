@@ -41,6 +41,30 @@ Domain: app.aintar.pt | Production server: Windows Server 2019
 - **Build:** Vite 7 (faster dev/build)
 - **Forms:** React Hook Form + Zod validation
 - **Structure:** Feature-based modular architecture (`features/`, `core/`, `shared/`)
+- **Dual context:** Same build serves backoffice (`app.aintar.pt`) and portal (`clientes.aintar.pt`)
+  - Detected via `src/core/config/appContext.js` (hostname → `IS_PORTAL` / `IS_BACKOFFICE`)
+  - Dev override: `VITE_APP_CONTEXT=portal npm run dev`
+
+### Website Público (`website/`)
+- **Framework:** React 19 + Tailwind CSS v4 + Framer Motion + Lucide React
+- **Build:** Vite 8, sem MUI, sem Axios — CSS utility-first, `fetch` nativo
+- **Routing:** React Router 7 com `AnimatePresence mode="sync"` (fade entre páginas)
+- **API:** `website/src/services/cmsApi.js` → endpoints `/api/v1/website/*` (sem autenticação)
+- **SEO:** `SeoHead.jsx` (react-helmet-async) em todas as páginas
+- **RGPD:** `CookieBanner.jsx` — consentimento em `localStorage['cookie_consent']`
+- **Env:** `VITE_API_URL` (backend), `VITE_PORTAL_URL` (link para clientes.aintar.pt)
+- **Dev:** `cd website && npm run dev` (porta 5173)
+
+### Portal do Cliente (`clientes.aintar.pt`)
+- **Perfil:** `ts_profile.pk = 3` ("Perfil Cliente")
+- **Permissões:** `portal.access`, `portal.invoices.view`, `portal.payments.pay`, `portal.profile.edit`
+- **SQL inicial:** `backend/sql/portal_cliente_fase0.sql` (executar na BD antes do primeiro acesso)
+- **Layouts:** `PortalLayout` (navbar glass + footer wave) + `PortalAuthLayout` (split screen)
+- **Rotas:** `PortalRoutes.jsx` — `/pedidos`, `/pedidos/:id`, `/novo-pedido`, `/faturas`, `/perfil`
+- **Endpoints abertos a portal.access:** `GET /document_owner`, `POST /create_document`,
+  `GET /document/<id>`, `GET /get_document_step/<pk>`, `GET /get_document_anex/<pk>`,
+  `GET /document/<id>/params`, `GET /files/<regnumber>/<filename>`
+- **Faturas:** `GET /payments/me` (JWT only, filtra por `entity_pk` do JWT)
 
 ### Search Pattern (frontend-v2) — Standard Obrigatório
 - **Hook:** `useSearch` em `@/shared/hooks` — SEMPRE usar para pesquisa client-side
@@ -126,6 +150,10 @@ cd frontend && npm run build    # Production build
 
 # Frontend-v2
 cd frontend-v2 && npm run dev   # Vite dev server
+
+# Website
+cd website && npm run dev       # Vite dev server :5173
+cd website && npm run build     # Production build
 ```
 
 ## Important Notes
@@ -159,6 +187,8 @@ cd frontend-v2 && npm run dev   # Vite dev server
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Interno.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Operação.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Pagamentos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Portal Cliente.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Website Público.md
 
 ### Integrações
 @C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\Email Office365.md
@@ -186,6 +216,7 @@ cd frontend-v2 && npm run dev   # Vite dev server
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Interno.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Operação.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Pagamentos.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Portal Cliente.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Telemetria.md
 
 ### Socket.IO
