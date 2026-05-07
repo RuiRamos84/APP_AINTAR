@@ -1,5 +1,5 @@
 // features/telemetry/hooks/useTelemetry.js
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import notification from '@/core/services/notification';
 import { useTelemetryStore } from '../store/telemetryStore';
 import * as telemetryService from '../services/telemetryService';
@@ -10,8 +10,6 @@ import * as telemetryService from '../services/telemetryService';
  */
 export function useTelemetry() {
   const store = useTelemetryStore();
-  const [isDebouncing, setIsDebouncing] = useState(false);
-  const isFirstRender = useRef(true);
   const searchingRef = useRef(false);
   const lastAnalysisParams = useRef(null);
 
@@ -37,12 +35,17 @@ export function useTelemetry() {
 
   // ── Pesquisa de sensores ───────────────────────────────────────────────────
   const fetchSensors = useCallback(async () => {
+    const { filters } = store;
+    const rangeError = store.getDateRangeError();
+    if (!filters.teleparam || !filters.dateFrom || !filters.dateTo || rangeError) {
+      store.setError(rangeError ?? 'Preencha o parâmetro e o intervalo de datas antes de pesquisar.');
+      return;
+    }
     if (searchingRef.current) return;
     searchingRef.current = true;
     store.setLoading('loadingSensors', true);
     store.clearError();
     try {
-      const { filters } = store;
       const res = await telemetryService.querySensors(
         filters.sensorType || null,
         filters.teleparam || null,
@@ -60,29 +63,8 @@ export function useTelemetry() {
     }
   }, [store]);
 
-  // ── Debounce automático ao alterar filtros completos ──────────────────────
   const { filters } = store;
   const dateRangeError = store.getDateRangeError();
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    if (!filters.teleparam || !filters.dateFrom || !filters.dateTo || dateRangeError) {
-      setIsDebouncing(false);
-      return;
-    }
-    setIsDebouncing(true);
-    const timer = setTimeout(() => {
-      setIsDebouncing(false);
-      fetchSensors();
-    }, 600);
-    return () => {
-      clearTimeout(timer);
-      setIsDebouncing(false);
-    };
-  }, [filters.sensorType, filters.teleparam, filters.dateFrom, filters.dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Carregar dados de análise ─────────────────────────────────────────────
   const fetchAnalysisData = useCallback(
@@ -104,6 +86,8 @@ export function useTelemetry() {
           if (resetWindow || !store.analysisDay) {
             store.setAnalysisWindow(first.toISOString().slice(0, 10), first.getHours());
           }
+        } else if (resetWindow) {
+          store.setAnalysisWindow(dateFrom, 0);
         }
         store.setAnalysisData(data);
       } catch (err) {
@@ -164,7 +148,6 @@ export function useTelemetry() {
     navigateHour,
     navigateDay,
     goToAnalysis,
-    isDebouncing,
     dateRangeError,
   };
 }
