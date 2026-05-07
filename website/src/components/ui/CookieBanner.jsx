@@ -5,11 +5,28 @@ import { Cookie } from 'lucide-react'
 
 const STORAGE_KEY = 'aintar_consent'
 
+// localStorage pode ser bloqueado pelo Edge (Tracking Prevention) ou em modo privado
+function safeGetStorage(key) {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function safeSetStorage(key, value) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Silently ignore — banner ficará visível até refresh
+  }
+}
+
 export default function CookieBanner() {
-  const [visible, setVisible] = useState(() => !localStorage.getItem(STORAGE_KEY))
+  const [visible, setVisible] = useState(() => !safeGetStorage(STORAGE_KEY))
 
   const accept = (value) => {
-    localStorage.setItem(STORAGE_KEY, value)
+    safeSetStorage(STORAGE_KEY, value)
     setVisible(false)
   }
 

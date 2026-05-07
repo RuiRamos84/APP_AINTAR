@@ -4,6 +4,7 @@
  */
 
 import apiClient from '@/services/api/client';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 /**
  * Realiza login do utilizador
@@ -34,6 +35,7 @@ export const register = async ({ name, email, password }) => {
     name,
     email,
     password,
+    isPortal: IS_PORTAL,
   });
 
   return response.data;

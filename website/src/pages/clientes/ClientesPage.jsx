@@ -4,6 +4,8 @@ import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import DarkBgDecorations from '../../components/ui/DarkBgDecorations'
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
+
 const areas = [
   {
     icon: FileText,
@@ -36,9 +38,9 @@ const areas = [
 ]
 
 const quickActions = [
-  { label: '2ª Via de Fatura', href: 'https://app.aintar.pt', external: true },
-  { label: 'Comunicar Leitura', href: 'https://app.aintar.pt', external: true },
-  { label: 'Reportar Avaria', href: 'https://app.aintar.pt', external: true },
+  { label: '2ª Via de Fatura', href: PORTAL_URL, external: true },
+  { label: 'Comunicar Leitura', href: PORTAL_URL, external: true },
+  { label: 'Reportar Avaria', href: PORTAL_URL, external: true },
   { label: 'Contactar Apoio', href: '/contactos', external: false },
 ]
 

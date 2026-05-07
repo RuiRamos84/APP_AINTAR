@@ -4,6 +4,8 @@ import { Menu, X, ChevronDown, LogIn, Search } from 'lucide-react'
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion'
 import SearchModal from '../ui/SearchModal'
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
+
 const navMenu = [
   {
     label: 'Quem Somos',
@@ -24,7 +26,7 @@ const navMenu = [
       { label: 'Tarifário', href: '/clientes/tarifario' },
       { label: 'Formulários', href: '/clientes/formularios' },
       { label: 'Perguntas Frequentes', href: '/clientes/faq' },
-      { label: '2ª Via de Fatura', href: 'https://app.aintar.pt', external: true },
+      { label: '2ª Via de Fatura', href: PORTAL_URL, external: true },
     ],
   },
   {
@@ -275,7 +277,7 @@ export default function Navbar({ forceLight = false }) {
               </button>
               
               <a
-                href="https://app.aintar.pt"
+                href={PORTAL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`flex items-center gap-2 rounded-full font-semibold transition-all duration-300 hover:-translate-y-0.5
@@ -402,7 +404,7 @@ export default function Navbar({ forceLight = false }) {
                 )}
                 <div className="pt-2 mt-1 border-t border-gray-100">
                   <a
-                    href="https://app.aintar.pt"
+                    href={PORTAL_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-aintar-blue text-white font-semibold text-sm hover:bg-aintar-blue-mid transition-colors"

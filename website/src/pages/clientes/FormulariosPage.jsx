@@ -5,6 +5,7 @@ import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import { getDocumentos, fileUrl } from '../../services/cmsApi'
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
 const CAT_FORMULARIOS = 1
 
 function FormCard({ title, subtitle, href }) {
@@ -36,7 +37,7 @@ function FormCard({ title, subtitle, href }) {
           PDF
         </a>
         <a
-          href="https://app.aintar.pt"
+          href={PORTAL_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-aintar-blue text-white
@@ -84,7 +85,7 @@ export default function FormulariosPage() {
           {/* Banner Submissão Online */}
           <ScrollReveal>
             <motion.a
-              href="https://app.aintar.pt"
+              href={PORTAL_URL}
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ y: -2 }}

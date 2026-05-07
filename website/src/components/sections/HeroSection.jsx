@@ -5,6 +5,8 @@ import WaveDivider from '../ui/WaveDivider'
 
 import TypewriterText from '../ui/TypewriterText'
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
+
 const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.12, delayChildren: 0.2 } },
@@ -70,7 +72,7 @@ export default function HeroSection() {
 
             <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-4 mb-10">
               <a
-                href="https://app.aintar.pt"
+                href={PORTAL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary text-base px-8 py-4 shadow-lg shadow-aintar-sky/25"
