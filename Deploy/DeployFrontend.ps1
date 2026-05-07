@@ -426,7 +426,7 @@ function Deploy-FrontendV2 {
             }
         }
 
-        # Deploy via robocopy
+        # Deploy via robocopy → build-v2 (backoffice)
         $copyStartTime = Get-Date
         $robocopyArgs = @(
             $localBuildPath,
@@ -439,13 +439,25 @@ function Deploy-FrontendV2 {
         & robocopy @robocopyArgs | Out-Null
 
         if ($LASTEXITCODE -ge 8) {
-            Write-DeployError "robocopy falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            Write-DeployError "robocopy build-v2 falhou com código $LASTEXITCODE" "FRONTEND-V2"
             return $false
         }
 
         $duration = [Math]::Round(((Get-Date) - $copyStartTime).TotalSeconds, 1)
-        Write-DeployInfo "Frontend-v2 copiado em ${duration}s (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
-        Write-DeployInfo "Disponível em: https://app.aintar.pt/v2/" "FRONTEND-V2"
+        Write-DeployInfo "Frontend-v2 (backoffice) copiado em ${duration}s (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+
+        # Copiar também para build-clientes (portal do cliente — mesmo build, hostname diferente)
+        $remoteClientesUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
+        Write-DeployDebug "robocopy: $localBuildPath -> $remoteClientesUNC" "FRONTEND-V2"
+        $robocopyArgsClientes = @($localBuildPath, $remoteClientesUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        & robocopy @robocopyArgsClientes | Out-Null
+        if ($LASTEXITCODE -ge 8) {
+            Write-DeployError "robocopy build-clientes falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            return $false
+        }
+        Write-DeployInfo "Frontend-v2 (portal clientes) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+
+        Write-DeployInfo "Disponível em: https://app.aintar.pt/v2/ e https://clientes.aintar.pt/" "FRONTEND-V2"
         return $true
 
     } -OperationName "Deploy Frontend-V2"

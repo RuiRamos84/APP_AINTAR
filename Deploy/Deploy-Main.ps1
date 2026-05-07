@@ -439,20 +439,21 @@ function Invoke-BackendFrontendV2Deployment {
         $beDeployer = [BackendDeployer]::new()
         if (-not $beDeployer.Deploy()) { return $false }
 
-        # Copiar frontend-v2 diretamente (sem build, já foi feito acima)
-        $localBuildPath = $Global:DeployConfig.CaminhoLocalFrontendV2
-        $remoteUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        # Copiar frontend-v2 para build-v2 (backoffice) e build-clientes (portal)
+        $localBuildPath     = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $remoteUNC          = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        $remoteClientesUNC  = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
         if (-not (Test-Path $localBuildPath)) {
             Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"
             return $false
         }
-        $robocopyArgs = @($localBuildPath, $remoteUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
-        & robocopy @robocopyArgs | Out-Null
-        if ($LASTEXITCODE -ge 8) {
-            Write-DeployError "robocopy v2 falhou com código $LASTEXITCODE" "FRONTEND-V2"
-            return $false
-        }
-        Write-DeployInfo "Frontend-v2 copiado (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        $robocopyBase = @("/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        & robocopy @(@($localBuildPath, $remoteUNC) + $robocopyBase) | Out-Null
+        if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-v2 falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
+        Write-DeployInfo "Frontend-v2 (backoffice) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        & robocopy @(@($localBuildPath, $remoteClientesUNC) + $robocopyBase) | Out-Null
+        if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-clientes falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
+        Write-DeployInfo "Frontend-v2 (clientes) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
         return $true
     } -OperationName "Cópia Backend + Frontend-V2"
     $timings["Cópia backend + frontend-v2"] = (Get-Date) - $t
@@ -518,20 +519,21 @@ function Invoke-FrontendAllDeployment {
         $beDeployer = [BackendDeployer]::new()
         if (-not $beDeployer.Deploy()) { return $false }
 
-        # Copiar frontend-v2 diretamente (sem build, já foi feito acima)
-        $localBuildPath = $Global:DeployConfig.CaminhoLocalFrontendV2
-        $remoteUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        # Copiar frontend-v2 para build-v2 (backoffice) e build-clientes (portal)
+        $localBuildPath     = $Global:DeployConfig.CaminhoLocalFrontendV2
+        $remoteUNC          = $Global:DeployConfig.CaminhoRemotoFrontendV2 -replace "^ServerDrive:", "\\172.16.2.35\app"
+        $remoteClientesUNC  = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
         if (-not (Test-Path $localBuildPath)) {
             Write-DeployError "Build v2 não encontrado: $localBuildPath" "FRONTEND-V2"
             return $false
         }
-        $robocopyArgs = @($localBuildPath, $remoteUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
-        & robocopy @robocopyArgs | Out-Null
-        if ($LASTEXITCODE -ge 8) {
-            Write-DeployError "robocopy v2 falhou com código $LASTEXITCODE" "FRONTEND-V2"
-            return $false
-        }
-        Write-DeployInfo "Frontend-v2 copiado (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        $robocopyBase = @("/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        & robocopy @(@($localBuildPath, $remoteUNC) + $robocopyBase) | Out-Null
+        if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-v2 falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
+        Write-DeployInfo "Frontend-v2 (backoffice) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+        & robocopy @(@($localBuildPath, $remoteClientesUNC) + $robocopyBase) | Out-Null
+        if ($LASTEXITCODE -ge 8) { Write-DeployError "robocopy build-clientes falhou ($LASTEXITCODE)" "FRONTEND-V2"; return $false }
+        Write-DeployInfo "Frontend-v2 (clientes) copiado (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
         return $true
     } -OperationName "Cópia Frontend + Backend + Frontend-V2"
     $timings["Cópia frontend + backend + frontend-v2"] = (Get-Date) - $t
@@ -601,6 +603,110 @@ function Invoke-BackendDeployment {
     return $result
 }
 
+function Invoke-WebsiteDeployment {
+    param([bool]$BuildFirst = $true)
+
+    Write-DeployInfo "=== DEPLOYMENT WEBSITE PUBLICO (aintar.pt) ===" "MAIN"
+
+    $totalStart = Get-Date
+    $timings    = [ordered]@{}
+
+    # Build (sem ligacao ao servidor)
+    if ($BuildFirst) {
+        $t = Get-Date
+        $projectPath = $Global:DeployConfig.CaminhoProjetoWebsite
+        $buildPath   = $Global:DeployConfig.CaminhoLocalWebsite
+
+        if (-not (Test-Path $projectPath)) {
+            Write-DeployError "Diretório do website nao encontrado: $projectPath" "WEBSITE"
+            return $false
+        }
+
+        $currentLocation = Get-Location
+        try {
+            Set-Location -Path $projectPath
+            Write-DeployInfo "A executar 'npm run build' em: $projectPath" "WEBSITE"
+            $buildProcess = Start-Process `
+                -FilePath "C:\Program Files\nodejs\npm.cmd" `
+                -ArgumentList "run", "build" `
+                -Wait -PassThru -NoNewWindow `
+                -RedirectStandardOutput "build_website_output.log" `
+                -RedirectStandardError  "build_website_error.log"
+
+            if ($buildProcess.ExitCode -ne 0) {
+                Write-DeployError "Build do website falhou (Exit Code: $($buildProcess.ExitCode))" "WEBSITE"
+                try {
+                    $errLog = Get-Content "build_website_error.log" -Raw -ErrorAction SilentlyContinue
+                    if ($errLog) { Write-DeployError "Detalhes: $errLog" "WEBSITE" }
+                } catch {}
+                return $false
+            }
+
+            if (-not (Test-Path $buildPath)) {
+                Write-DeployError "Build concluido mas pasta dist nao encontrada" "WEBSITE"
+                return $false
+            }
+            $buildSize = [Math]::Round(((Get-ChildItem $buildPath -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 2)
+            Write-DeployInfo "Build do website concluido ($buildSize MB)" "WEBSITE"
+        }
+        catch {
+            Write-DeployException $_.Exception "Build do website" "WEBSITE"
+            return $false
+        }
+        finally {
+            Set-Location -Path $currentLocation
+            try { Remove-Item "build_website_output.log", "build_website_error.log" -ErrorAction SilentlyContinue } catch {}
+        }
+        $timings["Build website"] = (Get-Date) - $t
+    }
+
+    # Copiar para servidor (sem janela de manutencao — site estatico)
+    $t      = Get-Date
+    $copyOk = Invoke-WithServerConnection -ScriptBlock {
+        $localPath  = $Global:DeployConfig.CaminhoLocalWebsite
+        $remoteUNC  = $Global:DeployConfig.CaminhoRemotoWebsite -replace "^ServerDrive:", "\\172.16.2.35\app"
+
+        if (-not (Test-Path $localPath)) {
+            Write-DeployError "Build local do website nao encontrado: $localPath" "WEBSITE"
+            return $false
+        }
+        if (-not (Test-Path (Join-Path $localPath "index.html"))) {
+            Write-DeployError "index.html nao encontrado no build do website" "WEBSITE"
+            return $false
+        }
+
+        $robocopyArgs = @($localPath, $remoteUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        Write-DeployDebug "robocopy: $localPath -> $remoteUNC" "WEBSITE"
+        & robocopy @robocopyArgs | Out-Null
+
+        if ($LASTEXITCODE -ge 8) {
+            Write-DeployError "robocopy website falhou com codigo $LASTEXITCODE" "WEBSITE"
+            return $false
+        }
+        Write-DeployInfo "Website copiado (robocopy: $LASTEXITCODE)" "WEBSITE"
+        Write-DeployInfo "Disponivel em: https://aintar.pt/" "WEBSITE"
+        return $true
+    } -OperationName "Copia Website"
+    $timings["Copia website"] = (Get-Date) - $t
+
+    $totalSecs = [Math]::Round(((Get-Date) - $totalStart).TotalSeconds, 1)
+    if ($copyOk) {
+        Write-DeployInfo "=== 'Deployment Website' FINALIZADO COM SUCESSO em ${totalSecs}s ===" "MAIN"
+    } else {
+        Write-DeployError "Falha na copia do website para o servidor." "MAIN"
+    }
+    Write-DeployInfo "=== RESUMO DE TEMPOS: Website ===" "MAIN"
+    foreach ($key in $timings.Keys) {
+        $label = ($key + ":").PadRight(46)
+        $secs  = [Math]::Round($timings[$key].TotalSeconds, 1)
+        Write-DeployInfo "  $label ${secs}s" "MAIN"
+    }
+    Write-DeployInfo "  $("TOTAL:".PadRight(46)) ${totalSecs}s" "MAIN"
+    Write-DeployInfo "=================================" "MAIN"
+
+    return $copyOk
+}
+
 function Invoke-NginxDeployment {
     Write-DeployInfo "=== DEPLOYMENT CONFIGURAÇÃO NGINX ===" "MAIN"
     Write-DeployInfo "Estratégia: Cópia antecipada → Manutenção mínima (reinício backend)" "MAIN"
@@ -649,16 +755,36 @@ function Invoke-NonInteractiveMode {
 
     Write-DeployInfo "A executar em modo não interativo: $Operation" "MAIN"
 
-    # Operações que fazem deploy real — bump de versão automático antes dos builds
+    # Operações que fazem deploy real — bump de versão com auto-detect de commits
     $versionedOps = @(
         "full", "frontend", "frontend-nobuild", "backend",
         "frontend-backend", "frontend-v2", "frontend-v2-nobuild",
-        "backend-v2", "backend-v2-nobuild", "frontend-all", "frontend-all-nobuild"
+        "backend-v2", "backend-v2-nobuild", "frontend-all", "frontend-all-nobuild",
+        "website", "website-nobuild"
     )
     if ($versionedOps -contains $Operation.ToLower()) {
-        $vInfo = Invoke-VersionBump -Operation $Operation -ForceMajor $BumpMajor -ForceMinor $BumpMinor
+        # Analisar commits desde o ultimo deploy
+        $vData   = Read-VersionData
+        $commits = Get-GitCommitsSinceLastDeploy -LastHash $vData.lastDeployCommit
+        $bump    = Get-AutoBumpType -CommitLines $commits
+
+        # Flags manuais sobrepõem auto-detect (para casos excepcionais)
+        if ($BumpMajor) { $bump = "major" }
+        elseif ($BumpMinor) { $bump = "minor" }
+
+        # Mostrar resumo
+        Write-DeployInfo "=== ALTERACOES DESDE O ULTIMO DEPLOY ===" "GIT"
+        if ($commits.Count -eq 0) {
+            Write-DeployWarning "  Sem commits novos desde o ultimo deploy." "GIT"
+        } else {
+            foreach ($c in $commits) { Write-DeployInfo "  $c" "GIT" }
+        }
+        Write-DeployInfo "  Bump aplicado: $($bump.ToUpper())$(if ($BumpMajor -or $BumpMinor){' (override manual)'})" "GIT"
+        Write-DeployInfo "========================================" "GIT"
+
+        $vInfo = Invoke-VersionBump -Operation $Operation -BumpType $bump
         if ($null -eq $vInfo) {
-            Write-DeployError "Falha ao calcular versão. Deployment cancelado." "MAIN"
+            Write-DeployError "Falha ao calcular versao. Deployment cancelado." "MAIN"
             exit 1
         }
     }
@@ -702,6 +828,12 @@ function Invoke-NonInteractiveMode {
         "nginx" {
             $result = Invoke-NginxDeployment
         }
+        "website" {
+            $result = Invoke-WebsiteDeployment -BuildFirst $true
+        }
+        "website-nobuild" {
+            $result = Invoke-WebsiteDeployment -BuildFirst $false
+        }
         "test-connection" {
             $testResult = Test-ServerConnectivity
             $result = $testResult.NetworkReachable -and $testResult.ShareAccessible
@@ -718,7 +850,7 @@ function Invoke-NonInteractiveMode {
         }
         default {
             Write-DeployError "Operação não reconhecida: $Operation" "MAIN"
-            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, frontend-v2, frontend-v2-nobuild, backend-v2, backend-v2-nobuild, frontend-all, frontend-all-nobuild, nginx, test-connection, build-only, validate-build" "MAIN"
+            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, frontend-v2, frontend-v2-nobuild, backend-v2, backend-v2-nobuild, frontend-all, frontend-all-nobuild, website, website-nobuild, nginx, test-connection, build-only, validate-build, version" "MAIN"
             return $false
         }
     }
@@ -736,44 +868,34 @@ function Invoke-NonInteractiveMode {
 # HELPER: VERSION BUMP + DEPLOY (para modo interativo)
 # ============================================================================
 
-# Estado global do bump type para o modo interativo
-$Script:BumpState = "patch"  # patch | minor | major
-
-function Toggle-BumpState {
-    switch ($Script:BumpState) {
-        "patch" { $Script:BumpState = "minor" }
-        "minor" { $Script:BumpState = "major" }
-        "major" { $Script:BumpState = "patch" }
-    }
-}
-
-function Get-BumpStateLabel {
-    switch ($Script:BumpState) {
-        "patch" { return "PATCH  (bugfix / correcao)" }
-        "minor" { return "MINOR  (nova funcionalidade)" }
-        "major" { return "MAJOR  (mudanca significativa)" }
-    }
-}
-
-function Get-BumpStateColor {
-    switch ($Script:BumpState) {
-        "patch" { return "Green" }
-        "minor" { return "Yellow" }
-        "major" { return "Red" }
-    }
-}
-
 function Invoke-BumpedDeploy {
     param([string]$Operation, [scriptblock]$DeployFn)
-    $isMinor = ($Script:BumpState -eq "minor")
-    $isMajor = ($Script:BumpState -eq "major")
-    $vInfo = Invoke-VersionBump -Operation $Operation -ForceMinor $isMinor -ForceMajor $isMajor
+
+    # Analisar commits desde o ultimo deploy e auto-detectar bump type
+    $vData    = Read-VersionData
+    $commits  = Get-GitCommitsSinceLastDeploy -LastHash $vData.lastDeployCommit
+    $autoBump = Get-AutoBumpType -CommitLines $commits
+
+    Write-Host ""
+    Write-DeployInfo "=== ALTERACOES DESDE O ULTIMO DEPLOY ===" "GIT"
+    if ($commits.Count -eq 0) {
+        Write-DeployWarning "  Sem commits novos desde o ultimo deploy." "GIT"
+    } else {
+        Write-DeployInfo "  $($commits.Count) commit(s) detectados:" "GIT"
+        foreach ($c in $commits) { Write-Host "    $c" -ForegroundColor Gray }
+        Write-Host ""
+    }
+    $bumpColor = switch ($autoBump) { "major" { "Red" } "minor" { "Yellow" } default { "Green" } }
+    Write-Host "  Bump auto-detectado: " -NoNewline -ForegroundColor Cyan
+    Write-Host $autoBump.ToUpper() -ForegroundColor $bumpColor
+    Write-DeployInfo "========================================" "GIT"
+    Write-Host ""
+
+    $vInfo = Invoke-VersionBump -Operation $Operation -BumpType $autoBump
     if ($null -eq $vInfo) {
-        Write-DeployError "Falha ao calcular versão. Deployment cancelado." "MAIN"
+        Write-DeployError "Falha ao calcular versao. Deployment cancelado." "MAIN"
         return $false
     }
-    # Repor para patch após deploy
-    $Script:BumpState = "patch"
     return & $DeployFn
 }
 
@@ -801,13 +923,14 @@ function Start-InteractiveMode {
         "4" = @{ Name = "Deployment Backend"; Action = { Invoke-BumpedDeploy -Operation "backend" -DeployFn { Invoke-BackendDeployment } } }
         "5" = @{ Name = "Deployment Frontend + Backend (sem Nginx)"; Action = { Invoke-BumpedDeploy -Operation "frontend-backend" -DeployFn { Invoke-FrontendBackendDeployment -BuildFirst $true } } }
         "6" = @{ Name = "Deployment Configuração Nginx"; Action = { Invoke-NginxDeployment } }
-        "13" = @{ Name = "Deployment Frontend-V2 (com build)"; Action = { Invoke-BumpedDeploy -Operation "frontend-v2" -DeployFn { Deploy-FrontendV2 -BuildFirst $true } } }
-        "14" = @{ Name = "Deployment Frontend-V2 (sem build)"; Action = { Invoke-BumpedDeploy -Operation "frontend-v2-nobuild" -DeployFn { Deploy-FrontendV2 -BuildFirst $false } } }
+        "13" = @{ Name = "Deployment Frontend-V2 (com build)  →  build-v2 + build-clientes"; Action = { Invoke-BumpedDeploy -Operation "frontend-v2" -DeployFn { Deploy-FrontendV2 -BuildFirst $true } } }
+        "14" = @{ Name = "Deployment Frontend-V2 (sem build)  →  build-v2 + build-clientes"; Action = { Invoke-BumpedDeploy -Operation "frontend-v2-nobuild" -DeployFn { Deploy-FrontendV2 -BuildFirst $false } } }
         "15" = @{ Name = "Deployment Backend + Frontend-V2 (com build)"; Action = { Invoke-BumpedDeploy -Operation "backend-v2" -DeployFn { Invoke-BackendFrontendV2Deployment -BuildFirst $true } } }
         "16" = @{ Name = "Deployment Frontend (legacy) + Backend + Frontend-V2 (com build)"; Action = { Invoke-BumpedDeploy -Operation "frontend-all" -DeployFn { Invoke-FrontendAllDeployment -BuildFirst $true } } }
+        "18" = @{ Name = "Deployment Website aintar.pt (com build)"; Action = { Invoke-BumpedDeploy -Operation "website" -DeployFn { Invoke-WebsiteDeployment -BuildFirst $true } } }
+        "19" = @{ Name = "Deployment Website aintar.pt (sem build)"; Action = { Invoke-BumpedDeploy -Operation "website-nobuild" -DeployFn { Invoke-WebsiteDeployment -BuildFirst $false } } }
         "17" = @{ Name = "Ver versões e histórico de deploys"; Action = { Show-VersionStatus; return $null } }
-        "B"  = @{ Name = "Alterar tipo de bump (atual: ver cabeçalho)"; Action = { Toggle-BumpState; return $null } }
-        "7" = @{ Name = "Ver ficheiros em estado relevante"; Action = { Show-FileStatus; return $null } }
+        "7"  = @{ Name = "Ver ficheiros em estado relevante"; Action = { Show-FileStatus; return $null } }
         "8" = @{ Name = "Ver informações do sistema"; Action = { Show-SystemInfo; return $null } }
         "9" = @{ Name = "Testar conectividade com o servidor"; Action = { Show-ConnectivityTest; return $null } }
         "10" = @{ Name = "Mostrar estrutura do servidor"; Action = { Show-ServerStructure; return $null } }
@@ -860,29 +983,19 @@ function Show-DeployMenu {
     Write-Host "===============================================" -ForegroundColor Cyan
     Write-Host "         SISTEMA DE DEPLOYMENT MODULAR         " -ForegroundColor Cyan
     Write-Host "===============================================" -ForegroundColor Cyan
-    $bumpColor = Get-BumpStateColor
-    $bumpLabel = Get-BumpStateLabel
-    Write-Host "  Tipo de bump: " -NoNewline -ForegroundColor Gray
-    Write-Host $bumpLabel -ForegroundColor $bumpColor
+    Write-Host "  Bump: AUTO (detectado dos commits git)       " -ForegroundColor DarkGray
     Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
 
-    # Obter e ordenar as chaves do menu (B fica no fim)
-    $menuKeys = $MenuActions.Keys | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } elseif ($_ -eq 'B') { 998 } else { 999 } }
+    # Ordenar chaves numericamente
+    $menuKeys = $MenuActions.Keys | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } else { 999 } }
 
     foreach ($key in $menuKeys) {
-        # Adicionar a linha de separação
         if ($key -eq "7") {
             Write-Host "-----------------------------------------------" -ForegroundColor DarkGray
         }
-        
-        if ($key -eq "B") {
-            $label = "Alterar tipo de bump  (atual: $(Get-BumpStateLabel))"
-            Write-Host " B. $label" -ForegroundColor $(Get-BumpStateColor)
-        } else {
-            $padding = if ([int]$key -lt 10) { " " } else { "" }
-            Write-Host "$padding$key. $($MenuActions[$key].Name)"
-        }
+        $padding = if ([int]$key -lt 10) { " " } else { "" }
+        Write-Host "$padding$key. $($MenuActions[$key].Name)"
     }
     
     Write-Host ""
@@ -956,24 +1069,32 @@ OPERACOES DISPONIVEIS (Modo nao interativo):
     frontend-nobuild     - Deployment do frontend legacy (sem build)
     backend              - Deployment apenas do backend
     frontend-backend     - Deployment do frontend legacy + backend (sem Nginx)
-    frontend-v2          - Deployment apenas do frontend-v2 (com build)
-    frontend-v2-nobuild  - Deployment apenas do frontend-v2 (sem build)
+    frontend-v2          - Deployment do frontend-v2 (com build) → build-v2 + build-clientes
+    frontend-v2-nobuild  - Deployment do frontend-v2 (sem build) → build-v2 + build-clientes
     backend-v2           - Deployment do backend + frontend-v2 (com build)
     backend-v2-nobuild   - Deployment do backend + frontend-v2 (sem build)
     frontend-all         - Deployment frontend legacy + backend + frontend-v2 (com build)
     frontend-all-nobuild - Deployment frontend legacy + backend + frontend-v2 (sem build)
+    website              - Deployment do website publico aintar.pt (com build)
+    website-nobuild      - Deployment do website publico aintar.pt (sem build)
     nginx                - Deployment apenas da configuracao Nginx
     test-connection      - Testar conectividade com o servidor
     build-only           - Apenas fazer build do frontend legacy
     validate-build       - Validar build existente do frontend legacy
+    version              - Mostrar versao actual, commits pendentes e historico
 
-    version              - Mostrar versão actual e histórico de deploys
+BUMP DE VERSAO (automatico por defeito):
+    O sistema analisa os commits desde o ultimo deploy e detecta automaticamente:
+      MAJOR  → feat!: ou BREAKING CHANGE
+      MINOR  → feat:
+      PATCH  → qualquer outro (fix, refactor, docs, chore, etc.)
 
 PARAMETROS:
     -NonInteractive      - Executar em modo nao interativo
     -Operation           - Operacao a executar (obrigatorio com -NonInteractive)
     -BuildFirst          - Fazer build antes do deployment
-    -BumpMajor           - Forcar bump de versao major (ex: breaking changes)
+    -BumpMinor           - Forcar bump minor (sobrepoe auto-detect)
+    -BumpMajor           - Forcar bump major (sobrepoe auto-detect)
     -Verbose             - Habilitar logging detalhado
     -SkipValidation      - Pular validacoes (use com cuidado)
 

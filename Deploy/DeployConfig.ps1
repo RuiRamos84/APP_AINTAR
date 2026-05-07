@@ -72,10 +72,16 @@ $Global:DeployConfig.RemoteManagement = @{
 # ============================================================================
 
 # Estes caminhos são construídos automaticamente após conectar ao servidor
-$Global:DeployConfig.CaminhoRemotoFrontend = "ServerDrive:\NewAPP\nginx\html\react-app\build"
-$Global:DeployConfig.CaminhoRemotoFrontendV2 = "ServerDrive:\NewAPP\nginx\html\react-app\build-v2"
-$Global:DeployConfig.CaminhoRemotoBackend = "ServerDrive:\NewAPP\backend"
-$Global:DeployConfig.CaminhoRemotoNginxConf = "ServerDrive:\NewAPP\nginx\conf\nginx.conf"
+$Global:DeployConfig.CaminhoRemotoFrontend            = "ServerDrive:\NewAPP\nginx\html\react-app\build"
+$Global:DeployConfig.CaminhoRemotoFrontendV2           = "ServerDrive:\NewAPP\nginx\html\react-app\build-v2"
+$Global:DeployConfig.CaminhoRemotoFrontendV2Clientes   = "ServerDrive:\NewAPP\nginx\html\react-app\build-clientes"
+$Global:DeployConfig.CaminhoRemotoWebsite              = "ServerDrive:\NewAPP\nginx\html\react-app\build-website"
+$Global:DeployConfig.CaminhoRemotoBackend              = "ServerDrive:\NewAPP\backend"
+$Global:DeployConfig.CaminhoRemotoNginxConf            = "ServerDrive:\NewAPP\nginx\conf\nginx.conf"
+
+# Caminhos locais — Website público
+$Global:DeployConfig.CaminhoLocalWebsite    = "C:\Users\rui.ramos\Desktop\APP\website\dist"
+$Global:DeployConfig.CaminhoProjetoWebsite  = "C:\Users\rui.ramos\Desktop\APP\website"
 
 # ============================================================================
 # VALIDAÇÃO DE CONFIGURAÇÕES

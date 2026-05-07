@@ -1,15 +1,17 @@
 # DeployVersion.ps1
 # Gestao automatizada de versoes de deployment
-# Versao: 1.1.0
+# Versao: 2.0.0
 #
 # Modelo de versionamento:
 #   - Cada componente tem a sua propria versao independente
 #   - frontend (legacy) : linha 2.x.x
 #   - frontend-v2       : linha 3.x.x  (versao global segue este)
 #   - backend           : versao propria (segue o componente mais activo)
-#   - bump patch  -> deploys de componente unico
-#   - bump minor  -> deploys multi-componente
-#   - bump major  -> flag manual -BumpMajor
+#   - website           : linha 1.x.x  (website publico aintar.pt)
+#   - bump auto  -> analisa commits (Conventional Commits) desde o ultimo deploy
+#   - bump major -> feat!: / BREAKING CHANGE
+#   - bump minor -> feat:
+#   - bump patch -> tudo o resto
 
 # ============================================================================
 # HELPER: acesso seguro a chaves com hifen (ex: frontend-v2)
@@ -27,6 +29,44 @@ function Set-CompData {
 }
 
 # ============================================================================
+# GIT — ANALISE DE COMMITS DESDE O ULTIMO DEPLOY
+# ============================================================================
+
+function Get-GitCommitsSinceLastDeploy {
+    param([string]$LastHash = "")
+
+    if ([string]::IsNullOrWhiteSpace($LastHash)) { return @() }
+
+    # Verificar se o hash existe no repo
+    git cat-file -e "$LastHash^{commit}" 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { return @() }
+
+    $lines = git log "$LastHash..HEAD" --oneline --no-merges 2>$null
+    if ($LASTEXITCODE -ne 0) { return @() }
+    return @($lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Get-AutoBumpType {
+    param([string[]]$CommitLines)
+
+    if ($CommitLines.Count -eq 0) { return "patch" }
+
+    $bump = "patch"
+    foreach ($line in $CommitLines) {
+        # git log --oneline: "<hash7> <mensagem>"
+        $msg = ($line -replace '^[0-9a-f]{6,} ', '').Trim()
+        if ($msg -match '^(feat|fix|refactor|chore|docs|style|perf|test)(\(.+\))?!:' -or
+            $msg -match 'BREAKING[- ]CHANGE') {
+            return "major"
+        }
+        if ($bump -ne "major" -and $msg -match '^feat(\(.+\))?:') {
+            $bump = "minor"
+        }
+    }
+    return $bump
+}
+
+# ============================================================================
 # LEITURA / ESCRITA
 # ============================================================================
 
@@ -34,10 +74,23 @@ function Read-VersionData {
     $vFile = "C:\Users\rui.ramos\Desktop\APP\version.json"
     if (-not (Test-Path $vFile)) {
         Write-DeployWarning "version.json nao encontrado. A criar com versoes base..." "VERSION"
-        $initial = '{"version":"3.0.0","buildNumber":0,"components":{"frontend":{"version":"2.0.0","lastDeploy":null},"frontend-v2":{"version":"3.0.0","lastDeploy":null},"backend":{"version":"3.0.0","lastDeploy":null}},"history":[]}'
+        $initial = '{"version":"3.0.0","buildNumber":0,"lastDeployCommit":null,"components":{"frontend":{"version":"2.0.0","lastDeploy":null},"frontend-v2":{"version":"3.0.0","lastDeploy":null},"backend":{"version":"3.0.0","lastDeploy":null},"website":{"version":"1.0.0","lastDeploy":null}},"history":[]}'
         Set-Content $vFile -Value $initial -Encoding UTF8
     }
-    return (Get-Content $vFile -Raw -Encoding UTF8 | ConvertFrom-Json)
+    $data = (Get-Content $vFile -Raw -Encoding UTF8 | ConvertFrom-Json)
+
+    # Migração: adicionar campos em falta sem reescrever o histórico
+    if ($null -eq $data.PSObject.Properties['lastDeployCommit']) {
+        $data | Add-Member -NotePropertyName 'lastDeployCommit' -NotePropertyValue $null
+    }
+    if ($null -eq $data.components.PSObject.Properties['website']) {
+        $data.components | Add-Member -NotePropertyName 'website' -NotePropertyValue ([pscustomobject]@{
+            version   = '1.0.0'
+            lastDeploy = $null
+        })
+    }
+
+    return $data
 }
 
 function Save-VersionData {
@@ -64,13 +117,6 @@ function Step-VersionNumber {
     return "$major.$minor.$patch"
 }
 
-function Get-BumpTypeForOperation {
-    param([string]$Operation, [bool]$ForceMajor = $false, [bool]$ForceMinor = $false)
-    if ($ForceMajor) { return "major" }
-    if ($ForceMinor) { return "minor" }
-    return "patch"
-}
-
 function Get-ComponentsForOperation {
     param([string]$Operation)
     switch ($Operation.ToLower()) {
@@ -85,6 +131,8 @@ function Get-ComponentsForOperation {
         "backend-v2-nobuild"   { return @("backend", "frontend-v2") }
         "frontend-all"         { return @("frontend", "backend", "frontend-v2") }
         "frontend-all-nobuild" { return @("frontend", "backend", "frontend-v2") }
+        "website"              { return @("website") }
+        "website-nobuild"      { return @("website") }
         default                { return @() }
     }
 }
@@ -121,6 +169,14 @@ function Set-BackendVersion {
     Write-DeployDebug "Versao injectada no backend: v$Version (build #$Build)" "VERSION"
 }
 
+function Set-WebsiteVersion {
+    param([string]$Version, [int]$Build)
+    $envPath = Join-Path $Global:DeployConfig.CaminhoProjetoWebsite ".env.production.local"
+    $content = "VITE_APP_VERSION=$Version`r`nVITE_APP_BUILD=$Build`r`n"
+    [System.IO.File]::WriteAllText($envPath, $content, $Script:Utf8NoBom)
+    Write-DeployDebug "Versao injectada no website: v$Version (build #$Build)" "VERSION"
+}
+
 # ============================================================================
 # FUNCAO PRINCIPAL -- cada componente bumpa a sua propria versao
 # ============================================================================
@@ -128,12 +184,20 @@ function Set-BackendVersion {
 function Invoke-VersionBump {
     param(
         [string]$Operation,
-        [bool]$ForceMajor = $false,
-        [bool]$ForceMinor = $false
+        [string]$BumpType    = "",      # patch | minor | major (preferido; auto se vazio)
+        [bool]$ForceMajor    = $false,  # compat com modo nao-interativo
+        [bool]$ForceMinor    = $false   # compat com modo nao-interativo
     )
 
     $data       = Read-VersionData
-    $bumpType   = Get-BumpTypeForOperation -Operation $Operation -ForceMajor $ForceMajor -ForceMinor $ForceMinor
+
+    # Resolver bump type: parametro directo > flags de compat > patch
+    if ([string]::IsNullOrEmpty($BumpType)) {
+        if ($ForceMajor) { $BumpType = "major" }
+        elseif ($ForceMinor) { $BumpType = "minor" }
+        else { $BumpType = "patch" }
+    }
+
     $components = Get-ComponentsForOperation -Operation $Operation
 
     if ($components.Count -eq 0) {
@@ -149,7 +213,7 @@ function Invoke-VersionBump {
     foreach ($comp in $components) {
         $compObj = $data.components.PSObject.Properties.Item($comp).Value
         $oldV = $compObj.version
-        $newV = Step-VersionNumber -Current $oldV -Bump $bumpType
+        $newV = Step-VersionNumber -Current $oldV -Bump $BumpType
         $compObj.version    = $newV
         $compObj.lastDeploy = $now
         $bumpLog += "  $($comp.PadRight(14)) v$oldV -> v$newV"
@@ -163,6 +227,12 @@ function Invoke-VersionBump {
 
     $data.buildNumber = $newBuild
 
+    # Registar o HEAD actual para saber de onde partir no proximo deploy
+    $head = (git rev-parse HEAD 2>$null)
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($head)) {
+        $data.lastDeployCommit = $head.Trim()
+    }
+
     # Historico
     $versionsSnapshot = [pscustomobject]@{}
     foreach ($comp in $components) {
@@ -173,7 +243,7 @@ function Invoke-VersionBump {
         build     = $newBuild
         date      = $now
         operation = $Operation
-        bumpType  = $bumpType
+        bumpType  = $BumpType
         by        = $env:USERNAME
         versions  = $versionsSnapshot
     }
@@ -184,7 +254,7 @@ function Invoke-VersionBump {
     Save-VersionData -Data $data
 
     Write-DeployInfo "===========================================" "VERSION"
-    Write-DeployInfo "  Build #$newBuild  [$bumpType]  Operacao: $Operation" "VERSION"
+    Write-DeployInfo "  Build #$newBuild  [$BumpType]  Operacao: $Operation" "VERSION"
     foreach ($line in $bumpLog) { Write-DeployInfo $line "VERSION" }
     Write-DeployInfo "===========================================" "VERSION"
 
@@ -201,10 +271,14 @@ function Invoke-VersionBump {
         $beObj = $data.components.PSObject.Properties.Item("backend").Value
         Set-BackendVersion -Version $beObj.version -Build $newBuild
     }
+    if ($components -contains "website") {
+        $wsObj = $data.components.PSObject.Properties.Item("website").Value
+        Set-WebsiteVersion -Version $wsObj.version -Build $newBuild
+    }
 
     return [pscustomobject]@{
         BuildNumber = $newBuild
-        BumpType    = $bumpType
+        BumpType    = $BumpType
         Components  = $components
         Versions    = $versionsSnapshot
     }
@@ -220,6 +294,7 @@ function Show-VersionStatus {
     $compFe = $data.components.PSObject.Properties.Item("frontend").Value
     $compV2 = $data.components.PSObject.Properties.Item("frontend-v2").Value
     $compBe = $data.components.PSObject.Properties.Item("backend").Value
+    $compWs = $data.components.PSObject.Properties.Item("website").Value
 
     $feV  = $compFe.version
     $feDt = if ($null -eq $compFe.lastDeploy) { "nunca" } else { $compFe.lastDeploy }
@@ -227,14 +302,31 @@ function Show-VersionStatus {
     $v2Dt = if ($null -eq $compV2.lastDeploy) { "nunca" } else { $compV2.lastDeploy }
     $beV  = $compBe.version
     $beDt = if ($null -eq $compBe.lastDeploy) { "nunca" } else { $compBe.lastDeploy }
+    $wsV  = $compWs.version
+    $wsDt = if ($null -eq $compWs.lastDeploy) { "nunca" } else { $compWs.lastDeploy }
+
+    $lastHash = if ($null -eq $data.lastDeployCommit) { "nenhum" } else { $data.lastDeployCommit.Substring(0, [Math]::Min(7, $data.lastDeployCommit.Length)) }
 
     Write-DeployInfo "=== ESTADO DE VERSOES ===" "VERSION"
-    Write-DeployInfo "  Build global  : #$($data.buildNumber)" "VERSION"
+    Write-DeployInfo "  Build global        : #$($data.buildNumber)   (ultimo commit deployado: $lastHash)" "VERSION"
     Write-Host ""
-    Write-DeployInfo "  frontend (legacy) : v$feV    ultimo deploy: $feDt" "VERSION"
-    Write-DeployInfo "  frontend-v2       : v$v2V    ultimo deploy: $v2Dt" "VERSION"
-    Write-DeployInfo "  backend           : v$beV    ultimo deploy: $beDt" "VERSION"
+    Write-DeployInfo "  frontend (legacy)   : v$feV   ultimo deploy: $feDt" "VERSION"
+    Write-DeployInfo "  frontend-v2         : v$v2V   ultimo deploy: $v2Dt" "VERSION"
+    Write-DeployInfo "  backend             : v$beV   ultimo deploy: $beDt" "VERSION"
+    Write-DeployInfo "  website             : v$wsV   ultimo deploy: $wsDt" "VERSION"
     Write-Host ""
+
+    # Mostrar commits desde o ultimo deploy
+    $commits = Get-GitCommitsSinceLastDeploy -LastHash $data.lastDeployCommit
+    if ($commits.Count -gt 0) {
+        $autoBump = Get-AutoBumpType -CommitLines $commits
+        Write-DeployInfo "  $($commits.Count) commit(s) por deployar  [bump auto: $($autoBump.ToUpper())]:" "VERSION"
+        foreach ($c in $commits) { Write-Host "    $c" -ForegroundColor Gray }
+        Write-Host ""
+    } else {
+        Write-DeployInfo "  Sem commits novos desde o ultimo deploy." "VERSION"
+        Write-Host ""
+    }
 
     $histCount = @($data.history).Count
     if ($histCount -gt 0) {
