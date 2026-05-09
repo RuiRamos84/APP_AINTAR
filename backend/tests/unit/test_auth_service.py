@@ -294,3 +294,111 @@ class TestFsLogout:
 
         assert result["success"] is False
         assert "message" in result
+
+
+# ─── refresh_access_token — rotação e validações ─────────────────────────────
+
+class TestRefreshAccessToken:
+    """
+    Testes unitários de refresh_access_token.
+    Cobre: tipo de token errado, token expirado por age, inatividade total,
+    inatividade por client_time, e rotação correcta com incremento de refresh_count.
+    """
+
+    def _make_decoded(self, age_hours=1, inactivity_hours=0, refresh_count=0):
+        """Helper: decoded token com timestamps controlados."""
+        now = datetime.now(timezone.utc)
+        return {
+            "token_type": "refresh",
+            "user_id": 42,
+            "user_name": "Utilizador Teste",
+            "session_id": "sess_test",
+            "profil": "1",
+            "entity": 10,
+            "interfaces": [100],
+            "refresh_count": refresh_count,
+            "notification_count": None,
+            "dark_mode": False,
+            "vacation": False,
+            "created_at": (now - timedelta(hours=age_hours)).timestamp(),
+            "last_activity": (now - timedelta(hours=inactivity_hours)).timestamp(),
+        }
+
+    def test_token_com_tipo_errado_levanta_InvalidTokenError(self):
+        """Token do tipo 'access' passado no endpoint de refresh → InvalidTokenError."""
+        from jwt.exceptions import InvalidTokenError
+
+        decoded = self._make_decoded()
+        decoded["token_type"] = "access"
+
+        now = datetime.now(timezone.utc)
+        with patch("app.services.auth_service.jwt_decode_token", return_value=decoded):
+            from app.services.auth_service import refresh_access_token
+            with pytest.raises(InvalidTokenError):
+                refresh_access_token("any_token", now, now)
+
+    def test_token_expirado_por_age_levanta_TokenExpiredError(self, app):
+        """Token com mais de 30 dias de idade → TokenExpiredError."""
+        from app.utils.error_handler import TokenExpiredError
+
+        decoded = self._make_decoded(age_hours=31 * 24)
+        now = datetime.now(timezone.utc)
+
+        with patch("app.services.auth_service.jwt_decode_token", return_value=decoded):
+            from app.services.auth_service import refresh_access_token
+            with pytest.raises(TokenExpiredError):
+                refresh_access_token("any_token", now, now)
+
+    def test_inatividade_total_ha_mais_de_2h_levanta_TokenExpiredError(self, app):
+        """Última atividade há mais de 2h → TokenExpiredError (sessão expirada)."""
+        from app.utils.error_handler import TokenExpiredError
+
+        decoded = self._make_decoded(age_hours=1, inactivity_hours=3)
+        now = datetime.now(timezone.utc)
+
+        with patch("app.services.auth_service.jwt_decode_token", return_value=decoded):
+            from app.services.auth_service import refresh_access_token
+            with pytest.raises(TokenExpiredError):
+                refresh_access_token("any_token", now, now)
+
+    def test_client_time_desatualizado_levanta_TokenExpiredError(self, app):
+        """client_time desatualizado há mais de INACTIVITY_TIMEOUT → TokenExpiredError."""
+        from app.utils.error_handler import TokenExpiredError
+
+        decoded = self._make_decoded(age_hours=1, inactivity_hours=0)
+        server_time = datetime.now(timezone.utc)
+        client_time = server_time - timedelta(hours=3)  # desfasado 3h
+
+        with patch("app.services.auth_service.jwt_decode_token", return_value=decoded):
+            from app.services.auth_service import refresh_access_token
+            with pytest.raises(TokenExpiredError):
+                refresh_access_token("any_token", client_time, server_time)
+
+    def test_refresh_valido_incrementa_refresh_count_e_retorna_tokens(self, app):
+        """
+        Refresh válido → refresh_count passa de 0 para 1, retorna novos tokens.
+        Garante que cada rotação de token fica registada no payload.
+        """
+        decoded = self._make_decoded(age_hours=1, inactivity_hours=0, refresh_count=0)
+        now = datetime.now(timezone.utc)
+
+        captured = {}
+
+        def capture_create_tokens(user_data, rc):
+            captured["refresh_count"] = rc
+            return ("new_access", "new_refresh")
+
+        with patch("app.services.auth_service.jwt_decode_token", return_value=decoded), \
+             patch("app.services.auth_service.create_tokens",
+                   side_effect=capture_create_tokens), \
+             patch("app.services.auth_service.update_last_activity"), \
+             patch("app.services.auth_service.permission_manager") as mock_pm:
+
+            mock_pm.pks_to_permissions.return_value = ["docs.view"]
+            from app.services.auth_service import refresh_access_token
+            result = refresh_access_token("any_token", now, now)
+
+        assert captured["refresh_count"] == 1
+        assert result["access_token"] == "new_access"
+        assert result["refresh_token"] == "new_refresh"
+        assert "permissions" in result

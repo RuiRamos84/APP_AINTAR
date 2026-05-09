@@ -12,7 +12,6 @@ E os contratos de segurança obrigatórios:
 """
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
 
 
 # ─── Bug #1: cleanup_session duplicado ───────────────────────────────────────
@@ -259,3 +258,298 @@ class TestCheckSession:
             resp = client.get("/api/v1/auth/check_session", headers=auth_headers)
 
         assert resp.status_code == 200
+
+    def test_sessao_proxima_de_expirar_retorna_warning(self, client, auth_headers):
+        """
+        Sessão entre WARNING_TIMEOUT (90 min) e INACTIVITY_TIMEOUT (2h)
+        → 200 com campo 'warning' e 'time_left' em segundos.
+        """
+        from datetime import datetime, timezone, timedelta
+        old_activity = datetime.now(timezone.utc) - timedelta(minutes=100)
+
+        with patch("app.routes.auth_routes.check_inactivity", return_value=False), \
+             patch("app.routes.auth_routes.get_last_activity", return_value=old_activity), \
+             patch("app.utils.utils.set_session"):
+            resp = client.get("/api/v1/auth/check_session", headers=auth_headers)
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "warning" in data
+        assert "time_left" in data
+        assert data["time_left"] > 0
+
+
+# ─── /refresh — rotação de tokens ────────────────────────────────────────────
+
+class TestRefreshEndpoint:
+    """Testes do endpoint /refresh — rotação de tokens JWT."""
+
+    def test_refresh_sem_body_retorna_400(self, client, jwt_refresh):
+        """Body vazio ({}) → 400 — satisfaz 'if not data' no route."""
+        resp = client.post(
+            "/api/v1/auth/refresh",
+            json={},
+            headers={"Authorization": f"Bearer {jwt_refresh}"}
+        )
+        assert resp.status_code == 400
+
+    def test_refresh_sem_current_time_retorna_400(self, client, jwt_refresh):
+        """Body sem campo current_time → 400 com mensagem descritiva."""
+        resp = client.post(
+            "/api/v1/auth/refresh",
+            json={"outro_campo": 123},
+            headers={"Authorization": f"Bearer {jwt_refresh}"}
+        )
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "current_time" in str(data).lower()
+
+    def test_refresh_sem_token_retorna_401(self, client):
+        """Sem Authorization header → 401 (jwt_required(refresh=True) bloqueia)."""
+        resp = client.post(
+            "/api/v1/auth/refresh",
+            json={"current_time": 1234567890000}
+        )
+        assert resp.status_code == 401
+
+    def test_refresh_com_access_token_retorna_422(self, client, jwt_user):
+        """Access token em vez de refresh token → 422 (tipo errado rejeitado pelo Flask-JWT)."""
+        resp = client.post(
+            "/api/v1/auth/refresh",
+            json={"current_time": 1234567890000},
+            headers={"Authorization": f"Bearer {jwt_user}"}
+        )
+        assert resp.status_code == 422
+
+    def test_refresh_valido_retorna_novos_tokens(self, client, jwt_refresh):
+        """Refresh token válido + current_time actual → 200 com novos access e refresh tokens."""
+        from datetime import datetime, timezone
+
+        mock_result = {
+            "user_id": 42,
+            "user_name": "Utilizador Teste",
+            "profil": "1",
+            "entity": 10,
+            "interfaces": [100],
+            "permissions": ["docs.view"],
+            "session_id": "session_user_test",
+            "notification_count": None,
+            "dark_mode": False,
+            "vacation": False,
+            "access_token": "new_access_tok",
+            "refresh_token": "new_refresh_tok",
+        }
+
+        current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+        with patch("app.routes.auth_routes.refresh_access_token", return_value=mock_result):
+            resp = client.post(
+                "/api/v1/auth/refresh",
+                json={"current_time": current_time_ms},
+                headers={"Authorization": f"Bearer {jwt_refresh}"}
+            )
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert "permissions" in data
+
+    def test_refresh_expirado_retorna_419(self, client, jwt_refresh):
+        """refresh_access_token levanta TokenExpiredError → 419."""
+        from app.utils.error_handler import TokenExpiredError
+        from datetime import datetime, timezone
+
+        current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+        with patch("app.routes.auth_routes.refresh_access_token",
+                   side_effect=TokenExpiredError("Sessão expirada por inatividade")):
+            resp = client.post(
+                "/api/v1/auth/refresh",
+                json={"current_time": current_time_ms},
+                headers={"Authorization": f"Bearer {jwt_refresh}"}
+            )
+
+        assert resp.status_code == 419
+
+
+# ─── Logout + blacklist ───────────────────────────────────────────────────────
+
+class TestLogoutBlacklist:
+    """Verifica que o logout revoga o token e impede reutilização."""
+
+    def test_logout_adiciona_jti_a_blacklist(self, client, auth_headers, app):
+        """
+        Após logout com JWT válido, o JTI do token deve constar na blacklist.
+        Garante que o token fica inválido para requests futuros.
+        """
+        from app import blacklist
+
+        with patch("app.routes.auth_routes.logout_user", return_value=True):
+            resp = client.post("/api/v1/auth/logout", headers=auth_headers)
+
+        assert resp.status_code == 200
+        # Pelo menos um JTI foi adicionado à blacklist durante este request
+        assert len(blacklist) >= 1
+
+    def test_token_na_blacklist_retorna_401_em_endpoint_protegido(self, client, app):
+        """
+        Token cujo JTI está na blacklist → 401 em qualquer endpoint protegido.
+        Simula reutilização de token após logout.
+        """
+        from flask_jwt_extended import create_access_token, decode_token as jwt_decode
+        from datetime import datetime, timezone
+        from app import blacklist
+
+        token = create_access_token(
+            identity="session_blacklist_test",
+            additional_claims={
+                "user_id": 99,
+                "profil": "1",
+                "session_id": "session_blacklist_test",
+                "interfaces": [],
+                "entity": None,
+                "token_type": "access",
+                "created_at": datetime.now(timezone.utc).timestamp(),
+                "last_activity": datetime.now(timezone.utc).timestamp(),
+            }
+        )
+
+        decoded = jwt_decode(token)
+        jti = decoded["jti"]
+        blacklist.add(jti)
+
+        try:
+            resp = client.get("/api/v1/auth/me",
+                              headers={"Authorization": f"Bearer {token}"})
+            assert resp.status_code == 401
+        finally:
+            blacklist.discard(jti)
+
+
+# ─── /update_dark_mode — happy path ──────────────────────────────────────────
+
+class TestUpdateDarkModeHappyPath:
+    """Verifica o resultado correcto do toggle de dark mode."""
+
+    def test_dark_mode_true_chama_darkmodeadd(self, client, auth_headers):
+        """dark_mode=True → fsf_client_darkmodeadd chamado, darkmodeclean não."""
+        with patch("app.routes.auth_routes.fsf_client_darkmodeadd") as mock_add, \
+             patch("app.routes.auth_routes.fsf_client_darkmodeclean") as mock_clean, \
+             patch("app.utils.utils.set_session"):
+            resp = client.post("/api/v1/auth/update_dark_mode",
+                               json={"user_id": 42, "dark_mode": True},
+                               headers=auth_headers)
+
+        assert resp.status_code == 200
+        mock_add.assert_called_once()
+        mock_clean.assert_not_called()
+
+    def test_dark_mode_false_chama_darkmodeclean(self, client, auth_headers):
+        """dark_mode=False → fsf_client_darkmodeclean chamado, darkmodeadd não."""
+        with patch("app.routes.auth_routes.fsf_client_darkmodeclean") as mock_clean, \
+             patch("app.routes.auth_routes.fsf_client_darkmodeadd") as mock_add, \
+             patch("app.utils.utils.set_session"):
+            resp = client.post("/api/v1/auth/update_dark_mode",
+                               json={"user_id": 42, "dark_mode": False},
+                               headers=auth_headers)
+
+        assert resp.status_code == 200
+        mock_clean.assert_called_once()
+        mock_add.assert_not_called()
+
+
+# ─── /heartbeat — registo de actividade ──────────────────────────────────────
+
+class TestHeartbeat:
+    """Testes do endpoint de heartbeat."""
+
+    def test_heartbeat_requer_autenticacao(self, client):
+        """Sem JWT → 401."""
+        resp = client.post("/api/v1/auth/heartbeat")
+        assert resp.status_code == 401
+
+    def test_heartbeat_retorna_200(self, client, auth_headers):
+        """JWT válido → 200."""
+        with patch("app.routes.auth_routes.update_last_activity"), \
+             patch("app.utils.utils.set_session"):
+            resp = client.post("/api/v1/auth/heartbeat", headers=auth_headers)
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "message" in data
+
+    def test_heartbeat_chama_update_last_activity_com_session_id(self, client, auth_headers):
+        """Heartbeat deve registar atividade com o session_id do JWT (identidade)."""
+        with patch("app.routes.auth_routes.update_last_activity") as mock_update, \
+             patch("app.utils.utils.set_session"):
+            client.post("/api/v1/auth/heartbeat", headers=auth_headers)
+
+        mock_update.assert_called_once_with("session_user_test")
+
+
+# ─── /preferences — dark_mode e vacation ─────────────────────────────────────
+
+class TestPreferences:
+    """Testes do endpoint PATCH /preferences."""
+
+    def test_preferences_requer_autenticacao(self, client):
+        """Sem JWT → 401."""
+        resp = client.patch("/api/v1/auth/preferences", json={"dark_mode": True})
+        assert resp.status_code == 401
+
+    def test_preferences_sem_campos_validos_retorna_400(self, client, auth_headers):
+        """Body sem dark_mode nem vacation → 400."""
+        with patch("app.utils.utils.set_session"):
+            resp = client.patch("/api/v1/auth/preferences",
+                                json={"campo_invalido": True},
+                                headers=auth_headers)
+        assert resp.status_code == 400
+
+    def test_preferences_dark_mode_toggle_retorna_200(self, client, auth_headers):
+        """dark_mode=True → 200 e darkmodeadd chamado."""
+        with patch("app.routes.auth_routes.fsf_client_darkmodeadd") as mock_add, \
+             patch("app.utils.utils.set_session"):
+            resp = client.patch("/api/v1/auth/preferences",
+                                json={"dark_mode": True},
+                                headers=auth_headers)
+
+        assert resp.status_code == 200
+        mock_add.assert_called_once()
+
+    def test_preferences_vacation_toggle_retorna_200(self, client, auth_headers):
+        """vacation=True → 200 e vacationadd chamado."""
+        with patch("app.routes.auth_routes.fsf_client_vacationadd") as mock_vac, \
+             patch("app.utils.utils.set_session"):
+            resp = client.patch("/api/v1/auth/preferences",
+                                json={"vacation": True},
+                                headers=auth_headers)
+
+        assert resp.status_code == 200
+        mock_vac.assert_called_once()
+
+
+# ─── /cached-activities ───────────────────────────────────────────────────────
+
+class TestCachedActivities:
+    """Testes do endpoint de actividades em cache."""
+
+    def test_cached_activities_requer_autenticacao(self, client):
+        """Sem JWT → 401."""
+        resp = client.get("/api/v1/auth/cached-activities")
+        assert resp.status_code == 401
+
+    def test_cached_activities_retorna_lista(self, client, auth_headers):
+        """JWT válido → 200 com lista (pode ser vazia)."""
+        mock_activities = [
+            {"user_id": 42, "last_activity": "2024-01-01T00:00:00+00:00"}
+        ]
+        with patch("app.routes.auth_routes.list_cached_activities",
+                   return_value=mock_activities), \
+             patch("app.utils.utils.set_session"):
+            resp = client.get("/api/v1/auth/cached-activities", headers=auth_headers)
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert isinstance(data, list)
+        assert len(data) == 1
