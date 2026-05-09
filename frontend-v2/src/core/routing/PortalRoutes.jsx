@@ -33,12 +33,12 @@ export default function PortalRoutes() {
       {/* ==================== PORTAL (PortalLayout) ==================== */}
       <Route element={<PortalLayout />}>
         <Route path="/" element={<Navigate to="/pedidos" replace />} />
-        <Route path="/pedidos"     element={<ProtectedRoute><PortalPedidosPage /></ProtectedRoute>} />
-        <Route path="/pedidos/:id" element={<ProtectedRoute><PortalPedidoDetailPage /></ProtectedRoute>} />
-        <Route path="/novo-pedido" element={<ProtectedRoute><PortalNovoPedidoPage /></ProtectedRoute>} />
-        <Route path="/faturas"     element={<ProtectedRoute><PortalFacturasPage /></ProtectedRoute>} />
-        <Route path="/perfil"      element={<ProtectedRoute><PortalPerfilPage /></ProtectedRoute>} />
-        <Route path="/alterar-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
+        <Route path="/pedidos"     element={<ProtectedRoute requiredPermission="portal.access"><PortalPedidosPage /></ProtectedRoute>} />
+        <Route path="/pedidos/:id" element={<ProtectedRoute requiredPermission="portal.access"><PortalPedidoDetailPage /></ProtectedRoute>} />
+        <Route path="/novo-pedido" element={<ProtectedRoute requiredPermission="portal.access"><PortalNovoPedidoPage /></ProtectedRoute>} />
+        <Route path="/faturas"     element={<ProtectedRoute requiredPermission="portal.invoices.view"><PortalFacturasPage /></ProtectedRoute>} />
+        <Route path="/perfil"      element={<ProtectedRoute requiredPermission="portal.access"><PortalPerfilPage /></ProtectedRoute>} />
+        <Route path="/alterar-password" element={<ProtectedRoute requiredPermission="portal.access"><ChangePasswordPage /></ProtectedRoute>} />
       </Route>
 
       {/* ==================== 404 ==================== */}

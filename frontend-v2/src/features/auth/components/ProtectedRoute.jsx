@@ -30,9 +30,6 @@ export const ProtectedRoute = ({ children, requiredPermission }) => {
   const { user, isLoading } = useAuth();
   const { hasPermission, initialized } = usePermissionContext();
 
-  // ✨ SISTEMA DINÂMICO: Obter permissão automaticamente do routeConfig
-  // Se requiredPermission for passado manualmente, usa esse (override)
-  // Senão, busca automaticamente do routeConfig baseado no path atual
   const permissionNeeded = requiredPermission ?? getRoutePermission(location.pathname);
 
   // 1. LOADING STATE - Sistema ainda está a inicializar

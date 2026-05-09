@@ -110,7 +110,6 @@ export function MetadataProvider({ children }) {
       setLastFetch(new Date());
 
     } catch (err) {
-      console.error('[MetadataContext] Error loading metadata:', err);
       setError(err.message || 'Erro ao carregar metadados');
     } finally {
       setIsLoading(false);

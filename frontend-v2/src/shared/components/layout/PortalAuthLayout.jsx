@@ -76,11 +76,11 @@ export const PortalAuthLayout = () => {
           sx={{
             flex: 1, display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            px: { xs: 3, sm: 6, md: 8 },
+            px: { xs: 3, sm: 5, md: 6 },
             py: 4,
           }}
         >
-          <Box sx={{ width: '100%', maxWidth: 420 }}>
+          <Box sx={{ width: '100%', maxWidth: 480 }}>
             <Outlet />
           </Box>
         </Box>

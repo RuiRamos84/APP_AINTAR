@@ -337,12 +337,13 @@ export const OrcamentoTable = () => {
 
     const { porClasse, grandTotal } = useMemo(() => {
         const map = {};
+        let total = 0;
         searched.forEach(r => {
             if (!map[r.classe]) map[r.classe] = [];
             map[r.classe].push(r);
             total += parseFloat(r.valor) || 0;
         });
-        return map;
+        return { porClasse: map, grandTotal: total };
     }, [searched]);
 
     const activeClasses = useMemo(() => Object.keys(porClasse), [porClasse]);

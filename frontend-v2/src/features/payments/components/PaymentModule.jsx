@@ -1,21 +1,21 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-    Box, Button, Fade, Slide, Typography, Alert, CircularProgress,
-    useTheme, useMediaQuery, AlertTitle
+    Box, Button, Alert, CircularProgress,
+    useTheme, useMediaQuery,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
-import { useAuth } from '@/core/contexts/AuthContext'; // v2 uses useAuth from context
+import { useAuth } from '@/core/contexts/AuthContext';
 import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
-import { usePaymentPermissions, PAYMENT_METHODS } from '../services/paymentTypes';
+import { usePaymentPermissions, PAYMENT_METHODS, canUsePaymentMethod } from '../services/paymentTypes';
 
-// Componentes
 import PaymentMethodSelector from './PaymentMethodSelector';
 import MBWayPayment from './MBWayPayment';
 import MultibancoPayment from './MultibancoPayment';
 import CashPayment from './CashPayment';
 import BankTransferPayment from './BankTransferPayment';
 import MunicipalityPayment from './MunicipalityPayment';
+import IsencaoPayment from './IsencaoPayment';
 import PaymentStatus from './PaymentStatus';
 
 const PaymentModule = ({
@@ -36,91 +36,94 @@ const PaymentModule = ({
     const [transactionId, setTransactionId] = useState(null);
     const [status, setStatus] = useState(null);
     const [error, setError] = useState(null);
-    const [direction, setDirection] = useState('forward');
 
-    // Hook para permissões
     const { availableMethods, loading: permissionsLoading } = usePaymentPermissions();
 
-    const hasSibsMethods = useMemo(() => availableMethods.some(method =>
-        [PAYMENT_METHODS.MBWAY, PAYMENT_METHODS.MULTIBANCO].includes(method)
-    ), [availableMethods]);
+    // Se o valor é 0, o único método válido é Isenção
+    const isZeroAmount = !(parseFloat(amount) > 0);
 
-    const { mutate: createSibsCheckout, isLoading: isCreatingCheckout } = useMutation({
+    const effectiveMethods = useMemo(() => {
+        if (isZeroAmount) {
+            return availableMethods.includes(PAYMENT_METHODS.ISENCAO)
+                ? [PAYMENT_METHODS.ISENCAO]
+                : [];
+        }
+        return availableMethods;
+    }, [isZeroAmount, availableMethods]);
+
+    const hasSibsMethods = useMemo(() => effectiveMethods.some(method =>
+        [PAYMENT_METHODS.MBWAY, PAYMENT_METHODS.MULTIBANCO].includes(method)
+    ), [effectiveMethods]);
+
+    // Auto-seleciona Isenção quando amount = 0 e permissão existe
+    useEffect(() => {
+        if (isZeroAmount && effectiveMethods.includes(PAYMENT_METHODS.ISENCAO) && !selectedMethod) {
+            setSelectedMethod(PAYMENT_METHODS.ISENCAO);
+        }
+    }, [isZeroAmount, effectiveMethods, selectedMethod]);
+
+    const {
+        mutate: createSibsCheckout,
+        isLoading: isCreatingCheckout,
+        isError: checkoutFailed,
+    } = useMutation({
         mutationFn: () => paymentService.createPreventiveCheckout(documentId, amount),
         onSuccess: (data) => {
-             // Depending on API response structure, data.transaction_id might be direct or nested
-             const txId = data.transaction_id || data.data?.transaction_id;
-             if (txId || data.success) {
+            const txId = data.transaction_id || data.data?.transaction_id;
+            if (txId || data.success) {
                 setTransactionId(txId);
                 setError(null);
             } else {
                 setError(data.error || 'Falha ao preparar pagamento SIBS.');
             }
         },
-        onError: (err) => setError(err.message || 'Erro crítico ao preparar pagamento SIBS.'),
+        onError: (err) => setError(err.response?.data?.error || err.message || 'Erro ao preparar pagamento SIBS.'),
     });
 
     useEffect(() => {
         onLoadingChange?.(isCreatingCheckout);
     }, [isCreatingCheckout, onLoadingChange]);
 
+    // Só cria checkout SIBS quando há valor > 0 e método SIBS disponível
     useEffect(() => {
-        if (hasSibsMethods && !transactionId && !isCreatingCheckout && documentId) {
-             // Only create checkout if documentId exists (creation vs details flow)
-             // For creation flow, documentId might be null initially? 
-             // Logic: If on creation, we generate an orderId usually.
-             // If documentId is null, `createPreventiveCheckout` might fail if API expects it.
-             // Legacy `PaymentStep` generated `orderId`.
-             // `createPreventiveCheckout` in legacy used `document_id`.
-             // If creating a NEW document, we don't have ID yet.
-             // Usually on creation, we select method FIRST, then submit doc + method.
-             // But legacy `PaymentStep` seemed to assume we pay *during* wizard?
-             // Or maybe it's only selecting method?
-             // Legacy `PaymentStep`:
-             /*
-                const getOrderId = () => ...
-                <PaymentModule orderId={getOrderId()} ... />
-             */
-             // So it passed user-generated ID.
-             createSibsCheckout();
+        if (
+            hasSibsMethods &&
+            !transactionId &&
+            !isCreatingCheckout &&
+            !checkoutFailed &&
+            !isZeroAmount &&
+            documentId
+        ) {
+            createSibsCheckout();
         }
-    }, [hasSibsMethods, transactionId, isCreatingCheckout, createSibsCheckout, documentId]);
+    }, [hasSibsMethods, transactionId, isCreatingCheckout, checkoutFailed, isZeroAmount, createSibsCheckout, documentId]);
 
-    const step = externalStep || 0; // Controlled by parent mostly
+    const step = externalStep || 0;
 
     useEffect(() => {
         if (selectedMethod && step === 0) {
-            setDirection('forward');
             onStepChange?.(1);
         }
     }, [selectedMethod, step, onStepChange]);
 
     useEffect(() => {
         if (status === 'SUCCESS' || status === 'PENDING_VALIDATION') {
-            setDirection('forward');
             onStepChange?.(2);
         }
     }, [status, onStepChange]);
 
-    const handleMethodSelect = (method) => {
-        setSelectedMethod(method);
+    const handleBack = () => {
+        if (step === 1) {
+            // Se foi auto-selecionado (amount=0), não permite voltar atrás do método
+            if (!isZeroAmount) setSelectedMethod(null);
+        }
+        onStepChange?.(Math.max(0, step - 1));
     };
 
-    // Handler para retry - limpa o transactionId para forçar criação de novo checkout
     const handlePaymentRetry = () => {
-        console.log('[PaymentModule] Retry solicitado - criando novo checkout');
         setTransactionId(null);
         setStatus(null);
         setError(null);
-        // O useEffect vai detectar que transactionId é null e criar novo checkout
-    };
-
-    const handleBack = () => {
-        setDirection('backward');
-        if (step === 1) {
-            setSelectedMethod(null);
-        }
-        onStepChange?.(Math.max(0, step - 1));
     };
 
     const renderPaymentMethod = () => {
@@ -134,55 +137,66 @@ const PaymentModule = ({
             onSuccess: (result) => setStatus(result.payment_status || 'SUCCESS'),
             onRetry: handlePaymentRetry,
         };
-
         switch (selectedMethod) {
-            case 'MBWAY': return <MBWayPayment {...props} />;
-            case 'MULTIBANCO': return <MultibancoPayment {...props} />;
-            case 'CASH': return <CashPayment {...props} />;
+            case 'MBWAY':         return <MBWayPayment {...props} />;
+            case 'MULTIBANCO':    return <MultibancoPayment {...props} />;
+            case 'CASH':          return <CashPayment {...props} />;
             case 'BANK_TRANSFER': return <BankTransferPayment {...props} />;
-            case 'MUNICIPALITY': return <MunicipalityPayment {...props} />;
-            default: return null;
+            case 'MUNICIPALITY':  return <MunicipalityPayment {...props} />;
+            case 'ISENCAO':       return <IsencaoPayment {...props} />;
+            default:              return null;
         }
     };
 
     const renderStepContent = () => {
         if (permissionsLoading) return <CircularProgress />;
-        
-        if (availableMethods.length === 0) {
-            return <Alert severity="warning">Sem métodos disponíveis no seu perfil.</Alert>;
+
+        // Valor 0 mas sem permissão de isenção
+        if (isZeroAmount && !effectiveMethods.length) {
+            return (
+                <Box sx={{ p: 3 }}>
+                    <Alert severity="info">
+                        O valor desta fatura é 0,00 €. Contacte a tesouraria para registar a isenção.
+                    </Alert>
+                </Box>
+            );
+        }
+
+        if (!effectiveMethods.length) {
+            return <Alert severity="warning">Sem métodos de pagamento disponíveis no seu perfil.</Alert>;
         }
 
         if (error) {
-             return (
+            return (
                 <Box sx={{ p: 3 }}>
                     <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-                    <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+                    <Button onClick={() => { setError(null); handlePaymentRetry(); }}>Tentar novamente</Button>
                 </Box>
             );
         }
 
         const contents = [
+            // Step 0: seletor de método (omitido se auto-selecionado por amount=0)
             <PaymentMethodSelector
                 key="selector"
-                availableMethods={availableMethods}
+                availableMethods={effectiveMethods}
                 selectedMethod={selectedMethod}
-                onSelect={handleMethodSelect}
+                onSelect={setSelectedMethod}
                 amount={amount}
                 user={user}
-                sibsReady={true} // Forcing true for now to avoid blocking if checkout fails in dev/test without real backend response
+                sibsReady={true}
                 internalReady={true}
                 loading={isCreatingCheckout}
             />,
-            renderPaymentMethod(), // Step 1: Specific Method UI
-            (selectedMethod === 'MULTIBANCO' && status === 'REFERENCE_GENERATED') 
-                ? renderPaymentMethod() 
-                : <PaymentStatus transactionId={transactionId || "TEMP-ID"} status={status} onComplete={onComplete} /> // Step 2: Status
+            // Step 1: componente do método
+            renderPaymentMethod(),
+            // Step 2: estado final
+            (selectedMethod === 'MULTIBANCO' && status === 'REFERENCE_GENERATED')
+                ? renderPaymentMethod()
+                : <PaymentStatus transactionId={transactionId || 'TEMP-ID'} status={status} onComplete={onComplete} />,
         ];
 
-        // Ensure step is within bounds
-        const content = contents[step >= contents.length ? contents.length - 1 : step];
-
-        return content;
+        return contents[Math.min(step, contents.length - 1)];
     };
 
     if (paymentStatus === 'success') {
@@ -193,7 +207,7 @@ const PaymentModule = ({
         <Box sx={{ position: 'relative', overflow: 'hidden' }}>
             {renderStepContent()}
 
-            {step === 1 && (
+            {step === 1 && !isZeroAmount && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, borderTop: 1, borderColor: 'divider' }}>
                     <Button startIcon={<ArrowBack />} onClick={handleBack} disabled={isCreatingCheckout}>
                         Voltar

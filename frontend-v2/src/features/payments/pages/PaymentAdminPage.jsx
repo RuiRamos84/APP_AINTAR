@@ -61,19 +61,29 @@ const PaymentAdminPage = () => {
 
     const payments = useMemo(() => Array.isArray(rawPayments) ? rawPayments : [], [rawPayments]);
 
-    // Query isenções pendentes
-    const { data: rawExemptions = [], isLoading: isLoadingExemptions, refetch: fetchExemptions } = useQuery({
-        queryKey: ['pendingExemptions'],
+    const [exemptionPage, setExemptionPage] = useState(1);
+    const exemptionPageSize = 20;
+    const [exemptionFilters, setExemptionFilters] = useState({ startDate: '', endDate: '' });
+
+    // Query histórico de isenções (todas, não só pendentes)
+    const { data: exemptionData, isLoading: isLoadingExemptions, refetch: fetchExemptions } = useQuery({
+        queryKey: ['exemptionHistory', exemptionPage, exemptionFilters],
         queryFn: async () => {
-            const result = await paymentService.getPendingExemptions();
-            if (result?.exemptions && Array.isArray(result.exemptions)) return result.exemptions;
-            if (Array.isArray(result)) return result;
-            return [];
+            const result = await paymentService.getExemptionHistory({
+                page: exemptionPage,
+                page_size: exemptionPageSize,
+                start_date: exemptionFilters.startDate || null,
+                end_date: exemptionFilters.endDate || null,
+            });
+            return result || { exemptions: [], total: 0, stats: {} };
         },
         enabled: tab === 2,
+        keepPreviousData: true,
     });
 
-    const exemptions = useMemo(() => Array.isArray(rawExemptions) ? rawExemptions : [], [rawExemptions]);
+    const exemptions = useMemo(() => exemptionData?.exemptions ?? [], [exemptionData]);
+    const exemptionStats = useMemo(() => exemptionData?.stats ?? {}, [exemptionData]);
+    const exemptionTotalPages = Math.ceil((exemptionData?.total || 0) / exemptionPageSize);
 
     // Mutation aprovar pagamento
     const { mutate: approvePayment, isLoading: isApproving } = useMutation({
@@ -175,6 +185,11 @@ const PaymentAdminPage = () => {
     const currentData = tab === 0 ? payments : tab === 1 ? (historyData?.payments ?? []) : exemptions;
     const isLoading = (tab === 0 && isLoadingPending) || (tab === 1 && isLoadingHistory) || (tab === 2 && isLoadingExemptions);
 
+    const handleExemptionFilterChange = (field, value) => {
+        setExemptionFilters(prev => ({ ...prev, [field]: value }));
+        setExemptionPage(1);
+    };
+
     const getMethodLabel = (method) => PAYMENT_METHOD_LABELS[method] || method;
 
     const getStatusLabel = (status) => {
@@ -196,6 +211,15 @@ const PaymentAdminPage = () => {
         </Button>
     );
 
+    const getExemptionStatusLabel = (status) => {
+        const labels = { SUCCESS: 'Aprovado', PENDING_VALIDATION: 'Pendente', REJECTED: 'Rejeitado', DECLINED: 'Recusado' };
+        return labels[status] || status;
+    };
+    const getExemptionStatusColor = (status) => {
+        const colors = { SUCCESS: 'success', PENDING_VALIDATION: 'warning', REJECTED: 'error', DECLINED: 'error' };
+        return colors[status] || 'default';
+    };
+
     return (
         <ModulePage
             title="Gestão de Pagamentos"
@@ -210,7 +234,7 @@ const PaymentAdminPage = () => {
                 <Tabs value={tab} onChange={(_, v) => { setTab(v); setPage(1); }} variant={isMobile ? 'fullWidth' : 'standard'}>
                     <Tab icon={<Schedule />} label={`Pendentes (${payments.length})`} iconPosition="start" />
                     <Tab icon={<History />} label="Histórico" iconPosition="start" />
-                    <Tab icon={<VerifiedUser />} label={`Isenções (${exemptions.length})`} iconPosition="start" />
+                    <Tab icon={<VerifiedUser />} label="Isenções" iconPosition="start" />
                 </Tabs>
             </Paper>
 
@@ -269,19 +293,15 @@ const PaymentAdminPage = () => {
                 </Paper>
             )}
 
-            {/* Stats (pendentes e isenções) */}
-            {(tab === 0 || tab === 2) && (
+            {/* Stats pendentes */}
+            {tab === 0 && (
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid size={{ xs: 12, sm: 4 }}>
                         <Card>
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
                                 <Schedule sx={{ fontSize: 36, color: 'warning.main', mb: 0.5 }} />
-                                <Typography variant="h4">
-                                    {tab === 0 ? payments.length : exemptions.length}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {tab === 0 ? 'Pendentes' : 'Isenções Pendentes'}
-                                </Typography>
+                                <Typography variant="h4">{payments.length}</Typography>
+                                <Typography variant="body2" color="text.secondary">Pendentes</Typography>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -290,14 +310,9 @@ const PaymentAdminPage = () => {
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
                                 <Euro sx={{ fontSize: 36, color: 'success.main', mb: 0.5 }} />
                                 <Typography variant="h4">
-                                    {tab === 0
-                                        ? `€${payments.reduce((sum, p) => sum + Number(p.amount || 0), 0).toFixed(2)}`
-                                        : exemptions.length
-                                    }
+                                    {`€${payments.reduce((sum, p) => sum + Number(p.amount || 0), 0).toFixed(2)}`}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {tab === 0 ? 'Total Pendente' : 'Pedidos a validar'}
-                                </Typography>
+                                <Typography variant="body2" color="text.secondary">Total Pendente</Typography>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -305,18 +320,76 @@ const PaymentAdminPage = () => {
                         <Card>
                             <CardContent sx={{ textAlign: 'center', py: 2 }}>
                                 <Schedule sx={{ fontSize: 36, color: 'info.main', mb: 0.5 }} />
-                                <Typography variant="h4">
-                                    {tab === 0
-                                        ? new Set(payments.map(p => p.tb_document)).size
-                                        : exemptions.length}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {tab === 0 ? 'Pedidos distintos' : 'Pedidos a validar'}
-                                </Typography>
+                                <Typography variant="h4">{new Set(payments.map(p => p.tb_document)).size}</Typography>
+                                <Typography variant="body2" color="text.secondary">Pedidos distintos</Typography>
                             </CardContent>
                         </Card>
                     </Grid>
                 </Grid>
+            )}
+
+            {/* Stats + filtros isenções */}
+            {tab === 2 && (
+                <>
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                    <VerifiedUser sx={{ fontSize: 28, color: '#9c27b0', mb: 0.5 }} />
+                                    <Typography variant="h5" fontWeight={700}>{exemptionStats.total_all ?? '—'}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Total isenções</Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                    <CheckCircle sx={{ fontSize: 28, color: 'success.main', mb: 0.5 }} />
+                                    <Typography variant="h5" fontWeight={700}>{exemptionStats.total_approved ?? '—'}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Aprovadas</Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                    <Schedule sx={{ fontSize: 28, color: 'info.main', mb: 0.5 }} />
+                                    <Typography variant="h5" fontWeight={700}>{exemptionStats.this_month ?? '—'}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Este mês</Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                    <Euro sx={{ fontSize: 28, color: 'warning.main', mb: 0.5 }} />
+                                    <Typography variant="h5" fontWeight={700}>{exemptionStats.this_year ?? '—'}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Este ano</Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    </Grid>
+                    <Paper sx={{ p: 2, mb: 2 }}>
+                        <Grid container spacing={2} alignItems="center">
+                            <Grid size={{ xs: 6, sm: 3 }}>
+                                <TextField type="date" label="Data início" value={exemptionFilters.startDate}
+                                    onChange={(e) => handleExemptionFilterChange('startDate', e.target.value)}
+                                    size="small" fullWidth InputLabelProps={{ shrink: true }} />
+                            </Grid>
+                            <Grid size={{ xs: 6, sm: 3 }}>
+                                <TextField type="date" label="Data fim" value={exemptionFilters.endDate}
+                                    onChange={(e) => handleExemptionFilterChange('endDate', e.target.value)}
+                                    size="small" fullWidth InputLabelProps={{ shrink: true }} />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 3 }}>
+                                <Button variant="outlined" fullWidth size="small"
+                                    onClick={() => { setExemptionFilters({ startDate: '', endDate: '' }); setExemptionPage(1); }}>
+                                    Limpar filtros
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    </Paper>
+                </>
             )}
 
             {/* Tabela */}
@@ -346,7 +419,7 @@ const PaymentAdminPage = () => {
                                         <Typography color="text.secondary">
                                             {tab === 0 ? 'Nenhum pagamento pendente'
                                                 : tab === 1 ? 'Nenhum registo encontrado'
-                                                    : 'Nenhuma isenção pendente'}
+                                                    : 'Nenhuma isenção registada'}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
@@ -380,11 +453,17 @@ const PaymentAdminPage = () => {
                                         </TableCell>
                                     )}
                                     <TableCell align="right">
-                                        <Typography variant="body2" fontWeight={600}>
-                                            {tab === 2
-                                                ? <Chip label="Gratuito" size="small" color="secondary" />
-                                                : `€${Number(payment.amount || 0).toFixed(2)}`}
-                                        </Typography>
+                                        {tab === 2 ? (
+                                            <Chip
+                                                label={getExemptionStatusLabel(payment.payment_status)}
+                                                size="small"
+                                                color={getExemptionStatusColor(payment.payment_status)}
+                                            />
+                                        ) : (
+                                            <Typography variant="body2" fontWeight={600}>
+                                                {`€${Number(payment.amount || 0).toFixed(2)}`}
+                                            </Typography>
+                                        )}
                                     </TableCell>
                                     {!isMobile && (
                                         <TableCell>
@@ -413,15 +492,15 @@ const PaymentAdminPage = () => {
                                                 <Undo fontSize="small" />
                                             </IconButton>
                                         )}
-                                        {tab === 2 && (
+                                        {tab === 2 && payment.payment_status === 'PENDING_VALIDATION' && (
                                             <>
-                                                <IconButton size="small" color="success" onClick={() => {
+                                                <IconButton size="small" color="success" title="Aprovar isenção" onClick={() => {
                                                     setSelectedPayment(payment);
                                                     setConfirmOpen(true);
                                                 }}>
                                                     <CheckCircle fontSize="small" />
                                                 </IconButton>
-                                                <IconButton size="small" color="error" onClick={() => {
+                                                <IconButton size="small" color="error" title="Rejeitar isenção" onClick={() => {
                                                     setSelectedPayment(payment);
                                                     setRejectOpen(true);
                                                 }}>
@@ -440,6 +519,12 @@ const PaymentAdminPage = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                         <Pagination count={totalPages} page={page}
                             onChange={(_, p) => setPage(p)} color="primary" size={isMobile ? 'small' : 'medium'} />
+                    </Box>
+                )}
+                {tab === 2 && exemptionTotalPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <Pagination count={exemptionTotalPages} page={exemptionPage}
+                            onChange={(_, p) => setExemptionPage(p)} color="secondary" size={isMobile ? 'small' : 'medium'} />
                     </Box>
                 )}
             </Paper>
@@ -532,18 +617,22 @@ const PaymentAdminPage = () => {
                             Devolver
                         </Button>
                     )}
-                    {(tab === 0 || tab === 2) && selectedPayment && (
+                    {tab === 0 && selectedPayment && (
+                        <Button variant="contained" color="success" startIcon={<CheckCircle />}
+                            onClick={() => { setDetailsOpen(false); setConfirmOpen(true); }}>
+                            Aprovar
+                        </Button>
+                    )}
+                    {tab === 2 && selectedPayment?.payment_status === 'PENDING_VALIDATION' && (
                         <>
                             <Button variant="contained" color="success" startIcon={<CheckCircle />}
                                 onClick={() => { setDetailsOpen(false); setConfirmOpen(true); }}>
                                 Aprovar
                             </Button>
-                            {tab === 2 && (
-                                <Button variant="outlined" color="error" startIcon={<Cancel />}
-                                    onClick={() => { setDetailsOpen(false); setRejectOpen(true); }}>
-                                    Rejeitar
-                                </Button>
-                            )}
+                            <Button variant="outlined" color="error" startIcon={<Cancel />}
+                                onClick={() => { setDetailsOpen(false); setRejectOpen(true); }}>
+                                Rejeitar
+                            </Button>
                         </>
                     )}
                 </DialogActions>

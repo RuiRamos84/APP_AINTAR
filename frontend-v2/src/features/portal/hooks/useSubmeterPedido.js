@@ -12,9 +12,10 @@ export const usePortalDocTypes = () => {
     queryKey: ['portal', 'doc-types'],
     queryFn: async () => {
       const metadata = await fetchMetaData();
-      return metadata.types || [];
+      const types = metadata.types || [];
+      return types.filter((t) => Number(t.intern) === 0);
     },
-    staleTime: 1000 * 60 * 30, // 30 minutes
+    staleTime: 1000 * 60 * 30,
   });
 };
 

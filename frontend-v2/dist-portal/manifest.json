@@ -1,0 +1,33 @@
+{
+  "name": "AINTAR APP - Gestão de Processos e Pedidos",
+  "short_name": "AINTAR APP",
+  "description": "Sistema de gestão de processos, pedidos e documentos da AINTAR. Plataforma completa para gestão de tarefas, emissões e operações.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#40C4FF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "type": "image/x-icon",
+      "sizes": "48x48"
+    },
+    {
+      "src": "/logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "pt-PT",
+  "dir": "ltr"
+}

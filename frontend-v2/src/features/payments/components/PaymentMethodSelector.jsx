@@ -5,6 +5,7 @@ import {
     Lock,
     Payments,
     Schedule,
+    VerifiedUser,
 } from '@mui/icons-material';
 import { alpha, Avatar, Box, Chip, Grid, Typography, useTheme } from '@mui/material';
 import { PAYMENT_METHOD_LABELS } from '../services/paymentTypes';
@@ -63,6 +64,15 @@ const methods = {
         description: 'Balcões municipais',
         feature: 'Presencial',
         time: '1-2 dias',
+        requiresCheckout: false,
+    },
+    ISENCAO: {
+        label: PAYMENT_METHOD_LABELS.ISENCAO,
+        icon: VerifiedUser,
+        color: '#9c27b0',
+        description: 'Comprovativo validado — 0,00 €',
+        feature: 'Isento',
+        time: 'Imediato',
         requiresCheckout: false,
     },
 };

@@ -119,6 +119,8 @@ class PaymentService:
             "MUNICÍPIO": "5",
             "PAG_MUNICIPIO": "5",
             "MUNICIPALITY": "5",
+            "ISENCAO": "6",
+            "ISENÇÃO": "6",
         }
 
         return mapping.get(method_upper)
@@ -1124,16 +1126,129 @@ class PaymentService:
     # ISENÇÕES (Gratuito)
     # ============================================================
 
-    def submit_exemption(self, document_id: int, current_user: str):
-        """Submeter pedido de isenção para um documento gratuito"""
+    def apply_exemption_direct(self, document_id: int, user_pk: int, current_user: str):
+        """Aplicar isenção diretamente (registo + aprovação imediata).
+        Usado pelo operador que já validou o comprovativo em anexo."""
         try:
             with db_session_manager(current_user) as db:
-                sibs_pk = db.execute(text("""
-                    SELECT "fbo_document_exemption$submit"(:document_id)
-                """), {"document_id": document_id}).scalar()
+                # Garantir que existe registo de fatura para o documento
+                db.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
 
-                if not sibs_pk:
-                    raise APIError("Não foi possível criar o pedido de isenção.", 400)
+                # Obter regnumber para usar como order_id
+                regnumber = db.execute(text(
+                    "SELECT regnumber FROM tb_document WHERE pk = :doc_id"
+                ), {"doc_id": document_id}).scalar() or f"ISENCAO-{document_id}"
+
+                transaction_id = f"ISENCAO-{document_id}-{int(time.time())}"
+                new_pk = db.execute(text("SELECT nextval('sq_codes')")).scalar()
+
+                payment_reference = {
+                    "manual_payment": True,
+                    "payment_details": "Isenção — taxa de saneamento liquidada em conta de água",
+                    "submitted_by": user_pk,
+                    "submitted_at": datetime.now().isoformat(),
+                    "payment_type": "ISENCAO"
+                }
+
+                # Criar registo tb_sibs com método ISENCAO e valor 0
+                sibs_result = db.execute(text("""
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id,
+                                NULL, 0, 'EUR',
+                                'ISENCAO', 'PENDING_VALIDATION', :pref, NULL,
+                                NULL, :created_at, NULL, NULL, NULL)
+                """), {
+                    "pk": new_pk,
+                    "order_id": regnumber,
+                    "transaction_id": transaction_id,
+                    "pref": json.dumps(payment_reference),
+                    "created_at": datetime.now()
+                })
+
+                sibs_pk = sibs_result.scalar() or new_pk
+
+                # Associar à fatura do documento
+                db.execute(text("""
+                    SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
+                """), {"document_id": document_id, "sibs_pk": sibs_pk})
+
+                # Garantir link (fallback caso fbo_document_invoice$link falhe silenciosamente)
+                verify = db.execute(text(
+                    "SELECT tb_sibs FROM tb_document_invoice WHERE tb_document = :doc_id LIMIT 1"
+                ), {"doc_id": document_id}).scalar()
+                if verify != sibs_pk:
+                    db.execute(text(
+                        "UPDATE tb_document_invoice SET tb_sibs = :sibs_pk WHERE tb_document = :doc_id"
+                    ), {"sibs_pk": sibs_pk, "doc_id": document_id})
+
+                # Aprovar imediatamente
+                db.execute(text("""
+                    SELECT fbo_sibs_approve(:payment_pk, :user_pk)
+                """), {"payment_pk": sibs_pk, "user_pk": user_pk})
+
+                # Actualizar parâmetro "Método de pagamento" (pk=6 = Isenção)
+                payment_method_pk = self._map_payment_method_to_param('ISENCAO')
+                if payment_method_pk:
+                    db.execute(text("""
+                        UPDATE vbf_document_param dp
+                        SET value = :payment_method_pk
+                        FROM tb_param p
+                        WHERE dp.tb_param = p.pk
+                          AND dp.tb_document = :document_id
+                          AND p.name = 'Método de pagamento'
+                    """), {"payment_method_pk": payment_method_pk, "document_id": document_id})
+
+                db.commit()
+
+            return {
+                "success": True,
+                "sibs_pk": sibs_pk,
+                "payment_status": "SUCCESS",
+                "message": "Isenção aplicada com sucesso"
+            }
+
+        except Exception as e:
+            logger.error(f"Erro apply_exemption_direct doc={document_id}: {e}")
+            raise
+
+    def submit_exemption(self, document_id: int, current_user: str):
+        """Submeter pedido de isenção pendente de aprovação."""
+        try:
+            with db_session_manager(current_user) as db:
+                db.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
+
+                regnumber = db.execute(text(
+                    "SELECT regnumber FROM tb_document WHERE pk = :doc_id"
+                ), {"doc_id": document_id}).scalar() or f"ISENCAO-{document_id}"
+
+                transaction_id = f"ISENCAO-{document_id}-{int(time.time())}"
+                new_pk = db.execute(text("SELECT nextval('sq_codes')")).scalar()
+
+                payment_reference = {
+                    "manual_payment": True,
+                    "payment_details": "Pedido de isenção submetido pelo cliente",
+                    "payment_type": "ISENCAO"
+                }
+
+                sibs_result = db.execute(text("""
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id,
+                                NULL, 0, 'EUR',
+                                'ISENCAO', 'PENDING_VALIDATION', :pref, NULL,
+                                NULL, :created_at, NULL, NULL, NULL)
+                """), {
+                    "pk": new_pk,
+                    "order_id": regnumber,
+                    "transaction_id": transaction_id,
+                    "pref": json.dumps(payment_reference),
+                    "created_at": datetime.now()
+                })
+
+                sibs_pk = sibs_result.scalar() or new_pk
+
+                db.execute(text("""
+                    SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
+                """), {"document_id": document_id, "sibs_pk": sibs_pk})
+
+                db.commit()
 
             return {
                 "success": True,
@@ -1164,6 +1279,62 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro get_pending_exemptions: {e}")
+            raise
+
+    def get_exemption_history(self, current_user: str, page: int = 1, page_size: int = 20,
+                              start_date=None, end_date=None):
+        """Histórico completo de isenções com stats de controlo."""
+        try:
+            with db_session_manager(current_user) as session:
+                where = ["payment_method = 'ISENCAO'"]
+                params = {}
+
+                if start_date:
+                    where.append("DATE(created_at) >= :start_date")
+                    params['start_date'] = start_date
+                if end_date:
+                    where.append("DATE(created_at) <= :end_date")
+                    params['end_date'] = end_date
+
+                where_clause = " AND ".join(where)
+
+                total = session.execute(
+                    text(f"SELECT COUNT(*) FROM vbl_sibs WHERE {where_clause}"), params
+                ).scalar()
+
+                stats = session.execute(text("""
+                    SELECT
+                        COUNT(*) FILTER (WHERE payment_method = 'ISENCAO') AS total_all,
+                        COUNT(*) FILTER (WHERE payment_method = 'ISENCAO' AND payment_status = 'SUCCESS') AS total_approved,
+                        COUNT(*) FILTER (WHERE payment_method = 'ISENCAO'
+                                           AND DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)) AS this_month,
+                        COUNT(*) FILTER (WHERE payment_method = 'ISENCAO'
+                                           AND DATE(created_at) >= DATE_TRUNC('year', CURRENT_DATE)) AS this_year
+                    FROM vbl_sibs
+                """)).fetchone()
+
+                offset = (page - 1) * page_size
+                params.update({'limit': page_size, 'offset': offset})
+
+                results = session.execute(text(f"""
+                    SELECT pk, order_id, transaction_id, amount,
+                           payment_method, payment_status, payment_reference,
+                           created_at, validated_at, validated_by,
+                           tb_document, regnumber, document_descr, entity
+                    FROM vbl_sibs
+                    WHERE {where_clause}
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """), params).fetchall()
+
+                return {
+                    'exemptions': [dict(r._mapping) for r in results],
+                    'total': total,
+                    'stats': dict(stats._mapping) if stats else {}
+                }
+
+        except Exception as e:
+            logger.error(f"Erro get_exemption_history: {e}")
             raise
 
     def approve_exemption(self, payment_pk: int, user_pk: int, current_user: str):
@@ -1309,18 +1480,53 @@ class PaymentService:
             raise
 
     def get_payments_by_entity(self, entity_pk, current_user):
-        """Lista faturas/pagamentos de uma entidade específica"""
+        """Lista faturas/pagamentos de uma entidade específica (legacy)"""
+        return self.get_payments_by_user(entity_pk, current_user)
+
+    def get_my_contracts(self, entity_pk, current_user):
+        """Contratos e períodos de pagamento do utilizador (filtra por ts_entity do JWT)."""
         with db_session_manager(current_user) as session:
-            # vbl_document_invoice já tem os dados de pagamento (via join com tb_sibs)
+            contracts_result = session.execute(text("""
+                SELECT c.pk, c.start_date, c.stop_date, c.family, c.tt_contractfrequency,
+                       c.address, c.postal
+                FROM vbl_contract c
+                WHERE c.ts_entity = :entity_pk
+                ORDER BY c.start_date DESC
+            """), {"entity_pk": entity_pk})
+            contracts = [dict(row) for row in contracts_result.mappings().all()]
+
+            if not contracts:
+                return []
+
+            contract_pks = [c["pk"] for c in contracts]
+            payments_result = session.execute(text("""
+                SELECT pk, tb_contract, start_date, stop_date, value, presented, payed
+                FROM vbl_contract_payment
+                WHERE tb_contract = ANY(:pks)
+                ORDER BY start_date DESC
+            """), {"pks": contract_pks})
+            payments = [dict(row) for row in payments_result.mappings().all()]
+
+            payments_by_contract = {}
+            for p in payments:
+                payments_by_contract.setdefault(p["tb_contract"], []).append(p)
+
+            for c in contracts:
+                c["payments"] = payments_by_contract.get(c["pk"], [])
+
+            return contracts
+
+    def get_payments_by_user(self, user_id, current_user):
+        """Lista faturas/pagamentos dos documentos criados pelo utilizador."""
+        with db_session_manager(current_user) as session:
             query = text("""
                 SELECT di.*, d.regnumber, d.tt_type_name as type_name, d.submission
                 FROM vbl_document_invoice di
                 JOIN vbl_document d ON d.pk = di.tb_document
-                WHERE d.ts_entity = :entity_pk
+                WHERE d.hist_client = :user_id
                 ORDER BY d.submission DESC
             """)
-            result = session.execute(query, {"entity_pk": entity_pk})
-            # Usar .mappings().all() para converter para lista de dicts
+            result = session.execute(query, {"user_id": user_id})
             return [dict(row) for row in result.mappings().all()]
 
 

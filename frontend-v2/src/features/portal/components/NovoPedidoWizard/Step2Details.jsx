@@ -1,20 +1,19 @@
 import React from 'react';
-import { 
-  Box, 
-  Typography, 
-  TextField, 
-  Grid, 
-  Button, 
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
   Divider,
   Stack,
   alpha,
-  useTheme
+  useTheme,
 } from '@mui/material';
-import { 
-  ArrowBack as BackIcon, 
+import {
+  ArrowBack as BackIcon,
   NavigateNext as NextIcon,
   LocationOn as LocationIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,7 +23,7 @@ import AddressForm from '@/shared/components/AddressForm/AddressForm';
 const schema = z.object({
   text: z.string().min(10, 'A descrição deve ter pelo menos 10 caracteres'),
   address: z.string().min(3, 'A morada é obrigatória'),
-  postal: z.string().regex(/^\d{4}-\d{3}$/, 'Código postal inválido (Ex: 0000-000)'),
+  postal: z.string().regex(/^\d{4}-\d{3}$/, 'Código postal inválido (ex: 0000-000)'),
   nut4: z.string().optional(),
   door: z.string().optional(),
   floor: z.string().optional(),
@@ -32,8 +31,8 @@ const schema = z.object({
 
 const Step2Details = ({ formData, setFormData, onNext, onBack }) => {
   const theme = useTheme();
-  
-  const { control, handleSubmit, formState: { errors }, setValue } = useForm({
+
+  const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
       text: formData.text || '',
@@ -42,28 +41,34 @@ const Step2Details = ({ formData, setFormData, onNext, onBack }) => {
       nut4: formData.nut4 || '',
       door: formData.door || '',
       floor: formData.floor || '',
-    }
+    },
   });
 
   const onSubmit = (data) => {
-    setFormData(prev => ({ ...prev, ...data }));
+    setFormData((prev) => ({ ...prev, ...data }));
     onNext();
   };
 
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+      <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
         Detalhes do Pedido
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-        Explique-nos o que pretende e indique o local da ocorrência ou instalação.
+        Explique o que pretende e indique o local da ocorrência ou instalação.
       </Typography>
 
       <Stack spacing={4}>
         {/* Descrição */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-            <InfoIcon color="primary" sx={{ fontSize: 20 }} />
+            <Box sx={{
+              width: 28, height: 28, borderRadius: 1.5, flexShrink: 0,
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <InfoIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+            </Box>
             <Typography variant="subtitle2" fontWeight={700}>O seu pedido</Typography>
           </Box>
           <Controller
@@ -88,43 +93,46 @@ const Step2Details = ({ formData, setFormData, onNext, onBack }) => {
 
         {/* Localização */}
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-            <LocationIcon color="primary" sx={{ fontSize: 20 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Box sx={{
+              width: 28, height: 28, borderRadius: 1.5, flexShrink: 0,
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <LocationIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+            </Box>
             <Typography variant="subtitle2" fontWeight={700}>Onde se localiza?</Typography>
           </Box>
-          
+
           <AddressForm
             values={{
-              address: control._defaultValues.address,
-              postal: control._defaultValues.postal,
-              nut4: control._defaultValues.nut4,
-              door: control._defaultValues.door,
-              floor: control._defaultValues.floor,
+              address: watch('address'),
+              postal: watch('postal'),
+              nut4: watch('nut4'),
+              door: watch('door'),
+              floor: watch('floor'),
             }}
-            onChange={(field, value) => {
-              setValue(field, value, { shouldValidate: true });
-            }}
+            onChange={(field, value) => setValue(field, value, { shouldValidate: true })}
             errors={errors}
           />
         </Box>
       </Stack>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 6 }}>
-        <Button 
-          startIcon={<BackIcon />} 
+        <Button
+          startIcon={<BackIcon />}
           onClick={onBack}
           sx={{ borderRadius: '12px', px: 3 }}
         >
           Anterior
         </Button>
-        <Button 
+        <Button
           type="submit"
-          variant="contained" 
+          variant="contained"
           endIcon={<NextIcon />}
-          sx={{ 
-            borderRadius: '12px', 
-            px: 4,
-            boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.25)}`
+          sx={{
+            borderRadius: '12px', px: 4,
+            boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.25)}`,
           }}
         >
           Seguinte

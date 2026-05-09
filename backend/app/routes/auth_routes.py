@@ -14,6 +14,7 @@ from .. import limiter
 from datetime import datetime, timezone
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
+from app.core.permissions import permission_manager
 
 logger = get_logger(__name__)
 
@@ -325,7 +326,10 @@ def me():
         ).fetchone()
 
     interfaces = result.interfaces if result else []
-    return jsonify({"interfaces": interfaces}), 200
+    return jsonify({
+        "interfaces": interfaces,
+        "permissions": permission_manager.pks_to_permissions(interfaces),
+    }), 200
 
 
 @bp.route('/preferences', methods=['PATCH'])

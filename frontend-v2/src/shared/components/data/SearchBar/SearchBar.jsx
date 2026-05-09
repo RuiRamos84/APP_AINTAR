@@ -41,12 +41,13 @@ const SearchWrapper = styled('div', {
 }));
 
 const SearchIconWrapper = styled('div', {
-  shouldForwardProp: (prop) => prop !== 'isDarkMode'
-})(({ theme, isDarkMode }) => ({
-  padding: theme.spacing(0, 1),
+  shouldForwardProp: (prop) => prop !== 'isDarkMode' && prop !== 'open'
+})(({ theme, isDarkMode, open }) => ({
+  padding: open ? theme.spacing(0, 1) : 0,
   height: '100%',
   position: 'absolute',
   right: 0,
+  left: open ? 'auto' : 0,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -173,7 +174,7 @@ export const SearchBar = ({ searchTerm: externalSearchTerm, onSearch }) => {
         fullWidth
         isDarkMode={isDarkMode}
       />
-      <SearchIconWrapper isDarkMode={isDarkMode}>
+      <SearchIconWrapper isDarkMode={isDarkMode} open={searchOpen}>
         {searchOpen && searchTerm ? (
           <Tooltip title="Limpar pesquisa">
             <IconButton

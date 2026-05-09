@@ -35,6 +35,9 @@ class AuthManager {
       // se não estiverem registados, o GET /auth/me sai sem Authorization → 401.
       this.setupApiInterceptors();
 
+      // Limpar catálogo de permissões legado (já não é usado — permissões chegam como strings do backend)
+      localStorage.removeItem('permission_catalog');
+
       const storedUser = localStorage.getItem('user');
 
       if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
@@ -42,31 +45,37 @@ class AuthManager {
           const user = JSON.parse(storedUser);
 
           if (user?.access_token) {
-            // Carregar imediatamente, verificar token depois
-            this.authState.setState({ user, isLoading: false });
+            this.authState.setState({ user, isLoading: true });
             this.sessionManager.start();
 
-            // Verificar token em background (não bloqueia)
             if (!this.tokenManager.isTokenValid(user.access_token)) {
-              // Token expirado - tentar refresh em background
               this.tokenManager.refreshToken(Date.now())
+                .then(() => {
+                  this.authState.setState({ isLoading: false });
+                })
                 .catch(() => {
-                  // Falhou - limpar sessão
+                  console.warn('[AuthManager] Token refresh falhou — a limpar sessão');
                   localStorage.removeItem('user');
-                  this.authState.setState({ user: null });
+                  this.authState.setState({ user: null, isLoading: false });
                 });
             } else {
-              // Token válido — buscar interfaces frescas da BD em background
-              // (permissões podem ter sido alteradas desde o último login)
               apiClient.get('/auth/me')
                 .then((data) => {
                   if (data?.interfaces !== undefined) {
-                    const refreshedUser = { ...user, interfaces: data.interfaces };
+                    const refreshedUser = {
+                      ...user,
+                      interfaces: data.interfaces,
+                      ...(data.permissions !== undefined && { permissions: data.permissions }),
+                    };
                     localStorage.setItem('user', JSON.stringify(refreshedUser));
-                    this.authState.setState({ user: refreshedUser });
+                    this.authState.setState({ user: refreshedUser, isLoading: false });
+                  } else {
+                    this.authState.setState({ isLoading: false });
                   }
                 })
-                .catch(() => { /* silencioso — usa dados do localStorage */ });
+                .catch(() => {
+                  this.authState.setState({ isLoading: false });
+                });
             }
           } else {
             localStorage.removeItem('user');

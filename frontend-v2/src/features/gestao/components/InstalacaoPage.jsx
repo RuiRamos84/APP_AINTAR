@@ -25,12 +25,22 @@ import {
   PrecisionManufacturing as EquipamentosTabIcon,
   Construction as ObrasTabIcon,
   Block as DescargaIcon,
+  InsertChart as ChartIcon,
+  TableChart as ExcelIcon,
 } from '@mui/icons-material';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as ReTooltip, Legend, ResponsiveContainer,
+} from 'recharts';
+import * as XLSX from 'xlsx';
 import { InstalacaoEquipamentosTab } from '@/features/equipamentos';
 import { getMeta as getEquipamentosMeta } from '@/features/equipamentos/services/equipamentoService';
 import { InstalacaoObrasTab } from '@/features/obras';
 import { useEffect, useRef } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import {
+  DataGrid, GridToolbar,
+  useGridApiRef, gridFilteredSortedRowEntriesSelector,
+} from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -78,6 +88,114 @@ const formatNum = (v, suffix = '') => {
 
 const Cell = ({ children }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>{children}</Box>
+);
+
+// ─── Chart/export helpers ─────────────────────────────────────────────────────
+
+const exportToExcel = (rows, columns, filename) => {
+  const sheet = rows.map(r =>
+    Object.fromEntries(columns.map(c => [c.label, c.fn ? c.fn(r) : r[c.key]]))
+  );
+  const ws = XLSX.utils.json_to_sheet(sheet);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+  XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+};
+
+const TabActionBar = ({ onAdd, addLabel, addColor, onChart, onExport, extra }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, flexWrap: 'wrap', gap: 1 }}>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      <Button variant="contained" color={addColor || 'primary'} startIcon={<AddIcon />} size="small" onClick={onAdd}>
+        {addLabel}
+      </Button>
+      {extra}
+    </Box>
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      <Button size="small" variant="outlined" startIcon={<ChartIcon />} onClick={onChart}>Gráfico</Button>
+      <Button size="small" variant="outlined" color="success" startIcon={<ExcelIcon />} onClick={onExport}>Excel</Button>
+    </Box>
+  </Box>
+);
+
+// Portuguese locale for DataGrid filter panel
+const GRID_FILTER_LOCALE = {
+  toolbarFilters: 'Filtros',
+  toolbarFiltersLabel: 'Mostrar filtros',
+  toolbarFiltersTooltipHide: 'Ocultar filtros',
+  toolbarFiltersTooltipShow: 'Mostrar filtros',
+  toolbarColumns: 'Colunas',
+  toolbarDensity: 'Densidade',
+  toolbarExport: 'Exportar CSV',
+  filterPanelAddFilter: 'Adicionar filtro',
+  filterPanelRemoveAll: 'Remover todos',
+  filterPanelDeleteIconLabel: 'Remover',
+  filterPanelLogicOperator: 'Operador lógico',
+  filterPanelOperator: 'Operador',
+  filterPanelOperatorAnd: 'E',
+  filterPanelOperatorOr: 'Ou',
+  filterPanelColumns: 'Coluna',
+  filterPanelInputLabel: 'Valor',
+  filterPanelInputPlaceholder: 'Filtrar por valor',
+  filterOperatorContains: 'contém',
+  filterOperatorDoesNotContain: 'não contém',
+  filterOperatorEquals: 'igual a',
+  filterOperatorDoesNotEqual: 'diferente de',
+  filterOperatorStartsWith: 'começa com',
+  filterOperatorEndsWith: 'termina com',
+  filterOperatorIsEmpty: 'está vazio',
+  filterOperatorIsNotEmpty: 'não está vazio',
+  filterOperatorIsAnyOf: 'é um de',
+  toolbarQuickFilterPlaceholder: 'Pesquisar…',
+  toolbarQuickFilterLabel: 'Pesquisar',
+  toolbarQuickFilterDeleteIconLabel: 'Limpar pesquisa',
+  columnMenuSortAsc: 'Ordenar crescente',
+  columnMenuSortDesc: 'Ordenar decrescente',
+  columnMenuFilter: 'Filtrar',
+  columnMenuHideColumn: 'Ocultar coluna',
+  columnMenuManageColumns: 'Gerir colunas',
+};
+
+const InstalacaoDataChart = ({ open, onClose, title, data, series, yUnit = '', stacked = false }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+    <DialogTitle sx={{ pb: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ChartIcon color="primary" />
+          <Typography variant="h6" fontWeight={700}>{title}</Typography>
+        </Box>
+        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+      </Box>
+    </DialogTitle>
+    <DialogContent dividers sx={{ pt: 2 }}>
+      {data.length === 0 ? (
+        <Box sx={{ py: 4, textAlign: 'center' }}>
+          <Typography color="text.secondary">Sem dados para apresentar.</Typography>
+        </Box>
+      ) : (
+        <ResponsiveContainer width="100%" height={380}>
+          <BarChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 72 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" angle={-45} textAnchor="end"
+              interval={Math.max(0, Math.floor(data.length / 12) - 1)}
+              tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }}
+              tickFormatter={v => yUnit ? `${v} ${yUnit}` : String(v)} width={64} />
+            <ReTooltip formatter={(v, name) => [yUnit ? `${v} ${yUnit}` : v, name]} />
+            <Legend verticalAlign="top" />
+            {series.map(s => (
+              <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color}
+                stackId={stacked ? 'stack' : undefined}
+                radius={!stacked && series.length === 1 ? [3, 3, 0, 0] : undefined}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} size="small">Fechar</Button>
+    </DialogActions>
+  </Dialog>
 );
 
 const EMPTY_STATE = (msg) => (
@@ -285,7 +403,10 @@ const volSchema = z.object({
 const volDefaults = { pndate: toStr(new Date()), pnval: '', pnspot: '' };
 
 const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
+  const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartData, setChartData] = useState([]);
   const { data: spots = [] } = useSpotList();
   const spotMap = useMemo(() => Object.fromEntries(spots.map((s) => [s.pk, s.value])), [spots]);
 
@@ -299,29 +420,48 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
     setOpen(false);
   };
 
+  const getFiltered = () => {
+    try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
+    catch { return data; }
+  };
+
+  const handleChart = () => {
+    const rows = getFiltered();
+    setChartData(rows.sort((a, b) => new Date(a.data) - new Date(b.data))
+      .map(r => ({ date: formatDate(r.data), 'Volume (m³)': parseFloat(r.valor) || 0 })));
+    setChartOpen(true);
+  };
+
+  const handleExport = () => exportToExcel(getFiltered(), [
+    { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
+    { key: 'tt_readspot', label: 'Tipo', fn: r => spotMap[r.tt_readspot] || '' },
+    { key: 'valor', label: 'Volume (m³)', fn: r => parseFloat(r.valor) || 0 },
+  ], `volumes_${pk}`);
+
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
     {
       field: 'tt_readspot', headerName: 'Tipo', width: 160,
-      renderCell: ({ value }) => <Cell><Chip label={spotMap[value] || value || '—'} size="small" color="primary" variant="outlined" /></Cell>,
+      valueGetter: (v) => spotMap[v] || v || '',
+      renderCell: ({ row }) => <Cell><Chip label={spotMap[row.tt_readspot] || row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell>,
     },
     {
-      field: 'valor', headerName: 'Volume (m³)', flex: 1, align: 'right', headerAlign: 'right',
+      field: 'valor', headerName: 'Volume (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value, 'm³')}</Typography></Cell>,
     },
   ];
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} size="small" onClick={() => setOpen(true)}>
-          Nova Leitura
-        </Button>
-      </Box>
-      <DataGrid rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        slots={{ toolbar: GridToolbar }}
+        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
-        localeText={GRID_LOCALE} />
+        localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Volumes Tratados"
+        data={chartData} series={[{ key: 'Volume (m³)', label: 'Volume (m³)', color }]} yUnit="m³" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(volDefaults); }} title="Nova Leitura de Volume"
         icon={VolumeIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -361,7 +501,10 @@ const waterSchema = z.object({
 const waterDefaults = { pndate: toStr(new Date()), pnval: '' };
 
 const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
+  const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartData, setChartData] = useState([]);
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(waterSchema), defaultValues: waterDefaults,
   });
@@ -372,7 +515,6 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
     setOpen(false);
   };
 
-  // Compute diasDecorridos and volumeConsumido from consecutive readings
   const processedData = useMemo(() => {
     if (!data || data.length === 0) return [];
     const sorted = [...data].sort((a, b) => new Date(a.data) - new Date(b.data));
@@ -385,27 +527,45 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
     });
   }, [data]);
 
+  const getFiltered = () => {
+    try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
+    catch { return processedData; }
+  };
+
+  const handleChart = () => {
+    const rows = getFiltered().filter(r => r.volumeConsumido !== null);
+    setChartData(rows.map(r => ({ date: formatDate(r.data), 'Consumo (m³)': r.volumeConsumido })));
+    setChartOpen(true);
+  };
+
+  const handleExport = () => exportToExcel(getFiltered(), [
+    { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
+    { key: 'valor', label: 'Leitura (m³)', fn: r => parseFloat(r.valor) || 0 },
+    { key: 'diasDecorridos', label: 'Dias', fn: r => r.diasDecorridos ?? '' },
+    { key: 'volumeConsumido', label: 'Consumo (m³)', fn: r => r.volumeConsumido ?? '' },
+  ], `agua_${pk}`);
+
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
-    { field: 'valor', headerName: 'Leitura (m³)', flex: 1, align: 'right', headerAlign: 'right',
+    { field: 'valor', headerName: 'Leitura (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value, 'm³')}</Typography></Cell> },
-    { field: 'diasDecorridos', headerName: 'Dias', width: 80, align: 'right', headerAlign: 'right',
+    { field: 'diasDecorridos', headerName: 'Dias', width: 80, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{value ?? '—'}</Typography></Cell> },
-    { field: 'volumeConsumido', headerName: 'Consumo (m³)', width: 130, align: 'right', headerAlign: 'right',
+    { field: 'volumeConsumido', headerName: 'Consumo (m³)', width: 130, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} color="primary" sx={{ ml: 'auto' }}>{value !== null ? formatNum(value, 'm³') : '—'}</Typography></Cell> },
   ];
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} size="small" onClick={() => setOpen(true)}>
-          Nova Leitura
-        </Button>
-      </Box>
-      <DataGrid rows={processedData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={processedData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        slots={{ toolbar: GridToolbar }}
+        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
-        localeText={GRID_LOCALE} />
+        localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Consumo de Água"
+        data={chartData} series={[{ key: 'Consumo (m³)', label: 'Consumo (m³)', color: '#42a5f5' }]} yUnit="m³" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(waterDefaults); }} title="Nova Leitura de Água"
         icon={WaterIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -439,7 +599,10 @@ const energySchema = z.object({
 const energyDefaults = { pndate: toStr(new Date()), pnval_vazio: '', pnval_ponta: '', pnval_cheia: '' };
 
 const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
+  const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartData, setChartData] = useState([]);
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(energySchema), defaultValues: energyDefaults,
   });
@@ -456,16 +619,40 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
     setOpen(false);
   };
 
+  const getFiltered = () => {
+    try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
+    catch { return data; }
+  };
+
+  const handleChart = () => {
+    const rows = getFiltered();
+    setChartData(rows.sort((a, b) => new Date(a.data) - new Date(b.data)).map(r => ({
+      date: formatDate(r.data),
+      'Vazio': parseFloat(r.valor_vazio) || 0,
+      'Ponta': parseFloat(r.valor_ponta) || 0,
+      'Cheia': parseFloat(r.valor_cheia) || 0,
+    })));
+    setChartOpen(true);
+  };
+
+  const handleExport = () => exportToExcel(getFiltered(), [
+    { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
+    { key: 'valor_vazio', label: 'Vazio (kWh)', fn: r => parseFloat(r.valor_vazio) || 0 },
+    { key: 'valor_ponta', label: 'Ponta (kWh)', fn: r => parseFloat(r.valor_ponta) || 0 },
+    { key: 'valor_cheia', label: 'Cheia (kWh)', fn: r => parseFloat(r.valor_cheia) || 0 },
+    { key: '_total', label: 'Total (kWh)', fn: r => (parseFloat(r.valor_vazio||0)+parseFloat(r.valor_ponta||0)+parseFloat(r.valor_cheia||0)) },
+  ], `energia_${pk}`);
+
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
-    { field: 'valor_vazio', headerName: 'Vazio (kWh)', flex: 1, align: 'right', headerAlign: 'right',
+    { field: 'valor_vazio', headerName: 'Vazio (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
-    { field: 'valor_ponta', headerName: 'Ponta (kWh)', flex: 1, align: 'right', headerAlign: 'right',
+    { field: 'valor_ponta', headerName: 'Ponta (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
-    { field: 'valor_cheia', headerName: 'Cheia (kWh)', flex: 1, align: 'right', headerAlign: 'right',
+    { field: 'valor_cheia', headerName: 'Cheia (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
     {
-      field: '_total', headerName: 'Total (kWh)', width: 130, align: 'right', headerAlign: 'right',
+      field: '_total', headerName: 'Total (kWh)', width: 130, align: 'right', headerAlign: 'right', type: 'number',
       valueGetter: (_, row) => (parseFloat(row.valor_vazio || 0) + parseFloat(row.valor_ponta || 0) + parseFloat(row.valor_cheia || 0)),
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={700} color="primary" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell>,
     },
@@ -473,15 +660,21 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} size="small" onClick={() => setOpen(true)}>
-          Nova Leitura
-        </Button>
-      </Box>
-      <DataGrid rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        slots={{ toolbar: GridToolbar }}
+        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
-        localeText={GRID_LOCALE} />
+        localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Consumo de Energia"
+        data={chartData} stacked
+        series={[
+          { key: 'Vazio', label: 'Vazio', color: '#4fc3f7' },
+          { key: 'Ponta', label: 'Ponta', color: '#ef5350' },
+          { key: 'Cheia', label: 'Cheia', color: '#66bb6a' },
+        ]}
+        yUnit="kWh" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(energyDefaults); }} title="Nova Leitura de Energia"
         icon={EnergyIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -518,7 +711,10 @@ const expSchema = z.object({
 const expDefaults = { pndate: toStr(new Date()), pntt_expensedest: '', pnval: '', pnts_associate: '', pnmemo: '' };
 
 const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
+  const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartData, setChartData] = useState([]);
   const { data: expTypes = [] } = useExpenseTypes();
   const { data: associates = [] } = useAssociates();
   const expMap   = useMemo(() => Object.fromEntries(expTypes.map((t) => [t.pk, t.value])), [expTypes]);
@@ -541,35 +737,51 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
     setOpen(false);
   };
 
-  const totalValue = useMemo(() => data.reduce((s, e) => s + (parseFloat(e.valor) || 0), 0), [data]);
+  const getFiltered = () => {
+    try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
+    catch { return data; }
+  };
+
+  const handleChart = () => {
+    const rows = getFiltered();
+    setChartData(rows.sort((a, b) => new Date(a.data) - new Date(b.data))
+      .map(r => ({ date: formatDate(r.data), 'Valor (€)': parseFloat(r.valor) || 0 })));
+    setChartOpen(true);
+  };
+
+  const handleExport = () => exportToExcel(getFiltered(), [
+    { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
+    { key: 'tt_expensedest', label: 'Destino', fn: r => expMap[r.tt_expensedest] || '' },
+    { key: 'valor', label: 'Valor (€)', fn: r => parseFloat(r.valor) || 0 },
+    { key: 'ts_associate', label: 'Associado', fn: r => assocMap[r.ts_associate] || '' },
+    { key: 'memo', label: 'Descrição', fn: r => r.memo || '' },
+  ], `despesas_${pk}`);
 
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
     { field: 'tt_expensedest', headerName: 'Destino', width: 170,
-      renderCell: ({ value }) => <Cell><Chip label={expMap[value] || '—'} size="small" color="primary" variant="outlined" sx={{ maxWidth: '100%' }} /></Cell> },
-    { field: 'valor', headerName: 'Valor', width: 120, align: 'right', headerAlign: 'right',
+      valueGetter: (v) => expMap[v] || '',
+      renderCell: ({ row }) => <Cell><Chip label={expMap[row.tt_expensedest] || '—'} size="small" color="primary" variant="outlined" sx={{ maxWidth: '100%' }} /></Cell> },
+    { field: 'valor', headerName: 'Valor', width: 120, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatCurrency(value)}</Typography></Cell> },
     { field: 'ts_associate', headerName: 'Associado', flex: 1, minWidth: 140,
-      renderCell: ({ value }) => <Cell><Typography variant="body2">{assocMap[value] || '—'}</Typography></Cell> },
+      valueGetter: (v) => assocMap[v] || '',
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{assocMap[row.ts_associate] || '—'}</Typography></Cell> },
     { field: 'memo', headerName: 'Descrição', flex: 2, minWidth: 180,
       renderCell: ({ value }) => <Cell><Typography variant="body2" color="text.secondary" noWrap>{value || '—'}</Typography></Cell> },
   ];
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <Button variant="contained" startIcon={<AddIcon />} size="small" onClick={() => setOpen(true)}>
-          Nova Despesa
-        </Button>
-        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-          <Chip label={`${data.length} registo${data.length !== 1 ? 's' : ''}`} size="small" variant="outlined" />
-          {totalValue > 0 && <Chip label={`Total: ${formatCurrency(totalValue)}`} size="small" color="primary" variant="outlined" />}
-        </Box>
-      </Box>
-      <DataGrid rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Despesa" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        slots={{ toolbar: GridToolbar }}
+        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
-        localeText={GRID_LOCALE} />
+        localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Despesas"
+        data={chartData} series={[{ key: 'Valor (€)', label: 'Valor (€)', color: '#ffa726' }]} yUnit="€" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(expDefaults); }} title="Nova Despesa"
         icon={ExpenseIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -719,7 +931,10 @@ const incumpSchema = z.object({
 const incumpDefaults = { data_incump: toStr(new Date()), tt_analiseparam: '', resultado: '', limite: '', operador1: '', operador2: '' };
 
 const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdding }) => {
+  const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [chartData, setChartData] = useState([]);
   const { data: params = [] } = useAnaliseParams();
   const { data: who = [] }    = useWhoList();
   const paramMap = useMemo(() => Object.fromEntries(params.map((p) => [p.pk, p.value])), [params]);
@@ -743,13 +958,41 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
     setOpen(false);
   };
 
+  const getFiltered = () => {
+    try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
+    catch { return data; }
+  };
+
+  const handleChart = () => {
+    const rows = getFiltered();
+    setChartData(rows.sort((a, b) => new Date(a.data) - new Date(b.data)).map(r => ({
+      date: formatDate(r.data),
+      'Resultado': parseFloat(r.resultado) || 0,
+      'Limite': parseFloat(r.limite) || 0,
+    })));
+    setChartOpen(true);
+  };
+
+  const handleExport = () => exportToExcel(getFiltered(), [
+    { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
+    { key: 'tt_analiseparam', label: 'Parâmetro', fn: r => paramMap[r.tt_analiseparam] || '' },
+    { key: 'resultado', label: 'Resultado', fn: r => parseFloat(r.resultado) || 0 },
+    { key: 'limite', label: 'Limite', fn: r => parseFloat(r.limite) || 0 },
+    { key: '_excesso', label: 'Excesso (%)', fn: r => {
+      const res = parseFloat(r.resultado), lim = parseFloat(r.limite);
+      return (!isNaN(res) && !isNaN(lim) && lim > 0) ? (((res - lim) / lim) * 100).toFixed(1) : '';
+    }},
+    { key: 'operador1', label: 'Operador', fn: r => whoMap[r.operador1] || '' },
+  ], `incumprimentos_${pk}`);
+
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
     { field: 'tt_analiseparam', headerName: 'Parâmetro', width: 160,
-      renderCell: ({ value }) => <Cell><Chip label={paramMap[value] || value || '—'} size="small" variant="outlined" /></Cell> },
-    { field: 'resultado', headerName: 'Resultado', width: 110, align: 'right', headerAlign: 'right',
+      valueGetter: (v) => paramMap[v] || '',
+      renderCell: ({ row }) => <Cell><Chip label={paramMap[row.tt_analiseparam] || row.tt_analiseparam || '—'} size="small" variant="outlined" /></Cell> },
+    { field: 'resultado', headerName: 'Resultado', width: 110, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
-    { field: 'limite', headerName: 'Limite', width: 100, align: 'right', headerAlign: 'right',
+    { field: 'limite', headerName: 'Limite', width: 100, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
     {
       field: '_falha', headerName: 'Excesso', width: 110,
@@ -775,20 +1018,26 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
         : <Cell>—</Cell>,
     },
     { field: 'operador1', headerName: 'Operador 1', flex: 1, minWidth: 130,
-      renderCell: ({ value }) => <Cell><Typography variant="body2">{whoMap[value] || '—'}</Typography></Cell> },
+      valueGetter: (v) => whoMap[v] || '',
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{whoMap[row.operador1] || '—'}</Typography></Cell> },
   ];
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} size="small" color="error" onClick={() => setOpen(true)}>
-          Registar Incumprimento
-        </Button>
-      </Box>
-      <DataGrid rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Registar Incumprimento" addColor="error" onAdd={() => setOpen(true)}
+        onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        slots={{ toolbar: GridToolbar }}
+        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
-        localeText={{ ...GRID_LOCALE, noRowsLabel: 'Sem incumprimentos registados' }} />
+        localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE, noRowsLabel: 'Sem incumprimentos registados' }} />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Incumprimentos"
+        data={chartData}
+        series={[
+          { key: 'Resultado', label: 'Resultado', color: '#ef5350' },
+          { key: 'Limite', label: 'Limite', color: '#42a5f5' },
+        ]} />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(incumpDefaults); }} title="Registar Incumprimento"
         icon={IncumpIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -1108,13 +1357,15 @@ const HistoricoTab = ({ pk, color }) => {
         pageSizeOptions={[25, 50, 100]}
         initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         onRowClick={({ row }) => setDetalhe(row)}
+        slots={{ toolbar: GridToolbar }}
+        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
         sx={{
           borderRadius: 2,
           '& .MuiDataGrid-cell': { py: 1.5 },
           '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 },
           '& .MuiDataGrid-row': { cursor: 'pointer' },
         }}
-        localeText={{ ...GRID_LOCALE, noRowsLabel: 'Sem tarefas registadas para esta instalação.' }}
+        localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE, noRowsLabel: 'Sem tarefas registadas para esta instalação.' }}
       />
 
       <TarefaDetailDialog

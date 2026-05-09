@@ -143,7 +143,17 @@
       "Bash(rtk find *)",
       "Bash(rtk wc *)",
       "Bash(Select-Object Name, PSIsContainer)",
-      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\" -Recurse -Directory | Where-Object { -not \\(Get-ChildItem -Path $_.FullName -File\\) } | Select-Object FullName)"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\" -Recurse -Directory | Where-Object { -not \\(Get-ChildItem -Path $_.FullName -File\\) } | Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"frontend-v2/src/features/portal\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\" -Recurse -File | Where-Object { $_.Name -match \"init|setup|schema|migration\" } | Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\" -Recurse -Filter \"*auth*\" -File)",
+      "Bash(Select-Object -First 20)",
+      "PowerShell(& \"C:\\\\Users\\\\rui.ramos\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -m pip install isort)",
+      "PowerShell(Select-String -Path \"backend/app/services/payment_service.py\" -Pattern \"exemption|isencao|ISENCAO|manual.direct|register_manual\" -CaseSensitive:$false)",
+      "Bash(rtk tsc *)",
+      "Bash(rtk npx *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\RUI~1.RAM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-rui-ramos-Desktop-APP\\\\ade6aaa6-b7dc-43b2-a24e-86c1c03af72a\\\\tasks\\\\bmmme0309.output\" -Tail 20)"
     ],
     "deny": [],
     "ask": [],

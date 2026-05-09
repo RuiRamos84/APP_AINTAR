@@ -108,7 +108,7 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
       <DialogContent dividers>
         <Grid container spacing={2}>
           
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Controller
               name="ts_entity" control={control}
               render={({ field }) => (
@@ -143,7 +143,7 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="tt_contractfrequency" control={control}
               render={({ field }) => (
@@ -159,7 +159,7 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
             />
           </Grid>
           
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="family" control={control}
               render={({ field }) => (
@@ -171,7 +171,7 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="start_date" control={control}
               render={({ field }) => (
@@ -184,7 +184,7 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="stop_date" control={control}
               render={({ field }) => (
@@ -197,9 +197,9 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
             />
           </Grid>
 
-          <Grid item xs={12}><TextField disabled variant="standard" fullWidth defaultValue="Morada do Contrato" size="small" sx={{mt: 1}} /></Grid>
+          <Grid size={{ xs: 12 }}><TextField disabled variant="standard" fullWidth defaultValue="Morada do Contrato" size="small" sx={{mt: 1}} /></Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Controller
               name="address" control={control}
               render={({ field }) => (
@@ -207,7 +207,7 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
               )}
             />
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Controller
               name="postal" control={control}
               render={({ field }) => (
@@ -215,10 +215,10 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
               )}
             />
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Controller name="door" control={control} render={({ field }) => <TextField {...field} fullWidth label="N.º / Porta" />} />
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Controller name="floor" control={control} render={({ field }) => <TextField {...field} fullWidth label="Andar" />} />
           </Grid>
 

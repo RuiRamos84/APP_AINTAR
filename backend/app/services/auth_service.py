@@ -11,6 +11,7 @@ import time
 from ..utils.utils import format_message, parse_xml_response, fs_setsession, add_token_to_blacklist, is_token_revoked, db_session_manager
 from ..utils.error_handler import APIError, InvalidCredentialsError, TokenExpiredError
 from app.utils.logger import get_logger
+from app.core.permissions import permission_manager
 
 logger = get_logger(__name__)
 
@@ -154,12 +155,14 @@ def login_user(username, password):
                 interfaces_query, {'user_id': user_info_result.pk}
             ).fetchone()
 
+            raw_interfaces = interfaces_result.interfaces or []
             user_data = {
                 'user_id': user_info_result.pk,
                 'user_name': user_info_result.client_name,
                 'profil': profil,
                 'session_id': session_id,
-                'interfaces': interfaces_result.interfaces or [],
+                'interfaces': raw_interfaces,
+                'permissions': permission_manager.pks_to_permissions(raw_interfaces),
                 'dark_mode': user_info_result.darkmode,
                 'vacation': user_info_result.vacation,
                 'entity': user_info_result.ts_entity,
@@ -321,13 +324,13 @@ def refresh_access_token(refresh_token, client_time, server_time):
         # Atualizar a última atividade do utilizador
         update_last_activity(user_data['user_id'])
 
-        # ✅ RETORNAR PROFIL E ENTITY NO REFRESH
         return {
             "user_id": user_data['user_id'],
             "user_name": user_data['user_name'],
-            "profil": user_data['profil'],  # ← NOVO: Incluir no retorno
-            "entity": user_data['entity'],   # ← NOVO: Incluir no retorno
-            "interfaces": user_data['interfaces'], # ← NOVO: Incluir no retorno
+            "profil": user_data['profil'],
+            "entity": user_data['entity'],
+            "interfaces": user_data['interfaces'],
+            "permissions": permission_manager.pks_to_permissions(user_data['interfaces']),
             "session_id": user_data['session_id'],
             "notification_count": user_data['notification_count'],
             "dark_mode": user_data['dark_mode'],

@@ -223,3 +223,46 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Socket.IO — Referência Completa.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Hooks Universais.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Componentes Universais.md
+
+---
+
+## Slash Commands Disponíveis
+
+Usa sempre o comando mais adequado à tarefa. Todos estão em `.claude/commands/`.
+
+### Desenvolvimento
+| Comando | Quando usar |
+|---------|-------------|
+| `/feature` | Criar uma feature nova completa (backend + frontend em simultâneo) |
+| `/route` | Adicionar apenas uma rota Flask + service layer |
+| `/component` | Criar apenas um componente React (frontend-v2) |
+| `/migration` | Criar script Alembic para alterações de schema PostgreSQL |
+| `/test` | Gerar testes pytest (backend) ou vitest (frontend) |
+
+### Qualidade & Revisão
+| Comando | Quando usar |
+|---------|-------------|
+| `/review` | Code review de senior developer antes de commitar |
+| `/simplify` | Rever código alterado para remover duplicação e melhorar qualidade |
+| `/perf` | Auditar performance (N+1, re-renders, bundle, queries sem índice) |
+| `/security-review` | Antes de qualquer PR com auth, pagamentos ou dados sensíveis |
+| `/debug` | Diagnosticar um bug de forma sistemática (root cause analysis) |
+
+### Design
+| Comando | Quando usar |
+|---------|-------------|
+| `/design` | Desenhar um ecrã: layout, UX, estados, componentes MUI, código |
+
+### Workflow Git & Deploy
+| Comando | Quando usar |
+|---------|-------------|
+| `/commit` | Criar commit conventional em pt-PT |
+| `/hotfix` | Emergência em produção — processo completo de triagem e fix |
+| `/deploy` | Preparar e executar deploy para produção |
+| `/changelog` | Gerar CHANGELOG.md semântico entre versões |
+
+### Documentação
+| Comando | Quando usar |
+|---------|-------------|
+| `/openapi` | Gerar spec OpenAPI 3.0 a partir de rotas Flask |
+| `/standards` | Consultar os princípios de desenvolvimento AINTAR |

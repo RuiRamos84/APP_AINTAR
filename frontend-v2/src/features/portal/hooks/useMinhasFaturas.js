@@ -7,14 +7,21 @@ export const paymentKeys = {
   list: (filters) => [...paymentKeys.lists(), { filters }],
 };
 
-/**
- * Hook to fetch all user payments/invoices
- */
+export const contractKeys = {
+  all: ['portal', 'contracts'],
+  lists: () => [...contractKeys.all, 'list'],
+};
+
 export const useMinhasFaturas = () => {
   return useQuery({
     queryKey: paymentKeys.lists(),
-    queryFn: async () => {
-      return portalService.getMyPayments();
-    },
+    queryFn: () => portalService.getMyPayments(),
+  });
+};
+
+export const useMeusContratos = () => {
+  return useQuery({
+    queryKey: contractKeys.lists(),
+    queryFn: () => portalService.getMyContracts(),
   });
 };

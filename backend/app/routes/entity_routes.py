@@ -8,7 +8,7 @@ from ..services.entity_service import (
     list_entities
 )
 from ..utils.utils import token_required, set_session, db_session_manager
-from app.utils.permissions_decorator import require_permission
+from app.utils.permissions_decorator import require_permission, require_any_permission
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 
@@ -21,8 +21,8 @@ bp = Blueprint('entity_routes', __name__)
 
 @bp.route('/entity/<int:pk>', methods=['GET'])
 @jwt_required()
-@token_required # Adicionado para consistência
-@require_permission('entities.view')  # entities.view # Protege a visualização de detalhes
+@token_required
+@require_any_permission('entities.view', 'portal.access')  # portal users need their own entity
 @api_error_handler
 def get_entity(pk):
     """
@@ -52,7 +52,7 @@ def get_entity(pk):
 @bp.route('/entity/nipc/<int:nipc>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('entities.view')  # entities.view # Protege a busca por NIPC
+@require_any_permission('entities.view', 'portal.access')  # portal users can look up by NIF
 @set_session
 @api_error_handler
 def get_entity_nipc(nipc):

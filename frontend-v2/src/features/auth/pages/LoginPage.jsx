@@ -1,8 +1,3 @@
-/**
- * LoginPage
- * Página de login da aplicação
- */
-
 import {
   Box,
   Container,
@@ -36,10 +31,6 @@ export const LoginPage = () => {
     hasError,
   } = useLogin();
 
-  // Verificar se vem de sessão expirada — corre só no mount.
-  // Dep [] evita re-disparo quando o browser back button restaura location.state.
-  // A limpeza do state do histórico garante que refrescar a página ou voltar atrás
-  // não re-mostra o alerta de forma espúria.
   useEffect(() => {
     const expiredInStorage = sessionStorage.getItem('session_expired');
     const expiredInState = location.state?.sessionExpired;
@@ -47,11 +38,8 @@ export const LoginPage = () => {
     if (expiredInStorage || expiredInState) {
       setSessionExpiredMessage('A sua sessão expirou por inatividade. Por favor, faça login novamente.');
 
-      // Limpar ambas as fontes para não re-aparecer em navegações futuras
       sessionStorage.removeItem('session_expired');
       if (expiredInState) {
-        // Substitui a entrada de histórico sem o state — impede que o botão
-        // "back" do browser re-mostre o alerta ao regressar a esta página
         navigate('/login', { replace: true, state: null });
       }
 
@@ -59,8 +47,111 @@ export const LoginPage = () => {
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount only
+  }, []);
 
+  const formContent = (
+    <>
+      {/* Header */}
+      <Box sx={{ textAlign: 'center', mb: 4 }}>
+        <Box
+          sx={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 64, height: 64, borderRadius: '50%', bgcolor: 'primary.main', mb: 2,
+          }}
+        >
+          <LockOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
+        </Box>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
+          {IS_PORTAL ? 'Portal do Cliente' : 'Bem-vindo de volta'}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {IS_PORTAL
+            ? 'Entre na sua área de cliente AINTAR'
+            : 'Entre com as suas credenciais para continuar'}
+        </Typography>
+      </Box>
+
+      {/* Sessão expirada */}
+      {sessionExpiredMessage && (
+        <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setSessionExpiredMessage(null)}>
+          {sessionExpiredMessage}
+        </Alert>
+      )}
+
+      {/* Formulário */}
+      <Box component="form" onSubmit={handleSubmit}>
+        <Stack spacing={3}>
+          <TextField
+            fullWidth
+            label="Utilizador"
+            autoComplete="username"
+            autoFocus
+            value={formData.username}
+            onChange={(e) => updateField('username', e.target.value)}
+            error={hasError('username')}
+            helperText={getFieldError('username')}
+            disabled={isLoading}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+
+          <TextField
+            fullWidth
+            label="Palavra-passe"
+            type="password"
+            autoComplete="current-password"
+            value={formData.password}
+            onChange={(e) => updateField('password', e.target.value)}
+            error={hasError('password')}
+            helperText={getFieldError('password')}
+            disabled={isLoading}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+
+          <Box sx={{ textAlign: 'right' }}>
+            <Link
+              component={RouterLink}
+              to="/forgot-password"
+              variant="body2"
+              underline="hover"
+              sx={{ color: 'primary.main' }}
+            >
+              Esqueceu-se da palavra-passe?
+            </Link>
+          </Box>
+
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            size="large"
+            disabled={isLoading}
+            sx={{ py: 1.5, borderRadius: 2, textTransform: 'none', fontSize: '1.1rem', fontWeight: 600 }}
+          >
+            {isLoading ? 'A entrar...' : 'Entrar'}
+          </Button>
+        </Stack>
+      </Box>
+
+      <Divider sx={{ my: 3 }}>
+        <Typography variant="body2" color="text.secondary">OU</Typography>
+      </Divider>
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          Não tem uma conta?{' '}
+          <Link component={RouterLink} to="/register" variant="body2" fontWeight="bold" underline="hover" sx={{ color: 'primary.main' }}>
+            Criar conta
+          </Link>
+        </Typography>
+      </Box>
+    </>
+  );
+
+  /* Portal: renderiza apenas o conteúdo — PortalAuthLayout trata do layout */
+  if (IS_PORTAL) {
+    return formContent;
+  }
+
+  /* Backoffice: layout autónomo com fundo gradient */
   return (
     <Box
       sx={{
@@ -68,16 +159,10 @@ export const LoginPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: (theme) => {
-          if (IS_PORTAL) {
-            return theme.palette.mode === 'light'
-              ? 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)' // Gradiente Portal
-              : 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
-          }
-          return theme.palette.mode === 'light'
-            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' // Gradiente Backoffice
-            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
-        },
+        background: (theme) =>
+          theme.palette.mode === 'light'
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
         py: 4,
         px: 2,
       }}
@@ -89,157 +174,17 @@ export const LoginPage = () => {
             p: { xs: 3, md: 5 },
             borderRadius: 3,
             background: (theme) =>
-              theme.palette.mode === 'light'
-                ? 'rgba(255, 255, 255, 0.95)'
-                : 'rgba(30, 30, 30, 0.95)',
+              theme.palette.mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(30,30,30,0.95)',
             backdropFilter: 'blur(10px)',
           }}
         >
-          {/* Header */}
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                bgcolor: 'primary.main',
-                mb: 2,
-              }}
-            >
-              <LockOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
-            </Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              {IS_PORTAL ? 'Portal do Cliente' : 'Bem-vindo de volta'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {IS_PORTAL 
-                ? 'Entre na sua área de cliente AINTAR' 
-                : 'Entre com as suas credenciais para continuar'}
-            </Typography>
-          </Box>
-
-          {/* Session Expired Alert */}
-          {sessionExpiredMessage && (
-            <Alert
-              severity="warning"
-              sx={{ mb: 3 }}
-              onClose={() => setSessionExpiredMessage(null)}
-            >
-              {sessionExpiredMessage}
-            </Alert>
-          )}
-
-          {/* Form */}
-          <Box component="form" onSubmit={handleSubmit}>
-            <Stack spacing={3}>
-              {/* Username Field */}
-              <TextField
-                fullWidth
-                label="Username"
-                autoComplete="username"
-                autoFocus
-                value={formData.username}
-                onChange={(e) => updateField('username', e.target.value)}
-                error={hasError('username')}
-                helperText={getFieldError('username')}
-                disabled={isLoading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                  },
-                }}
-              />
-
-              {/* Password Field */}
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                autoComplete="current-password"
-                value={formData.password}
-                onChange={(e) => updateField('password', e.target.value)}
-                error={hasError('password')}
-                helperText={getFieldError('password')}
-                disabled={isLoading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                  },
-                }}
-              />
-
-              {/* Forgot Password Link */}
-              <Box sx={{ textAlign: 'right' }}>
-                <Link
-                  component={RouterLink}
-                  to="/forgot-password"
-                  variant="body2"
-                  underline="hover"
-                  sx={{ color: 'primary.main' }}
-                >
-                  Esqueceu-se da password?
-                </Link>
-              </Box>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={isLoading}
-                sx={{
-                  py: 1.5,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                }}
-              >
-                {isLoading ? 'A entrar...' : 'Entrar'}
-              </Button>
-            </Stack>
-          </Box>
-
-          {/* Divider */}
-          <Divider sx={{ my: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              OU
-            </Typography>
-          </Divider>
-
-          {/* Register Link */}
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Não tem uma conta?{' '}
-              <Link
-                component={RouterLink}
-                to="/register"
-                variant="body2"
-                fontWeight="bold"
-                underline="hover"
-                sx={{ color: 'primary.main' }}
-              >
-                Criar conta
-              </Link>
-            </Typography>
-          </Box>
+          {formContent}
         </Paper>
-
-        {/* Footer */}
         <Typography
           variant="caption"
-          sx={{
-            display: 'block',
-            textAlign: 'center',
-            mt: 3,
-            color: 'rgba(255, 255, 255, 0.7)',
-          }}
+          sx={{ display: 'block', textAlign: 'center', mt: 3, color: 'rgba(255,255,255,0.7)' }}
         >
-          © 2024 APP - Todos os direitos reservados
+          © {new Date().getFullYear()} AINTAR — Todos os direitos reservados
         </Typography>
       </Container>
     </Box>

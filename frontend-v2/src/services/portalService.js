@@ -84,6 +84,16 @@ export const portalService = {
   },
 
   /**
+   * Fetch contracts and payment periods for the authenticated client
+   * @returns {Promise<Array>} List of contracts with their payment periods
+   */
+  async getMyContracts() {
+    const { data } = await import('@/services/api/client');
+    const response = await data.get('/payments/my-contracts');
+    return response.contracts || [];
+  },
+
+  /**
    * Download invoice PDF
    */
   async downloadInvoice(documentId) {

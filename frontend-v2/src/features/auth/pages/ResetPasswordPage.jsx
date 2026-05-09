@@ -50,174 +50,130 @@ const ResetPasswordPage = () => {
     }
   };
 
+  const formContent = (
+    <>
+      {/* Header */}
+      <Box sx={{ textAlign: 'center', mb: 4 }}>
+        <Box
+          sx={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 64, height: 64, borderRadius: '50%',
+            bgcolor: done ? 'success.main' : 'primary.main',
+            mb: 2, transition: 'background-color 0.3s ease',
+          }}
+        >
+          {done
+            ? <CheckCircleIcon sx={{ fontSize: 32, color: 'white' }} />
+            : <LockResetIcon sx={{ fontSize: 32, color: 'white' }} />}
+        </Box>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
+          {done ? 'Palavra-passe redefinida!' : 'Nova Palavra-passe'}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {done
+            ? 'Vai ser redirecionado para o login em instantes...'
+            : 'Introduza e confirme a sua nova palavra-passe'}
+        </Typography>
+      </Box>
+
+      {done ? (
+        <Stack spacing={3}>
+          <Alert severity="success" sx={{ borderRadius: 2 }}>
+            Palavra-passe alterada com sucesso. Pode agora fazer login com a nova palavra-passe.
+          </Alert>
+          <Button
+            fullWidth variant="contained" size="large"
+            onClick={() => navigate('/login')}
+            sx={{ borderRadius: 2, textTransform: 'none', py: 1.5 }}
+          >
+            Ir para o Login
+          </Button>
+        </Stack>
+      ) : (
+        <Box component="form" onSubmit={handleSubmit}>
+          <Stack spacing={3}>
+            {error && (
+              <Alert severity="error" sx={{ borderRadius: 2 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            )}
+            <TextField
+              fullWidth label="Nova Palavra-passe"
+              type={showPassword ? 'text' : 'password'}
+              autoFocus value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={loading} required helperText="Mínimo 6 caracteres"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword((v) => !v)} edge="end" size="small">
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            <TextField
+              fullWidth label="Confirmar Nova Palavra-passe"
+              type={showPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading} required
+              error={confirmPassword.length > 0 && !passwordsMatch}
+              helperText={confirmPassword.length > 0 && !passwordsMatch ? 'As palavras-passe não coincidem' : ''}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            <Button
+              type="submit" fullWidth variant="contained" size="large"
+              disabled={loading || !isValid}
+              sx={{ py: 1.5, borderRadius: 2, textTransform: 'none', fontSize: '1.1rem', fontWeight: 600 }}
+            >
+              {loading ? 'A guardar...' : 'Guardar nova palavra-passe'}
+            </Button>
+          </Stack>
+        </Box>
+      )}
+
+      {!done && (
+        <Box sx={{ textAlign: 'center', mt: 3 }}>
+          <Link component={RouterLink} to="/login" variant="body2" underline="hover" sx={{ color: 'primary.main', fontWeight: 600 }}>
+            ← Voltar ao login
+          </Link>
+        </Box>
+      )}
+    </>
+  );
+
+  if (IS_PORTAL) {
+    return formContent;
+  }
+
   return (
     <Box
       sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: (theme) => {
-          if (IS_PORTAL) {
-            return theme.palette.mode === 'light'
-              ? 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)'
-              : 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
-          }
-          return theme.palette.mode === 'light'
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: (theme) =>
+          theme.palette.mode === 'light'
             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
-        },
-        py: 4,
-        px: 2,
+            : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+        py: 4, px: 2,
       }}
     >
       <Container maxWidth="sm">
         <Paper
           elevation={6}
           sx={{
-            p: { xs: 3, md: 5 },
-            borderRadius: 3,
+            p: { xs: 3, md: 5 }, borderRadius: 3,
             background: (theme) =>
-              theme.palette.mode === 'light'
-                ? 'rgba(255, 255, 255, 0.95)'
-                : 'rgba(30, 30, 30, 0.95)',
+              theme.palette.mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(30,30,30,0.95)',
             backdropFilter: 'blur(10px)',
           }}
         >
-          {/* Header */}
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                bgcolor: done ? 'success.main' : 'primary.main',
-                mb: 2,
-                transition: 'background-color 0.3s ease',
-              }}
-            >
-              {done
-                ? <CheckCircleIcon sx={{ fontSize: 32, color: 'white' }} />
-                : <LockResetIcon sx={{ fontSize: 32, color: 'white' }} />
-              }
-            </Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              {done ? 'Password redefinida!' : 'Nova Password'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {done
-                ? 'Vai ser redirecionado para o login em instantes...'
-                : 'Introduza e confirme a sua nova password'
-              }
-            </Typography>
-          </Box>
-
-          {done ? (
-            <Stack spacing={3}>
-              <Alert severity="success" sx={{ borderRadius: 2 }}>
-                Password alterada com sucesso. Pode agora fazer login com a nova password.
-              </Alert>
-              <Button
-                fullWidth
-                variant="contained"
-                size="large"
-                onClick={() => navigate('/login')}
-                sx={{ borderRadius: 2, textTransform: 'none', py: 1.5 }}
-              >
-                Ir para o Login
-              </Button>
-            </Stack>
-          ) : (
-            <Box component="form" onSubmit={handleSubmit}>
-              <Stack spacing={3}>
-                {error && (
-                  <Alert severity="error" sx={{ borderRadius: 2 }} onClose={() => setError(null)}>
-                    {error}
-                  </Alert>
-                )}
-
-                <TextField
-                  fullWidth
-                  label="Nova Password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoFocus
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={loading}
-                  required
-                  helperText="Mínimo 6 caracteres"
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword((v) => !v)}
-                          edge="end"
-                          size="small"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Confirmar Nova Password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={loading}
-                  required
-                  error={confirmPassword.length > 0 && !passwordsMatch}
-                  helperText={confirmPassword.length > 0 && !passwordsMatch ? 'As passwords não coincidem' : ''}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  size="large"
-                  disabled={loading || !isValid}
-                  sx={{
-                    py: 1.5,
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontSize: '1.1rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  {loading ? 'A guardar...' : 'Guardar nova password'}
-                </Button>
-              </Stack>
-            </Box>
-          )}
-
-          {!done && (
-            <Box sx={{ textAlign: 'center', mt: 3 }}>
-              <Link
-                component={RouterLink}
-                to="/login"
-                variant="body2"
-                underline="hover"
-                sx={{ color: 'primary.main', fontWeight: 600 }}
-              >
-                ← Voltar ao login
-              </Link>
-            </Box>
-          )}
+          {formContent}
         </Paper>
-
-        <Typography
-          variant="caption"
-          sx={{ display: 'block', textAlign: 'center', mt: 3, color: 'rgba(255,255,255,0.7)' }}
-        >
-          © 2024 APP — Todos os direitos reservados
+        <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 3, color: 'rgba(255,255,255,0.7)' }}>
+          © {new Date().getFullYear()} AINTAR — Todos os direitos reservados
         </Typography>
       </Container>
     </Box>

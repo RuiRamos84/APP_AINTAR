@@ -13,7 +13,8 @@ class PermissionManager:
     """Gestor centralizado de permissões"""
 
     def __init__(self):
-        self._permission_map: Dict[str, int] = {}
+        self._permission_map: Dict[str, int] = {}   # value → pk
+        self._pk_map: Dict[int, str] = {}            # pk → value
         logger.info("🔐 Gestor de Permissões a inicializar...")
 
     def load_permissions_from_db(self, app):
@@ -21,7 +22,12 @@ class PermissionManager:
         with app.app_context():
             results = db.session.execute(text("SELECT pk, value FROM ts_interface")).fetchall()
             self._permission_map = {row.value: row.pk for row in results}
+            self._pk_map = {row.pk: row.value for row in results}
             logger.info(f"🔐 Gestor de Permissões carregou {len(self._permission_map)} permissões da BD.")
+
+    def pks_to_permissions(self, pks: List[int]) -> List[str]:
+        """Converte lista de PKs para lista de value strings (ex: 'portal.access')."""
+        return [self._pk_map[pk] for pk in (pks or []) if pk in self._pk_map]
 
     def check_permission(self, permission_id: str, user_profile: str,
                          user_interfaces: List[int]) -> bool:

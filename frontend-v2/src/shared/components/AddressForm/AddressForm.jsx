@@ -110,7 +110,7 @@ const AddressForm = ({
           fullWidth
           disabled={disabled}
           error={!!errors.postal}
-          helperText={errors.postal}
+          helperText={errors.postal?.message}
           placeholder="XXXX-XXX"
           slotProps={{
             input: {
@@ -142,7 +142,7 @@ const AddressForm = ({
             fullWidth
             disabled={disabled}
             error={!!errors.address}
-            helperText={errors.address}
+            helperText={errors.address?.message}
             slotProps={{
               input: {
                 endAdornment: streets.length > 0 && manualMode ? (
@@ -169,7 +169,7 @@ const AddressForm = ({
             fullWidth
             disabled={disabled || !values.postal}
             error={!!errors.address}
-            helperText={errors.address}
+            helperText={errors.address?.message}
           >
             {streets.map((street, idx) => (
               <MenuItem key={idx} value={street}>{street}</MenuItem>
