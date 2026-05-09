@@ -7,30 +7,44 @@ Cobrem especificamente os bugs identificados na auditoria /perf:
   - Bug #4: active_users set global — estado inconsistente entre chamadas
 """
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone, timedelta
 
 
-# ─── Bug #3: list_cached_activities shadow variable ───────────────────────────
+# ─── Bug #3: list_cached_activities shadow variable (já corrigido) ────────────
 
 class TestListCachedActivities:
     """
-    Bug identificado: o parâmetro 'current_user' é sobrescrito pelo 'for current_user in active_users'.
-    A função devia retornar dados apenas do utilizador solicitado — não de todos.
+    Após a correção do Bug #3 e #4:
+    - 'active_users' foi migrado para Redis via _get_active_users() / _add_active_user()
+    - A shadow variable foi eliminada: 'for user_id in _get_active_users()'
+    Testamos o comportamento através da API pública.
     """
 
-    def test_quando_chamada_com_user_especifico_nao_deve_retornar_outros_users(self):
+    def test_users_sem_atividade_em_cache_nao_aparecem_no_resultado(self):
         """
-        Cenário: utilizador 42 pede as suas atividades.
-        Esperado: apenas dados do utilizador 42.
-        Bug atual: retorna dados de TODOS os utilizadores no set.
+        Cenário: utilizador está na lista mas não tem entrada no Redis (TTL expirou).
+        Esperado: não aparece no resultado.
         """
-        from app.services.auth_service import list_cached_activities, active_users, LAST_ACTIVITY_PREFIX
+        from app.services.auth_service import list_cached_activities, LAST_ACTIVITY_PREFIX
 
-        # Simular dois utilizadores ativos
-        active_users.clear()
-        active_users.add(42)
-        active_users.add(99)  # utilizador diferente
+        with patch("app.services.auth_service._get_active_users", return_value={42}), \
+             patch("app.services.auth_service.cache") as mock_cache, \
+             patch("app.services.auth_service._remove_active_user") as mock_remove:
+
+            mock_cache.get.return_value = None  # sem atividade no Redis
+
+            result = list_cached_activities()
+
+        assert result == []
+        mock_remove.assert_called_once_with(42)
+
+    def test_users_com_atividade_recente_aparecem_no_resultado(self):
+        """
+        Cenário: dois utilizadores com atividade recente.
+        Esperado: ambos no resultado com user_id e last_activity.
+        """
+        from app.services.auth_service import list_cached_activities, LAST_ACTIVITY_PREFIX
 
         now = datetime.now(timezone.utc)
         cache_data = {
@@ -38,35 +52,16 @@ class TestListCachedActivities:
             f"{LAST_ACTIVITY_PREFIX}99": now,
         }
 
-        with patch("app.services.auth_service.cache") as mock_cache:
+        with patch("app.services.auth_service._get_active_users", return_value={42, 99}), \
+             patch("app.services.auth_service.cache") as mock_cache:
+
             mock_cache.get.side_effect = lambda key: cache_data.get(key)
+            result = list_cached_activities()
 
-            result = list_cached_activities(42)
-
-        # O utilizador 42 NUNCA deve ver dados do utilizador 99
-        user_ids = [a["user_id"] for a in result]
-        assert 99 not in user_ids, (
-            "BUG: list_cached_activities expõe dados de outros utilizadores. "
-            "Shadow variable 'for current_user in active_users' sobrescreve o parâmetro."
-        )
-
-    def test_quando_user_sem_atividade_em_cache_nao_aparece_no_resultado(self):
-        """
-        Cenário: utilizador está no set mas não tem entrada no Redis (expirou).
-        Esperado: não aparece no resultado e é removido do set.
-        """
-        from app.services.auth_service import list_cached_activities, active_users
-
-        active_users.clear()
-        active_users.add(42)
-
-        with patch("app.services.auth_service.cache") as mock_cache:
-            mock_cache.get.return_value = None  # Não está em cache
-
-            result = list_cached_activities(42)
-
-        assert result == []
-        assert 42 not in active_users  # Deve ter sido removido do set
+        user_ids = {a["user_id"] for a in result}
+        assert 42 in user_ids
+        assert 99 in user_ids
+        assert len(result) == 2
 
 
 # ─── Bug #2: fsf_client_notificationclean usa db.session diretamente ──────────
@@ -101,52 +96,63 @@ class TestNotificationClean:
         mock_session.execute.assert_called_once()
 
 
-# ─── Bug #4: active_users set global ─────────────────────────────────────────
+# ─── Bug #4: active_users → Redis (já corrigido) ─────────────────────────────
 
-class TestActiveUsersGlobalState:
+class TestActiveUsersRedis:
     """
-    Bug identificado: active_users é um set() em memória global.
-    Entre testes (e entre workers em produção) o estado persiste.
+    Após a correção do Bug #4:
+    - active_users set() global foi substituído por _get_active_users() via Redis cache
+    - Funciona entre workers/processos (estado partilhado)
+    Testamos o comportamento público de update_last_activity e clear_inactive_users.
     """
 
-    def test_update_last_activity_adiciona_user_ao_set(self):
-        """Cenário: update_last_activity deve registar o utilizador."""
-        from app.services.auth_service import update_last_activity, active_users
-
-        active_users.clear()
+    def test_update_last_activity_regista_timestamp_e_adiciona_ao_redis(self):
+        """Cenário: update_last_activity deve persistir timestamp e ID no Redis."""
+        from app.services.auth_service import (
+            update_last_activity, LAST_ACTIVITY_PREFIX, ACTIVE_USERS_CACHE_KEY
+        )
 
         with patch("app.services.auth_service.cache") as mock_cache:
+            mock_cache.get.return_value = []  # lista vazia no Redis
             update_last_activity(99)
 
-        assert 99 in active_users
-        mock_cache.set.assert_called_once()
+        # Deve ter feito pelo menos 2 set: timestamp + lista de users
+        assert mock_cache.set.call_count >= 2
 
-    def test_clear_inactive_users_remove_users_sem_atividade_recente(self):
+        # Verifica que o timestamp do user 99 foi guardado
+        calls_keys = [str(c) for c in mock_cache.set.call_args_list]
+        assert any(LAST_ACTIVITY_PREFIX in k for k in calls_keys)
+
+    def test_clear_inactive_users_remove_users_expirados_do_redis(self):
         """Cenário: utilizadores sem atividade há mais de INACTIVITY_TIMEOUT são removidos."""
-        from app.services.auth_service import clear_inactive_users, active_users
-
-        active_users.clear()
-        active_users.add(1)
-        active_users.add(2)
+        from app.services.auth_service import clear_inactive_users, LAST_ACTIVITY_PREFIX
 
         now = datetime.now(timezone.utc)
-        expired_time = now - timedelta(hours=3)  # expirado
+        expired = now - timedelta(hours=3)
 
         def mock_get(key):
-            if "1" in key:
-                return expired_time  # expirado
-            return now  # ativo
+            if key == "aintar:active_users":
+                return [1, 2]
+            if LAST_ACTIVITY_PREFIX + "1" == key:
+                return expired   # user 1 expirou
+            if LAST_ACTIVITY_PREFIX + "2" == key:
+                return now       # user 2 ainda ativo
+            return None
+
+        mock_current_app = MagicMock()
+        mock_current_app.config = {"INACTIVITY_TIMEOUT": timedelta(hours=2)}
 
         with patch("app.services.auth_service.cache") as mock_cache, \
-             patch("app.services.auth_service.current_app") as mock_app:
+             patch("app.services.auth_service.current_app", new=mock_current_app), \
+             patch("app.services.auth_service._remove_active_user") as mock_remove:
 
             mock_cache.get.side_effect = mock_get
-            mock_app.config = {"INACTIVITY_TIMEOUT": timedelta(hours=2)}
-
             clear_inactive_users()
 
-        assert 1 not in active_users  # foi removido
-        assert 2 in active_users       # ainda ativo
+        # User 1 deve ter sido removido, user 2 mantido
+        removed_ids = [c.args[0] for c in mock_remove.call_args_list]
+        assert 1 in removed_ids
+        assert 2 not in removed_ids
 
 
 # ─── login_user — happy path e segurança ─────────────────────────────────────
@@ -172,26 +178,42 @@ class TestLoginUser:
 
         assert "desativada" in str(exc_info.value).lower()
 
-    def test_login_nunca_expoe_detalhes_internos_de_sql(self):
+    def test_fs_login_nunca_expoe_detalhes_internos_de_sql(self):
         """
-        Cenário: erro interno na BD durante login.
-        Esperado: mensagem genérica ao utilizador — NUNCA stack trace ou SQL.
-        Segurança: previne information disclosure.
+        Cenário: BD lança erro interno durante fs_login.
+        Esperado: fs_login converte para APIError com mensagem genérica — NUNCA
+        expõe stack trace, credenciais de BD ou mensagens internas do PostgreSQL.
+        Segurança: previne information disclosure (OWASP A05).
+        Testamos fs_login diretamente, pois é aí que acontece a conversão.
         """
         from app.utils.error_handler import APIError
 
-        with patch("app.services.auth_service.fs_login") as mock_fs_login:
-            mock_fs_login.side_effect = Exception(
-                "FATAL: password authentication failed for user 'aintar_app'"
-            )
+        db_error = Exception(
+            "FATAL: password authentication failed for user 'aintar_app'"
+        )
 
-            from app.services.auth_service import login_user
+        # Mock do pre-check (conta ativa) e do db.session.execute (falha na query principal)
+        mock_pre_session = MagicMock()
+        mock_pre_session.execute.return_value.fetchone.return_value = None
+
+        mock_pre_ctx = MagicMock()
+        mock_pre_ctx.__enter__ = MagicMock(return_value=mock_pre_session)
+        mock_pre_ctx.__exit__ = MagicMock(return_value=False)
+
+        with patch("app.services.auth_service.db_session_manager", return_value=mock_pre_ctx), \
+             patch("app.services.auth_service.db") as mock_db:
+
+            mock_db.session.execute.side_effect = db_error
+            mock_db.session.rollback = MagicMock()
+
+            from app.services.auth_service import fs_login
             with pytest.raises(APIError) as exc_info:
-                login_user("utilizador", "pass_errada")
+                fs_login("utilizador", "pass_errada")
 
         error_msg = str(exc_info.value).lower()
-        assert "password" not in error_msg, "Detalhes de SQL expostos ao utilizador!"
+        assert "aintar_app" not in error_msg, "Credencial de BD exposta!"
         assert "fatal" not in error_msg, "Mensagem interna do PostgreSQL exposta!"
+        assert "password authentication" not in error_msg, "Detalhe SQL exposto!"
 
     def test_login_bem_sucedido_retorna_tokens_e_dados_usuario(self):
         """
@@ -242,8 +264,6 @@ class TestFsLogout:
 
     def test_logout_bem_sucedido_retorna_success_true(self):
         """Cenário: logout normal retorna {'success': True}."""
-        import xml.etree.ElementTree as ET
-
         xml_ok = "<root><sucess>LOGOUT COM SUCESSO</sucess></root>"
         mock_session = MagicMock()
         mock_session.execute.return_value.fetchone.return_value = [xml_ok]

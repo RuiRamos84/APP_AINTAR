@@ -20,8 +20,25 @@ logger = get_logger(__name__)
 
 # Constante para o prefixo da chave de cache
 LAST_ACTIVITY_PREFIX = "last_activity_"
-# Set para armazenar IDs de utilizadors ativos
-active_users = set()
+ACTIVE_USERS_CACHE_KEY = "aintar:active_users"
+
+
+def _get_active_users() -> set:
+    """Lê o set de utilizadores ativos do Redis (partilhado entre workers)."""
+    data = cache.get(ACTIVE_USERS_CACHE_KEY)
+    return set(data) if data else set()
+
+
+def _add_active_user(user_id) -> None:
+    users = _get_active_users()
+    users.add(user_id)
+    cache.set(ACTIVE_USERS_CACHE_KEY, list(users), timeout=86400)
+
+
+def _remove_active_user(user_id) -> None:
+    users = _get_active_users()
+    users.discard(user_id)
+    cache.set(ACTIVE_USERS_CACHE_KEY, list(users), timeout=86400)
 
 
 # Define a função para criar um token de acesso
@@ -53,7 +70,7 @@ def fsf_client_notificationadd(user_id):
 def fsf_client_notificationclean(user_id):
     try:
         with db_session_manager() as session:
-            result = db.session.execute(
+            result = session.execute(
                 text("SELECT fsf_client_notificationclean(:user_id)"),
                 {"user_id": user_id},
             )
@@ -346,7 +363,7 @@ def refresh_access_token(refresh_token, client_time, server_time):
 
 def update_last_activity(current_user):
     cache.set(f"{LAST_ACTIVITY_PREFIX}{current_user}", datetime.now(timezone.utc))
-    active_users.add(current_user)
+    _add_active_user(current_user)
     logger.info(f"Última atividade atualizada para o utilizador {current_user}")
 
 
@@ -366,28 +383,28 @@ def check_inactivity(current_user):
     return is_inactive
 
 
-def list_cached_activities(current_user):
+def list_cached_activities(_calling_user=None):
     activities = []
-    for current_user in active_users.copy():
-        last_activity = get_last_activity(current_user)
+    for user_id in _get_active_users():
+        last_activity = get_last_activity(user_id)
         if last_activity:
             activities.append({
-                'user_id': current_user,
-                'last_activity': datetime.fromtimestamp(last_activity, tz=timezone.utc)
+                'user_id': user_id,
+                'last_activity': last_activity,
             })
         else:
-            active_users.discard(current_user)
+            _remove_active_user(user_id)
     return activities
 
 
 def clear_inactive_users(_calling_user=None):
     now = datetime.now(timezone.utc)
     inactivity_timeout = current_app.config['INACTIVITY_TIMEOUT']
-    for user_id in active_users.copy():
+    for user_id in _get_active_users():
         last_activity = get_last_activity(user_id)
         if not last_activity or (now - last_activity) > inactivity_timeout:
             cache.delete(f"{LAST_ACTIVITY_PREFIX}{user_id}")
-            active_users.discard(user_id)
+            _remove_active_user(user_id)
             logger.info(f"Atividade do utilizador {user_id} removida do cache")
 
 

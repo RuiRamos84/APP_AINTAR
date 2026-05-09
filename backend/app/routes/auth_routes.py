@@ -227,8 +227,7 @@ def update_dark_mode():
     # Idealmente, chamaríamos o serviço:
     # set_user_dark_mode(user_id, dark_mode, current_user_session)
     # Por agora, mantemos a lógica mas sem o try/except
-    with db_session_manager(current_user_session):
-        fsf_client_darkmodeadd(user_id, current_user_session) if dark_mode else fsf_client_darkmodeclean(user_id, current_user_session)
+    fsf_client_darkmodeadd(user_id, current_user_session) if dark_mode else fsf_client_darkmodeclean(user_id, current_user_session)
 
     return jsonify({"message": "Dark mode atualizado com sucesso"}), 200
 
@@ -420,7 +419,3 @@ def cleanup_session(response):
     if hasattr(g, 'current_session_id'):
         delattr(g, 'current_session_id')
     return response
-
-
-# Adicione esta linha no final do arquivo auth_routes.py
-bp.after_request(cleanup_session)

@@ -6,7 +6,7 @@
  * Permissões chegam como strings no user.permissions — sem catálogo, sem localStorage.
  */
 
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo } from 'react';
 import permissionService from '@/services/permissionService';
 import { useAuth } from './AuthContext';
 
@@ -16,9 +16,8 @@ export function PermissionProvider({ children }) {
   const { user, isLoading: authLoading } = useAuth();
 
   // Sincronizar permissionService com o estado React actual.
-  // useMemo garante que o serviço está actualizado antes de qualquer children
-  // aceder a hasPermission — sem janelas de inconsistência.
-  useMemo(() => {
+  // useEffect é o mecanismo correto para efeitos colaterais — useMemo não garante execução.
+  useEffect(() => {
     if (user) {
       permissionService.setUser(user);
     } else {
