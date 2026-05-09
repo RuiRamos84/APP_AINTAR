@@ -184,10 +184,12 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
     css: true,
+    pool: 'forks',
     poolOptions: {
-      threads: {
-        singleThread: true
-      }
-    }
+      forks: {
+        singleFork: true,
+        execArgv: ['--max-old-space-size=4096'],
+      },
+    },
   },
 }));
