@@ -1,0 +1,10 @@
+version: 2
+
+# Ignorar falsos positivos em ficheiros de teste
+# As strings "test-secret-nao-usar-em-producao" e similares
+# são credenciais de teste claramente identificadas, não segredos reais.
+ignore-paths:
+  - backend/tests/
+  - backend/tests/conftest.py
+  - frontend-v2/src/features/auth/__tests__/
+  - frontend-v2/src/services/__tests__/
