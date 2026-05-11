@@ -53,6 +53,7 @@ const SupervisorPage = () => {
         dateRange, setDateRange,
         isLoading, hasError, error, refresh,
         createTask, createDirect, createMeta, updateMeta, deleteMeta, validateExecution,
+        reassignOperacao,
         pedidos, pedidosLoading, pedidosError,
     } = useSupervisorData({ activeTab, pedidosVisited });
 
@@ -60,6 +61,10 @@ const SupervisorPage = () => {
 
     const handleValidate = (formData) => {
         validateExecution.mutate(formData);
+    };
+
+    const handleReassign = (operacaoId, payload) => {
+        reassignOperacao.mutate({ id: operacaoId, data: payload });
     };
 
     const handleExportExcel = () => {
@@ -275,6 +280,7 @@ const SupervisorPage = () => {
                             onUpdateMeta={(id, data) => updateMeta.mutate({ id, data })}
                             onDeleteMeta={(id) => deleteMeta.mutate(id)}
                             onValidate={handleValidate}
+                            onReassign={handleReassign}
                             isLoading={isLoading}
                         />
                     )}

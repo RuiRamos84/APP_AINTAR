@@ -208,6 +208,7 @@ export const detectModuleFromPath = (pathname) => {
     '/gestao/whatsapp-alertas': 'gestao',
     '/expenses': 'gestao',
     '/equipamentos': 'gestao',
+    '/obras': 'gestao',
     '/fleet': 'gestao',
     '/orcamento': 'gestao',
     '/gestao': 'gestao',

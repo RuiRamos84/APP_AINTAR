@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, Zap, Shield, Leaf, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ScrollReveal from '../ui/ScrollReveal'
+import TypewriterText from '../ui/TypewriterText'
 import { motion } from 'framer-motion'
 
 
@@ -80,7 +81,7 @@ export default function AboutSection() {
                 <h2 className="font-heading font-extrabold text-aintar-navy leading-tight mb-6"
                   style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.8rem)' }}>
                   Uma associação construída{' '}
-                  <span className="text-gradient">para o futuro</span>
+                  <TypewriterText text="para o futuro" gradient={true} />
                 </h2>
               </ScrollReveal>
 

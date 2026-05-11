@@ -1,8 +1,10 @@
-import { MapPin, ExternalLink } from 'lucide-react'
+import { MapPin, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import ScrollReveal from '../ui/ScrollReveal'
 import { motion } from 'framer-motion'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
+import TypewriterText from '../ui/TypewriterText'
 
 
 const municipalities = [
@@ -34,7 +36,7 @@ export default function MunicipalitiesSection() {
               <h2 className="font-heading font-extrabold text-white leading-tight mb-4"
                 style={{ fontSize: 'clamp(1.8rem, 2.8vw, 2.8rem)' }}>
                 Servimos{' '}
-                <span className="text-gradient">toda a região</span>{' '}
+                <TypewriterText text="toda a região" gradient={true} />{' '}
                 com dedicação
               </h2>
             </ScrollReveal>
@@ -83,13 +85,13 @@ export default function MunicipalitiesSection() {
             <p className="text-white/25 text-xs">
               Entidade constituída ao abrigo da Lei n.º 73/2013, de 3 de setembro
             </p>
-            <a
-              href="/quem-somos"
+            <Link
+              to="/quem-somos"
               className="flex items-center gap-2 text-aintar-sky/60 hover:text-aintar-sky text-xs font-medium transition-colors"
             >
               Saber mais sobre a AINTAR
-              <ExternalLink size={12} />
-            </a>
+              <ArrowRight size={12} />
+            </Link>
           </ScrollReveal>
         </div>
       </div>

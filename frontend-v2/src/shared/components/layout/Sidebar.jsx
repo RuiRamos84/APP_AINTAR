@@ -11,8 +11,6 @@
 import { getSidebarRoutesForModule } from '@/core/config/routeConfig';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useSocket } from '@/core/contexts/SocketContext';
-import { useUIStore } from '@/core/store/uiStore';
-import { getModuleById } from '@/core/config/moduleConfig';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -37,7 +35,9 @@ import {
   alpha,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
+
 import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
+import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED } from './layoutConstants';
 
@@ -53,7 +53,9 @@ export const Sidebar = ({
   const location = useLocation();
   const { hasPermission } = usePermissionContext();
   const { isConnected } = useSocket();
-  const currentModule = useUIStore((state) => state.currentModule);
+
+  // Módulo derivado da URL — actualiza sincronamente com a navegação
+  const { moduleId: currentModule, moduleConfig: activeModule } = useCurrentModule();
 
   const navbarH = useNavbarCompact() ? 54 : 72; // sincronizado com AppBar (sm breakpoint)
 
@@ -72,11 +74,6 @@ export const Sidebar = ({
     if (!currentModule) return [];
     return getSidebarRoutesForModule(currentModule, hasPermission);
   }, [currentModule, hasPermission]);
-
-  const activeModule = useMemo(
-    () => (currentModule ? getModuleById(currentModule) : null),
-    [currentModule]
-  );
 
   // Cor do módulo para theming consistente
   const moduleColor = activeModule?.color || theme.palette.primary.main;
@@ -133,8 +130,10 @@ export const Sidebar = ({
       <ListItemButton
         selected={active}
         onClick={(event) => {
-          if (hasSubmenu && !collapsed) handleToggleSubmenu(route.id);
-          else if (hasSubmenu && collapsed) handleOpenPopover(event, route);
+          if (hasSubmenu && !collapsed) {
+            handleNavigation(route.path);
+            if (!isSubmenuOpen) handleToggleSubmenu(route.id);
+          } else if (hasSubmenu && collapsed) handleOpenPopover(event, route);
           else handleNavigation(route.path);
         }}
         sx={{
@@ -183,9 +182,17 @@ export const Sidebar = ({
           }}
         />
         {hasSubmenu && !collapsed && (
-          <Box sx={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); handleToggleSubmenu(route.id); }}
+            sx={{
+              p: 0.25,
+              color: active ? 'rgba(255,255,255,0.8)' : theme.palette.text.secondary,
+              '&:hover': { color: active ? 'white' : moduleColor },
+            }}
+          >
             {isSubmenuOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </Box>
+          </IconButton>
         )}
       </ListItemButton>
     );

@@ -240,7 +240,7 @@ const EditDocumentModal = ({
             )}
 
             <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   label="Latitude"
                   value={coords.glat}
@@ -250,7 +250,7 @@ const EditDocumentModal = ({
                   sx={fieldSx}
                 />
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
                   label="Longitude"
                   value={coords.glong}
@@ -260,7 +260,7 @@ const EditDocumentModal = ({
                   sx={fieldSx}
                 />
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Button
                   variant="outlined" color="info" fullWidth
                   startIcon={gpsLoading ? <CircularProgress size={16} color="inherit" /> : <MyLocationIcon />}

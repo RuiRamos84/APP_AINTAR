@@ -18,7 +18,8 @@ import { Sidebar } from './Sidebar';
 import { ModuleBottomNav } from './ModuleBottomNav';
 import { PageTransition } from './PageTransition';
 import { useUIStore } from '@/core/store/uiStore';
-import { detectModuleFromPath, getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
+import { getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
+import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAvalPending } from '@/features/aval/hooks/useAvalPending';
 import { AvalPendingModal } from '@/features/aval/components/AvalPendingModal';
@@ -30,38 +31,23 @@ export const MainLayout = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const currentModule = useUIStore((state) => state.currentModule);
+  // Módulo derivado directamente da URL — fonte de verdade única, sem race conditions
+  const { moduleId: currentModule } = useCurrentModule();
   const setCurrentModule = useUIStore((state) => state.setCurrentModule);
 
   const { hasPermission, hasAnyPermission } = usePermissionContext();
   const { data: pendingData, open: pendingOpen, dismiss: dismissPending } = useAvalPending();
 
-  // Módulos acessíveis para o BottomNav mobile
   const accessibleModules = useMemo(
     () => getAccessibleModules(hasPermission, hasAnyPermission),
     [hasPermission, hasAnyPermission]
   );
 
-  // Estado collapsed da sidebar — persiste preferência do utilizador
   const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar_collapsed');
-      return saved !== null ? JSON.parse(saved) : false;
-    }
-    return false;
+    const saved = localStorage.getItem('sidebar_collapsed');
+    return saved !== null ? JSON.parse(saved) : true;
   });
 
-  // Auto-detectar e sincronizar módulo baseado na rota atual
-  useEffect(() => {
-    const detectedModule = detectModuleFromPath(location.pathname);
-    if (detectedModule && detectedModule !== currentModule) {
-      setCurrentModule(detectedModule);
-    } else if (!detectedModule && location.pathname === '/home') {
-      setCurrentModule(null);
-    }
-  }, [location.pathname, currentModule, setCurrentModule]);
-
-  // Fechar drawer mobile quando mudar para desktop
   useEffect(() => {
     if (!isMobile) setMobileOpen(false);
   }, [isMobile]);

@@ -192,6 +192,23 @@ export const useOperationTasks = (options = {}) => {
         return createTaskMutation.mutateAsync(data);
     }, [createTaskMutation]);
 
+    // Mutation para corrigir resposta de tarefa concluída
+    const updateTaskMutation = useMutation({
+        mutationFn: ({ taskId, updateData }) =>
+            operationService.updateOperacao(taskId, updateData),
+        onSuccess: () => {
+            notification.success('Resposta corrigida com sucesso');
+            queryClient.invalidateQueries({ queryKey: ['operacaoSelf', user?.pk] });
+        },
+        onError: () => {
+            notification.error('Erro ao corrigir resposta');
+        },
+    });
+
+    const updateTask = useCallback(async (taskId, updateData) => {
+        return updateTaskMutation.mutateAsync({ taskId, updateData });
+    }, [updateTaskMutation]);
+
     return {
         tasks: pendingTasks,
         pendingTasks,
@@ -209,5 +226,7 @@ export const useOperationTasks = (options = {}) => {
         completeError: completeTaskMutation.error,
         createTask,
         isCreating: createTaskMutation.isPending,
+        updateTask,
+        isUpdating: updateTaskMutation.isPending,
     };
 };

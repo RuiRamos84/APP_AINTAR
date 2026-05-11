@@ -315,10 +315,13 @@ function Test-FrontendBuild {
 function Build-FrontendV2 {
     <#
     .SYNOPSIS
-        Faz o build do frontend-v2 (Vite) com base '/v2/'
+        Faz dois builds do frontend-v2:
+          1. npm run build        → dist/        (backoffice, base='/v2/')
+          2. npm run build:portal → dist-portal/ (portal, base='/')
     #>
-    $projectPath = $Global:DeployConfig.CaminhoProjetoFrontendV2
-    $buildPath   = $Global:DeployConfig.CaminhoLocalFrontendV2
+    $projectPath  = $Global:DeployConfig.CaminhoProjetoFrontendV2
+    $buildPath    = $Global:DeployConfig.CaminhoLocalFrontendV2
+    $portalPath   = $Global:DeployConfig.CaminhoLocalFrontendV2Portal
 
     if (-not (Test-Path $projectPath)) {
         Write-DeployError "Diretório do projeto frontend-v2 não encontrado: $projectPath" "FRONTEND-V2"
@@ -329,37 +332,56 @@ function Build-FrontendV2 {
 
     try {
         Set-Location -Path $projectPath
-        Write-DeployInfo "A executar 'npm run build' em: $projectPath" "FRONTEND-V2"
 
-        $buildProcess = Start-Process `
+        # ── Build 1: Backoffice (base='/v2/') ──────────────────────────────
+        Write-DeployInfo "A executar 'npm run build' (backoffice) em: $projectPath" "FRONTEND-V2"
+        $p1 = Start-Process `
             -FilePath "C:\Program Files\nodejs\npm.cmd" `
             -ArgumentList "run", "build" `
             -Wait -PassThru -NoNewWindow `
             -RedirectStandardOutput "build_v2_output.log" `
             -RedirectStandardError "build_v2_error.log"
 
-        if ($buildProcess.ExitCode -eq 0) {
-            Write-DeployInfo "Build do frontend-v2 concluído com sucesso!" "FRONTEND-V2"
-
-            if (Test-Path $buildPath) {
-                $buildInfo = Get-ChildItem $buildPath -Recurse | Measure-Object
-                $buildSize = [Math]::Round(((Get-ChildItem $buildPath -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 2)
-                Write-DeployDebug "Build criado com $($buildInfo.Count) ficheiros ($buildSize MB)" "FRONTEND-V2"
-                return $true
-            } else {
-                Write-DeployError "Build concluído mas pasta dist não encontrada" "FRONTEND-V2"
-                return $false
-            }
-        } else {
-            Write-DeployError "Erro no build do frontend-v2 (Exit Code: $($buildProcess.ExitCode))" "FRONTEND-V2"
+        if ($p1.ExitCode -ne 0) {
+            Write-DeployError "Erro no build backoffice (Exit Code: $($p1.ExitCode))" "FRONTEND-V2"
             try {
-                $errorLog = Get-Content "build_v2_error.log" -Raw -ErrorAction SilentlyContinue
-                if (-not [string]::IsNullOrEmpty($errorLog)) {
-                    Write-DeployError "Detalhes do erro: $errorLog" "FRONTEND-V2"
-                }
+                $err = Get-Content "build_v2_error.log" -Raw -ErrorAction SilentlyContinue
+                if ($err) { Write-DeployError "Detalhes: $err" "FRONTEND-V2" }
             } catch {}
             return $false
         }
+        if (-not (Test-Path $buildPath)) {
+            Write-DeployError "Build backoffice concluído mas pasta dist não encontrada" "FRONTEND-V2"
+            return $false
+        }
+        $sz1 = [Math]::Round(((Get-ChildItem $buildPath -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 2)
+        Write-DeployInfo "Build backoffice concluído ($sz1 MB)" "FRONTEND-V2"
+
+        # ── Build 2: Portal (base='/') ────────────────────────────────────
+        Write-DeployInfo "A executar 'npm run build:portal' (portal clientes) em: $projectPath" "FRONTEND-V2"
+        $p2 = Start-Process `
+            -FilePath "C:\Program Files\nodejs\npm.cmd" `
+            -ArgumentList "run", "build:portal" `
+            -Wait -PassThru -NoNewWindow `
+            -RedirectStandardOutput "build_portal_output.log" `
+            -RedirectStandardError "build_portal_error.log"
+
+        if ($p2.ExitCode -ne 0) {
+            Write-DeployError "Erro no build portal (Exit Code: $($p2.ExitCode))" "FRONTEND-V2"
+            try {
+                $err = Get-Content "build_portal_error.log" -Raw -ErrorAction SilentlyContinue
+                if ($err) { Write-DeployError "Detalhes: $err" "FRONTEND-V2" }
+            } catch {}
+            return $false
+        }
+        if (-not (Test-Path $portalPath)) {
+            Write-DeployError "Build portal concluído mas pasta dist-portal não encontrada" "FRONTEND-V2"
+            return $false
+        }
+        $sz2 = [Math]::Round(((Get-ChildItem $portalPath -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 2)
+        Write-DeployInfo "Build portal concluído ($sz2 MB)" "FRONTEND-V2"
+
+        return $true
     }
     catch {
         Write-DeployException $_.Exception "Build do frontend-v2" "FRONTEND-V2"
@@ -368,7 +390,8 @@ function Build-FrontendV2 {
     finally {
         Set-Location -Path $currentLocation
         try {
-            Remove-Item "build_v2_output.log", "build_v2_error.log" -ErrorAction SilentlyContinue
+            Remove-Item "build_v2_output.log", "build_v2_error.log",
+                        "build_portal_output.log", "build_portal_error.log" -ErrorAction SilentlyContinue
         } catch {}
     }
 }
@@ -426,7 +449,7 @@ function Deploy-FrontendV2 {
             }
         }
 
-        # Deploy via robocopy
+        # Deploy via robocopy → build-v2 (backoffice)
         $copyStartTime = Get-Date
         $robocopyArgs = @(
             $localBuildPath,
@@ -439,13 +462,30 @@ function Deploy-FrontendV2 {
         & robocopy @robocopyArgs | Out-Null
 
         if ($LASTEXITCODE -ge 8) {
-            Write-DeployError "robocopy falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            Write-DeployError "robocopy build-v2 falhou com código $LASTEXITCODE" "FRONTEND-V2"
             return $false
         }
 
         $duration = [Math]::Round(((Get-Date) - $copyStartTime).TotalSeconds, 1)
-        Write-DeployInfo "Frontend-v2 copiado em ${duration}s (código robocopy: $LASTEXITCODE)" "FRONTEND-V2"
-        Write-DeployInfo "Disponível em: https://app.aintar.pt/v2/" "FRONTEND-V2"
+        Write-DeployInfo "Frontend-v2 (backoffice) copiado em ${duration}s (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+
+        # Copiar build:portal (base='/') para build-clientes
+        $portalBuildPath   = $Global:DeployConfig.CaminhoLocalFrontendV2Portal
+        $remoteClientesUNC = $Global:DeployConfig.CaminhoRemotoFrontendV2Clientes -replace "^ServerDrive:", "\\172.16.2.35\app"
+        if (-not (Test-Path $portalBuildPath)) {
+            Write-DeployError "dist-portal não encontrado: $portalBuildPath — corre 'npm run build:portal' primeiro" "FRONTEND-V2"
+            return $false
+        }
+        Write-DeployDebug "robocopy: $portalBuildPath -> $remoteClientesUNC" "FRONTEND-V2"
+        $robocopyArgsClientes = @($portalBuildPath, $remoteClientesUNC, "/MIR", "/MT:8", "/R:2", "/W:3", "/NFL", "/NDL", "/NJH", "/NJS")
+        & robocopy @robocopyArgsClientes | Out-Null
+        if ($LASTEXITCODE -ge 8) {
+            Write-DeployError "robocopy build-clientes falhou com código $LASTEXITCODE" "FRONTEND-V2"
+            return $false
+        }
+        Write-DeployInfo "Portal clientes copiado de dist-portal (robocopy: $LASTEXITCODE)" "FRONTEND-V2"
+
+        Write-DeployInfo "Disponível em: https://app.aintar.pt/v2/ e https://clientes.aintar.pt/" "FRONTEND-V2"
         return $true
 
     } -OperationName "Deploy Frontend-V2"

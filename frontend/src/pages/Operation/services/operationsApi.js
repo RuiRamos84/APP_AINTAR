@@ -53,6 +53,18 @@ export const operationsApi = {
     // Controlo de Operações (Supervisor valida tarefas)
     queryOperationControl: (filters) => apiClient.post('/operation_control/query', filters),
     updateOperationControl: (data) => apiClient.post('/operation_control/update', data),
+    submitTaskValidation: (executionPk, validationData) => {
+        const formData = new FormData();
+        formData.append('pk', executionPk);
+        formData.append('control_tt_operacaocontrolo', validationData.control_tt_operacaocontrolo ?? '');
+        formData.append('control_memo', validationData.control_memo || '');
+        if (validationData.control_foto instanceof File) {
+            formData.append('files', validationData.control_foto);
+        }
+        return apiClient.post('/operation_control/update', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    },
     getMunicipalities: () => apiClient.get('/operation_control/municipalities'),
     getInstallationTypes: () => apiClient.get('/operation_control/installation_types'),
     getInstallations: (municipioId, tipoId) => apiClient.get(`/operation_control/installations?municipio_pk=${municipioId}&tipo_pk=${tipoId}`),

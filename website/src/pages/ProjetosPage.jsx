@@ -72,6 +72,7 @@ export default function ProjetosPage() {
       title="Projetos e Obras"
       subtitle="Investimento superior a 6 milhões de euros em infraestruturas de saneamento nos municípios associados."
       breadcrumbs={[{ label: 'Projetos e Obras' }]}
+      seoDescription="Projetos de modernização e investimento em infraestruturas de saneamento financiados pela AINTAR com fundos europeus."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

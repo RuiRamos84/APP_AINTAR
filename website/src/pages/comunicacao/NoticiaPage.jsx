@@ -33,6 +33,8 @@ export default function NoticiaPage() {
         { label: 'Notícias', href: '/comunicacao/noticias' },
         { label: loading ? '…' : noticia?.titulo ?? '' },
       ]}
+      seoDescription={noticia?.resumo ?? 'Notícia da AINTAR.'}
+      seoImage={noticia?.imagem_url ? fileUrl(noticia.imagem_url) : undefined}
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-3xl">

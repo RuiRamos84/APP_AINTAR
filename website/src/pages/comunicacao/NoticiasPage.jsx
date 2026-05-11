@@ -6,6 +6,8 @@ import ScrollReveal from '../../components/ui/ScrollReveal'
 import { motion } from 'framer-motion'
 import { getNoticias, fileUrl } from '../../services/cmsApi'
 
+import Skeleton from '../../components/ui/Skeleton'
+
 const CAT_COLOR = {
   default: 'bg-aintar-blue/10 text-aintar-blue',
   1: 'bg-aintar-sky/10 text-aintar-sky',
@@ -44,13 +46,25 @@ export default function NoticiasPage() {
         { label: 'Comunicação' },
         { label: 'Notícias' },
       ]}
+      seoDescription="Últimas notícias, comunicados e atividades da AINTAR — Associação de Municípios para o Sistema Intermunicipal de Águas Residuais."
     >
       <section className="section-padding bg-white">
         <div className="section-container">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="card h-72 animate-pulse bg-gray-100" />
+                <div key={i} className="card p-0 overflow-hidden h-[420px] bg-white">
+                  <Skeleton className="aspect-[16/9] w-full" />
+                  <div className="p-6 space-y-4">
+                    <div className="flex gap-2">
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                    </div>
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-4 w-24 mt-4" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : noticias.length === 0 ? (

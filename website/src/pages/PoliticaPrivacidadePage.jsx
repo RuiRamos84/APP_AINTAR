@@ -4,7 +4,7 @@ import ScrollReveal from '../components/ui/ScrollReveal'
 const sections = [
   {
     title: '1. Responsável pelo Tratamento',
-    content: `A AINTAR — Associação de Municípios para o Sistema Intermunicipal de Águas Residuais é a entidade responsável pelo tratamento dos dados pessoais recolhidos através deste website. Sede: Região Centro, Portugal. Contacto: geral@aintar.pt`,
+    content: `A AINTAR — Associação de Municípios para o Sistema Intermunicipal de Águas Residuais é a entidade responsável pelo tratamento dos dados pessoais recolhidos através deste website. Sede: Rua Dr. Francisco José Basto da Silveira, Lote 4 R/CH Esq., 3430-030 Carregal do Sal,Viseu, Portugal. Contacto: geral@aintar.pt`,
   },
   {
     title: '2. Dados Recolhidos',
@@ -28,11 +28,11 @@ const sections = [
   },
   {
     title: '7. Cookies',
-    content: `Este website utiliza apenas cookies técnicos essenciais ao seu funcionamento. Não são utilizados cookies de rastreamento ou publicidade.`,
+    content: `Este website utiliza apenas cookies técnicos essenciais ao seu funcionamento. Não são utilizados cookies de rastreio ou publicidade.`,
   },
   {
     title: '8. Atualizações',
-    content: `Esta política pode ser atualizada periodicamente. A versão mais recente estará sempre disponível nesta página. Última atualização: Janeiro de 2025.`,
+    content: `Esta política pode ser atualizada periodicamente. A versão mais recente estará sempre disponível nesta página. Última atualização: Janeiro de 2026.`,
   },
 ]
 
@@ -42,6 +42,7 @@ export default function PoliticaPrivacidadePage() {
       title="Política de Privacidade"
       subtitle="Como recolhemos, usamos e protegemos os seus dados pessoais."
       breadcrumbs={[{ label: 'Política de Privacidade' }]}
+      seoDescription="Política de privacidade e proteção de dados pessoais da AINTAR, em conformidade com o RGPD."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

@@ -52,7 +52,7 @@ export default function ProcedimentoPage() {
     setNavigating(true)
     try {
       const { concursal_pk } = await getConcursalForSiteProc(pk)
-      navigate(`/clientes/formularios/candidatura/${concursal_pk}`)
+      navigate(`/recursos-humanos/candidatura/${concursal_pk}`)
     } catch {
       setNavigating(false)
     }
@@ -65,15 +65,15 @@ export default function ProcedimentoPage() {
     <PageLayout
       title={loading ? 'A carregar…' : error ? 'Procedimento não encontrado' : proc?.titulo ?? ''}
       breadcrumbs={[
-        { label: 'Quem Somos', href: '/quem-somos' },
-        { label: 'Recursos Humanos', href: '/quem-somos/recursos-humanos' },
+        { label: 'Recursos Humanos', href: '/recursos-humanos' },
         { label: loading ? '…' : proc?.titulo ?? '' },
       ]}
+      seoDescription="Detalhe do procedimento de recrutamento da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-3xl">
           <Link
-            to="/quem-somos/recursos-humanos"
+            to="/recursos-humanos"
             className="inline-flex items-center gap-1.5 text-aintar-teal text-sm font-medium mb-8 hover:underline"
           >
             <ArrowLeft size={14} /> Voltar a Recursos Humanos

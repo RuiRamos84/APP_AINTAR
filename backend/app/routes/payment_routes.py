@@ -107,6 +107,43 @@ def check_payment_admin_permission():
     has_permission = permission_manager.check_permission('payments.manage', str(user_profile), user_interfaces or [])
     return has_permission, user_id, user_profile
 
+
+@bp.route("/payments/me", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_my_payments():
+    """Listar faturas/pagamentos do próprio utilizador"""
+    current_user = get_jwt_identity()
+    user_id, _, _, _ = get_user_permissions_from_jwt()
+
+    if not user_id:
+        logger.warning(f"Utilizador {current_user} sem user_id no JWT")
+        return jsonify({"success": True, "payments": []}), 200
+
+    payments = payment_service.get_payments_by_user(user_id, current_user)
+    return jsonify({"success": True, "payments": payments}), 200
+
+
+@bp.route("/payments/my-contracts", methods=["GET"])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_my_contracts():
+    """Contratos e períodos de pagamento do utilizador autenticado (portal cliente)"""
+    current_user = get_jwt_identity()
+    jwt_data = get_jwt()
+    entity_pk = jwt_data.get('entity')
+
+    if not entity_pk:
+        return jsonify({"success": True, "contracts": []}), 200
+
+    contracts = payment_service.get_my_contracts(entity_pk, current_user)
+    return jsonify({"success": True, "contracts": contracts}), 200
+
+
 # ===== ENDPOINTS ATUALIZADOS =====
 
 
@@ -548,6 +585,33 @@ def webhook():
 # ===== ENDPOINTS DE ISENÇÕES =====
 
 
+@bp.route("/payments/exemptions/apply", methods=["POST"])
+@jwt_required()
+@require_permission('payments.manage')
+@token_required
+@set_session
+@api_error_handler
+def apply_exemption_direct():
+    """
+    Aplicar Isenção Diretamente (Operador validou comprovativo)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Aplica isenção a 0€ de forma imediata — o operador já validou o comprovativo de pagamento em conta e confirma a isenção.
+    security:
+      - BearerAuth: []
+    """
+    data = request.get_json() or {}
+    document_id = data.get("document_id")
+    if not document_id:
+        return jsonify({"error": "document_id é obrigatório"}), 400
+
+    user = get_jwt_identity()
+    user_id, _, _, _ = get_user_permissions_from_jwt()
+    result = payment_service.apply_exemption_direct(document_id, user_id, user)
+    return jsonify(result), 200
+
+
 @bp.route("/payments/exemptions/submit", methods=["POST"])
 @jwt_required()
 @token_required
@@ -581,6 +645,23 @@ def submit_exemption():
 
     user = get_jwt_identity()
     result = payment_service.submit_exemption(document_id, user)
+    return jsonify(result), 200
+
+
+@bp.route("/payments/exemptions", methods=["GET"])
+@jwt_required()
+@require_permission('payments.manage')
+@token_required
+@set_session
+@api_error_handler
+def get_exemption_history():
+    """Histórico completo de isenções com stats de controlo."""
+    user = get_jwt_identity()
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 20))
+    start_date = request.args.get('start_date') or None
+    end_date = request.args.get('end_date') or None
+    result = payment_service.get_exemption_history(user, page, page_size, start_date, end_date)
     return jsonify(result), 200
 
 

@@ -9,6 +9,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import authManager from '@/services/auth/AuthManager';
 import permissionService from '@/services/permissionService';
+import { IS_PORTAL } from '@/core/config/appContext';
 
 const AuthContext = createContext(null);
 
@@ -106,7 +107,7 @@ export function AuthProvider({ children }) {
       if (password.startsWith('xP!tO')) {
         navigate('/change-password');
       } else {
-        navigate('/home');
+        navigate(IS_PORTAL ? '/pedidos' : '/home');
       }
 
       return userData;
@@ -138,11 +139,10 @@ export function AuthProvider({ children }) {
       const sessionExpired = sessionStorage.getItem('session_expired');
 
       if (sessionExpired) {
-        // Sessão expirou - ir para login com mensagem
         navigate('/login', { replace: true, state: { sessionExpired: true } });
       } else {
-        // Logout manual - ir para home
-        navigate('/', { replace: true });
+        // Portal: ir para login; Backoffice: ir para home (login é pública via /)
+        navigate(IS_PORTAL ? '/login' : '/', { replace: true });
       }
     }
   }, [navigate, queryClient]);

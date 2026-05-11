@@ -63,11 +63,11 @@ const UserCreatePage = () => {
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // Perfis 0 (Admin) e 1 (AINTAR) são utilizadores internos — não precisam de município
+  // Perfis 0 (Admin), 1 (AINTAR) e 6 (TERRENO) são utilizadores internos — não precisam de município
   const isInternalProfile = formData.profil === '0' || formData.profil === '1' || formData.profil === '6';
 
   /**
-   * Atualizar campo
+   * Atualizar camp 
    */
   const updateField = (field, value) => {
     setFormData((prev) => {
@@ -100,7 +100,7 @@ const UserCreatePage = () => {
     if (formData.password && formData.password.length < 6) {
       newErrors.password = 'Password deve ter pelo menos 6 caracteres';
     }
-    if (!isInternalProfile && !formData.entity_pk) {
+    if (!isInternalProfile  && !formData.entity_pk) {
       newErrors.entity_pk = 'Município é obrigatório para este perfil';
     }
 

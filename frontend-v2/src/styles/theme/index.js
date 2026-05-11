@@ -152,9 +152,9 @@ export const getTheme = (mode = 'light') => {
       },
     },
 
-    // Shape (bordas arredondadas)
+    // Shape (bordas arredondadas — matching rounded-2xl do website)
     shape: {
-      borderRadius: 8, // 8px padrão
+      borderRadius: 16, 
     },
 
     // Shadows (elevação)
@@ -192,11 +192,16 @@ export const getTheme = (mode = 'light') => {
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
-            padding: '10px 20px',
-            minHeight: spacingTokens.touch.minTarget, // Touch-friendly
+            borderRadius: 100, // Full rounded (matching website buttons)
+            padding: '10px 24px',
+            minHeight: spacingTokens.touch.minTarget, 
             textTransform: 'none',
-            fontWeight: typographyTokens.fontWeight.medium,
+            fontWeight: 600,
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 4px 12px rgba(27, 94, 142, 0.2)',
+            }
           },
           sizeLarge: {
             padding: '14px 28px',
@@ -218,10 +223,13 @@ export const getTheme = (mode = 'light') => {
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: 12,
-            boxShadow: isLight ? elevationTokens.card : elevationDarkTokens.card,
+            borderRadius: 24, // 24px (Premium cards)
+            border: `1px solid ${isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)'}`,
+            boxShadow: isLight ? '0 4px 20px rgba(0,0,0,0.03)' : '0 4px 20px rgba(0,0,0,0.2)',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
-              boxShadow: isLight ? elevationTokens.cardHover : elevationDarkTokens.cardHover,
+              transform: 'translateY(-4px)',
+              boxShadow: isLight ? '0 12px 30px rgba(0,0,0,0.08)' : '0 12px 30px rgba(0,0,0,0.4)',
             },
           },
         },
@@ -244,7 +252,14 @@ export const getTheme = (mode = 'light') => {
         styleOverrides: {
           root: {
             '& .MuiOutlinedInput-root': {
-              borderRadius: 8,
+              borderRadius: 12,
+              backgroundColor: isLight ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.2)',
+              '& fieldset': {
+                borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
+              },
+              '&:hover fieldset': {
+                borderColor: colorTokens.primary[300],
+              },
             },
           },
         },
@@ -254,7 +269,10 @@ export const getTheme = (mode = 'light') => {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            boxShadow: isLight ? elevationTokens.appBar : elevationDarkTokens.appBar,
+            backdropFilter: 'blur(12px)',
+            backgroundColor: isLight ? 'rgba(255,255,255,0.8)' : 'rgba(10, 22, 40, 0.8)',
+            borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)'}`,
+            color: isLight ? colorTokens.primary[900] : '#fff',
           },
         },
         defaultProps: {

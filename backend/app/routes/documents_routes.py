@@ -76,7 +76,7 @@ def get_documents():
 @bp.route('/document/<string:documentId>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned')  # docs.view.all | docs.view.owner | docs.view.assigned
+@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned', 'portal.access')
 @set_session
 @api_error_handler
 def documentById_route(documentId):
@@ -195,7 +195,7 @@ def check_step_hierarchy(dockty_id):
 @bp.route('/create_document', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('docs.create')
+@require_any_permission('docs.create', 'portal.access')
 @set_session
 @api_error_handler
 def create_new_document():
@@ -244,7 +244,7 @@ def update_document_notification_route(pk):
 @bp.route('/document_owner', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('docs.view.owner')
+@require_any_permission('docs.view.owner', 'portal.access')
 @set_session
 @api_error_handler
 def get_document_owner():
@@ -268,7 +268,7 @@ def get_document_owner():
 @bp.route('/get_document_step/<int:pk>', methods=['GET'])
 @limiter.exempt
 @jwt_required()
-@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned')  # docs.view.all | docs.view.owner | docs.view.assigned
+@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned', 'portal.access')
 @token_required
 @set_session
 @api_error_handler
@@ -281,7 +281,7 @@ def get_document_step(pk):
 
 @bp.route('/document/<int:document_id>/params', methods=['GET'])
 @jwt_required()
-@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned')  # docs.view.all | docs.view.owner | docs.view.assigned
+@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned', 'portal.access')
 @token_required
 @set_session
 @api_error_handler
@@ -353,7 +353,7 @@ def update_document_fields_route(pk):
 @bp.route('/get_document_anex/<int:pk>', methods=['GET'])
 @limiter.exempt
 @jwt_required()
-@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned')  # docs.view.all | docs.view.owner | docs.view.assigned
+@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned', 'portal.access')
 @token_required
 @set_session
 @api_error_handler
@@ -381,7 +381,7 @@ def add_document_steps(pk):
 
 @bp.route('/files/<string:regnumber>/<string:filename>', methods=['GET'])
 @jwt_required()
-@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned')  # docs.view.all | docs.view.owner | docs.view.assigned
+@require_any_permission('docs.view.all', 'docs.view.owner', 'docs.view.assigned', 'portal.access')
 @token_required
 @set_session
 @api_error_handler

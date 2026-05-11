@@ -11,7 +11,7 @@ import { notification } from '@/core/services/notification';
 import { loginSchema } from '../schemas';
 
 export const useLogin = () => {
-  const { loginUser, isLoading } = useAuth();
+  const { loginUser } = useAuth();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -19,6 +19,7 @@ export const useLogin = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   /**
    * Atualiza campo do formulário
@@ -69,12 +70,11 @@ export const useLogin = () => {
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
-    // Validar
     if (!validate()) {
       return { success: false };
     }
 
-    // Fazer login
+    setIsSubmitting(true);
     try {
       await loginUser(formData.username, formData.password);
       return { success: true };
@@ -82,6 +82,8 @@ export const useLogin = () => {
       const errorMessage = error.message || 'Erro ao fazer login';
       notification.error(errorMessage);
       return { success: false, error: errorMessage };
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -100,7 +102,7 @@ export const useLogin = () => {
     // Dados do formulário
     formData,
     errors,
-    isLoading,
+    isLoading: isSubmitting,
 
     // Ações
     updateField,

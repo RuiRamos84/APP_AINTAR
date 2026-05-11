@@ -4,16 +4,17 @@ import DarkBgDecorations from '../ui/DarkBgDecorations'
 
 const footerLinks = {
   empresa: [
-    { label: 'Sobre a AINTAR', href: '/quem-somos' },
-    { label: 'Órgãos Sociais', href: '/quem-somos/orgaos-sociais' },
-    { label: 'Municípios Associados', href: '/quem-somos' },
-    { label: 'Projetos', href: '/projetos' },
+    { label: 'Sobre a AINTAR',    href: '/quem-somos' },
+    { label: 'Órgãos Sociais',    href: '/quem-somos/orgaos-sociais' },
+    { label: 'Recursos Humanos',  href: '/recursos-humanos' },
+    { label: 'Projetos',          href: '/projetos' },
   ],
   servicos: [
     { label: 'Saneamento em Alta',      href: '/saneamento#alta' },
     { label: 'Saneamento em Baixa',     href: '/saneamento#baixa' },
     { label: 'Tratamento de Efluentes', href: '/saneamento#efluentes' },
     { label: 'Qualidade do Serviço',    href: '/saneamento/qualidade' },
+    { label: 'Sustentabilidade',        href: '/sustentabilidade' },
   ],
   documentos: [
     { label: 'Tarifário 2026', href: '/clientes/tarifario' },
@@ -53,7 +54,7 @@ export default function Footer() {
             <path
               d="M0,32 C180,12 360,52 540,32 C720,12 900,52 1080,32
                  C1260,12 1440,52 1620,32 C1800,12 1980,52 2160,32
-                 C2340,12 2520,52 2700,32 C2880,12 L2880,0 L0,0 Z"
+                 C2340,12 2520,52 2700,32 L2880,32 L2880,0 L0,0 Z"
               fill="rgba(255,255,255,0.25)"
             />
           </svg>
@@ -226,6 +227,15 @@ export default function Footer() {
             <div className="flex items-center gap-4">
               <Link to="/politica-privacidade" className="hover:text-white/70 transition-colors">Política de Privacidade</Link>
               <Link to="/termos-utilizacao" className="hover:text-white/70 transition-colors">Termos de Utilização</Link>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('aintar_consent')
+                  window.location.reload()
+                }}
+                className="hover:text-white/70 transition-colors"
+              >
+                Gerir Cookies
+              </button>
               <a
                 href="https://www.livroreclamacoes.pt"
                 target="_blank"

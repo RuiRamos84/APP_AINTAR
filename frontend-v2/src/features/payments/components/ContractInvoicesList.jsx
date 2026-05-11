@@ -152,22 +152,22 @@ export const ContractInvoicesList = ({ contract }) => {
       {isAdding && (
         <Box sx={{ p: 2, mb: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={3}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <Controller name="start_date" control={control} render={({ field }) => (
                 <DatePicker label="Data Início" value={field.value} onChange={field.onChange} slotProps={{ textField: { size: 'small', fullWidth: true } }} />
               )} />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <Controller name="stop_date" control={control} render={({ field }) => (
                 <DatePicker label="Data Fim" value={field.value} onChange={field.onChange} slotProps={{ textField: { size: 'small', fullWidth: true } }} />
               )} />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <Controller name="value" control={control} render={({ field }) => (
                 <TextField {...field} type="number" label="Valor (€)" size="small" fullWidth />
               )} />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <Stack direction="row" spacing={1}>
                 <Button variant="contained" size="small" onClick={handleSubmit(onSubmit)} disabled={createMutation.isPending}>
                   Salvar

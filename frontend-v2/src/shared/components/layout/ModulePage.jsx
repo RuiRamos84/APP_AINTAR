@@ -12,13 +12,11 @@ import { useMemo } from 'react';
 import { Box, Typography, Breadcrumbs, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import { useUIStore } from '@/core/store/uiStore';
-import { getModuleById } from '@/core/config/moduleConfig';
+import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 
 export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, search, center, children, compact = false, fillHeight = false }) => {
   const navigate = useNavigate();
-  const currentModule = useUIStore((state) => state.currentModule);
-  const moduleConfig = currentModule ? getModuleById(currentModule) : null;
+  const { moduleConfig } = useCurrentModule();
 
   // Normaliza breadcrumbs:
   // 1. Remove "Início" do início (o logo já serve de link para home)

@@ -1,16 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, ChevronDown, LogIn } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Menu, X, ChevronDown, LogIn, Search } from 'lucide-react'
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion'
+import SearchModal from '../ui/SearchModal'
+
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
 
 const navMenu = [
   {
     label: 'Quem Somos',
     children: [
       { label: 'A Nossa Missão', href: '/quem-somos' },
+      { label: 'Organograma', href: '/quem-somos/organograma' },
       { label: 'Órgãos Sociais', href: '/quem-somos/orgaos-sociais' },
+      { label: 'Estatutos', href: '/quem-somos/estatutos' },
       { label: 'Documentos Financeiros', href: '/quem-somos/documentos-financeiros' },
-      { label: 'Recursos Humanos', href: '/quem-somos/recursos-humanos' },
       { label: 'Contratação Pública', href: '/quem-somos/contratacao-publica' },
     ],
   },
@@ -22,7 +26,7 @@ const navMenu = [
       { label: 'Tarifário', href: '/clientes/tarifario' },
       { label: 'Formulários', href: '/clientes/formularios' },
       { label: 'Perguntas Frequentes', href: '/clientes/faq' },
-      { label: '2ª Via de Fatura', href: 'https://app.aintar.pt', external: true },
+      { label: '2ª Via de Fatura', href: PORTAL_URL, external: true },
     ],
   },
   {
@@ -30,10 +34,11 @@ const navMenu = [
     children: [
       { label: 'Sistemas de Tratamento', href: '/saneamento' },
       { label: 'Qualidade do Serviço', href: '/saneamento/qualidade' },
+      { label: 'Sustentabilidade', href: '/sustentabilidade' },
     ],
   },
   { label: 'Projetos', href: '/projetos' },
-  { label: 'Sustentabilidade', href: '/sustentabilidade' },
+  { label: 'Recursos Humanos', href: '/recursos-humanos' },
   {
     label: 'Comunicação',
     children: [
@@ -84,13 +89,33 @@ function DropdownMenu({ items }) {
   )
 }
 
-export default function Navbar() {
+export default function Navbar({ forceLight = false }) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState(null)
   const [mobileExpanded, setMobileExpanded] = useState(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const location = useLocation()
   const hoverTimeout = useRef(null)
+
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  })
+
+  // Atalho Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const isHomePage = location.pathname === '/'
 
@@ -100,7 +125,7 @@ export default function Navbar() {
   // Para páginas internas: isLight = scrolled (PageHeader é escuro no topo)
   // Para homepage: isLight depende de qual secção está sob o navbar
   const [darkUnderNav, setDarkUnderNav] = useState(true) // arranca no Hero (escuro)
-  const isLight = isHomePage ? !darkUnderNav : scrolled
+  const isLight = forceLight || (isHomePage ? !darkUnderNav : scrolled)
 
   // Scroll simples — para páginas internas e para o estado scrolled
   useEffect(() => {
@@ -162,11 +187,18 @@ export default function Navbar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isLight
-            ? 'glass shadow-lg shadow-aintar-navy/10 border-b border-gray-100'
-            : 'bg-transparent'
+          !scrolled
+            ? 'bg-transparent'
+            : isLight
+              ? 'glass shadow-lg shadow-aintar-navy/10 border-b border-gray-100'
+              : 'glass-dark'
         }`}
       >
+        {/* Reading Progress Bar */}
+        <motion.div
+          className="absolute bottom-0 left-0 right-0 h-[2px] bg-aintar-sky origin-left z-50"
+          style={{ scaleX }}
+        />
         <div className="section-container">
           <div className={`flex items-center justify-between transition-all duration-300 ${
             scrolled ? 'h-14' : 'h-20'
@@ -194,7 +226,8 @@ export default function Navbar() {
                     <button
                       aria-haspopup="menu"
                       aria-expanded={activeDropdown === item.label}
-                      className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200
+                      className={`flex items-center gap-1 px-3.5 py-2 rounded-full font-medium transition-all duration-300
+                        ${scrolled ? 'text-[13px]' : 'text-sm'}
                         ${isLight
                           ? 'text-aintar-navy hover:text-aintar-blue hover:bg-aintar-light'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -202,7 +235,7 @@ export default function Navbar() {
                     >
                       {item.label}
                       <ChevronDown
-                        size={13}
+                        size={scrolled ? 12 : 13}
                         className={`transition-transform duration-200 ${activeDropdown === item.label ? 'rotate-180' : ''}`}
                       />
                     </button>
@@ -216,7 +249,8 @@ export default function Navbar() {
                   <Link
                     key={item.label}
                     to={item.href}
-                    className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200
+                    className={`px-3.5 py-2 rounded-full font-medium transition-all duration-300
+                      ${scrolled ? 'text-[13px]' : 'text-sm'}
                       ${isLight
                         ? 'text-aintar-navy hover:text-aintar-blue hover:bg-aintar-light'
                         : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -227,39 +261,69 @@ export default function Navbar() {
                 )
               )}
             </nav>
-
-            {/* CTA */}
-            <div className="hidden lg:flex items-center">
+            
+            {/* Search Trigger & CTA */}
+            <div className="hidden lg:flex items-center gap-4">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className={`p-2.5 rounded-full transition-all duration-300 hover:bg-white/10 flex items-center gap-2 group
+                  ${isLight ? 'text-aintar-navy hover:bg-aintar-light' : 'text-white/80 hover:text-white'}`}
+                title="Pesquisar (Cmd+K)"
+              >
+                <Search size={18} />
+                <span className="text-[10px] font-bold border border-current/20 px-1.5 py-0.5 rounded opacity-50 group-hover:opacity-100 transition-opacity">
+                  CMD K
+                </span>
+              </button>
+              
               <a
-                href="https://app.aintar.pt"
+                href={PORTAL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5
+                className={`flex items-center gap-2 rounded-full font-semibold transition-all duration-300 hover:-translate-y-0.5
+                  ${scrolled ? 'px-4 py-2 text-[13px]' : 'px-5 py-2.5 text-sm'}
                   ${isLight
-                    ? 'bg-aintar-blue text-white hover:bg-aintar-blueMid hover:shadow-lg hover:shadow-aintar-blue/30'
+                    ? 'bg-aintar-blue text-white hover:bg-aintar-blue-mid hover:shadow-lg hover:shadow-aintar-blue/30'
                     : 'bg-aintar-sky text-white hover:bg-aintar-sky/90 hover:shadow-lg hover:shadow-aintar-sky/30'
                   }`}
               >
-                <LogIn size={15} />
+                <LogIn size={scrolled ? 14 : 15} />
                 Área de Cliente
               </a>
             </div>
 
-            {/* Mobile Burger */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
-              aria-expanded={mobileOpen}
-              aria-controls="mobile-menu"
-              className={`lg:hidden p-2 rounded-lg transition-colors duration-200 ${
-                isLight ? 'text-aintar-navy hover:bg-aintar-light' : 'text-white hover:bg-white/10'
-              }`}
-            >
-              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+            {/* Mobile Actions */}
+            <div className="flex lg:hidden items-center gap-1">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isLight ? 'text-aintar-navy hover:bg-aintar-light' : 'text-white hover:bg-white/10'
+                }`}
+              >
+                <Search size={20} />
+              </button>
+              
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
+                aria-expanded={mobileOpen}
+                aria-controls="mobile-menu"
+                className={`p-2 rounded-lg transition-colors duration-200 ${
+                  isLight ? 'text-aintar-navy hover:bg-aintar-light' : 'text-white hover:bg-white/10'
+                }`}
+              >
+                {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
           </div>
         </div>
       </motion.header>
+
+      <SearchModal 
+        isOpen={searchOpen} 
+        onClose={() => setSearchOpen(false)} 
+        items={navMenu} 
+      />
 
       {/* Mobile Menu */}
       <AnimatePresence>
@@ -340,10 +404,10 @@ export default function Navbar() {
                 )}
                 <div className="pt-2 mt-1 border-t border-gray-100">
                   <a
-                    href="https://app.aintar.pt"
+                    href={PORTAL_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-aintar-blue text-white font-semibold text-sm hover:bg-aintar-blueMid transition-colors"
+                    className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-aintar-blue text-white font-semibold text-sm hover:bg-aintar-blue-mid transition-colors"
                   >
                     <LogIn size={15} />
                     Área de Cliente

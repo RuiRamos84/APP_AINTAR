@@ -129,9 +129,17 @@ class OperacaoCreate(BaseModel):
 
 
 class OperacaoUpdate(BaseModel):
-    """Dados para atualizar operação - APENAS valuetext e valuememo permitidos"""
+    """Dados para atualizar operação"""
     valuetext: Optional[str] = Field(None, description="Texto de resposta/resultado")
     valuememo: Optional[str] = Field(None, description="Observações adicionais (facultativo)")
+    ts_operador1: Optional[int] = Field(None, gt=0, description="Reatribuição — operador principal")
+    ts_operador2: Optional[int] = Field(None, description="Reatribuição — operador secundário (0 = remover)")
+
+    @validator('ts_operador2')
+    def validate_operator2_different(cls, v, values):
+        if v is not None and v != 0 and 'ts_operador1' in values and values['ts_operador1'] and v == values['ts_operador1']:
+            raise ValueError('Operador secundário deve ser diferente do principal')
+        return v
 
 
 class OperacaoDirect(BaseModel):
@@ -516,7 +524,7 @@ def complete_task_operation(task_id: int, user_id: int, current_user: str, compl
             # 4. Guardar path da foto se existir (campo não coberto pelo fbf)
             if photo_path:
                 session.execute(text("""
-                    UPDATE vbf_operacao SET photo_path = :photo_path WHERE pk = :pk
+                    UPDATE tb_operacao SET photo_path = :photo_path WHERE pk = :pk
                 """), {'photo_path': photo_path, 'pk': task_id})
 
             # 5. Commit das alterações (fbf_operacao + foto)
@@ -927,18 +935,21 @@ def update_operacao(operacao_id: int, data: dict, current_user: str):
     """
     Atualizar operação (execução real) via vbf_operacao
 
-    APENAS permite atualizar:
+    Permite atualizar:
     - valuetext: Texto de resposta/resultado
     - valuememo: Observações adicionais
-
-    Todos os outros campos são IMUTÁVEIS após criação
+    - ts_operador1: Reatribuição de operador principal
+    - ts_operador2: Reatribuição de operador secundário (0 = remover)
     """
     try:
-        # Validar dados com Pydantic - apenas valuetext e valuememo
         update_data = OperacaoUpdate.model_validate(data)
+        raw = update_data.model_dump()
 
-        # Filtrar campos None
-        clean_data = {k: v for k, v in update_data.model_dump().items() if v is not None}
+        # ts_operador2=0 significa remover (SET NULL) — tratar separadamente
+        include_op2_null = raw.get('ts_operador2') == 0
+        clean_data = {k: v for k, v in raw.items() if v is not None and not (k == 'ts_operador2' and v == 0)}
+        if include_op2_null:
+            clean_data['ts_operador2'] = None
 
         if not clean_data:
             return {
@@ -947,8 +958,7 @@ def update_operacao(operacao_id: int, data: dict, current_user: str):
             }, 200
 
         with db_session_manager(current_user) as session:
-            # Verificar se operação existe
-            check_query = text("SELECT pk FROM vbf_operacao WHERE pk = :pk")
+            check_query = text("SELECT pk FROM tb_operacao WHERE pk = :pk")
             exists = session.execute(check_query, {'pk': operacao_id}).fetchone()
 
             if not exists:
@@ -957,13 +967,8 @@ def update_operacao(operacao_id: int, data: dict, current_user: str):
                     'error': 'Operação não encontrada'
                 }, 404
 
-            # Montar UPDATE apenas com campos permitidos
             set_clause = ", ".join([f"{key} = :{key}" for key in clean_data.keys()])
-            update_query = text(f"""
-                UPDATE vbf_operacao
-                SET {set_clause}
-                WHERE pk = :pk
-            """)
+            update_query = text(f"UPDATE tb_operacao SET {set_clause} WHERE pk = :pk")
 
             session.execute(update_query, {**clean_data, 'pk': operacao_id})
             session.commit()

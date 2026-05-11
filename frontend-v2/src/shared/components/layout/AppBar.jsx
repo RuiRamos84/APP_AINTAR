@@ -46,6 +46,7 @@ import logoSrc from '/logo.png';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useNavigate } from 'react-router-dom';
 import { getAccessibleModules, getModuleById } from '@/core/config/moduleConfig';
+import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { NotificationCenter } from './NotificationCenter';
 
 export const AppBar = ({ onMenuClick }) => {
@@ -55,8 +56,10 @@ export const AppBar = ({ onMenuClick }) => {
 
   const themeMode = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
-  const currentModule = useUIStore((state) => state.currentModule);
   const setCurrentModule = useUIStore((state) => state.setCurrentModule);
+
+  // Módulo derivado da URL — sem race conditions com o store
+  const { moduleId: currentModule } = useCurrentModule();
 
   const scrolled = useNavbarCompact();
 

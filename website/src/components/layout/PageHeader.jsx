@@ -1,18 +1,22 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 
 // breadcrumbs: [{ label: 'Quem Somos', href: '/quem-somos' }, { label: 'Documentos Financeiros' }]
 export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
+  const { scrollY } = useScroll()
+  const y1 = useTransform(scrollY, [0, 300], [0, 60])
+  const opacity = useTransform(scrollY, [0, 200], [1, 0.6])
+
   return (
     <div className="bg-hero-gradient pt-28 pb-20 relative overflow-hidden min-h-[220px]">
-
-      {/* Decorações de fundo */}
-      <DarkBgDecorations intensity="medium" />
-
-      {/* Conteúdo */}
-      <div className="section-container relative z-10">
+ 
+       {/* Decorações de fundo */}
+       <DarkBgDecorations intensity="medium" />
+ 
+       {/* Conteúdo com Parallax */}
+       <motion.div style={{ y: y1, opacity }} className="section-container relative z-10">
 
         {/* Breadcrumb */}
         {breadcrumbs.length > 0 && (
@@ -57,7 +61,7 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
             {subtitle}
           </motion.p>
         )}
-      </div>
+      </motion.div>
 
       {/* Onda animada — transição suave para o conteúdo branco */}
       <div className="absolute bottom-0 left-0 right-0 h-16 overflow-hidden pointer-events-none">
@@ -78,7 +82,7 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
             <path
               d="M0,32 C180,52 360,12 540,32 C720,52 900,12 1080,32
                  C1260,52 1440,12 1620,32 C1800,52 1980,12 2160,32
-                 C2340,52 2520,12 2700,32 C2880,52 2880,64 0,64 Z"
+                 C2340,52 2520,12 2700,32 L2880,32 L2880,64 L0,64 Z"
               fill="rgba(255,255,255,0.25)"
             />
           </svg>

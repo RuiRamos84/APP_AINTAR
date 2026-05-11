@@ -35,6 +35,7 @@ export default function EditaisPage() {
         { label: 'Comunicação' },
         { label: 'Editais' },
       ]}
+      seoDescription="Editais e publicações oficiais da AINTAR."
     >
       <section className="section-padding bg-white">
         <div className="section-container max-w-4xl">

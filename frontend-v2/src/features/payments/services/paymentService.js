@@ -147,6 +147,11 @@ class PaymentService {
     /**
      * ISENÇÕES
      */
+    async applyExemption(documentId) {
+        const response = await api.post('/payments/exemptions/apply', { document_id: documentId });
+        return response;
+    }
+
     async submitExemption(documentId) {
         const response = await api.post('/payments/exemptions/submit', { document_id: documentId });
         return response;
@@ -154,6 +159,17 @@ class PaymentService {
 
     async getPendingExemptions() {
         const response = await api.get('/payments/exemptions/pending');
+        return response;
+    }
+
+    async getExemptionHistory(params = {}) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== '') {
+                queryParams.append(key, value);
+            }
+        });
+        const response = await api.get(`/payments/exemptions?${queryParams}`);
         return response;
     }
 

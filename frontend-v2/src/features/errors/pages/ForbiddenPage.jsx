@@ -8,9 +8,13 @@ import { Box, Typography, Button, Paper, Container } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
 import HomeIcon from '@mui/icons-material/Home';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { IS_PORTAL } from '@/core/config/appContext';
+import { useAuth } from '@/core/contexts/AuthContext';
 
 const ForbiddenPage = () => {
   const navigate = useNavigate();
+  const { logoutUser } = useAuth();
 
   return (
     <Container maxWidth="sm">
@@ -94,23 +98,37 @@ const ForbiddenPage = () => {
               justifyContent: 'center',
             }}
           >
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-              onClick={() => navigate(-1)}
-              size="large"
-            >
-              Voltar
-            </Button>
+            {!IS_PORTAL && (
+              <Button
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate(-1)}
+                size="large"
+              >
+                Voltar
+              </Button>
+            )}
 
             <Button
               variant="contained"
               startIcon={<HomeIcon />}
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(IS_PORTAL ? '/' : '/dashboard')}
               size="large"
             >
-              Ir para Dashboard
+              {IS_PORTAL ? 'Ir para Início' : 'Ir para Dashboard'}
             </Button>
+
+            {IS_PORTAL && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<LogoutIcon />}
+                onClick={logoutUser}
+                size="large"
+              >
+                Terminar Sessão
+              </Button>
+            )}
           </Box>
         </Paper>
       </Box>

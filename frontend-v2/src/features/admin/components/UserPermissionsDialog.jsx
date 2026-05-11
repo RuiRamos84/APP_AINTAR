@@ -61,7 +61,7 @@ const getInitials = (name, username) => {
 };
 
 const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
-  const { interfaces } = useInterfaces();
+  const { interfaces, isLoading: interfacesLoading } = useInterfaces();
   const theme = useTheme();
   const isMobile  = useMediaQuery(theme.breakpoints.down('sm'),  { noSsr: true });
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'),    { noSsr: true });
@@ -539,10 +539,18 @@ const UserPermissionsDialog = ({ open, user, onClose, onSave }) => {
                 );
               })}
 
-              {Object.keys(filteredGroups).length === 0 && (
+              {interfacesLoading && (
+                <Box sx={{ p: 6, textAlign: 'center' }}>
+                  <Typography color="text.secondary">A carregar permissões…</Typography>
+                </Box>
+              )}
+
+              {!interfacesLoading && Object.keys(filteredGroups).length === 0 && (
                 <Box sx={{ p: 6, textAlign: 'center' }}>
                   <Typography color="text.secondary">
-                    Nenhuma permissão encontrada para "{searchTerm}"
+                    {searchTerm
+                      ? `Nenhuma permissão encontrada para "${searchTerm}"`
+                      : 'Nenhuma permissão disponível. Verifique a tabela ts_interface na base de dados.'}
                   </Typography>
                 </Box>
               )}

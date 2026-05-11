@@ -1,5 +1,8 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { orcamentoService } from '../api/orcamentoService';
+
+const unwrap = (data) => Array.isArray(data) ? data : (data?.data ?? []);
 
 export const useOrcamentoStore = create((set, get) => ({
     registos: [],
@@ -13,7 +16,6 @@ export const useOrcamentoStore = create((set, get) => ({
     error: null,
     modalOpen: false,
     editTarget: null,
-    catalogModalOpen: false,
 
     setAno: (ano) => {
         set({ anoSelecionado: ano });
@@ -22,26 +24,29 @@ export const useOrcamentoStore = create((set, get) => ({
         get().fetchSubclasses();
     },
 
-    openModal: (registo = null) => set({ modalOpen: true, editTarget: registo }),
-    closeModal: () => set({ modalOpen: false, editTarget: null }),
-
-    openCatalogModal: () => set({ catalogModalOpen: true }),
-    closeCatalogModal: () => set({ catalogModalOpen: false }),
+    openModal:  (registo = null) => set({ modalOpen: true,  editTarget: registo }),
+    closeModal: ()               => set({ modalOpen: false, editTarget: null }),
 
     fetchAnos: async () => {
-        const currentYear = new Date().getFullYear();
-        const list = [];
-        for (let y = currentYear; y >= 2023; y--) list.push(y);
-        set({ anos: list, anoSelecionado: get().anoSelecionado ?? list[0] });
-        return list;
+        try {
+            const data = await orcamentoService.getAnos();
+            const list = [...unwrap(data)].sort((a, b) => b - a);
+            set({ anos: list });
+            return list;
+        } catch {
+            const cur  = new Date().getFullYear();
+            const list = Array.from({ length: cur - 2022 }, (_, i) => cur - i);
+            set({ anos: list });
+            return list;
+        }
     },
 
     fetchSubclasses: async () => {
         try {
             const data = await orcamentoService.getSubclasses();
-            const list = Array.isArray(data) ? data : (data?.data ?? []);
-            set({ subclasses: list });
+            set({ subclasses: unwrap(data) });
         } catch (err) {
+            toast.error('Erro ao carregar subclasses.');
             set({ error: err.message });
         }
     },
@@ -49,9 +54,9 @@ export const useOrcamentoStore = create((set, get) => ({
     fetchTipos: async () => {
         try {
             const data = await orcamentoService.getTipos();
-            const list = Array.isArray(data) ? data : (data?.data ?? []);
-            set({ tipos: list });
+            set({ tipos: unwrap(data) });
         } catch (err) {
+            toast.error('Erro ao carregar tipos.');
             set({ error: err.message });
         }
     },
@@ -59,8 +64,30 @@ export const useOrcamentoStore = create((set, get) => ({
     fetchClasses: async () => {
         try {
             const data = await orcamentoService.getClasses();
-            const list = Array.isArray(data) ? data : (data?.data ?? []);
-            set({ classes: list });
+            set({ classes: unwrap(data) });
+        } catch (err) {
+            toast.error('Erro ao carregar classes.');
+            set({ error: err.message });
+        }
+    },
+
+    fetchDetalhe: async (ano = null) => {
+        set({ loading: true, error: null });
+        try {
+            const resolved = ano ?? get().anoSelecionado;
+            const data     = await orcamentoService.getDetalhe(resolved);
+            set({ registos: unwrap(data), loading: false });
+        } catch (err) {
+            toast.error('Erro ao carregar dotações.');
+            set({ error: err.message, loading: false });
+        }
+    },
+
+    fetchSummary: async (ano = null) => {
+        try {
+            const resolved = ano ?? get().anoSelecionado;
+            const data     = await orcamentoService.getSummary(resolved);
+            set({ summary: unwrap(data) });
         } catch (err) {
             set({ error: err.message });
         }
@@ -77,36 +104,23 @@ export const useOrcamentoStore = create((set, get) => ({
         await get().fetchSubclasses();
     },
 
-    fetchDetalhe: async (ano = null) => {
-        set({ loading: true, error: null });
-        try {
-            const resolvedAno = ano ?? get().anoSelecionado;
-            const data = await orcamentoService.getDetalhe(resolvedAno);
-            const list = Array.isArray(data) ? data : (data?.data ?? []);
-            set({ registos: list, loading: false });
-        } catch (err) {
-            set({ error: err.message, loading: false });
-        }
+    updateClasse: async (pk, payload) => {
+        await orcamentoService.updateClasse(pk, payload);
+        await get().fetchClasses();
+        await get().fetchSubclasses();
     },
 
-    fetchSummary: async (ano = null) => {
-        try {
-            const resolvedAno = ano ?? get().anoSelecionado;
-            const data = await orcamentoService.getSummary(resolvedAno);
-            const list = Array.isArray(data) ? data : (data?.data ?? []);
-            set({ summary: list });
-        } catch (err) {
-            set({ error: err.message });
-        }
+    updateSubclasse: async (pk, payload) => {
+        await orcamentoService.updateSubclasse(pk, payload);
+        await get().fetchSubclasses();
     },
 
     addRegisto: async (payload) => {
-        const data = await orcamentoService.create(payload);
+        await orcamentoService.create(payload);
         set({ modalOpen: false, editTarget: null });
         const ano = get().anoSelecionado;
         await get().fetchDetalhe(ano);
         await get().fetchSummary(ano);
-        return data;
     },
 
     updateRegisto: async (pk, payload) => {

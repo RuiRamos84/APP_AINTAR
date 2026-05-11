@@ -4,6 +4,8 @@ import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import DarkBgDecorations from '../../components/ui/DarkBgDecorations'
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://clientes.aintar.pt'
+
 const areas = [
   {
     icon: FileText,
@@ -36,9 +38,9 @@ const areas = [
 ]
 
 const quickActions = [
-  { label: '2ª Via de Fatura', href: 'https://app.aintar.pt', external: true },
-  { label: 'Comunicar Leitura', href: 'https://app.aintar.pt', external: true },
-  { label: 'Reportar Avaria', href: 'https://app.aintar.pt', external: true },
+  { label: '2ª Via de Fatura', href: PORTAL_URL, external: true },
+  { label: 'Comunicar Leitura', href: PORTAL_URL, external: true },
+  { label: 'Reportar Avaria', href: PORTAL_URL, external: true },
   { label: 'Contactar Apoio', href: '/contactos', external: false },
 ]
 
@@ -48,6 +50,7 @@ export default function ClientesPage() {
       title="Clientes"
       subtitle="Toda a informação e serviços de que necessita enquanto cliente da AINTAR."
       breadcrumbs={[{ label: 'Clientes' }]}
+      seoDescription="Informação para clientes AINTAR: regulamento, tarifário, formulários e apoio ao cliente."
     >
       {/* Quick actions */}
       <section className="py-10 bg-aintar-light border-b border-aintar-blue/10">
@@ -94,6 +97,30 @@ export default function ClientesPage() {
                 </Link>
               </ScrollReveal>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pagamentos & IBAN */}
+      <section className="section-padding bg-white border-t border-gray-50">
+        <div className="section-container">
+          <div className="max-w-4xl mx-auto">
+            <ScrollReveal className="flex flex-col md:flex-row items-center gap-8 p-8 rounded-3xl bg-aintar-light border border-aintar-blue/10">
+              <div className="w-20 h-20 rounded-2xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                <Euro size={32} className="text-aintar-blue" />
+              </div>
+              <div className="flex-grow text-center md:text-left">
+                <h3 className="font-heading font-bold text-aintar-navy text-lg mb-2">Informação de Pagamentos</h3>
+                <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                  Pode efetuar o pagamento das suas faturas através de Multibanco, Débito Direto ou Transferência Bancária.
+                  Para transferências, utilize o IBAN abaixo e envie o comprovativo para <a href="mailto:pedidos@aintar.pt" className="text-aintar-blue font-semibold hover:underline">pedidos@aintar.pt</a>.
+                </p>
+                <div className="inline-flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-100 font-mono text-sm">
+                  <span className="text-gray-400 font-sans font-bold uppercase tracking-widest text-[10px]">IBAN Millennium BCP</span>
+                  <span className="text-aintar-navy font-bold select-all">PT50 0033 0000 4554 1170 3800 5</span>
+                </div>
+              </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>

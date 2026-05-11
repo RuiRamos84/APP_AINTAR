@@ -10,6 +10,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { BrowserRouter } from 'react-router-dom';
 import { getTheme } from '@/styles/theme';
 import { useUIStore } from '@/core/store/uiStore';
+import { IS_PORTAL } from '@/core/config/appContext';
 import { AuthProvider } from '@/core/contexts/AuthContext';
 import { PermissionProvider } from '@/core/contexts/PermissionContext';
 import { SocketProvider } from '@/core/contexts/SocketContext';
@@ -60,7 +61,7 @@ function AppThemeProvider({ children }) {
  */
 export function AppProviders({ children }) {
   return (
-    <BrowserRouter basename={import.meta.env.PROD ? '/v2' : '/'}>
+    <BrowserRouter basename={import.meta.env.PROD && !IS_PORTAL ? '/v2' : '/'}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <MetadataProvider>

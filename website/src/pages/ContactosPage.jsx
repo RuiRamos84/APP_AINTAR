@@ -45,6 +45,7 @@ export default function ContactosPage() {
       title="Contactos"
       subtitle="Entre em contacto connosco. Estamos disponíveis para o ajudar."
       breadcrumbs={[{ label: 'Contactos' }]}
+      seoDescription="Contacte a AINTAR: telefone 232 017 073, email geral@aintar.pt, sede em Carregal do Sal. Atendimento seg-sex 09h-13h / 14h-16h30."
     >
       <section className="section-padding bg-white">
         <div className="section-container">

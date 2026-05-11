@@ -64,17 +64,31 @@ def fetch_meta_data(current_user):
         'despesaobra': "SELECT * FROM vbl_despesaobra ORDER BY pk",
         'contractfrequency': "SELECT * FROM vbl_contractfrequency ORDER BY pk",
         'entities': "SELECT pk, name FROM ts_entity ORDER BY name",
+        # ── Recursos Humanos ─────────────────────────────────────────────
+        # Leitura sempre por views (vbl_), nunca directamente nas tabelas base
+        'rh_colaboradores':      "SELECT pk, name, data_nascimento FROM vbl_rh_colaborador ORDER BY name",
+        'rh_tipo_jornada':       "SELECT pk, descr FROM vbl_rh_tipo_jornada",
+        'rh_ponto_evento':       "SELECT pk, descr, ordem FROM vbl_rh_ponto_evento",
+        'rh_tipo_ferias':        "SELECT pk, descr, debita_saldo FROM vbl_rh_tipo_ferias",
+        'rh_tipo_falta':         "SELECT pk, descr, requer_justificativo FROM vbl_rh_tipo_falta",
+        'rh_estado_workflow':    "SELECT pk, descr, cor FROM vbl_rh_estado_workflow",
+        'rh_piquete_ocorrencia': "SELECT pk, descr FROM vbl_rh_tipo_ocorrencia",
     }
 
     response_data = {}
     with db_session_manager(current_user) as session:
         for key, query in queries.items():
-            result = session.execute(text(query))
-            columns = result.keys()
-            response_data[key] = [
-                {column: value for column, value in zip(columns, row)}
-                for row in result
-            ]
+            try:
+                result = session.execute(text(query))
+                columns = result.keys()
+                response_data[key] = [
+                    {column: value for column, value in zip(columns, row)}
+                    for row in result
+                ]
+            except Exception as e:
+                logger.warning(f"[meta_data] Falha na query '{key}': {e}")
+                response_data[key] = []   # lista vazia — não bloqueia o resto
+                session.rollback()        # limpa o estado da transacção
 
     metadata_cache = {
         'data': response_data,

@@ -13,6 +13,9 @@ backend/.pytest_cache/
 frontend/build/
 frontend/dist/
 frontend/.next/
+frontend-v2/dist/
+frontend-v2/dist-portal/
+website/dist/
 
 # Environment files
 .env

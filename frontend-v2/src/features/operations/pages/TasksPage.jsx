@@ -10,6 +10,7 @@ import {
     Refresh as RefreshIcon,
     ExpandMore,
     CheckCircle,
+    Edit as EditIcon,
     Schedule,
     TaskAlt,
     WifiOff,
@@ -72,6 +73,8 @@ const TasksPage = () => {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [completionOpen, setCompletionOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
+    const [editOpen, setEditOpen] = useState(false);
+    const [editTask, setEditTask] = useState(null);
 
     const [requisicaoOpen, setRequisicaoOpen] = useState(false);
     const [requisicaoMemo, setRequisicaoMemo] = useState('');
@@ -97,6 +100,7 @@ const TasksPage = () => {
         refetch,
         completeTask,
         createTask,
+        updateTask,
     } = useOperationTasks();
 
     const { data: etarList = [] } = useETARList();
@@ -204,6 +208,17 @@ const TasksPage = () => {
         await completeTask(taskId, completionData);
         setCompletionOpen(false);
         setSelectedTask(null);
+    };
+
+    const handleOpenEdit = (task) => {
+        setEditTask(task);
+        setEditOpen(true);
+    };
+
+    const handleUpdateTask = async (taskId, updateData) => {
+        await updateTask(taskId, updateData);
+        setEditOpen(false);
+        setEditTask(null);
     };
 
     const handleExportExcel = () => {
@@ -361,7 +376,6 @@ const TasksPage = () => {
                             {filteredInstallations.map(([instalacao, data]) => (
                                 <Accordion
                                     key={instalacao}
-                                    defaultExpanded
                                     sx={{ mb: 1, borderRadius: 2, '&:before': { display: 'none' }, '&.Mui-expanded': { mb: 1 } }}
                                 >
                                     <AccordionSummary expandIcon={<ExpandMore />}>
@@ -472,7 +486,16 @@ const TasksPage = () => {
                                                                                     </Typography>
                                                                                 )}
                                                                             </Box>
-                                                                            <CheckCircle color="success" fontSize="small" sx={{ flexShrink: 0, ml: 1 }} />
+                                                                            <Stack direction="row" alignItems="center" spacing={0.5} flexShrink={0} sx={{ ml: 1 }}>
+                                                                                {task.operacao_tipo !== 5 && (
+                                                                                    <Tooltip title="Corrigir resposta">
+                                                                                        <IconButton size="small" onClick={() => handleOpenEdit(task)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                                                                                            <EditIcon fontSize="small" />
+                                                                                        </IconButton>
+                                                                                    </Tooltip>
+                                                                                )}
+                                                                                <CheckCircle color="success" fontSize="small" />
+                                                                            </Stack>
                                                                         </Stack>
                                                                     </CardContent>
                                                                 </Card>
@@ -735,6 +758,14 @@ const TasksPage = () => {
                 onClose={() => { setCompletionOpen(false); setSelectedTask(null); }}
                 task={selectedTask}
                 onComplete={handleCompleteTask}
+            />
+
+            <TaskCompletionDialog
+                open={editOpen}
+                onClose={() => { setEditOpen(false); setEditTask(null); }}
+                task={editTask}
+                editMode
+                onUpdate={handleUpdateTask}
             />
 
             {/* Dialog — Requisição de Material */}

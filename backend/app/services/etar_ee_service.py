@@ -582,30 +582,49 @@ def create_ramal_reparacao(pnts_associate, pnmemo, pnaddress, pnpostal, pndoor, 
         return {'message': 'Pedido de reparação para Ramais criado com sucesso', 'document_id': result}, 201
 
 
-@api_error_handler
+def _get_instalacao_nome(session, pk_instalacao):
+    """Obter o nome da instalação (ETAR ou EE) a partir do pk."""
+    result = session.execute(
+        text("SELECT nome FROM vbf_etar WHERE pk = :pk UNION ALL SELECT nome FROM vbf_ee WHERE pk = :pk LIMIT 1"),
+        {'pk': pk_instalacao}
+    ).scalar()
+    return result
+
+
+def _set_document_address(session, doc_pk, nome):
+    """Atualizar o campo address do documento com o nome da instalação."""
+    session.execute(
+        text("UPDATE tb_document SET address = :nome WHERE pk = :doc_pk"),
+        {'nome': nome, 'doc_pk': doc_pk}
+    )
+
+
 def create_requisicao_interna(pnmemo, current_user, pk_instalacao=None):
     """Criar pedido de requisição de material (tipo 19), com instalação opcional"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(19, NULL, :pnmemo, :pk_instalacao)")
-        result = session.execute(query, {
-            'pnmemo': pnmemo,
-            'pk_instalacao': pk_instalacao,
-        }).scalar()
-        return {'message': 'Pedido de requisição de material criado com sucesso', 'document_id': result}, 201
+        doc_pk = session.execute(
+            text("SELECT fbo_document_createintern(19, NULL, :pnmemo, :pk_instalacao)"),
+            {'pnmemo': pnmemo, 'pk_instalacao': pk_instalacao}
+        ).scalar()
+        if pk_instalacao and doc_pk:
+            nome = _get_instalacao_nome(session, pk_instalacao)
+            if nome:
+                _set_document_address(session, doc_pk, nome)
+        return {'message': 'Pedido de requisição de material criado com sucesso', 'document_id': doc_pk}, 201
 
 
 def create_descarga_interdita(pk_instalacao, pk_entity, pnmemo, current_user):
     """Criar pedido de descarga interdita (tipo 57) associado a uma instalação"""
     with db_session_manager(current_user) as session:
-        query = text(
-            "SELECT fbo_document_createintern(57, :ts_entity, :pnmemo, :pk_instalacao)")
-        result = session.execute(query, {
-            'ts_entity': pk_entity,
-            'pnmemo': pnmemo,
-            'pk_instalacao': pk_instalacao,
-        }).scalar()
-        return {'message': 'Descarga interdita registada com sucesso', 'document_id': result}, 201
+        doc_pk = session.execute(
+            text("SELECT fbo_document_createintern(57, :ts_entity, :pnmemo, :pk_instalacao)"),
+            {'ts_entity': pk_entity, 'pnmemo': pnmemo, 'pk_instalacao': pk_instalacao}
+        ).scalar()
+        if pk_instalacao and doc_pk:
+            nome = _get_instalacao_nome(session, pk_instalacao)
+            if nome:
+                _set_document_address(session, doc_pk, nome)
+        return {'message': 'Descarga interdita registada com sucesso', 'document_id': doc_pk}, 201
 
 
 def create_instalacao_incumprimento(data: dict, current_user: str):
@@ -632,7 +651,7 @@ def create_instalacao_incumprimento(data: dict, current_user: str):
             'pntt_analiseparam': data.get('tt_analiseparam'),
             'pnresultado': data.get('resultado'),
             'pnlimite': data.get('limite'),
-            'pndata': data.get('data'),
+            'pndata': data.get('data_incump') or data.get('data'),
             'pnoperador1': data.get('operador1'),
             'pnoperador2': data.get('operador2')
         }

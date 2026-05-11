@@ -4,32 +4,32 @@
  */
 
 export const colorTokens = {
-  // Cores Primárias — Steel Institutional Blue
+  // Cores Primárias — AINTAR Brand Blue
   primary: {
     50: '#E8F1FB',
     100: '#C5DBF5',
     200: '#9DC2EE',
     300: '#6BA5E4',
     400: '#3D8ED9',
-    500: '#0E63B5', // Main
-    600: '#0B559E',
-    700: '#094686',
-    800: '#07376D',
-    900: '#042650',
+    500: '#1B5E8E', // Main Website Blue
+    600: '#164E75',
+    700: '#123D5C',
+    800: '#0D2D43',
+    900: '#091C2A',
   },
 
-  // Cores Secundárias
+  // Cores Secundárias — AINTAR Sky/Teal
   secondary: {
-    50: '#f3e5f5',
-    100: '#e1bee7',
-    200: '#ce93d8',
-    300: '#ba68c8',
-    400: '#ab47bc',
-    500: '#9c27b0', // Main
-    600: '#8e24aa',
-    700: '#7b1fa2',
-    800: '#6a1b9a',
-    900: '#4a148c',
+    50: '#F0F9FF',
+    100: '#E0F2FE',
+    200: '#BAE6FD',
+    300: '#7DD3FC',
+    400: '#38BDF8',
+    500: '#29B5E8', // Main Website Sky
+    600: '#0EA5E9',
+    700: '#0284C7',
+    800: '#075985',
+    900: '#0C4A6E',
   },
 
   // Cores Semânticas
@@ -77,24 +77,24 @@ export const colorTokens = {
 
   // Background - Modo Claro
   background: {
-    default: '#F0F4F8',
+    default: '#EFF6FC', // AINTAR Light
     paper: '#ffffff',
     elevated: '#ffffff',
   },
 
   // Background - Modo Escuro
   backgroundDark: {
-    default: '#0D1117',
-    paper: '#161B22',
-    elevated: '#1C2128',
+    default: '#0A1628', // AINTAR Navy
+    paper: '#122040', // AINTAR Mid
+    elevated: '#0D1F3C',
   },
 
   // Texto - Modo Claro
   text: {
-    primary: 'rgba(0, 0, 0, 0.87)',
-    secondary: 'rgba(0, 0, 0, 0.6)',
-    disabled: 'rgba(0, 0, 0, 0.38)',
-    hint: 'rgba(0, 0, 0, 0.38)',
+    primary: '#0A1628', // AINTAR Navy
+    secondary: 'rgba(10, 22, 40, 0.65)',
+    disabled: 'rgba(10, 22, 40, 0.38)',
+    hint: 'rgba(10, 22, 40, 0.38)',
   },
 
   // Texto - Modo Escuro

@@ -50,6 +50,7 @@ export const useSupervisorData = ({ activeTab = 0, pedidosVisited = false } = {}
         createTask,
         createDirect,
         validateExecution,
+        reassignOperacao,
         initMonth,
     } = useOperacaoExecutions(dateRange);
 
@@ -272,6 +273,7 @@ export const useSupervisorData = ({ activeTab = 0, pedidosVisited = false } = {}
         updateMeta,
         deleteMeta,
         validateExecution,
+        reassignOperacao,
         initMonth,
     };
 };
