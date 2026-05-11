@@ -236,12 +236,12 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
                         <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                             <colgroup>
                                 <col />
-                                <col style={{ width: 100 }} />
-                                <col style={{ width: 80 }} />
-                                <col style={{ width: 200 }} />
                                 <col style={{ width: 120 }} />
+                                <col style={{ width: 80 }} />
+                                <col style={{ width: 180 }} />
                                 <col style={{ width: 110 }} />
                                 <col style={{ width: 110 }} />
+                                <col style={{ width: 130 }} />
                                 <col style={{ width: 80 }} />
                             </colgroup>
                             <TableBody>
@@ -275,14 +275,14 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
                                                 {r.memo || '—'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell align="right">
-                                            <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
-                                        </TableCell>
                                         <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary">{fmtDate(r.data_inicio)}</Typography>
                                         </TableCell>
                                         <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary">{fmtDate(r.data_fim)}</Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
                                         </TableCell>
                                         <TableCell align="center">
                                             <Tooltip title="Editar">
@@ -446,14 +446,14 @@ export const OrcamentoTable = () => {
                     }}>
                         <Table size="small" sx={{ minWidth: { xs: 360, md: 'auto' }, tableLayout: 'fixed' }}>
                             <colgroup>
-                                <col />                                                {/* Subclasse — flex */}
-                                <col style={{ width: 100 }} />                         {/* Tipo */}
-                                <col style={{ width: 80 }} className="hide-mobile" />  {/* SNC-AP */}
-                                <col style={{ width: 200 }} className="hide-mobile" /> {/* Descrição */}
-                                <col style={{ width: 120 }} />                         {/* Dotação */}
-                                <col style={{ width: 110 }} className="hide-mobile" /> {/* Início */}
-                                <col style={{ width: 110 }} className="hide-mobile" /> {/* Fim */}
-                                <col style={{ width: 80 }} />                          {/* Ações */}
+                                <col />                                {/* Subclasse — flex */}
+                                <col style={{ width: 120 }} />         {/* Tipo */}
+                                <col style={{ width: 80 }} />          {/* SNC-AP */}
+                                <col style={{ width: 180 }} />         {/* Descrição */}
+                                <col style={{ width: 110 }} />         {/* Início */}
+                                <col style={{ width: 110 }} />         {/* Fim */}
+                                <col style={{ width: 130 }} />         {/* Dotação */}
+                                <col style={{ width: 80 }} />          {/* Ações */}
                             </colgroup>
                             <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                                 <TableRow>
@@ -469,14 +469,14 @@ export const OrcamentoTable = () => {
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
                                         Descrição
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                        Dotação
-                                    </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
                                         Início
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
                                         Fim
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                        Dotação
                                     </TableCell>
                                     <TableCell align="center" />
                                 </TableRow>
