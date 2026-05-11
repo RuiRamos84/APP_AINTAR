@@ -76,7 +76,8 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
     const [designacao, setDesignacao] = useState('');
     const [classe, setClasse] = useState('');
     const [tiposSel, setTiposSel] = useState([]);
-    const [sncap, setSncap] = useState('');
+    const [sncap,  setSncap]  = useState('');
+    const [memo,   setMemo]   = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -86,6 +87,7 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
             setClasse(initial ? String(classes.find(c => c.designacao === initial.classe)?.pk ?? '') : '');
             setTiposSel(initial?.tipo_pks ?? []);
             setSncap(initial?.sncap != null ? String(initial.sncap) : '');
+            setMemo(initial?.memo ?? '');
             setError('');
         }
     }, [open, initial, classes]);
@@ -97,7 +99,7 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
     };
 
     const handleSave = async () => {
-        if (!designacao.trim() || !classe || tiposSel.length === 0 || sncap === '') {
+        if (!designacao.trim() || !classe || tiposSel.length === 0) {
             setError('Preenche todos os campos obrigatórios e seleciona pelo menos um tipo.');
             return;
         }
@@ -107,7 +109,8 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
                 designacao: designacao.trim(),
                 ts_orcamento_classe: parseInt(classe, 10),
                 tipos: tiposSel,
-                sncap: parseInt(sncap, 10),
+                sncap: sncap.trim() || null,
+                memo: memo.trim() || null,
             });
             onClose();
         } catch (err) {
@@ -153,11 +156,13 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
                         </FormGroup>
                     </Box>
                     <TextField label="SNC-AP" value={sncap}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || /^\d+$/.test(val)) setSncap(val);
-                        }}
-                        fullWidth required size="small" type="number" inputProps={{ min: 0, step: 1 }} />
+                        onChange={(e) => setSncap(e.target.value)}
+                        fullWidth size="small"
+                        placeholder="Ex: 01.02.15 (opcional)" />
+                    <TextField label="Descrição" value={memo}
+                        onChange={(e) => setMemo(e.target.value)}
+                        fullWidth size="small" multiline rows={2}
+                        placeholder="Descrição adicional (opcional)" />
                 </Stack>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -234,6 +239,7 @@ const SubclassesList = ({ subclasses, classeNome, onBack, isMobile, onEditSubcla
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5 }}>Designação</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 140 }}>Tipo</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, width: 80, display: { xs: 'none', sm: 'table-cell' } }}>SNC-AP</TableCell>
+                                <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>Descrição</TableCell>
                                 <TableCell sx={{ width: 40 }} />
                             </TableRow>
                         </TableHead>
@@ -251,6 +257,11 @@ const SubclassesList = ({ subclasses, classeNome, onBack, isMobile, onEditSubcla
                                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                         <Typography variant="caption" fontFamily="monospace" color="text.secondary">
                                             {s.sncap ?? '—'}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {s.memo ?? '—'}
                                         </Typography>
                                     </TableCell>
                                     <TableCell sx={{ p: 0.5 }}>
@@ -394,6 +405,12 @@ const CatalogPage = () => {
             breadcrumbs={[{ label: 'Orçamento', path: '/orcamento' }, { label: 'Catálogo' }]}
             actions={
                 <Stack direction="row" spacing={1}>
+                    <Button variant="outlined" size="small"
+                        startIcon={<ArrowBackIcon />}
+                        onClick={() => navigate('/orcamento')}
+                        sx={{ minWidth: 0 }}>
+                        {!isMobile && 'Voltar'}
+                    </Button>
                     <Button variant="outlined" size="small"
                         startIcon={!isMobile && <AddIcon />}
                         onClick={() => setClasseDialog({ open: true, target: null })}

@@ -59,6 +59,7 @@ import {
 } from '@/features/expenses';
 import { OrcamentoPage } from '@/features/orcamento';
 import CatalogPage from '@/features/orcamento/pages/CatalogPage';
+import WhatsAppAlertasPage from '@/features/alertas/pages/WhatsAppAlertasPage';
 
 export default function BackofficeRoutes() {
   return (
@@ -152,6 +153,7 @@ export default function BackofficeRoutes() {
         <Route path="/equipamentos" element={<EquipamentosPage />} />
         <Route path="/obras"        element={<ObrasPage />} />
         <Route path="/telemetry"    element={<TelemetryPage />} />
+        <Route path="/gestao/whatsapp-alertas" element={<WhatsAppAlertasPage />} />
         <Route path="/pavements"    element={<PavimentosPage />} />
         <Route path="/offices-admin" element={<OfficesPage />} />
 

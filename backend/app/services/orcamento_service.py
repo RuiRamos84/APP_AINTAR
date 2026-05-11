@@ -32,7 +32,8 @@ class SubclasseCreate(BaseModel):
     designacao: str = Field(min_length=1, max_length=_STR_MAX)
     ts_orcamento_classe: int = Field(ge=1)
     tipos: List[int] = Field(min_length=1)
-    sncap: int = Field(ge=0)
+    sncap: Optional[str] = None
+    memo: Optional[str] = None
 
     @field_validator('designacao', mode='before')
     @classmethod
@@ -44,12 +45,16 @@ class SubclasseCreate(BaseModel):
     @field_validator('sncap', mode='before')
     @classmethod
     def parse_sncap(cls, v):
-        if v is None or v == '':
-            raise ValueError('SNCAP é obrigatório.')
-        try:
-            return int(v)
-        except (TypeError, ValueError):
-            raise ValueError('SNCAP deve ser um número inteiro.')
+        if v is None or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return str(v).strip()
+
+    @field_validator('memo', mode='before')
+    @classmethod
+    def parse_memo(cls, v):
+        if v is None or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return str(v).strip()
 
 
 class ClasseUpdate(BaseModel):
@@ -67,7 +72,8 @@ class SubclasseUpdate(BaseModel):
     designacao: str = Field(min_length=1, max_length=_STR_MAX)
     ts_orcamento_classe: int = Field(ge=1)
     tipos: List[int] = Field(min_length=1)
-    sncap: int = Field(ge=0)
+    sncap: Optional[str] = None
+    memo: Optional[str] = None
 
     @field_validator('designacao', mode='before')
     @classmethod
@@ -79,12 +85,16 @@ class SubclasseUpdate(BaseModel):
     @field_validator('sncap', mode='before')
     @classmethod
     def parse_sncap(cls, v):
-        if v is None or v == '':
-            raise ValueError('SNCAP é obrigatório.')
-        try:
-            return int(v)
-        except (TypeError, ValueError):
-            raise ValueError('SNCAP deve ser um número inteiro.')
+        if v is None or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return str(v).strip()
+
+    @field_validator('memo', mode='before')
+    @classmethod
+    def parse_memo(cls, v):
+        if v is None or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return str(v).strip()
 
 
 class OrcamentoCreate(BaseModel):
@@ -158,6 +168,7 @@ def get_orcamento_detalhe(session, ano=None):
                 WHERE  st.ts_orcamento_subclasse = s.pk
             ), '') AS tipo,
             s.sncap,
+            s.memo,
             o.valor,
             o.data_inicio,
             o.data_fim
@@ -212,6 +223,7 @@ def get_orcamento_subclasses(session):
                 s.designacao,
                 c.designacao AS classe,
                 s.sncap,
+                s.memo,
                 COALESCE(
                     string_agg(t.designacao, ', ' ORDER BY t.pk), ''
                 ) AS tipo,
@@ -224,7 +236,7 @@ def get_orcamento_subclasses(session):
             JOIN ts_orcamento_classe c ON c.pk = s.ts_orcamento_classe
             LEFT JOIN ts_orcamento_subclasse_tipo st ON st.ts_orcamento_subclasse = s.pk
             LEFT JOIN ts_orcamento_tipo t ON t.pk = st.ts_orcamento_tipo
-            GROUP BY s.pk, s.designacao, c.designacao, s.sncap
+            GROUP BY s.pk, s.designacao, c.designacao, s.sncap, s.memo
             ORDER BY c.designacao, s.designacao
         """)
     ).mappings().all()
@@ -384,11 +396,11 @@ def create_subclasse(data, session):
     payload = SubclasseCreate(**data)
     result = session.execute(
         text("""
-            INSERT INTO ts_orcamento_subclasse (designacao, ts_orcamento_classe, sncap)
-            VALUES (:designacao, :classe, :sncap)
+            INSERT INTO ts_orcamento_subclasse (designacao, ts_orcamento_classe, sncap, memo)
+            VALUES (:designacao, :classe, :sncap, :memo)
             RETURNING pk
         """),
-        {'designacao': payload.designacao, 'classe': payload.ts_orcamento_classe, 'sncap': payload.sncap}
+        {'designacao': payload.designacao, 'classe': payload.ts_orcamento_classe, 'sncap': payload.sncap, 'memo': payload.memo}
     )
     new_pk = result.scalar()
     for tipo_pk in payload.tipos:
@@ -419,11 +431,11 @@ def update_subclasse(pk, data, session):
     updated = session.execute(
         text("""
             UPDATE ts_orcamento_subclasse
-            SET designacao = :designacao, ts_orcamento_classe = :classe, sncap = :sncap
+            SET designacao = :designacao, ts_orcamento_classe = :classe, sncap = :sncap, memo = :memo
             WHERE pk = :pk
             RETURNING pk
         """),
-        {'designacao': payload.designacao, 'classe': payload.ts_orcamento_classe, 'sncap': payload.sncap, 'pk': pk}
+        {'designacao': payload.designacao, 'classe': payload.ts_orcamento_classe, 'sncap': payload.sncap, 'memo': payload.memo, 'pk': pk}
     ).fetchone()
     if not updated:
         return jsonify({'error': 'Subclasse não encontrada.'}), 404

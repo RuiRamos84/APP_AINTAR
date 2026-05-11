@@ -189,9 +189,9 @@ const TIPO_COLOR = { Corrente: { color: 'info' }, Capital: { color: 'warning' } 
 
 const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isMobile }) => {
     const total = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    // Colunas visíveis: mobile=4, desktop=7
-    const colSpanHeader = isMobile ? 3 : 6;
-    const colSpanTotal  = isMobile ? 4 : 7;
+    // 8 colunas no total (algumas ocultas via CSS mas contam para colSpan)
+    const colSpanHeader = 7;
+    const colSpanTotal  = 8;
 
     return (
         <>
@@ -233,7 +233,17 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
             <TableRow sx={{ p: 0 }}>
                 <TableCell colSpan={colSpanTotal} sx={{ p: 0, border: 'none' }}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
-                        <Table size="small" sx={{ tableLayout: 'fixed' }}>
+                        <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
+                            <colgroup>
+                                <col />
+                                <col style={{ width: 120 }} />
+                                <col style={{ width: 80 }} />
+                                <col style={{ width: 180 }} />
+                                <col style={{ width: 110 }} />
+                                <col style={{ width: 110 }} />
+                                <col style={{ width: 130 }} />
+                                <col style={{ width: 80 }} />
+                            </colgroup>
                             <TableBody>
                                 {registos.map((r, i) => (
                                     <TableRow
@@ -244,34 +254,37 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
                                             bgcolor: i % 2 === 0 ? 'background.paper' : alpha('#059669', 0.02),
                                         }}
                                     >
-                                        <TableCell sx={{ pl: { xs: 2, sm: 3.5 } }}>
-                                            <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                                        <TableCell sx={{ pl: { xs: 2, sm: 3.5 }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            <Typography variant="body2" noWrap>
                                                 {r.subclasse}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ width: { xs: 80, sm: 110 } }}>
+                                        <TableCell>
                                             {r.tipo && (
                                                 <Chip label={r.tipo} size="small"
                                                     color={TIPO_COLOR[r.tipo]?.color || 'default'} />
                                             )}
                                         </TableCell>
-                                        {/* SNC-AP — oculto em mobile */}
-                                        <TableCell sx={{ width: 80, display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.disabled" fontFamily="monospace">
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                            <Typography variant="caption" color="text.disabled" fontFamily="monospace" noWrap>
                                                 {r.sncap || '—'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ width: { xs: 110, sm: 130 } }}>
-                                            <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, overflow: 'hidden' }}>
+                                            <Typography variant="caption" color="text.secondary" noWrap title={r.memo || ''}>
+                                                {r.memo || '—'}
+                                            </Typography>
                                         </TableCell>
-                                        {/* Datas — ocultas em mobile */}
-                                        <TableCell align="right" sx={{ width: 130, display: { xs: 'none', md: 'table-cell' } }}>
+                                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary">{fmtDate(r.data_inicio)}</Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ width: 130, display: { xs: 'none', md: 'table-cell' } }}>
+                                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary">{fmtDate(r.data_fim)}</Typography>
                                         </TableCell>
-                                        <TableCell align="center" sx={{ width: { xs: 72, sm: 90 } }}>
+                                        <TableCell align="right">
+                                            <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
                                             <Tooltip title="Editar">
                                                 <IconButton size="small" onClick={() => onEdit(r)}>
                                                     <EditIcon fontSize="small" />
@@ -431,30 +444,41 @@ export const OrcamentoTable = () => {
                         overflowY: { xs: 'visible', md: 'auto' },
                         overflowX: 'auto',
                     }}>
-                        <Table size="small" sx={{ minWidth: { xs: 360, md: 'auto' }, tableLayout: 'auto' }}>
+                        <Table size="small" sx={{ minWidth: { xs: 360, md: 'auto' }, tableLayout: 'fixed' }}>
+                            <colgroup>
+                                <col />                                {/* Subclasse — flex */}
+                                <col style={{ width: 120 }} />         {/* Tipo */}
+                                <col style={{ width: 80 }} />          {/* SNC-AP */}
+                                <col style={{ width: 180 }} />         {/* Descrição */}
+                                <col style={{ width: 110 }} />         {/* Início */}
+                                <col style={{ width: 110 }} />         {/* Fim */}
+                                <col style={{ width: 130 }} />         {/* Dotação */}
+                                <col style={{ width: 80 }} />          {/* Ações */}
+                            </colgroup>
                             <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                         Subclasse
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: { xs: 80, sm: 110 } }}>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                         Tipo
                                     </TableCell>
-                                    {/* SNC-AP — oculto em mobile */}
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 80, display: { xs: 'none', md: 'table-cell' } }}>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', display: { xs: 'none', md: 'table-cell' } }}>
                                         SNC-AP
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: { xs: 110, sm: 130 } }}>
-                                        Dotação
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
+                                        Descrição
                                     </TableCell>
-                                    {/* Datas — ocultas em mobile */}
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130, display: { xs: 'none', md: 'table-cell' } }}>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
                                         Início
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, width: 130, display: { xs: 'none', md: 'table-cell' } }}>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
                                         Fim
                                     </TableCell>
-                                    <TableCell align="center" sx={{ width: { xs: 72, sm: 90 } }} />
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                        Dotação
+                                    </TableCell>
+                                    <TableCell align="center" />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
