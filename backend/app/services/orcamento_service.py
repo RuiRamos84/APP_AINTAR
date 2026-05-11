@@ -32,7 +32,7 @@ class SubclasseCreate(BaseModel):
     designacao: str = Field(min_length=1, max_length=_STR_MAX)
     ts_orcamento_classe: int = Field(ge=1)
     tipos: List[int] = Field(min_length=1)
-    sncap: int = Field(ge=0)
+    sncap: Optional[str] = None
 
     @field_validator('designacao', mode='before')
     @classmethod
@@ -44,12 +44,9 @@ class SubclasseCreate(BaseModel):
     @field_validator('sncap', mode='before')
     @classmethod
     def parse_sncap(cls, v):
-        if v is None or v == '':
-            raise ValueError('SNCAP é obrigatório.')
-        try:
-            return int(v)
-        except (TypeError, ValueError):
-            raise ValueError('SNCAP deve ser um número inteiro.')
+        if v is None or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return str(v).strip()
 
 
 class ClasseUpdate(BaseModel):
@@ -67,7 +64,7 @@ class SubclasseUpdate(BaseModel):
     designacao: str = Field(min_length=1, max_length=_STR_MAX)
     ts_orcamento_classe: int = Field(ge=1)
     tipos: List[int] = Field(min_length=1)
-    sncap: int = Field(ge=0)
+    sncap: Optional[str] = None
 
     @field_validator('designacao', mode='before')
     @classmethod
@@ -79,12 +76,9 @@ class SubclasseUpdate(BaseModel):
     @field_validator('sncap', mode='before')
     @classmethod
     def parse_sncap(cls, v):
-        if v is None or v == '':
-            raise ValueError('SNCAP é obrigatório.')
-        try:
-            return int(v)
-        except (TypeError, ValueError):
-            raise ValueError('SNCAP deve ser um número inteiro.')
+        if v is None or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return str(v).strip()
 
 
 class OrcamentoCreate(BaseModel):
