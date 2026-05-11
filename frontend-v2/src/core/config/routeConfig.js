@@ -70,6 +70,7 @@ import {
   NightShelter as PiqueteIcon,
   AccountBalanceWallet as CaixaIcon,
   AccountBalance as OrcamentoIcon,
+  Map as MapIcon,
 } from '@mui/icons-material';
 
 // Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
@@ -380,12 +381,30 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/gestao/whatsapp-alertas': {
+    id: 'whatsapp_alertas',
+    text: 'Alertas WhatsApp',
+    icon: TelemetryIcon,
+    module: 'gestao',
+    permissions: { required: 'telemetry.view' },
+    showInSidebar: true,
+  },
+
   '/orcamento': {
     id: 'orcamento',
     text: 'Orçamento',
     icon: OrcamentoIcon,
     module: 'gestao',
     permissions: { required: 'expenses.view' },
+    showInSidebar: true,
+  },
+
+  '/gestao/mapa-instalacoes': {
+    id: 'mapa_instalacoes',
+    text: 'Mapa de Instalações',
+    icon: MapIcon,
+    module: 'gestao',
+    permissions: { required: 'operation.access' },
     showInSidebar: true,
   },
 

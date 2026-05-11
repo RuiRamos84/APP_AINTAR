@@ -48,6 +48,30 @@ export const createInstalacaoExpense = async (data) => {
   return res;
 };
 
+// ─── Mapa ─────────────────────────────────────────────────────────────────────
+
+export const getInstalacoesMapa = async () => {
+  const res = await api.get('/instalacoes/mapa');
+  return res;
+};
+
+// ─── Rede de Saneamento ───────────────────────────────────────────────────────
+
+export const getRedeSaneamento = async () => {
+  const res = await api.get('/rede_saneamento');
+  return res;
+};
+
+export const createRedeSaneamento = async ({ instalacao_origem, instalacao_destino }) => {
+  const res = await api.post('/rede_saneamento', { instalacao_origem, instalacao_destino });
+  return res;
+};
+
+export const deleteRedeSaneamento = async (pk) => {
+  const res = await api.delete(`/rede_saneamento/${pk}`);
+  return res;
+};
+
 // ─── Incumprimentos (ETAR) ────────────────────────────────────────────────────
 
 export const getETARIncumprimentos = async (pk) => {

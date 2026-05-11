@@ -42,7 +42,7 @@ import {
 
 // Módulos do sistema de navegação híbrida
 import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage, TasksPage as OperationTasksPage } from '@/features/operations/pages';
-import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage } from '@/features/gestao/pages';
+import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage, MapaInstalacoesPage } from '@/features/gestao/pages';
 import { ClientsPage, InvoicesPage, ClientContractsPage, CaixaPage } from '@/features/payments/pages';
 import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
 import {
@@ -77,6 +77,7 @@ import {
 } from '@/features/expenses';
 import { OrcamentoPage } from '@/features/orcamento';
 import CatalogPage from '@/features/orcamento/pages/CatalogPage';
+import WhatsAppAlertasPage from '@/features/alertas/pages/WhatsAppAlertasPage';
 
 function App() {
   return (
@@ -215,6 +216,12 @@ function App() {
 
         {/* Telemetry - permissão 750 (TELEMETRY_VIEW) verificada automaticamente */}
         <Route path="/telemetry" element={<TelemetryPage />} />
+
+        {/* Alertas WhatsApp */}
+        <Route path="/gestao/whatsapp-alertas" element={<WhatsAppAlertasPage />} />
+
+        {/* Mapa de Instalações */}
+        <Route path="/gestao/mapa-instalacoes" element={<MapaInstalacoesPage />} />
 
         {/* Pavements - permissão 1200 (PAVEMENTS_VIEW) verificada automaticamente */}
         <Route path="/pavements" element={<PavimentosPage />} />

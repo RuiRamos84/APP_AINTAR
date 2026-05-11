@@ -299,6 +299,41 @@ def list_ramal_expenses(current_user):
         return {'expenses': expenses}, 200
 
 
+# ── Rede de Saneamento ────────────────────────────────────────────────────────
+
+@api_error_handler
+def list_rede_saneamento(current_user):
+    with db_session_manager(current_user) as session:
+        query = text("SELECT * FROM vbl_rede_saneamento ORDER BY pk")
+        results = session.execute(query).mappings().all()
+        return {'rede': [dict(row) for row in results]}, 200
+
+
+@api_error_handler
+def create_rede_saneamento(instalacao_origem: int, instalacao_destino: int, current_user: str):
+    from app.utils.error_handler import APIError
+    with db_session_manager(current_user) as session:
+        existing = session.execute(
+            text("SELECT pk FROM vbf_rede_saneamento WHERE instalacao_origem = :origem"),
+            {'origem': instalacao_origem},
+        ).fetchone()
+        if existing:
+            raise APIError('Esta Estação Elevatória já tem uma ligação de saída configurada.', status_code=400)
+        new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+        session.execute(
+            text("INSERT INTO vbf_rede_saneamento (pk, instalacao_origem, instalacao_destino) VALUES (:pk, :origem, :destino)"),
+            {'pk': new_pk, 'origem': instalacao_origem, 'destino': instalacao_destino},
+        )
+        return {'message': 'Ligação criada com sucesso', 'pk': new_pk}, 201
+
+
+@api_error_handler
+def delete_rede_saneamento(pk: int, current_user: str):
+    with db_session_manager(current_user) as session:
+        session.execute(text("DELETE FROM vbf_rede_saneamento WHERE pk = :pk"), {'pk': pk})
+        return {'message': 'Ligação eliminada com sucesso'}, 200
+
+
 @api_error_handler
 def get_etar_details_by_pk(current_user, pk):
     """
@@ -787,3 +822,21 @@ def create_ee_visita_tecnica(pnts_associate, pnmemo, pnpk_ee, current_user, pnda
 
 def create_ee_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user, pndata=None):
     return create_instalacao_qualidade_ambiental(pnts_associate, pnmemo, pnpk_ee, current_user, pndata)
+
+
+@api_error_handler
+def list_instalacoes_mapa(current_user: str):
+    """Obter todas as instalações (ETAR e EE) com coordenadas para mapa."""
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT pk, nome, coord_m, coord_p, 'ETAR' AS tipo
+            FROM vbf_etar
+            WHERE coord_m IS NOT NULL AND coord_p IS NOT NULL
+            UNION ALL
+            SELECT pk, nome, coord_m, coord_p, 'EE' AS tipo
+            FROM vbf_ee
+            WHERE coord_m IS NOT NULL AND coord_p IS NOT NULL
+            ORDER BY nome
+        """)
+        results = session.execute(query).mappings().all()
+        return {'instalacoes': [dict(row) for row in results]}, 200

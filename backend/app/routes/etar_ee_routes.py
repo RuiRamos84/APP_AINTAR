@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..services.etar_ee_service import (
     create_etar_document,
     create_ee_document,
+    list_instalacoes_mapa,
     # Funções unificadas - novas
     create_instalacao_volume,
     create_instalacao_water_volume,
@@ -70,7 +71,10 @@ from ..services.etar_ee_service import (
     update_ee_details,
     create_etar_incumprimento,
     list_etar_incumprimentos,
-    create_instalacao_incumprimento
+    create_instalacao_incumprimento,
+    list_rede_saneamento,
+    create_rede_saneamento,
+    delete_rede_saneamento,
 )
 from ..utils.utils import set_session, token_required
 from app.utils.permissions_decorator import require_permission
@@ -1472,4 +1476,62 @@ def create_internal_request_route():
     else:
         return jsonify({'error': 'Tipo de documento não suportado'}), 400
 
+    return jsonify(result), status_code
+
+
+# ==================== MAPA DE INSTALAÇÕES ====================
+
+@bp.route('/instalacoes/mapa', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@set_session
+@api_error_handler
+def get_instalacoes_mapa():
+    """Obter todas as instalações (ETAR e EE) com coordenadas para o mapa."""
+    current_user = get_jwt_identity()
+    result, status_code = list_instalacoes_mapa(current_user)
+    return jsonify(result), status_code
+
+
+# ── Rede de Saneamento ────────────────────────────────────────────────────────
+
+@bp.route('/rede_saneamento', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@set_session
+@api_error_handler
+def get_rede_saneamento():
+    current_user = get_jwt_identity()
+    result, status_code = list_rede_saneamento(current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/rede_saneamento', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@set_session
+@api_error_handler
+def post_rede_saneamento():
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    instalacao_origem = data.get('instalacao_origem')
+    instalacao_destino = data.get('instalacao_destino')
+    if not instalacao_origem or not instalacao_destino:
+        return jsonify({'error': 'instalacao_origem e instalacao_destino são obrigatórios'}), 400
+    result, status_code = create_rede_saneamento(instalacao_origem, instalacao_destino, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/rede_saneamento/<int:pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@set_session
+@api_error_handler
+def delete_rede_saneamento_route(pk):
+    current_user = get_jwt_identity()
+    result, status_code = delete_rede_saneamento(pk, current_user)
     return jsonify(result), status_code
