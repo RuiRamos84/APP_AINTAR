@@ -65,6 +65,42 @@ def watchdog_thread():
             os._exit(1)
 
 
+def start_whatsapp_service():
+    """Arranca o microserviço Node.js WhatsApp apenas se não estiver já a correr."""
+    import subprocess, urllib.request, urllib.error
+    wa_port = os.getenv('WA_PORT', '3010')
+    wa_key  = os.getenv('WA_API_KEY', 'aintar-wa-2025')
+
+    # Verifica se já está a correr
+    try:
+        req = urllib.request.Request(
+            f'http://localhost:{wa_port}/status',
+            headers={'x-api-key': wa_key},
+        )
+        urllib.request.urlopen(req, timeout=2)
+        print(f"[WA] Microserviço já está a correr na porta {wa_port} — não reinicia")
+        return
+    except Exception:
+        pass  # Não está a correr, arranca
+
+    wa_dir = os.path.join(os.path.dirname(__file__), '..', 'whatsapp-service')
+    wa_dir = os.path.normpath(wa_dir)
+    if not os.path.isdir(wa_dir):
+        print(f"[WA] Pasta não encontrada: {wa_dir}")
+        return
+    try:
+        proc = subprocess.Popen(
+            ['node', 'index.js'],
+            cwd=wa_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+        print(f"[WA] Microserviço WhatsApp iniciado (PID {proc.pid})")
+    except Exception as e:
+        print(f"[WA] Erro ao iniciar microserviço WhatsApp: {e}")
+
+
 def run_server():
     env = os.environ.get('FLASK_ENV', 'development')
     config = get_config()
@@ -78,6 +114,8 @@ def run_server():
     signal.signal(signal.SIGTERM, graceful_shutdown)
 
     threading.Thread(target=watchdog_thread, daemon=True).start()
+
+    start_whatsapp_service()
 
     # Socket.IO JÁ foi inicializado em app/__init__.py - NÃO inicializar novamente!
     print("Iniciando servidor Socket.IO...")

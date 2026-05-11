@@ -1,10 +1,8 @@
 """
-scheduler.py — Geração automática de tarefas operacionais mensais
+scheduler.py — Jobs automáticos do servidor AINTAR
 
-Corre no dia 25 de cada mês às 10:00 (Europe/Lisbon):
-  1. Obtém todos os modos de operação com templates em tb_operacaometa
-  2. Para cada modo, chama fbf_operacao$init para o mês seguinte
-  3. Notifica todos os operadores afetados via Socket.IO
+Jobs registados:
+  1. Geração mensal de tarefas operacionais (dia 25 às 10:00)
 """
 
 import os
@@ -159,11 +157,11 @@ def init_scheduler(app):
         id='init_operacao_month_auto',
         name='Geração automática de tarefas operacionais mensais',
         replace_existing=True,
-        misfire_grace_time=3600,  # Se o servidor estiver em baixo às 10:00, recupera até às 11:00
+        misfire_grace_time=3600,
     )
 
     _scheduler.start()
-    logger.info("[Scheduler] ✅ Iniciado — job agendado para o dia 25 de cada mês às 10:00 (Europe/Lisbon)")
+    logger.info("[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00)")
 
     import atexit
     atexit.register(lambda: _scheduler.shutdown(wait=False))

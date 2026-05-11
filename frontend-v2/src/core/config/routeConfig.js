@@ -72,6 +72,7 @@ import {
   LocationOn as LocalIcon,
   Map as MapaIcon,
   AccountBalance as OrcamentoIcon,
+  Map as MapIcon,
 } from '@mui/icons-material';
 
 // Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
@@ -376,6 +377,15 @@ export const ROUTE_CONFIG = {
   '/telemetry': {
     id: 'telemetry',
     text: 'Telemetria',
+    icon: TelemetryIcon,
+    module: 'gestao',
+    permissions: { required: 'telemetry.view' },
+    showInSidebar: true,
+  },
+
+  '/gestao/whatsapp-alertas': {
+    id: 'whatsapp_alertas',
+    text: 'Alertas WhatsApp',
     icon: TelemetryIcon,
     module: 'gestao',
     permissions: { required: 'telemetry.view' },

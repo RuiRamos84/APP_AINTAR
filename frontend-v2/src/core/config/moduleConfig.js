@@ -205,11 +205,13 @@ export const detectModuleFromPath = (pathname) => {
     '/ee': 'gestao',
     '/analyses': 'gestao',
     '/telemetry': 'gestao',
+    '/gestao/whatsapp-alertas': 'gestao',
     '/expenses': 'gestao',
     '/equipamentos': 'gestao',
     '/obras': 'gestao',
     '/fleet': 'gestao',
     '/orcamento': 'gestao',
+    '/gestao': 'gestao',
 
     // PEDIDOS
     '/pedidos': 'pedidos',
