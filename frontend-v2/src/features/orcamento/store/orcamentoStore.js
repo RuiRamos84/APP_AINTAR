@@ -113,6 +113,7 @@ export const useOrcamentoStore = create((set, get) => ({
     updateSubclasse: async (pk, payload) => {
         await orcamentoService.updateSubclasse(pk, payload);
         await get().fetchSubclasses();
+        await get().fetchDetalhe(get().anoSelecionado);
     },
 
     addRegisto: async (payload) => {
