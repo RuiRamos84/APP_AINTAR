@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
     CheckCircle, Visibility, Refresh, Assignment, Schedule,
-    Euro, History, Close as CloseIcon, Cancel, VerifiedUser, Undo
+    Euro, History, Close as CloseIcon, Cancel, VerifiedUser, Undo, Sync
 } from '@mui/icons-material';
 import { ModulePage } from '@/shared/components/layout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +34,7 @@ const PaymentAdminPage = () => {
     const [rejectOpen, setRejectOpen] = useState(false);
     const [refundOpen, setRefundOpen] = useState(false);
     const [refundReason, setRefundReason] = useState('');
+    const [checkingStatusPk, setCheckingStatusPk] = useState(null);
     const [selectedDoc, setSelectedDoc]   = useState(null);
     const [filters, setFilters] = useState({
         startDate: '', endDate: '', method: '', status: ''
@@ -119,6 +120,25 @@ const PaymentAdminPage = () => {
         },
         onError: (err) => notification.apiError(err, 'Erro na devolução.'),
     });
+
+    // Verificação manual de estado SIBS
+    const handleCheckSibsStatus = async (payment) => {
+        setCheckingStatusPk(payment.pk);
+        try {
+            const result = await paymentService.checkStatus(payment.transaction_id);
+            if (result?.updated) {
+                notification.success(`Estado actualizado: ${getStatusLabel(result.payment_status)}`);
+                queryClient.invalidateQueries({ queryKey: ['pendingPayments'] });
+                queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
+            } else {
+                notification.info(`Estado actual junto da SIBS: ${getStatusLabel(result?.payment_status || payment.payment_status)}`);
+            }
+        } catch (err) {
+            notification.apiError(err, 'Erro ao verificar estado junto da SIBS.');
+        } finally {
+            setCheckingStatusPk(null);
+        }
+    };
 
     // Mutation rejeitar isenção
     const { mutate: rejectExemption, isLoading: isRejecting } = useMutation({
@@ -474,6 +494,23 @@ const PaymentAdminPage = () => {
                                         <IconButton size="small" onClick={() => handleDetailsClick(payment)} color="primary">
                                             <Visibility fontSize="small" />
                                         </IconButton>
+                                        {tab === 0 && ['MBWAY', 'MULTIBANCO'].includes(payment.payment_method) && (
+                                            <Tooltip title="Verificar estado junto da SIBS">
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        color="info"
+                                                        disabled={checkingStatusPk === payment.pk}
+                                                        onClick={() => handleCheckSibsStatus(payment)}
+                                                    >
+                                                        {checkingStatusPk === payment.pk
+                                                            ? <CircularProgress size={16} />
+                                                            : <Sync fontSize="small" />
+                                                        }
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        )}
                                         {tab === 0 && (
                                             <IconButton size="small" color="success" onClick={() => {
                                                 setSelectedPayment(payment);
@@ -481,6 +518,24 @@ const PaymentAdminPage = () => {
                                             }}>
                                                 <CheckCircle fontSize="small" />
                                             </IconButton>
+                                        )}
+                                        {tab === 1 && ['MBWAY', 'MULTIBANCO'].includes(payment.payment_method)
+                                            && !['SUCCESS', 'DECLINED', 'REJECTED', 'EXPIRED', 'REFUNDED'].includes(payment.payment_status) && (
+                                            <Tooltip title="Verificar estado junto da SIBS">
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        color="info"
+                                                        disabled={checkingStatusPk === payment.pk}
+                                                        onClick={() => handleCheckSibsStatus(payment)}
+                                                    >
+                                                        {checkingStatusPk === payment.pk
+                                                            ? <CircularProgress size={16} />
+                                                            : <Sync fontSize="small" />
+                                                        }
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
                                         )}
                                         {tab === 1 && payment.payment_status === 'SUCCESS' && (
                                             <IconButton size="small" color="secondary" title="Devolver pagamento"
@@ -615,6 +670,17 @@ const PaymentAdminPage = () => {
                         <Button variant="outlined" color="secondary" startIcon={<Undo />}
                             onClick={() => { setDetailsOpen(false); setRefundReason(''); setRefundOpen(true); }}>
                             Devolver
+                        </Button>
+                    )}
+                    {selectedPayment && ['MBWAY', 'MULTIBANCO'].includes(selectedPayment.payment_method)
+                        && !['SUCCESS', 'DECLINED', 'REJECTED', 'EXPIRED', 'REFUNDED'].includes(selectedPayment.payment_status) && (
+                        <Button
+                            variant="outlined" color="info"
+                            startIcon={checkingStatusPk === selectedPayment.pk ? <CircularProgress size={16} /> : <Sync />}
+                            disabled={checkingStatusPk === selectedPayment.pk}
+                            onClick={() => handleCheckSibsStatus(selectedPayment)}
+                        >
+                            Verificar SIBS
                         </Button>
                     )}
                     {tab === 0 && selectedPayment && (

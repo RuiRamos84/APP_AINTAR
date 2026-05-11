@@ -1,6 +1,6 @@
 import requests
 from datetime import datetime, timedelta
-from app.utils.utils import db_session_manager
+from app.utils.utils import db_session_manager, db_system_session
 from sqlalchemy import text
 import json
 from datetime import date
@@ -681,7 +681,8 @@ class PaymentService:
 
             # Se já tem status final, retornar sem consultar SIBS
             if local_data.payment_status not in [
-                PaymentStatus.CREATED, PaymentStatus.PENDING
+                PaymentStatus.CREATED, PaymentStatus.PENDING,
+                PaymentStatus.PENDING_VALIDATION
             ]:
                 return {
                     "success": True,
@@ -1052,8 +1053,8 @@ class PaymentService:
 
             document_id = None
 
-            # Webhook não tem sessão autenticada - usar conexão directa
-            with db_session_manager(None) as db:
+            # Webhook não tem sessão autenticada - usar sessão de sistema
+            with db_system_session() as db:
                 # Actualizar status
                 db.execute(text("""
                     SELECT fbo_sibs_status(:transaction_id, :status, :pref)

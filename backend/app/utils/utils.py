@@ -217,6 +217,24 @@ def db_session_manager(session_id):
         # logger.debug(f"Sessão de banco de dados fechada para session_id: {session_id}")
 
 
+@contextmanager
+def db_system_session():
+    """Sessão de BD sem autenticação de utilizador (webhooks, tarefas automáticas)."""
+    from app import db
+    from flask import current_app
+    session = db.session()
+    try:
+        search_path = current_app.config.get('SEARCH_PATH', 'public')
+        session.execute(text(f"SET search_path TO {search_path}"))
+        yield session
+        session.commit()
+    except SQLAlchemyError as e:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):

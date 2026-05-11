@@ -1,67 +1,508 @@
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Site em Manutenção - app.aintar.pt</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-            text-align: center;
-            padding: 50px 20px;
-            margin: 0;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #d9534f;
-            margin-bottom: 20px;
-        }
-        .logo {
-            margin-bottom: 30px;
-            width: 150px;
-        }
-        .timer {
-            font-size: 18px;
-            margin: 20px 0;
-            color: #666;
-        }
-        .message {
-            margin-bottom: 30px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Em Manutenção — AINTAR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:        #0A1628;
+      --accent:         #40C4FF;
+      --glass-bg:       rgba(11, 28, 60, 0.65);
+      --glass-border:   rgba(64, 196, 255, 0.18);
+      --text-primary:   #E8F4FD;
+      --text-secondary: rgba(232, 244, 253, 0.55);
+    }
+
+    html, body { height: 100%; min-height: 100vh; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(160deg, #0A1628 0%, #0C1E40 45%, #091424 100%);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Particles ─────────────────────────────────── */
+    .bg-particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      animation: float-up var(--dur, 9s) var(--del, 0s) ease-in infinite;
+    }
+
+    @keyframes float-up {
+      0%        { transform: translateY(100vh) scale(0);   opacity: 0; }
+      8%, 92%   { opacity: var(--op, 0.5); }
+      100%      { transform: translateY(-40px) scale(1.2); opacity: 0; }
+    }
+
+    /* ── Waves ─────────────────────────────────────── */
+    .waves {
+      position: fixed; bottom: 0; left: -50%;
+      width: 250%; height: 180px; z-index: 0; pointer-events: none;
+    }
+    .wave { position: absolute; bottom: 0; width: 100%; height: 100%; }
+    .wave svg { width: 100%; height: 100%; }
+    .wave-1 { animation: wave-drift 9s  linear infinite;         opacity: .45; }
+    .wave-2 { animation: wave-drift 13s linear infinite reverse; opacity: .28; animation-delay: -5s; }
+    .wave-3 { animation: wave-drift 18s linear infinite;         opacity: .18; animation-delay: -9s; }
+
+    @keyframes wave-drift {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(20%); }
+    }
+
+    /* ── Card ──────────────────────────────────────── */
+    .card {
+      position: relative; z-index: 10;
+      width: min(520px, calc(100vw - 40px));
+      padding: 48px 48px 44px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      backdrop-filter: blur(24px) saturate(1.4);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03) inset,
+        0 40px 80px rgba(0,0,0,0.55),
+        0 0 100px rgba(64,196,255,0.07);
+      text-align: center;
+      animation: card-appear 0.9s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    @keyframes card-appear {
+      from { opacity: 0; transform: translateY(28px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    /* ── AINTAR Logo SVG ───────────────────────────── */
+    .logo-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      animation: logo-bob 4.5s ease-in-out infinite;
+    }
+
+    @keyframes logo-bob {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-7px); }
+    }
+
+    .aintar-svg {
+      width: 120px;
+      height: 90px;
+      filter:
+        drop-shadow(0 4px 16px rgba(64,196,255,0.45))
+        drop-shadow(0 0 40px rgba(64,196,255,0.2));
+      animation: logo-glow 3.5s ease-in-out infinite;
+    }
+
+    @keyframes logo-glow {
+      0%, 100% { filter: drop-shadow(0 4px 16px rgba(64,196,255,0.45)) drop-shadow(0 0 40px rgba(64,196,255,0.2)); }
+      50%       { filter: drop-shadow(0 4px 24px rgba(64,196,255,0.7)) drop-shadow(0 0 60px rgba(64,196,255,0.35)); }
+    }
+
+    /* Arc draw-in via JS — arcs start invisible */
+    .arc-draw {
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+    }
+
+    /* After JS sets the real length, animate to 0 */
+    .arc-draw.drawn {
+      transition: stroke-dashoffset 1.4s cubic-bezier(0.16,1,0.3,1);
+      stroke-dashoffset: 0;
+    }
+
+    /* Flowing shimmer after draw-in */
+    .arc-flow {
+      animation: arc-shimmer 3s linear infinite;
+      animation-play-state: paused;
+    }
+
+    .arc-flow.flowing { animation-play-state: running; }
+
+    @keyframes arc-shimmer {
+      0%   { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -300; }
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 5px 14px; border-radius: 100px;
+      background: rgba(64,196,255,0.1);
+      border: 1px solid rgba(64,196,255,0.22);
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.09em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 20px;
+    }
+
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: dot-blink 2.2s ease-in-out infinite;
+    }
+
+    @keyframes dot-blink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .3; transform: scale(.75); }
+    }
+
+    /* Typography */
+    h1 {
+      font-size: clamp(1.55rem, 4vw, 2rem);
+      font-weight: 800; line-height: 1.18;
+      letter-spacing: -.025em; margin-bottom: 14px;
+    }
+
+    h1 em {
+      font-style: normal;
+      background: linear-gradient(125deg, #40C4FF 0%, #81D4FA 55%, #B3E5FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: .9375rem; color: var(--text-secondary);
+      line-height: 1.75; max-width: 360px;
+      margin: 0 auto 32px;
+    }
+
+    /* Progress */
+    .progress-wrap { margin-bottom: 32px; }
+
+    .progress-meta {
+      display: flex; justify-content: space-between;
+      font-size: 11.5px; color: var(--text-secondary); margin-bottom: 9px;
+    }
+
+    .progress-track {
+      height: 4px; background: rgba(64,196,255,.1);
+      border-radius: 100px; overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%; width: 0; border-radius: 100px;
+      background: linear-gradient(90deg, #1565C0, #40C4FF, #B3E5FC, #40C4FF, #1565C0);
+      background-size: 300% 100%;
+      transition: width 1.5s cubic-bezier(0.16,1,0.3,1);
+      animation: shimmer 3s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 100% center; }
+      100% { background-position: -100% center; }
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(64,196,255,.15), transparent);
+      margin: 0 0 26px;
+    }
+
+    /* Info grid */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+
+    .info-tile {
+      padding: 15px 16px; border-radius: 14px;
+      background: rgba(255,255,255,.025);
+      border: 1px solid rgba(255,255,255,.055);
+      text-align: left;
+    }
+
+    .info-tile .lbl {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .09em; text-transform: uppercase;
+      color: var(--text-secondary); margin-bottom: 6px;
+    }
+
+    .info-tile .val { font-size: 1.05rem; font-weight: 700; }
+
+    .val-accent { color: var(--accent); font-size: 1.3rem !important; font-variant-numeric: tabular-nums; }
+
+    /* Contact / brand */
+    .contact { font-size: .8125rem; color: var(--text-secondary); margin-bottom: 20px; }
+    .contact a { color: var(--accent); text-decoration: none; }
+    .contact a:hover { opacity: .75; }
+    .brand { font-size: .6875rem; letter-spacing: .07em; color: rgba(232,244,253,.22); text-transform: uppercase; }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .card { padding: 36px 22px 32px; }
+      .info-grid { grid-template-columns: 1fr; }
+      .aintar-svg { width: 100px; height: 75px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Site em Manutenção</h1>
-        <div class="message">
-            <p>Estamos a realizar trabalhos de manutenção para melhorar a sua experiência.</p>
-            <p>Pedimos desculpa pelo incómodo. O serviço estará disponível em breve.</p>
-        </div>
-        <div class="timer">
-            <p>Tempo estimado de conclusão: <span id="countdown">30</span> minutos</p>
-        </div>
-        <p>Obrigado pela sua compreensão.</p>
-        <p><small>Equipa app.aintar.pt</small></p>
+
+  <div class="bg-particles" id="particles"></div>
+
+  <!-- Water waves -->
+  <div class="waves" aria-hidden="true">
+    <div class="wave wave-3">
+      <svg viewBox="0 0 1440 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,90 C240,30 480,160 720,90 C960,20 1200,150 1440,90 L1440,180 L0,180 Z" fill="rgba(9,20,36,0.9)"/>
+      </svg>
     </div>
-    <script>
-        // Script opcional para contagem decrescente
-        // Pode remover esta parte se não quiser usar
-        var countdown = 30; // Minutos
-        setInterval(function() {
-            if(countdown <= 0) return;
-            countdown--;
-            document.getElementById('countdown').textContent = countdown;
-        }, 60000); // Atualiza a cada minuto
-    </script>
+    <div class="wave wave-2">
+      <svg viewBox="0 0 1440 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,110 C180,50 360,170 540,110 C720,50 900,160 1080,110 C1260,60 1380,140 1440,110 L1440,180 L0,180 Z" fill="rgba(27,58,107,0.35)"/>
+      </svg>
+    </div>
+    <div class="wave wave-1">
+      <svg viewBox="0 0 1440 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,130 C120,80 300,170 480,130 C660,90 840,165 1020,130 C1200,95 1350,155 1440,130 L1440,180 L0,180 Z" fill="rgba(64,196,255,0.12)"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Card -->
+  <main class="card" role="main">
+
+    <!-- ── AINTAR Logo SVG ── -->
+    <div class="logo-wrap" aria-label="AINTAR">
+      <svg class="aintar-svg" viewBox="0 0 200 148" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Body gradient: bright blue → dark navy -->
+          <linearGradient id="mg-body" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="#2196F3"/>
+            <stop offset="45%"  stop-color="#1565C0"/>
+            <stop offset="100%" stop-color="#0A1628"/>
+          </linearGradient>
+
+          <!-- Arc 1: cyan teal -->
+          <linearGradient id="mg-arc1" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#00BCD4"/>
+            <stop offset="100%" stop-color="#00838F"/>
+          </linearGradient>
+
+          <!-- Arc 2: teal → green -->
+          <linearGradient id="mg-arc2" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stop-color="#26C6DA"/>
+            <stop offset="55%"  stop-color="#00ACC1"/>
+            <stop offset="100%" stop-color="#43A047"/>
+          </linearGradient>
+
+          <!-- Shimmer overlay for arc1 -->
+          <linearGradient id="mg-shine1" x1="-0.5" y1="0" x2="0.5" y2="0">
+            <stop offset="0%"   stop-color="rgba(255,255,255,0)"/>
+            <stop offset="50%"  stop-color="rgba(255,255,255,0.55)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            <animateTransform attributeName="gradientTransform" type="translate"
+              from="-1.2 0" to="1.2 0"
+              dur="2.8s" repeatCount="indefinite" begin="1.8s"/>
+          </linearGradient>
+
+          <!-- Shimmer overlay for arc2 -->
+          <linearGradient id="mg-shine2" x1="-0.5" y1="0" x2="0.5" y2="0">
+            <stop offset="0%"   stop-color="rgba(255,255,255,0)"/>
+            <stop offset="50%"  stop-color="rgba(255,255,255,0.45)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            <animateTransform attributeName="gradientTransform" type="translate"
+              from="-1.2 0" to="1.2 0"
+              dur="2.8s" repeatCount="indefinite" begin="2.2s"/>
+          </linearGradient>
+
+          <!-- Glow filter -->
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Body: large wave/blob shape — blue gradient -->
+        <path id="mg-body-path"
+          d="M 10,108
+             C 6,62 36,12 88,18
+             C 128,22 158,55 162,85
+             C 167,118 145,148 90,148
+             C 38,148 14,152 10,108 Z"
+          fill="url(#mg-body)"
+          opacity="0">
+          <animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="0.1s" fill="freeze"/>
+        </path>
+
+        <!-- Arc 1: outer / upper — cyan -->
+        <path id="arc1"
+          class="arc-draw"
+          d="M 22,115 C 52,22 120,6 194,56"
+          stroke="url(#mg-arc1)"
+          stroke-width="14"
+          stroke-linecap="round"
+          fill="none"
+          filter="url(#glow)"/>
+
+        <!-- Arc 1 shimmer overlay -->
+        <path
+          d="M 22,115 C 52,22 120,6 194,56"
+          stroke="url(#mg-shine1)"
+          stroke-width="14"
+          stroke-linecap="round"
+          fill="none"
+          opacity="0.7"/>
+
+        <!-- Arc 2: inner / lower — teal to green -->
+        <path id="arc2"
+          class="arc-draw"
+          d="M 72,80 C 100,36 142,38 194,76"
+          stroke="url(#mg-arc2)"
+          stroke-width="13"
+          stroke-linecap="round"
+          fill="none"
+          filter="url(#glow)"/>
+
+        <!-- Arc 2 shimmer overlay -->
+        <path
+          d="M 72,80 C 100,36 142,38 194,76"
+          stroke="url(#mg-shine2)"
+          stroke-width="13"
+          stroke-linecap="round"
+          fill="none"
+          opacity="0.7"/>
+      </svg>
+    </div>
+
+    <!-- Status badge -->
+    <div class="badge">
+      <span class="badge-dot" aria-hidden="true"></span>
+      Manutenção em curso
+    </div>
+
+    <!-- Title -->
+    <h1>Sistema <em>temporariamente</em><br>indisponível</h1>
+
+    <!-- Subtitle -->
+    <p class="subtitle">
+      Estamos a realizar melhorias na plataforma AINTAR para garantir um serviço mais rápido e seguro. O sistema estará disponível em breve.
+    </p>
+
+    <!-- Progress bar -->
+    <div class="progress-wrap" aria-label="Progresso da manutenção">
+      <div class="progress-meta">
+        <span>Progresso estimado</span>
+        <span>65%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div class="divider" aria-hidden="true"></div>
+
+    <!-- Info tiles -->
+    <div class="info-grid">
+      <div class="info-tile">
+        <div class="lbl">Tempo estimado</div>
+        <div class="val val-accent"><span id="countdown">30</span> min</div>
+      </div>
+      <div class="info-tile">
+        <div class="lbl">Estado do sistema</div>
+        <div class="val">Em actualização</div>
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <p class="contact">
+      Questões urgentes? <a href="mailto:suporte@aintar.pt">suporte@aintar.pt</a>
+    </p>
+
+    <!-- Branding -->
+    <p class="brand">AINTAR &middot; Associação Intermunicipal de Água e Resíduos</p>
+
+  </main>
+
+  <script>
+    /* ── Progress bar animate-in ── */
+    window.addEventListener('load', function () {
+      var bar = document.getElementById('progress-bar');
+      if (bar) setTimeout(function () { bar.style.width = '65%'; }, 300);
+
+      /* ── Logo arcs: draw-in then shimmer-flow ── */
+      var arcs = [
+        { el: document.getElementById('arc1'), delay: 350 },
+        { el: document.getElementById('arc2'), delay: 600 },
+      ];
+
+      arcs.forEach(function (item) {
+        var el = item.el;
+        if (!el) return;
+
+        var len = el.getTotalLength();
+
+        /* set real dash length */
+        el.style.strokeDasharray = len;
+        el.style.strokeDashoffset = len;
+
+        /* force reflow so transition fires */
+        void el.getBoundingClientRect();
+
+        setTimeout(function () {
+          el.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(0.16,1,0.3,1)';
+          el.style.strokeDashoffset = '0';
+        }, item.delay);
+      });
+    });
+
+    /* ── Countdown ── */
+    (function () {
+      var mins = 30;
+      var el = document.getElementById('countdown');
+      setInterval(function () {
+        if (mins > 0) { mins--; if (el) el.textContent = mins; }
+      }, 60000);
+    })();
+
+    /* ── Floating particles ── */
+    (function () {
+      var wrap = document.getElementById('particles');
+      if (!wrap) return;
+
+      var cfg = [
+        { l:5,  dur:8,  del:0,    op:0.55, sz:3 },
+        { l:12, dur:11, del:-3,   op:0.35, sz:2 },
+        { l:20, dur:9,  del:-6,   op:0.50, sz:4 },
+        { l:28, dur:14, del:-1,   op:0.30, sz:2 },
+        { l:36, dur:8,  del:-8,   op:0.60, sz:3 },
+        { l:44, dur:12, del:-4,   op:0.40, sz:2 },
+        { l:52, dur:10, del:-2,   op:0.55, sz:3 },
+        { l:60, dur:7,  del:-7,   op:0.45, sz:4 },
+        { l:68, dur:13, del:-5,   op:0.35, sz:2 },
+        { l:75, dur:9,  del:-1.5, op:0.50, sz:3 },
+        { l:82, dur:11, del:-9,   op:0.40, sz:2 },
+        { l:90, dur:8,  del:-3.5, op:0.55, sz:3 },
+        { l:95, dur:15, del:-6,   op:0.30, sz:2 },
+        { l:16, dur:10, del:-11,  op:0.45, sz:2 },
+        { l:48, dur:9,  del:-4,   op:0.38, sz:3 },
+        { l:78, dur:12, del:-2,   op:0.52, sz:2 },
+      ];
+
+      cfg.forEach(function (c) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left   = c.l + '%';
+        p.style.width  = c.sz + 'px';
+        p.style.height = c.sz + 'px';
+        p.style.setProperty('--dur', c.dur + 's');
+        p.style.setProperty('--del', c.del + 's');
+        p.style.setProperty('--op',  c.op);
+        wrap.appendChild(p);
+      });
+    })();
+  </script>
 </body>
 </html>

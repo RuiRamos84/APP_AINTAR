@@ -8,7 +8,8 @@ import {
   Box, Tabs, Tab, Typography, TextField, Drawer, Tooltip,
   Button, Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, LinearProgress, Grid, Chip, InputAdornment,
-  MenuItem, Paper, Divider, Alert, Stack,
+  MenuItem, Paper, Divider, Alert, Stack, Collapse, Badge,
+  ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import {
   Add as AddIcon, Close as CloseIcon,
@@ -27,9 +28,14 @@ import {
   Block as DescargaIcon,
   InsertChart as ChartIcon,
   TableChart as ExcelIcon,
+  FilterList as FilterListIcon,
+  RestartAlt as ResetIcon,
+  BarChart as BarChartIcon,
+  ShowChart as LineChartIcon,
 } from '@mui/icons-material';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -38,7 +44,9 @@ import { getMeta as getEquipamentosMeta } from '@/features/equipamentos/services
 import { InstalacaoObrasTab } from '@/features/obras';
 import { useEffect, useRef } from 'react';
 import {
-  DataGrid, GridToolbar,
+  DataGrid,
+  GridToolbarContainer, GridToolbarColumnsButton, GridToolbarDensitySelector,
+  GridToolbarExport, GridToolbarQuickFilter,
   useGridApiRef, gridFilteredSortedRowEntriesSelector,
 } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -102,18 +110,25 @@ const exportToExcel = (rows, columns, filename) => {
   XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };
 
-const TabActionBar = ({ onAdd, addLabel, addColor, onChart, onExport, extra }) => (
+const TabActionBar = ({ onAdd, addLabel, addColor, extra, filtersOpen, onToggleFilters, activeFilterCount = 0 }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, flexWrap: 'wrap', gap: 1 }}>
     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-      <Button variant="contained" color={addColor || 'primary'} startIcon={<AddIcon />} size="small" onClick={onAdd}>
-        {addLabel}
-      </Button>
+      {addLabel && (
+        <Button variant="contained" color={addColor || 'primary'} startIcon={<AddIcon />} size="small" onClick={onAdd}>
+          {addLabel}
+        </Button>
+      )}
       {extra}
     </Box>
-    <Box sx={{ display: 'flex', gap: 1 }}>
-      <Button size="small" variant="outlined" startIcon={<ChartIcon />} onClick={onChart}>Gráfico</Button>
-      <Button size="small" variant="outlined" color="success" startIcon={<ExcelIcon />} onClick={onExport}>Excel</Button>
-    </Box>
+    {onToggleFilters && (
+      <Tooltip title={filtersOpen ? 'Fechar filtros' : 'Filtrar'}>
+        <IconButton onClick={onToggleFilters} size="small" color={activeFilterCount > 0 ? 'primary' : 'default'}>
+          <Badge badgeContent={activeFilterCount} color="primary">
+            <FilterListIcon fontSize="small" />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+    )}
   </Box>
 );
 
@@ -155,48 +170,173 @@ const GRID_FILTER_LOCALE = {
   columnMenuManageColumns: 'Gerir colunas',
 };
 
-const InstalacaoDataChart = ({ open, onClose, title, data, series, yUnit = '', stacked = false }) => (
-  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-    <DialogTitle sx={{ pb: 1 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ChartIcon color="primary" />
-          <Typography variant="h6" fontWeight={700}>{title}</Typography>
-        </Box>
-        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
-      </Box>
-    </DialogTitle>
-    <DialogContent dividers sx={{ pt: 2 }}>
-      {data.length === 0 ? (
-        <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography color="text.secondary">Sem dados para apresentar.</Typography>
-        </Box>
-      ) : (
-        <ResponsiveContainer width="100%" height={380}>
-          <BarChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 72 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" angle={-45} textAnchor="end"
-              interval={Math.max(0, Math.floor(data.length / 12) - 1)}
-              tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }}
-              tickFormatter={v => yUnit ? `${v} ${yUnit}` : String(v)} width={64} />
-            <ReTooltip formatter={(v, name) => [yUnit ? `${v} ${yUnit}` : v, name]} />
-            <Legend verticalAlign="top" />
-            {series.map(s => (
-              <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color}
-                stackId={stacked ? 'stack' : undefined}
-                radius={!stacked && series.length === 1 ? [3, 3, 0, 0] : undefined}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      )}
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onClose} size="small">Fechar</Button>
-    </DialogActions>
-  </Dialog>
+// ─── Tab filter panel (estilo DocumentFilters) ────────────────────────────────
+
+/**
+ * config: Array<{ key, label, type: 'select'|'date', options?: [{value,label}], md?: number }>
+ * filters: Record<string, string>
+ * onChange: (newFilters) => void
+ */
+const TabFilterPanel = ({ open, onToggle, config, filters, onChange, onChart, onExport }) => {
+  const theme = useTheme();
+
+  const handleChange = (key) => (e) => onChange({ ...filters, [key]: e.target.value });
+
+  const handleReset = () =>
+    onChange(Object.fromEntries(config.map((f) => [f.key, ''])));
+
+  const hasActive = config.some((f) => filters[f.key]);
+
+  return (
+    <Collapse in={open}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2, mb: 1.5, borderRadius: 2,
+          border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+          bgcolor: alpha(theme.palette.background.paper, 0.6),
+        }}
+      >
+        <Grid container spacing={2} alignItems="center">
+          {config.map((field) => (
+            <Grid key={field.key} size={{ xs: 12, sm: 6, md: field.md ?? (field.type === 'date' ? 1.75 : 2) }}>
+              <TextField
+                {...(field.type === 'select'
+                  ? { select: true }
+                  : { type: 'date', slotProps: { inputLabel: { shrink: true } } }
+                )}
+                label={field.label}
+                value={filters[field.key] ?? ''}
+                onChange={handleChange(field.key)}
+                fullWidth
+                size="small"
+                sx={filters[field.key] ? { '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.primary.main } } : {}}
+              >
+                {field.type === 'select' && [
+                  <MenuItem key="" value="">Todos</MenuItem>,
+                  ...(field.options ?? []).map((o) => (
+                    <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                  )),
+                ]}
+              </TextField>
+            </Grid>
+          ))}
+
+          <Grid size={{ xs: 12, sm: 12, md: 'auto' }} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, ml: 'auto' }}>
+            {onChart  && <Button size="small" variant="outlined" startIcon={<ChartIcon />} onClick={onChart}>Gráfico</Button>}
+            {onExport && <Button size="small" variant="outlined" color="success" startIcon={<ExcelIcon />} onClick={onExport}>Excel</Button>}
+            {(onChart || onExport) && <Divider orientation="vertical" flexItem />}
+            {hasActive && (
+              <Tooltip title="Limpar filtros">
+                <IconButton onClick={handleReset} size="small" color="error">
+                  <ResetIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Fechar">
+              <IconButton onClick={onToggle} size="small">
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Collapse>
+  );
+};
+
+const DataGridToolbar = () => (
+  <GridToolbarContainer>
+    <GridToolbarColumnsButton />
+    <GridToolbarDensitySelector />
+    <GridToolbarExport />
+    <Box sx={{ flex: 1 }} />
+    <GridToolbarQuickFilter debounceMs={300} placeholder="Pesquisar…" />
+  </GridToolbarContainer>
 );
+
+// ─── Chart / export ───────────────────────────────────────────────────────────
+
+const InstalacaoDataChart = ({ open, onClose, title, data, series, yUnit = '', stacked = false }) => {
+  const [chartType, setChartType] = useState('bar');
+  const margin = { top: 8, right: 24, left: 8, bottom: 72 };
+  const xAxisProps = {
+    dataKey: 'date', angle: -45, textAnchor: 'end',
+    interval: Math.max(0, Math.floor(data.length / 12) - 1),
+    tick: { fontSize: 11 },
+  };
+  const yAxisProps = {
+    tick: { fontSize: 11 },
+    tickFormatter: (v) => yUnit ? `${v} ${yUnit}` : String(v),
+    width: 64,
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ChartIcon color="primary" />
+            <Typography variant="h6" fontWeight={700}>{title}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ToggleButtonGroup value={chartType} exclusive size="small"
+              onChange={(_, v) => { if (v) setChartType(v); }}>
+              <ToggleButton value="bar">
+                <Tooltip title="Barras"><BarChartIcon fontSize="small" /></Tooltip>
+              </ToggleButton>
+              <ToggleButton value="line">
+                <Tooltip title="Linhas"><LineChartIcon fontSize="small" /></Tooltip>
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+          </Box>
+        </Box>
+      </DialogTitle>
+      <DialogContent dividers sx={{ pt: 2 }}>
+        {data.length === 0 ? (
+          <Box sx={{ py: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">Sem dados para apresentar.</Typography>
+          </Box>
+        ) : (
+          <ResponsiveContainer width="100%" height={380}>
+            {chartType === 'bar' ? (
+              <BarChart data={data} margin={margin}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
+                <ReTooltip formatter={(v, name) => [yUnit ? `${v} ${yUnit}` : v, name]} />
+                <Legend verticalAlign="top" />
+                {series.map((s) => (
+                  <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color}
+                    stackId={stacked ? 'stack' : undefined}
+                    radius={!stacked && series.length === 1 ? [3, 3, 0, 0] : undefined}
+                  />
+                ))}
+              </BarChart>
+            ) : (
+              <LineChart data={data} margin={margin}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
+                <ReTooltip formatter={(v, name) => [yUnit ? `${v} ${yUnit}` : v, name]} />
+                <Legend verticalAlign="top" />
+                {series.map((s) => (
+                  <Line key={s.key} dataKey={s.key} name={s.label} stroke={s.color}
+                    dot={data.length <= 60} strokeWidth={2} connectNulls
+                  />
+                ))}
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} size="small">Fechar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const EMPTY_STATE = (msg) => (
   <Box sx={{ py: 6, textAlign: 'center' }}>
@@ -407,8 +547,27 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
   const [open, setOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState({ tipo: '', dateFrom: '', dateTo: '' });
   const { data: spots = [] } = useSpotList();
-  const spotMap = useMemo(() => Object.fromEntries(spots.map((s) => [s.pk, s.value])), [spots]);
+
+  const filterConfig = useMemo(() => [
+    { key: 'tipo', label: 'Tipo de Leitura', type: 'select', md: 3,
+      options: spots.map((s) => ({ value: s.value, label: s.value })) },
+    { key: 'dateFrom', label: 'Data início', type: 'date' },
+    { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+  ], [spots]);
+
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length, [filters],
+  );
+
+  const filteredData = useMemo(() => data.filter((r) => {
+    if (filters.tipo && r.tt_readspot !== filters.tipo) return false;
+    if (filters.dateFrom && r.data < filters.dateFrom) return false;
+    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    return true;
+  }), [data, filters]);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(volSchema), defaultValues: volDefaults,
@@ -422,7 +581,7 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   const getFiltered = () => {
     try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
-    catch { return data; }
+    catch { return filteredData; }
   };
 
   const handleChart = () => {
@@ -434,7 +593,7 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   const handleExport = () => exportToExcel(getFiltered(), [
     { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
-    { key: 'tt_readspot', label: 'Tipo', fn: r => spotMap[r.tt_readspot] || '' },
+    { key: 'tt_readspot', label: 'Tipo', fn: r => r.tt_readspot || '' },
     { key: 'valor', label: 'Volume (m³)', fn: r => parseFloat(r.valor) || 0 },
   ], `volumes_${pk}`);
 
@@ -442,8 +601,8 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
     {
       field: 'tt_readspot', headerName: 'Tipo', width: 160,
-      valueGetter: (v) => spotMap[v] || v || '',
-      renderCell: ({ row }) => <Cell><Chip label={spotMap[row.tt_readspot] || row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell>,
+      valueGetter: (v) => v || '',
+      renderCell: ({ row }) => <Cell><Chip label={row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell>,
     },
     {
       field: 'valor', headerName: 'Volume (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
@@ -453,11 +612,14 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   return (
     <Box>
-      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
-      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)}
+        filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
+      <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
+        config={filterConfig} filters={filters} onChange={setFilters}
+        onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
+        slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
       <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Volumes Tratados"
@@ -500,11 +662,18 @@ const waterSchema = z.object({
 });
 const waterDefaults = { pndate: toStr(new Date()), pnval: '' };
 
+const WATER_FILTER_CONFIG = [
+  { key: 'dateFrom', label: 'Data início', type: 'date' },
+  { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+];
+
 const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
   const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(waterSchema), defaultValues: waterDefaults,
   });
@@ -514,6 +683,10 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
     reset(waterDefaults);
     setOpen(false);
   };
+
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length, [filters],
+  );
 
   const processedData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -527,9 +700,15 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
     });
   }, [data]);
 
+  const filteredData = useMemo(() => processedData.filter((r) => {
+    if (filters.dateFrom && r.data < filters.dateFrom) return false;
+    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    return true;
+  }), [processedData, filters]);
+
   const getFiltered = () => {
     try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
-    catch { return processedData; }
+    catch { return filteredData; }
   };
 
   const handleChart = () => {
@@ -557,11 +736,14 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
 
   return (
     <Box>
-      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
-      <DataGrid apiRef={apiRef} rows={processedData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)}
+        filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
+      <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
+        config={WATER_FILTER_CONFIG} filters={filters} onChange={setFilters}
+        onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
+        slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
       <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Consumo de Água"
@@ -598,11 +780,18 @@ const energySchema = z.object({
 });
 const energyDefaults = { pndate: toStr(new Date()), pnval_vazio: '', pnval_ponta: '', pnval_cheia: '' };
 
+const ENERGY_FILTER_CONFIG = [
+  { key: 'dateFrom', label: 'Data início', type: 'date' },
+  { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+];
+
 const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
   const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(energySchema), defaultValues: energyDefaults,
   });
@@ -619,9 +808,19 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
     setOpen(false);
   };
 
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length, [filters],
+  );
+
+  const filteredData = useMemo(() => data.filter((r) => {
+    if (filters.dateFrom && r.data < filters.dateFrom) return false;
+    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    return true;
+  }), [data, filters]);
+
   const getFiltered = () => {
     try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
-    catch { return data; }
+    catch { return filteredData; }
   };
 
   const handleChart = () => {
@@ -660,11 +859,14 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
 
   return (
     <Box>
-      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
-      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Leitura" onAdd={() => setOpen(true)}
+        filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
+      <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
+        config={ENERGY_FILTER_CONFIG} filters={filters} onChange={setFilters}
+        onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
+        slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
       <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Consumo de Energia"
@@ -715,10 +917,31 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
   const [open, setOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState({ destino: '', associado: '', dateFrom: '', dateTo: '' });
   const { data: expTypes = [] } = useExpenseTypes();
   const { data: associates = [] } = useAssociates();
-  const expMap   = useMemo(() => Object.fromEntries(expTypes.map((t) => [t.pk, t.value])), [expTypes]);
-  const assocMap = useMemo(() => Object.fromEntries(associates.map((a) => [a.pk, a.name])), [associates]);
+
+  const filterConfig = useMemo(() => [
+    { key: 'destino', label: 'Destino', type: 'select', md: 2.5,
+      options: expTypes.map((t) => ({ value: t.value, label: t.value })) },
+    { key: 'associado', label: 'Associado', type: 'select', md: 2.5,
+      options: associates.map((a) => ({ value: a.name, label: a.name })) },
+    { key: 'dateFrom', label: 'Data início', type: 'date' },
+    { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+  ], [expTypes, associates]);
+
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length, [filters],
+  );
+
+  const filteredData = useMemo(() => data.filter((r) => {
+    if (filters.destino && r.tt_expensedest !== filters.destino) return false;
+    if (filters.associado && r.ts_associate !== filters.associado) return false;
+    if (filters.dateFrom && r.data < filters.dateFrom) return false;
+    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    return true;
+  }), [data, filters]);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(expSchema), defaultValues: expDefaults,
@@ -739,7 +962,7 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
 
   const getFiltered = () => {
     try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
-    catch { return data; }
+    catch { return filteredData; }
   };
 
   const handleChart = () => {
@@ -751,33 +974,34 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
 
   const handleExport = () => exportToExcel(getFiltered(), [
     { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
-    { key: 'tt_expensedest', label: 'Destino', fn: r => expMap[r.tt_expensedest] || '' },
+    { key: 'tt_expensedest', label: 'Destino', fn: r => r.tt_expensedest || '' },
     { key: 'valor', label: 'Valor (€)', fn: r => parseFloat(r.valor) || 0 },
-    { key: 'ts_associate', label: 'Associado', fn: r => assocMap[r.ts_associate] || '' },
+    { key: 'ts_associate', label: 'Associado', fn: r => r.ts_associate || '' },
     { key: 'memo', label: 'Descrição', fn: r => r.memo || '' },
   ], `despesas_${pk}`);
 
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
     { field: 'tt_expensedest', headerName: 'Destino', width: 170,
-      valueGetter: (v) => expMap[v] || '',
-      renderCell: ({ row }) => <Cell><Chip label={expMap[row.tt_expensedest] || '—'} size="small" color="primary" variant="outlined" sx={{ maxWidth: '100%' }} /></Cell> },
+      renderCell: ({ row }) => <Cell><Chip label={row.tt_expensedest || '—'} size="small" color="primary" variant="outlined" sx={{ maxWidth: '100%' }} /></Cell> },
     { field: 'valor', headerName: 'Valor', width: 120, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatCurrency(value)}</Typography></Cell> },
     { field: 'ts_associate', headerName: 'Associado', flex: 1, minWidth: 140,
-      valueGetter: (v) => assocMap[v] || '',
-      renderCell: ({ row }) => <Cell><Typography variant="body2">{assocMap[row.ts_associate] || '—'}</Typography></Cell> },
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{row.ts_associate || '—'}</Typography></Cell> },
     { field: 'memo', headerName: 'Descrição', flex: 2, minWidth: 180,
       renderCell: ({ value }) => <Cell><Typography variant="body2" color="text.secondary" noWrap>{value || '—'}</Typography></Cell> },
   ];
 
   return (
     <Box>
-      <TabActionBar addLabel="Nova Despesa" onAdd={() => setOpen(true)} onChart={handleChart} onExport={handleExport} />
-      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+      <TabActionBar addLabel="Nova Despesa" onAdd={() => setOpen(true)}
+        filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
+      <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
+        config={filterConfig} filters={filters} onChange={setFilters}
+        onChart={handleChart} onExport={handleExport} />
+      <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
+        slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
       <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Despesas"
@@ -930,15 +1154,52 @@ const incumpSchema = z.object({
 });
 const incumpDefaults = { data_incump: toStr(new Date()), tt_analiseparam: '', resultado: '', limite: '', operador1: '', operador2: '' };
 
+const SEVERITY_OPTIONS = [
+  { value: 'critico',  label: 'Crítico'  },
+  { value: 'elevado',  label: 'Elevado'  },
+  { value: 'moderado', label: 'Moderado' },
+  { value: 'baixo',    label: 'Baixo'    },
+];
+
+const severityKey = (r) => {
+  const res = parseFloat(r.resultado), lim = parseFloat(r.limite);
+  if (isNaN(res) || isNaN(lim) || lim === 0) return null;
+  const pct = ((res - lim) / lim) * 100;
+  if (pct >= 100) return 'critico';
+  if (pct >= 50)  return 'elevado';
+  if (pct >= 20)  return 'moderado';
+  return 'baixo';
+};
+
 const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdding }) => {
   const apiRef = useGridApiRef();
   const [open, setOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState({ parametro: '', gravidade: '', dateFrom: '', dateTo: '' });
   const { data: params = [] } = useAnaliseParams();
   const { data: who = [] }    = useWhoList();
-  const paramMap = useMemo(() => Object.fromEntries(params.map((p) => [p.pk, p.value])), [params]);
-  const whoMap   = useMemo(() => Object.fromEntries(who.map((w) => [w.pk, w.name || w.value])), [who]);
+  const filterConfig = useMemo(() => [
+    { key: 'parametro', label: 'Parâmetro', type: 'select', md: 2.5,
+      options: params.map((p) => ({ value: p.value, label: p.value })) },
+    { key: 'gravidade', label: 'Gravidade', type: 'select', md: 2,
+      options: SEVERITY_OPTIONS },
+    { key: 'dateFrom', label: 'Data início', type: 'date' },
+    { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+  ], [params]);
+
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length, [filters],
+  );
+
+  const filteredData = useMemo(() => data.filter((r) => {
+    if (filters.parametro && r.tt_analiseparam !== filters.parametro) return false;
+    if (filters.gravidade && severityKey(r) !== filters.gravidade) return false;
+    if (filters.dateFrom && r.data < filters.dateFrom) return false;
+    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    return true;
+  }), [data, filters]);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(incumpSchema), defaultValues: incumpDefaults,
@@ -960,7 +1221,7 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
 
   const getFiltered = () => {
     try { return gridFilteredSortedRowEntriesSelector(apiRef).map(e => e.model); }
-    catch { return data; }
+    catch { return filteredData; }
   };
 
   const handleChart = () => {
@@ -975,21 +1236,20 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
 
   const handleExport = () => exportToExcel(getFiltered(), [
     { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
-    { key: 'tt_analiseparam', label: 'Parâmetro', fn: r => paramMap[r.tt_analiseparam] || '' },
+    { key: 'tt_analiseparam', label: 'Parâmetro', fn: r => r.tt_analiseparam || '' },
     { key: 'resultado', label: 'Resultado', fn: r => parseFloat(r.resultado) || 0 },
     { key: 'limite', label: 'Limite', fn: r => parseFloat(r.limite) || 0 },
     { key: '_excesso', label: 'Excesso (%)', fn: r => {
       const res = parseFloat(r.resultado), lim = parseFloat(r.limite);
       return (!isNaN(res) && !isNaN(lim) && lim > 0) ? (((res - lim) / lim) * 100).toFixed(1) : '';
     }},
-    { key: 'operador1', label: 'Operador', fn: r => whoMap[r.operador1] || '' },
+    { key: 'operador1', label: 'Operador', fn: r => r.operador1 || '' },
   ], `incumprimentos_${pk}`);
 
   const cols = [
     { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
     { field: 'tt_analiseparam', headerName: 'Parâmetro', width: 160,
-      valueGetter: (v) => paramMap[v] || '',
-      renderCell: ({ row }) => <Cell><Chip label={paramMap[row.tt_analiseparam] || row.tt_analiseparam || '—'} size="small" variant="outlined" /></Cell> },
+      renderCell: ({ row }) => <Cell><Chip label={row.tt_analiseparam || '—'} size="small" variant="outlined" /></Cell> },
     { field: 'resultado', headerName: 'Resultado', width: 110, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
     { field: 'limite', headerName: 'Limite', width: 100, align: 'right', headerAlign: 'right', type: 'number',
@@ -1018,18 +1278,19 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
         : <Cell>—</Cell>,
     },
     { field: 'operador1', headerName: 'Operador 1', flex: 1, minWidth: 130,
-      valueGetter: (v) => whoMap[v] || '',
-      renderCell: ({ row }) => <Cell><Typography variant="body2">{whoMap[row.operador1] || '—'}</Typography></Cell> },
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{row.operador1 || '—'}</Typography></Cell> },
   ];
 
   return (
     <Box>
       <TabActionBar addLabel="Registar Incumprimento" addColor="error" onAdd={() => setOpen(true)}
-        onChart={handleChart} onExport={handleExport} />
-      <DataGrid apiRef={apiRef} rows={data} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
+        onChart={handleChart} onExport={handleExport}
+        filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
+      <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
+        config={filterConfig} filters={filters} onChange={setFilters} />
+      <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
+        slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE, noRowsLabel: 'Sem incumprimentos registados' }} />
       <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Incumprimentos"
@@ -1223,33 +1484,69 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
 
 // ─── TAB: Histórico de Tarefas ────────────────────────────────────────────────
 
+const HISTORICO_FILTER_DEFAULTS = { estado: '', acao: '', dateFrom: '', dateTo: '' };
+
 const HistoricoTab = ({ pk, color }) => {
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [search, setSearch] = useState('');
+  const apiRef = useGridApiRef();
+  const [filters, setFilters] = useState(HISTORICO_FILTER_DEFAULTS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
 
   const { data: allTarefas = [], isLoading } = useQuery({
-    queryKey: ['instalacao', 'historico', pk, fromDate, toDate],
+    queryKey: ['instalacao', 'historico', pk, filters.dateFrom, filters.dateTo],
     queryFn: () => operationService.getOperacao({
       instalacaoPk: pk,
-      fromDate: fromDate || undefined,
-      toDate: toDate || undefined,
+      fromDate: filters.dateFrom || undefined,
+      toDate: filters.dateTo || undefined,
     }),
     enabled: !!pk,
     select: (d) => (d?.data || []).map((r, i) => ({ ...r, id: r.pk ?? i })),
     staleTime: 2 * 60 * 1000,
   });
 
-  const tarefas = useMemo(() => {
-    if (!search.trim()) return allTarefas;
-    const q = search.toLowerCase();
-    return allTarefas.filter(r =>
-      (r.tt_operacaoaccao || '').toLowerCase().includes(q) ||
-      (r.ts_operador1 || '').toLowerCase().includes(q) ||
-      (r.descr || '').toLowerCase().includes(q)
-    );
-  }, [allTarefas, search]);
+  const uniqueOptions = (arr, key) => {
+    const seen = new Set();
+    return arr.map((r) => r[key]).filter(Boolean)
+      .filter((v) => { if (seen.has(v)) return false; seen.add(v); return true; })
+      .sort().map((v) => ({ value: v, label: v }));
+  };
+
+  const acaoOptions = useMemo(() => uniqueOptions(allTarefas, 'tt_operacaoaccao'), [allTarefas]);
+
+  const filterConfig = useMemo(() => [
+    { key: 'estado', label: 'Estado', type: 'select', md: 2,
+      options: [{ value: 'concluida', label: 'Concluída' }, { value: 'pendente', label: 'Pendente' }] },
+    { key: 'acao',   label: 'Ação / Tarefa', type: 'select', md: 3,
+      options: acaoOptions },
+    { key: 'dateFrom', label: 'Data início', type: 'date' },
+    { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+  ], [acaoOptions]);
+
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length, [filters],
+  );
+
+  const tarefas = useMemo(() => allTarefas.filter((r) => {
+    if (filters.estado === 'concluida' && !r.updt_time) return false;
+    if (filters.estado === 'pendente'  &&  r.updt_time) return false;
+    if (filters.acao && r.tt_operacaoaccao !== filters.acao) return false;
+    return true;
+  }), [allTarefas, filters]);
+
+  const getFiltered = () => {
+    try { return gridFilteredSortedRowEntriesSelector(apiRef).map((e) => e.model); }
+    catch { return tarefas; }
+  };
+
+  const handleExport = () => exportToExcel(getFiltered(), [
+    { key: 'data',                       label: 'Data Agendada',  fn: (r) => formatDate(r.data) },
+    { key: 'updt_time',                  label: 'Data Conclusão', fn: (r) => formatDate(r.updt_time) },
+    { key: 'tt_operacaoaccao',           label: 'Ação / Tarefa' },
+    { key: 'ts_operador1',               label: 'Operador' },
+    { key: 'tt_operacaomodo',            label: 'Tipo',      fn: (r) => r.tt_operacaomodo != null ? 'Programada' : 'Pontual' },
+    { key: '_estado',                    label: 'Estado',    fn: (r) => r.updt_time ? 'Concluída' : 'Pendente' },
+    { key: 'control_tt_operacaocontrolo', label: 'Validação', fn: (r) => r.control_tt_operacaocontrolo ? 'Validada' : '' },
+  ], `historico_${pk}`);
 
   const cols = [
     {
@@ -1323,32 +1620,24 @@ const HistoricoTab = ({ pk, color }) => {
 
   return (
     <Box>
-      {/* Toolbar: tudo à direita */}
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-end" sx={{ mb: 2, flexWrap: 'wrap' }}>
-        <SearchBar searchTerm={search} onSearch={setSearch} />
-        <TextField
-          label="Data início" type="date" size="small"
-          value={fromDate} onChange={(e) => setFromDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          sx={{ width: 150 }}
-        />
-        <TextField
-          label="Data fim" type="date" size="small"
-          value={toDate} onChange={(e) => setToDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          sx={{ width: 150 }}
-        />
-        <Typography variant="caption" color="text.secondary">
-          {tarefas.length} registo{tarefas.length !== 1 ? 's' : ''}
-        </Typography>
-        {(fromDate || toDate) && (
-          <Button size="small" color="inherit" onClick={() => { setFromDate(''); setToDate(''); }}>
-            Limpar
-          </Button>
-        )}
-      </Stack>
+      <TabActionBar
+        addLabel={null}
+        filtersOpen={filtersOpen}
+        onToggleFilters={() => setFiltersOpen((o) => !o)}
+        activeFilterCount={activeFilterCount}
+        extra={
+          <Typography variant="caption" color="text.secondary">
+            {tarefas.length} registo{tarefas.length !== 1 ? 's' : ''}
+          </Typography>
+        }
+      />
+
+      <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
+        config={filterConfig} filters={filters} onChange={setFilters}
+        onExport={handleExport} />
 
       <DataGrid
+        apiRef={apiRef}
         rows={tarefas}
         columns={cols}
         loading={isLoading}
@@ -1357,8 +1646,7 @@ const HistoricoTab = ({ pk, color }) => {
         pageSizeOptions={[25, 50, 100]}
         initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         onRowClick={({ row }) => setDetalhe(row)}
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 300 } } }}
+        slots={{ toolbar: DataGridToolbar }}
         sx={{
           borderRadius: 2,
           '& .MuiDataGrid-cell': { py: 1.5 },
