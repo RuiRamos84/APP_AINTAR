@@ -97,7 +97,7 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
     };
 
     const handleSave = async () => {
-        if (!designacao.trim() || !classe || tiposSel.length === 0 || sncap === '') {
+        if (!designacao.trim() || !classe || tiposSel.length === 0) {
             setError('Preenche todos os campos obrigatórios e seleciona pelo menos um tipo.');
             return;
         }
@@ -107,7 +107,7 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
                 designacao: designacao.trim(),
                 ts_orcamento_classe: parseInt(classe, 10),
                 tipos: tiposSel,
-                sncap: parseInt(sncap, 10),
+                sncap: sncap.trim() || null,
             });
             onClose();
         } catch (err) {
@@ -153,11 +153,9 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, tipos, initial = null
                         </FormGroup>
                     </Box>
                     <TextField label="SNC-AP" value={sncap}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || /^\d+$/.test(val)) setSncap(val);
-                        }}
-                        fullWidth required size="small" type="number" inputProps={{ min: 0, step: 1 }} />
+                        onChange={(e) => setSncap(e.target.value)}
+                        fullWidth size="small"
+                        placeholder="Ex: 01.02.15 (opcional)" />
                 </Stack>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -394,6 +392,12 @@ const CatalogPage = () => {
             breadcrumbs={[{ label: 'Orçamento', path: '/orcamento' }, { label: 'Catálogo' }]}
             actions={
                 <Stack direction="row" spacing={1}>
+                    <Button variant="outlined" size="small"
+                        startIcon={<ArrowBackIcon />}
+                        onClick={() => navigate('/orcamento')}
+                        sx={{ minWidth: 0 }}>
+                        {!isMobile && 'Voltar'}
+                    </Button>
                     <Button variant="outlined" size="small"
                         startIcon={!isMobile && <AddIcon />}
                         onClick={() => setClasseDialog({ open: true, target: null })}
