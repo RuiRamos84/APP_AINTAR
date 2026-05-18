@@ -149,12 +149,13 @@ def listar_grupos_config():
 def adicionar_grupo_config():
     """Adiciona um grupo à lista de auto-alerta."""
     try:
-        body       = request.get_json(force=True, silent=True) or {}
-        group_id   = body.get('group_id', '').strip()
-        group_name = body.get('group_name', '').strip()
+        body        = request.get_json(force=True, silent=True) or {}
+        group_id    = body.get('group_id', '').strip()
+        group_name  = body.get('group_name', '').strip()
+        invite_link = body.get('invite_link', '').strip() or None
         if not group_id or not group_name:
             return jsonify({'status': 'error', 'message': 'group_id e group_name obrigatórios'}), 400
-        return add_configured_group(group_id=group_id, group_name=group_name)
+        return add_configured_group(group_id=group_id, group_name=group_name, invite_link=invite_link)
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

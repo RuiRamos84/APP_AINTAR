@@ -16,7 +16,7 @@ export const whatsappAlertasService = {
 
   // configuração de grupos auto-alerta (BD)
   getGruposConfig:    ()                      => api.get(`${BASE}/config/grupos`),
-  addGrupoConfig:     (groupId, groupName)    => api.post(`${BASE}/config/grupos`, { group_id: groupId, group_name: groupName }),
+  addGrupoConfig:     (groupId, groupName, inviteLink) => api.post(`${BASE}/config/grupos`, { group_id: groupId, group_name: groupName, ...(inviteLink ? { invite_link: inviteLink } : {}) }),
   removeGrupoConfig:  (pk)                    => api.delete(`${BASE}/config/grupos/${pk}`),
   toggleGrupoConfig:  (pk, ativo)             => api.patch(`${BASE}/config/grupos/${pk}/toggle`, { ativo }),
 

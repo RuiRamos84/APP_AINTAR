@@ -2,6 +2,7 @@ from flask import jsonify
 from sqlalchemy.sql import text
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
+from datetime import date
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)

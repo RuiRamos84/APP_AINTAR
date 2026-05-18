@@ -126,26 +126,6 @@ def get_orcamento_tipos_route():
         return get_orcamento_tipos(session)
 
 
-@bp.route('/orcamento/classes', methods=['GET'])
-@jwt_required()
-@token_required
-@require_permission('expenses.view')
-@api_error_handler
-def get_orcamento_classes_route():
-    """
-    Classes de orçamento (lookup com pk)
-    ---
-    tags:
-      - Orçamento
-    responses:
-      200:
-        description: Lista de classes com pk.
-    """
-    current_user = get_jwt_identity()
-    with db_session_manager(current_user) as session:
-        return get_orcamento_classes(session)
-
-
 @bp.route('/orcamento/classe', methods=['POST'])
 @jwt_required()
 @token_required
