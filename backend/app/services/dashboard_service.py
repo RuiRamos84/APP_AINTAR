@@ -96,6 +96,9 @@ DASHBOARD_VIEWS = {
          'vds_tramitacao_01$002': 'Por utilizador e ano',
          'vds_tramitacao_01$003': 'Por utilizador, mes e ano',
     },
+    'faturacao': {
+        'vds_faturacao_01': 'Faturação AINTAR',
+    },
     'landing': {
         'vds_landing_01$001': 'Pedidos - Top 10 tipos',
         'vds_landing_01$002': 'Pedidos - Por município',
@@ -137,6 +140,7 @@ def get_dashboard_structure():
         'incumprimentos': 'Incumprimentos',
         'repavimentacoes': 'Repavimentações',
         'transmitacoes': 'Tramitações',
+        'faturacao': 'Faturação',
     }
     return {
         'categories': [

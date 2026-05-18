@@ -26,10 +26,16 @@ import { OrcamentoForm } from '../components/OrcamentoForm';
 
 const MODULE_COLOR = '#059669';
 
+const ANO_MIN = 2023;
+const currentYear = new Date().getFullYear();
+const ANOS_NAVEGAVEIS = Array.from(
+    { length: currentYear - ANO_MIN + 1 },
+    (_, i) => currentYear - i,
+);
+
 /* ── Navegador de ano ────────────────────────────────────────── */
 export const YearNavigator = ({ compact = false }) => {
-    const { data: anos = [] } = useOrcamentoAnos();
-    const { anoSelecionado, setAno } = useOrcamentoStore();
+    const { anos, anoSelecionado, setAno, loading } = useOrcamentoStore();
     const idx    = anos.indexOf(Number(anoSelecionado));
     const canOld = idx < anos.length - 1;
     const canNew = idx > 0;
@@ -41,7 +47,7 @@ export const YearNavigator = ({ compact = false }) => {
             <IconButton
                 size="small"
                 onClick={() => setAno(anos[idx + 1])}
-                disabled={!canOld}
+                disabled={!canOld || loading}
                 sx={{ color: 'text.secondary' }}
             >
                 <ChevronLeftIcon fontSize="small" />
@@ -60,7 +66,7 @@ export const YearNavigator = ({ compact = false }) => {
             <IconButton
                 size="small"
                 onClick={() => setAno(anos[idx - 1])}
-                disabled={!canNew}
+                disabled={!canNew || loading}
                 sx={{ color: 'text.secondary' }}
             >
                 <ChevronRightIcon fontSize="small" />
@@ -113,37 +119,12 @@ const OrcamentoPage = () => {
     const [tipoFilter, setTipoFilter] = useState('todos');
 
     useEffect(() => {
-        if (anos.length > 0 && !anoSelecionado) setAno(anos[0]);
-    }, [anos, anoSelecionado, setAno]);
-
-    const handleExport = () => {
-        const total = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-        const rows = registos.map(r => ({
-            'Classe':       r.classe     ?? '',
-            'Subclasse':    r.subclasse  ?? '',
-            'Tipo':         r.tipo       ?? '',
-            'SNC-AP':       r.sncap      ?? '',
-            'Descrição':    r.memo       ?? '',
-            'Data Início':  r.data_inicio ?? '',
-            'Data Fim':     r.data_fim    ?? '',
-            'Dotação (€)':  parseFloat(r.valor) || 0,
-            'Peso (%)':     total > 0
-                ? +((parseFloat(r.valor) || 0) / total * 100).toFixed(2)
-                : 0,
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(rows);
-
-        // Larguras das colunas
-        ws['!cols'] = [
-            { wch: 22 }, { wch: 30 }, { wch: 12 }, { wch: 12 },
-            { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 },
-        ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `Orçamento ${anoSelecionado}`);
-        XLSX.writeFile(wb, `orcamento_${anoSelecionado}.xlsx`);
-    };
+        const init = async () => {
+            const list = await fetchAnos();
+            if (list.length > 0) setAno(list[0]);
+        };
+        init();
+    }, []);
 
     return (
         <ModulePage

@@ -3,68 +3,35 @@ import api from '../../../services/api/client';
 export const orcamentoService = {
     async getDetalhe(ano = null) {
         const params = ano ? { ano } : {};
-        const response = await api.get('/orcamento', { params });
-        return response;
-    },
-
-    async getSummary(ano = null) {
-        const params = ano ? { ano } : {};
-        const response = await api.get('/orcamento/summary', { params });
-        return response;
+        return api.get('/orcamento', { params });
     },
 
     async getAnos() {
-        const response = await api.get('/orcamento/anos');
-        return response;
-    },
-
-    async getSubclasses() {
-        const response = await api.get('/orcamento/subclasses');
-        return response;
-    },
-
-    async create(data) {
-        const response = await api.post('/orcamento', data);
-        return response;
-    },
-
-    async update(pk, data) {
-        const response = await api.put(`/orcamento/${pk}`, data);
-        return response;
-    },
-
-    async remove(pk) {
-        const response = await api.delete(`/orcamento/${pk}`);
-        return response;
-    },
-
-    async getTipos() {
-        const response = await api.get('/orcamento/tipos');
-        return response;
+        return api.get('/orcamento/anos');
     },
 
     async getClasses() {
-        const response = await api.get('/orcamento/classes');
-        return response;
+        return api.get('/orcamento/classes');
     },
 
-    async createClasse(data) {
-        const response = await api.post('/orcamento/classe', data);
-        return response;
+    async getSubclasses() {
+        return api.get('/orcamento/subclasses');
     },
 
-    async createSubclasse(data) {
-        const response = await api.post('/orcamento/subclasse', data);
-        return response;
+    async getSncap(pk) {
+        return api.get(`/orcamento/sncap/${encodeURIComponent(pk)}`);
     },
 
-    async updateClasse(pk, data) {
-        const response = await api.put(`/orcamento/classe/${pk}`, data);
-        return response;
+    async create(data) {
+        return api.post('/orcamento', data);
     },
 
-    async updateSubclasse(pk, data) {
-        const response = await api.put(`/orcamento/subclasse/${pk}`, data);
-        return response;
+    async update(pk, data) {
+        return api.put(`/orcamento/${pk}`, data);
     },
+
+    async remove(pk) {
+        return api.delete(`/orcamento/${pk}`);
+    },
+
 };
