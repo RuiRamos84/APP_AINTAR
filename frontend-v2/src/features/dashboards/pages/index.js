@@ -7,3 +7,4 @@ export { DashboardViolationsPage } from './DashboardViolationsPage';
 export { DashboardAnalysesPage } from './DashboardAnalysesPage';
 export { DashboardRepavPage } from './DashboardRepavPage';
 export { DashboardTramitacoesPage } from './DashboardTramitacoesPage';
+export { DashboardFaturacaoPage } from './DashboardFaturacaoPage';

@@ -8,9 +8,8 @@ import {
 import {
     ClassOutlined as ClassIcon,
     EuroSymbol as EuroIcon,
-    CalendarMonth as DateIcon,
-    InfoOutlined as InfoIcon,
     Close as CloseIcon,
+    NotesOutlined as NotesIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -21,13 +20,19 @@ const MODULE_COLOR = '#059669';
 const SectionLabel = ({ icon: Icon, label }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, mt: 0.5 }}>
         <Icon sx={{ fontSize: 18, color: MODULE_COLOR }} />
-        <Typography variant="caption" fontWeight={700} textTransform="uppercase" letterSpacing={0.7} color={MODULE_COLOR}>
+        <Typography variant="caption" fontWeight={700} textTransform="uppercase"
+            letterSpacing={0.7} color={MODULE_COLOR}>
             {label}
         </Typography>
     </Box>
 );
 
 const currentYear = new Date().getFullYear();
+const ANO_MIN = 2023;
+const anosDisponiveis = Array.from(
+    { length: currentYear - ANO_MIN + 1 },
+    (_, i) => currentYear - i,
+);
 
 export const OrcamentoForm = () => {
     const theme    = useTheme();
@@ -36,7 +41,7 @@ export const OrcamentoForm = () => {
     const {
         modalOpen, editTarget, closeModal,
         addRegisto, updateRegisto,
-        subclasses, anos, registos,
+        subclasses, anos,
     } = useOrcamentoStore();
 
     const [apiError, setApiError] = useState('');
@@ -44,127 +49,73 @@ export const OrcamentoForm = () => {
 
     const { control, handleSubmit, watch, reset, setValue, formState: { errors, isSubmitting } } = useForm({
         defaultValues: {
-            ano: currentYear,
-            classe: '',
-            ts_orcamento_subclasse: '',
-            valor: '',
-            data_inicio: '',
-            data_fim: '',
+            ano:          currentYear,
+            classe:       '',
+            subclasse_pk: '',
+            name:         '',
+            valor:        '',
+            memo:         '',
         },
     });
 
-    const anoW       = watch('ano');
-    const classeW    = watch('classe');
-    const subclasseW = watch('ts_orcamento_subclasse');
-    const dataIniW   = watch('data_inicio');
-    const dataFimW   = watch('data_fim');
+    const anoW      = watch('ano');
+    const classeW   = watch('classe');
 
     /* ── Reset ao abrir ─────────────────────────────────────── */
     useEffect(() => {
         if (!modalOpen) return;
         setApiError('');
         if (isEdit) {
-            const sub = subclasses.find(s => s.pk === editTarget.ts_orcamento_subclasse);
+            const sub = subclasses.find(s => s.pk === editTarget.subclasse_pk
+                || (s.name === editTarget.subclasse));
             reset({
-                ano:                    editTarget.ano ?? currentYear,
-                classe:                 sub?.classe ?? '',
-                ts_orcamento_subclasse: editTarget.ts_orcamento_subclasse ?? '',
-                valor:                  editTarget.valor ?? '',
-                data_inicio:            editTarget.data_inicio ?? '',
-                data_fim:               editTarget.data_fim ?? '',
+                ano:          editTarget.ano ?? currentYear,
+                classe:       editTarget.classe ?? '',
+                subclasse_pk: editTarget.subclasse_pk ?? sub?.pk ?? '',
+                name:         editTarget.name ?? '',
+                valor:        editTarget.valor ?? '',
+                memo:         editTarget.memo ?? '',
             });
         } else {
-            reset({ ano: currentYear, classe: '', ts_orcamento_subclasse: '', valor: '', data_inicio: '', data_fim: '' });
+            reset({ ano: currentYear, classe: '', subclasse_pk: '', name: '', valor: '', memo: '' });
         }
     }, [modalOpen]);
 
-    useEffect(() => { if (!isEdit) { setValue('classe', ''); setValue('ts_orcamento_subclasse', ''); } }, [anoW, isEdit]);
-    useEffect(() => { if (!isEdit) setValue('ts_orcamento_subclasse', ''); }, [classeW, isEdit]);
+    useEffect(() => { if (!isEdit) setValue('subclasse_pk', ''); }, [classeW, isEdit]);
 
-    /* ── Disponibilidade de subclasses ──────────────────────── */
-    const subclassesDisponiveis = useMemo(() => {
-        if (isEdit || !anoW) return subclasses;
-        const a = parseInt(anoW, 10);
-        return subclasses.filter(s => {
-            const ex = registos.filter(r => r.ano === a && r.ts_orcamento_subclasse === s.pk);
-            return ex.length === 0 || ex.every(r => r.data_inicio && r.data_fim);
-        });
-    }, [subclasses, registos, anoW, isEdit]);
-
+    /* ── Subclasses filtradas por classe ────────────────────── */
     const classesDisponiveis = useMemo(
-        () => [...new Set(subclassesDisponiveis.map(s => s.classe))].sort(),
-        [subclassesDisponiveis],
+        () => [...new Set(subclasses.map(s => s.classe))].filter(Boolean).sort(),
+        [subclasses],
     );
 
     const subclassesFiltradas = useMemo(
-        () => subclassesDisponiveis.filter(s => s.classe === classeW),
-        [subclassesDisponiveis, classeW],
+        () => classeW ? subclasses.filter(s => s.classe === classeW) : subclasses,
+        [subclasses, classeW],
     );
-
-    /* ── Datas obrigatórias ──────────────────────────────────── */
-    const jaExiste = useMemo(() => {
-        if (isEdit || !anoW || !subclasseW) return false;
-        const a = parseInt(anoW, 10), s = parseInt(subclasseW, 10);
-        return registos.some(r => r.ano === a && r.ts_orcamento_subclasse === s);
-    }, [isEdit, anoW, subclasseW, registos]);
-
-    const temIrmaos = useMemo(() => {
-        if (!isEdit || !editTarget) return false;
-        return registos.some(r =>
-            r.ano === editTarget.ano &&
-            r.ts_orcamento_subclasse === editTarget.ts_orcamento_subclasse &&
-            r.pk !== editTarget.pk
-        );
-    }, [isEdit, editTarget, registos]);
-
-    const datasObrigatorias = jaExiste || temIrmaos;
-
-    /* ── Sobreposição de datas ───────────────────────────────── */
-    const sobreposicao = useMemo(() => {
-        if (!dataIniW || !dataFimW) return null;
-        const ini = new Date(dataIniW), fim = new Date(dataFimW);
-        if (fim < ini) return 'A data de fim não pode ser anterior à data de início.';
-        const a = parseInt(anoW, 10), s = parseInt(subclasseW, 10);
-        const pkAtual = isEdit ? editTarget?.pk : null;
-        const c = registos.find(r => {
-            if (!r.data_inicio || !r.data_fim || r.ano !== a || r.ts_orcamento_subclasse !== s) return false;
-            if (pkAtual && r.pk === pkAtual) return false;
-            return ini <= new Date(r.data_fim) && fim >= new Date(r.data_inicio);
-        });
-        if (c) {
-            const f = (d) => { const [y, m, dd] = String(d).split('-'); return `${dd}/${m}/${y}`; };
-            return `Intervalo sobrepõe-se com registo existente (${f(c.data_inicio)} → ${f(c.data_fim)}).`;
-        }
-        return null;
-    }, [dataIniW, dataFimW, anoW, subclasseW, registos, isEdit, editTarget]);
 
     /* ── Submit ─────────────────────────────────────────────── */
     const onSubmit = async (v) => {
         setApiError('');
         try {
+            const payload = {
+                ano:          parseInt(v.ano, 10),
+                subclasse_pk: parseInt(v.subclasse_pk, 10),
+                name:         v.name.trim() || null,
+                valor:        parseFloat(v.valor),
+                memo:         v.memo.trim() || null,
+            };
             if (isEdit) {
-                await updateRegisto(editTarget.pk, {
-                    valor:       parseFloat(v.valor),
-                    data_inicio: v.data_inicio || null,
-                    data_fim:    v.data_fim    || null,
-                });
+                await updateRegisto(editTarget.pk, payload);
                 toast.success('Dotação actualizada com sucesso.');
             } else {
-                await addRegisto({
-                    ano:                    parseInt(v.ano, 10),
-                    ts_orcamento_subclasse: parseInt(v.ts_orcamento_subclasse, 10),
-                    valor:                  parseFloat(v.valor),
-                    data_inicio:            v.data_inicio || null,
-                    data_fim:               v.data_fim    || null,
-                });
+                await addRegisto(payload);
                 toast.success('Dotação criada com sucesso.');
             }
         } catch (err) {
             setApiError(err?.response?.data?.error || err?.response?.data?.erro || err?.message || 'Erro ao guardar.');
         }
     };
-
-    const canSubmit = !isSubmitting && !sobreposicao && (isEdit || !!subclasseW);
 
     return (
         <Dialog
@@ -175,9 +126,7 @@ export const OrcamentoForm = () => {
             fullScreen={isMobile}
             slotProps={{
                 paper: {
-                    sx: isMobile
-                        ? {}
-                        : { borderRadius: 3, borderTop: `4px solid ${MODULE_COLOR}` },
+                    sx: isMobile ? {} : { borderRadius: 3, borderTop: `4px solid ${MODULE_COLOR}` },
                 },
             }}
         >
@@ -202,16 +151,7 @@ export const OrcamentoForm = () => {
 
             <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                 <DialogContent sx={{ pt: 2, overflowY: 'auto' }}>
-                    {apiError     && <Alert severity="error" sx={{ mb: 2 }}>{apiError}</Alert>}
-                    {sobreposicao && <Alert severity="error" sx={{ mb: 2 }}>{sobreposicao}</Alert>}
-                    {(jaExiste || temIrmaos) && (
-                        <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
-                            {jaExiste
-                                ? 'Já existe um registo para esta subclasse/ano — as datas são obrigatórias.'
-                                : 'Este registo partilha subclasse/ano com outros — as datas são obrigatórias.'
-                            }
-                        </Alert>
-                    )}
+                    {apiError && <Alert severity="error" sx={{ mb: 2 }}>{apiError}</Alert>}
 
                     {/* Classificação */}
                     <SectionLabel icon={ClassIcon} label="Classificação" />
@@ -222,77 +162,36 @@ export const OrcamentoForm = () => {
                                 control={control}
                                 rules={{ required: 'Obrigatório' }}
                                 render={({ field }) => (
-                                    <TextField {...field} select label="Ano" disabled={isEdit}
-                                        error={Boolean(errors.ano)} helperText={errors.ano?.message}
+                                    <TextField {...field} select label="Ano"
+                                        disabled={isEdit}
+                                        error={Boolean(errors.ano)}
+                                        helperText={errors.ano?.message}
                                         fullWidth size="small">
-                                        {anos.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
+                                        {anosDisponiveis.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
                                     </TextField>
                                 )}
                             />
                         </Grid>
 
-                        {!isEdit && anoW && (
-                            classesDisponiveis.length === 0 ? (
-                                <Grid size={{ xs: 12 }}>
-                                    <Alert severity="info" sx={{ py: 0.5 }}>
-                                        Todas as subclasses já têm dotação activa para {anoW}. Para adicionar
-                                        uma nova dotação, edita um registo existente e define datas de
-                                        início/fim para libertar o período.
-                                    </Alert>
-                                </Grid>
-                            ) : (
-                                <>
-                                    <Grid size={{ xs: 12, sm: 8 }}>
-                                        <Controller
-                                            name="classe"
-                                            control={control}
-                                            rules={{ required: 'Obrigatório' }}
-                                            render={({ field }) => (
-                                                <TextField {...field} select label="Classe"
-                                                    error={Boolean(errors.classe)}
-                                                    helperText={errors.classe?.message}
-                                                    fullWidth size="small">
-                                                    {classesDisponiveis.map(c => (
-                                                        <MenuItem key={c} value={c}>{c}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            )}
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 12 }}>
-                                        <Controller
-                                            name="ts_orcamento_subclasse"
-                                            control={control}
-                                            rules={{ required: 'Obrigatório' }}
-                                            render={({ field }) => (
-                                                <TextField {...field} select label="Subclasse"
-                                                    disabled={!classeW}
-                                                    error={Boolean(errors.ts_orcamento_subclasse)}
-                                                    helperText={
-                                                        errors.ts_orcamento_subclasse?.message ||
-                                                        (!classeW ? 'Seleciona primeiro uma classe' : '')
-                                                    }
-                                                    fullWidth size="small">
-                                                    {subclassesFiltradas.map(s => (
-                                                        <MenuItem key={s.pk} value={s.pk}>
-                                                            {s.designacao}
-                                                            {s.tipo && (
-                                                                <Typography component="span" variant="caption"
-                                                                    color="text.secondary" sx={{ ml: 1 }}>
-                                                                    ({s.tipo})
-                                                                </Typography>
-                                                            )}
-                                                        </MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            )}
-                                        />
-                                    </Grid>
-                                </>
-                            )
+                        {!isEdit && (
+                            <Grid size={{ xs: 12, sm: 8 }}>
+                                <Controller
+                                    name="classe"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <TextField {...field} select label="Classe (filtro)"
+                                            fullWidth size="small">
+                                            <MenuItem value="">Todas as classes</MenuItem>
+                                            {classesDisponiveis.map(c => (
+                                                <MenuItem key={c} value={c}>{c}</MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
+                                />
+                            </Grid>
                         )}
 
-                        {isEdit && (
+                        {isEdit ? (
                             <Grid size={{ xs: 12, sm: 8 }}>
                                 <TextField
                                     label="Subclasse"
@@ -300,82 +199,83 @@ export const OrcamentoForm = () => {
                                     disabled fullWidth size="small"
                                 />
                             </Grid>
+                        ) : (
+                            <Grid size={{ xs: 12 }}>
+                                <Controller
+                                    name="subclasse_pk"
+                                    control={control}
+                                    rules={{ required: 'Obrigatório' }}
+                                    render={({ field }) => (
+                                        <TextField {...field} select label="Subclasse *"
+                                            error={Boolean(errors.subclasse_pk)}
+                                            helperText={errors.subclasse_pk?.message}
+                                            fullWidth size="small">
+                                            {subclassesFiltradas.map(s => (
+                                                <MenuItem key={s.pk} value={s.pk}>
+                                                    {s.name}
+                                                    {s.sncap && (
+                                                        <Typography component="span" variant="caption"
+                                                            color="text.secondary" sx={{ ml: 1 }}>
+                                                            ({s.sncap})
+                                                        </Typography>
+                                                    )}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
+                                />
+                            </Grid>
                         )}
                     </Grid>
 
-                    {/* Valor + Datas */}
-                    {(isEdit || (anoW && subclasseW)) && (
-                        <>
-                            <Divider sx={{ mb: 2 }} />
-                            <SectionLabel icon={EuroIcon} label="Dotação" />
+                    {/* Dotação */}
+                    <Divider sx={{ mb: 2 }} />
+                    <SectionLabel icon={EuroIcon} label="Dotação" />
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <Controller
+                                name="name"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField {...field} label="Nome"
+                                        placeholder="Opcional"
+                                        fullWidth size="small" />
+                                )}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <Controller
                                 name="valor"
                                 control={control}
-                                rules={{ required: 'Obrigatório', min: { value: 0, message: 'Valor deve ser positivo' } }}
+                                rules={{
+                                    required: 'Obrigatório',
+                                    min: { value: 0, message: 'Valor deve ser positivo' },
+                                }}
                                 render={({ field }) => (
-                                    <TextField
-                                        {...field}
-                                        label="Valor (€)"
+                                    <TextField {...field} label="Valor (€) *"
                                         type="number"
                                         inputProps={{ step: '0.01', min: 0 }}
                                         error={Boolean(errors.valor)}
                                         helperText={errors.valor?.message}
-                                        fullWidth size="small" sx={{ mb: 2 }}
-                                    />
+                                        fullWidth size="small" />
                                 )}
                             />
+                        </Grid>
+                    </Grid>
 
-                            <Divider sx={{ mb: 2 }} />
-                            <SectionLabel icon={DateIcon}
-                                label={datasObrigatorias ? 'Período (obrigatório)' : 'Período (opcional)'} />
-                            <Grid container spacing={2}>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Controller
-                                        name="data_inicio"
-                                        control={control}
-                                        rules={{
-                                            required: datasObrigatorias
-                                                ? 'Obrigatório'
-                                                : dataFimW ? 'Obrigatório com data de fim' : false,
-                                        }}
-                                        render={({ field }) => (
-                                            <TextField
-                                                {...field}
-                                                label={datasObrigatorias || dataFimW ? 'Data Início *' : 'Data Início'}
-                                                type="date"
-                                                slotProps={{ inputLabel: { shrink: true } }}
-                                                error={Boolean(errors.data_inicio)}
-                                                helperText={errors.data_inicio?.message}
-                                                fullWidth size="small"
-                                            />
-                                        )}
-                                    />
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Controller
-                                        name="data_fim"
-                                        control={control}
-                                        rules={{
-                                            required: datasObrigatorias
-                                                ? 'Obrigatório'
-                                                : dataIniW ? 'Obrigatório com data de início' : false,
-                                        }}
-                                        render={({ field }) => (
-                                            <TextField
-                                                {...field}
-                                                label={datasObrigatorias || dataIniW ? 'Data Fim *' : 'Data Fim'}
-                                                type="date"
-                                                slotProps={{ inputLabel: { shrink: true } }}
-                                                error={Boolean(errors.data_fim)}
-                                                helperText={errors.data_fim?.message}
-                                                fullWidth size="small"
-                                            />
-                                        )}
-                                    />
-                                </Grid>
-                            </Grid>
-                        </>
-                    )}
+                    {/* Nota */}
+                    <Divider sx={{ mb: 2 }} />
+                    <SectionLabel icon={NotesIcon} label="Descrição" />
+                    <Controller
+                        name="memo"
+                        control={control}
+                        render={({ field }) => (
+                            <TextField {...field} label="Descrição"
+                                placeholder="Opcional"
+                                multiline rows={3}
+                                fullWidth size="small" />
+                        )}
+                    />
                 </DialogContent>
 
                 <DialogActions sx={{ px: 3, pb: isMobile ? 3 : 2.5, gap: 1, flexShrink: 0 }}>
@@ -385,7 +285,7 @@ export const OrcamentoForm = () => {
                     <Button
                         type="submit"
                         variant="contained"
-                        disabled={!canSubmit}
+                        disabled={isSubmitting}
                         startIcon={isSubmitting ? <CircularProgress size={16} /> : null}
                         sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 120 }}
                     >

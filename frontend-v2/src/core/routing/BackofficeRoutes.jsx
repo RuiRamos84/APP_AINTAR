@@ -28,6 +28,7 @@ import {
   DashboardSepticTanksPage, DashboardInstallationsPage,
   DashboardViolationsPage, DashboardAnalysesPage,
   DashboardRepavPage, DashboardTramitacoesPage,
+  DashboardFaturacaoPage,
 } from '@/features/dashboards/pages';
 import { EmissoesPage } from '@/features/emissoes';
 import { EquipamentosPage } from '@/features/equipamentos';
@@ -167,6 +168,7 @@ export default function BackofficeRoutes() {
         <Route path="/dashboards/analyses"      element={<DashboardAnalysesPage />} />
         <Route path="/dashboards/repav"         element={<DashboardRepavPage />} />
         <Route path="/dashboards/tramitacoes"   element={<DashboardTramitacoesPage />} />
+        <Route path="/dashboards/faturacao"     element={<DashboardFaturacaoPage />} />
 
         {/* ==================== EMISSÕES ==================== */}
         <Route path="/intern/emissoes" element={<EmissoesPage />} />

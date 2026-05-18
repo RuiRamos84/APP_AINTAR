@@ -5,242 +5,196 @@ import {
     TableHead, TableRow, Collapse, CircularProgress,
     Alert, Stack, Button, LinearProgress,
     Dialog, DialogTitle, DialogContent, DialogActions,
-    alpha, useTheme, useMediaQuery, ToggleButtonGroup, ToggleButton,
+    TextField, InputAdornment,
+    alpha, useTheme, useMediaQuery,
 } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
-    TrendingUp as Corrente,
-    AccountTree as Capital,
     Payments as TotalIcon,
     WarningAmber as WarnIcon,
     AccountBalance as OrcamentoIcon,
+    SearchRounded as SearchIcon,
 } from '@mui/icons-material';
 import { useOrcamentoStore } from '../store/orcamentoStore';
-import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
 import { YearNavigator } from '../pages/OrcamentoPage';
+import { SncapPopover } from './SncapPopover';
+
+const MODULE_COLOR = '#059669';
+
+const CLASSE_COLORS = [
+    '#059669', '#0891b2', '#7c3aed', '#d97706',
+    '#dc2626', '#0d9488', '#c026d3', '#65a30d',
+];
 
 /* ─── helpers ──────────────────────────────────────────────── */
 const fmt = (v) =>
     new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(v ?? 0);
 
-const fmtDate = (d) => {
-    if (!d) return '—';
-    try {
-        const dt    = new Date(d);
-        const local = new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
-        return new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' }).format(local);
-    } catch { return '—'; }
-};
-
 const pct = (part, total) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
-/* ─── KpiCard ───────────────────────────────────────────────── */
-const KpiCard = ({ label, value, total, icon: Icon, accent, count }) => {
+/* ─── ClasseKpiCard ─────────────────────────────────────────── */
+const ClasseKpiCard = ({ nome, total, grandTotal, count, color }) => {
     const theme = useTheme();
-    const ratio = pct(value, total);
-
+    const ratio = pct(total, grandTotal);
     return (
-        <Paper
-            elevation={0}
-            variant="outlined"
-            sx={{
-                p: { xs: 1.75, sm: 2.5 },
-                borderLeft: `4px solid ${accent}`,
-                borderRadius: 2,
-                flex: 1,
-                minWidth: 0,
-                transition: 'box-shadow .2s',
-                '&:hover': { boxShadow: theme.shadows[3] },
-            }}
-        >
-            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1}>
-                <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={500}
-                        textTransform="uppercase" letterSpacing={0.6}>
-                        {label}
-                    </Typography>
-                    <Typography variant="h5" fontWeight={700} mt={0.25}
-                        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
-                        {fmt(value)}
-                    </Typography>
-                    {count !== undefined && (
-                        <Typography variant="caption" color="text.disabled">
-                            {count} dotaç{count === 1 ? 'ão' : 'ões'}
-                        </Typography>
-                    )}
-                </Box>
-                <Box sx={{
-                    width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, borderRadius: '50%',
-                    bgcolor: alpha(accent, 0.12),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                }}>
-                    <Icon sx={{ color: accent, fontSize: { xs: 16, sm: 20 } }} />
-                </Box>
+        <Paper elevation={0} variant="outlined" sx={{
+            p: 1.75,
+            borderLeft: `4px solid ${color}`,
+            borderRadius: 2,
+            transition: 'box-shadow .2s',
+            '&:hover': { boxShadow: theme.shadows[3] },
+        }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={500}
+                textTransform="uppercase" letterSpacing={0.5} noWrap display="block">
+                {nome}
+            </Typography>
+            <Stack direction="row" alignItems="baseline" spacing={1} mt={0.25} mb={0.75}>
+                <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' } }}>
+                    {fmt(total)}
+                </Typography>
+                <Chip
+                    label={`${ratio}%`}
+                    size="small"
+                    sx={{
+                        height: 20, fontSize: '0.7rem', fontWeight: 700,
+                        bgcolor: alpha(color, 0.12), color,
+                    }}
+                />
             </Stack>
-            {total !== null && (
-                <>
-                    <LinearProgress
-                        variant="determinate"
-                        value={ratio}
-                        sx={{
-                            height: 6, borderRadius: 3, mb: 0.75,
-                            bgcolor: alpha(accent, 0.12),
-                            '& .MuiLinearProgress-bar': { bgcolor: accent, borderRadius: 3 },
-                        }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                        {ratio}% do total
-                    </Typography>
-                </>
-            )}
+            <LinearProgress
+                variant="determinate"
+                value={ratio}
+                sx={{
+                    height: 5, borderRadius: 3, mb: 0.5,
+                    bgcolor: alpha(color, 0.12),
+                    '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 3 },
+                }}
+            />
+            <Typography variant="caption" color="text.disabled">
+                {count} dotaç{count === 1 ? 'ão' : 'ões'}
+            </Typography>
         </Paper>
     );
 };
 
 /* ─── TotalCard ─────────────────────────────────────────────── */
-const TotalCard = ({ total, corrente, capital, accent }) => {
-    const theme       = useTheme();
-    const correntePct = pct(corrente, total);
-
+const TotalCard = ({ total, count }) => {
+    const theme = useTheme();
     return (
-        <Paper
-            elevation={0}
-            variant="outlined"
-            sx={{
-                p: { xs: 1.75, sm: 2.5 },
-                borderLeft: `4px solid ${accent}`,
-                borderRadius: 2,
-                flex: 1,
-                minWidth: 0,
-                transition: 'box-shadow .2s',
-                '&:hover': { boxShadow: theme.shadows[3] },
-            }}
-        >
-            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1}>
+        <Paper elevation={0} variant="outlined" sx={{
+            p: 1.75,
+            borderLeft: `4px solid ${MODULE_COLOR}`,
+            borderRadius: 2,
+            transition: 'box-shadow .2s',
+            '&:hover': { boxShadow: theme.shadows[3] },
+        }}>
+            <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
                 <Box>
                     <Typography variant="caption" color="text.secondary" fontWeight={500}
-                        textTransform="uppercase" letterSpacing={0.6}>
-                        Total Geral
+                        textTransform="uppercase" letterSpacing={0.5}>
+                        Total Dotado
                     </Typography>
-                    <Typography variant="h5" fontWeight={700} mt={0.25}
-                        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
+                    <Typography variant="h6" fontWeight={700} mt={0.25}
+                        sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' } }}>
                         {fmt(total)}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled">
+                        {count} dotaç{count === 1 ? 'ão' : 'ões'}
                     </Typography>
                 </Box>
                 <Box sx={{
-                    width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, borderRadius: '50%',
-                    bgcolor: alpha(accent, 0.12),
+                    width: 36, height: 36, borderRadius: '50%',
+                    bgcolor: alpha(MODULE_COLOR, 0.12),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                 }}>
-                    <TotalIcon sx={{ color: accent, fontSize: { xs: 16, sm: 20 } }} />
+                    <TotalIcon sx={{ color: MODULE_COLOR, fontSize: 18 }} />
                 </Box>
-            </Stack>
-            <Box sx={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', mb: 0.75, bgcolor: alpha('#0891b2', 0.12) }}>
-                {correntePct > 0 && (
-                    <Box sx={{ width: `${correntePct}%`, bgcolor: '#0891b2', transition: 'width .4s ease' }} />
-                )}
-                {(100 - correntePct) > 0 && (
-                    <Box sx={{ flex: 1, bgcolor: '#d97706' }} />
-                )}
-            </Box>
-            <Stack direction="row" spacing={2}>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#0891b2', flexShrink: 0 }} />
-                    <Typography variant="caption" color="text.secondary">Corrente {correntePct}%</Typography>
-                </Stack>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#d97706', flexShrink: 0 }} />
-                    <Typography variant="caption" color="text.secondary">Capital {100 - correntePct}%</Typography>
-                </Stack>
             </Stack>
         </Paper>
     );
 };
 
 /* ─── SummaryDashboard ──────────────────────────────────────── */
-const SummaryDashboard = ({ registos }) => {
-    const totalGeral    = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    const corrente      = registos.filter(r => r.tipo === 'Corrente');
-    const capital       = registos.filter(r => r.tipo === 'Capital');
-    const totalCorrente = corrente.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    const totalCapital  = capital.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-
-    if (totalGeral === 0) return null;
-
+const SummaryDashboard = ({ porClasse, grandTotal, classeColors }) => {
+    if (Object.keys(porClasse).length === 0) return null;
+    const totalCount = Object.values(porClasse).flat().length;
     return (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={3}>
-            <TotalCard total={totalGeral} corrente={totalCorrente} capital={totalCapital} accent="#059669" />
-            <KpiCard label="Despesas Correntes" value={totalCorrente} total={totalGeral}
-                accent="#0891b2" icon={Corrente} count={corrente.length} />
-            <KpiCard label="Despesas Capital" value={totalCapital} total={totalGeral}
-                accent="#d97706" icon={Capital} count={capital.length} />
-        </Stack>
+        <Box mb={2.5} sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: 1.5,
+        }}>
+            <TotalCard total={grandTotal} count={totalCount} />
+            {Object.keys(porClasse).map((classe) => {
+                const items = porClasse[classe];
+                const classeTotal = items.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+                return (
+                    <ClasseKpiCard
+                        key={classe}
+                        nome={classe}
+                        total={classeTotal}
+                        grandTotal={grandTotal}
+                        count={items.length}
+                        color={classeColors[classe]}
+                    />
+                );
+            })}
+        </Box>
     );
 };
 
 /* ─── ClasseSection ─────────────────────────────────────────── */
-const TIPO_COLOR = { Corrente: { color: 'info' }, Capital: { color: 'warning' } };
+// 6 colunas: Subclasse | SNC-AP | Nome | Descrição | Valor | Ações
+const COL_SPAN_HEADER = 4;
+const COL_SPAN_TOTAL  = 6;
 
-const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isMobile }) => {
-    const total = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    // 8 colunas no total (algumas ocultas via CSS mas contam para colSpan)
-    const colSpanHeader = 7;
-    const colSpanTotal  = 8;
-
+const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, onSncapClick }) => {
     return (
         <>
             <TableRow
                 onClick={onToggle}
                 sx={{
                     cursor: 'pointer',
-                    bgcolor: alpha('#059669', 0.08),
-                    '&:hover': { bgcolor: alpha('#059669', 0.13) },
+                    bgcolor: alpha(MODULE_COLOR, 0.08),
+                    '&:hover': { bgcolor: alpha(MODULE_COLOR, 0.13) },
                     '& td': { borderBottom: open ? 'none' : undefined },
                     transition: 'background-color .15s',
                 }}
             >
-                <TableCell colSpan={colSpanHeader} sx={{ py: 1.25 }}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="subtitle2" fontWeight={700} color="#059669">
-                            {classe}
-                        </Typography>
-                        <Chip
-                            label={registos.length}
-                            size="small"
-                            sx={{ height: 18, fontSize: '0.68rem', bgcolor: alpha('#059669', 0.15), color: '#059669', fontWeight: 700 }}
-                        />
-                    </Stack>
-                </TableCell>
-                <TableCell align="right" sx={{ py: 1.25 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={0.5}>
-                        <Typography variant="subtitle2" fontWeight={700} color="#059669">
-                            {fmt(total)}
-                        </Typography>
+                <TableCell colSpan={COL_SPAN_TOTAL} sx={{ py: 1.25 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                            <Typography variant="subtitle2" fontWeight={700} color={MODULE_COLOR}>
+                                {classe}
+                            </Typography>
+                            <Chip
+                                label={registos.length}
+                                size="small"
+                                sx={{ height: 18, fontSize: '0.68rem', bgcolor: alpha(MODULE_COLOR, 0.15), color: MODULE_COLOR, fontWeight: 700 }}
+                            />
+                        </Stack>
                         {open
-                            ? <ExpandLessIcon sx={{ fontSize: 18, color: '#059669' }} />
-                            : <ExpandMoreIcon sx={{ fontSize: 18, color: '#059669' }} />
+                            ? <ExpandLessIcon sx={{ fontSize: 18, color: MODULE_COLOR }} />
+                            : <ExpandMoreIcon sx={{ fontSize: 18, color: MODULE_COLOR }} />
                         }
                     </Stack>
                 </TableCell>
             </TableRow>
 
             <TableRow sx={{ p: 0 }}>
-                <TableCell colSpan={colSpanTotal} sx={{ p: 0, border: 'none' }}>
+                <TableCell colSpan={COL_SPAN_TOTAL} sx={{ p: 0, border: 'none' }}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                             <colgroup>
                                 <col />
-                                <col style={{ width: 120 }} />
-                                <col style={{ width: 80 }} />
+                                <col style={{ width: 90 }} />
+                                <col style={{ width: 160 }} />
                                 <col style={{ width: 180 }} />
-                                <col style={{ width: 110 }} />
-                                <col style={{ width: 110 }} />
                                 <col style={{ width: 130 }} />
                                 <col style={{ width: 80 }} />
                             </colgroup>
@@ -250,41 +204,51 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
                                         key={r.pk ?? i}
                                         hover
                                         sx={{
-                                            '&:last-child td': { borderBottom: `2px solid ${alpha('#059669', 0.2)}` },
-                                            bgcolor: i % 2 === 0 ? 'background.paper' : alpha('#059669', 0.02),
+                                            '&:last-child td': { borderBottom: `2px solid ${alpha(MODULE_COLOR, 0.2)}` },
+                                            bgcolor: i % 2 === 0 ? 'background.paper' : alpha(MODULE_COLOR, 0.02),
                                         }}
                                     >
-                                        <TableCell sx={{ pl: { xs: 2, sm: 3.5 }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        <TableCell sx={{ pl: { xs: 2, sm: 3.5 } }}>
                                             <Typography variant="body2" noWrap>
                                                 {r.subclasse}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell>
-                                            {r.tipo && (
-                                                <Chip label={r.tipo} size="small"
-                                                    color={TIPO_COLOR[r.tipo]?.color || 'default'} />
-                                            )}
-                                        </TableCell>
-                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.disabled" fontFamily="monospace" noWrap>
+                                        <TableCell
+                                            onClick={r.sncap
+                                                ? (e) => { e.stopPropagation(); onSncapClick(e.currentTarget, r.sncap); }
+                                                : undefined}
+                                        >
+                                            <Typography
+                                                variant="caption"
+                                                fontFamily="monospace"
+                                                noWrap
+                                                sx={r.sncap ? {
+                                                    color: MODULE_COLOR,
+                                                    cursor: 'pointer',
+                                                    fontWeight: 600,
+                                                    textDecoration: 'underline',
+                                                    textDecorationStyle: 'dotted',
+                                                    textUnderlineOffset: 3,
+                                                    '&:hover': { textDecorationStyle: 'solid' },
+                                                } : { color: 'text.disabled' }}
+                                            >
                                                 {r.sncap || '—'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, overflow: 'hidden' }}>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                            <Typography variant="caption" color="text.secondary" noWrap title={r.name || ''}>
+                                                {r.name || '—'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                             <Typography variant="caption" color="text.secondary" noWrap title={r.memo || ''}>
                                                 {r.memo || '—'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.secondary">{fmtDate(r.data_inicio)}</Typography>
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.secondary">{fmtDate(r.data_fim)}</Typography>
-                                        </TableCell>
                                         <TableCell align="right">
                                             <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
                                         </TableCell>
-                                        <TableCell align="center">
+                                        <TableCell align="center" sx={{ p: 0.5 }}>
                                             <Tooltip title="Editar">
                                                 <IconButton size="small" onClick={() => onEdit(r)}>
                                                     <EditIcon fontSize="small" />
@@ -337,33 +301,36 @@ export const OrcamentoTable = () => {
     const theme    = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    const [collapsed,    setCollapsed]    = useState({});
+    const [expanded,     setExpanded]     = useState({});
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [searchTerm,   setSearchTerm]   = useState('');
-    const [tipoFilter,   setTipoFilter]   = useState('todos');
+    const [sncapAnchor,  setSncapAnchor]  = useState({ el: null, code: null });
 
-    const byTipo = useMemo(() =>
-        tipoFilter === 'todos' ? registos : registos.filter(r => r.tipo === tipoFilter),
-    [registos, tipoFilter]);
-
-    const searched = useSearch(byTipo, searchTerm);
+    const searched = useSearch(registos, searchTerm);
 
     const { porClasse, grandTotal } = useMemo(() => {
         const map = {};
         let total = 0;
         searched.forEach(r => {
-            if (!map[r.classe]) map[r.classe] = [];
-            map[r.classe].push(r);
+            const key = r.classe || '(Sem classe)';
+            if (!map[key]) map[key] = [];
+            map[key].push(r);
             total += parseFloat(r.valor) || 0;
         });
         return { porClasse: map, grandTotal: total };
     }, [searched]);
 
     const activeClasses = useMemo(() => Object.keys(porClasse), [porClasse]);
-    const isSearching   = searchTerm.trim().length > 0 || tipoFilter !== 'todos';
+    const isSearching   = searchTerm.trim().length > 0;
 
-    const isOpen       = (classe) => isSearching || !collapsed[classe];
-    const toggleClasse = (classe) => setCollapsed(prev => ({ ...prev, [classe]: !prev[classe] }));
+    const classeColors = useMemo(() => {
+        const map = {};
+        activeClasses.forEach((c, i) => { map[c] = CLASSE_COLORS[i % CLASSE_COLORS.length]; });
+        return map;
+    }, [activeClasses]);
+
+    const isOpen       = (classe) => isSearching || Boolean(expanded[classe]);
+    const toggleClasse = (classe) => setExpanded(prev => ({ ...prev, [classe]: !prev[classe] }));
 
     const handleDeleteConfirm = async () => {
         await deleteRegisto(deleteTarget.pk);
@@ -372,7 +339,7 @@ export const OrcamentoTable = () => {
 
     if (loading) return (
         <Box display="flex" justifyContent="center" alignItems="center" py={10}>
-            <CircularProgress sx={{ color: '#059669' }} />
+            <CircularProgress sx={{ color: MODULE_COLOR }} />
         </Box>
     );
 
@@ -380,8 +347,7 @@ export const OrcamentoTable = () => {
 
     return (
         <Box>
-            {/* KPIs — reagem ao filtro activo */}
-            <SummaryDashboard registos={searched} />
+            <SummaryDashboard porClasse={porClasse} grandTotal={grandTotal} classeColors={classeColors} />
 
             {/* Toolbar */}
             <Stack
@@ -392,30 +358,26 @@ export const OrcamentoTable = () => {
                 mb={2}
             >
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
-                    {/* Em mobile o YearNavigator fica aqui, não no header */}
                     {isMobile && (
                         <Box sx={{ flexShrink: 0 }}>
                             <YearNavigator compact />
                         </Box>
                     )}
-                    <SearchBar
+                    <TextField
+                        size="small"
+                        placeholder="Pesquisar subclasse, SNC-AP, designação..."
                         value={searchTerm}
-                        onChange={setSearchTerm}
-                        placeholder="Pesquisar subclasse, SNC-AP..."
-                        sx={{ flex: 1, maxWidth: { sm: 360 } }}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        sx={{ flex: 1, maxWidth: { sm: 400 } }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                                </InputAdornment>
+                            ),
+                        }}
                     />
                 </Stack>
-                <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={tipoFilter}
-                    onChange={(_, v) => v && setTipoFilter(v)}
-                    sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-                >
-                    <ToggleButton value="todos">Todos</ToggleButton>
-                    <ToggleButton value="Corrente">Corrente</ToggleButton>
-                    <ToggleButton value="Capital">Capital</ToggleButton>
-                </ToggleButtonGroup>
             </Stack>
 
             {/* Tabela */}
@@ -433,47 +395,39 @@ export const OrcamentoTable = () => {
                     </Typography>
                     {isSearching && (
                         <Typography variant="caption" textAlign="center">
-                            Tenta ajustar os filtros ou o termo de pesquisa.
+                            Tenta ajustar o termo de pesquisa.
                         </Typography>
                     )}
                 </Box>
             ) : (
                 <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 2 }}>
                     <TableContainer sx={{
-                        maxHeight: { xs: 'none', md: 'calc(100vh - 400px)' },
+                        maxHeight: { xs: 'none', md: 'calc(100vh - 340px)' },
                         overflowY: { xs: 'visible', md: 'auto' },
                         overflowX: 'auto',
                     }}>
                         <Table size="small" sx={{ minWidth: { xs: 360, md: 'auto' }, tableLayout: 'fixed' }}>
                             <colgroup>
-                                <col />                                {/* Subclasse — flex */}
-                                <col style={{ width: 120 }} />         {/* Tipo */}
-                                <col style={{ width: 80 }} />          {/* SNC-AP */}
-                                <col style={{ width: 180 }} />         {/* Descrição */}
-                                <col style={{ width: 110 }} />         {/* Início */}
-                                <col style={{ width: 110 }} />         {/* Fim */}
-                                <col style={{ width: 130 }} />         {/* Dotação */}
-                                <col style={{ width: 80 }} />          {/* Ações */}
+                                <col />
+                                <col style={{ width: 90 }} />
+                                <col style={{ width: 160 }} />
+                                <col style={{ width: 180 }} />
+                                <col style={{ width: 130 }} />
+                                <col style={{ width: 80 }} />
                             </colgroup>
                             <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                         Subclasse
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                        Tipo
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', display: { xs: 'none', md: 'table-cell' } }}>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
                                         SNC-AP
                                     </TableCell>
                                     <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
+                                        Nome
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
                                         Descrição
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
-                                        Início
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
-                                        Fim
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                         Dotação
@@ -491,7 +445,7 @@ export const OrcamentoTable = () => {
                                         onToggle={() => toggleClasse(classe)}
                                         onEdit={(r) => openModal(r)}
                                         onDelete={(r) => setDeleteTarget(r)}
-                                        isMobile={isMobile}
+                                        onSncapClick={(el, code) => setSncapAnchor({ el, code })}
                                     />
                                 ))}
                             </TableBody>
@@ -504,6 +458,12 @@ export const OrcamentoTable = () => {
                 target={deleteTarget}
                 onConfirm={handleDeleteConfirm}
                 onClose={() => setDeleteTarget(null)}
+            />
+
+            <SncapPopover
+                anchorEl={sncapAnchor.el}
+                sncapCode={sncapAnchor.code}
+                onClose={() => setSncapAnchor({ el: null, code: null })}
             />
         </Box>
     );
