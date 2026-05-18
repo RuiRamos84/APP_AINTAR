@@ -18,6 +18,7 @@ import ScienceIcon from '@mui/icons-material/Science';
 import WarningIcon from '@mui/icons-material/Warning';
 import RoadIcon from '@mui/icons-material/Traffic';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import TimelineIcon from '@mui/icons-material/Timeline';
@@ -87,6 +88,12 @@ const CATEGORIES = [
     kpiView: 'vds_tramitacao_01$003', kpiSumKey: 'Movimentos', kpiYearKey: 'Ano',
     spotlightView: 'vds_tramitacao_01$001',
     spotlightType: 'bar-h', spotlightLabel: 'Movimentos por Utilizador',
+  },
+  {
+    id: 'faturacao', label: 'Faturação', route: '/dashboards/faturacao',
+    icon: ReceiptIcon, color: '#1976d2',
+    desc: 'Dados de faturação AINTAR',
+    kpiView: null,
   },
 ];
 

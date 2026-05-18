@@ -15,12 +15,21 @@ import { OrcamentoForm } from '../components/OrcamentoForm';
 
 const MODULE_COLOR = '#059669';
 
+const ANO_MIN = 2023;
+const currentYear = new Date().getFullYear();
+const ANOS_NAVEGAVEIS = Array.from(
+    { length: currentYear - ANO_MIN + 1 },
+    (_, i) => currentYear - i,
+);
+
 /* ── Navegador de ano inline (usado no toolbar da tabela) ────── */
 export const YearNavigator = ({ compact = false }) => {
     const { anos, anoSelecionado, setAno, loading } = useOrcamentoStore();
-    const idx    = anos.indexOf(Number(anoSelecionado));
-    const canOld = idx < anos.length - 1;
-    const canNew = idx > 0;
+    const idx     = ANOS_NAVEGAVEIS.indexOf(Number(anoSelecionado));
+    const prevAno = ANOS_NAVEGAVEIS[idx + 1]; // mais antigo
+    const nextAno = ANOS_NAVEGAVEIS[idx - 1]; // mais recente
+    const canOld  = prevAno !== undefined && anos.includes(prevAno);
+    const canNew  = nextAno !== undefined && anos.includes(nextAno);
 
     if (!anoSelecionado) return null;
 
@@ -28,7 +37,7 @@ export const YearNavigator = ({ compact = false }) => {
         <Stack direction="row" alignItems="center" spacing={0}>
             <IconButton
                 size="small"
-                onClick={() => setAno(anos[idx + 1])}
+                onClick={() => setAno(prevAno)}
                 disabled={!canOld || loading}
                 sx={{ color: 'text.secondary' }}
             >
@@ -43,7 +52,7 @@ export const YearNavigator = ({ compact = false }) => {
             </Typography>
             <IconButton
                 size="small"
-                onClick={() => setAno(anos[idx - 1])}
+                onClick={() => setAno(nextAno)}
                 disabled={!canNew || loading}
                 sx={{ color: 'text.secondary' }}
             >
@@ -63,7 +72,7 @@ const OrcamentoPage = () => {
     useEffect(() => {
         const init = async () => {
             const list = await fetchAnos();
-            if (list.length > 0) setAno(list[0]);
+            setAno(list.length > 0 ? list[0] : currentYear);
         };
         init();
     }, []);

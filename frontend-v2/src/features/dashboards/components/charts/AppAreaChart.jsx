@@ -23,9 +23,13 @@ const AppAreaChart = ({
 
   if (!data.length) return null;
 
+  const tickInterval = data.length <= 12 ? 0 : Math.ceil(data.length / 12) - 1;
+  const labelAngle   = data.length > 12 ? -45 : 0;
+  const bottomMargin = data.length > 12 ? 60 : 40;
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+      <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: bottomMargin }}>
         <defs>
           {(yKeys ?? ['value']).map((key, idx) => (
             <linearGradient key={key} id={`grad_${key}`} x1="0" y1="0" x2="0" y2="1">
@@ -39,7 +43,10 @@ const AppAreaChart = ({
           dataKey={xKey}
           tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
           tickFormatter={(v) => formatAxisTick(v, 14)}
-          interval={0}
+          interval={tickInterval}
+          angle={labelAngle}
+          textAnchor={data.length > 12 ? 'end' : 'middle'}
+          height={data.length > 12 ? 65 : 30}
         />
         <YAxis
           tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}

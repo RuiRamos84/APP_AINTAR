@@ -24,15 +24,22 @@ const AppLineChart = ({
 
   if (!data.length) return null;
 
+  const tickInterval = data.length <= 12 ? 0 : Math.ceil(data.length / 12) - 1;
+  const labelAngle   = data.length > 12 ? -45 : 0;
+  const bottomMargin = data.length > 12 ? 60 : 40;
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+      <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: bottomMargin }}>
         <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
         <XAxis
           dataKey={xKey}
           tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
           tickFormatter={(v) => formatAxisTick(v, 10)}
-          interval={0}
+          interval={tickInterval}
+          angle={labelAngle}
+          textAnchor={data.length > 12 ? 'end' : 'middle'}
+          height={data.length > 12 ? 65 : 30}
         />
         <YAxis
           tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}

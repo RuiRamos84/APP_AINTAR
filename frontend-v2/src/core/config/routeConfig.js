@@ -547,6 +547,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/dashboards/faturacao': {
+    id: 'dashboards_faturacao',
+    text: 'Faturação',
+    icon: InvoiceIcon,
+    module: 'dashboards',
+    permissions: { required: 'dashboard.view' },
+    showInSidebar: true,
+  },
+
   // ==================== MÓDULO: ADMINISTRAÇÃO ====================
   // Ordem: Sistema, Utilizadores, Ofícios, Configuração de Avaliações
 
