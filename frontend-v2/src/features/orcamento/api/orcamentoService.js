@@ -18,8 +18,22 @@ export const orcamentoService = {
         return api.get('/orcamento/subclasses');
     },
 
+    async getTipos() {
+        return api.get('/orcamento/tipos');
+    },
+
+    async getSummary(ano = null) {
+        const params = ano ? { ano } : {};
+        return api.get('/orcamento/summary', { params });
+    },
+
     async getSncap(pk) {
         return api.get(`/orcamento/sncap/${encodeURIComponent(pk)}`);
+    },
+
+    async getSncapSummary(ano = null) {
+        const params = ano ? { ano } : {};
+        return api.get('/orcamento/sncap-summary', { params });
     },
 
     async create(data) {
@@ -34,4 +48,19 @@ export const orcamentoService = {
         return api.delete(`/orcamento/${pk}`);
     },
 
+    async createClasse(data) {
+        return api.post('/orcamento/classe', data);
+    },
+
+    async updateClasse(pk, data) {
+        return api.put(`/orcamento/classe/${pk}`, data);
+    },
+
+    async createSubclasse(data) {
+        return api.post('/orcamento/subclasse', data);
+    },
+
+    async updateSubclasse(pk, data) {
+        return api.put(`/orcamento/subclasse/${pk}`, data);
+    },
 };

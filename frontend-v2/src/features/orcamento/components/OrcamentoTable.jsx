@@ -2,25 +2,22 @@ import React, { useMemo, useState } from 'react';
 import {
     Box, Typography, Chip, IconButton, Tooltip,
     Paper, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, CircularProgress,
+    TableHead, TableRow, CircularProgress, LinearProgress, Collapse,
     Alert, Stack, Button,
     Dialog, DialogTitle, DialogContent, DialogActions,
-    alpha, useTheme, useMediaQuery, ToggleButtonGroup, ToggleButton,
+    alpha, useTheme, useMediaQuery,
 } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
-    TrendingUp as Corrente,
-    AccountTree as Capital,
-    Payments as TotalIcon,
     WarningAmber as WarnIcon,
     AccountBalance as OrcamentoIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
 import { useOrcamentoStore } from '../store/orcamentoStore';
-import { SearchBar } from '@/shared/components/data';
+import { useOrcamentoDetalhe, useDeleteRegisto } from '../hooks/useOrcamentoQueries';
 import { useSearch } from '@/shared/hooks';
 import { YearNavigator } from '../pages/OrcamentoPage';
 import { SncapPopover } from './SncapPopover';
@@ -44,171 +41,145 @@ const fmtCompact = (v) =>
         notation: 'compact', maximumFractionDigits: 1,
     }).format(v ?? 0);
 
-const fmtDate = (d) => {
-    if (!d) return '—';
-    try {
-        const dt    = new Date(d);
-        const local = new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
-        return new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' }).format(local);
-    } catch { return '—'; }
-};
-
 const pct = (part, total) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
-/* ─── KpiCard ───────────────────────────────────────────────── */
-const KpiCard = ({ label, value, total, icon: Icon, accent, count }) => {
+/* ─── ClasseCard ─────────────────────────────────────────────── */
+const ClasseCard = ({ label, value, total, count, accent }) => {
     const theme = useTheme();
     const ratio = pct(value, total);
-
     return (
-        <Paper
-            elevation={0}
-            variant="outlined"
-            sx={{
-                p: { xs: 1.75, sm: 2.5 },
-                borderLeft: `4px solid ${accent}`,
-                borderRadius: 2,
-                flex: 1,
-                minWidth: 0,
-                transition: 'box-shadow .2s',
-                '&:hover': { boxShadow: theme.shadows[3] },
-            }}
-        >
-            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1}>
-                <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={500}
-                        textTransform="uppercase" letterSpacing={0.6}>
-                        {label}
-                    </Typography>
-                    <Typography variant="h5" fontWeight={700} mt={0.25}
-                        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
-                        {fmt(value)}
-                    </Typography>
-                    {count !== undefined && (
-                        <Typography variant="caption" color="text.disabled">
-                            {count} dotaç{count === 1 ? 'ão' : 'ões'}
-                        </Typography>
-                    )}
-                </Box>
-                <Box sx={{
-                    width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, borderRadius: '50%',
-                    bgcolor: alpha(accent, 0.12),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                }}>
-                    <Icon sx={{ color: accent, fontSize: { xs: 16, sm: 20 } }} />
-                </Box>
-            </Stack>
-            {total !== null && (
-                <>
-                    <LinearProgress
-                        variant="determinate"
-                        value={ratio}
-                        sx={{
-                            height: 6, borderRadius: 3, mb: 0.75,
-                            bgcolor: alpha(accent, 0.12),
-                            '& .MuiLinearProgress-bar': { bgcolor: accent, borderRadius: 3 },
-                        }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                        {ratio}% do total
-                    </Typography>
-                </>
-            )}
-        </Paper>
-    );
-};
-
-/* ─── TotalCard ─────────────────────────────────────────────── */
-const TotalCard = ({ total, corrente, capital, accent }) => {
-    const theme       = useTheme();
-    const correntePct = pct(corrente, total);
-
-    return (
-        <Paper
-            elevation={0}
-            variant="outlined"
-            sx={{
-                p: { xs: 1.75, sm: 2.5 },
-                borderLeft: `4px solid ${accent}`,
-                borderRadius: 2,
-                flex: 1,
-                minWidth: 0,
-                transition: 'box-shadow .2s',
-                '&:hover': { boxShadow: theme.shadows[3] },
-            }}
-        >
-            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1}>
-                <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={500}
-                        textTransform="uppercase" letterSpacing={0.6}>
-                        Total Geral
-                    </Typography>
-                    <Typography variant="h5" fontWeight={700} mt={0.25}
-                        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
-                        {fmt(total)}
-                    </Typography>
-                </Box>
-                <Box sx={{
-                    width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, borderRadius: '50%',
-                    bgcolor: alpha(accent, 0.12),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                }}>
-                    <TotalIcon sx={{ color: accent, fontSize: { xs: 16, sm: 20 } }} />
-                </Box>
-            </Stack>
-            <Box sx={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', mb: 0.75, bgcolor: alpha('#0891b2', 0.12) }}>
-                {correntePct > 0 && (
-                    <Box sx={{ width: `${correntePct}%`, bgcolor: '#0891b2', transition: 'width .4s ease' }} />
-                )}
-                {(100 - correntePct) > 0 && (
-                    <Box sx={{ flex: 1, bgcolor: '#d97706' }} />
-                )}
-            </Box>
-            <Stack direction="row" spacing={2}>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#0891b2', flexShrink: 0 }} />
-                    <Typography variant="caption" color="text.secondary">Corrente {correntePct}%</Typography>
-                </Stack>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#d97706', flexShrink: 0 }} />
-                    <Typography variant="caption" color="text.secondary">Capital {100 - correntePct}%</Typography>
-                </Stack>
-            </Stack>
+        <Paper elevation={0} variant="outlined" sx={{
+            p: { xs: 1.5, sm: 2 },
+            borderLeft: `4px solid ${accent}`,
+            borderRadius: 2,
+            flex: '1 1 0',
+            minWidth: { xs: '100%', sm: 140 },
+            transition: 'box-shadow .2s',
+            '&:hover': { boxShadow: theme.shadows[3] },
+        }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}
+                textTransform="uppercase" letterSpacing={0.6} noWrap display="block">
+                {label}
+            </Typography>
+            <Typography variant="h6" fontWeight={700} mt={0.25}
+                sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }}>
+                {fmt(value)}
+            </Typography>
+            <Typography variant="caption" color="text.disabled" display="block" mb={0.75}>
+                {count} dotaç{count === 1 ? 'ão' : 'ões'} · {ratio}%
+            </Typography>
+            <LinearProgress variant="determinate" value={ratio} sx={{
+                height: 5, borderRadius: 3,
+                bgcolor: alpha(accent, 0.12),
+                '& .MuiLinearProgress-bar': { bgcolor: accent, borderRadius: 3 },
+            }} />
         </Paper>
     );
 };
 
 /* ─── SummaryDashboard ──────────────────────────────────────── */
-const SummaryDashboard = ({ registos }) => {
-    const totalGeral    = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    const corrente      = registos.filter(r => r.tipo === 'Corrente');
-    const capital       = registos.filter(r => r.tipo === 'Capital');
-    const totalCorrente = corrente.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    const totalCapital  = capital.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+const SummaryDashboard = ({ porClasse }) => {
+    const classes    = Object.keys(porClasse);
+    const totalGeral = classes.reduce((s, cl) =>
+        s + porClasse[cl].reduce((ss, r) => ss + (parseFloat(r.valor) || 0), 0), 0);
 
-    if (totalGeral === 0) return null;
+    if (totalGeral === 0 || classes.length === 0) return null;
 
     return (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={3}>
-            <TotalCard total={totalGeral} corrente={totalCorrente} capital={totalCapital} accent="#059669" />
-            <KpiCard label="Despesas Correntes" value={totalCorrente} total={totalGeral}
-                accent="#0891b2" icon={Corrente} count={corrente.length} />
-            <KpiCard label="Despesas Capital" value={totalCapital} total={totalGeral}
-                accent="#d97706" icon={Capital} count={capital.length} />
-        </Stack>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 3 }}>
+            <Paper elevation={0} variant="outlined" sx={{
+                p: { xs: 1.5, sm: 2 },
+                borderLeft: `4px solid ${MODULE_COLOR}`,
+                borderRadius: 2,
+                flex: '1 1 0',
+                minWidth: { xs: '100%', sm: 140 },
+                transition: 'box-shadow .2s',
+            }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={600}
+                    textTransform="uppercase" letterSpacing={0.6} display="block">
+                    Total Geral
+                </Typography>
+                <Typography variant="h6" fontWeight={700} mt={0.25}
+                    sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }}>
+                    {fmt(totalGeral)}
+                </Typography>
+                <Typography variant="caption" color="text.disabled">
+                    {classes.length} classe{classes.length !== 1 ? 's' : ''}
+                </Typography>
+            </Paper>
+            {classes.map((cl, i) => {
+                const regs   = porClasse[cl];
+                const total  = regs.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+                const accent = CLASSE_COLORS[i % CLASSE_COLORS.length];
+                return (
+                    <ClasseCard key={cl} label={cl} value={total}
+                        total={totalGeral} count={regs.length} accent={accent} />
+                );
+            })}
+        </Box>
     );
 };
 
 /* ─── ClasseSection ─────────────────────────────────────────── */
-const TIPO_COLOR = { Corrente: { color: 'info' }, Capital: { color: 'warning' } };
-
-const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isMobile }) => {
+const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, onSncapClick, cols }) => {
     const total = registos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-    // 8 colunas no total (algumas ocultas via CSS mas contam para colSpan)
-    const colSpanHeader = 7;
-    const colSpanTotal  = 8;
+
+    const renderCell = (col, r) => {
+        switch (col.id) {
+            case 'subclasse':
+                return (
+                    <TableCell key="subclasse" sx={{ pl: { xs: 2, sm: 3.5 }, overflow: 'hidden' }}>
+                        <Typography variant="body2" noWrap>{r.subclasse}</Typography>
+                    </TableCell>
+                );
+            case 'sncap':
+                return (
+                    <TableCell key="sncap">
+                        <Typography
+                            variant="caption" fontFamily="monospace" noWrap
+                            onClick={r.sncap ? (e) => onSncapClick(e.currentTarget, r.sncap) : undefined}
+                            sx={{
+                                color: r.sncap ? MODULE_COLOR : 'text.disabled',
+                                cursor: r.sncap ? 'pointer' : 'default',
+                                textDecoration: r.sncap ? 'underline dotted' : 'none',
+                            }}
+                        >
+                            {r.sncap || '—'}
+                        </Typography>
+                    </TableCell>
+                );
+            case 'memo':
+                return (
+                    <TableCell key="memo" sx={{ overflow: 'hidden' }}>
+                        <Typography variant="caption" color="text.secondary" noWrap title={r.memo || ''}>
+                            {r.memo || '—'}
+                        </Typography>
+                    </TableCell>
+                );
+            case 'valor':
+                return (
+                    <TableCell key="valor" align="right">
+                        <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
+                    </TableCell>
+                );
+            case 'actions':
+                return (
+                    <TableCell key="actions" align="center">
+                        <Tooltip title="Editar">
+                            <IconButton size="small" onClick={() => onEdit(r)}>
+                                <EditIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar">
+                            <IconButton size="small" color="error" onClick={() => onDelete(r)}>
+                                <DeleteIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </TableCell>
+                );
+            default: return null;
+        }
+    };
 
     return (
         <>
@@ -222,16 +193,13 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
                     transition: 'background-color .15s',
                 }}
             >
-                <TableCell colSpan={colSpanHeader} sx={{ py: 1.25 }}>
+                <TableCell colSpan={cols.length - 2} sx={{ py: 1.25 }}>
                     <Stack direction="row" alignItems="center" spacing={1}>
                         <Typography variant="subtitle2" fontWeight={700} color="#059669">
                             {classe}
                         </Typography>
-                        <Chip
-                            label={registos.length}
-                            size="small"
-                            sx={{ height: 18, fontSize: '0.68rem', bgcolor: alpha('#059669', 0.15), color: '#059669', fontWeight: 700 }}
-                        />
+                        <Chip label={registos.length} size="small"
+                            sx={{ height: 18, fontSize: '0.68rem', bgcolor: alpha('#059669', 0.15), color: '#059669', fontWeight: 700 }} />
                     </Stack>
                 </TableCell>
                 <TableCell align="right" sx={{ py: 1.25 }}>
@@ -249,71 +217,19 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, isM
             </TableRow>
 
             <TableRow sx={{ p: 0 }}>
-                <TableCell colSpan={colSpanTotal} sx={{ p: 0, border: 'none' }}>
+                <TableCell colSpan={cols.length} sx={{ p: 0, border: 'none' }}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
-                            <colgroup>
-                                <col />
-                                <col style={{ width: 120 }} />
-                                <col style={{ width: 80 }} />
-                                <col style={{ width: 180 }} />
-                                <col style={{ width: 110 }} />
-                                <col style={{ width: 110 }} />
-                                <col style={{ width: 130 }} />
-                                <col style={{ width: 80 }} />
-                            </colgroup>
+                            <colgroup>{cols.map(c => (
+                                <col key={c.id} style={c.width ? { width: c.width } : undefined} />
+                            ))}</colgroup>
                             <TableBody>
                                 {registos.map((r, i) => (
-                                    <TableRow
-                                        key={r.pk ?? i}
-                                        hover
-                                        sx={{
-                                            '&:last-child td': { borderBottom: `2px solid ${alpha('#059669', 0.2)}` },
-                                            bgcolor: i % 2 === 0 ? 'background.paper' : alpha('#059669', 0.02),
-                                        }}
-                                    >
-                                        <TableCell sx={{ pl: { xs: 2, sm: 3.5 }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            <Typography variant="body2" noWrap>
-                                                {r.subclasse}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            {r.tipo && (
-                                                <Chip label={r.tipo} size="small"
-                                                    color={TIPO_COLOR[r.tipo]?.color || 'default'} />
-                                            )}
-                                        </TableCell>
-                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.disabled" fontFamily="monospace" noWrap>
-                                                {r.sncap || '—'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, overflow: 'hidden' }}>
-                                            <Typography variant="caption" color="text.secondary" noWrap title={r.memo || ''}>
-                                                {r.memo || '—'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.secondary">{fmtDate(r.data_inicio)}</Typography>
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Typography variant="caption" color="text.secondary">{fmtDate(r.data_fim)}</Typography>
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            <Tooltip title="Editar">
-                                                <IconButton size="small" onClick={() => onEdit(r)}>
-                                                    <EditIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Tooltip title="Eliminar">
-                                                <IconButton size="small" color="error" onClick={() => onDelete(r)}>
-                                                    <DeleteIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
-                                        </TableCell>
+                                    <TableRow key={r.pk ?? i} hover sx={{
+                                        '&:last-child td': { borderBottom: `2px solid ${alpha('#059669', 0.2)}` },
+                                        bgcolor: i % 2 === 0 ? 'background.paper' : alpha('#059669', 0.02),
+                                    }}>
+                                        {cols.map(col => renderCell(col, r))}
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -354,15 +270,14 @@ const DeleteDialog = ({ target, onConfirm, onClose, loading }) => (
     </Dialog>
 );
 
-/* ─── Cabeçalhos da tabela ────────────────────────────────────── */
-const HEAD_COLS = [
-    { label: 'Subclasse',  align: 'left',  sx: {} },
-    { label: 'Tipo',       align: 'left',  sx: {} },
-    { label: 'SNC-AP',     align: 'left',  sx: { whiteSpace: 'nowrap', display: { xs: 'none', md: 'table-cell' } } },
-    { label: 'Descrição',  align: 'left',  sx: { display: { xs: 'none', lg: 'table-cell' } } },
-    { label: 'Início',     align: 'right', sx: { display: { xs: 'none', md: 'table-cell' } } },
-    { label: 'Fim',        align: 'right', sx: { display: { xs: 'none', md: 'table-cell' } } },
-    { label: 'Dotação',    align: 'right', sx: {} },
+/* ─── Definição de colunas (dinâmicas por breakpoint) ────────── */
+// minBp: null=sempre visível  'md'=md+  'lg'=lg+
+const ALL_COLS = [
+    { id: 'subclasse', label: 'Subclasse', align: 'left',   width: null, minBp: null },
+    { id: 'sncap',     label: 'SNC-AP',   align: 'left',   width: 100,  minBp: 'md' },
+    { id: 'memo',      label: 'Descrição',align: 'left',   width: 220,  minBp: 'lg' },
+    { id: 'valor',     label: 'Dotação',  align: 'right',  width: 140,  minBp: null },
+    { id: 'actions',   label: '',         align: 'center', width: 80,   minBp: null },
 ];
 
 const thSx = {
@@ -383,11 +298,11 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
 
     const theme    = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isLg     = useMediaQuery(theme.breakpoints.up('lg'));
 
     const [expanded,     setExpanded]     = useState({});
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [searchTerm,   setSearchTerm]   = useState('');
-    const [tipoFilter,   setTipoFilter]   = useState('todos');
+    const [sncapAnchor,  setSncapAnchor]  = useState({ el: null, code: null });
 
     const byTipo = useMemo(() =>
         tipoFilter === 'todos' ? registos : registos.filter(r => r.tipo === tipoFilter),
@@ -398,6 +313,7 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
     // Agrupamento por classe
     const porClasse = useMemo(() => {
         const map = {};
+        let total = 0;
         searched.forEach(r => {
             if (!map[r.classe]) map[r.classe] = [];
             map[r.classe].push(r);
@@ -409,8 +325,16 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
     const activeClasses = useMemo(() => Object.keys(porClasse), [porClasse]);
     const isSearching   = searchTerm.trim().length > 0 || tipoFilter !== 'todos';
 
-    const isOpen       = (classe) => isSearching || !collapsed[classe];
-    const toggleClasse = (classe) => setCollapsed(prev => ({ ...prev, [classe]: !prev[classe] }));
+    // accordion: começa fechado; abre com clique ou quando há pesquisa ativa
+    const isOpen       = (classe) => isSearching || !!expanded[classe];
+    const toggleClasse = (classe) => setExpanded(prev => ({ ...prev, [classe]: !prev[classe] }));
+
+    const visibleCols = useMemo(() => ALL_COLS.filter(col => {
+        if (!col.minBp)       return true;
+        if (col.minBp === 'md') return !isMobile;
+        if (col.minBp === 'lg') return isLg;
+        return true;
+    }), [isMobile, isLg]);
 
     const handleDeleteConfirm = async () => {
         try {
@@ -423,7 +347,7 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
         }
     };
 
-    if (loading) return (
+    if (isLoading) return (
         <Box display="flex" justifyContent="center" alignItems="center" py={10}>
             <CircularProgress sx={{ color: '#059669' }} />
         </Box>
@@ -437,43 +361,8 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
 
     return (
         <Box>
-            {/* KPIs — reagem ao filtro activo */}
-            <SummaryDashboard registos={searched} />
-
-            {/* Toolbar */}
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={1.5}
-                alignItems={{ sm: 'center' }}
-                justifyContent="space-between"
-                mb={2}
-            >
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
-                    {/* Em mobile o YearNavigator fica aqui, não no header */}
-                    {isMobile && (
-                        <Box sx={{ flexShrink: 0 }}>
-                            <YearNavigator compact />
-                        </Box>
-                    )}
-                    <SearchBar
-                        value={searchTerm}
-                        onChange={setSearchTerm}
-                        placeholder="Pesquisar subclasse, SNC-AP..."
-                        sx={{ flex: 1, maxWidth: { sm: 360 } }}
-                    />
-                </Stack>
-                <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={tipoFilter}
-                    onChange={(_, v) => v && setTipoFilter(v)}
-                    sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-                >
-                    <ToggleButton value="todos">Todos</ToggleButton>
-                    <ToggleButton value="Corrente">Corrente</ToggleButton>
-                    <ToggleButton value="Capital">Capital</ToggleButton>
-                </ToggleButtonGroup>
-            </Stack>
+            {/* KPIs por classe — reagem ao filtro activo */}
+            <SummaryDashboard porClasse={porClasse} />
 
             {/* Tabela */}
             {activeClasses.length === 0 ? (
@@ -485,7 +374,7 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
                     <OrcamentoIcon sx={{ fontSize: 48, opacity: 0.25 }} />
                     <Typography variant="body1" fontWeight={500}
                         textAlign="center">
-                        {isFiltering
+                        {isSearching
                             ? 'Nenhum resultado encontrado'
                             : `Sem dotações registadas${anoSelecionado ? ` para ${anoSelecionado}` : ''}`
                         }
@@ -496,7 +385,7 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
                         </Typography>
                     )}
                     {/* Em mobile, mostra o navegador de ano para confirmar o ano activo */}
-                    {isMobile && !isFiltering && (
+                    {isMobile && !isSearching && (
                         <Box mt={1}>
                             <YearNavigator compact />
                         </Box>
@@ -505,45 +394,21 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
             ) : (
                 <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 2 }}>
                     <TableContainer sx={{
-                        maxHeight: { xs: 'none', md: 'calc(100vh - 400px)' },
-                        overflowY: { xs: 'visible', md: 'auto' },
+                        height: { xs: 'auto', sm: 'calc(100vh - 280px)' },
+                        overflowY: { xs: 'visible', sm: 'auto' },
                         overflowX: 'auto',
                     }}>
                         <Table size="small" sx={{ minWidth: { xs: 360, md: 'auto' }, tableLayout: 'fixed' }}>
-                            <colgroup>
-                                <col />                                {/* Subclasse — flex */}
-                                <col style={{ width: 120 }} />         {/* Tipo */}
-                                <col style={{ width: 80 }} />          {/* SNC-AP */}
-                                <col style={{ width: 180 }} />         {/* Descrição */}
-                                <col style={{ width: 110 }} />         {/* Início */}
-                                <col style={{ width: 110 }} />         {/* Fim */}
-                                <col style={{ width: 130 }} />         {/* Dotação */}
-                                <col style={{ width: 80 }} />          {/* Ações */}
-                            </colgroup>
+                            <colgroup>{visibleCols.map(c => (
+                                <col key={c.id} style={c.width ? { width: c.width } : undefined} />
+                            ))}</colgroup>
                             <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'grey.50' }}>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                        Subclasse
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                        Tipo
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', display: { xs: 'none', md: 'table-cell' } }}>
-                                        SNC-AP
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
-                                        Descrição
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
-                                        Início
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5, display: { xs: 'none', md: 'table-cell' } }}>
-                                        Fim
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                        Dotação
-                                    </TableCell>
-                                    <TableCell align="center" />
+                                    {visibleCols.map(c => (
+                                        <TableCell key={c.id} align={c.align} sx={thSx}>
+                                            {c.label}
+                                        </TableCell>
+                                    ))}
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -556,7 +421,8 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
                                         onToggle={() => toggleClasse(classe)}
                                         onEdit={(r) => openModal(r)}
                                         onDelete={(r) => setDeleteTarget(r)}
-                                        isMobile={isMobile}
+                                        onSncapClick={(el, code) => setSncapAnchor({ el, code })}
+                                        cols={visibleCols}
                                     />
                                 ))}
                             </TableBody>

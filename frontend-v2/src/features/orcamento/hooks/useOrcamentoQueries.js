@@ -4,12 +4,13 @@ import { orcamentoService } from '../api/orcamentoService';
 const unwrap = (data) => Array.isArray(data) ? data : (data?.data ?? []);
 
 export const ORCAMENTO_KEYS = {
-    anos:       ()    => ['orcamento', 'anos'],
-    detalhe:    (ano) => ['orcamento', 'detalhe', ano],
-    summary:    (ano) => ['orcamento', 'summary', ano],
-    subclasses: ()    => ['orcamento', 'subclasses'],
-    tipos:      ()    => ['orcamento', 'tipos'],
-    classes:    ()    => ['orcamento', 'classes'],
+    anos:        ()    => ['orcamento', 'anos'],
+    detalhe:     (ano) => ['orcamento', 'detalhe', ano],
+    summary:     (ano) => ['orcamento', 'summary', ano],
+    sncapSummary:(ano) => ['orcamento', 'sncap-summary', ano],
+    subclasses:  ()    => ['orcamento', 'subclasses'],
+    tipos:       ()    => ['orcamento', 'tipos'],
+    classes:     ()    => ['orcamento', 'classes'],
 };
 
 const LOOKUP_STALE = 5 * 60 * 1000; // 5 min — lookups mudam raramente
@@ -33,6 +34,18 @@ export function useOrcamentoDetalhe(ano) {
         queryKey: ORCAMENTO_KEYS.detalhe(ano),
         queryFn:  async () => {
             const data = await orcamentoService.getDetalhe(ano);
+            return unwrap(data);
+        },
+        enabled:   Boolean(ano),
+        staleTime: DATA_STALE,
+    });
+}
+
+export function useSncapSummary(ano) {
+    return useQuery({
+        queryKey: ORCAMENTO_KEYS.sncapSummary(ano),
+        queryFn:  async () => {
+            const data = await orcamentoService.getSncapSummary(ano);
             return unwrap(data);
         },
         enabled:   Boolean(ano),
