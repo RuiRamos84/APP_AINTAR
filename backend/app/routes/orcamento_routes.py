@@ -28,7 +28,7 @@ bp = Blueprint('orcamento_routes', __name__)
 @bp.route('/orcamento', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_detalhe_route():
     """
@@ -55,7 +55,7 @@ def get_orcamento_detalhe_route():
 @bp.route('/orcamento/summary', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_summary_route():
     """
@@ -82,7 +82,7 @@ def get_orcamento_summary_route():
 @bp.route('/orcamento/anos', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_anos_route():
     """
@@ -102,7 +102,7 @@ def get_orcamento_anos_route():
 @bp.route('/orcamento/subclasses', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_subclasses_route():
     """
@@ -122,7 +122,7 @@ def get_orcamento_subclasses_route():
 @bp.route('/orcamento', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def create_orcamento_route():
@@ -166,7 +166,7 @@ def create_orcamento_route():
 @bp.route('/orcamento/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def update_orcamento_route(pk):
@@ -198,7 +198,7 @@ def update_orcamento_route(pk):
 @bp.route('/orcamento/tipos', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_tipos_route():
     """
@@ -218,7 +218,7 @@ def get_orcamento_tipos_route():
 @bp.route('/orcamento/classes', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_classes_route():
     """
@@ -238,7 +238,7 @@ def get_orcamento_classes_route():
 @bp.route('/orcamento/classe', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def create_classe_route():
@@ -272,7 +272,7 @@ def create_classe_route():
 @bp.route('/orcamento/subclasse', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def create_subclasse_route():
@@ -312,7 +312,7 @@ def create_subclasse_route():
 @bp.route('/orcamento/classe/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def update_classe_route(pk):
@@ -325,7 +325,7 @@ def update_classe_route(pk):
 @bp.route('/orcamento/subclasse/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def update_subclasse_route(pk):
@@ -338,7 +338,7 @@ def update_subclasse_route(pk):
 @bp.route('/orcamento/<int:pk>', methods=['DELETE'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def delete_orcamento_route(pk):

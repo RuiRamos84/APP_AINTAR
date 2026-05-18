@@ -397,7 +397,7 @@ export const ROUTE_CONFIG = {
     text: 'Orçamento',
     icon: OrcamentoIcon,
     module: 'gestao',
-    permissions: { required: 'expenses.view' },
+    permissions: { required: 'orcamento.view' },
     showInSidebar: true,
   },
 
@@ -406,7 +406,7 @@ export const ROUTE_CONFIG = {
     text: 'Catálogo',
     icon: OrcamentoIcon,
     module: 'gestao',
-    permissions: { required: 'expenses.view' },
+    permissions: { required: 'orcamento.edit' },
     showInSidebar: false,
   },
 

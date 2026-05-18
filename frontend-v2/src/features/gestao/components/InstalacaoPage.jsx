@@ -34,7 +34,7 @@ import {
   ShowChart as LineChartIcon,
 } from '@mui/icons-material';
 import {
-  BarChart, Bar, LineChart, Line,
+  BarChart, Bar, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -257,18 +257,122 @@ const DataGridToolbar = () => (
 
 // ─── Chart / export ───────────────────────────────────────────────────────────
 
+const INST_PALETTE = [
+  '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336',
+  '#00BCD4', '#3F51B5', '#E91E63', '#009688', '#FF5722',
+];
+
+const fmtChartVal = (val) => {
+  if (val == null) return '';
+  const n = Number(val);
+  if (isNaN(n)) return String(val);
+  if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+  if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1).replace('.0', '') + 'k';
+  return n.toLocaleString('pt-PT', { maximumFractionDigits: 2 });
+};
+
 const InstalacaoDataChart = ({ open, onClose, title, data, series, yUnit = '', stacked = false }) => {
-  const [chartType, setChartType] = useState('bar');
-  const margin = { top: 8, right: 24, left: 8, bottom: 72 };
-  const xAxisProps = {
-    dataKey: 'date', angle: -45, textAnchor: 'end',
-    interval: Math.max(0, Math.floor(data.length / 12) - 1),
-    tick: { fontSize: 11 },
+  const theme = useTheme();
+  const [chartType, setChartType] = useState('area');
+  const margin = { top: 10, right: 20, left: 10, bottom: 60 };
+
+  const tooltipProps = {
+    contentStyle: {
+      backgroundColor: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.divider}`,
+      borderRadius: 8,
+      boxShadow: theme.shadows[4],
+      fontSize: 13,
+    },
+    labelStyle: { color: theme.palette.text.primary, fontWeight: 600 },
+    itemStyle: { color: theme.palette.text.secondary },
+    formatter: (v, name) => [`${fmtChartVal(v)}${yUnit ? ' ' + yUnit : ''}`, name],
   };
+
+  const xAxisProps = {
+    dataKey: 'date',
+    tick: { fill: theme.palette.text.secondary, fontSize: 11 },
+    angle: -35,
+    textAnchor: 'end',
+    interval: Math.max(0, Math.floor((data?.length ?? 0) / 12) - 1),
+  };
+
   const yAxisProps = {
-    tick: { fontSize: 11 },
-    tickFormatter: (v) => yUnit ? `${v} ${yUnit}` : String(v),
-    width: 64,
+    tick: { fill: theme.palette.text.secondary, fontSize: 11 },
+    tickFormatter: (v) => fmtChartVal(v) + (yUnit ? ` ${yUnit}` : ''),
+    width: 70,
+  };
+
+  const grid = <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />;
+  const legend = <Legend verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 8 }} />;
+
+  const renderChart = () => {
+    if (!data?.length) return (
+      <Box sx={{ py: 6, textAlign: 'center' }}>
+        <Typography color="text.secondary">Sem dados para apresentar.</Typography>
+      </Box>
+    );
+
+    if (chartType === 'bar') {
+      return (
+        <ResponsiveContainer width="100%" height={380}>
+          <BarChart data={data} margin={margin}>
+            {grid}
+            <XAxis {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            <ReTooltip {...tooltipProps} />
+            {legend}
+            {series.map((s, i) => (
+              <Bar key={s.key} dataKey={s.key} name={s.label}
+                fill={s.color ?? INST_PALETTE[i % INST_PALETTE.length]}
+                stackId={stacked ? 'stack' : undefined}
+                radius={!stacked && series.length === 1 ? [4, 4, 0, 0] : undefined}
+                maxBarSize={stacked ? undefined : 40}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    const ChartCmp = chartType === 'area' ? AreaChart : LineChart;
+    return (
+      <ResponsiveContainer width="100%" height={380}>
+        <ChartCmp data={data} margin={margin}>
+          <defs>
+            {series.map((s, i) => {
+              const c = s.color ?? INST_PALETTE[i % INST_PALETTE.length];
+              return (
+                <linearGradient key={i} id={`ig_${i}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={c} stopOpacity={0.22} />
+                  <stop offset="95%" stopColor={c} stopOpacity={0.02} />
+                </linearGradient>
+              );
+            })}
+          </defs>
+          {grid}
+          <XAxis {...xAxisProps} />
+          <YAxis {...yAxisProps} />
+          <ReTooltip {...tooltipProps} />
+          {legend}
+          {series.map((s, i) => {
+            const c = s.color ?? INST_PALETTE[i % INST_PALETTE.length];
+            return chartType === 'area' ? (
+              <Area key={s.key} type="monotone" dataKey={s.key} name={s.label}
+                stroke={c} strokeWidth={2.5} fill={`url(#ig_${i})`}
+                dot={{ r: 3, fill: c, strokeWidth: 0 }} activeDot={{ r: 6 }}
+              />
+            ) : (
+              <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
+                stroke={c} strokeWidth={2.5} connectNulls
+                dot={data.length <= 40 ? { r: 3, fill: c, strokeWidth: 0 } : false}
+                activeDot={{ r: 6 }}
+              />
+            );
+          })}
+        </ChartCmp>
+      </ResponsiveContainer>
+    );
   };
 
   return (
@@ -281,55 +385,24 @@ const InstalacaoDataChart = ({ open, onClose, title, data, series, yUnit = '', s
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <ToggleButtonGroup value={chartType} exclusive size="small"
-              onChange={(_, v) => { if (v) setChartType(v); }}>
-              <ToggleButton value="bar">
-                <Tooltip title="Barras"><BarChartIcon fontSize="small" /></Tooltip>
-              </ToggleButton>
-              <ToggleButton value="line">
-                <Tooltip title="Linhas"><LineChartIcon fontSize="small" /></Tooltip>
-              </ToggleButton>
+              onChange={(_, v) => { if (v) setChartType(v); }}
+              sx={{ '& .MuiToggleButton-root': { py: 0.3, px: 0.8, border: 'none', borderRadius: 1.5 } }}>
+              <Tooltip title="Barras">
+                <ToggleButton value="bar"><BarChartIcon fontSize="small" /></ToggleButton>
+              </Tooltip>
+              <Tooltip title="Área">
+                <ToggleButton value="area"><LineChartIcon fontSize="small" /></ToggleButton>
+              </Tooltip>
+              <Tooltip title="Linhas">
+                <ToggleButton value="line"><LineChartIcon fontSize="small" sx={{ opacity: 0.6 }} /></ToggleButton>
+              </Tooltip>
             </ToggleButtonGroup>
             <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
           </Box>
         </Box>
       </DialogTitle>
-      <DialogContent dividers sx={{ pt: 2 }}>
-        {data.length === 0 ? (
-          <Box sx={{ py: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">Sem dados para apresentar.</Typography>
-          </Box>
-        ) : (
-          <ResponsiveContainer width="100%" height={380}>
-            {chartType === 'bar' ? (
-              <BarChart data={data} margin={margin}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis {...xAxisProps} />
-                <YAxis {...yAxisProps} />
-                <ReTooltip formatter={(v, name) => [yUnit ? `${v} ${yUnit}` : v, name]} />
-                <Legend verticalAlign="top" />
-                {series.map((s) => (
-                  <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color}
-                    stackId={stacked ? 'stack' : undefined}
-                    radius={!stacked && series.length === 1 ? [3, 3, 0, 0] : undefined}
-                  />
-                ))}
-              </BarChart>
-            ) : (
-              <LineChart data={data} margin={margin}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis {...xAxisProps} />
-                <YAxis {...yAxisProps} />
-                <ReTooltip formatter={(v, name) => [yUnit ? `${v} ${yUnit}` : v, name]} />
-                <Legend verticalAlign="top" />
-                {series.map((s) => (
-                  <Line key={s.key} dataKey={s.key} name={s.label} stroke={s.color}
-                    dot={data.length <= 60} strokeWidth={2} connectNulls
-                  />
-                ))}
-              </LineChart>
-            )}
-          </ResponsiveContainer>
-        )}
+      <DialogContent dividers sx={{ pt: 2, bgcolor: alpha(theme.palette.primary.main, 0.01) }}>
+        {renderChart()}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} size="small">Fechar</Button>
@@ -547,6 +620,7 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
   const [open, setOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [chartSeries, setChartSeries] = useState([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({ tipo: '', dateFrom: '', dateTo: '' });
   const { data: spots = [] } = useSpotList();
@@ -562,12 +636,40 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
     () => Object.values(filters).filter(Boolean).length, [filters],
   );
 
-  const filteredData = useMemo(() => data.filter((r) => {
+  // Calcula diferença de leituras agrupando por tipo (tt_readspot)
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    // Agrupar por tipo de leitura
+    const bySpot = {};
+    data.forEach((r) => {
+      const key = r.tt_readspot || '__sem_tipo__';
+      if (!bySpot[key]) bySpot[key] = [];
+      bySpot[key].push(r);
+    });
+    // Para cada grupo, ordenar por data e calcular diferenças
+    const result = [];
+    Object.values(bySpot).forEach((group) => {
+      const sorted = [...group].sort((a, b) => new Date(a.data) - new Date(b.data));
+      sorted.forEach((row, i) => {
+        if (i === 0) {
+          result.push({ ...row, diasDecorridos: null, volumeConsumido: null });
+        } else {
+          const prev = sorted[i - 1];
+          const dias = Math.round((new Date(row.data) - new Date(prev.data)) / (1000 * 60 * 60 * 24));
+          const consumo = parseFloat(row.valor) - parseFloat(prev.valor);
+          result.push({ ...row, diasDecorridos: dias, volumeConsumido: isNaN(consumo) ? null : consumo });
+        }
+      });
+    });
+    return result;
+  }, [data]);
+
+  const filteredData = useMemo(() => processedData.filter((r) => {
     if (filters.tipo && r.tt_readspot !== filters.tipo) return false;
     if (filters.dateFrom && r.data < filters.dateFrom) return false;
     if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
     return true;
-  }), [data, filters]);
+  }), [processedData, filters]);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(volSchema), defaultValues: volDefaults,
@@ -585,29 +687,41 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
   };
 
   const handleChart = () => {
-    const rows = getFiltered();
-    setChartData(rows.sort((a, b) => new Date(a.data) - new Date(b.data))
-      .map(r => ({ date: formatDate(r.data), 'Volume (m³)': parseFloat(r.valor) || 0 })));
+    const rows = getFiltered()
+      .filter(r => r.volumeConsumido !== null)
+      .sort((a, b) => new Date(a.data) - new Date(b.data));
+    const tipos = [...new Set(rows.map(r => r.tt_readspot || 'Sem Tipo'))];
+    const byDate = {};
+    rows.forEach(r => {
+      const d = formatDate(r.data);
+      if (!byDate[d]) byDate[d] = { date: d };
+      byDate[d][r.tt_readspot || 'Sem Tipo'] = r.volumeConsumido;
+    });
+    setChartSeries(tipos.map((t, i) => ({ key: t, label: t, color: INST_PALETTE[i % INST_PALETTE.length] })));
+    setChartData(Object.values(byDate));
     setChartOpen(true);
   };
 
   const handleExport = () => exportToExcel(getFiltered(), [
-    { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
-    { key: 'tt_readspot', label: 'Tipo', fn: r => r.tt_readspot || '' },
-    { key: 'valor', label: 'Volume (m³)', fn: r => parseFloat(r.valor) || 0 },
+    { key: 'data',           label: 'Data',          fn: r => formatDate(r.data) },
+    { key: 'tt_readspot',    label: 'Tipo',           fn: r => r.tt_readspot || '' },
+    { key: 'valor',          label: 'Leitura (m³)',   fn: r => parseFloat(r.valor) || 0 },
+    { key: 'diasDecorridos', label: 'Dias',           fn: r => r.diasDecorridos ?? '' },
+    { key: 'volumeConsumido',label: 'Consumo (m³)',   fn: r => r.volumeConsumido ?? '' },
   ], `volumes_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
-    {
-      field: 'tt_readspot', headerName: 'Tipo', width: 160,
+    { field: 'data', headerName: 'Data', width: 110,
+      renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'tt_readspot', headerName: 'Tipo', width: 150,
       valueGetter: (v) => v || '',
-      renderCell: ({ row }) => <Cell><Chip label={row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell>,
-    },
-    {
-      field: 'valor', headerName: 'Volume (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
-      renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value, 'm³')}</Typography></Cell>,
-    },
+      renderCell: ({ row }) => <Cell><Chip label={row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell> },
+    { field: 'valor', headerName: 'Leitura (m³)', width: 130, align: 'right', headerAlign: 'right', type: 'number',
+      renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value, 'm³')}</Typography></Cell> },
+    { field: 'diasDecorridos', headerName: 'Dias', width: 75, align: 'right', headerAlign: 'right', type: 'number',
+      renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{value ?? '—'}</Typography></Cell> },
+    { field: 'volumeConsumido', headerName: 'Consumo (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
+      renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} color="primary" sx={{ ml: 'auto' }}>{value !== null ? formatNum(value, 'm³') : '—'}</Typography></Cell> },
   ];
 
   return (
@@ -618,12 +732,12 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
         config={filterConfig} filters={filters} onChange={setFilters}
         onChart={handleChart} onExport={handleExport} />
       <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
-        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } }, sorting: { sortModel: [{ field: 'data', sort: 'asc' }] } }}
         slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
       <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Volumes Tratados"
-        data={chartData} series={[{ key: 'Volume (m³)', label: 'Volume (m³)', color }]} yUnit="m³" />
+        data={chartData} series={chartSeries} yUnit="m³" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(volDefaults); }} title="Nova Leitura de Volume"
         icon={VolumeIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -742,7 +856,7 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
         config={WATER_FILTER_CONFIG} filters={filters} onChange={setFilters}
         onChart={handleChart} onExport={handleExport} />
       <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
-        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } }, sorting: { sortModel: [{ field: 'data', sort: 'asc' }] } }}
         slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
@@ -865,7 +979,7 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
         config={ENERGY_FILTER_CONFIG} filters={filters} onChange={setFilters}
         onChart={handleChart} onExport={handleExport} />
       <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
-        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } }, sorting: { sortModel: [{ field: 'data', sort: 'asc' }] } }}
         slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
@@ -1000,7 +1114,7 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
         config={filterConfig} filters={filters} onChange={setFilters}
         onChart={handleChart} onExport={handleExport} />
       <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
-        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+        disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } }, sorting: { sortModel: [{ field: 'data', sort: 'asc' }] } }}
         slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
@@ -1119,19 +1233,6 @@ const IntervencaoCard = ({ intervencao, pk, associates }) => {
         </Grid>
       </form>
     </Paper>
-  );
-};
-
-const IntervencoesTab = ({ pk }) => {
-  const { data: associates = [] } = useAssociates();
-  return (
-    <Grid container spacing={2}>
-      {INTERVENCOES.map((iv) => (
-        <Grid key={iv.key} size={{ xs: 12, md: 6 }}>
-          <IntervencaoCard intervencao={iv} pk={pk} associates={associates} />
-        </Grid>
-      ))}
-    </Grid>
   );
 };
 
@@ -1352,16 +1453,13 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
 
 // ─── TAB: Operações Diretas ──────────────────────────────────────────────────
 
-const OperacoesTab = ({ pk, type }) => {
+const OperacoesTab = ({ pk, type, onSuccess }) => {
   const instType = type === 'etar' ? 'ETAR' : 'EE';
 
   const handleSubmit = async (data) => {
-    // Pre-fill pk_instalacao from the selected installation
-    await operationService.createOperacaoDirect({
-      ...data,
-      pk_instalacao: pk,
-    });
+    await operationService.createOperacaoDirect({ ...data, pk_instalacao: pk });
     notification.success('Operação registada com sucesso!');
+    onSuccess?.();
   };
 
   return (
@@ -1370,7 +1468,7 @@ const OperacoesTab = ({ pk, type }) => {
         fixedInstType={instType}
         fixedPk={pk}
         onSubmit={handleSubmit}
-        onCancel={() => {}}
+        onCancel={onSuccess ?? (() => {})}
       />
     </Box>
   );
@@ -1486,7 +1584,7 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
 
 const HISTORICO_FILTER_DEFAULTS = { estado: '', acao: '', dateFrom: '', dateTo: '' };
 
-const HistoricoTab = ({ pk, color }) => {
+const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
   const apiRef = useGridApiRef();
   const [filters, setFilters] = useState(HISTORICO_FILTER_DEFAULTS);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1626,9 +1724,25 @@ const HistoricoTab = ({ pk, color }) => {
         onToggleFilters={() => setFiltersOpen((o) => !o)}
         activeFilterCount={activeFilterCount}
         extra={
-          <Typography variant="caption" color="text.secondary">
-            {tarefas.length} registo{tarefas.length !== 1 ? 's' : ''}
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {onIntervencoesOpen && (
+              <Button size="small" variant="outlined" startIcon={<IntervencoesIcon />}
+                onClick={onIntervencoesOpen}
+                sx={{ textTransform: 'none' }}>
+                Intervenção
+              </Button>
+            )}
+            {onDescargasOpen && (
+              <Button size="small" variant="outlined" color="error" startIcon={<DescargaIcon />}
+                onClick={onDescargasOpen}
+                sx={{ textTransform: 'none' }}>
+                Descarga Interdita
+              </Button>
+            )}
+            <Typography variant="caption" color="text.secondary">
+              {tarefas.length} registo{tarefas.length !== 1 ? 's' : ''}
+            </Typography>
+          </Stack>
         }
       />
 
@@ -1667,10 +1781,9 @@ const HistoricoTab = ({ pk, color }) => {
 
 // ─── TAB: Descargas Interditas ────────────────────────────────────────────────
 
-const DescargasInterditasTab = ({ pk, tsEntity, color }) => {
+const DescargasInterditasTab = ({ pk, tsEntity, color, onSuccess }) => {
   const [memo, setMemo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastDocId, setLastDocId] = useState(null);
   const { data: associates = [] } = useAssociates();
   const associatesMap = useMemo(() => {
     const map = {};
@@ -1686,13 +1799,12 @@ const DescargasInterditasTab = ({ pk, tsEntity, color }) => {
     e.preventDefault();
     if (memo.trim().length < 10) return;
     setIsSubmitting(true);
-    setLastDocId(null);
     try {
       const pk_entity = associatesMap[tsEntity] ?? null;
       const res = await createDescargaInterdita({ pk_instalacao: pk, pk_entity, pnmemo: memo.trim() });
       notification.success('Descarga interdita registada com sucesso!');
-      setLastDocId(res?.document_id ?? true);
       setMemo('');
+      onSuccess?.();
     } catch {
       notification.error('Erro ao registar descarga interdita.');
     } finally {
@@ -1701,7 +1813,7 @@ const DescargasInterditasTab = ({ pk, tsEntity, color }) => {
   };
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+    <Box>
       <Paper
         variant="outlined"
         sx={{
@@ -1710,21 +1822,10 @@ const DescargasInterditasTab = ({ pk, tsEntity, color }) => {
           borderColor: alpha(color || '#d32f2f', 0.3),
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-          <DescargaIcon sx={{ color: 'error.main' }} />
-          <Typography variant="h6" fontWeight={700}>Registar Descarga Interdita</Typography>
-        </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Registe uma ocorrência de descarga interdita nesta instalação.
           Será gerado um pedido interno de acompanhamento (tipo 57).
         </Typography>
-
-        {lastDocId && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setLastDocId(null)}>
-            Ocorrência registada com sucesso
-            {typeof lastDocId === 'number' ? ` (pedido #${lastDocId})` : ''}.
-          </Alert>
-        )}
 
         <form onSubmit={handleSubmit}>
           {isSubmitting && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
@@ -1765,24 +1866,25 @@ const DescargasInterditasTab = ({ pk, tsEntity, color }) => {
 // ─── InstalacaoPage (principal) ───────────────────────────────────────────────
 
 const TABS_ETAR = [
-  { label: 'Histórico',           icon: HistoryIcon },        // 0
-  { label: 'Volumes',             icon: VolumeIcon },         // 1
-  { label: 'Água',                icon: WaterIcon },          // 2
-  { label: 'Energia',             icon: EnergyIcon },         // 3
-  { label: 'Despesas',            icon: ExpenseIcon },        // 4
-  { label: 'Intervenções',        icon: IntervencoesIcon },   // 5  (ex-Operações)
-  { label: 'Incumprimentos',      icon: IncumpIcon },         // 6
-  { label: 'Descargas Interditas',icon: DescargaIcon },       // 7
-  { label: 'Equipamentos',        icon: EquipamentosTabIcon },// 8
-  { label: 'Obras',               icon: ObrasTabIcon },       // 9
+  { label: 'Histórico',      icon: HistoryIcon },        // 0
+  { label: 'Volumes',        icon: VolumeIcon },         // 1
+  { label: 'Água',           icon: WaterIcon },          // 2
+  { label: 'Energia',        icon: EnergyIcon },         // 3
+  { label: 'Despesas',       icon: ExpenseIcon },        // 4
+  { label: 'Incumprimentos', icon: IncumpIcon },         // 5
+  { label: 'Equipamentos',   icon: EquipamentosTabIcon },// 6
+  { label: 'Obras',          icon: ObrasTabIcon },       // 7
 ];
 
 // EE = sem Incumprimentos
 const TABS_EE = [
-  ...TABS_ETAR.slice(0, 6),                                   // 0-5
-  { label: 'Descargas Interditas', icon: DescargaIcon },      // 6
-  { label: 'Equipamentos',         icon: EquipamentosTabIcon },// 7
-  { label: 'Obras',                icon: ObrasTabIcon },      // 8
+  { label: 'Histórico',    icon: HistoryIcon },        // 0
+  { label: 'Volumes',      icon: VolumeIcon },         // 1
+  { label: 'Água',         icon: WaterIcon },          // 2
+  { label: 'Energia',      icon: EnergyIcon },         // 3
+  { label: 'Despesas',     icon: ExpenseIcon },        // 4
+  { label: 'Equipamentos', icon: EquipamentosTabIcon },// 5
+  { label: 'Obras',        icon: ObrasTabIcon },       // 6
 ];
 
 /**
@@ -1799,6 +1901,8 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [intervencoesOpen, setIntervencoesOpen] = useState(false);
+  const [descargasOpen, setDescargasOpen] = useState(false);
   const [equipamentosMeta, setEquipamentosMeta] = useState(null);
   const metaLoaded = useRef(false);
   const pk = selected?.pk ?? null;
@@ -1918,7 +2022,12 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
           </Box>
 
           {/* Conteúdo dos tabs */}
-          {tab === 0 && <HistoricoTab pk={pk} color={color} />}
+          {tab === 0 && (
+            <HistoricoTab pk={pk} color={color}
+              onIntervencoesOpen={() => setIntervencoesOpen(true)}
+              onDescargasOpen={() => setDescargasOpen(true)}
+            />
+          )}
           {tab === 1 && (
             <VolumeTab pk={pk} color={color} data={volumes} isLoading={isLoadingVolumes}
               addVolume={addVolume} isAdding={isAddingVolume} />
@@ -1935,34 +2044,56 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
             <ExpensesTab pk={pk} color={color} data={expenses} isLoading={isLoadingExpenses}
               addExpense={addExpense} isAdding={isAddingExpense} />
           )}
-          {tab === 5 && <OperacoesTab pk={pk} type={type} />}
-          {tab === 6 && type === 'etar' && (
+          {/* ETAR only: Incumprimentos = tab 5 */}
+          {tab === 5 && type === 'etar' && (
             <IncumprimentosTab pk={pk} color={color} data={incumprimentos} isLoading={isLoadingIncump}
               addIncumprimento={addIncumprimento} isAdding={isAddingIncump} />
           )}
-          {/* Descargas Interditas: tab 7 para ETAR, tab 6 para EE */}
+          {/* Equipamentos: tab 6 para ETAR, tab 5 para EE */}
+          {((tab === 6 && type === 'etar') || (tab === 5 && type === 'ee')) && (
+            <InstalacaoEquipamentosTab pk={pk} meta={equipamentosMeta} canEdit />
+          )}
+          {/* Obras: tab 7 para ETAR, tab 6 para EE */}
           {((tab === 7 && type === 'etar') || (tab === 6 && type === 'ee')) && (
-            <DescargasInterditasTab pk={pk} tsEntity={selected?.ts_entity} color={color} />
-          )}
-          {/* Equipamentos: tab 8 para ETAR, tab 7 para EE */}
-          {((tab === 8 && type === 'etar') || (tab === 7 && type === 'ee')) && (
-            <InstalacaoEquipamentosTab
-              pk={pk}
-              meta={equipamentosMeta}
-              canEdit
-            />
-          )}
-          {/* Obras: tab 9 para ETAR, tab 8 para EE */}
-          {((tab === 9 && type === 'etar') || (tab === 8 && type === 'ee')) && (
-            <InstalacaoObrasTab
-              pk={pk}
-              instalacao={selected}
-              type={type}
-              canEdit
-            />
+            <InstalacaoObrasTab pk={pk} instalacao={selected} type={type} canEdit />
           )}
         </Box>
       )}
+
+      {/* Modal: Intervenções */}
+      <Dialog open={intervencoesOpen && !!pk} onClose={() => setIntervencoesOpen(false)}
+        maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IntervencoesIcon color="primary" />
+              <Typography variant="h6" fontWeight={700}>Nova Intervenção</Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setIntervencoesOpen(false)}><CloseIcon fontSize="small" /></IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 2 }}>
+          <OperacoesTab pk={pk} type={type} onSuccess={() => setIntervencoesOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Descargas Interditas */}
+      <Dialog open={descargasOpen && !!pk} onClose={() => setDescargasOpen(false)}
+        maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DescargaIcon color="error" />
+              <Typography variant="h6" fontWeight={700}>Registar Descarga Interdita</Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setDescargasOpen(false)}><CloseIcon fontSize="small" /></IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 2 }}>
+          <DescargasInterditasTab pk={pk} tsEntity={selected?.ts_entity} color={color}
+            onSuccess={() => setDescargasOpen(false)} />
+        </DialogContent>
+      </Dialog>
 
       {/* Drawer de Características */}
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}

@@ -160,7 +160,9 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\rui.ramos\\\\AppData\\\\Local\\\\rtk\\\\tee\\\\\" | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -match \"refresh_sem|Dados da req|vazio|Erro\" })",
       "Bash(node -e \"const p = require\\('./package.json'\\); const d = {...p.dependencies,...p.devDependencies}; ['@testing-library/react','@testing-library/user-event','@testing-library/jest-dom'].forEach\\(k => console.log\\(k + ':', d[k] || 'NAO INSTALADO'\\)\\)\")",
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('@testing-library/user-event:', p.devDependencies['@testing-library/user-event']\\)\")",
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\" -Directory)"
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\" -Directory)",
+      "Bash(node -e \"require\\('xlsx'\\); console.log\\('ok'\\)\")",
+      "PowerShell(head -30)"
     ],
     "deny": [],
     "ask": [],
