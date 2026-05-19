@@ -47,15 +47,15 @@ export const OrcamentoForm = () => {
     const {
         modalOpen, editTarget, closeModal,
         addRegisto, updateRegisto,
-        subclasses, anos, anoSelecionado,
+        anoSelecionado,
     } = useOrcamentoStore();
+
+    const { data: anos       = [] } = useOrcamentoAnos();
+    const { data: subclasses = [] } = useOrcamentoSubclasses();
 
     const [apiError, setApiError] = useState('');
     const isEdit = Boolean(editTarget);
     const qc = useQueryClient();
-
-    useOrcamentoAnos();
-    useOrcamentoSubclasses();
 
     const {
         control, handleSubmit, watch, reset, setValue,

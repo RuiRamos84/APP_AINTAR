@@ -37,7 +37,8 @@ const ANOS_NAVEGAVEIS = Array.from(
 
 /* ── Navegador de ano ────────────────────────────────────────── */
 export const YearNavigator = ({ compact = false }) => {
-    const { anos, anoSelecionado, setAno, loading } = useOrcamentoStore();
+    const { anoSelecionado, setAno } = useOrcamentoStore();
+    const { data: anos = [] }        = useOrcamentoAnos();
     const idx    = anos.indexOf(Number(anoSelecionado));
     const canOld = idx < anos.length - 1;
     const canNew = idx > 0;
@@ -49,7 +50,7 @@ export const YearNavigator = ({ compact = false }) => {
             <IconButton
                 size="small"
                 onClick={() => setAno(anos[idx + 1])}
-                disabled={!canOld || loading}
+                disabled={!canOld}
                 sx={{ color: 'text.secondary' }}
             >
                 <ChevronLeftIcon fontSize="small" />
@@ -68,7 +69,7 @@ export const YearNavigator = ({ compact = false }) => {
             <IconButton
                 size="small"
                 onClick={() => setAno(anos[idx - 1])}
-                disabled={!canNew || loading}
+                disabled={!canNew}
                 sx={{ color: 'text.secondary' }}
             >
                 <ChevronRightIcon fontSize="small" />
@@ -87,20 +88,18 @@ const OrcamentoPage = () => {
     const { hasPermission } = usePermissions();
     const canEdit = hasPermission('orcamento.edit');
 
-    const { anoSelecionado, setAno, openModal, fetchAnos } = useOrcamentoStore();
-    useOrcamentoAnos();
+    const { anoSelecionado, setAno, openModal } = useOrcamentoStore();
+    const { data: anos = [] } = useOrcamentoAnos();
     const { data: registos = [] } = useOrcamentoDetalhe(anoSelecionado);
 
     const [tab,        setTab]        = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        const init = async () => {
-            const list = await fetchAnos();
-            if (list.length > 0) setAno(list[0]);
-        };
-        init();
-    }, []);
+        if (anos.length > 0 && !anoSelecionado) {
+            setAno(anos[0]);
+        }
+    }, [anos]);
 
     const handleExport = () => {
         const rows = registos.map(r => ({
