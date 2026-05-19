@@ -306,7 +306,7 @@ const thSx = {
 };
 
 /* ─── OrcamentoTable ──────────────────────────────────────────── */
-export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
+export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos', canEdit = false }) => {
     const { anoSelecionado, openModal } = useOrcamentoStore();
     const { data: registos = [], isLoading, error } =
         useOrcamentoDetalhe(anoSelecionado);
@@ -346,11 +346,12 @@ export const OrcamentoTable = ({ searchTerm = '', tipoFilter = 'todos' }) => {
     const toggleClasse = (classe) => setExpanded(prev => ({ ...prev, [classe]: !prev[classe] }));
 
     const visibleCols = useMemo(() => ALL_COLS.filter(col => {
-        if (!col.minBp)       return true;
-        if (col.minBp === 'md') return !isMobile;
-        if (col.minBp === 'lg') return isLg;
+        if (col.id === 'actions') return canEdit;
+        if (!col.minBp)           return true;
+        if (col.minBp === 'md')   return !isMobile;
+        if (col.minBp === 'lg')   return isLg;
         return true;
-    }), [isMobile, isLg]);
+    }), [isMobile, isLg, canEdit]);
 
     const handleDeleteConfirm = async () => {
         try {

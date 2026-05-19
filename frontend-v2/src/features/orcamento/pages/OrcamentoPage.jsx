@@ -19,6 +19,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 import { useOrcamentoStore } from '../store/orcamentoStore';
 import { useOrcamentoAnos, useOrcamentoDetalhe } from '../hooks/useOrcamentoQueries';
 import { OrcamentoTable } from '../components/OrcamentoTable';
@@ -83,6 +84,9 @@ const OrcamentoPage = () => {
     const isMobile  = useMediaQuery(theme.breakpoints.down('sm'));
     const isXs      = useMediaQuery(theme.breakpoints.only('xs'));
 
+    const { hasPermission } = usePermissions();
+    const canEdit = hasPermission('orcamento.edit');
+
     const { anoSelecionado, setAno, openModal, fetchAnos } = useOrcamentoStore();
     useOrcamentoAnos();
     const { data: registos = [] } = useOrcamentoDetalhe(anoSelecionado);
@@ -139,7 +143,7 @@ const OrcamentoPage = () => {
                             </span>
                         </Tooltip>
                     )}
-                    {!isXs && (
+                    {canEdit && !isXs && (
                         <Tooltip title="Catálogo">
                             <IconButton
                                 size="small"
@@ -150,16 +154,18 @@ const OrcamentoPage = () => {
                             </IconButton>
                         </Tooltip>
                     )}
-                    <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={!isMobile && <AddIcon />}
-                        onClick={() => openModal(null)}
-                        disabled={isSncap || !anoSelecionado}
-                        sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 0 }}
-                    >
-                        {isMobile ? <AddIcon fontSize="small" /> : 'Nova Dotação'}
-                    </Button>
+                    {canEdit && (
+                        <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={!isMobile && <AddIcon />}
+                            onClick={() => openModal(null)}
+                            disabled={isSncap || !anoSelecionado}
+                            sx={{ bgcolor: MODULE_COLOR, '&:hover': { bgcolor: '#047857' }, minWidth: 0 }}
+                        >
+                            {isMobile ? <AddIcon fontSize="small" /> : 'Nova Dotação'}
+                        </Button>
+                    )}
                 </Stack>
             }
             center={!isMobile ? <YearNavigator /> : undefined}
@@ -179,7 +185,7 @@ const OrcamentoPage = () => {
             </Tabs>
 
             {tab === 0 && (
-                <OrcamentoTable searchTerm={searchTerm} tipoFilter="todos" />
+                <OrcamentoTable searchTerm={searchTerm} tipoFilter="todos" canEdit={canEdit} />
             )}
             {tab === 1 && (
                 <SncapPanel ano={anoSelecionado} searchTerm={searchTerm} />
