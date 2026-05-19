@@ -20,8 +20,10 @@ import {
   Construction as ObrasIcon, Euro as EuroIcon,
   CalendarMonth as CalIcon, WarningAmber as WarningIcon,
   CheckCircle as DoneIcon, RadioButtonUnchecked as PendingIcon,
+  TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import * as XLSX from 'xlsx';
 import notification from '@/core/services/notification';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import * as svc from '../services/obrasService';
@@ -486,6 +488,40 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
     );
   }
 
+  const handleExportObras = () => {
+    const rows = obras.map((o) => ({
+      'Nome':          o.nome          || '',
+      'Urgência':      o.urgenciaLabel  || '',
+      'Data Prevista': formatDate(o.dataPrevista),
+      'Início':        formatDate(o.dataInicio),
+      'Fim':           formatDate(o.dataFim),
+      'Estado':        o.estado === 1 ? 'Concluída' : 'Em Curso',
+      'Estimado (€)':  o.valorEstimado  != null ? parseFloat(o.valorEstimado)  : '',
+      'AINTAR (€)':    o.valorAintar    != null ? parseFloat(o.valorAintar)    : '',
+      'Subsídio (€)':  o.valorSubsidio  != null ? parseFloat(o.valorSubsidio)  : '',
+      'Município (€)': o.valorMunicipio != null ? parseFloat(o.valorMunicipio) : '',
+      'Observações':   o.memo           || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Obras');
+    XLSX.writeFile(wb, `obras_${pk}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const handleExportDespesas = () => {
+    const rows = despesas.map((d) => ({
+      'Obra':          lookupObraNome(d, obras),
+      'Tipo Despesa':  lookupTipoDespesa(d, meta),
+      'Data':          formatDate(d.data),
+      'Valor (€)':     d.valor != null ? parseFloat(d.valor) : '',
+      'Observações':   d.memo  || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+    XLSX.writeFile(wb, `obras_despesas_${pk}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <Box>
       {/* Sub-tabs */}
@@ -507,12 +543,22 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
                 ? 'Sem obras de requalificação'
                 : `${obras.length} obra${obras.length !== 1 ? 's' : ''}`}
             </Typography>
-            {canEdit && (
-              <Button size="small" variant="outlined" startIcon={<AddIcon />}
-                onClick={() => { setEditObra(null); setObraDialog(true); }}>
-                Nova Obra
-              </Button>
-            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {obras.length > 0 && (
+                <Tooltip title="Exportar Excel">
+                  <Button size="small" variant="outlined" color="success"
+                    startIcon={<ExcelIcon />} onClick={handleExportObras}>
+                    Excel
+                  </Button>
+                </Tooltip>
+              )}
+              {canEdit && (
+                <Button size="small" variant="outlined" startIcon={<AddIcon />}
+                  onClick={() => { setEditObra(null); setObraDialog(true); }}>
+                  Nova Obra
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {obras.length === 0 ? (
@@ -595,12 +641,22 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
                 ? 'Sem despesas registadas'
                 : `${despesas.length} despesa${despesas.length !== 1 ? 's' : ''}`}
             </Typography>
-            {canEdit && (
-              <Button size="small" variant="outlined" startIcon={<AddIcon />}
-                onClick={() => { setEditDespesa(null); setDespesaDialog(true); }}>
-                Nova Despesa
-              </Button>
-            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {despesas.length > 0 && (
+                <Tooltip title="Exportar Excel">
+                  <Button size="small" variant="outlined" color="success"
+                    startIcon={<ExcelIcon />} onClick={handleExportDespesas}>
+                    Excel
+                  </Button>
+                </Tooltip>
+              )}
+              {canEdit && (
+                <Button size="small" variant="outlined" startIcon={<AddIcon />}
+                  onClick={() => { setEditDespesa(null); setDespesaDialog(true); }}>
+                  Nova Despesa
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {despesas.length === 0 ? (

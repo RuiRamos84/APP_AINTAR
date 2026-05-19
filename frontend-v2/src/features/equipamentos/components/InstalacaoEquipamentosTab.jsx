@@ -19,8 +19,10 @@ import {
   Add as AddIcon,
   SwapHoriz as ReallocarIcon,
   Build as BuildIcon,
+  TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import * as XLSX from 'xlsx';
 import notification from '@/core/services/notification';
 import * as svc from '../services/equipamentoService';
 
@@ -403,6 +405,21 @@ export default function InstalacaoEquipamentosTab({
     );
   }
 
+  const handleExport = () => {
+    const rows = equipamentos.map((eq) => ({
+      'Tipo':        eq.tipo        || '',
+      'Marca':       eq.marca       || '',
+      'Modelo':      eq.modelo      || '',
+      'N.º Série':   eq.serial      || '',
+      'Localização': eq.localizacao || '',
+      'Desde':       eq.startDate ? new Date(eq.startDate).toLocaleDateString('pt-PT') : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
+    XLSX.writeFile(wb, `equipamentos_${pk}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <Box>
       {/* Toolbar */}
@@ -419,17 +436,30 @@ export default function InstalacaoEquipamentosTab({
             ? 'Sem equipamentos nesta instalação'
             : `${equipamentos.length} equipamento${equipamentos.length !== 1 ? 's' : ''}`}
         </Typography>
-        {canEdit && (
-          <Button
-            size="small" variant="outlined" startIcon={<AddIcon />}
-            onClick={() => {
-              loadAll();
-              setAlocarOpen(true);
-            }}
-          >
-            Alocar Equipamento
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {equipamentos.length > 0 && (
+            <Tooltip title="Exportar Excel">
+              <Button
+                size="small" variant="outlined" color="success"
+                startIcon={<ExcelIcon />}
+                onClick={handleExport}
+              >
+                Excel
+              </Button>
+            </Tooltip>
+          )}
+          {canEdit && (
+            <Button
+              size="small" variant="outlined" startIcon={<AddIcon />}
+              onClick={() => {
+                loadAll();
+                setAlocarOpen(true);
+              }}
+            >
+              Alocar Equipamento
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {equipamentos.length === 0 ? (

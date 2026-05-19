@@ -81,6 +81,21 @@ const toDate = (str) => {
 const toStr = (date) =>
   date instanceof Date && !isNaN(date.getTime()) ? format(date, 'yyyy-MM-dd') : '';
 
+// Normaliza qualquer formato de data para YYYY-MM-DD para comparação segura
+// Suporta: "YYYY-MM-DD", "YYYY-MM-DDTHH:MM:SS", timestamps, etc.
+const dateStr = (d) => {
+  if (!d) return '';
+  const s = String(d);
+  // ISO format: extrair apenas a parte da data sem conversão de fuso horário
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // Fallback: tentar converter com Date
+  try {
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
+  } catch { /* */ }
+  return '';
+};
+
 const formatDate = (str) => {
   const d = toDate(str);
   return d ? d.toLocaleDateString('pt-PT') : '—';
@@ -666,8 +681,9 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   const filteredData = useMemo(() => processedData.filter((r) => {
     if (filters.tipo && r.tt_readspot !== filters.tipo) return false;
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [processedData, filters]);
 
@@ -815,8 +831,9 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
   }, [data]);
 
   const filteredData = useMemo(() => processedData.filter((r) => {
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [processedData, filters]);
 
@@ -927,8 +944,9 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
   );
 
   const filteredData = useMemo(() => data.filter((r) => {
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [data, filters]);
 
@@ -1050,10 +1068,11 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
   );
 
   const filteredData = useMemo(() => data.filter((r) => {
-    if (filters.destino && r.tt_expensedest !== filters.destino) return false;
-    if (filters.associado && r.ts_associate !== filters.associado) return false;
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    if (filters.destino   && r.tt_expensedest !== filters.destino)   return false;
+    if (filters.associado && r.ts_associate   !== filters.associado) return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [data, filters]);
 
@@ -1296,9 +1315,10 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
 
   const filteredData = useMemo(() => data.filter((r) => {
     if (filters.parametro && r.tt_analiseparam !== filters.parametro) return false;
-    if (filters.gravidade && severityKey(r) !== filters.gravidade) return false;
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    if (filters.gravidade && severityKey(r)      !== filters.gravidade) return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [data, filters]);
 
@@ -1385,10 +1405,10 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
   return (
     <Box>
       <TabActionBar addLabel="Registar Incumprimento" addColor="error" onAdd={() => setOpen(true)}
-        onChart={handleChart} onExport={handleExport}
         filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
       <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
-        config={filterConfig} filters={filters} onChange={setFilters} />
+        config={filterConfig} filters={filters} onChange={setFilters}
+        onChart={handleChart} onExport={handleExport} />
       <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         slots={{ toolbar: DataGridToolbar }}
@@ -1591,12 +1611,8 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
   const [detalhe, setDetalhe] = useState(null);
 
   const { data: allTarefas = [], isLoading } = useQuery({
-    queryKey: ['instalacao', 'historico', pk, filters.dateFrom, filters.dateTo],
-    queryFn: () => operationService.getOperacao({
-      instalacaoPk: pk,
-      fromDate: filters.dateFrom || undefined,
-      toDate: filters.dateTo || undefined,
-    }),
+    queryKey: ['instalacao', 'historico', pk],
+    queryFn: () => operationService.getOperacao({ instalacaoPk: pk }),
     enabled: !!pk,
     select: (d) => (d?.data || []).map((r, i) => ({ ...r, id: r.pk ?? i })),
     staleTime: 2 * 60 * 1000,
@@ -1616,8 +1632,8 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
       options: [{ value: 'concluida', label: 'Concluída' }, { value: 'pendente', label: 'Pendente' }] },
     { key: 'acao',   label: 'Ação / Tarefa', type: 'select', md: 3,
       options: acaoOptions },
-    { key: 'dateFrom', label: 'Data início', type: 'date' },
-    { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+    { key: 'dateFrom', label: 'De (data)', type: 'date' },
+    { key: 'dateTo',   label: 'Até (data)', type: 'date' },
   ], [acaoOptions]);
 
   const activeFilterCount = useMemo(
@@ -1628,6 +1644,10 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
     if (filters.estado === 'concluida' && !r.updt_time) return false;
     if (filters.estado === 'pendente'  &&  r.updt_time) return false;
     if (filters.acao && r.tt_operacaoaccao !== filters.acao) return false;
+    // Filtrar por data: usa updt_time para operações concluídas, data para pendentes
+    const d = dateStr(r.updt_time || r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [allTarefas, filters]);
 
