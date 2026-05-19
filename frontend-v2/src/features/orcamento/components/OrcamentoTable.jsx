@@ -66,7 +66,8 @@ const ClasseCard = ({ label, value, total, count, accent }) => {
                 {fmt(value)}
             </Typography>
             <Typography variant="caption" color="text.disabled" display="block" mb={0.75}>
-                {count} dotaç{count === 1 ? 'ão' : 'ões'} · {ratio}%
+                {count} dotaç{count === 1 ? 'ão' : 'ões'} ·{' '}
+                <Box component="span" fontWeight={800} color="text.primary">{ratio}%</Box>
             </Typography>
             <LinearProgress variant="determinate" value={ratio} sx={{
                 height: 5, borderRadius: 3,
@@ -129,14 +130,24 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, onS
             case 'subclasse':
                 return (
                     <TableCell key="subclasse" sx={{ pl: { xs: 2, sm: 3.5 }, overflow: 'hidden' }}>
-                        <Typography variant="body2" noWrap>{r.subclasse}</Typography>
+                        <Typography fontSize="0.9rem" fontWeight={500} noWrap>{r.subclasse}</Typography>
+                    </TableCell>
+                );
+            case 'name':
+                return (
+                    <TableCell key="name" sx={{ overflow: 'hidden' }}>
+                        <Tooltip title={r.name || ''} disableHoverListener={!r.name} arrow placement="top">
+                            <Typography fontSize="0.85rem" color="text.secondary" noWrap>
+                                {r.name || '—'}
+                            </Typography>
+                        </Tooltip>
                     </TableCell>
                 );
             case 'sncap':
                 return (
                     <TableCell key="sncap">
                         <Typography
-                            variant="caption" fontFamily="monospace" noWrap
+                            fontSize="0.82rem" fontFamily="monospace" noWrap
                             onClick={r.sncap ? (e) => onSncapClick(e.currentTarget, r.sncap) : undefined}
                             sx={{
                                 color: r.sncap ? MODULE_COLOR : 'text.disabled',
@@ -151,30 +162,34 @@ const ClasseSection = ({ classe, registos, open, onToggle, onEdit, onDelete, onS
             case 'memo':
                 return (
                     <TableCell key="memo" sx={{ overflow: 'hidden' }}>
-                        <Typography variant="caption" color="text.secondary" noWrap title={r.memo || ''}>
-                            {r.memo || '—'}
-                        </Typography>
+                        <Tooltip title={r.memo || ''} disableHoverListener={!r.memo} arrow placement="top">
+                            <Typography fontSize="0.82rem" color="text.secondary" noWrap>
+                                {r.memo || '—'}
+                            </Typography>
+                        </Tooltip>
                     </TableCell>
                 );
             case 'valor':
                 return (
                     <TableCell key="valor" align="right">
-                        <Typography variant="body2" fontWeight={600}>{fmt(r.valor)}</Typography>
+                        <Typography fontSize="0.9rem" fontWeight={600}>{fmt(r.valor)}</Typography>
                     </TableCell>
                 );
             case 'actions':
                 return (
-                    <TableCell key="actions" align="center">
-                        <Tooltip title="Editar">
-                            <IconButton size="small" onClick={() => onEdit(r)}>
-                                <EditIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar">
-                            <IconButton size="small" color="error" onClick={() => onDelete(r)}>
-                                <DeleteIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
+                    <TableCell key="actions" align="center" sx={{ py: 0, whiteSpace: 'nowrap' }}>
+                        <Stack direction="row" justifyContent="center" spacing={0}>
+                            <Tooltip title="Editar">
+                                <IconButton size="small" onClick={() => onEdit(r)}>
+                                    <EditIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Eliminar">
+                                <IconButton size="small" color="error" onClick={() => onDelete(r)}>
+                                    <DeleteIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
                     </TableCell>
                 );
             default: return null;
@@ -273,11 +288,12 @@ const DeleteDialog = ({ target, onConfirm, onClose, loading }) => (
 /* ─── Definição de colunas (dinâmicas por breakpoint) ────────── */
 // minBp: null=sempre visível  'md'=md+  'lg'=lg+
 const ALL_COLS = [
-    { id: 'subclasse', label: 'Subclasse', align: 'left',   width: null, minBp: null },
-    { id: 'sncap',     label: 'SNC-AP',   align: 'left',   width: 100,  minBp: 'md' },
-    { id: 'memo',      label: 'Descrição',align: 'left',   width: 220,  minBp: 'lg' },
-    { id: 'valor',     label: 'Dotação',  align: 'right',  width: 140,  minBp: null },
-    { id: 'actions',   label: '',         align: 'center', width: 80,   minBp: null },
+    { id: 'subclasse', label: 'Subclasse',  align: 'left',   width: null, minBp: null },
+    { id: 'name',      label: 'Referência', align: 'left',   width: 160,  minBp: 'md' },
+    { id: 'sncap',     label: 'SNC-AP',     align: 'left',   width: 100,  minBp: 'md' },
+    { id: 'memo',      label: 'Observações',align: 'left',   width: 200,  minBp: 'lg' },
+    { id: 'valor',     label: 'Dotação',    align: 'right',  width: 140,  minBp: null },
+    { id: 'actions',   label: '',           align: 'center', width: 80,   minBp: null },
 ];
 
 const thSx = {

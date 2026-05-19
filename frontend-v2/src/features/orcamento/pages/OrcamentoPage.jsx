@@ -182,7 +182,7 @@ const OrcamentoPage = () => {
                 <OrcamentoTable searchTerm={searchTerm} tipoFilter="todos" />
             )}
             {tab === 1 && (
-                <SncapPanel ano={anoSelecionado} />
+                <SncapPanel ano={anoSelecionado} searchTerm={searchTerm} />
             )}
 
             <OrcamentoForm />

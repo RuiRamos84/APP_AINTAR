@@ -10,13 +10,16 @@ import {
     EuroSymbol as EuroIcon,
     Close as CloseIcon,
     NotesOutlined as NotesIcon,
+    LabelOutlined as NameIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useOrcamentoStore } from '../store/orcamentoStore';
 import {
     useOrcamentoAnos,
     useOrcamentoSubclasses,
+    ORCAMENTO_KEYS,
 } from '../hooks/useOrcamentoQueries';
 
 const MODULE_COLOR = '#059669';
@@ -44,11 +47,12 @@ export const OrcamentoForm = () => {
     const {
         modalOpen, editTarget, closeModal,
         addRegisto, updateRegisto,
-        subclasses, anos, registos,
+        subclasses, anos, anoSelecionado,
     } = useOrcamentoStore();
 
     const [apiError, setApiError] = useState('');
     const isEdit = Boolean(editTarget);
+    const qc = useQueryClient();
 
     useOrcamentoAnos();
     useOrcamentoSubclasses();
@@ -61,6 +65,7 @@ export const OrcamentoForm = () => {
             ano:                    currentYear,
             classe:                 '',
             ts_orcamento_subclasse: '',
+            name:                   '',
             valor:                  '',
             memo:                   '',
         },
@@ -77,25 +82,19 @@ export const OrcamentoForm = () => {
         if (isEdit) {
             reset({
                 ano:   editTarget.ano ?? currentYear,
+                name:  editTarget.name ?? '',
                 valor: editTarget.valor ?? '',
                 memo:  editTarget.memo ?? '',
             });
         } else {
-            reset({ ano: currentYear, classe: '', ts_orcamento_subclasse: '', valor: '', memo: '' });
+            reset({ ano: currentYear, classe: '', ts_orcamento_subclasse: '', name: '', valor: '', memo: '' });
         }
     }, [modalOpen]);
 
     useEffect(() => { if (!isEdit) { setValue('classe', ''); setValue('ts_orcamento_subclasse', ''); } }, [anoW, isEdit]);
     useEffect(() => { if (!isEdit) setValue('ts_orcamento_subclasse', ''); }, [classeW, isEdit]);
 
-    /* ── Subclasses disponíveis (excluir as que já têm dotação no ano) ── */
-    const subclassesDisponiveis = useMemo(() => {
-        if (isEdit || !anoW) return subclasses;
-        const a = parseInt(anoW, 10);
-        return subclasses.filter(s =>
-            !registos.some(r => r.ano === a && r.ts_orcamento_subclasse === s.pk)
-        );
-    }, [subclasses, registos, anoW, isEdit]);
+    const subclassesDisponiveis = subclasses;
 
     const classesDisponiveis = useMemo(
         () => [...new Set(subclassesDisponiveis.map(s => s.classe))].filter(Boolean).sort(),
@@ -111,8 +110,10 @@ export const OrcamentoForm = () => {
     const onSubmit = async (v) => {
         setApiError('');
         try {
+            const ano = anoSelecionado ?? parseInt(v.ano, 10);
             if (isEdit) {
                 await updateRegisto(editTarget.pk, {
+                    name:  v.name?.trim() || null,
                     valor: parseFloat(v.valor),
                     memo:  v.memo?.trim() || null,
                 });
@@ -121,11 +122,14 @@ export const OrcamentoForm = () => {
                 await addRegisto({
                     ano:                    parseInt(v.ano, 10),
                     ts_orcamento_subclasse: parseInt(v.ts_orcamento_subclasse, 10),
+                    name:                   v.name?.trim() || null,
                     valor:                  parseFloat(v.valor),
                     memo:                   v.memo?.trim() || null,
                 });
                 toast.success('Dotação criada com sucesso.');
             }
+            qc.invalidateQueries({ queryKey: ORCAMENTO_KEYS.detalhe(ano) });
+            qc.invalidateQueries({ queryKey: ORCAMENTO_KEYS.sncapSummary(ano) });
             closeModal();
         } catch (err) {
             setApiError(
@@ -199,31 +203,24 @@ export const OrcamentoForm = () => {
                         </Grid>
 
                         {!isEdit && anoW && (
-                            classesDisponiveis.length === 0 ? (
-                                <Grid size={{ xs: 12 }}>
-                                    <Alert severity="info" sx={{ py: 0.5 }}>
-                                        Todas as subclasses já têm dotação para {anoW}.
-                                    </Alert>
+                            <>
+                                <Grid size={{ xs: 12, sm: 8 }}>
+                                    <Controller
+                                        name="classe"
+                                        control={control}
+                                        rules={{ required: 'Obrigatório' }}
+                                        render={({ field }) => (
+                                            <TextField {...field} select label="Classe"
+                                                error={Boolean(errors.classe)}
+                                                helperText={errors.classe?.message}
+                                                fullWidth size="small">
+                                                {classesDisponiveis.map(c => (
+                                                    <MenuItem key={c} value={c}>{c}</MenuItem>
+                                                ))}
+                                            </TextField>
+                                        )}
+                                    />
                                 </Grid>
-                            ) : (
-                                <>
-                                    <Grid size={{ xs: 12, sm: 8 }}>
-                                        <Controller
-                                            name="classe"
-                                            control={control}
-                                            rules={{ required: 'Obrigatório' }}
-                                            render={({ field }) => (
-                                                <TextField {...field} select label="Classe"
-                                                    error={Boolean(errors.classe)}
-                                                    helperText={errors.classe?.message}
-                                                    fullWidth size="small">
-                                                    {classesDisponiveis.map(c => (
-                                                        <MenuItem key={c} value={c}>{c}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            )}
-                                        />
-                                    </Grid>
                                     <Grid size={{ xs: 12 }}>
                                         <Controller
                                             name="ts_orcamento_subclasse"
@@ -247,8 +244,7 @@ export const OrcamentoForm = () => {
                                             )}
                                         />
                                     </Grid>
-                                </>
-                            )
+                            </>
                         )}
 
                         {isEdit && (
@@ -281,14 +277,23 @@ export const OrcamentoForm = () => {
                             />
 
                             <Divider sx={{ mb: 2 }} />
-                            <SectionLabel icon={NotesIcon} label="Notas" />
+                            <SectionLabel icon={NameIcon} label="Identificação" />
+                            <Controller
+                                name="name"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField {...field} label="Nome / Referência"
+                                        placeholder="Identificação curta desta dotação (opcional)"
+                                        fullWidth size="small" sx={{ mb: 2 }} />
+                                )}
+                            />
                             <Controller
                                 name="memo"
                                 control={control}
                                 render={({ field }) => (
                                     <TextField {...field} label="Observações"
-                                        multiline rows={3}
-                                        placeholder="Notas ou observações sobre esta dotação (opcional)"
+                                        multiline rows={2}
+                                        placeholder="Notas ou observações adicionais (opcional)"
                                         fullWidth size="small" />
                                 )}
                             />
