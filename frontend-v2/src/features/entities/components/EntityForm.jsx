@@ -257,13 +257,18 @@ export const EntityForm = () => {
     // Sanitização de dados antes do envio
     const payload = { ...data };
     
-    // Converter campos vazios para null se o backend esperar (especialmente ForeignKeys como ident_type)
+    // Converter campos vazios para null (backend espera null, não string vazia)
     if (payload.ident_type === '' || payload.ident_type === 0) payload.ident_type = null;
     if (payload.ident_value === '') payload.ident_value = null;
     if (payload.door === '') payload.door = null;
     if (payload.floor === '') payload.floor = null;
     if (payload.descr === '') payload.descr = null;
     if (payload.email === '') payload.email = null;
+    if (!payload.phone) payload.phone = null;
+    if (!payload.nut1) payload.nut1 = null;
+    if (!payload.nut2) payload.nut2 = null;
+    if (!payload.nut3) payload.nut3 = null;
+    if (!payload.nut4) payload.nut4 = null;
     
     // Converter NIPC para string sempre (para garantir)
     payload.nipc = String(payload.nipc);
@@ -312,10 +317,16 @@ export const EntityForm = () => {
       }
   };
 
-  const confirmSubmitWithWarnings = () => {
+  const confirmSubmitWithWarnings = async () => {
       if (pendingData) {
-          processSubmit(pendingData);
+          await processSubmit(pendingData);
       }
+  };
+
+  const handleInvalidSubmit = (errors) => {
+      const firstError = Object.values(errors)[0];
+      const message = firstError?.message || 'Por favor corrija os campos obrigatórios antes de guardar.';
+      notification.error(message);
   };
 
   return (
@@ -336,7 +347,7 @@ export const EntityForm = () => {
         </Typography>
       </DialogTitle>
       
-      <form onSubmit={handleSubmit(handleFormSubmit)}>
+      <form onSubmit={handleSubmit(handleFormSubmit, handleInvalidSubmit)}>
         <DialogContent dividers>
           
           {/* SECÇÃO: IDENTIFICAÇÃO */}

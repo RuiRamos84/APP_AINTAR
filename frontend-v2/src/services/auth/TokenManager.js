@@ -76,7 +76,6 @@ class TokenManager {
 
       return updatedUser;
     } catch (error) {
-      console.error('Error refreshing token:', error);
       this.authState.setState({ isRefreshing: false });
       throw error;
     }

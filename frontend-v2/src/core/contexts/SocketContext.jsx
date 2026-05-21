@@ -452,7 +452,13 @@ export const SocketProvider = ({ children }) => {
         return [...newOnes, ...prev];
       });
     } catch (error) {
-      console.error('[SocketContext] Erro ao carregar notificações offline de tarefas:', error);
+      const isAuthError =
+        error?.response?.status === 401 ||
+        error?.message?.includes('refresh token') ||
+        error?.message?.includes('No refresh token');
+      if (!isAuthError) {
+        console.error('[SocketContext] Erro ao carregar notificações offline de tarefas:', error);
+      }
     }
   }, [user?.user_id]);
 

@@ -82,16 +82,18 @@ export const useEntityStore = create((set, get) => ({
   updateEntity: async (pk, entityData) => {
     set({ loading: true, error: null });
     try {
-      const result = await entitiesService.updateEntity(pk, entityData);
-      // Extract entity from potentially wrapped response { entity: {...} }
-      const entity = result?.entity || result;
-      set(state => ({
-        entities: state.entities.map(e => e.pk === pk ? entity : e),
-        selectedEntity: entity,
-        loading: false,
-        modalOpen: false
-      }));
-      return entity;
+      await entitiesService.updateEntity(pk, entityData);
+      // Backend returns only { message } — merge existing entity with sent data
+      set(state => {
+        const existing = state.entities.find(e => e.pk === pk) || {};
+        const updated = { ...existing, ...entityData };
+        return {
+          entities: state.entities.map(e => e.pk === pk ? updated : e),
+          selectedEntity: updated,
+          loading: false,
+          modalOpen: false
+        };
+      });
     } catch (error) {
       set({ error: error.message, loading: false });
       throw error;
