@@ -47,6 +47,13 @@ const navMenu = [
       { label: 'Editais', href: '/comunicacao/editais' },
     ],
   },
+  {
+    label: 'Educação Ambiental',
+    children: [
+      { label: 'Educação Ambiental', href: '/educacao-ambiental' },
+      { label: 'AINTAR Kids', href: '/educacao-ambiental/aintar-kids' },
+    ],
+  },
   { label: 'Contactos', href: '/contactos' },
 ]
 

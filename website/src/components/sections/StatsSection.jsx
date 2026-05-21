@@ -11,29 +11,31 @@ const CIRCUMFERENCE = 283  // 2πr para r=45
 
 const stats = [
   {
-    value: 4,   suffix: '',     label: 'Municípios Associados',
-    description: 'Carregal do Sal, Santa Comba Dão, Tábua e Tondela',
-    color: '#20B4DC', glowColor: 'rgba(32,180,220,0.25)', fillPercent: 0.25, delay: 0.10,
-  },
-  {
-    value: 700, suffix: ' km',  label: 'Rede de Coletores',
-    description: 'Infraestrutura de saneamento gerida pela AINTAR',
-    color: '#2ABB9B', glowColor: 'rgba(42,187,155,0.25)', fillPercent: 0.90, delay: 0.22,
-  },
-  {
-    value: 145, suffix: '',     label: 'ETARs em Operação',
-    description: 'Estações de tratamento de águas residuais',
-    color: '#20B4DC', glowColor: 'rgba(32,180,220,0.25)', fillPercent: 0.60, delay: 0.34,
-  },
-  {
-    value: 91,  suffix: '',     label: 'Estações Elevatórias',
+    value: 140,    suffix: '',    label: 'Estações Elevatórias',
     description: 'Elevatórias distribuídas pelos 4 municípios',
-    color: '#2ABB9B', glowColor: 'rgba(42,187,155,0.25)', fillPercent: 0.46, delay: 0.46,
+    color: '#20B4DC', glowColor: 'rgba(32,180,220,0.25)', fillPercent: 0.70, delay: 0.10,
   },
   {
-    value: 26,  suffix: ' mil', label: 'Clientes Servidos',
-    description: 'Cerca de 56.000 habitantes abrangidos',
-    color: '#00D2FF', glowColor: 'rgba(0,210,255,0.20)',  fillPercent: 0.95, delay: 0.58,
+    value: 97,     suffix: '',    label: 'Estações de Tratamento de Águas Residuais',
+    description: 'Estações de tratamento de águas residuais',
+    color: '#2ABB9B', glowColor: 'rgba(42,187,155,0.25)', fillPercent: 0.49, delay: 0.22,
+  },
+  {
+    value: 25513,  suffix: '',    label: 'Alojamentos Servidos',
+    description: 'Alojamentos servidos na rede de coletores',
+    color: '#20B4DC', glowColor: 'rgba(32,180,220,0.25)', fillPercent: 0.85, delay: 0.34,
+    ringFontSize: 17,
+  },
+  {
+    value: 1291.5, suffix: ' km', label: 'Comprimento de Coletores',
+    description: 'Comprimento total de coletores geridos',
+    color: '#2ABB9B', glowColor: 'rgba(42,187,155,0.25)', fillPercent: 0.95, delay: 0.46,
+    ringFontSize: 16,
+  },
+  {
+    value: 92.2,   suffix: '%',   label: 'Adesão à Rede Fixa',
+    description: 'Adesão ao serviço de rede fixa',
+    color: '#00D2FF', glowColor: 'rgba(0,210,255,0.20)',  fillPercent: 0.922, delay: 0.58,
   },
 ]
 
@@ -86,7 +88,7 @@ function StatCard({ stat, inView }) {
         </svg>
         {/* Valor dentro do anel */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-heading font-extrabold leading-none" style={{ fontSize: 26, color: stat.color }}>
+          <span className="font-heading font-extrabold leading-none" style={{ fontSize: stat.ringFontSize ?? 26, color: stat.color }}>
             {inView ? <AnimatedCounter target={stat.value} duration={2200} /> : 0}
           </span>
           {stat.suffix && (
