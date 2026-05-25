@@ -6,7 +6,6 @@
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { BrowserRouter } from 'react-router-dom';
 import { getTheme } from '@/styles/theme';
 import { useUIStore } from '@/core/store/uiStore';
@@ -70,13 +69,6 @@ export function AppProviders({ children }) {
                 <AppThemeProvider>
                   {children}
 
-                  {/* React Query DevTools apenas em desenvolvimento */}
-                  {import.meta.env.DEV && (
-                    <ReactQueryDevtools
-                      initialIsOpen={false}
-                      position="bottom-right"
-                    />
-                  )}
                 </AppThemeProvider>
               </SocketProvider>
             </PermissionProvider>

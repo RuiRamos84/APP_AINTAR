@@ -204,6 +204,24 @@ export const operationService = {
     return response;
   },
 
+  /** Adicionar anexos a uma operação (qualquer momento) */
+  addOperationAnnexes: async (operacaoPk, files) => {
+    const formData = new FormData();
+    files.forEach((fileItem) => formData.append('files', fileItem.file));
+    const response = await apiClient.post(
+      `/operation_control/${operacaoPk}/annexes`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response;
+  },
+
+  /** Eliminar um anexo pelo seu pk */
+  deleteOperationAnnex: async (annexPk) => {
+    const response = await apiClient.delete(`/operation_control/annex/${annexPk}`);
+    return response;
+  },
+
   // ============================================================
   // REQUISIÇÃO INTERNA
   // ============================================================

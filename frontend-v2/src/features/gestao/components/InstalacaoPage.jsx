@@ -69,6 +69,7 @@ import {
 } from '../services/etarEeService';
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
+import AnnexesSection from '../../operations/components/AnnexesSection';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1477,9 +1478,10 @@ const OperacoesTab = ({ pk, type, onSuccess }) => {
   const instType = type === 'etar' ? 'ETAR' : 'EE';
 
   const handleSubmit = async (data) => {
-    await operationService.createOperacaoDirect({ ...data, pk_instalacao: pk });
+    const result = await operationService.createOperacaoDirect({ ...data, pk_instalacao: pk });
     notification.success('Operação registada com sucesso!');
     onSuccess?.();
+    return result;
   };
 
   return (
@@ -1501,7 +1503,6 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
 
   const isPendente = !tarefa.updt_time;
   const isProgramada = tarefa.tt_operacaomodo != null;
-  const hasPhoto = !!tarefa.photo;
   const hasReported = tarefa.valuetext != null || tarefa.valuenumb != null || tarefa.valuememo;
   const hasValidacao = !!tarefa.control_tt_operacaocontrolo;
 
@@ -1548,7 +1549,7 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
           </Box>
 
           {/* Dados reportados */}
-          {(hasReported || hasPhoto) && (
+          {hasReported && (
             <Box>
               <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
                 Dados Reportados
@@ -1558,14 +1559,17 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
               {tarefa.valuetext != null && <Row label="Valor (texto)" value={tarefa.valuetext} />}
               {tarefa.valuenumb != null && <Row label="Valor (numérico)" value={String(tarefa.valuenumb)} />}
               {tarefa.valuememo && <Row label="Observações" value={tarefa.valuememo} />}
-              {hasPhoto && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
-                  <ImageIcon fontSize="small" color="action" />
-                  <Typography variant="body2" color="text.secondary">Fotografia anexada</Typography>
-                </Box>
-              )}
             </Box>
           )}
+
+          {/* Anexos */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+              Anexos
+            </Typography>
+            <Divider sx={{ my: 0.5 }} />
+            <AnnexesSection operacaoPk={tarefa.pk} />
+          </Box>
 
           {/* Validação */}
           {hasValidacao && (

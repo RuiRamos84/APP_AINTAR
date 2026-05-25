@@ -101,6 +101,33 @@ def update_control():
     return jsonify(result), status_code
 
 
+@bp.route('/<int:pk>/annexes', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@set_session
+def add_annexes(pk):
+    """Adicionar anexos a uma operação (qualquer momento, multipart/form-data)."""
+    current_user = get_jwt_identity()
+    files = request.files.getlist('files')
+    if not files:
+        return jsonify({'error': 'Nenhum ficheiro recebido'}), 400
+    result, status_code = operation_control_service.add_operation_annexes(pk, files, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/annex/<int:annex_pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@set_session
+def delete_annex(annex_pk):
+    """Eliminar um anexo pelo seu pk."""
+    current_user = get_jwt_identity()
+    result, status_code = operation_control_service.delete_operation_annex(annex_pk, current_user)
+    return jsonify(result), status_code
+
+
 @bp.route('/municipalities', methods=['GET'])
 @jwt_required()
 @token_required

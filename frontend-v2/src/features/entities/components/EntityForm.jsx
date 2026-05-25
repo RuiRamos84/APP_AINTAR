@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -27,6 +27,7 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { useEntityStore } from '../store/entityStore';
+import { useUpdateEntity, useCreateEntity } from '../hooks/useEntities';
 import { entitySchema } from '../schemas/entitySchema';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import notification from '@/core/services/notification';
@@ -43,17 +44,18 @@ const SectionHeader = ({ icon: Icon, title }) => (
 );
 
 export const EntityForm = () => {
-  const { 
-    createModalOpen, 
-    modalOpen, 
-    selectedEntity, 
-    createInitialData, // Added prop
-    closeCreateModal, 
-    closeModal, 
+  const {
+    createModalOpen,
+    modalOpen,
+    selectedEntity,
+    createInitialData,
+    closeCreateModal,
+    closeModal,
     openModal,
-    addEntity, 
-    updateEntity
   } = useEntityStore();
+
+  const { mutateAsync: updateEntity } = useUpdateEntity();
+  const { mutateAsync: createEntity } = useCreateEntity();
   
   const { data: metaData } = useMetaData();
   const identTypes = metaData?.ident_types || [];
@@ -93,20 +95,23 @@ export const EntityForm = () => {
     }
   });
 
-  // Watch fields
-  const {
-    ident_type: identType,
-    nipc: nipcValue,
-    email: emailW = '',
-    postal: postalW = '',
-    address: addressW = '',
-    door: doorW = '',
-    floor: floorW = '',
-    nut1: nut1W = '',
-    nut2: nut2W = '',
-    nut3: nut3W = '',
-    nut4: nut4W = '',
-  } = watch();
+  // Watch only the fields needed for UI reactivity
+  const identType = watch('ident_type');
+  const nipcValue = watch('nipc');
+  const emailW = watch('email') ?? '';
+  const postalW = watch('postal') ?? '';
+  const addressW = watch('address') ?? '';
+  const doorW = watch('door') ?? '';
+  const floorW = watch('floor') ?? '';
+  const nut1W = watch('nut1') ?? '';
+  const nut2W = watch('nut2') ?? '';
+  const nut3W = watch('nut3') ?? '';
+  const nut4W = watch('nut4') ?? '';
+
+  const handleAddressChange = useCallback(
+    (field, value) => setValue(field, value, { shouldValidate: true }),
+    [setValue]
+  );
 
   // Estado local
   const [submitting, setSubmitting] = React.useState(false);
@@ -276,10 +281,10 @@ export const EntityForm = () => {
     setSubmitting(true);
     try {
       if (isEditMode && selectedEntity) {
-        await updateEntity(selectedEntity.pk, payload);
+        await updateEntity({ pk: selectedEntity.pk, data: payload });
         notification.success('Entidade atualizada com sucesso!');
       } else {
-        await addEntity(payload); // Using sanitized payload instead of raw data
+        await createEntity(payload);
         notification.success('Entidade criada com sucesso!');
       }
       onClose();
@@ -499,7 +504,7 @@ export const EntityForm = () => {
                 nut3: nut3W,
                 nut4: nut4W,
               }}
-              onChange={(field, value) => setValue(field, value, { shouldValidate: true })}
+              onChange={handleAddressChange}
               errors={{
                 postal: errors.postal?.message,
                 address: errors.address?.message,

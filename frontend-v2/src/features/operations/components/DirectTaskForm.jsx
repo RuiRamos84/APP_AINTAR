@@ -18,6 +18,7 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Collapse,
 } from '@mui/material';
 import {
   WaterDrop as ETARIcon,
@@ -33,6 +34,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchMetaData } from '@/services/metadataService';
 import notification from '@/core/services/notification';
 import LocationPickerDialog from './LocationPickerDialog';
+import FileUploadControl from './FileUploadControl';
+import { operationService } from '../services/operationService';
 
 // ──────────────────────────────────────────────
 // Mapeamento de ações disponíveis por tipo
@@ -190,7 +193,9 @@ const DirectTaskForm = ({ onSubmit, onCancel, fixedInstType = null, fixedPk = nu
   const [memo, setMemo] = useState('');
   const [clat, setClat] = useState('');
   const [clong, setClong] = useState('');
+  const [annexFiles, setAnnexFiles] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const { data: rawMeta, isLoading: metaLoading } = useQuery({
     queryKey: ['metadata'],
@@ -266,8 +271,9 @@ const DirectTaskForm = ({ onSubmit, onCancel, fixedInstType = null, fixedPk = nu
         : FIXED_PK[instType];
 
     setSaving(true);
+    setSubmitError('');
     try {
-      await onSubmit({
+      const result = await onSubmit({
         data,
         pk_instalacao,
         pk_operador: parseInt(pkOperador, 10),
@@ -277,9 +283,20 @@ const DirectTaskForm = ({ onSubmit, onCancel, fixedInstType = null, fixedPk = nu
           ? { clat: parseFloat(clat), clong: parseFloat(clong) }
           : {}),
       });
+
+      // Upload de anexos após criação da operação
+      const createdPk = result?.pk;
+      if (annexFiles.length > 0 && createdPk) {
+        try {
+          await operationService.addOperationAnnexes(createdPk, annexFiles);
+        } catch {
+          notification.warning('Operação criada, mas ocorreu um erro ao guardar os anexos.');
+        }
+      }
       // sucesso — o modal é fechado pelo parent
     } catch (err) {
-      // erro já notificado pela mutation (onError) — o modal permanece aberto
+      const msg = err?.response?.data?.error || err?.message || 'Erro ao registar operação.';
+      setSubmitError(msg);
     } finally {
       setSaving(false);
     }
@@ -447,6 +464,18 @@ const DirectTaskForm = ({ onSubmit, onCancel, fixedInstType = null, fixedPk = nu
             </Grid>
           </Grid>
         )}
+
+        {/* ── Anexos ── */}
+        {instType && (
+          <FileUploadControl files={annexFiles} setFiles={setAnnexFiles} maxFiles={5} />
+        )}
+
+        {/* ── Erro de submissão ── */}
+        <Collapse in={!!submitError}>
+          <Alert severity="error" onClose={() => setSubmitError('')}>
+            {submitError}
+          </Alert>
+        </Collapse>
 
         {/* ── Botões ── */}
         <Box display="flex" justifyContent="flex-end" gap={2}>

@@ -166,8 +166,8 @@ const OperationControlPage = () => {
             handleCloseControlDialog();
             notification.success('Controlo guardado com sucesso');
         },
-        onError: () => {
-            notification.error('Erro ao guardar controlo');
+        onError: (err) => {
+            notification.error(err?.response?.data?.error || err?.message || 'Erro ao guardar controlo');
         }
     });
 

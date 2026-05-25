@@ -131,9 +131,11 @@ const BulkActionToolbar = ({
         {/* Limpar seleção */}
         <Divider orientation="vertical" flexItem />
         <Tooltip title="Limpar seleção">
-          <IconButton size="small" onClick={onClose} disabled={loading}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
+          <span>
+            <IconButton size="small" onClick={onClose} disabled={loading}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </span>
         </Tooltip>
       </Stack>
     </Paper>

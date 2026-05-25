@@ -161,11 +161,11 @@ export const useOperationTasks = (options = {}) => {
         onSuccess: () => {
             notification.success('Tarefa concluída com sucesso');
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (context?.previous) {
                 queryClient.setQueryData(['operacaoSelf', user?.pk], context.previous);
             }
-            notification.error('Erro ao concluir tarefa');
+            notification.error(err?.response?.data?.error || err?.message || 'Erro ao concluir tarefa');
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['operacaoSelf', user?.pk] });
@@ -183,8 +183,8 @@ export const useOperationTasks = (options = {}) => {
             notification.success('Tarefa registada com sucesso');
             queryClient.invalidateQueries({ queryKey: ['operacaoSelf', user?.pk] });
         },
-        onError: () => {
-            notification.error('Erro ao registar tarefa');
+        onError: (err) => {
+            notification.error(err?.response?.data?.error || err?.message || 'Erro ao registar tarefa');
         },
     });
 
@@ -200,8 +200,8 @@ export const useOperationTasks = (options = {}) => {
             notification.success('Resposta corrigida com sucesso');
             queryClient.invalidateQueries({ queryKey: ['operacaoSelf', user?.pk] });
         },
-        onError: () => {
-            notification.error('Erro ao corrigir resposta');
+        onError: (err) => {
+            notification.error(err?.response?.data?.error || err?.message || 'Erro ao corrigir resposta');
         },
     });
 
