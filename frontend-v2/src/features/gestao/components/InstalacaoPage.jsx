@@ -715,7 +715,8 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
     rows.forEach(r => {
       const d = formatDate(r.data);
       if (!byDate[d]) byDate[d] = { date: d };
-      byDate[d][r.tt_readspot || 'Sem Tipo'] = r.volumeConsumido;
+      const dias = r.diasDecorridos > 0 ? r.diasDecorridos : 1;
+      byDate[d][r.tt_readspot || 'Sem Tipo'] = Math.round((r.volumeConsumido / dias) * 10) / 10;
     });
     setChartSeries(tipos.map((t, i) => ({ key: t, label: t, color: INST_PALETTE[i % INST_PALETTE.length] })));
     setChartData(Object.values(byDate));
@@ -757,8 +758,8 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
         slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
-      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Volumes Tratados"
-        data={chartData} series={chartSeries} yUnit="m³" />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Volumes Tratados (Média Diária)"
+        data={chartData} series={chartSeries} yUnit="m³/dia" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(volDefaults); }} title="Nova Leitura de Volume"
         icon={VolumeIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
@@ -849,7 +850,10 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
 
   const handleChart = () => {
     const rows = getFiltered().filter(r => r.volumeConsumido !== null);
-    setChartData(rows.map(r => ({ date: formatDate(r.data), 'Consumo (m³)': r.volumeConsumido })));
+    setChartData(rows.map(r => {
+      const dias = r.diasDecorridos > 0 ? r.diasDecorridos : 1;
+      return { date: formatDate(r.data), 'Consumo (m³/dia)': Math.round((r.volumeConsumido / dias) * 10) / 10 };
+    }));
     setChartOpen(true);
   };
 
@@ -884,8 +888,8 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
         slots={{ toolbar: DataGridToolbar }}
         sx={{ borderRadius: 2, '& .MuiDataGrid-cell': { py: 1.5 }, '& .MuiDataGrid-columnHeaders': { bgcolor: alpha(color, 0.05), fontWeight: 700 } }}
         localeText={{ ...GRID_LOCALE, ...GRID_FILTER_LOCALE }} />
-      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Consumo de Água"
-        data={chartData} series={[{ key: 'Consumo (m³)', label: 'Consumo (m³)', color: '#42a5f5' }]} yUnit="m³" />
+      <InstalacaoDataChart open={chartOpen} onClose={() => setChartOpen(false)} title="Consumo de Água (Média Diária)"
+        data={chartData} series={[{ key: 'Consumo (m³/dia)', label: 'Consumo (m³/dia)', color: '#42a5f5' }]} yUnit="m³/dia" />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(waterDefaults); }} title="Nova Leitura de Água"
         icon={WaterIcon} isAdding={isAdding} onSubmit={handleSubmit(onSubmit)}>
