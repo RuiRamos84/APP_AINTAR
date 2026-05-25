@@ -114,6 +114,9 @@ const Cell = ({ children }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>{children}</Box>
 );
 
+// valueGetter para colunas de data: devolve timestamp numérico para ordenação nativa do DataGrid
+const dateValueGetter = (v) => (v ? new Date(v).getTime() : -1);
+
 // ─── Chart/export helpers ─────────────────────────────────────────────────────
 
 const exportToExcel = (rows, columns, filename) => {
@@ -729,7 +732,8 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   const cols = [
     { field: 'data', headerName: 'Data', width: 110,
-      renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'tt_readspot', headerName: 'Tipo', width: 150,
       valueGetter: (v) => v || '',
       renderCell: ({ row }) => <Cell><Chip label={row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell> },
@@ -857,7 +861,9 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
   ], `agua_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'valor', headerName: 'Leitura (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value, 'm³')}</Typography></Cell> },
     { field: 'diasDecorridos', headerName: 'Dias', width: 80, align: 'right', headerAlign: 'right', type: 'number',
@@ -976,7 +982,9 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
   ], `energia_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'valor_vazio', headerName: 'Vazio (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
     { field: 'valor_ponta', headerName: 'Ponta (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
@@ -1115,7 +1123,9 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
   ], `despesas_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'tt_expensedest', headerName: 'Destino', width: 170,
       renderCell: ({ row }) => <Cell><Chip label={row.tt_expensedest || '—'} size="small" color="primary" variant="outlined" sx={{ maxWidth: '100%' }} /></Cell> },
     { field: 'valor', headerName: 'Valor', width: 120, align: 'right', headerAlign: 'right', type: 'number',
@@ -1369,8 +1379,11 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
   ], `incumprimentos_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'tt_analiseparam', headerName: 'Parâmetro', width: 160,
+      valueGetter: (v) => v || '',
       renderCell: ({ row }) => <Cell><Chip label={row.tt_analiseparam || '—'} size="small" variant="outlined" /></Cell> },
     { field: 'resultado', headerName: 'Resultado', width: 110, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
@@ -1389,15 +1402,29 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
         return <Cell><Chip label={`${value.toFixed(1)}%`} size="small" color={sev.color} /></Cell>;
       },
     },
-    { field: '_severity', headerName: 'Gravidade', width: 110,
+    {
+      field: '_severity', headerName: 'Gravidade', width: 110,
+      // valueGetter devolve número (nível de gravidade) para ordenação correcta
+      // 0=Baixo, 1=Moderado, 2=Elevado, 3=Crítico
       valueGetter: (_, row) => {
         const res = parseFloat(row.resultado), lim = parseFloat(row.limite);
-        if (isNaN(res) || isNaN(lim) || lim === 0) return null;
-        return SEVERITY(((res - lim) / lim) * 100);
+        if (isNaN(res) || isNaN(lim) || lim === 0) return -1;
+        const pct = ((res - lim) / lim) * 100;
+        if (pct >= 100) return 3;
+        if (pct >= 50)  return 2;
+        if (pct >= 20)  return 1;
+        return 0;
       },
-      renderCell: ({ value }) => value
-        ? <Cell><Chip label={value.label} size="small" color={value.color} variant="outlined" /></Cell>
-        : <Cell>—</Cell>,
+      renderCell: ({ value }) => {
+        if (value < 0) return <Cell>—</Cell>;
+        const sev = [
+          { label: 'Baixo',    color: 'success' },
+          { label: 'Moderado', color: 'warning' },
+          { label: 'Elevado',  color: 'error'   },
+          { label: 'Crítico',  color: 'error'   },
+        ][value];
+        return <Cell><Chip label={sev.label} size="small" color={sev.color} variant="outlined" /></Cell>;
+      },
     },
     { field: 'operador1', headerName: 'Operador 1', flex: 1, minWidth: 130,
       renderCell: ({ row }) => <Cell><Typography variant="body2">{row.operador1 || '—'}</Typography></Cell> },
@@ -1673,32 +1700,37 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
   const cols = [
     {
       field: 'data', headerName: 'Data Agendada', width: 130,
-      renderCell: ({ value }) => (
-        <Cell><Typography variant="body2">{value ? formatDate(value) : '—'}</Typography></Cell>
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => (
+        <Cell><Typography variant="body2">{row.data ? formatDate(row.data) : '—'}</Typography></Cell>
       ),
     },
     {
       field: 'updt_time', headerName: 'Data Conclusão', width: 130,
-      renderCell: ({ value }) => (
-        <Cell><Typography variant="body2">{value ? formatDate(value) : '—'}</Typography></Cell>
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => (
+        <Cell><Typography variant="body2">{row.updt_time ? formatDate(row.updt_time) : '—'}</Typography></Cell>
       ),
     },
     {
       field: 'tt_operacaoaccao', headerName: 'Ação / Tarefa', flex: 1, minWidth: 200,
+      valueGetter: (v) => v || '',
       renderCell: ({ value }) => (
         <Cell><Typography variant="body2" noWrap>{value || '—'}</Typography></Cell>
       ),
     },
     {
       field: 'ts_operador1', headerName: 'Operador', width: 160,
+      valueGetter: (v) => v || '',
       renderCell: ({ value }) => (
         <Cell><Typography variant="body2">{value || '—'}</Typography></Cell>
       ),
     },
     {
       field: 'tt_operacaomodo', headerName: 'Tipo', width: 130,
-      renderCell: ({ value }) => {
-        const isProgramada = value != null;
+      valueGetter: (v) => v != null ? 'Programada' : 'Pontual',
+      renderCell: ({ row }) => {
+        const isProgramada = row.tt_operacaomodo != null;
         return (
           <Cell>
             <Chip
@@ -1716,7 +1748,7 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
     },
     {
       field: '_estado', headerName: 'Estado', width: 120,
-      valueGetter: (_, row) => !!row.updt_time,
+      valueGetter: (_, row) => row.updt_time ? 'Concluída' : 'Pendente',
       renderCell: ({ row }) => (
         <Cell>
           <Chip
@@ -1730,6 +1762,7 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
     },
     {
       field: 'control_tt_operacaocontrolo', headerName: 'Validação', width: 110,
+      valueGetter: (v) => v ? 'Validada' : '',
       renderCell: ({ value }) => (
         <Cell>
           {value

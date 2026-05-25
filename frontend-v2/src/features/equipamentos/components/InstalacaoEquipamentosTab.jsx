@@ -7,10 +7,10 @@
  *  - Alocar equipamento existente à instalação
  *  - Realocar equipamento (armazém / reparação)
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Button, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper, IconButton, Tooltip, Chip,
+  TableHead, TableRow, TableSortLabel, Paper, IconButton, Tooltip, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Grid, CircularProgress,
   Typography, Skeleton, Divider,
@@ -342,6 +342,31 @@ export default function InstalacaoEquipamentosTab({
   const [loading, setLoading] = useState(false);
   const [alocarOpen, setAlocarOpen] = useState(false);
   const [reallocarTarget, setReallocarTarget] = useState(null);
+  const [sort, setSort] = useState({ field: 'startDate', dir: 'desc' });
+
+  const toggleSort = (field) => setSort((s) => ({
+    field,
+    dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc',
+  }));
+
+  const sortedEquipamentos = useMemo(() => {
+    const { field, dir } = sort;
+    return [...equipamentos].sort((a, b) => {
+      let va = a[field] ?? '';
+      let vb = b[field] ?? '';
+      if (field === 'startDate') {
+        va = va ? new Date(va).getTime() : -1;
+        vb = vb ? new Date(vb).getTime() : -1;
+      } else if (field === 'marcaModelo') {
+        va = `${a.marca || ''} ${a.modelo || ''}`.trim();
+        vb = `${b.marca || ''} ${b.modelo || ''}`.trim();
+      }
+      const cmp = typeof va === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'pt');
+      return dir === 'asc' ? cmp : -cmp;
+    });
+  }, [equipamentos, sort]);
 
   const load = useCallback(async () => {
     if (!pk) return;
@@ -481,11 +506,23 @@ export default function InstalacaoEquipamentosTab({
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>Tipo</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Marca / Modelo</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>N.º Série</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Localização</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Desde</TableCell>
+                {[
+                  { field: 'tipo', label: 'Tipo' },
+                  { field: 'marcaModelo', label: 'Marca / Modelo' },
+                  { field: 'serial', label: 'N.º Série' },
+                  { field: 'localizacao', label: 'Localização' },
+                  { field: 'startDate', label: 'Desde' },
+                ].map(({ field, label }) => (
+                  <TableCell key={field} sx={{ fontWeight: 600 }}>
+                    <TableSortLabel
+                      active={sort.field === field}
+                      direction={sort.field === field ? sort.dir : 'asc'}
+                      onClick={() => toggleSort(field)}
+                    >
+                      {label}
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
                 {canEdit && (
                   <TableCell align="right" sx={{ fontWeight: 600 }}>
                     Ações
@@ -494,7 +531,7 @@ export default function InstalacaoEquipamentosTab({
               </TableRow>
             </TableHead>
             <TableBody>
-              {equipamentos.map((eq) => (
+              {sortedEquipamentos.map((eq) => (
                 <TableRow key={eq.id} hover>
                   <TableCell>
                     <Chip
