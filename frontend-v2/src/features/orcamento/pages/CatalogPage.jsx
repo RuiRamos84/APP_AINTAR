@@ -48,7 +48,7 @@ const ClasseDialog = ({ open, onClose, onSave, initial = null }) => {
             await onSave(designacao.trim());
             onClose();
         } catch (err) {
-            setError(err?.response?.data?.error || err?.response?.data?.erro || err.message || 'Erro ao guardar.');
+            setError(err?.response?.data?.error || err?.message || 'Erro ao guardar.');
         } finally { setLoading(false); }
     };
 
@@ -111,7 +111,7 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, initial = null }) => 
             });
             onClose();
         } catch (err) {
-            setError(err?.response?.data?.error || err?.response?.data?.erro || err.message || 'Erro ao guardar.');
+            setError(err?.response?.data?.error || err?.message || 'Erro ao guardar.');
         } finally { setLoading(false); }
     };
 

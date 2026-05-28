@@ -119,7 +119,7 @@ const AdminActionsPage = () => {
         ...prev.slice(0, 9),
       ]);
     } catch (e) {
-      const msg = e.response?.data?.message || e.response?.data?.erro || e.message;
+      const msg = e.response?.data?.error || e.response?.data?.message || e.message;
       notification.error(msg);
       setResults((prev) => [
         { key: actionRef.key, label: actionRef.title, ok: false, time: new Date(), error: msg },

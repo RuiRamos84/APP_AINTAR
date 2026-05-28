@@ -41,8 +41,7 @@ class PaymentService {
             });
             return response;
         } catch (error) {
-            // Extrair mensagem de erro do backend (APIError usa chave 'erro')
-            const backendMsg = error.response?.data?.erro || error.response?.data?.error;
+            const backendMsg = error.response?.data?.error;
             if (backendMsg) {
                 throw new Error(backendMsg);
             }

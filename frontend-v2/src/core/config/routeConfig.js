@@ -392,6 +392,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/stock': {
+    id: 'stock',
+    text: 'Stock',
+    icon: InventoryIcon,
+    module: 'gestao',
+    permissions: { required: 'stock.view' },
+    showInSidebar: true,
+  },
+
   '/orcamento': {
     id: 'orcamento',
     text: 'Orçamento',

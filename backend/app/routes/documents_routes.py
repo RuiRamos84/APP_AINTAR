@@ -539,7 +539,7 @@ def get_document_ramais_concluded_route():
 
 @bp.route('/document_pavenext/<int:pk>', methods=['PUT'])
 @jwt_required()
-@require_permission('operation.access')
+@require_permission('pav.edit')
 @token_required
 @set_session
 @api_error_handler

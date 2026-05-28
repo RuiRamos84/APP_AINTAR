@@ -134,7 +134,6 @@ export const OrcamentoForm = () => {
         } catch (err) {
             setApiError(
                 err?.response?.data?.error
-                || err?.response?.data?.erro
                 || err?.message
                 || 'Erro ao guardar.'
             );

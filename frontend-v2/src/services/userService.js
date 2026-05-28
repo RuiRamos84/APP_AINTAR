@@ -301,7 +301,7 @@ export const createUser = async (userData) => {
       console.error('[userService] Error creating user:', error);
     }
     if (error.response?.data) {
-      throw new Error(error.response.data.erro || error.response.data.error || 'Error creating user');
+      throw new Error(error.response.data.error || 'Erro ao criar utilizador.');
     }
     throw error;
   }

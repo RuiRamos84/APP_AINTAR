@@ -160,8 +160,8 @@ class AuthManager {
           }
         }
 
-        // Extract backend error message if available (backend uses 'erro' field)
-        const backendMessage = error.response?.data?.erro;
+        // Extract backend error message if available (backend uses 'error' field)
+        const backendMessage = error.response?.data?.error;
         if (backendMessage) {
           const enrichedError = new Error(backendMessage);
           enrichedError.response = error.response;
@@ -192,8 +192,8 @@ class AuthManager {
 
       return user;
     } catch (error) {
-      // error.message is already enriched by the response interceptor (backend 'erro' field)
-      throw new Error(error.message || error.response?.data?.erro || 'Erro ao fazer login');
+      // error.message is already enriched by the response interceptor (backend 'error' field)
+      throw new Error(error.message || error.response?.data?.error || 'Erro ao fazer login');
     }
   }
 
