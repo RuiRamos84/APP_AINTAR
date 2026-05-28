@@ -129,15 +129,16 @@ def get_configured_groups():
     from app import db
     from sqlalchemy import text
     rows = db.session.execute(
-        text("SELECT pk, group_id, group_name, ativo, criado_em FROM tb_whatsapp_config ORDER BY group_name")
+        text("SELECT pk, group_id, group_name, invite_link, ativo, criado_em FROM tb_whatsapp_config ORDER BY group_name")
     ).mappings().fetchall()
     groups = [
         {
-            'pk':         r['pk'],
-            'group_id':   r['group_id'],
-            'group_name': r['group_name'],
-            'ativo':      r['ativo'],
-            'criado_em':  r['criado_em'].isoformat() if r['criado_em'] else None,
+            'pk':           r['pk'],
+            'group_id':     r['group_id'],
+            'group_name':   r['group_name'],
+            'invite_link':  r['invite_link'],
+            'ativo':        r['ativo'],
+            'criado_em':    r['criado_em'].isoformat() if r['criado_em'] else None,
         }
         for r in rows
     ]
@@ -145,7 +146,7 @@ def get_configured_groups():
 
 
 @api_error_handler
-def add_configured_group(group_id: str, group_name: str):
+def add_configured_group(group_id: str, group_name: str, invite_link: str = None):
     """Adiciona um grupo à lista de auto-alerta."""
     from app import db
     from sqlalchemy import text
@@ -153,11 +154,14 @@ def add_configured_group(group_id: str, group_name: str):
     try:
         db.session.execute(
             text("""
-                INSERT INTO tb_whatsapp_config (group_id, group_name)
-                VALUES (:gid, :name)
-                ON CONFLICT (group_id) DO UPDATE SET group_name = EXCLUDED.group_name, ativo = TRUE
+                INSERT INTO tb_whatsapp_config (group_id, group_name, invite_link)
+                VALUES (:gid, :name, :link)
+                ON CONFLICT (group_id) DO UPDATE
+                    SET group_name  = EXCLUDED.group_name,
+                        invite_link = COALESCE(EXCLUDED.invite_link, tb_whatsapp_config.invite_link),
+                        ativo       = TRUE
             """),
-            {'gid': group_id, 'name': group_name},
+            {'gid': group_id, 'name': group_name, 'link': invite_link},
         )
         db.session.commit()
         return {'status': 'ok', 'message': 'Grupo adicionado'}, 201

@@ -57,6 +57,9 @@ export const OrcamentoForm = () => {
     const isEdit = Boolean(editTarget);
     const qc = useQueryClient();
 
+    useOrcamentoAnos();
+    useOrcamentoSubclasses();
+
     const {
         control, handleSubmit, watch, reset, setValue,
         formState: { errors, isSubmitting },
