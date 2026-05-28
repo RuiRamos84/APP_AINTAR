@@ -719,8 +719,9 @@ const OperationTaskManager = ({
                 <DialogContent dividers sx={{ p: 0 }}>
                     <DirectTaskForm
                         onSubmit={async (data) => {
-                            await onCreateDirect?.(data);
-                            setDirectOpen(false); // só fecha se não houver erro
+                            const result = await onCreateDirect?.(data);
+                            setDirectOpen(false);
+                            return result;
                         }}
                         onCancel={() => setDirectOpen(false)}
                     />

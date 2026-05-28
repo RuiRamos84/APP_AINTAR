@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Button, Tab, Tabs, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, IconButton,
+  TableContainer, TableHead, TableRow, TableSortLabel, Paper, IconButton,
   Tooltip, Chip, Typography, Skeleton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Grid,
   CircularProgress, Divider, InputAdornment, ToggleButtonGroup, ToggleButton,
@@ -20,8 +20,10 @@ import {
   Construction as ObrasIcon, Euro as EuroIcon,
   CalendarMonth as CalIcon, WarningAmber as WarningIcon,
   CheckCircle as DoneIcon, RadioButtonUnchecked as PendingIcon,
+  TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import * as XLSX from 'xlsx';
 import notification from '@/core/services/notification';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import * as svc from '../services/obrasService';
@@ -382,6 +384,15 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
   const [editObra, setEditObra] = useState(null);
   const [despesaDialog, setDespesaDialog] = useState(false);
   const [editDespesa, setEditDespesa] = useState(null);
+  const [sortObras, setSortObras] = useState({ field: 'dataPrevista', dir: 'desc' });
+  const [sortDespesas, setSortDespesas] = useState({ field: 'data', dir: 'desc' });
+
+  const toggleSortObras = (field) => setSortObras((s) => ({
+    field, dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc',
+  }));
+  const toggleSortDespesas = (field) => setSortDespesas((s) => ({
+    field, dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc',
+  }));
 
   const { data: metaRaw } = useMetaData();
   const meta = useMemo(() => {
@@ -396,6 +407,27 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
   }, [metaRaw]);
 
   const tipoObraLabel = meta?.tipoObra?.find((t) => t.pk === tipoObraId)?.value ?? (type === 'etar' ? 'ETAR' : 'EEAR');
+
+  const sortedObras = useMemo(() => {
+    const { field, dir } = sortObras;
+    const dateFields = ['dataPrevista', 'dataInicio', 'dataFim'];
+    return [...obras].sort((a, b) => {
+      let va = dateFields.includes(field) ? (a[field] ? new Date(a[field]).getTime() : -1) : (a[field] ?? '');
+      let vb = dateFields.includes(field) ? (b[field] ? new Date(b[field]).getTime() : -1) : (b[field] ?? '');
+      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'pt');
+      return dir === 'asc' ? cmp : -cmp;
+    });
+  }, [obras, sortObras]);
+
+  const sortedDespesas = useMemo(() => {
+    const { field, dir } = sortDespesas;
+    return [...despesas].sort((a, b) => {
+      let va = field === 'data' ? (a.data ? new Date(a.data).getTime() : -1) : (a[field] ?? '');
+      let vb = field === 'data' ? (b.data ? new Date(b.data).getTime() : -1) : (b[field] ?? '');
+      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'pt');
+      return dir === 'asc' ? cmp : -cmp;
+    });
+  }, [despesas, sortDespesas]);
 
   const loadObras = useCallback(async () => {
     if (!pk) return;
@@ -486,6 +518,40 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
     );
   }
 
+  const handleExportObras = () => {
+    const rows = obras.map((o) => ({
+      'Nome':          o.nome          || '',
+      'Urgência':      o.urgenciaLabel  || '',
+      'Data Prevista': formatDate(o.dataPrevista),
+      'Início':        formatDate(o.dataInicio),
+      'Fim':           formatDate(o.dataFim),
+      'Estado':        o.estado === 1 ? 'Concluída' : 'Em Curso',
+      'Estimado (€)':  o.valorEstimado  != null ? parseFloat(o.valorEstimado)  : '',
+      'AINTAR (€)':    o.valorAintar    != null ? parseFloat(o.valorAintar)    : '',
+      'Subsídio (€)':  o.valorSubsidio  != null ? parseFloat(o.valorSubsidio)  : '',
+      'Município (€)': o.valorMunicipio != null ? parseFloat(o.valorMunicipio) : '',
+      'Observações':   o.memo           || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Obras');
+    XLSX.writeFile(wb, `obras_${pk}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const handleExportDespesas = () => {
+    const rows = despesas.map((d) => ({
+      'Obra':          lookupObraNome(d, obras),
+      'Tipo Despesa':  lookupTipoDespesa(d, meta),
+      'Data':          formatDate(d.data),
+      'Valor (€)':     d.valor != null ? parseFloat(d.valor) : '',
+      'Observações':   d.memo  || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+    XLSX.writeFile(wb, `obras_despesas_${pk}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <Box>
       {/* Sub-tabs */}
@@ -507,12 +573,22 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
                 ? 'Sem obras de requalificação'
                 : `${obras.length} obra${obras.length !== 1 ? 's' : ''}`}
             </Typography>
-            {canEdit && (
-              <Button size="small" variant="outlined" startIcon={<AddIcon />}
-                onClick={() => { setEditObra(null); setObraDialog(true); }}>
-                Nova Obra
-              </Button>
-            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {obras.length > 0 && (
+                <Tooltip title="Exportar Excel">
+                  <Button size="small" variant="outlined" color="success"
+                    startIcon={<ExcelIcon />} onClick={handleExportObras}>
+                    Excel
+                  </Button>
+                </Tooltip>
+              )}
+              {canEdit && (
+                <Button size="small" variant="outlined" startIcon={<AddIcon />}
+                  onClick={() => { setEditObra(null); setObraDialog(true); }}>
+                  Nova Obra
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {obras.length === 0 ? (
@@ -525,18 +601,30 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>Nome</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Urgência</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Data Prevista</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Início</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Fim</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Estado</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Estimado (€)</TableCell>
+                    {[
+                      { field: 'nome', label: 'Nome' },
+                      { field: 'urgenciaLabel', label: 'Urgência' },
+                      { field: 'dataPrevista', label: 'Data Prevista' },
+                      { field: 'dataInicio', label: 'Início' },
+                      { field: 'dataFim', label: 'Fim' },
+                      { field: 'estado', label: 'Estado' },
+                      { field: 'valorEstimado', label: 'Estimado (€)' },
+                    ].map(({ field, label }) => (
+                      <TableCell key={field} sx={{ fontWeight: 700 }}>
+                        <TableSortLabel
+                          active={sortObras.field === field}
+                          direction={sortObras.field === field ? sortObras.dir : 'asc'}
+                          onClick={() => toggleSortObras(field)}
+                        >
+                          {label}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
                     {canEdit && <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {obras.map((obra) => (
+                  {sortedObras.map((obra) => (
                     <TableRow key={obra.id} hover>
                       <TableCell>
                         <Typography variant="body2" fontWeight={500}>{obra.nome}</Typography>
@@ -595,12 +683,22 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
                 ? 'Sem despesas registadas'
                 : `${despesas.length} despesa${despesas.length !== 1 ? 's' : ''}`}
             </Typography>
-            {canEdit && (
-              <Button size="small" variant="outlined" startIcon={<AddIcon />}
-                onClick={() => { setEditDespesa(null); setDespesaDialog(true); }}>
-                Nova Despesa
-              </Button>
-            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {despesas.length > 0 && (
+                <Tooltip title="Exportar Excel">
+                  <Button size="small" variant="outlined" color="success"
+                    startIcon={<ExcelIcon />} onClick={handleExportDespesas}>
+                    Excel
+                  </Button>
+                </Tooltip>
+              )}
+              {canEdit && (
+                <Button size="small" variant="outlined" startIcon={<AddIcon />}
+                  onClick={() => { setEditDespesa(null); setDespesaDialog(true); }}>
+                  Nova Despesa
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {despesas.length === 0 ? (
@@ -613,16 +711,28 @@ export default function InstalacaoObrasTab({ pk, instalacao, type, canEdit }) {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>Obra</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Tipo de Despesa</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Data</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Valor (€)</TableCell>
+                    {[
+                      { field: 'obraNome', label: 'Obra' },
+                      { field: 'tipoDespesaLabel', label: 'Tipo de Despesa' },
+                      { field: 'data', label: 'Data' },
+                      { field: 'valor', label: 'Valor (€)' },
+                    ].map(({ field, label }) => (
+                      <TableCell key={field} sx={{ fontWeight: 700 }}>
+                        <TableSortLabel
+                          active={sortDespesas.field === field}
+                          direction={sortDespesas.field === field ? sortDespesas.dir : 'asc'}
+                          onClick={() => toggleSortDespesas(field)}
+                        >
+                          {label}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
                     <TableCell sx={{ fontWeight: 700 }}>Observações</TableCell>
                     {canEdit && <TableCell align="right" sx={{ fontWeight: 700 }}>Ações</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {despesas.map((d) => (
+                  {sortedDespesas.map((d) => (
                     <TableRow key={d.id} hover>
                       <TableCell sx={{ fontWeight: 500 }}>{lookupObraNome(d, obras)}</TableCell>
                       <TableCell>{lookupTipoDespesa(d, meta)}</TableCell>

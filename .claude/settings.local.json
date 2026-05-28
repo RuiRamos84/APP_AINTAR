@@ -165,7 +165,11 @@
       "PowerShell(head -30)",
       "PowerShell($env:PGPASSWORD = \"aintar_server_dev\"; psql -h 172.16.2.11 -p 5432 -U aintar_server_dev -d postgres -c \"SET search_path TO aintar_server_dev, public;\" -f \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\sql\\\\orcamento_tables.sql\" 2>&1)",
       "PowerShell(& \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\check_schema.py\")",
-      "PowerShell(& \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\check_schema.py\" 2>&1)"
+      "PowerShell(& \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\check_schema.py\" 2>&1)",
+      "Bash(rtk prettier *)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\" -Recurse -Directory | Select-Object -First 30 | ForEach-Object { $_.FullName })",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\\\\features\" -Directory)",
+      "Bash(rtk psql *)"
     ],
     "deny": [],
     "ask": [],

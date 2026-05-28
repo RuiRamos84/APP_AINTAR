@@ -12,7 +12,8 @@
 - **Consistency:** Follow existing patterns - check similar modules before implementing new features
 - **Language:** All user-facing text in Portuguese (pt-PT)
 - **Security:** Always validate inputs (backend: Pydantic, frontend: form validation). Never trust client data. Prevent SQL injection, XSS, CSRF
-- **Error handling:** Backend returns consistent JSON errors with `@api_error_handler`. Frontend shows toast notifications for user feedback
+- **Error handling:** Errors are as important as success. Every async operation must handle loading, success AND error states. Backend returns consistent JSON with `@api_error_handler`. Frontend shows toast + inline feedback. Never swallow errors silently.
+- **State architecture:** React Query owns ALL server/remote state. Zustand owns ONLY client UI state (modals, selections, filters). Never duplicate: don't fetch in Zustand what React Query already manages.
 - **Git:** Conventional commits in Portuguese (feat, fix, refactor, docs). Branch naming: `feature/`, `fix/`, `refactor/`
 
 ## Overview
@@ -106,6 +107,75 @@ Domain: app.aintar.pt | Production server: Windows Server 2019
 - **String-Based Only**: All permission checks (`require_permission` in Backend, `permissions: { required: '...' }` in Frontend) MUST use the exact granular string values from the `ts_interface` database table (e.g., `docs.view`, `entities.edit`).
 - **No Legacy Constants**: DO NOT use legacy numeric ID constants like `PERMISSIONS.DOCS_VIEW` or `530`. The `permissionMap.js` mapping is obsolete.
 - **Granular Actions**: Permissions must follow the `.view` and `.edit` convention per module context (or specific actions like `payments.mbway`). "Umbrella" or generic grouping permissions (e.g., `global.access` or `admin.dashboard`) were permanently removed and must never be reintroduced.
+
+### State Architecture — React Query vs Zustand (Strictly Enforced)
+
+**React Query** → dados do servidor (tudo o que vem da API):
+- Usar `useQuery` para leituras, `useMutation` para escritas
+- Definir `staleTime` adequado: lookups raramente mudam (5 min), dados operacionais (2 min)
+- Após mutação usar `qc.invalidateQueries({ queryKey: KEY })` para refrescar — nunca re-fetch manual
+- React Query deduplica requests: múltiplos componentes com o mesmo hook = 1 chamada HTTP
+- Query keys centralizadas em `MODULE_KEYS` por feature (ex: `ORCAMENTO_KEYS`)
+
+**Zustand** → estado de UI do cliente (nunca dados do servidor):
+- `modalOpen`, `editTarget`, `anoSelecionado`, filtros ativos, painéis abertos
+- Mutações no store apenas chamam a API — nunca fazem fetch adicional após a escrita
+- ❌ NUNCA guardar `registos`, `anos`, `subclasses` ou qualquer lista da API no Zustand
+
+**Anti-pattern a evitar:**
+```js
+// ❌ ERRADO — duplica com React Query, gera N chamadas HTTP
+setAno: (ano) => {
+    set({ anoSelecionado: ano });
+    get().fetchDetalhe(ano);   // duplica useOrcamentoDetalhe()
+    get().fetchSubclasses();   // duplica useOrcamentoSubclasses()
+}
+
+// ✅ CORRETO — store só gere UI state, RQ refetch automático
+setAno: (ano) => set({ anoSelecionado: ano }),
+```
+
+### Error Handling — Regra Obrigatória
+
+Erros têm a mesma importância que os casos de sucesso. Toda a operação assíncrona deve tratar os três estados: **loading → success → error**.
+
+**Backend:**
+- Todas as rotas usam `@api_error_handler` — nunca deixar exceções sem tratar
+- Erros retornam JSON consistente: `{ "error": "mensagem em pt-PT" }` com HTTP status adequado
+- Validação com Pydantic devolve 422; erros de negócio 400/409; não encontrado 404
+- Nunca expor stack traces ou detalhes internos ao cliente
+
+**Frontend — obrigações por operação:**
+- **Loading:** mostrar `CircularProgress` ou `disabled` no botão durante chamadas
+- **Erro de rede/API:** `toast.error(err?.response?.data?.error || err.message || 'Erro inesperado.')`
+- **Erro de formulário:** feedback inline (MUI `helperText`, `error` prop) — não só toast
+- **Estado vazio:** componente de empty state explícito, nunca tabela vazia sem mensagem
+- **Erro de página:** `Alert severity="error"` visível, não apenas consola
+
+**Padrão obrigatório em mutações:**
+```js
+// ✅ Padrão correto — loading + success + error sempre presentes
+const handleSubmit = async () => {
+    setLoading(true);
+    try {
+        await doAction();
+        toast.success('Operação concluída.');
+        onClose();
+    } catch (err) {
+        toast.error(err?.response?.data?.error || err.message || 'Erro ao guardar.');
+    } finally {
+        setLoading(false);  // sempre, mesmo em erro
+    }
+};
+```
+
+**Estados de UI obrigatórios em listas/tabelas:**
+```jsx
+if (isLoading) return <CircularProgress />;
+if (error)     return <Alert severity="error">Erro ao carregar dados.</Alert>;
+if (!data.length) return <EmptyState mensagem="Sem registos." />;
+return <Table ... />;
+```
 
 ### Frontend (current production)
 - **Components:** PascalCase filenames matching component names

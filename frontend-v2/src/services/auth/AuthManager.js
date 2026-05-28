@@ -54,7 +54,6 @@ class AuthManager {
                   this.authState.setState({ isLoading: false });
                 })
                 .catch(() => {
-                  console.warn('[AuthManager] Token refresh falhou — a limpar sessão');
                   localStorage.removeItem('user');
                   this.authState.setState({ user: null, isLoading: false });
                 });
@@ -155,8 +154,6 @@ class AuthManager {
             // Retry original request
             return apiClient(originalRequest);
           } catch (refreshError) {
-            // Refresh failed - mark session as expired and logout user
-            console.error('Token refresh failed:', refreshError);
             sessionStorage.setItem('session_expired', 'true');
             await this.logout();
             return Promise.reject(refreshError);

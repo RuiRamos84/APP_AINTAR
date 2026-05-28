@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import {
     Box, Stack, TextField, FormControl, InputLabel, Select, MenuItem,
-    Grid, Button, CircularProgress, Alert, Typography
+    Grid, Button, CircularProgress, Typography, Alert, Collapse
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMetaData } from '@/services/metadataService';
+import FileUploadControl from './FileUploadControl';
+import { operationService } from '../services/operationService';
+import notification from '@/core/services/notification';
 
 const getMeta = (raw) => raw?.data ?? raw ?? {};
 
@@ -20,7 +23,9 @@ const EMPTY_FORM = {
 
 const SimpleTaskForm = ({ onSubmit, onCancel, initialData = null }) => {
     const [formData, setFormData] = useState(initialData || EMPTY_FORM);
+    const [annexFiles, setAnnexFiles] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [submitError, setSubmitError] = useState('');
 
     const { data: rawMetaData, isLoading: metaLoading } = useQuery({
         queryKey: ['metadata'],
@@ -40,6 +45,7 @@ const SimpleTaskForm = ({ onSubmit, onCancel, initialData = null }) => {
         }
 
         setSaving(true);
+        setSubmitError('');
         try {
             const payload = {
                 ...formData,
@@ -49,9 +55,20 @@ const SimpleTaskForm = ({ onSubmit, onCancel, initialData = null }) => {
                 ts_operador1: parseInt(formData.ts_operador1, 10),
                 ts_operador2: formData.ts_operador2 ? parseInt(formData.ts_operador2, 10) : undefined,
             };
-            await onSubmit(payload);
-        } catch (error) {
-            console.error('Error submitting direct task:', error);
+            const result = await onSubmit(payload);
+
+            // Upload de anexos após criação da operação
+            const createdPk = result?.pk;
+            if (annexFiles.length > 0 && createdPk) {
+                try {
+                    await operationService.addOperationAnnexes(createdPk, annexFiles);
+                } catch {
+                    notification.warning('Operação criada, mas ocorreu um erro ao guardar os anexos.');
+                }
+            }
+        } catch (err) {
+            const msg = err?.response?.data?.error || err?.message || 'Erro ao inserir registo.';
+            setSubmitError(msg);
         } finally {
             setSaving(false);
         }
@@ -194,6 +211,14 @@ const SimpleTaskForm = ({ onSubmit, onCancel, initialData = null }) => {
                         />
                     </Grid>
                 </Grid>
+
+                <FileUploadControl files={annexFiles} setFiles={setAnnexFiles} maxFiles={5} />
+
+                <Collapse in={!!submitError}>
+                    <Alert severity="error" onClose={() => setSubmitError('')}>
+                        {submitError}
+                    </Alert>
+                </Collapse>
 
                 <Box display="flex" justifyContent="flex-end" gap={2} sx={{ mt: 2 }}>
                     <Button onClick={onCancel} disabled={saving}>

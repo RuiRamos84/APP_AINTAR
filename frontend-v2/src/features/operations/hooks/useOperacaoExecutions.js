@@ -74,7 +74,7 @@ export const useOperacaoExecutions = (dateRange) => {
             invalidateAll();
             notification.success('Tarefa criada com sucesso');
         },
-        onError: () => notification.error('Erro ao criar tarefa'),
+        onError: (err) => notification.error(err?.response?.data?.error || err?.message || 'Erro ao criar tarefa'),
     });
 
     const createDirect = useMutation({
@@ -95,7 +95,7 @@ export const useOperacaoExecutions = (dateRange) => {
             queryClient.invalidateQueries({ queryKey });
             notification.success('Validação registada com sucesso');
         },
-        onError: () => notification.error('Erro ao validar execução'),
+        onError: (err) => notification.error(err?.response?.data?.error || err?.message || 'Erro ao validar execução'),
     });
 
     const initMonth = useMutation({
@@ -117,7 +117,7 @@ export const useOperacaoExecutions = (dateRange) => {
             invalidateAll();
             notification.success('Operadores reatribuídos com sucesso');
         },
-        onError: () => notification.error('Erro ao reatribuir operadores'),
+        onError: (err) => notification.error(err?.response?.data?.error || err?.message || 'Erro ao reatribuir operadores'),
     });
 
     return {

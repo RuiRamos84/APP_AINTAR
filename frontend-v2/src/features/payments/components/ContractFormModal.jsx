@@ -10,6 +10,7 @@ import { DatePicker } from '@mui/x-date-pickers';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/services/api/client';
 import notification from '@/core/services/notification';
+import { useEntities } from '@/features/entities/hooks/useEntities';
 
 // ─── Zod Schema ──────────────────────────────────────────────────────────────
 const contractSchema = z.object({
@@ -55,15 +56,21 @@ export const ContractFormModal = ({ open, onClose, defaultEntity = null }) => {
     queryFn: () => apiClient.get('/lookup/contract-frequencies').then(r => r.frequencies || []),
   });
 
-  const { data: searchEntities = [], isFetching: isFetchingEntities } = useQuery({
-    queryKey: ['entitiesSearch', searchTerm],
-    queryFn: () => apiClient.get('/entities', { params: { q: searchTerm, limit: 20 } }).then(r => r.entities || []),
-    enabled: true,
-  });
+  const { data: allEntities = [], isFetching: isFetchingEntities } = useEntities();
 
-  const entities = defaultEntity && !searchTerm 
-    ? [defaultEntity, ...searchEntities.filter(e => e.pk !== defaultEntity.pk)]
-    : searchEntities;
+  // Filtro client-side — partilha cache com EntityList (sem request extra)
+  const entities = (() => {
+    const filtered = searchTerm
+      ? allEntities.filter((e) =>
+          e.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(e.nipc).includes(searchTerm)
+        )
+      : allEntities;
+    if (defaultEntity && !filtered.find((e) => e.pk === defaultEntity.pk)) {
+      return [defaultEntity, ...filtered];
+    }
+    return filtered;
+  })();
 
   // Reset form when modal opens
   useEffect(() => {

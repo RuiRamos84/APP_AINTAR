@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
     Box,
     Typography,
@@ -7,7 +7,9 @@ import {
     Chip,
     Stack,
     Card,
+    Button,
     useTheme,
+    useMediaQuery,
     alpha,
     Dialog,
     DialogContent,
@@ -23,6 +25,7 @@ import {
     VideoFile as VideoIcon,
     ZoomIn as PreviewIcon,
     Close as CloseIcon,
+    CameraAlt as CameraIcon,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import imageCompression from 'browser-image-compression';
@@ -145,9 +148,11 @@ const FilePreviewItem = ({ fileItem, index, onRemove, onPreview }) => {
 
 const FileUploadControl = ({ files, setFiles, maxFiles = 5 }) => {
     const theme = useTheme();
+    const isTouchDevice = useMediaQuery('(pointer: coarse)');
     const [error, setError] = useState('');
     const [compressing, setCompressing] = useState(false);
     const [preview, setPreview] = useState(null); // { url, name, type, isPdf, isVideo }
+    const cameraInputRef = useRef(null);
 
     const compressImage = async (file) => {
         if (!isImage(file.type)) return file;
@@ -221,53 +226,100 @@ const FileUploadControl = ({ files, setFiles, maxFiles = 5 }) => {
         setPreview(null);
     };
 
+    const handleCameraCapture = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // reset so the same file can be captured again if needed
+        e.target.value = '';
+
+        if (files.length >= maxFiles) {
+            setError(`Pode adicionar no máximo ${maxFiles} ficheiros`);
+            return;
+        }
+
+        setCompressing(true);
+        try {
+            const compressed = await compressImage(file);
+            setFiles(prev => [...prev, { file: compressed, name: compressed.name, size: compressed.size, type: compressed.type }]);
+            setError('');
+        } finally {
+            setCompressing(false);
+        }
+    };
+
     return (
         <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 <strong>Anexos:</strong> (opcional, até {maxFiles} ficheiros — imagens, PDF, Word, Excel, vídeo)
             </Typography>
 
-            {/* Dropzone */}
-            {files.length < maxFiles && (
-                <Paper
-                    {...getRootProps()}
-                    sx={{
-                        p: 3, mb: 2,
-                        border: '2px dashed',
-                        borderColor: isDragActive ? theme.palette.primary.main : theme.palette.divider,
-                        borderRadius: 2,
-                        bgcolor: isDragActive ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
-                        cursor: compressing ? 'wait' : 'pointer',
-                        transition: 'all 0.2s',
-                        textAlign: 'center',
-                        '&:hover': {
-                            borderColor: theme.palette.primary.main,
-                            bgcolor: alpha(theme.palette.primary.main, 0.02)
-                        }
-                    }}
+            {/* Input oculto para câmara */}
+            <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={handleCameraCapture}
+            />
+
+            {/* Botão câmara — só em dispositivos de toque (tablet/telemóvel) */}
+            {isTouchDevice && (
+                <Button
+                    fullWidth
+                    variant="outlined"
+                    color="primary"
+                    startIcon={compressing ? <CircularProgress size={16} color="inherit" /> : <CameraIcon />}
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={compressing}
+                    sx={{ mb: 2, py: 1.25, borderRadius: 2, borderStyle: 'dashed' }}
                 >
-                    <input {...getInputProps()} />
-                    <Stack spacing={1} alignItems="center">
-                        {compressing ? (
-                            <>
-                                <CircularProgress size={28} />
-                                <Typography variant="body2" color="text.secondary">
-                                    A comprimir imagem...
-                                </Typography>
-                            </>
-                        ) : (
-                            <>
-                                <UploadIcon color="primary" sx={{ fontSize: 32, opacity: 0.7 }} />
-                                <Typography variant="body2" color="text.secondary">
-                                    {isDragActive ? 'Solte os ficheiros aqui...' : 'Arraste ficheiros ou clique para selecionar'}
-                                </Typography>
-                                <Typography variant="caption" color="text.disabled">
-                                    Imagens (comprimidas), PDF, Word, Excel, Vídeo (máx. 200 MB)
-                                </Typography>
-                            </>
-                        )}
-                    </Stack>
-                </Paper>
+                    Tirar Foto com Câmara
+                </Button>
+            )}
+            {files.length < maxFiles && (
+                <>
+                    <Paper
+                        {...getRootProps()}
+                        sx={{
+                            p: 3, mb: 1.5,
+                            border: '2px dashed',
+                            borderColor: isDragActive ? theme.palette.primary.main : theme.palette.divider,
+                            borderRadius: 2,
+                            bgcolor: isDragActive ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
+                            cursor: compressing ? 'wait' : 'pointer',
+                            transition: 'all 0.2s',
+                            textAlign: 'center',
+                            '&:hover': {
+                                borderColor: theme.palette.primary.main,
+                                bgcolor: alpha(theme.palette.primary.main, 0.02)
+                            }
+                        }}
+                    >
+                        <input {...getInputProps()} />
+                        <Stack spacing={1} alignItems="center">
+                            {compressing ? (
+                                <>
+                                    <CircularProgress size={28} />
+                                    <Typography variant="body2" color="text.secondary">
+                                        A comprimir imagem...
+                                    </Typography>
+                                </>
+                            ) : (
+                                <>
+                                    <UploadIcon color="primary" sx={{ fontSize: 32, opacity: 0.7 }} />
+                                    <Typography variant="body2" color="text.secondary">
+                                        {isDragActive ? 'Solte os ficheiros aqui...' : 'Arraste ficheiros ou clique para selecionar'}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.disabled">
+                                        Imagens (comprimidas), PDF, Word, Excel, Vídeo (máx. 200 MB)
+                                    </Typography>
+                                </>
+                            )}
+                        </Stack>
+                    </Paper>
+
+                </>
             )}
 
             {error && (

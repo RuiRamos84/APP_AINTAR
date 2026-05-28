@@ -10,7 +10,7 @@ import {
     Chip,
     Tooltip,
     useTheme,
-    alpha
+    alpha,
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -27,6 +27,7 @@ import {
 import { formatDateOnly, getInstallationLicenseText, getInstallationLicenseColor } from '../utils/formatters';
 import { getOperationTypeConfig } from '../constants/operationTypes';
 import LocationPickerMap from '@/features/documents/components/forms/LocationPickerMap';
+import AnnexesSection from './AnnexesSection';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -308,6 +309,10 @@ const DetailsDrawer = ({
                             />
                         </Box>
                     )}
+
+                    {/* Anexos */}
+                    <Divider />
+                    <AnnexesSection operacaoPk={item.pk} />
 
                     {/* Resultado (se concluída) */}
                     {item.completed && (item.valuetext || item.valuenumb != null || item.valuememo) && (

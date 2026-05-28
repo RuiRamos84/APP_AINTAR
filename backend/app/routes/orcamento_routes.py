@@ -78,7 +78,7 @@ def get_orcamento_subclasses_route():
 @bp.route('/orcamento/sncap/<string:pk>', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_sncap_route(pk):
     current_user = get_jwt_identity()
@@ -129,7 +129,7 @@ def update_orcamento_route(pk):
 @bp.route('/orcamento/tipos', methods=['GET'])
 @jwt_required()
 @token_required
-@require_permission('expenses.view')
+@require_permission('orcamento.view')
 @api_error_handler
 def get_orcamento_tipos_route():
     """
@@ -146,10 +146,30 @@ def get_orcamento_tipos_route():
         return get_orcamento_tipos(session)
 
 
+@bp.route('/orcamento/classes', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('orcamento.view')
+@api_error_handler
+def get_orcamento_classes_route():
+    """
+    Classes de orçamento (lookup com pk)
+    ---
+    tags:
+      - Orçamento
+    responses:
+      200:
+        description: Lista de classes com pk.
+    """
+    current_user = get_jwt_identity()
+    with db_session_manager(current_user) as session:
+        return get_orcamento_classes(session)
+
+
 @bp.route('/orcamento/classe', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def create_classe_route():
@@ -183,7 +203,7 @@ def create_classe_route():
 @bp.route('/orcamento/subclasse', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def create_subclasse_route():
@@ -223,7 +243,7 @@ def create_subclasse_route():
 @bp.route('/orcamento/classe/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def update_classe_route(pk):
@@ -236,7 +256,7 @@ def update_classe_route(pk):
 @bp.route('/orcamento/subclasse/<int:pk>', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('expenses.edit')
+@require_permission('orcamento.edit')
 @set_session
 @api_error_handler
 def update_subclasse_route(pk):

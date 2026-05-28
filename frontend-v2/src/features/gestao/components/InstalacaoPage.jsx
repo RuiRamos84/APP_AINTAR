@@ -69,6 +69,7 @@ import {
 } from '../services/etarEeService';
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
+import AnnexesSection from '../../operations/components/AnnexesSection';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -80,6 +81,21 @@ const toDate = (str) => {
 };
 const toStr = (date) =>
   date instanceof Date && !isNaN(date.getTime()) ? format(date, 'yyyy-MM-dd') : '';
+
+// Normaliza qualquer formato de data para YYYY-MM-DD para comparação segura
+// Suporta: "YYYY-MM-DD", "YYYY-MM-DDTHH:MM:SS", timestamps, etc.
+const dateStr = (d) => {
+  if (!d) return '';
+  const s = String(d);
+  // ISO format: extrair apenas a parte da data sem conversão de fuso horário
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // Fallback: tentar converter com Date
+  try {
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
+  } catch { /* */ }
+  return '';
+};
 
 const formatDate = (str) => {
   const d = toDate(str);
@@ -97,6 +113,9 @@ const formatNum = (v, suffix = '') => {
 const Cell = ({ children }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>{children}</Box>
 );
+
+// valueGetter para colunas de data: devolve timestamp numérico para ordenação nativa do DataGrid
+const dateValueGetter = (v) => (v ? new Date(v).getTime() : -1);
 
 // ─── Chart/export helpers ─────────────────────────────────────────────────────
 
@@ -666,8 +685,9 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   const filteredData = useMemo(() => processedData.filter((r) => {
     if (filters.tipo && r.tt_readspot !== filters.tipo) return false;
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [processedData, filters]);
 
@@ -712,7 +732,8 @@ const VolumeTab = ({ pk, color, data, isLoading, addVolume, isAdding }) => {
 
   const cols = [
     { field: 'data', headerName: 'Data', width: 110,
-      renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'tt_readspot', headerName: 'Tipo', width: 150,
       valueGetter: (v) => v || '',
       renderCell: ({ row }) => <Cell><Chip label={row.tt_readspot || '—'} size="small" color="primary" variant="outlined" /></Cell> },
@@ -815,8 +836,9 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
   }, [data]);
 
   const filteredData = useMemo(() => processedData.filter((r) => {
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [processedData, filters]);
 
@@ -839,7 +861,9 @@ const WaterTab = ({ pk, color, data, isLoading, addWaterVolume, isAdding }) => {
   ], `agua_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'valor', headerName: 'Leitura (m³)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value, 'm³')}</Typography></Cell> },
     { field: 'diasDecorridos', headerName: 'Dias', width: 80, align: 'right', headerAlign: 'right', type: 'number',
@@ -927,8 +951,9 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
   );
 
   const filteredData = useMemo(() => data.filter((r) => {
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [data, filters]);
 
@@ -957,7 +982,9 @@ const EnergyTab = ({ pk, color, data, isLoading, addEnergy, isAdding }) => {
   ], `energia_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'valor_vazio', headerName: 'Vazio (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
     { field: 'valor_ponta', headerName: 'Ponta (kWh)', flex: 1, align: 'right', headerAlign: 'right', type: 'number',
@@ -1050,10 +1077,11 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
   );
 
   const filteredData = useMemo(() => data.filter((r) => {
-    if (filters.destino && r.tt_expensedest !== filters.destino) return false;
-    if (filters.associado && r.ts_associate !== filters.associado) return false;
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    if (filters.destino   && r.tt_expensedest !== filters.destino)   return false;
+    if (filters.associado && r.ts_associate   !== filters.associado) return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [data, filters]);
 
@@ -1095,7 +1123,9 @@ const ExpensesTab = ({ pk, color, data, isLoading, addExpense, isAdding }) => {
   ], `despesas_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'tt_expensedest', headerName: 'Destino', width: 170,
       renderCell: ({ row }) => <Cell><Chip label={row.tt_expensedest || '—'} size="small" color="primary" variant="outlined" sx={{ maxWidth: '100%' }} /></Cell> },
     { field: 'valor', headerName: 'Valor', width: 120, align: 'right', headerAlign: 'right', type: 'number',
@@ -1296,9 +1326,10 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
 
   const filteredData = useMemo(() => data.filter((r) => {
     if (filters.parametro && r.tt_analiseparam !== filters.parametro) return false;
-    if (filters.gravidade && severityKey(r) !== filters.gravidade) return false;
-    if (filters.dateFrom && r.data < filters.dateFrom) return false;
-    if (filters.dateTo && r.data > filters.dateTo + 'T23:59:59') return false;
+    if (filters.gravidade && severityKey(r)      !== filters.gravidade) return false;
+    const d = dateStr(r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [data, filters]);
 
@@ -1348,8 +1379,11 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
   ], `incumprimentos_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110, renderCell: ({ value }) => <Cell><Typography variant="body2">{formatDate(value)}</Typography></Cell> },
+    { field: 'data', headerName: 'Data', width: 110,
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
     { field: 'tt_analiseparam', headerName: 'Parâmetro', width: 160,
+      valueGetter: (v) => v || '',
       renderCell: ({ row }) => <Cell><Chip label={row.tt_analiseparam || '—'} size="small" variant="outlined" /></Cell> },
     { field: 'resultado', headerName: 'Resultado', width: 110, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
@@ -1368,15 +1402,29 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
         return <Cell><Chip label={`${value.toFixed(1)}%`} size="small" color={sev.color} /></Cell>;
       },
     },
-    { field: '_severity', headerName: 'Gravidade', width: 110,
+    {
+      field: '_severity', headerName: 'Gravidade', width: 110,
+      // valueGetter devolve número (nível de gravidade) para ordenação correcta
+      // 0=Baixo, 1=Moderado, 2=Elevado, 3=Crítico
       valueGetter: (_, row) => {
         const res = parseFloat(row.resultado), lim = parseFloat(row.limite);
-        if (isNaN(res) || isNaN(lim) || lim === 0) return null;
-        return SEVERITY(((res - lim) / lim) * 100);
+        if (isNaN(res) || isNaN(lim) || lim === 0) return -1;
+        const pct = ((res - lim) / lim) * 100;
+        if (pct >= 100) return 3;
+        if (pct >= 50)  return 2;
+        if (pct >= 20)  return 1;
+        return 0;
       },
-      renderCell: ({ value }) => value
-        ? <Cell><Chip label={value.label} size="small" color={value.color} variant="outlined" /></Cell>
-        : <Cell>—</Cell>,
+      renderCell: ({ value }) => {
+        if (value < 0) return <Cell>—</Cell>;
+        const sev = [
+          { label: 'Baixo',    color: 'success' },
+          { label: 'Moderado', color: 'warning' },
+          { label: 'Elevado',  color: 'error'   },
+          { label: 'Crítico',  color: 'error'   },
+        ][value];
+        return <Cell><Chip label={sev.label} size="small" color={sev.color} variant="outlined" /></Cell>;
+      },
     },
     { field: 'operador1', headerName: 'Operador 1', flex: 1, minWidth: 130,
       renderCell: ({ row }) => <Cell><Typography variant="body2">{row.operador1 || '—'}</Typography></Cell> },
@@ -1385,10 +1433,10 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
   return (
     <Box>
       <TabActionBar addLabel="Registar Incumprimento" addColor="error" onAdd={() => setOpen(true)}
-        onChart={handleChart} onExport={handleExport}
         filtersOpen={filtersOpen} onToggleFilters={() => setFiltersOpen((o) => !o)} activeFilterCount={activeFilterCount} />
       <TabFilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)}
-        config={filterConfig} filters={filters} onChange={setFilters} />
+        config={filterConfig} filters={filters} onChange={setFilters}
+        onChart={handleChart} onExport={handleExport} />
       <DataGrid apiRef={apiRef} rows={filteredData} columns={cols} loading={isLoading} autoHeight getRowHeight={() => 'auto'}
         disableRowSelectionOnClick pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         slots={{ toolbar: DataGridToolbar }}
@@ -1457,9 +1505,10 @@ const OperacoesTab = ({ pk, type, onSuccess }) => {
   const instType = type === 'etar' ? 'ETAR' : 'EE';
 
   const handleSubmit = async (data) => {
-    await operationService.createOperacaoDirect({ ...data, pk_instalacao: pk });
+    const result = await operationService.createOperacaoDirect({ ...data, pk_instalacao: pk });
     notification.success('Operação registada com sucesso!');
     onSuccess?.();
+    return result;
   };
 
   return (
@@ -1481,7 +1530,6 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
 
   const isPendente = !tarefa.updt_time;
   const isProgramada = tarefa.tt_operacaomodo != null;
-  const hasPhoto = !!tarefa.photo;
   const hasReported = tarefa.valuetext != null || tarefa.valuenumb != null || tarefa.valuememo;
   const hasValidacao = !!tarefa.control_tt_operacaocontrolo;
 
@@ -1528,7 +1576,7 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
           </Box>
 
           {/* Dados reportados */}
-          {(hasReported || hasPhoto) && (
+          {hasReported && (
             <Box>
               <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
                 Dados Reportados
@@ -1538,14 +1586,17 @@ const TarefaDetailDialog = ({ tarefa, open, onClose }) => {
               {tarefa.valuetext != null && <Row label="Valor (texto)" value={tarefa.valuetext} />}
               {tarefa.valuenumb != null && <Row label="Valor (numérico)" value={String(tarefa.valuenumb)} />}
               {tarefa.valuememo && <Row label="Observações" value={tarefa.valuememo} />}
-              {hasPhoto && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
-                  <ImageIcon fontSize="small" color="action" />
-                  <Typography variant="body2" color="text.secondary">Fotografia anexada</Typography>
-                </Box>
-              )}
             </Box>
           )}
+
+          {/* Anexos */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+              Anexos
+            </Typography>
+            <Divider sx={{ my: 0.5 }} />
+            <AnnexesSection operacaoPk={tarefa.pk} />
+          </Box>
 
           {/* Validação */}
           {hasValidacao && (
@@ -1591,12 +1642,8 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
   const [detalhe, setDetalhe] = useState(null);
 
   const { data: allTarefas = [], isLoading } = useQuery({
-    queryKey: ['instalacao', 'historico', pk, filters.dateFrom, filters.dateTo],
-    queryFn: () => operationService.getOperacao({
-      instalacaoPk: pk,
-      fromDate: filters.dateFrom || undefined,
-      toDate: filters.dateTo || undefined,
-    }),
+    queryKey: ['instalacao', 'historico', pk],
+    queryFn: () => operationService.getOperacao({ instalacaoPk: pk }),
     enabled: !!pk,
     select: (d) => (d?.data || []).map((r, i) => ({ ...r, id: r.pk ?? i })),
     staleTime: 2 * 60 * 1000,
@@ -1616,8 +1663,8 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
       options: [{ value: 'concluida', label: 'Concluída' }, { value: 'pendente', label: 'Pendente' }] },
     { key: 'acao',   label: 'Ação / Tarefa', type: 'select', md: 3,
       options: acaoOptions },
-    { key: 'dateFrom', label: 'Data início', type: 'date' },
-    { key: 'dateTo',   label: 'Data fim',    type: 'date' },
+    { key: 'dateFrom', label: 'De (data)', type: 'date' },
+    { key: 'dateTo',   label: 'Até (data)', type: 'date' },
   ], [acaoOptions]);
 
   const activeFilterCount = useMemo(
@@ -1628,6 +1675,10 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
     if (filters.estado === 'concluida' && !r.updt_time) return false;
     if (filters.estado === 'pendente'  &&  r.updt_time) return false;
     if (filters.acao && r.tt_operacaoaccao !== filters.acao) return false;
+    // Filtrar por data: usa updt_time para operações concluídas, data para pendentes
+    const d = dateStr(r.updt_time || r.data);
+    if (filters.dateFrom && d < filters.dateFrom) return false;
+    if (filters.dateTo   && d > filters.dateTo)   return false;
     return true;
   }), [allTarefas, filters]);
 
@@ -1649,32 +1700,37 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
   const cols = [
     {
       field: 'data', headerName: 'Data Agendada', width: 130,
-      renderCell: ({ value }) => (
-        <Cell><Typography variant="body2">{value ? formatDate(value) : '—'}</Typography></Cell>
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => (
+        <Cell><Typography variant="body2">{row.data ? formatDate(row.data) : '—'}</Typography></Cell>
       ),
     },
     {
       field: 'updt_time', headerName: 'Data Conclusão', width: 130,
-      renderCell: ({ value }) => (
-        <Cell><Typography variant="body2">{value ? formatDate(value) : '—'}</Typography></Cell>
+      valueGetter: dateValueGetter,
+      renderCell: ({ row }) => (
+        <Cell><Typography variant="body2">{row.updt_time ? formatDate(row.updt_time) : '—'}</Typography></Cell>
       ),
     },
     {
       field: 'tt_operacaoaccao', headerName: 'Ação / Tarefa', flex: 1, minWidth: 200,
+      valueGetter: (v) => v || '',
       renderCell: ({ value }) => (
         <Cell><Typography variant="body2" noWrap>{value || '—'}</Typography></Cell>
       ),
     },
     {
       field: 'ts_operador1', headerName: 'Operador', width: 160,
+      valueGetter: (v) => v || '',
       renderCell: ({ value }) => (
         <Cell><Typography variant="body2">{value || '—'}</Typography></Cell>
       ),
     },
     {
       field: 'tt_operacaomodo', headerName: 'Tipo', width: 130,
-      renderCell: ({ value }) => {
-        const isProgramada = value != null;
+      valueGetter: (v) => v != null ? 'Programada' : 'Pontual',
+      renderCell: ({ row }) => {
+        const isProgramada = row.tt_operacaomodo != null;
         return (
           <Cell>
             <Chip
@@ -1692,7 +1748,7 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
     },
     {
       field: '_estado', headerName: 'Estado', width: 120,
-      valueGetter: (_, row) => !!row.updt_time,
+      valueGetter: (_, row) => row.updt_time ? 'Concluída' : 'Pendente',
       renderCell: ({ row }) => (
         <Cell>
           <Chip
@@ -1706,6 +1762,7 @@ const HistoricoTab = ({ pk, color, onIntervencoesOpen, onDescargasOpen }) => {
     },
     {
       field: 'control_tt_operacaocontrolo', headerName: 'Validação', width: 110,
+      valueGetter: (v) => v ? 'Validada' : '',
       renderCell: ({ value }) => (
         <Cell>
           {value

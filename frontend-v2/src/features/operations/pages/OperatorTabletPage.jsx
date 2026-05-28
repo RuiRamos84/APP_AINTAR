@@ -1318,8 +1318,9 @@ const OperatorTabletPage = () => {
     const completionPct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
     const handleNewTask = async (data) => {
-        await createTask(data);
+        const result = await createTask(data);
         setNewTaskOpen(false);
+        return result;
     };
 
     const handleTabChange = (_, newVal) => setTab(newVal);
