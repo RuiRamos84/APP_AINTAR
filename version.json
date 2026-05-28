@@ -1,14 +1,14 @@
 ﻿{
-    "version":  "3.11.0",
-    "buildNumber":  102,
+    "version":  "3.12.0",
+    "buildNumber":  103,
     "components":  {
                        "frontend":  {
                                         "version":  "2.1.9",
                                         "lastDeploy":  "2026-04-22T12:03:16"
                                     },
                        "frontend-v2":  {
-                                           "version":  "3.11.0",
-                                           "lastDeploy":  "2026-05-25T13:45:34"
+                                           "version":  "3.12.0",
+                                           "lastDeploy":  "2026-05-26T00:16:31"
                                        },
                        "backend":  {
                                        "version":  "3.9.1",
@@ -20,16 +20,6 @@
                                    }
                    },
     "history":  [
-                    {
-                        "build":  73,
-                        "date":  "2026-05-07T10:24:37",
-                        "operation":  "frontend-v2",
-                        "bumpType":  "patch",
-                        "by":  "rui.ramos",
-                        "versions":  {
-                                         "frontend-v2":  "3.5.2"
-                                     }
-                    },
                     {
                         "build":  74,
                         "date":  "2026-05-07T14:01:30",
@@ -324,7 +314,17 @@
                         "versions":  {
                                          "frontend-v2":  "3.11.0"
                                      }
+                    },
+                    {
+                        "build":  103,
+                        "date":  "2026-05-26T00:16:31",
+                        "operation":  "frontend-v2",
+                        "bumpType":  "minor",
+                        "by":  "rui.ramos",
+                        "versions":  {
+                                         "frontend-v2":  "3.12.0"
+                                     }
                     }
                 ],
-    "lastDeployCommit":  "ad112a5363db166d567166ab382aa7a69c595c91"
+    "lastDeployCommit":  "5d4f24c8b8d83b55c291c81660705c041f10dbe5"
 }
