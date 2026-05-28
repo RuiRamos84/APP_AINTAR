@@ -38,6 +38,12 @@ import NoticiaPage from './pages/comunicacao/NoticiaPage'
 import AvisosPage from './pages/comunicacao/AvisosPage'
 import EditaisPage from './pages/comunicacao/EditaisPage'
 
+// Educação Ambiental
+import EducacaoAmbientalPage from './pages/EducacaoAmbientalPage'
+import AintarKidsPage from './pages/AintarKidsPage'
+import JogoPage from './pages/JogoPage'
+import MinijogosPage from './pages/MinijogosPage'
+
 // Contactos
 import ContactosPage from './pages/ContactosPage'
 import PoliticaPrivacidadePage from './pages/PoliticaPrivacidadePage'
@@ -89,6 +95,12 @@ function AppRoutes() {
             <Route path="/comunicacao/noticias/:pk" element={<NoticiaPage />} />
             <Route path="/comunicacao/avisos" element={<AvisosPage />} />
             <Route path="/comunicacao/editais" element={<EditaisPage />} />
+
+            {/* Educação Ambiental */}
+            <Route path="/educacao-ambiental" element={<EducacaoAmbientalPage />} />
+            <Route path="/educacao-ambiental/aintar-kids" element={<AintarKidsPage />} />
+            <Route path="/educacao-ambiental/aintar-kids/jogo" element={<JogoPage />} />
+            <Route path="/educacao-ambiental/aintar-kids/jogos" element={<MinijogosPage />} />
 
             {/* Contactos */}
             <Route path="/contactos" element={<ContactosPage />} />
