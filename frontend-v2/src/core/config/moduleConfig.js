@@ -48,6 +48,7 @@ export const MODULES = {
         'obras.view',          // Obras
         'fleet.view',          // Frota
         'telemetry.view',      // Telemetria
+        'stock.view',          // Stock
       ]
     },
     description: 'Gestão de infraestruturas e análises técnicas',
@@ -224,11 +225,15 @@ export const detectModuleFromPath = (pathname) => {
     '/aval': 'rh',
     '/rh': 'rh',
 
+    // STOCK
+    '/stock': 'gestao',
+
     // PAGAMENTOS
     '/clients': 'pagamentos',
     '/invoices': 'pagamentos',
     '/payments': 'pagamentos',
     '/sibs': 'pagamentos',
+    '/caixa': 'pagamentos',
 
     // DASHBOARDS
     '/dashboards': 'dashboards',

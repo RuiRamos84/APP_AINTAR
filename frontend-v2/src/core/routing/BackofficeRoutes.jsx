@@ -59,6 +59,7 @@ import {
   MaintenanceExpensesPage, EquipmentExpensesPage,
 } from '@/features/expenses';
 import { OrcamentoPage } from '@/features/orcamento';
+import { StockPage } from '@/features/stock';
 import CatalogPage from '@/features/orcamento/pages/CatalogPage';
 import WhatsAppAlertasPage from '@/features/alertas/pages/WhatsAppAlertasPage';
 
@@ -157,6 +158,7 @@ export default function BackofficeRoutes() {
         <Route path="/gestao/whatsapp-alertas" element={<WhatsAppAlertasPage />} />
         <Route path="/pavements"    element={<PavimentosPage />} />
         <Route path="/offices-admin" element={<OfficesPage />} />
+        <Route path="/stock"        element={<StockPage />} />
 
         {/* ==================== MÓDULO: DASHBOARDS ==================== */}
         <Route path="/dashboards/overview"      element={<DashboardOverviewPage />} />

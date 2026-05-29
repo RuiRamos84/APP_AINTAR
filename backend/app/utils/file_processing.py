@@ -129,15 +129,18 @@ def compress_pdf(file_path):
         writer = PdfWriter()
 
         for page in reader.pages:
-            page.compress_content_streams()
             writer.add_page(page)
+
+        for page in writer.pages:
+            page.compress_content_streams()
 
         # Copy metadata
         if reader.metadata:
             writer.add_metadata(reader.metadata)
 
-        # Remove identical objects
-        writer.compress_identical_objects(remove_identicals=True, remove_orphans=True)
+        # Remove identical objects (pypdf >= 3.1, ignorar se versão mais antiga)
+        if hasattr(writer, 'compress_identical_objects'):
+            writer.compress_identical_objects(remove_identicals=True, remove_orphans=True)
 
         # Write to buffer first to compare sizes
         buffer = io.BytesIO()

@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import ScrollToTop from './components/layout/ScrollToTop'
 import PageTransition from './components/ui/PageTransition'
 import CookieBanner from './components/ui/CookieBanner'
+import LenisProvider from './components/layout/LenisProvider'
 
 import HomePage from './pages/HomePage'
 
@@ -121,8 +122,10 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <CookieBanner />
-      <AppRoutes />
+      <LenisProvider>
+        <CookieBanner />
+        <AppRoutes />
+      </LenisProvider>
     </BrowserRouter>
   )
 }

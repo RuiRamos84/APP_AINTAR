@@ -719,8 +719,9 @@ const TasksPage = () => {
                 <DialogContent dividers sx={{ p: 0 }}>
                     <DirectTaskForm
                         onSubmit={async (data) => {
-                            await createTask(data);
+                            const result = await createTask(data);
                             setDirectOpen(false);
+                            return result;
                         }}
                         onCancel={() => setDirectOpen(false)}
                     />

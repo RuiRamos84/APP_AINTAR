@@ -1,0 +1,50 @@
+ENTITY = {
+    "key":         "concursal_candidatura",
+    "label":       "Candidatura",
+    "labelPlural": "Candidaturas",
+    "icon":        "UserPlus",
+
+    "db": {
+        "readView":  "vbl_concursal_candidatura",
+        "writeView": "vbf_concursal_candidatura",
+        "pkField":   "pk",
+    },
+
+    "permissions": {
+        "view": "operation.access",
+        "edit": "operation.manage",
+    },
+
+    "fields": [
+        {"key": "pk",                    "label": "ID",               "type": "id"},
+        {"key": "codigo_bep",            "label": "Cód. Procedimento","type": "text",   "readonly": True},
+        {"key": "nome_completo",         "label": "Nome",             "type": "text",   "required": True},
+        {"key": "data_nascimento",       "label": "Data Nascimento",  "type": "date"},
+        {"key": "sexo",                  "label": "Sexo",             "type": "text"},
+        {"key": "nif",                   "label": "NIF",              "type": "text"},
+        {"key": "email",                 "label": "Email",            "type": "text"},
+        {"key": "telemovel",             "label": "Telemóvel",        "type": "text"},
+        {"key": "morada",                "label": "Morada",           "type": "text"},
+        {"key": "codigo_postal",         "label": "Cód. Postal",      "type": "text"},
+        {"key": "localidade",            "label": "Localidade",       "type": "text"},
+        {"key": "nivel_hab_descricao",   "label": "Habilitações",     "type": "text",   "readonly": True},
+        {"key": "area_formacao_academica","label": "Área Formação",   "type": "text"},
+        {"key": "estado",                "label": "Estado",           "type": "text"},
+        {"key": "tb_procedimento", "label": "Procedimento", "type": "relation",
+         "relation": {"type": "belongsTo", "entity": "concursal_procedimento", "displayField": "codigo_bep"}, "required": True},
+    ],
+
+    "listView": {
+        "columns":     ["nome_completo", "codigo_bep", "nivel_hab_descricao", "estado", "created_at"],
+        "defaultSort": {"field": "created_at", "dir": "desc"},
+        "searchable":  True,
+    },
+
+    "formView": {
+        "sections": [
+            {"title": "Identificação",  "fields": ["tb_procedimento", "nome_completo", "data_nascimento", "sexo", "nif"],         "cols": 2},
+            {"title": "Contactos",      "fields": ["email", "telemovel", "morada", "codigo_postal", "localidade"],                "cols": 2},
+            {"title": "Formação",       "fields": ["area_formacao_academica", "estado"],                                           "cols": 2},
+        ],
+    },
+}

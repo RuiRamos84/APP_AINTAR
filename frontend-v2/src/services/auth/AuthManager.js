@@ -54,7 +54,6 @@ class AuthManager {
                   this.authState.setState({ isLoading: false });
                 })
                 .catch(() => {
-                  console.warn('[AuthManager] Token refresh falhou — a limpar sessão');
                   localStorage.removeItem('user');
                   this.authState.setState({ user: null, isLoading: false });
                 });
@@ -155,16 +154,14 @@ class AuthManager {
             // Retry original request
             return apiClient(originalRequest);
           } catch (refreshError) {
-            // Refresh failed - mark session as expired and logout user
-            console.error('Token refresh failed:', refreshError);
             sessionStorage.setItem('session_expired', 'true');
             await this.logout();
             return Promise.reject(refreshError);
           }
         }
 
-        // Extract backend error message if available (backend uses 'erro' field)
-        const backendMessage = error.response?.data?.erro;
+        // Extract backend error message if available (backend uses 'error' field)
+        const backendMessage = error.response?.data?.error;
         if (backendMessage) {
           const enrichedError = new Error(backendMessage);
           enrichedError.response = error.response;
@@ -195,8 +192,8 @@ class AuthManager {
 
       return user;
     } catch (error) {
-      // error.message is already enriched by the response interceptor (backend 'erro' field)
-      throw new Error(error.message || error.response?.data?.erro || 'Erro ao fazer login');
+      // error.message is already enriched by the response interceptor (backend 'error' field)
+      throw new Error(error.message || error.response?.data?.error || 'Erro ao fazer login');
     }
   }
 

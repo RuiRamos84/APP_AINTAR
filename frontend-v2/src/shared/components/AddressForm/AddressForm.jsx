@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Chip,
   Typography,
+  Alert,
   alpha,
   useTheme,
 } from '@mui/material';
@@ -203,31 +204,37 @@ const AddressForm = ({
         />
       </Grid>
 
-      {/* NUT Chips */}
-      {showNuts && hasNuts && (
+      {/* NUT Chips ou erro quando em falta */}
+      {showNuts && (
         <Grid size={{ xs: 12 }}>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
-            <LocationIcon
-              fontSize="small"
-              sx={{ color: 'primary.main', opacity: 0.7, mt: 0.3 }}
-            />
-            {nutLabels.map(({ key, label }) =>
-              nutValues[key] ? (
-                <Chip
-                  key={key}
-                  size="small"
-                  label={`${label}: ${nutValues[key]}`}
-                  variant="outlined"
-                  sx={{
-                    borderColor: alpha(theme.palette.primary.main, 0.3),
-                    bgcolor: alpha(theme.palette.primary.main, 0.04),
-                    fontWeight: 500,
-                    fontSize: '0.75rem',
-                  }}
-                />
-              ) : null
-            )}
-          </Box>
+          {hasNuts ? (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+              <LocationIcon
+                fontSize="small"
+                sx={{ color: 'primary.main', opacity: 0.7, mt: 0.3 }}
+              />
+              {nutLabels.map(({ key, label }) =>
+                nutValues[key] ? (
+                  <Chip
+                    key={key}
+                    size="small"
+                    label={`${label}: ${nutValues[key]}`}
+                    variant="outlined"
+                    sx={{
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                      bgcolor: alpha(theme.palette.primary.main, 0.04),
+                      fontWeight: 500,
+                      fontSize: '0.75rem',
+                    }}
+                  />
+                ) : null
+              )}
+            </Box>
+          ) : (errors.nut1 || errors.nut2 || errors.nut3 || errors.nut4) ? (
+            <Alert severity="error" variant="outlined" sx={{ py: 0.5, mt: 0.5 }}>
+              Localização em falta — reintroduza o código postal para preencher automaticamente o Distrito, Concelho, Freguesia e Localidade.
+            </Alert>
+          ) : null}
         </Grid>
       )}
 

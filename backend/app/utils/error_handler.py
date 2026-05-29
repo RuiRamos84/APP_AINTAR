@@ -20,8 +20,8 @@ class APIError(Exception):
     def to_dict(self):
         result = self.payload.copy()
         result.update({
-            'erro': self.message,
-            'codigo': self.error_code
+            'error': self.message,
+            'code': self.error_code
         })
         return result
 

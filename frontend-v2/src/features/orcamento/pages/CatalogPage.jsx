@@ -17,10 +17,16 @@ import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
 import { useOrcamentoStore } from '../store/orcamentoStore';
+import {
+    useOrcamentoClasses,
+    useOrcamentoSubclasses,
+    ORCAMENTO_KEYS,
+} from '../hooks/useOrcamentoQueries';
 
 const MODULE_COLOR = '#059669';
 
@@ -42,7 +48,7 @@ const ClasseDialog = ({ open, onClose, onSave, initial = null }) => {
             await onSave(designacao.trim());
             onClose();
         } catch (err) {
-            setError(err?.response?.data?.error || err?.response?.data?.erro || err.message || 'Erro ao guardar.');
+            setError(err?.response?.data?.error || err?.message || 'Erro ao guardar.');
         } finally { setLoading(false); }
     };
 
@@ -105,7 +111,7 @@ const SubclasseDialog = ({ open, onClose, onSave, classes, initial = null }) => 
             });
             onClose();
         } catch (err) {
-            setError(err?.response?.data?.error || err?.response?.data?.erro || err.message || 'Erro ao guardar.');
+            setError(err?.response?.data?.error || err?.message || 'Erro ao guardar.');
         } finally { setLoading(false); }
     };
 
@@ -249,11 +255,11 @@ const CatalogPage = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const navigate = useNavigate();
 
-    const {
-        classes, subclasses,
-        fetchClasses, fetchSubclasses,
-        addClasse, addSubclasse, updateClasse, updateSubclasse,
-    } = useOrcamentoStore();
+    const { addClasse, addSubclasse, updateClasse, updateSubclasse } = useOrcamentoStore();
+    const qc = useQueryClient();
+
+    const { data: classes    = [] } = useOrcamentoClasses();
+    const { data: subclasses = [] } = useOrcamentoSubclasses();
 
     const [classeSelPk, setClasseSelPk]   = useState(null);
     const [mobilePanel, setMobilePanel]   = useState('classes');
@@ -261,11 +267,6 @@ const CatalogPage = () => {
     const [classeDialog, setClasseDialog]         = useState({ open: false, target: null });
     const [subclasseDialog, setSubclasseDialog]   = useState({ open: false, target: null });
     const [searchClasses, setSearchClasses]       = useState('');
-
-    useEffect(() => {
-        fetchClasses();
-        fetchSubclasses();
-    }, []);
 
     useEffect(() => {
         if (classes.length > 0 && classeSelPk === null) setClasseSelPk(classes[0].pk);
@@ -293,6 +294,8 @@ const CatalogPage = () => {
         } else {
             await addClasse(designacao);
         }
+        qc.invalidateQueries({ queryKey: ORCAMENTO_KEYS.classes() });
+        qc.invalidateQueries({ queryKey: ORCAMENTO_KEYS.subclasses() });
     };
 
     const handleSaveSubclasse = async (payload) => {
@@ -301,6 +304,7 @@ const CatalogPage = () => {
         } else {
             await addSubclasse(payload);
         }
+        qc.invalidateQueries({ queryKey: ORCAMENTO_KEYS.subclasses() });
     };
 
     const classesList = (

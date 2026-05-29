@@ -35,35 +35,35 @@ export const entitySchema = z.object({
 
   // Contactos
   email: z.string().email('Email inválido').nullable().optional().or(z.literal('')),
-  phone: z.string().min(9, 'Telefone deve ter pelo menos 9 dígitos')
+  // Obrigatório — validação de formato apenas quando preenchido
+  phone: z.string()
+    .min(9, 'Contacto deve ter pelo menos 9 dígitos')
     .refine((val) => {
-      // Se tiver extamente 9 dígitos, valida prefixo PT usual
-      if (val && val.length === 9) {
-        return val.startsWith('9') || val.startsWith('2');
-      }
-      return true; // Se for internacional (>9), assume válido
+      if (val.length === 9) return val.startsWith('9') || val.startsWith('2');
+      return true;
     }, 'Número nacional (9 dígitos) deve começar por 2 ou 9'),
 
   // Morada completa
-  address: z.string().min(3, 'Morada é obrigatória'),
+  address: z.string().min(3, 'Rua é obrigatória'),
   door: z.string().nullable().optional().or(z.literal('')),
   floor: z.string().nullable().optional().or(z.literal('')),
   postal: z.string().regex(/^\d{4}-\d{3}$/, 'Código postal inválido (0000-000)'),
-  
-  // Regiões (NUTs) - Obrigatórios se morada existir, o que agora é verdade
-  nut1: z.string().min(1, 'Distrito obrigatório'), 
+
+  // Regiões (NUTs) — preenchidas automaticamente via lookup de código postal
+  nut1: z.string().min(1, 'Distrito obrigatório'),
   nut2: z.string().min(1, 'Concelho obrigatório'),
   nut3: z.string().min(1, 'Freguesia obrigatória'),
   nut4: z.string().min(1, 'Localidade obrigatória'),
 
   descr: z.string().nullable().optional().or(z.literal('')),
-}).refine((data) => {
-  // Validação cruzada: Se escolheu tipo de identificação, o valor é obrigatório
-  if (data.ident_type && !data.ident_value) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Nº de Identificação é obrigatório quando o Tipo está selecionado",
-  path: ["ident_value"]
-});
+})
+  // Tipo de identificação obrigatório se nº de identificação foi indicado
+  .refine((data) => !(data.ident_value && !data.ident_type), {
+    message: 'Tipo de Identificação é obrigatório quando o Nº está indicado',
+    path: ['ident_type'],
+  })
+  // Nº de identificação obrigatório se tipo foi selecionado
+  .refine((data) => !(data.ident_type && !data.ident_value), {
+    message: 'Nº de Identificação é obrigatório quando o Tipo está selecionado',
+    path: ['ident_value'],
+  });

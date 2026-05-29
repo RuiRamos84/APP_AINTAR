@@ -7,10 +7,10 @@
  *  - Alocar equipamento existente à instalação
  *  - Realocar equipamento (armazém / reparação)
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Button, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper, IconButton, Tooltip, Chip,
+  TableHead, TableRow, TableSortLabel, Paper, IconButton, Tooltip, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Grid, CircularProgress,
   Typography, Skeleton, Divider,
@@ -19,8 +19,10 @@ import {
   Add as AddIcon,
   SwapHoriz as ReallocarIcon,
   Build as BuildIcon,
+  TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import * as XLSX from 'xlsx';
 import notification from '@/core/services/notification';
 import * as svc from '../services/equipamentoService';
 
@@ -340,6 +342,31 @@ export default function InstalacaoEquipamentosTab({
   const [loading, setLoading] = useState(false);
   const [alocarOpen, setAlocarOpen] = useState(false);
   const [reallocarTarget, setReallocarTarget] = useState(null);
+  const [sort, setSort] = useState({ field: 'startDate', dir: 'desc' });
+
+  const toggleSort = (field) => setSort((s) => ({
+    field,
+    dir: s.field === field && s.dir === 'asc' ? 'desc' : 'asc',
+  }));
+
+  const sortedEquipamentos = useMemo(() => {
+    const { field, dir } = sort;
+    return [...equipamentos].sort((a, b) => {
+      let va = a[field] ?? '';
+      let vb = b[field] ?? '';
+      if (field === 'startDate') {
+        va = va ? new Date(va).getTime() : -1;
+        vb = vb ? new Date(vb).getTime() : -1;
+      } else if (field === 'marcaModelo') {
+        va = `${a.marca || ''} ${a.modelo || ''}`.trim();
+        vb = `${b.marca || ''} ${b.modelo || ''}`.trim();
+      }
+      const cmp = typeof va === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'pt');
+      return dir === 'asc' ? cmp : -cmp;
+    });
+  }, [equipamentos, sort]);
 
   const load = useCallback(async () => {
     if (!pk) return;
@@ -403,6 +430,21 @@ export default function InstalacaoEquipamentosTab({
     );
   }
 
+  const handleExport = () => {
+    const rows = equipamentos.map((eq) => ({
+      'Tipo':        eq.tipo        || '',
+      'Marca':       eq.marca       || '',
+      'Modelo':      eq.modelo      || '',
+      'N.º Série':   eq.serial      || '',
+      'Localização': eq.localizacao || '',
+      'Desde':       eq.startDate ? new Date(eq.startDate).toLocaleDateString('pt-PT') : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
+    XLSX.writeFile(wb, `equipamentos_${pk}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <Box>
       {/* Toolbar */}
@@ -419,17 +461,30 @@ export default function InstalacaoEquipamentosTab({
             ? 'Sem equipamentos nesta instalação'
             : `${equipamentos.length} equipamento${equipamentos.length !== 1 ? 's' : ''}`}
         </Typography>
-        {canEdit && (
-          <Button
-            size="small" variant="outlined" startIcon={<AddIcon />}
-            onClick={() => {
-              loadAll();
-              setAlocarOpen(true);
-            }}
-          >
-            Alocar Equipamento
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {equipamentos.length > 0 && (
+            <Tooltip title="Exportar Excel">
+              <Button
+                size="small" variant="outlined" color="success"
+                startIcon={<ExcelIcon />}
+                onClick={handleExport}
+              >
+                Excel
+              </Button>
+            </Tooltip>
+          )}
+          {canEdit && (
+            <Button
+              size="small" variant="outlined" startIcon={<AddIcon />}
+              onClick={() => {
+                loadAll();
+                setAlocarOpen(true);
+              }}
+            >
+              Alocar Equipamento
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {equipamentos.length === 0 ? (
@@ -451,11 +506,23 @@ export default function InstalacaoEquipamentosTab({
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>Tipo</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Marca / Modelo</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>N.º Série</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Localização</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Desde</TableCell>
+                {[
+                  { field: 'tipo', label: 'Tipo' },
+                  { field: 'marcaModelo', label: 'Marca / Modelo' },
+                  { field: 'serial', label: 'N.º Série' },
+                  { field: 'localizacao', label: 'Localização' },
+                  { field: 'startDate', label: 'Desde' },
+                ].map(({ field, label }) => (
+                  <TableCell key={field} sx={{ fontWeight: 600 }}>
+                    <TableSortLabel
+                      active={sort.field === field}
+                      direction={sort.field === field ? sort.dir : 'asc'}
+                      onClick={() => toggleSort(field)}
+                    >
+                      {label}
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
                 {canEdit && (
                   <TableCell align="right" sx={{ fontWeight: 600 }}>
                     Ações
@@ -464,7 +531,7 @@ export default function InstalacaoEquipamentosTab({
               </TableRow>
             </TableHead>
             <TableBody>
-              {equipamentos.map((eq) => (
+              {sortedEquipamentos.map((eq) => (
                 <TableRow key={eq.id} hover>
                   <TableCell>
                     <Chip

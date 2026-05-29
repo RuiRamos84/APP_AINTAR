@@ -392,6 +392,13 @@ export const Sidebar = ({
     </Menu>
   );
 
+  const drawerTransition = theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: collapsed
+      ? theme.transitions.duration.leavingScreen
+      : theme.transitions.duration.enteringScreen,
+  });
+
   return (
     <>
       <Drawer
@@ -401,22 +408,14 @@ export const Sidebar = ({
         sx={{
           width: variant === 'temporary' ? 'auto' : drawerWidth,
           flexShrink: 0,
+          ...(variant === 'permanent' && { transition: drawerTransition }),
           '& .MuiDrawer-paper': {
             width: variant === 'temporary' ? `min(${DRAWER_WIDTH_EXPANDED}px, 85vw)` : drawerWidth,
             boxSizing: 'border-box',
             ...glassStyles,
             marginTop: variant === 'permanent' ? `${navbarH}px` : 0,
             height: variant === 'permanent' ? `calc(100vh - ${navbarH}px)` : '100vh',
-            transition: [
-              theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: collapsed
-                  ? theme.transitions.duration.leavingScreen
-                  : theme.transitions.duration.enteringScreen,
-              }),
-              'margin-top 0.35s ease',
-              'height 0.35s ease',
-            ].join(', '),
+            transition: [drawerTransition, 'margin-top 0.35s ease', 'height 0.35s ease'].join(', '),
           },
         }}
       >

@@ -1,0 +1,28 @@
+export default {
+  key: 'epi', label: 'EPI', labelPlural: 'EPIs', icon: 'HardHat',
+  db: { readView: 'vbl_epi', writeView: 'tb_epi', pkField: 'pk' },
+  permissions: { view: 'operation.access', edit: 'operation.manage' },
+  fields: [
+    { key: 'pk',               label: 'ID',             type: 'id' },
+    { key: 'name',             label: 'Nome',            type: 'text',     required: true },
+    { key: 'shoe',             label: 'Sapato',          type: 'text' },
+    { key: 'boot',             label: 'Bota',            type: 'text' },
+    { key: 'tshirt',           label: 'T-Shirt',         type: 'text' },
+    { key: 'sweatshirt',       label: 'Sweatshirt',      type: 'text' },
+    { key: 'pants',            label: 'Calças',          type: 'text' },
+    { key: 'reflectivejacket', label: 'Casaco Refletor', type: 'text' },
+    { key: 'polarjacket',      label: 'Polar',           type: 'text' },
+    { key: 'gloves',           label: 'Luvas',           type: 'text' },
+    { key: 'mask',             label: 'Máscara',         type: 'text' },
+    { key: 'memo',             label: 'Observações',     type: 'textarea' },
+  ],
+  listView: { columns: ['name', 'tshirt', 'pants', 'shoe', 'boot'], defaultSort: { field: 'name', dir: 'asc' }, searchable: true },
+  formView: { sections: [
+    { title: 'Identificação', fields: ['name'],                                                                  cols: 1 },
+    { title: 'Vestuário',     fields: ['tshirt', 'sweatshirt', 'pants', 'reflectivejacket', 'polarjacket'],      cols: 3 },
+    { title: 'Calçado',       fields: ['shoe', 'boot'],                                                          cols: 2 },
+    { title: 'Proteção',      fields: ['gloves', 'mask'],                                                        cols: 2 },
+    { title: 'Notas',         fields: ['memo'],                                                                  cols: 1 },
+  ]},
+  custom: null,
+}

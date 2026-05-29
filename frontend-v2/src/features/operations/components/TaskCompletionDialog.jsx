@@ -4,12 +4,14 @@ import {
     Button, TextField, FormControlLabel, Checkbox,
     Typography, Box, CircularProgress, Alert, Stack, Divider,
     Select, MenuItem, FormControl, InputLabel,
-    useMediaQuery, useTheme, Slide, IconButton, AppBar, Toolbar, Paper
+    useMediaQuery, useTheme, Slide, IconButton, AppBar, Toolbar
 } from '@mui/material';
 import {
-    CheckCircle, Close, ArrowBack, PhotoCamera, Edit
+    CheckCircle, Close, ArrowBack, Edit
 } from '@mui/icons-material';
 import { operationService } from '../services/operationService';
+import FileUploadControl from './FileUploadControl';
+import AnnexesSection from './AnnexesSection';
 import {
     OPERATION_TYPES, getOperationTypeConfig, getModalTitle, isLaboratoryParameter
 } from '../constants/operationTypes';
@@ -33,8 +35,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const [photo, setPhoto] = useState(null);
-    const [photoPreview, setPhotoPreview] = useState(null);
+    const [annexFiles, setAnnexFiles] = useState([]);
     const [comment, setComment] = useState('');
 
     const actionType = task?.operacao_tipo || task?.tt_operacaoaccao_type || 1;
@@ -159,7 +160,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
             await onUpdate(task.pk, updateData);
             handleClose();
         } catch (err) {
-            setError(err.message || 'Erro ao corrigir tarefa');
+            setError(err?.response?.data?.error || err?.message || 'Erro ao corrigir tarefa');
         } finally {
             setSubmitting(false);
         }
@@ -291,33 +292,25 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                     return;
             }
 
-            if (photo) completionData.photo = photo;
             if (comment.trim()) completionData.valuememo = comment.trim();
 
             await onComplete(task.pk, completionData);
+
+            // Upload de anexos após conclusão (falha silenciosa — tarefa já concluída)
+            if (annexFiles.length > 0) {
+                try {
+                    await operationService.addOperationAnnexes(task.pk, annexFiles);
+                } catch (uploadErr) {
+                    console.error('[TaskCompletion] Erro ao enviar anexos:', uploadErr);
+                }
+            }
+
             handleClose();
         } catch (err) {
-            setError(err.message || MESSAGES.ERROR.COMPLETE_TASK);
+            setError(err?.response?.data?.error || err?.message || MESSAGES.ERROR.COMPLETE_TASK);
         } finally {
             setSubmitting(false);
         }
-    };
-
-    const handlePhotoChange = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            setError('A foto não pode exceder 5MB');
-            return;
-        }
-        if (!file.type.startsWith('image/')) {
-            setError('Por favor, selecione apenas ficheiros de imagem');
-            return;
-        }
-        setPhoto(file);
-        const reader = new FileReader();
-        reader.onloadend = () => setPhotoPreview(reader.result);
-        reader.readAsDataURL(file);
     };
 
     const handleClose = () => {
@@ -328,8 +321,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
         setAnalysisValues({});
         setReferenceOptions([]);
         setSelectedReference(null);
-        setPhoto(null);
-        setPhotoPreview(null);
+        setAnnexFiles([]);
         setComment('');
         setError(null);
         onClose();
@@ -577,45 +569,17 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                         />
                     </Box>
 
-                    {/* Upload de foto — apenas em modo de registo */}
-                    {!editMode && <Box>
-                        <Typography variant="subtitle2" gutterBottom color="text.secondary">
-                            Anexar Foto (Opcional)
-                        </Typography>
-
-                        {!photoPreview ? (
-                            <Button variant="outlined" component="label" startIcon={<PhotoCamera />} fullWidth={isMobile}>
-                                Selecionar Foto
-                                <input type="file" hidden accept="image/*" onChange={handlePhotoChange} capture="environment" />
-                            </Button>
-                        ) : (
-                            <Paper sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                                <Box sx={{ position: 'relative' }}>
-                                    <img
-                                        src={photoPreview} alt="Preview"
-                                        style={{ width: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 8 }}
-                                    />
-                                    <IconButton
-                                        onClick={() => { setPhoto(null); setPhotoPreview(null); }}
-                                        sx={{
-                                            position: 'absolute', top: 8, right: 8,
-                                            bgcolor: 'error.main', color: 'white',
-                                            '&:hover': { bgcolor: 'error.dark' }
-                                        }}
-                                        size="small"
-                                    >
-                                        <Close />
-                                    </IconButton>
-                                </Box>
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    {photo?.name} ({(photo?.size / 1024).toFixed(0)} KB)
-                                </Typography>
-                            </Paper>
-                        )}
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                            Formatos aceites: JPG, PNG. Tamanho máximo: 5MB
-                        </Typography>
-                    </Box>}
+                    {/* Anexos */}
+                    <Divider />
+                    {editMode ? (
+                        <AnnexesSection operacaoPk={task?.pk} />
+                    ) : (
+                        <FileUploadControl
+                            files={annexFiles}
+                            setFiles={setAnnexFiles}
+                            maxFiles={5}
+                        />
+                    )}
                 </Stack>
             </DialogContent>
 

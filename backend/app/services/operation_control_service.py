@@ -3,6 +3,7 @@ from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils.utils import db_session_manager
 from ..utils.error_handler import api_error_handler
+from ..utils.file_processing import process_uploaded_file
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -144,7 +145,11 @@ def update_operation_control(data: dict, current_user: str):
                     file_path = os.path.join(operation_folder, safe_filename)
                     file.save(file_path)
                     os.chmod(file_path, 0o644)
-                    logger.info(f"Arquivo salvo: {file_path}")
+
+                    # Comprimir imagens/PDFs server-side
+                    final_path, _, _ = process_uploaded_file(file_path, safe_filename)
+                    final_filename = os.path.basename(final_path)
+                    logger.info(f"Arquivo guardado: {final_path}")
 
                     # Registar em tb_operacao_annex (type=2 = anexo de controlo)
                     new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
@@ -164,7 +169,7 @@ def update_operation_control(data: dict, current_user: str):
                             'new_pk': new_pk,
                             'tb_operacao': pk,
                             'descr': file.filename,
-                            'filename': safe_filename,
+                            'filename': final_filename,
                         }
                     )
                     files_saved += 1
@@ -241,6 +246,104 @@ def get_annex_file_info(annex_pk: int, current_user: str):
         return {'error': 'Erro ao buscar anexo'}, 500
     except Exception as e:
         logger.error(f"Erro inesperado: {str(e)}")
+        return {'error': 'Erro interno do servidor'}, 500
+
+
+@api_error_handler
+def add_operation_annexes(operacao_pk: int, files: list, current_user: str):
+    """Adicionar anexos a uma operação existente (qualquer momento, type=1)."""
+    try:
+        base_path = current_app.config.get('FILES_DIR', '/app/files')
+        operation_folder = os.path.join(base_path, f'Operação_{operacao_pk}')
+        os.makedirs(operation_folder, exist_ok=True)
+
+        files_saved = 0
+        with db_session_manager(current_user) as session:
+            for i, file in enumerate(files[:5]):
+                if not file or not file.filename:
+                    continue
+
+                safe_filename = f"{i + 1}_{file.filename}"
+                file_path = os.path.join(operation_folder, safe_filename)
+                file.save(file_path)
+                os.chmod(file_path, 0o644)
+
+                # Comprimir imagens/PDFs server-side
+                final_path, _, _ = process_uploaded_file(file_path, safe_filename)
+                final_filename = os.path.basename(final_path)
+                logger.info(f"Anexo guardado: {final_path}")
+
+                new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+                session.execute(
+                    text("""
+                        SELECT fbf_operacao_annex(
+                            0,
+                            CAST(:new_pk AS integer),
+                            CAST(:tb_operacao AS integer),
+                            1,
+                            CAST(current_timestamp AS timestamp),
+                            CAST(:descr AS text),
+                            CAST(:filename AS text)
+                        )
+                    """),
+                    {
+                        'new_pk': new_pk,
+                        'tb_operacao': operacao_pk,
+                        'descr': file.filename,
+                        'filename': final_filename,
+                    }
+                )
+                files_saved += 1
+
+            session.commit()
+
+        return {'success': True, 'files_saved': files_saved}, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao guardar anexos: {str(e)}")
+        return {'error': 'Erro ao guardar anexos'}, 500
+    except Exception as e:
+        logger.error(f"Erro inesperado ao guardar anexos: {str(e)}")
+        return {'error': 'Erro interno do servidor'}, 500
+
+
+@api_error_handler
+def delete_operation_annex(annex_pk: int, current_user: str):
+    """Eliminar um anexo (ficheiro + registo DB)."""
+    try:
+        with db_session_manager(current_user) as session:
+            row = session.execute(
+                text("SELECT tb_operacao, filename FROM vbl_operacao_annex WHERE pk = :pk"),
+                {'pk': annex_pk}
+            ).fetchone()
+
+            if not row:
+                return {'error': 'Anexo não encontrado'}, 404
+
+            tb_operacao, filename = row
+            base_path = current_app.config.get('FILES_DIR', '/app/files')
+            file_path = os.path.join(base_path, f'Operação_{tb_operacao}', filename)
+
+            # Eliminar ficheiro do disco
+            if os.path.exists(file_path):
+                if os.path.abspath(file_path).startswith(os.path.abspath(base_path)):
+                    os.remove(file_path)
+                    logger.info(f"Ficheiro eliminado: {file_path}")
+
+            # Eliminar registo
+            session.execute(
+                text("DELETE FROM vbf_operacao_annex WHERE pk = :pk"),
+                {'pk': annex_pk}
+            )
+            session.commit()
+
+        return {'success': True, 'message': 'Anexo eliminado'}, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao eliminar anexo: {str(e)}")
+        return {'error': 'Erro ao eliminar anexo'}, 500
+    except Exception as e:
+        logger.error(f"Erro inesperado ao eliminar anexo: {str(e)}")
         return {'error': 'Erro interno do servidor'}, 500
 
 

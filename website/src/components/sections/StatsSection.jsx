@@ -1,10 +1,15 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useGSAP } from '@gsap/react'
 import AnimatedCounter from '../ui/AnimatedCounter'
 import ScrollReveal from '../ui/ScrollReveal'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 import WaveDivider from '../ui/WaveDivider'
 import TypewriterText from '../ui/TypewriterText'
+
+gsap.registerPlugin(ScrollTrigger)
 
 /* ─── Stats ─────────────────────────────────────────────────────── */
 const CIRCUMFERENCE = 283  // 2πr para r=45
@@ -51,6 +56,7 @@ function StatCard({ stat, inView }) {
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.7, delay: stat.delay, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-col items-center text-center px-4 py-6 group"
+      data-statcard="true"
     >
       {/* Anel SVG */}
       <div className="relative mb-5" style={{ width: SIZE, height: SIZE }}>
@@ -111,17 +117,50 @@ function StatCard({ stat, inView }) {
 
 /* ─── Secção principal ───────────────────────────────────────────── */
 export default function StatsSection() {
-  const ref    = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-80px' })
+  const sectionRef = useRef(null)
+  const bgRef      = useRef(null)
+  const gridRef    = useRef(null)
+  const inView     = useInView(sectionRef, { once: true, margin: '-80px' })
+
+  useGSAP(() => {
+    const trigger = sectionRef.current
+
+    // Background parallax — camadas de fundo movem a velocidade diferente
+    gsap.to(bgRef.current, {
+      y: '-20%',
+      ease: 'none',
+      scrollTrigger: { trigger, start: 'top bottom', end: 'bottom top', scrub: 1.2 },
+    })
+
+    // Stat cards cinematic entrance — escala + opacidade stagger ao entrar
+    gsap.from('[data-statcard]', {
+      scale: 0.7,
+      opacity: 0,
+      y: 40,
+      duration: 0.7,
+      stagger: { each: 0.1, from: 'start' },
+      ease: 'back.out(1.5)',
+      clearProps: 'all',
+      scrollTrigger: {
+        trigger: gridRef.current,
+        start: 'top 82%',
+        toggleActions: 'play none none none',
+      },
+    })
+  }, { scope: sectionRef, dependencies: [] })
 
   return (
     <section
       id="numeros"
-      ref={ref}
+      ref={sectionRef}
       className="bg-hero-gradient flex flex-col min-h-screen relative overflow-hidden"
     >
       <WaveDivider direction="up" color="#EFF6FC" />
-      <DarkBgDecorations />
+
+      {/* Parallax background */}
+      <div ref={bgRef} className="absolute inset-0 pointer-events-none">
+        <DarkBgDecorations />
+      </div>
 
       {/* Conteúdo */}
       <div className="flex-grow flex flex-col justify-center w-full relative z-10">
@@ -148,7 +187,7 @@ export default function StatsSection() {
           </ScrollReveal>
 
           {/* Cards de estatísticas */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-white/[0.07]">
+          <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-white/[0.07]">
             {stats.map((stat) => (
               <StatCard key={stat.label} stat={stat} inView={inView} />
             ))}

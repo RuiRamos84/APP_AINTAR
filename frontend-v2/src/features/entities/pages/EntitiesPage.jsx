@@ -1,62 +1,71 @@
 import React, { useState } from 'react';
-import { Box, Button, Typography, Stack, Collapse, IconButton, Tooltip } from '@mui/material';
-import { Add as AddIcon, FilterList as FilterIcon } from '@mui/icons-material';
+import {
+  Button,
+  Stack,
+  Tooltip,
+  IconButton,
+  Collapse,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import { Add as AddIcon, FilterList as FilterIcon, Business } from '@mui/icons-material';
+import ModulePage from '@/shared/components/layout/ModulePage';
 import { EntityList } from '../components/EntityList';
 import { useEntityStore } from '../store/entityStore';
 import { EntityFilters } from '../components/EntityFilters';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 
 const EntitiesPage = () => {
-  const { openCreateModal, setSearchQuery, searchQuery, clearFilters } = useEntityStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const { openCreateModal, setSearchQuery, searchQuery } = useEntityStore();
   const [showFilters, setShowFilters] = useState(false);
 
   return (
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Header & Actions */}
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" gap={2}>
-        <Typography variant="h4" fontWeight="bold">
-          Entidades
-        </Typography>
-        
-        <Stack direction="row" alignItems="center" gap={2}>
-            {/* Search Bar Legacy Style */}
-            <SearchBar 
-                searchTerm={searchQuery} 
-                onSearch={setSearchQuery} 
-            />
-            
-            {/* Toggle Filtros */}
-            <Tooltip title="Filtros Avançados">
-                <IconButton 
-                    onClick={() => setShowFilters(!showFilters)} 
-                    color={showFilters ? 'primary' : 'default'}
-                    sx={{ bgcolor: showFilters ? 'action.selected' : 'transparent' }}
-                >
-                    <FilterIcon />
-                </IconButton>
-            </Tooltip>
+    <ModulePage
+      title="Entidades"
+      subtitle="Gestão de clientes e entidades do sistema"
+      icon={Business}
+      color="#1565c0"
+      breadcrumbs={[{ label: 'Entidades' }]}
+      actions={
+        <Stack direction="row" alignItems="center" gap={{ xs: 0.5, sm: 1 }}>
+          <SearchBar searchTerm={searchQuery} onSearch={setSearchQuery} />
 
-            {/* Novo Botão */}
+          <Tooltip title={showFilters ? 'Ocultar filtros' : 'Filtros avançados'}>
+            <IconButton
+              size={isMobile ? 'small' : 'medium'}
+              onClick={() => setShowFilters(!showFilters)}
+              color={showFilters ? 'primary' : 'default'}
+              sx={{ bgcolor: showFilters ? 'action.selected' : 'transparent' }}
+            >
+              <FilterIcon fontSize={isMobile ? 'small' : 'medium'} />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title={isMobile ? 'Nova Entidade' : ''}>
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              size={isMobile ? 'small' : 'medium'}
               onClick={openCreateModal}
+              startIcon={!isMobile ? <AddIcon /> : undefined}
+              sx={{
+                minWidth: isMobile ? 32 : undefined,
+                px: isMobile ? 1 : undefined,
+              }}
             >
-              Nova Entidade
+              {isMobile ? <AddIcon fontSize="small" /> : 'Nova Entidade'}
             </Button>
+          </Tooltip>
         </Stack>
-      </Stack>
-
-      {/* Area de Filtros Expansível */}
-      <Collapse in={showFilters}>
-          <EntityFilters />
+      }
+    >
+      <Collapse in={showFilters} sx={{ mb: showFilters ? 2 : 0 }}>
+        <EntityFilters />
       </Collapse>
-
-      {/* Main Content */}
-      <Box sx={{ flexGrow: 1 }}>
-        <EntityList />
-      </Box>
-    </Box>
+      <EntityList />
+    </ModulePage>
   );
 };
 

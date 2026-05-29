@@ -118,7 +118,7 @@ export const notifyCustom = (content, options = {}) => {
  *  - Status 400/403/404/409/422 → regra de negócio → warning (laranja)
  *  - Qualquer outro / sem status  → erro técnico    → error (vermelho)
  *
- * O interceptor do AuthManager já extrai `error.response?.data?.erro`
+ * O interceptor do AuthManager já extrai `error.response?.data?.error`
  * e coloca em `error.message`, por isso basta ler `err.message`.
  */
 export const notifyApiError = (err, fallback = 'Ocorreu um erro inesperado.') => {

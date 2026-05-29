@@ -69,6 +69,7 @@ class OrcamentoCreate(BaseModel):
     ano: int = Field(ge=_ANO_MIN, le=_ANO_MAX)
     ts_orcamento_subclasse: int = Field(ge=1)
     valor: float = Field(ge=0, le=999_999_999.99)
+    name: Optional[str] = None
     memo: Optional[str] = None
 
     @field_validator('ano', mode='before')
@@ -89,9 +90,9 @@ class OrcamentoCreate(BaseModel):
         except (TypeError, ValueError):
             raise ValueError('Valor inválido.')
 
-    @field_validator('memo', mode='before')
+    @field_validator('name', 'memo', mode='before')
     @classmethod
-    def parse_memo(cls, v):
+    def parse_str_optional(cls, v):
         if v is None or (isinstance(v, str) and v.strip() == ''):
             return None
         return _clean(str(v))
@@ -99,6 +100,7 @@ class OrcamentoCreate(BaseModel):
 
 class OrcamentoUpdate(BaseModel):
     valor: float = Field(ge=0, le=999_999_999.99)
+    name: Optional[str] = None
     memo: Optional[str] = None
 
     @field_validator('valor', mode='before')
@@ -111,9 +113,9 @@ class OrcamentoUpdate(BaseModel):
         except (TypeError, ValueError):
             raise ValueError('Valor inválido.')
 
-    @field_validator('memo', mode='before')
+    @field_validator('name', 'memo', mode='before')
     @classmethod
-    def parse_memo(cls, v):
+    def parse_str_optional(cls, v):
         if v is None or (isinstance(v, str) and v.strip() == ''):
             return None
         return _clean(str(v))
@@ -249,28 +251,16 @@ def get_sncap(session, pk: str):
 def create_orcamento(data, session):
     payload = OrcamentoCreate(**data)
 
-    existente = session.execute(
-        text("""
-            SELECT pk FROM tb_orcamento
-            WHERE ano = :ano AND "tt_orcamento$subclasse" = :subclasse
-        """),
-        {'ano': payload.ano, 'subclasse': payload.ts_orcamento_subclasse}
-    ).mappings().first()
-
-    if existente:
-        return jsonify({
-            'error': 'Já existe uma dotação para esta subclasse e ano.'
-        }), 409
-
     session.execute(
         text("""
             INSERT INTO tb_orcamento
-                (ano, "tt_orcamento$subclasse", valor, memo)
-            VALUES (:ano, :subclasse, :valor, :memo)
+                (pk, ano, "tt_orcamento$subclasse", name, valor, memo)
+            VALUES (fs_nextcode(), :ano, :subclasse, :name, :valor, :memo)
         """),
         {
             'ano':       payload.ano,
             'subclasse': payload.ts_orcamento_subclasse,
+            'name':      payload.name,
             'valor':     payload.valor,
             'memo':      payload.memo,
         }
@@ -282,8 +272,13 @@ def update_orcamento(pk, data, session):
     payload = OrcamentoUpdate(**data)
 
     result = session.execute(
-        text("UPDATE tb_orcamento SET valor = :valor, memo = :memo WHERE pk = :pk"),
-        {'pk': pk, 'valor': payload.valor, 'memo': payload.memo}
+        text(
+            "UPDATE tb_orcamento"
+            " SET name = :name, valor = :valor, memo = :memo"
+            " WHERE pk = :pk"
+        ),
+        {'pk': pk, 'name': payload.name, 'valor': payload.valor,
+         'memo': payload.memo}
     )
     if result.rowcount == 0:
         return jsonify({'error': 'Registo não encontrado.'}), 404
