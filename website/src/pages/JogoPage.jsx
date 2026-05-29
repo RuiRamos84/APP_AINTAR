@@ -256,7 +256,7 @@ const casas = [
   { n: 17, t: 'MÁSCARAS NO LIXO INDIFERENCIADO',         a: 'AVANÇA 1 CASA',  bg: '#7c3aed', fg: '#fff',   dir: '▲', viagem: true },
   { n: 18, t: '',                                         a: 'AVANÇA 2 CASAS', bg: '#38bdf8', fg: '#fff',   dir: '◀', labirinto: true },
   { n: 19, t: 'MÁSCARAS NO LIXO INDIFERENCIADO',         a: 'AVANÇA 2 CASAS', bg: '#0ea5e9', fg: '#fff',   dir: '◀', labirinto: true },
-  { n: 20, t: 'SERINGAS NO ESGOTO',                      a: 'RECUA 2 CASAS',  bg: '#f59e0b', fg: '#fff',   dir: '◀', catcher: true },
+  { n: 20, t: 'O QUE NÃO VAI PARA A SANITA?',             a: 'RECUA 2 CASAS',  bg: '#f59e0b', fg: '#fff',   dir: '◀', catcher: true },
   { n: 21, t: 'PEQUENAS AÇÕES, GRANDES MUDANÇAS!',       a: null,             bg: '#7c3aed', fg: '#fff',    dir: '▼' },
   { n: 22, t: 'DESCOBRE AS ETAPAS DA ETAR!',             a: 'RECUA 6 CASAS',  bg: '#0284c7', fg: '#fff',   dir: '▶', canos: true },
 ]
@@ -339,17 +339,34 @@ function shuffle(arr) {
   return a
 }
 
-function MinijogoModal({ jogador, cor, onResult }) {
-  const [items] = useState(() => shuffle(RESIDUOS).slice(0, 4))
-  const [placed, setPlaced] = useState({})   // { itemId → ecopontoId }
-  const [results, setResults] = useState({}) // { itemId → bool }
+const ETAR_PECAS = [
+  { id: 1, label: 'Gradagem',              emoji: '⚙️',  hint: 'Remove sólidos grandes' },
+  { id: 2, label: 'Desarenação',           emoji: '🏖️',  hint: 'Retira areia e partículas' },
+  { id: 3, label: 'Decantação Primária',   emoji: '🪣',  hint: 'Sedimenta sólidos suspensos' },
+  { id: 4, label: 'Tratamento Biológico',  emoji: '🦠',  hint: 'Bactérias degradam matéria orgânica' },
+  { id: 5, label: 'Decantação Secundária', emoji: '🌊',  hint: 'Separa lamas da água tratada' },
+  { id: 6, label: 'Desinfeção',            emoji: '☀️',  hint: 'Elimina microrganismos patogénicos' },
+]
+
+function MinijogoMontaEtar({ jogador, cor, onResult }) {
+  const [slots, setSlots] = useState(
+    Array.from({ length: 6 }, (_, i) => ({ pos: i + 1, pieceId: null }))
+  )
+  const [shuffledPieces] = useState(() => shuffle([...ETAR_PECAS]))
   const [selected, setSelected] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(10)
+  const [won, setWon] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(30)
   const [done, setDone] = useState(false)
 
-  const allPlaced = Object.keys(placed).length === items.length
-  const score = items.filter(item => results[item.id] === true).length
-  const passed = score === items.length
+  const placedIds = slots.map(s => s.pieceId).filter(Boolean)
+  const poolPieces = shuffledPieces.filter(p => !placedIds.includes(p.id))
+
+  useEffect(() => {
+    if (!done && slots.every(s => s.pieceId === s.pos)) {
+      setWon(true)
+      setDone(true)
+    }
+  }, [slots, done])
 
   useEffect(() => {
     if (done) return
@@ -362,168 +379,140 @@ function MinijogoModal({ jogador, cor, onResult }) {
     return () => clearInterval(id)
   }, [done])
 
-  useEffect(() => {
-    if (allPlaced && !done) setDone(true)
-  }, [allPlaced, done])
-
-  function place(ecopontoId) {
-    if (selected === null || done) return
-    const item = items.find(i => i.id === selected)
-    setPlaced(p => ({ ...p, [selected]: ecopontoId }))
-    setResults(r => ({ ...r, [selected]: item.ecoponto === ecopontoId }))
-    setSelected(null)
+  function handlePieceClick(pieceId) {
+    if (done) return
+    setSelected(prev => prev === pieceId ? null : pieceId)
   }
 
-  const timerPct = (timeLeft / 10) * 100
-  const timerColor = timeLeft > 5 ? '#22c55e' : timeLeft > 3 ? '#f59e0b' : '#ef4444'
+  function handleSlotClick(pos) {
+    if (done) return
+    const slot = slots[pos - 1]
+    if (selected === null) {
+      if (slot.pieceId !== null) {
+        setSelected(slot.pieceId)
+        setSlots(prev => prev.map(s => s.pos === pos ? { ...s, pieceId: null } : s))
+      }
+      return
+    }
+    const displaced = slot.pieceId
+    setSlots(prev => prev.map(s => s.pos === pos ? { ...s, pieceId: selected } : s))
+    setSelected(displaced)
+  }
+
+  const timerPct = (timeLeft / 30) * 100
+  const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 8 ? '#f59e0b' : '#ef4444'
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      background: 'rgba(0,0,0,0.75)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 24, padding: 28,
-        width: '100%', maxWidth: 520,
-        boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
-      }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 24, padding: 20, width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '95vh', overflowY: 'auto' }}>
         {!done ? (
           <>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 2 }}>
-                  🎮 Mini-Jogo — {jogador}
-                </div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: '#1e3a5f' }}>
-                  Separa os Resíduos!
-                </div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-                  Clica num resíduo e depois no ecoponto correto.
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 2 }}>🏭 Mini-Jogo — {jogador}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Monta a ETAR!</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Seleciona uma peça e coloca-a no slot correto (1 = entrada, 6 = saída).</div>
               </div>
-              <div style={{
-                width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
-                background: timeLeft > 5 ? '#dcfce7' : '#fee2e2',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, fontWeight: 800, color: timerColor,
-              }}>{timeLeft}s</div>
+              <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: timeLeft > 15 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
             </div>
 
-            {/* Timer bar */}
-            <div style={{ height: 6, background: '#f1f5f9', borderRadius: 99, marginBottom: 20 }}>
-              <div style={{
-                height: '100%', width: `${timerPct}%`,
-                background: timerColor, borderRadius: 99,
-                transition: 'width 1s linear, background-color 0.5s',
-              }} />
+            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99 }}>
+              <div style={{ height: '100%', borderRadius: 99, width: `${timerPct}%`, background: timerColor, transition: 'width 1s linear' }} />
             </div>
 
-            {/* Items */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
-              {items.map(item => {
-                const isPlaced = placed[item.id] !== undefined
-                const isSel = selected === item.id
-                return (
-                  <div
-                    key={item.id}
-                    draggable={!isPlaced && !done}
-                    onDragStart={() => !isPlaced && !done && setSelected(item.id)}
-                    onClick={() => {
-                      if (isPlaced || done) return
-                      setSelected(s => s === item.id ? null : item.id)
-                    }}
-                    style={{
-                      cursor: isPlaced ? 'default' : 'pointer',
-                      opacity: isPlaced ? 0.22 : 1,
-                      padding: '10px 12px', borderRadius: 14, minWidth: 80, textAlign: 'center',
-                      border: isSel ? `2.5px solid ${cor}` : '2px solid #e5e7eb',
-                      background: isSel ? `${cor}18` : '#f8fafc',
-                      transform: isSel ? 'scale(1.08)' : 'none',
-                      transition: 'all 0.15s',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <div style={{ fontSize: 28 }}>{item.emoji}</div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#374151', marginTop: 4, lineHeight: 1.2 }}>
-                      {item.nome}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Ecopontos */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-              {ECOPONTOS_MJ.map(eco => {
-                const placedHere = items.filter(i => placed[i.id] === eco.id)
-                return (
-                  <div
-                    key={eco.id}
-                    onClick={() => place(eco.id)}
-                    onDragOver={e => e.preventDefault()}
-                    onDrop={e => { e.preventDefault(); place(eco.id) }}
-                    style={{
-                      borderRadius: 14, padding: '10px 6px',
-                      background: selected !== null ? `${eco.cor}18` : '#f8fafc',
-                      border: `2px dashed ${eco.cor}`,
-                      cursor: selected !== null ? 'pointer' : 'default',
-                      textAlign: 'center', minHeight: 90,
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: eco.cor, margin: '0 auto 4px' }} />
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#1f2937' }}>{eco.nome}</div>
-                    <div style={{ fontSize: 9, color: '#6b7280', marginBottom: 6 }}>{eco.desc}</div>
-                    {placedHere.map(item => (
-                      <div key={item.id} style={{ fontSize: 17 }}>
-                        {item.emoji} {results[item.id] ? '✅' : '❌'}
-                      </div>
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        ) : (
-          /* Result screen */
-          <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ fontSize: 52, marginBottom: 10 }}>{passed ? '🎉' : '😢'}</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1e3a5f', marginBottom: 6 }}>
-              {passed ? 'Muito Bem!' : 'Quase!'}
-            </h3>
-            <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
-              {score}/{items.length} corretos
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 20, color: passed ? '#16a34a' : '#dc2626' }}>
-              {passed ? '✔ Podes ficar na casa!' : '✖ Perdes a vez nesta casa.'}
-            </p>
-            {!passed && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, textAlign: 'left', background: '#fef2f2', borderRadius: 12, padding: '12px 16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>Respostas certas:</div>
-                {items.filter(i => results[i.id] !== true).map(item => {
-                  const eco = ECOPONTOS_MJ.find(e => e.id === item.ecoponto)
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start' }}>
+              {/* Slots */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textAlign: 'center', marginBottom: 2 }}>🏭 ETAR (1→6)</div>
+                {slots.map(slot => {
+                  const piece = ETAR_PECAS.find(p => p.id === slot.pieceId)
+                  const correct = slot.pieceId === slot.pos
+                  const filled = slot.pieceId !== null
                   return (
-                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151' }}>
-                      <span>{item.emoji}</span>
-                      <span>{item.nome}</span>
-                      <span style={{ color: '#9ca3af' }}>→</span>
-                      <span style={{ fontWeight: 700, color: eco.cor }}>{eco.nome}</span>
+                    <div
+                      key={slot.pos}
+                      onClick={() => handleSlotClick(slot.pos)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '7px 10px', borderRadius: 10, cursor: 'pointer',
+                        border: `2px solid ${filled ? (correct ? '#16a34a' : '#f59e0b') : selected !== null ? `${cor}88` : '#e5e7eb'}`,
+                        background: filled ? (correct ? '#f0fdf4' : '#fffbeb') : selected !== null ? `${cor}0a` : '#f9fafb',
+                        transition: 'all 0.12s', minHeight: 44,
+                      }}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#9ca3af', minWidth: 16 }}>{slot.pos}.</span>
+                      {piece ? (
+                        <>
+                          <span style={{ fontSize: 20 }}>{piece.emoji}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#1e3a5f', flex: 1, lineHeight: 1.2 }}>{piece.label}</span>
+                          <span style={{ fontSize: 13 }}>{correct ? '✅' : '🔄'}</span>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 10, color: '#cbd5e1', fontStyle: 'italic', flex: 1 }}>
+                          {selected !== null ? 'Colocar aqui' : '—'}
+                        </span>
+                      )}
                     </div>
                   )
                 })}
               </div>
+
+              {/* Piece pool */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textAlign: 'center', marginBottom: 2 }}>🧩 Peças</div>
+                {poolPieces.length === 0 ? (
+                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', padding: '12px 0' }}>Todas colocadas!</div>
+                ) : poolPieces.map(piece => (
+                  <div
+                    key={piece.id}
+                    onClick={() => handlePieceClick(piece.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '7px 10px', borderRadius: 10, cursor: 'pointer',
+                      border: `2px solid ${selected === piece.id ? cor : '#e5e7eb'}`,
+                      background: selected === piece.id ? `${cor}15` : '#f8fafc',
+                      transform: selected === piece.id ? 'scale(1.03)' : 'none',
+                      transition: 'all 0.12s', minHeight: 44,
+                    }}
+                  >
+                    <span style={{ fontSize: 20 }}>{piece.emoji}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e3a5f', lineHeight: 1.2 }}>{piece.label}</div>
+                      <div style={{ fontSize: 9, color: '#9ca3af', lineHeight: 1.3 }}>{piece.hint}</div>
+                    </div>
+                    {selected === piece.id && <span style={{ fontSize: 12, color: cor, fontWeight: 800 }}>●</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ fontSize: 52, marginBottom: 10 }}>{won ? '🎉' : '⏰'}</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1e3a5f', marginBottom: 6 }}>
+              {won ? 'ETAR montada!' : 'Tempo esgotado!'}
+            </h3>
+            {!won && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14, textAlign: 'left', background: '#f0f9ff', borderRadius: 12, padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0284c7', marginBottom: 4 }}>Ordem correta das etapas:</div>
+                {ETAR_PECAS.map((p, i) => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', minWidth: 16 }}>{i + 1}.</span>
+                    <span>{p.emoji}</span>
+                    <span style={{ fontWeight: 600, color: '#1e3a5f' }}>{p.label}</span>
+                    <span style={{ color: '#9ca3af', fontSize: 10 }}>— {p.hint}</span>
+                  </div>
+                ))}
+              </div>
             )}
-            <button
-              onClick={() => onResult(passed)}
-              style={{
-                padding: '12px 32px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                background: passed ? '#16a34a' : '#dc2626',
-                color: '#fff', fontWeight: 700, fontSize: 14,
-              }}
-            >
-              {passed ? 'Continuar 🎉' : 'Próximo Jogador'}
+            <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 20, color: won ? '#16a34a' : '#dc2626' }}>
+              {won ? '✔ Podes ficar na casa!' : '✖ Perdes a vez nesta ronda.'}
+            </p>
+            <button onClick={() => onResult(won)} style={{
+              padding: '12px 32px', borderRadius: 14, border: 'none', cursor: 'pointer',
+              background: won ? '#16a34a' : '#dc2626', color: '#fff', fontWeight: 700, fontSize: 14,
+            }}>
+              {won ? 'Continuar 🎉' : 'Próximo Jogador'}
             </button>
           </div>
         )}
@@ -1304,235 +1293,186 @@ function MinijogoCorreida({ jogador, onResult }) {
 
 // ─── Catcher mini-game ───────────────────────────────────────────────────────
 
-function MinijogoEcoponto({ jogador, onResult }) {
-  const [ecoTarget] = useState(() => ECOPONTOS_MJ[Math.floor(Math.random() * ECOPONTOS_MJ.length)])
-  const [binX, setBinX] = useState(CATCH_W / 2 - BIN_W / 2)
-  const binXRef = useRef(CATCH_W / 2 - BIN_W / 2)
-  const [items, setItems] = useState([])
-  const itemsRef = useRef([])
-  const [lives, setLives] = useState(1)
-  const livesRef = useRef(1)
+const ITENS_SANITA = [
+  { nome: 'Papel higiénico', emoji: '🧻', destino: 'sanita' },
+  { nome: 'Papel higiénico', emoji: '🧻', destino: 'sanita' },
+  { nome: 'Papel higiénico', emoji: '🧻', destino: 'sanita' },
+  { nome: 'Toalhita húmida', emoji: '🤧', destino: 'lixo' },
+  { nome: 'Cotonete', emoji: '🪮', destino: 'lixo' },
+  { nome: 'Penso rápido', emoji: '🩹', destino: 'lixo' },
+  { nome: 'Fralda', emoji: '🍼', destino: 'lixo' },
+  { nome: 'Medicamento', emoji: '💊', destino: 'lixo' },
+  { nome: 'Seringa', emoji: '💉', destino: 'lixo' },
+  { nome: 'Saco de plástico', emoji: '🛍️', destino: 'lixo' },
+  { nome: 'Tampão higiénico', emoji: '🩸', destino: 'lixo' },
+  { nome: 'Restos de comida', emoji: '🍽️', destino: 'lixo' },
+  { nome: 'Luva descartável', emoji: '🧤', destino: 'lixo' },
+  { nome: 'Pastilha elástica', emoji: '🫧', destino: 'lixo' },
+  { nome: 'Absorvente higiénico', emoji: '🩺', destino: 'lixo' },
+]
+
+function MinijogoSanita({ jogador, onResult }) {
+  const TOTAL_LIVES = 3
+  const WIN_SCORE = 5
+  const ITEM_TIME = 4
+
+  const [items] = useState(() => {
+    const base = [...ITENS_SANITA]
+    const extra = [...ITENS_SANITA].sort(() => Math.random() - 0.5)
+    return [...base, ...extra].sort(() => Math.random() - 0.5).slice(0, 18)
+  })
+
+  const [idx, setIdx] = useState(0)
+  const [lives, setLives] = useState(TOTAL_LIVES)
+  const livesRef = useRef(TOTAL_LIVES)
   const [score, setScore] = useState(0)
   const scoreRef = useRef(0)
-  const [flash, setFlash] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(20)
-  const timeLeftRef = useRef(20)
+  const [feedback, setFeedback] = useState(null)
+  const [itemTime, setItemTime] = useState(ITEM_TIME)
+  const itemTimeRef = useRef(ITEM_TIME)
   const [done, setDone] = useState(false)
   const doneRef = useRef(false)
-  const itemIdRef = useRef(0)
-  const keysRef = useRef({ left: false, right: false })
-  const ecoId = ecoTarget.id
+  const idxRef = useRef(0)
+  const answeredRef = useRef(false)
+  const timerIdRef = useRef(null)
 
-  // Keyboard tracking
-  useEffect(() => {
-    function dn(e) {
-      if (e.key === 'ArrowLeft')  { e.preventDefault(); keysRef.current.left  = true }
-      if (e.key === 'ArrowRight') { e.preventDefault(); keysRef.current.right = true }
-    }
-    function up(e) {
-      if (e.key === 'ArrowLeft')  keysRef.current.left  = false
-      if (e.key === 'ArrowRight') keysRef.current.right = false
-    }
-    window.addEventListener('keydown', dn)
-    window.addEventListener('keyup',   up)
-    return () => { window.removeEventListener('keydown', dn); window.removeEventListener('keyup', up) }
-  }, [])
+  const currentItem = items[idx]
+  const won = done && scoreRef.current >= WIN_SCORE
 
-  // Bin movement loop (16ms for smoothness)
+  function endGame() {
+    doneRef.current = true
+    if (timerIdRef.current) clearInterval(timerIdRef.current)
+    setDone(true)
+  }
+
+  function nextItem() {
+    if (doneRef.current) return
+    if (timerIdRef.current) clearInterval(timerIdRef.current)
+    const nextIdx = idxRef.current + 1
+    if (nextIdx >= items.length) { endGame(); return }
+    idxRef.current = nextIdx
+    answeredRef.current = false
+    itemTimeRef.current = ITEM_TIME
+    setFeedback(null)
+    setItemTime(ITEM_TIME)
+    setIdx(nextIdx)
+  }
+
+  function handleAnswer(choice) {
+    if (doneRef.current || answeredRef.current) return
+    answeredRef.current = true
+    const correct = choice === currentItem.destino
+    if (correct) {
+      scoreRef.current++
+      setScore(scoreRef.current)
+      setFeedback('correct')
+      if (scoreRef.current >= WIN_SCORE) { endGame(); return }
+    } else {
+      const nl = Math.max(0, livesRef.current - 1)
+      livesRef.current = nl
+      setLives(nl)
+      setFeedback('wrong')
+      if (nl === 0) { endGame(); return }
+    }
+    setTimeout(nextItem, 900)
+  }
+
   useEffect(() => {
     if (done) return
     const id = setInterval(() => {
-      if (doneRef.current) return
-      const { left, right } = keysRef.current
-      if (!left && !right) return
-      const newX = Math.max(0, Math.min(CATCH_W - BIN_W, binXRef.current + (left ? -BIN_SPEED : BIN_SPEED)))
-      binXRef.current = newX
-      setBinX(newX)
-    }, 16)
-    return () => clearInterval(id)
-  }, [done])
-
-  // Game loop: fall + collision (40ms)
-  useEffect(() => {
-    if (done) return
-    const id = setInterval(() => {
-      if (doneRef.current) return
-      const spd = Math.min(3.5 + (20 - timeLeftRef.current) * 0.40, 11)
-      const bx = binXRef.current
-      const newItems = []
-      let livesLost = 0
-      let gained = 0
-      let flashType = null
-
-      for (const item of itemsRef.current) {
-        const ny = item.y + spd
-        const itemBottom = ny + ITEM_SZ / 2
-        const itemLeft   = item.x - ITEM_SZ / 2
-        const itemRight  = item.x + ITEM_SZ / 2
-
-        // Caught by bin
-        if (itemBottom >= BIN_Y && itemBottom <= BIN_Y + BIN_H && itemRight >= bx && itemLeft <= bx + BIN_W) {
-          if (item.ecoponto === ecoId) { gained++;    flashType = 'good' }
-          else                         { livesLost++; flashType = 'bad'  }
-          continue
-        }
-        if (ny > CATCH_H + ITEM_SZ) {
-          if (item.ecoponto === ecoId) { livesLost++; flashType = 'bad' }
-          continue
-        }
-        newItems.push({ ...item, y: ny })
-      }
-
-      itemsRef.current = newItems
-      setItems([...newItems])
-
-      if (gained > 0) {
-        scoreRef.current += gained
-        setScore(scoreRef.current)
-      }
-      if (livesLost > 0) {
-        const nl = Math.max(0, livesRef.current - livesLost)
+      if (doneRef.current || answeredRef.current) return
+      const t = itemTimeRef.current - 1
+      itemTimeRef.current = t
+      setItemTime(t)
+      if (t <= 0) {
+        answeredRef.current = true
+        const nl = Math.max(0, livesRef.current - 1)
         livesRef.current = nl
         setLives(nl)
-        if (nl === 0 && !doneRef.current) { doneRef.current = true; setDone(true) }
+        setFeedback('wrong')
+        if (nl === 0) { endGame(); return }
+        setTimeout(nextItem, 900)
       }
-      if (flashType) { setFlash(flashType); setTimeout(() => setFlash(null), 280) }
-    }, 40)
-    return () => clearInterval(id)
-  }, [done, ecoId])
-
-  // Spawn items
-  useEffect(() => {
-    if (done) return
-    const id = setInterval(() => {
-      if (doneRef.current) return
-      const r = RESIDUOS[Math.floor(Math.random() * RESIDUOS.length)]
-      const eco = ECOPONTOS_MJ.find(e => e.id === r.ecoponto)
-      const newItem = {
-        id: itemIdRef.current++,
-        x: ITEM_SZ / 2 + Math.random() * (CATCH_W - ITEM_SZ),
-        y: -ITEM_SZ / 2,
-        emoji: r.emoji,
-        ecoponto: r.ecoponto,
-        color: eco.cor,
-      }
-      itemsRef.current = [...itemsRef.current, newItem]
-      setItems([...itemsRef.current])
-    }, 800)
-    return () => clearInterval(id)
-  }, [done])
-
-  // Timer
-  useEffect(() => {
-    if (done) return
-    const id = setInterval(() => {
-      if (doneRef.current) return
-      timeLeftRef.current = Math.max(0, timeLeftRef.current - 1)
-      setTimeLeft(timeLeftRef.current)
-      if (timeLeftRef.current === 0) { doneRef.current = true; setDone(true) }
     }, 1000)
+    timerIdRef.current = id
     return () => clearInterval(id)
-  }, [done])
+  }, [done, idx])
 
-  const won = done && livesRef.current > 0
-  const timerColor = timeLeft > 10 ? '#22c55e' : timeLeft > 5 ? '#f59e0b' : '#ef4444'
-  const areaBg = flash === 'good'
-    ? 'linear-gradient(180deg,#dcfce7,#f0fdf4)'
-    : flash === 'bad'
-    ? 'linear-gradient(180deg,#fee2e2,#fef2f2)'
-    : 'linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)'
+  const cardBg = feedback === 'correct' ? '#dcfce7' : feedback === 'wrong' ? '#fee2e2' : '#fff'
+  const cardBorder = feedback === 'correct' ? '#16a34a' : feedback === 'wrong' ? '#dc2626' : '#bae6fd'
+  const panelBg = feedback === 'correct' ? '#f0fdf4' : feedback === 'wrong' ? '#fef2f2' : '#f0f9ff'
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 470, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ background: panelBg, borderRadius: 24, padding: 24, width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, transition: 'background 0.2s' }}>
         {!done ? (
           <>
-            {/* Header */}
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: ecoTarget.cor, marginBottom: 2 }}>⚡ Mini-Jogo — {jogador}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Carrega o Ecoponto!</div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-                  Apanha só os resíduos do ecoponto <span style={{ fontWeight: 800, color: ecoTarget.cor }}>{ecoTarget.nome}</span> ({ecoTarget.desc})!
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0ea5e9', marginBottom: 2 }}>🚽 Mini-Jogo — {jogador}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#1e3a5f' }}>O que NÃO vai para a sanita?</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Só o papel higiénico! Tudo o resto vai para o lixo.</div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 46, height: 46, borderRadius: '50%', background: timeLeft > 10 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280' }}>Vidas</div>
                 <div style={{ display: 'flex', gap: 2 }}>
-                  <span style={{ fontSize: 18 }}>{lives > 0 ? '❤️' : '🖤'}</span>
+                  {Array.from({ length: TOTAL_LIVES }).map((_, i) => (
+                    <span key={i} style={{ fontSize: 18 }}>{i < lives ? '❤️' : '🖤'}</span>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Timer bar */}
-            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, width: '100%' }}>
-              <div style={{ height: '100%', borderRadius: 99, width: `${(timeLeft / 20) * 100}%`, background: timerColor, transition: 'width 1s linear' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>⭐ {score} / {WIN_SCORE} certos</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: itemTime <= 1 ? '#ef4444' : '#22c55e' }}>{itemTime}s</span>
             </div>
 
-            {/* Score + target indicator */}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: `${ecoTarget.cor}15`, borderRadius: 10, padding: '4px 12px', border: `2px solid ${ecoTarget.cor}` }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: ecoTarget.cor }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: ecoTarget.cor }}>{ecoTarget.nome} — {ecoTarget.desc}</span>
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>⭐ {score}</div>
-            </div>
-
-            {/* Game area */}
-            <div style={{
-              position: 'relative', width: CATCH_W, maxWidth: '100%', height: CATCH_H,
-              background: areaBg, borderRadius: 16, overflow: 'hidden',
-              border: '3px solid #bae6fd', transition: 'background 0.15s',
-            }}>
-              {/* Falling items */}
-              {items.map(item => (
-                <div key={item.id} style={{
-                  position: 'absolute', left: item.x, top: item.y,
-                  transform: 'translate(-50%,-50%)',
-                  width: ITEM_SZ + 10, height: ITEM_SZ + 10, borderRadius: '50%',
-                  background: `${item.color}22`, border: `2.5px solid ${item.color}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: ITEM_SZ * 0.62, lineHeight: 1,
-                }}>{item.emoji}</div>
-              ))}
-
-              {/* Bin */}
+            <div style={{ height: 6, background: '#e2e8f0', borderRadius: 99, width: '100%' }}>
               <div style={{
-                position: 'absolute', left: binX, top: BIN_Y,
-                width: BIN_W, height: BIN_H,
-                background: ecoTarget.cor,
-                borderRadius: '10px 10px 4px 4px',
-                border: '3px solid rgba(0,0,0,0.18)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20,
-                boxShadow: `0 4px 14px ${ecoTarget.cor}66`,
-              }}>♻️</div>
+                height: '100%', borderRadius: 99,
+                width: `${(itemTime / ITEM_TIME) * 100}%`,
+                background: itemTime <= 1 ? '#ef4444' : '#22c55e',
+                transition: 'width 1s linear, background 0.3s',
+              }} />
             </div>
 
-            {/* Controls */}
-            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-              <button
-                onPointerDown={() => { keysRef.current.left = true }}
-                onPointerUp={() => { keysRef.current.left = false }}
-                onPointerLeave={() => { keysRef.current.left = false }}
-                style={{ ...DPAD, width: 66, height: 66, fontSize: 28 }}
-              >←</button>
-              <span style={{ fontSize: 10, color: '#9ca3af', textAlign: 'center' }}>Teclado: ← →</span>
-              <button
-                onPointerDown={() => { keysRef.current.right = true }}
-                onPointerUp={() => { keysRef.current.right = false }}
-                onPointerLeave={() => { keysRef.current.right = false }}
-                style={{ ...DPAD, width: 66, height: 66, fontSize: 28 }}
-              >→</button>
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              padding: '20px 36px', borderRadius: 20, width: '100%',
+              background: cardBg, border: `3px solid ${cardBorder}`, transition: 'all 0.25s',
+            }}>
+              <div style={{ fontSize: 68 }}>{currentItem.emoji}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f', textAlign: 'center' }}>{currentItem.nome}</div>
+              {feedback === 'correct' && <div style={{ fontSize: 13, color: '#16a34a', fontWeight: 700 }}>✔ Correto!</div>}
+              {feedback === 'wrong' && <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 700 }}>✖ {currentItem.destino === 'sanita' ? 'Vai para a sanita!' : 'Vai para o lixo!'}</div>}
             </div>
+
+            {!feedback ? (
+              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                <button onClick={() => handleAnswer('sanita')} style={{
+                  flex: 1, padding: '14px 8px', borderRadius: 16, border: '3px solid #0ea5e9',
+                  background: '#f0f9ff', cursor: 'pointer', fontWeight: 800, fontSize: 15, color: '#0369a1',
+                }}>🚽 Sanita</button>
+                <button onClick={() => handleAnswer('lixo')} style={{
+                  flex: 1, padding: '14px 8px', borderRadius: 16, border: '3px solid #6b7280',
+                  background: '#f9fafb', cursor: 'pointer', fontWeight: 800, fontSize: 15, color: '#374151',
+                }}>🗑️ Lixo</button>
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: '#6b7280', fontStyle: 'italic' }}>A seguir…</div>
+            )}
           </>
         ) : (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <div style={{ fontSize: 52, marginBottom: 10 }}>{won ? '🎉' : '💔'}</div>
             <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1e3a5f', marginBottom: 6 }}>
-              {won ? 'Ecoponto carregado!' : 'Ficaste sem vidas!'}
+              {won ? 'Muito bem!' : 'Vamos aprender mais!'}
             </h3>
-            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>Pontuação: ⭐ {scoreRef.current}</p>
+            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>Acertaste: ⭐ {scoreRef.current} / {WIN_SCORE}</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#1e3a5f', marginBottom: 4 }}>
+              💡 Só o papel higiénico vai para a sanita!
+            </p>
             <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 20, color: won ? '#16a34a' : '#dc2626' }}>
               {won ? '✔ Ficas na casa atual.' : '✖ Recuas 2 casas!'}
             </p>
@@ -1933,6 +1873,181 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
   )
 }
 
+// ─── ETAR Ordenar Processos mini-game ────────────────────────────────────────
+
+const ETAPAS_ETAR = [
+  { id: 1, label: 'Gradagem',              emoji: '⚙️',  desc: 'Grades removem sólidos grandes (panos, plásticos...)' },
+  { id: 2, label: 'Desarenação',           emoji: '🏖️',  desc: 'Areia e partículas pesadas depositam-se no fundo' },
+  { id: 3, label: 'Decantação Primária',   emoji: '🪣',  desc: 'Sólidos suspensos sedimentam e formam lamas primárias' },
+  { id: 4, label: 'Tratamento Biológico',  emoji: '🦠',  desc: 'Bactérias degradam a matéria orgânica dissolvida' },
+  { id: 5, label: 'Decantação Secundária', emoji: '🌊',  desc: 'Lamas ativadas separam-se da água tratada' },
+  { id: 6, label: 'Desinfeção',            emoji: '☀️',  desc: 'Eliminação de microrganismos patogénicos (UV ou cloro)' },
+  { id: 7, label: 'Rejeição no Rio',       emoji: '🌿',  desc: 'Água tratada e limpa regressa ao meio hídrico' },
+]
+
+function MinijogoCanosEtar({ jogador, cor, onResult }) {
+  const [order, setOrder] = useState(() => shuffle(ETAPAS_ETAR.slice(1)))
+  const [dragIdx, setDragIdx] = useState(null)
+  const [dragOverIdx, setDragOverIdx] = useState(null)
+  const [done, setDone] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(60)
+
+  useEffect(() => {
+    if (done) return
+    const id = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(id); setDone(true); return 0 }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [done])
+
+  function handleDragStart(e, idx) {
+    setDragIdx(idx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function handleDragOver(e, idx) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIdx(idx)
+    if (dragIdx === null || dragIdx === idx) return
+    setOrder(prev => {
+      const arr = [...prev]
+      const dragged = arr.splice(dragIdx, 1)[0]
+      arr.splice(idx, 0, dragged)
+      return arr
+    })
+    setDragIdx(idx)
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }
+
+  function handleDragEnd() {
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }
+
+  function handleSubmit() {
+    if (done) return
+    setSubmitted(true)
+    setDone(true)
+  }
+
+  const first = ETAPAS_ETAR[0]
+  const isCorrect = submitted && order.every((item, idx) => item.id === ETAPAS_ETAR[idx + 1].id)
+  const timerPct = (timeLeft / 60) * 100
+  const timerColor = timeLeft > 30 ? '#22c55e' : timeLeft > 15 ? '#f59e0b' : '#ef4444'
+  const won = isCorrect
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '95vh', overflowY: 'auto' }}>
+        {!done ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0284c7', marginBottom: 2 }}>🏭 Mini-Jogo — {jogador}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Ordena as Etapas da ETAR!</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>A 1ª etapa já está revelada. Arrasta as restantes pela ordem correta.</div>
+              </div>
+              <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: timeLeft > 30 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
+            </div>
+
+            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99 }}>
+              <div style={{ height: '100%', borderRadius: 99, width: `${timerPct}%`, background: timerColor, transition: 'width 1s linear, background-color 0.5s' }} />
+            </div>
+
+            {/* Etapa 1 — fixada */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, background: '#f0fdf4', border: '2px solid #16a34a' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', minWidth: 18 }}>1.</span>
+              <span style={{ fontSize: 24, lineHeight: 1 }}>{first.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e3a5f' }}>{first.label}</div>
+                <div style={{ fontSize: 10, color: '#6b7280' }}>{first.desc}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 99 }}>1ª etapa</span>
+            </div>
+
+            {/* Etapas 2–7 — arrastáveis */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {order.map((item, idx) => (
+                <div
+                  key={item.id}
+                  draggable
+                  onDragStart={e => handleDragStart(e, idx)}
+                  onDragOver={e => handleDragOver(e, idx)}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px', borderRadius: 12,
+                    background: dragOverIdx === idx ? `${cor}14` : '#f8fafc',
+                    border: dragOverIdx === idx ? `2px solid ${cor}` : '2px solid #e5e7eb',
+                    cursor: 'grab', userSelect: 'none',
+                    transition: 'border-color 0.12s, background 0.12s',
+                    opacity: dragIdx === idx ? 0.5 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', minWidth: 18 }}>{idx + 2}.</span>
+                  <span style={{ fontSize: 24, lineHeight: 1 }}>{item.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1e3a5f' }}>{item.label}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af' }}>{item.desc}</div>
+                  </div>
+                  <span style={{ fontSize: 16, color: '#d1d5db', userSelect: 'none' }}>⠿</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              style={{ padding: '12px', borderRadius: 14, border: 'none', cursor: 'pointer', background: cor, color: '#fff', fontWeight: 700, fontSize: 14 }}
+            >
+              ✅ Confirmar Ordem
+            </button>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ fontSize: 52, marginBottom: 10 }}>{!submitted ? '⏰' : won ? '🎉' : '❌'}</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1e3a5f', marginBottom: 6 }}>
+              {!submitted ? 'Tempo esgotado!' : won ? 'Ordem correta!' : 'Ordem errada!'}
+            </h3>
+            {!won && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16, textAlign: 'left', background: '#f0f9ff', borderRadius: 12, padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0284c7', marginBottom: 4 }}>Ordem correta das etapas:</div>
+                {ETAPAS_ETAR.map((item, idx) => (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', minWidth: 16 }}>{idx + 1}.</span>
+                    <span>{item.emoji}</span>
+                    <span style={{ fontWeight: 600, color: '#1e3a5f' }}>{item.label}</span>
+                    <span style={{ color: '#9ca3af', fontSize: 10 }}>— {item.desc}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 20, color: won ? '#16a34a' : '#dc2626' }}>
+              {won ? '✔ Ficas na casa!' : '✖ Recuas 6 casas!'}
+            </p>
+            <button onClick={() => onResult(won)} style={{
+              padding: '12px 32px', borderRadius: 14, border: 'none', cursor: 'pointer',
+              background: won ? '#16a34a' : '#dc2626', color: '#fff', fontWeight: 700, fontSize: 14,
+            }}>
+              {won ? 'Continuar 🎉' : 'Recuar 6 Casas 😢'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── 3D Player Token ──────────────────────────────────────────────────────────
 
 const TOKEN_PALETTE = [
@@ -2160,11 +2275,13 @@ function Tabuleiro({ posicoes, turnoMovendo, turnoAtual }) {
                       : c.corrida
                       ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🏃 RECUA 3 (CORRIDA)</div>
                       : c.catcher
-                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>⚡ RECUA 2 (ECOPONTO)</div>
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🚽 RECUA 2 (SANITA)</div>
                       : c.diferencas
                       ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🔍 DIFERENÇAS (RECUA {c.diferencas})</div>
                       : c.viagem
                       ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🧩 AVANÇA 1 (VIAGEM DA ÁGUA)</div>
+                      : c.canos
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🏭 RECUA 6 (ETAR)</div>
                       : <AcaoBadge a={c.a} />
                     }
                   </div>
@@ -2582,7 +2699,7 @@ function JogoAtivo({ jogadores, onRestart }) {
         </div>
       )}
       {minijogoAtivo && (
-        <MinijogoModal
+        <MinijogoMontaEtar
           jogador={jogadorAtual}
           cor={corAtual}
           onResult={handleMinijogoResult}
@@ -2609,7 +2726,7 @@ function JogoAtivo({ jogadores, onRestart }) {
         />
       )}
       {catcherAtivo && (
-        <MinijogoEcoponto
+        <MinijogoSanita
           jogador={jogadorAtual}
           onResult={handleCatcherResult}
         />
