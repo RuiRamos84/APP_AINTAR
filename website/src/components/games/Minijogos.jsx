@@ -60,27 +60,138 @@ const LIXO_AGUA = [
   { id: 10, emoji: '🪒' }, { id: 11, emoji: '🩻' }, { id: 12, emoji: '💉' },
 ]
 
-export const MAZE = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,1],
-  [1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1],
-  [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
-  [1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
-  [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
-  [1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,1,0,1],
-  [1,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-  [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1],
-  [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
-  [1,1,1,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1],
-  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
-  [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1],
-  [1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1],
-  [1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-]
 export const MAZE_START = [1, 1]
 export const MAZE_END   = [14, 16]
 export const CELL = 34
+
+const MAZE_CONFIGS = [
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1],
+      [1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,0,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,1],
+      [1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 9],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,1],
+      [1,1,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,1,0,0,0,1,0,0,0,1,1],
+      [1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 5],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+      [1,0,1,1,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1],
+      [1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
+      [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,0,1],
+      [1,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 9],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,1,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1],
+      [1,0,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 7],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,1],
+      [1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,1,1],
+      [1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 5],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,1,1],
+      [1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,0,1],
+      [1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [5, 5],
+  },
+]
 
 const CATCH_W = 420
 const CATCH_H = 300
@@ -181,7 +292,7 @@ export function MinijogoModal({ jogador, cor, onResult }) {
   const [placed, setPlaced] = useState({})
   const [results, setResults] = useState({})
   const [selected, setSelected] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(30)
+  const [timeLeft, setTimeLeft] = useState(10)
   const [done, setDone] = useState(false)
 
   const allPlaced = Object.keys(placed).length === items.length
@@ -399,42 +510,101 @@ export function MinijogoLimpeza({ jogador, cor, onResult }) {
 }
 
 export function MinijogoLabirinto({ jogador, cor, onResult }) {
-  const [pos, setPos] = useState(MAZE_START)
-  const [timeLeft, setTimeLeft] = useState(30)
-  const [done, setDone] = useState(false)
-  const [won, setWon] = useState(false)
-  const boardRef = useRef(null)
+  const [config]                = useState(() => MAZE_CONFIGS[Math.floor(Math.random() * MAZE_CONFIGS.length)])
+  const MAZE                    = config.grid
+  const [pos, setPos]           = useState([...MAZE_START])
+  const posRef                  = useRef([...MAZE_START])
+  const [enemyPos, setEnemyPos] = useState(() => [...config.enemyStart])
+  const enemyPosRef             = useRef([...config.enemyStart])
+  const [timeLeft, setTimeLeft] = useState(20)
+  const [done, setDone]         = useState(false)
+  const doneRef                 = useRef(false)
+  const [won, setWon]           = useState(false)
+  const [caught, setCaught]     = useState(false)
+  const boardRef                = useRef(null)
 
   useEffect(() => { boardRef.current?.focus() }, [])
 
+  // Timer
   useEffect(() => {
     if (done) return
     const id = setInterval(() => {
-      setTimeLeft(t => { if (t <= 1) { clearInterval(id); setDone(true); return 0 } return t - 1 })
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(id); doneRef.current = true; setDone(true); return 0 }
+        return t - 1
+      })
     }, 1000)
     return () => clearInterval(id)
   }, [done])
 
+  // Win check
   useEffect(() => {
-    if (!done && pos[0] === MAZE_END[0] && pos[1] === MAZE_END[1]) { setWon(true); setDone(true) }
+    if (!done && pos[0] === MAZE_END[0] && pos[1] === MAZE_END[1]) {
+      doneRef.current = true; setWon(true); setDone(true)
+    }
   }, [pos, done])
 
+  // Reset player + enemy to starts
+  function resetAfterCatch() {
+    posRef.current = [...MAZE_START]
+    setPos([...MAZE_START])
+    enemyPosRef.current = [...config.enemyStart]
+    setEnemyPos([...config.enemyStart])
+    setCaught(true)
+    setTimeout(() => setCaught(false), 500)
+  }
+
+  // Player movement
+  function movePlayer(dr, dc) {
+    if (doneRef.current) return
+    const [r, c] = posRef.current
+    const nr = r + dr, nc = c + dc
+    if (MAZE[nr]?.[nc] !== 0) return
+    posRef.current = [nr, nc]
+    setPos([nr, nc])
+    const [er, ec] = enemyPosRef.current
+    if (nr === er && nc === ec) resetAfterCatch()
+  }
+
+  // Keyboard
   useEffect(() => {
     function onKey(e) {
-      const map = { ArrowUp: [-1,0], ArrowDown: [1,0], ArrowLeft: [0,-1], ArrowRight: [0,1], w: [-1,0], s: [1,0], a: [0,-1], d: [0,1] }
-      const d = map[e.key]
-      if (!d) return
+      const map = { ArrowUp:[-1,0], ArrowDown:[1,0], ArrowLeft:[0,-1], ArrowRight:[0,1], w:[-1,0], s:[1,0], a:[0,-1], d:[0,1] }
+      const d = map[e.key]; if (!d) return
       e.preventDefault()
-      setPos(([r, c]) => { const nr = r + d[0], nc = c + d[1]; return MAZE[nr]?.[nc] !== 0 ? [r, c] : [nr, nc] })
+      movePlayer(d[0], d[1])
     }
     if (!done) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [done])
 
-  function tryMove(dr, dc) {
+  // Enemy chases player every 550ms
+  useEffect(() => {
     if (done) return
-    setPos(([r, c]) => { const nr = r + dr, nc = c + dc; return MAZE[nr]?.[nc] !== 0 ? [r, c] : [nr, nc] })
-  }
+    const id = setInterval(() => {
+      if (doneRef.current) return
+      const [er, ec] = enemyPosRef.current
+      const [pr, pc] = posRef.current
+      const dr = pr - er, dc = pc - ec
+      const toward = []
+      if (dr !== 0) toward.push([Math.sign(dr), 0])
+      if (dc !== 0) toward.push([0, Math.sign(dc)])
+      const allDirs = [[1,0],[-1,0],[0,1],[0,-1]]
+      const other = allDirs.filter(([r,c]) => !toward.some(([tr,tc]) => tr===r && tc===c))
+      const dirs = Math.random() < 0.65 ? [...toward, ...other] : [...other, ...toward]
+      for (const [ddr, ddc] of dirs) {
+        const nr = er + ddr, nc = ec + ddc
+        if (MAZE[nr]?.[nc] === 0) {
+          enemyPosRef.current = [nr, nc]; setEnemyPos([nr, nc]); break
+        }
+      }
+      const [ner, nec] = enemyPosRef.current
+      if (ner === posRef.current[0] && nec === posRef.current[1] && !doneRef.current) {
+        resetAfterCatch()
+      }
+    }, 550)
+    return () => clearInterval(id)
+  }, [done])
 
   const timerPct = (timeLeft / 30) * 100
   const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 8 ? '#f59e0b' : '#ef4444'
@@ -448,10 +618,10 @@ export function MinijogoLabirinto({ jogador, cor, onResult }) {
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 2 }}>🌀 Mini-Jogo — {jogador}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Leva o 💩 à ETAR!</div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Usa as setas do teclado ou os botões abaixo.</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Leva o 💩 à ETAR! Foge da 🦠!</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Setas / WASD para mover. Se a bactéria te apanhar, recomeças!</div>
               </div>
-              <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: timeLeft > 15 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
+              <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: timeLeft > 12 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
             </div>
             <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, width: '100%' }}>
               <div style={{ height: '100%', borderRadius: 99, width: `${timerPct}%`, background: timerColor, transition: 'width 1s linear, background-color 0.5s' }} />
@@ -460,21 +630,22 @@ export function MinijogoLabirinto({ jogador, cor, onResult }) {
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${MAZE[0].length}, ${CELL}px)`, border: '3px solid #1e3a5f', borderRadius: 6, overflow: 'hidden' }}>
                 {MAZE.flatMap((row, r) => row.map((cell, c) => {
                   const isPlayer = pos[0] === r && pos[1] === c
-                  const isEnd = MAZE_END[0] === r && MAZE_END[1] === c
+                  const isEnemy  = enemyPos[0] === r && enemyPos[1] === c
+                  const isEnd    = MAZE_END[0] === r && MAZE_END[1] === c
                   return (
-                    <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, background: cell === 1 ? '#1e3a5f' : isEnd ? '#bfdbfe' : '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: CELL * 0.58, border: cell === 0 ? '0.5px solid #d1fae5' : 'none', boxSizing: 'border-box' }}>
-                      {isPlayer ? '💩' : isEnd ? '🏭' : null}
+                    <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, background: cell === 1 ? '#1e3a5f' : isEnemy ? '#fee2e2' : isEnd ? '#bfdbfe' : '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: CELL * 0.58, border: cell === 0 ? '0.5px solid #d1fae5' : 'none', boxSizing: 'border-box' }}>
+                      {isPlayer ? '💩' : isEnemy ? '🦠' : isEnd ? '🏭' : null}
                     </div>
                   )
                 }))}
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <button onPointerDown={() => tryMove(-1, 0)} style={DPAD}>↑</button>
+              <button onPointerDown={() => movePlayer(-1, 0)} style={DPAD}>↑</button>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onPointerDown={() => tryMove(0, -1)} style={DPAD}>←</button>
-                <button onPointerDown={() => tryMove(1,  0)} style={DPAD}>↓</button>
-                <button onPointerDown={() => tryMove(0,  1)} style={DPAD}>→</button>
+                <button onPointerDown={() => movePlayer(0, -1)} style={DPAD}>←</button>
+                <button onPointerDown={() => movePlayer(1,  0)} style={DPAD}>↓</button>
+                <button onPointerDown={() => movePlayer(0,  1)} style={DPAD}>→</button>
               </div>
             </div>
           </>
@@ -615,8 +786,8 @@ export function MinijogoEcoponto({ jogador, onResult }) {
   const [score, setScore] = useState(0)
   const scoreRef = useRef(0)
   const [flash, setFlash] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(30)
-  const timeLeftRef = useRef(30)
+  const [timeLeft, setTimeLeft] = useState(20)
+  const timeLeftRef = useRef(20)
   const [done, setDone] = useState(false)
   const doneRef = useRef(false)
   const itemIdRef = useRef(0)
@@ -652,7 +823,7 @@ export function MinijogoEcoponto({ jogador, onResult }) {
     if (done) return
     const id = setInterval(() => {
       if (doneRef.current) return
-      const spd = Math.min(2.5 + (30 - timeLeftRef.current) * 0.18, 8)
+      const spd = Math.min(3.5 + (20 - timeLeftRef.current) * 0.40, 11)
       const bx = binXRef.current
       const newItems = []; let livesLost = 0, gained = 0, flashType = null
       for (const item of itemsRef.current) {
@@ -684,7 +855,7 @@ export function MinijogoEcoponto({ jogador, onResult }) {
       const eco = ECOPONTOS_MJ.find(e => e.id === r.ecoponto)
       const newItem = { id: itemIdRef.current++, x: ITEM_SZ / 2 + Math.random() * (CATCH_W - ITEM_SZ), y: -ITEM_SZ / 2, emoji: r.emoji, ecoponto: r.ecoponto, color: eco.cor }
       itemsRef.current = [...itemsRef.current, newItem]; setItems([...itemsRef.current])
-    }, 1300)
+    }, 800)
     return () => clearInterval(id)
   }, [done])
 
@@ -699,7 +870,7 @@ export function MinijogoEcoponto({ jogador, onResult }) {
   }, [done])
 
   const won = done && livesRef.current > 0
-  const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 7 ? '#f59e0b' : '#ef4444'
+  const timerColor = timeLeft > 10 ? '#22c55e' : timeLeft > 5 ? '#f59e0b' : '#ef4444'
   const areaBg = flash === 'good' ? 'linear-gradient(180deg,#dcfce7,#f0fdf4)' : flash === 'bad' ? 'linear-gradient(180deg,#fee2e2,#fef2f2)' : 'linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)'
   useWinConfetti(done && won)
 
@@ -720,7 +891,7 @@ export function MinijogoEcoponto({ jogador, onResult }) {
               </div>
             </div>
             <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, width: '100%' }}>
-              <div style={{ height: '100%', borderRadius: 99, width: `${(timeLeft / 30) * 100}%`, background: timerColor, transition: 'width 1s linear' }} />
+              <div style={{ height: '100%', borderRadius: 99, width: `${(timeLeft / 20) * 100}%`, background: timerColor, transition: 'width 1s linear' }} />
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: `${ecoTarget.cor}15`, borderRadius: 10, padding: '4px 12px', border: `2px solid ${ecoTarget.cor}` }}>

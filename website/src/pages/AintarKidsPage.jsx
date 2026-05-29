@@ -1,4 +1,4 @@
-import { Droplets, Recycle, TreePine, Star, BookOpen, Smile, Gamepad2, Puzzle } from 'lucide-react'
+import { Droplets, Recycle, TreePine, Star, BookOpen, Smile, Gamepad2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import PageLayout from '../components/layout/PageLayout'
@@ -137,13 +137,6 @@ export default function AintarKidsPage() {
                       >
                         <Gamepad2 size={16} />
                         Jogo do Tabuleiro
-                      </Link>
-                      <Link
-                        to="/educacao-ambiental/aintar-kids/jogos"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-aintar-blue text-white text-sm font-semibold hover:bg-aintar-blue/80 hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-md"
-                      >
-                        <Puzzle size={16} />
-                        Jogos e Desafios
                       </Link>
                     </div>
                   )}
