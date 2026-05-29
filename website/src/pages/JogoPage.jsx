@@ -105,7 +105,7 @@ const casas = [
   { n: 19, t: 'MÁSCARAS NO LIXO INDIFERENCIADO',         a: 'AVANÇA 2 CASAS', bg: '#0ea5e9', fg: '#fff',   dir: '◀', labirinto: true },
   { n: 20, t: 'SERINGAS NO ESGOTO',                      a: 'RECUA 2 CASAS',  bg: '#f59e0b', fg: '#fff',   dir: '◀', catcher: true },
   { n: 21, t: 'PEQUENAS AÇÕES, GRANDES MUDANÇAS!',       a: null,             bg: '#7c3aed', fg: '#fff',    dir: '▼' },
-  { n: 22, t: 'MEDICAMENTOS NA SANITA',                  a: 'RECUA 1 CASA',   bg: '#d97706', fg: '#fff',   dir: '▶', diferencas: 1 },
+  { n: 22, t: 'DESCOBRE AS ETAPAS DA ETAR!',             a: 'RECUA 6 CASAS',  bg: '#0284c7', fg: '#fff',   dir: '▶', canos: true },
 ]
 
 // Grid positions [row, col] for each casa number
@@ -128,8 +128,8 @@ function AcaoBadge({ a }) {
   const key = Object.keys(ACAO_COR).find(k => a.includes(k))
   const { bg, fg } = ACAO_COR[key] || { bg: '#ddd', fg: '#000' }
   return (
-    <div style={{ background: bg, color: fg }}
-      className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap">
+    <div style={{ background: bg, color: fg, fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}
+      className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden">
       {a}
     </div>
   )
@@ -191,7 +191,7 @@ function MinijogoModal({ jogador, cor, onResult }) {
   const [placed, setPlaced] = useState({})   // { itemId → ecopontoId }
   const [results, setResults] = useState({}) // { itemId → bool }
   const [selected, setSelected] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(30)
+  const [timeLeft, setTimeLeft] = useState(10)
   const [done, setDone] = useState(false)
 
   const allPlaced = Object.keys(placed).length === items.length
@@ -221,8 +221,8 @@ function MinijogoModal({ jogador, cor, onResult }) {
     setSelected(null)
   }
 
-  const timerPct = (timeLeft / 30) * 100
-  const timerColor = timeLeft > 10 ? '#22c55e' : timeLeft > 5 ? '#f59e0b' : '#ef4444'
+  const timerPct = (timeLeft / 10) * 100
+  const timerColor = timeLeft > 5 ? '#22c55e' : timeLeft > 3 ? '#f59e0b' : '#ef4444'
 
   return (
     <div style={{
@@ -252,7 +252,7 @@ function MinijogoModal({ jogador, cor, onResult }) {
               </div>
               <div style={{
                 width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
-                background: timeLeft > 10 ? '#dcfce7' : '#fee2e2',
+                background: timeLeft > 5 ? '#dcfce7' : '#fee2e2',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 14, fontWeight: 800, color: timerColor,
               }}>{timeLeft}s</div>
@@ -576,27 +576,138 @@ function MinijogoLimpeza({ jogador, cor, onResult }) {
 
 // ─── Maze mini-game ───────────────────────────────────────────────────────────
 
-const MAZE = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,1],
-  [1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1],
-  [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
-  [1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
-  [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
-  [1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,1,0,1],
-  [1,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-  [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1],
-  [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
-  [1,1,1,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1],
-  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
-  [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1],
-  [1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1],
-  [1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-]
 const MAZE_START = [1, 1]
 const MAZE_END   = [14, 16]
 const CELL = 34
+
+const MAZE_CONFIGS = [
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1],
+      [1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,0,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,1],
+      [1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 9],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,1],
+      [1,1,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,1,0,0,0,1,0,0,0,1,1],
+      [1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 5],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+      [1,0,1,1,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1],
+      [1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
+      [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,0,1],
+      [1,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 9],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,1,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1],
+      [1,0,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 7],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,1],
+      [1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,1,1],
+      [1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [7, 5],
+  },
+  {
+    grid: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1],
+      [1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,1,1],
+      [1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,0,1],
+      [1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,1],
+      [1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+      [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1],
+      [1,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,1],
+      [1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    enemyStart: [5, 5],
+  },
+]
 
 // ─── Catcher constants ───────────────────────────────────────────────────────
 const CATCH_W = 420
@@ -625,32 +736,82 @@ const DPAD = {
 }
 
 function MinijogoLabirinto({ jogador, cor, onResult }) {
-  const [pos, setPos] = useState(MAZE_START)
-  const [timeLeft, setTimeLeft] = useState(30)
-  const [done, setDone] = useState(false)
-  const [won, setWon] = useState(false)
-  const boardRef = useRef(null)
+  const [config]                = useState(() => MAZE_CONFIGS[Math.floor(Math.random() * MAZE_CONFIGS.length)])
+  const MAZE                    = config.grid
+  const [pos, setPos]           = useState([...MAZE_START])
+  const posRef                  = useRef([...MAZE_START])
+  const [enemyPos, setEnemyPos] = useState(() => [...config.enemyStart])
+  const enemyPosRef             = useRef([...config.enemyStart])
+  const [timeLeft, setTimeLeft] = useState(20)
+  const [done, setDone]         = useState(false)
+  const [won, setWon]           = useState(false)
+  const [caught, setCaught]     = useState(false)
+  const doneRef                 = useRef(false)
+  const boardRef                = useRef(null)
 
   useEffect(() => { boardRef.current?.focus() }, [])
 
+  function resetAfterCatch() {
+    posRef.current = [...MAZE_START]
+    enemyPosRef.current = [...config.enemyStart]
+    setPos([...MAZE_START])
+    setEnemyPos([...config.enemyStart])
+    setCaught(false)
+  }
+
+  // Timer
   useEffect(() => {
     if (done) return
     const id = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(id); setDone(true); return 0 }
+        if (t <= 1) { clearInterval(id); if (!doneRef.current) { doneRef.current = true; setDone(true) } return 0 }
         return t - 1
       })
     }, 1000)
     return () => clearInterval(id)
   }, [done])
 
+  // Check win
   useEffect(() => {
     if (!done && pos[0] === MAZE_END[0] && pos[1] === MAZE_END[1]) {
+      doneRef.current = true
       setWon(true)
       setDone(true)
     }
   }, [pos, done])
 
+  // Enemy AI
+  useEffect(() => {
+    if (done) return
+    const id = setInterval(() => {
+      if (doneRef.current) return
+      const [er, ec] = enemyPosRef.current
+      const [pr, pc] = posRef.current
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1]]
+      const passable = dirs.filter(([dr,dc]) => MAZE[er+dr]?.[ec+dc] === 0)
+      if (passable.length === 0) return
+      let chosen
+      if (Math.random() < 0.65) {
+        chosen = passable.reduce((best, [dr,dc]) => {
+          const d = Math.abs(er+dr-pr) + Math.abs(ec+dc-pc)
+          return d < best.d ? { d, move: [dr,dc] } : best
+        }, { d: Infinity, move: passable[0] }).move
+      } else {
+        chosen = passable[Math.floor(Math.random() * passable.length)]
+      }
+      const nr = er + chosen[0], nc = ec + chosen[1]
+      enemyPosRef.current = [nr, nc]
+      setEnemyPos([nr, nc])
+
+      if (nr === posRef.current[0] && nc === posRef.current[1]) {
+        setCaught(true)
+        setTimeout(() => resetAfterCatch(), 900)
+      }
+    }, 550)
+    return () => clearInterval(id)
+  }, [done])
+
+  // Keyboard
   useEffect(() => {
     function onKey(e) {
       const map = {
@@ -660,27 +821,39 @@ function MinijogoLabirinto({ jogador, cor, onResult }) {
       const d = map[e.key]
       if (!d) return
       e.preventDefault()
-      setPos(([r, c]) => {
-        const nr = r + d[0], nc = c + d[1]
-        if (MAZE[nr]?.[nc] !== 0) return [r, c]
-        return [nr, nc]
-      })
+      if (doneRef.current) return
+      const [r, c] = posRef.current
+      const nr = r + d[0], nc = c + d[1]
+      if (MAZE[nr]?.[nc] !== 0) return
+      posRef.current = [nr, nc]
+      setPos([nr, nc])
+      const [er, ec] = enemyPosRef.current
+      if (nr === er && nc === ec && !doneRef.current) {
+        setCaught(true)
+        setTimeout(() => resetAfterCatch(), 900)
+      }
     }
     if (!done) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [done])
 
   function tryMove(dr, dc) {
-    if (done) return
-    setPos(([r, c]) => {
-      const nr = r + dr, nc = c + dc
-      if (MAZE[nr]?.[nc] !== 0) return [r, c]
-      return [nr, nc]
-    })
+    if (doneRef.current) return
+    const [r, c] = posRef.current
+    const nr = r + dr, nc = c + dc
+    if (MAZE[nr]?.[nc] !== 0) return
+    posRef.current = [nr, nc]
+    setPos([nr, nc])
+    const [er, ec] = enemyPosRef.current
+    if (nr === er && nc === ec && !doneRef.current) {
+      setCaught(true)
+      setTimeout(() => resetAfterCatch(), 900)
+    }
   }
 
-  const timerPct = (timeLeft / 30) * 100
-  const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 8 ? '#f59e0b' : '#ef4444'
+  const timerPct = (timeLeft / 20) * 100
+  const timerColor = timeLeft > 12 ? '#22c55e' : timeLeft > 6 ? '#f59e0b' : '#ef4444'
+  const boardBg = caught ? '#fee2e2' : '#fff'
 
   return (
     <div style={{
@@ -689,39 +862,42 @@ function MinijogoLabirinto({ jogador, cor, onResult }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }}>
       <div style={{
-        background: '#fff', borderRadius: 24, padding: 24,
+        background: boardBg, borderRadius: 24, padding: 24,
         width: '100%', maxWidth: 700,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+        transition: 'background 0.3s',
       }}>
         {!done ? (
           <>
-            {/* Header */}
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 2 }}>🌀 Mini-Jogo — {jogador}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Leva o 💩 à ETAR!</div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Usa as setas do teclado ou os botões abaixo.</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Usa as setas do teclado ou os botões abaixo. Foge do 🦠!</div>
               </div>
               <div style={{
                 width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
-                background: timeLeft > 15 ? '#dcfce7' : '#fee2e2',
+                background: timeLeft > 12 ? '#dcfce7' : '#fee2e2',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 14, fontWeight: 800, color: timerColor,
               }}>{timeLeft}s</div>
             </div>
 
-            {/* Timer bar */}
             <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, width: '100%' }}>
               <div style={{ height: '100%', borderRadius: 99, width: `${timerPct}%`, background: timerColor, transition: 'width 1s linear, background-color 0.5s' }} />
             </div>
 
-            {/* Maze grid */}
+            {caught && (
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>💀 Apanhado! A reiniciar...</div>
+            )}
+
             <div ref={boardRef} tabIndex={0} style={{ outline: 'none', lineHeight: 0 }}>
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${MAZE[0].length}, ${CELL}px)`, border: '3px solid #1e3a5f', borderRadius: 6, overflow: 'hidden' }}>
                 {MAZE.flatMap((row, r) =>
                   row.map((cell, c) => {
                     const isPlayer = pos[0] === r && pos[1] === c
-                    const isEnd = MAZE_END[0] === r && MAZE_END[1] === c
+                    const isEnemy  = enemyPos[0] === r && enemyPos[1] === c
+                    const isEnd    = MAZE_END[0] === r && MAZE_END[1] === c
                     return (
                       <div key={`${r}-${c}`} style={{
                         width: CELL, height: CELL,
@@ -731,7 +907,7 @@ function MinijogoLabirinto({ jogador, cor, onResult }) {
                         border: cell === 0 ? '0.5px solid #d1fae5' : 'none',
                         boxSizing: 'border-box',
                       }}>
-                        {isPlayer ? '💩' : isEnd ? '🏭' : null}
+                        {isPlayer ? '💩' : isEnemy ? '🦠' : isEnd ? '🏭' : null}
                       </div>
                     )
                   })
@@ -739,7 +915,6 @@ function MinijogoLabirinto({ jogador, cor, onResult }) {
               </div>
             </div>
 
-            {/* D-pad */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <button onPointerDown={() => tryMove(-1, 0)} style={DPAD}>↑</button>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -806,7 +981,7 @@ function MinijogoCorreida({ jogador, onResult }) {
     if (done) return
     const id = setInterval(() => {
       if (doneRef.current) return
-      const spd = Math.min(5 + (30 - timeLeftRef.current) * 0.42, 14)
+      const spd = Math.min(7 + (30 - timeLeftRef.current) * 0.55, 18)
       const updated = obstaclesRef.current
         .map(o => ({ ...o, x: o.x - spd }))
         .filter(o => o.x > -60)
@@ -830,15 +1005,27 @@ function MinijogoCorreida({ jogador, onResult }) {
     if (done) return
     const id = setInterval(() => {
       if (doneRef.current) return
-      const newObs = {
+      const lane1 = Math.floor(Math.random() * RUNNER_LANES)
+      const newObs = [{
         id: obsIdRef.current++,
-        lane: Math.floor(Math.random() * RUNNER_LANES),
+        lane: lane1,
         x: RUNNER_W + 30,
         emoji: OBSTACULOS_RUNNER[Math.floor(Math.random() * OBSTACULOS_RUNNER.length)],
+      }]
+      // 40% chance de spawn duplo em faixa diferente
+      if (Math.random() < 0.40) {
+        let lane2 = Math.floor(Math.random() * RUNNER_LANES)
+        if (lane2 === lane1) lane2 = (lane2 + 1) % RUNNER_LANES
+        newObs.push({
+          id: obsIdRef.current++,
+          lane: lane2,
+          x: RUNNER_W + 30,
+          emoji: OBSTACULOS_RUNNER[Math.floor(Math.random() * OBSTACULOS_RUNNER.length)],
+        })
       }
-      obstaclesRef.current = [...obstaclesRef.current, newObs]
+      obstaclesRef.current = [...obstaclesRef.current, ...newObs]
       setObstacles([...obstaclesRef.current])
-    }, 850)
+    }, 620)
     return () => clearInterval(id)
   }, [done])
 
@@ -870,7 +1057,7 @@ function MinijogoCorreida({ jogador, onResult }) {
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 2 }}>🏃 Mini-Jogo — {jogador}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Foge até à ETAR!</div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Usa ↑↓ para desviar do lixo. Sobrevive 20 segundos!</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Usa ↑↓ para desviar do lixo. Sobrevive 30 segundos!</div>
               </div>
               <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: timeLeft > 15 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
             </div>
@@ -975,8 +1162,8 @@ function MinijogoEcoponto({ jogador, onResult }) {
   const [score, setScore] = useState(0)
   const scoreRef = useRef(0)
   const [flash, setFlash] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(30)
-  const timeLeftRef = useRef(30)
+  const [timeLeft, setTimeLeft] = useState(20)
+  const timeLeftRef = useRef(20)
   const [done, setDone] = useState(false)
   const doneRef = useRef(false)
   const itemIdRef = useRef(0)
@@ -1017,7 +1204,7 @@ function MinijogoEcoponto({ jogador, onResult }) {
     if (done) return
     const id = setInterval(() => {
       if (doneRef.current) return
-      const spd = Math.min(2.5 + (30 - timeLeftRef.current) * 0.18, 8)
+      const spd = Math.min(3.5 + (20 - timeLeftRef.current) * 0.40, 11)
       const bx = binXRef.current
       const newItems = []
       let livesLost = 0
@@ -1036,7 +1223,10 @@ function MinijogoEcoponto({ jogador, onResult }) {
           else                         { livesLost++; flashType = 'bad'  }
           continue
         }
-        if (ny > CATCH_H + ITEM_SZ) continue  // fell through
+        if (ny > CATCH_H + ITEM_SZ) {
+          if (item.ecoponto === ecoId) { livesLost++; flashType = 'bad' }
+          continue
+        }
         newItems.push({ ...item, y: ny })
       }
 
@@ -1075,7 +1265,7 @@ function MinijogoEcoponto({ jogador, onResult }) {
       }
       itemsRef.current = [...itemsRef.current, newItem]
       setItems([...itemsRef.current])
-    }, 1300)
+    }, 800)
     return () => clearInterval(id)
   }, [done])
 
@@ -1092,7 +1282,7 @@ function MinijogoEcoponto({ jogador, onResult }) {
   }, [done])
 
   const won = done && livesRef.current > 0
-  const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 7 ? '#f59e0b' : '#ef4444'
+  const timerColor = timeLeft > 10 ? '#22c55e' : timeLeft > 5 ? '#f59e0b' : '#ef4444'
   const areaBg = flash === 'good'
     ? 'linear-gradient(180deg,#dcfce7,#f0fdf4)'
     : flash === 'bad'
@@ -1114,7 +1304,7 @@ function MinijogoEcoponto({ jogador, onResult }) {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 46, height: 46, borderRadius: '50%', background: timeLeft > 15 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
+                <div style={{ width: 46, height: 46, borderRadius: '50%', background: timeLeft > 10 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
                 <div style={{ display: 'flex', gap: 2 }}>
                   <span style={{ fontSize: 18 }}>{lives > 0 ? '❤️' : '🖤'}</span>
                 </div>
@@ -1123,7 +1313,7 @@ function MinijogoEcoponto({ jogador, onResult }) {
 
             {/* Timer bar */}
             <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, width: '100%' }}>
-              <div style={{ height: '100%', borderRadius: 99, width: `${(timeLeft / 30) * 100}%`, background: timerColor, transition: 'width 1s linear' }} />
+              <div style={{ height: '100%', borderRadius: 99, width: `${(timeLeft / 20) * 100}%`, background: timerColor, transition: 'width 1s linear' }} />
             </div>
 
             {/* Score + target indicator */}
@@ -1424,7 +1614,7 @@ const CICLO_AGUA = [
 ]
 
 function MinijogoViagemAgua({ jogador, cor, onResult }) {
-  const [order, setOrder] = useState(() => shuffle(CICLO_AGUA))
+  const [order, setOrder] = useState(() => shuffle(CICLO_AGUA.slice(1)))
   const [dragIdx, setDragIdx] = useState(null)
   const [dragOverIdx, setDragOverIdx] = useState(null)
   const [done, setDone] = useState(false)
@@ -1478,7 +1668,8 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
     setDone(true)
   }
 
-  const isCorrect = submitted && order.every((item, idx) => item.id === CICLO_AGUA[idx].id)
+  const first = CICLO_AGUA[0]
+  const isCorrect = submitted && order.every((item, idx) => item.id === CICLO_AGUA[idx + 1].id)
   const timerPct = (timeLeft / 60) * 100
   const timerColor = timeLeft > 30 ? '#22c55e' : timeLeft > 15 ? '#f59e0b' : '#ef4444'
   const won = isCorrect
@@ -1492,7 +1683,7 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 2 }}>🧩 Mini-Jogo — {jogador}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: '#1e3a5f' }}>Ordena a Viagem da Água!</div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Arrasta os passos pela ordem correta do ciclo urbano da água.</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>A 1ª etapa já está revelada. Arrasta as restantes pela ordem correta.</div>
               </div>
               <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: timeLeft > 30 ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: timerColor }}>{timeLeft}s</div>
             </div>
@@ -1501,6 +1692,22 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
               <div style={{ height: '100%', borderRadius: 99, width: `${timerPct}%`, background: timerColor, transition: 'width 1s linear, background-color 0.5s' }} />
             </div>
 
+            {/* Step 1 — fixed, given to the player */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px', borderRadius: 12,
+              background: '#f0fdf4', border: '2px solid #16a34a',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', minWidth: 18 }}>1.</span>
+              <span style={{ fontSize: 26, lineHeight: 1 }}>{first.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e3a5f' }}>{first.label}</div>
+                <div style={{ fontSize: 10, color: '#6b7280' }}>{first.desc}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 99 }}>1ª etapa</span>
+            </div>
+
+            {/* Steps 2–7 — draggable */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {order.map((item, idx) => (
                 <div
@@ -1520,7 +1727,7 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
                     opacity: dragIdx === idx ? 0.5 : 1,
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', minWidth: 18 }}>{idx + 1}.</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', minWidth: 18 }}>{idx + 2}.</span>
                   <span style={{ fontSize: 26, lineHeight: 1 }}>{item.emoji}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#1e3a5f' }}>{item.label}</div>
@@ -1573,6 +1780,256 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
   )
 }
 
+// ─── Mini-jogo: Canos da ETAR ─────────────────────────────────────────────────
+
+const CANOS_CELL = 48
+const CANOS_ROWS = 5
+const CANOS_COLS = 8
+
+const CANOS_GRID = [
+  [['E'],['W','E'],['W','E'],['W','S'],['S','E'],['N','S'],['N','E'],['W','S']],
+  [['N','E'],['W','S'],['N','E'],['N','S'],['N','W'],['E','W'],['N','W'],['N','S']],
+  [['N','S'],['N','E'],['W','S'],['N','E'],['W','E'],['W','S'],['N','E'],['N','W']],
+  [['N','S'],['N','S'],['N','E'],['W','S'],['E','W'],['N','S'],['N','W'],['N','S']],
+  [['N','E'],['W','E'],['W','E'],['W','E'],['W','E'],['N','E'],['W','E'],['W']],
+]
+
+const CANOS_PATH = [
+  [0,0],[0,1],[0,2],[0,3],[1,3],[2,3],[2,4],[2,5],[3,5],[4,5],[4,6],[4,7],
+]
+
+// Stages in correct order — drag to reorder
+const ETAR_STAGES = [
+  { id: 0, label: 'Entrada',     icon: '🚰', desc: 'Chegada das águas residuais' },
+  { id: 1, label: 'Gradagem',    icon: '🔩', desc: 'Remove sólidos grosseiros' },
+  { id: 2, label: 'Desarenação', icon: '⚙️', desc: 'Remove areia' },
+  { id: 3, label: 'Decantação',  icon: '🧪', desc: 'Separa sólidos em suspensão' },
+  { id: 4, label: 'Trat. Bio.',  icon: '🦠', desc: 'Bactérias tratam matéria orgânica' },
+  { id: 5, label: 'Rio',         icon: '🌊', desc: 'Água devolvida ao rio' },
+]
+
+// Each milestone maps a stage (by id) to the pipe path index it fills up to
+const CANOS_MILESTONES = [
+  { stageId: 0, pathIdx: 0,  color: '#0369a1' },
+  { stageId: 1, pathIdx: 3,  color: '#7c3aed' },
+  { stageId: 2, pathIdx: 5,  color: '#b45309' },
+  { stageId: 3, pathIdx: 7,  color: '#0369a1' },
+  { stageId: 4, pathIdx: 8,  color: '#059669' },
+  { stageId: 5, pathIdx: 11, color: '#0284c7' },
+]
+
+function MinijogoCanosEtar({ jogador, cor, onResult }) {
+  const TIME_LIMIT = 20
+  const [order, setOrder] = useState(() => shuffle(ETAR_STAGES))
+  const [dragIdx, setDragIdx] = useState(null)
+  const [dragOverIdx, setDragOverIdx] = useState(null)
+  const dragFromRef = useRef(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const [done, setDone] = useState(false)
+  const [won, setWon] = useState(false)
+  const timerRef = useRef(null)
+
+  // Water fills up to the last consecutively correct stage
+  let waterIdx = 0
+  for (let i = 0; i < CANOS_MILESTONES.length; i++) {
+    if (order[i]?.id === CANOS_MILESTONES[i].stageId) {
+      waterIdx = CANOS_MILESTONES[i].pathIdx
+    } else {
+      break
+    }
+  }
+  const isWon = waterIdx === CANOS_PATH.length - 1
+
+  useEffect(() => {
+    if (isWon && !done) {
+      clearInterval(timerRef.current)
+      setTimeout(() => { setDone(true); setWon(true) }, 500)
+    }
+  }, [isWon]) // eslint-disable-line
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(timerRef.current); setDone(true); return 0 }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(timerRef.current)
+  }, [])
+
+  function handleDragStart(e, idx) {
+    dragFromRef.current = idx
+    setDragIdx(idx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function handleDragOver(e, idx) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIdx(idx)
+    if (dragFromRef.current === null || dragFromRef.current === idx) return
+    const from = dragFromRef.current
+    dragFromRef.current = idx
+    setDragIdx(idx)
+    setOrder(prev => {
+      const arr = [...prev]
+      const [dragged] = arr.splice(from, 1)
+      arr.splice(idx, 0, dragged)
+      return arr
+    })
+  }
+
+  function handleDrop(e) { e.preventDefault(); dragFromRef.current = null; setDragIdx(null); setDragOverIdx(null) }
+  function handleDragEnd() { dragFromRef.current = null; setDragIdx(null); setDragOverIdx(null) }
+
+  function hasWater(r, c) {
+    for (let i = 0; i <= waterIdx; i++) {
+      if (CANOS_PATH[i][0] === r && CANOS_PATH[i][1] === c) return true
+    }
+    return false
+  }
+
+  const timerPct = (timeLeft / TIME_LIMIT) * 100
+  const timerColor = timeLeft > 30 ? '#0284c7' : timeLeft > 10 ? '#f59e0b' : '#dc2626'
+  const S = CANOS_CELL
+  const cx = S / 2, cy = S / 2
+  const pw = 10
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12,
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, padding: '20px 24px',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
+        maxWidth: '95vw', maxHeight: '95vh', overflowY: 'auto',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#0284c7', marginBottom: 2 }}>💧 Mini-Jogo — <span style={{ color: cor }}>{jogador}</span></div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#1e3a5f' }}>Liga os Canos da ETAR!</div>
+            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+              Ordena as etapas pela sequência correta. A água avança à medida que acertares!
+            </div>
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 22, color: timerColor, flexShrink: 0 }}>{timeLeft}s</div>
+        </div>
+
+        {/* Timer bar */}
+        <div style={{ height: 5, background: '#e5e7eb', borderRadius: 3, marginBottom: 12 }}>
+          <div style={{
+            height: '100%', width: `${timerPct}%`, background: timerColor, borderRadius: 3,
+            transition: 'width 1s linear, background 0.5s',
+          }} />
+        </div>
+
+        {/* Pipe grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${CANOS_COLS}, ${S}px)`, gap: 3, marginBottom: 14 }}>
+          {Array.from({ length: CANOS_ROWS }, (_, r) =>
+            Array.from({ length: CANOS_COLS }, (_, c) => {
+              const openings = CANOS_GRID[r]?.[c] ?? []
+              const water = hasWater(r, c)
+              const pipeColor = water ? '#0284c7' : '#94a3b8'
+              const bgColor = water ? '#dbeafe' : '#f1f5f9'
+              const borderColor = water ? '#93c5fd' : '#e2e8f0'
+              return (
+                <svg key={`${r},${c}`} width={S} height={S}
+                  style={{ display: 'block', borderRadius: 5, border: `2px solid ${borderColor}`, transition: 'all 0.35s' }}
+                >
+                  <rect width={S} height={S} fill={bgColor} />
+                  {openings.includes('N') && <rect x={cx-pw/2} y={0} width={pw} height={cy+pw/2} fill={pipeColor} rx={2} />}
+                  {openings.includes('S') && <rect x={cx-pw/2} y={cy-pw/2} width={pw} height={cy+pw/2} fill={pipeColor} rx={2} />}
+                  {openings.includes('E') && <rect x={cx-pw/2} y={cy-pw/2} width={cx+pw/2} height={pw} fill={pipeColor} rx={2} />}
+                  {openings.includes('W') && <rect x={0} y={cy-pw/2} width={cx+pw/2} height={pw} fill={pipeColor} rx={2} />}
+                  {openings.length > 0 && <circle cx={cx} cy={cy} r={pw/2+2} fill={pipeColor} />}
+                </svg>
+              )
+            })
+          )}
+        </div>
+
+        {/* Ordering cards */}
+        {!done && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {order.map((stage, idx) => {
+              // Green only if this slot AND all previous are correct
+              let green = true
+              for (let i = 0; i <= idx; i++) {
+                if (order[i]?.id !== CANOS_MILESTONES[i].stageId) { green = false; break }
+              }
+              return (
+                <div
+                  key={stage.id}
+                  draggable
+                  onDragStart={e => handleDragStart(e, idx)}
+                  onDragOver={e => handleDragOver(e, idx)}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 12px', borderRadius: 10,
+                    background: green ? '#f0fdf4' : dragOverIdx === idx ? `${cor}14` : '#f8fafc',
+                    border: `2px solid ${green ? '#86efac' : dragOverIdx === idx ? cor : '#e5e7eb'}`,
+                    cursor: 'grab', userSelect: 'none',
+                    transition: 'border-color 0.15s, background 0.15s',
+                    opacity: dragIdx === idx ? 0.45 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', minWidth: 16 }}>{idx + 1}.</span>
+                  <span style={{ fontSize: 20, lineHeight: 1 }}>{stage.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1e3a5f', flex: 1 }}>{stage.label}</span>
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{stage.desc}</span>
+                  {green && <span style={{ fontSize: 13 }}>✅</span>}
+                  <span style={{ fontSize: 14, color: '#d1d5db' }}>⠿</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Result */}
+        {done && (
+          <div style={{
+            textAlign: 'center', padding: '18px 16px',
+            background: won ? '#f0fdf4' : '#fef2f2',
+            borderRadius: 12, border: `1px solid ${won ? '#86efac' : '#fca5a5'}`,
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 6 }}>{won ? '🎉' : '⏱️'}</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: won ? '#166534' : '#991b1b', marginBottom: 12 }}>
+              {won ? 'Parabéns! Continuas na casa 22.' : 'Tempo esgotado! Recuas 6 casas.'}
+            </div>
+            {!won && (
+              <div style={{ marginBottom: 14, textAlign: 'left', background: '#f0f9ff', borderRadius: 10, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0284c7', marginBottom: 6 }}>Ordem correta:</div>
+                {ETAR_STAGES.map((s, i) => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 3 }}>
+                    <span style={{ fontSize: 10, color: '#9ca3af', minWidth: 16, fontWeight: 700 }}>{i + 1}.</span>
+                    <span>{s.icon}</span>
+                    <span style={{ fontWeight: 600, color: '#1e3a5f' }}>{s.label}</span>
+                    <span style={{ color: '#9ca3af', fontSize: 10 }}>— {s.desc}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => onResult(won)}
+              style={{
+                padding: '10px 28px', borderRadius: 10, border: 'none',
+                background: won ? '#16a34a' : '#dc2626', color: '#fff',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Continuar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Poop piece with colour dot
 function Peca({ playerIdx, moving }) {
   return (
@@ -1581,20 +2038,20 @@ function Peca({ playerIdx, moving }) {
       className={`flex flex-col items-center ${moving ? 'animate-bounce' : ''}`}
       style={{ animationDuration: '0.4s' }}
     >
-      <span className="text-xl leading-none drop-shadow-sm">💩</span>
-      <div className="w-2.5 h-2.5 rounded-full mt-0.5 border border-white/60"
-        style={{ background: CORES_JOGADOR[playerIdx] }} />
+      <span style={{ fontSize: 'clamp(14px, 1.8vw, 22px)' }} className="leading-none drop-shadow-sm">💩</span>
+      <div className="rounded-full mt-0.5 border border-white/60"
+        style={{ width: 'clamp(7px, 0.9vw, 11px)', height: 'clamp(7px, 0.9vw, 11px)', background: CORES_JOGADOR[playerIdx] }} />
     </div>
   )
 }
 
 function Tabuleiro({ posicoes, jogadores, turnoMovendo }) {
   return (
-    <div className="overflow-x-auto pb-2">
+    <div style={{ width: '100%' }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(6, minmax(175px, 1fr))',
-        gap: '8px', minWidth: '1060px', maxWidth: '1500px', margin: '0 auto',
+        gridTemplateColumns: 'repeat(6, 1fr)',
+        gap: 'clamp(4px, 0.5vw, 10px)', width: '100%',
       }}>
 
         {/* Casas 1–22 */}
@@ -1602,28 +2059,30 @@ function Tabuleiro({ posicoes, jogadores, turnoMovendo }) {
           const aqui = posicoes.map((p, i) => i).filter(i => posicoes[i] === c.n)
           return (
             <div key={c.n}
-              style={{ gridRow: GRID_POS[c.n][0], gridColumn: GRID_POS[c.n][1], background: c.bg, color: c.fg }}
-              className="relative rounded-xl p-2.5 flex flex-col items-center text-center border-2 border-white/30 shadow min-h-[150px]"
+              style={{ gridRow: GRID_POS[c.n][0], gridColumn: GRID_POS[c.n][1], background: c.bg, color: c.fg, minHeight: 'clamp(100px, 16vh, 175px)' }}
+              className="relative rounded-xl p-2.5 flex flex-col items-center text-center border-2 border-white/30 shadow"
             >
               <div className="flex justify-between w-full mb-1">
-                <span className="text-[11px] font-black">{c.n}</span>
-                <span className="text-sm leading-none opacity-80">{c.minijogo ? '🎮' : c.dir}</span>
+                <span style={{ fontSize: 'clamp(8px, 0.9vw, 12px)' }} className="font-black">{c.n}</span>
+                <span style={{ fontSize: 'clamp(10px, 1.1vw, 16px)' }} className="leading-none opacity-80">{c.minijogo ? '🎮' : c.dir}</span>
               </div>
-              <div className="text-[9px] font-bold leading-tight flex-1 flex items-center justify-center px-1">
+              <div style={{ fontSize: 'clamp(7px, 0.75vw, 10px)' }} className="font-bold leading-tight flex-1 flex items-center justify-center px-1">
                 {c.t}
               </div>
               {c.labirinto
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#065f46', color: '#fff' }}>🌀 AVANÇA 2 (LABIRINTO)</div>
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#065f46', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>🌀 AVANÇA 2 (LABIRINTO)</div>
                 : c.limpeza
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#0369a1', color: '#fff' }}>🚿 JOGA OUTRA VEZ (LIMPEZA)</div>
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#0369a1', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>🚿 JOGA OUTRA VEZ (LIMPEZA)</div>
                 : c.corrida
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#991b1b', color: '#fff' }}>🏃 RECUA 3 (CORRIDA)</div>
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#991b1b', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>🏃 RECUA 3 (CORRIDA)</div>
                 : c.catcher
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#b45309', color: '#fff' }}>⚡ RECUA 2 (ECOPONTO)</div>
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#b45309', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>⚡ RECUA 2 (ECOPONTO)</div>
                 : c.diferencas
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#7e22ce', color: '#fff' }}>🔍 DIFERENÇAS (RECUA {c.diferencas})</div>
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#7e22ce', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>🔍 DIFERENÇAS (RECUA {c.diferencas})</div>
                 : c.viagem
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#7c3aed', color: '#fff' }}>🧩 AVANÇA 1 (VIAGEM DA ÁGUA)</div>
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#7c3aed', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>🧩 AVANÇA 1 (VIAGEM DA ÁGUA)</div>
+                : c.canos
+                ? <div className="rounded-full px-1.5 py-0.5 font-bold text-center leading-tight mt-1.5 overflow-hidden" style={{ background: '#0284c7', color: '#fff', fontSize: 'clamp(6px, 0.65vw, 8px)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%' }}>💧 RECUA 6 (CANOS ETAR)</div>
                 : <AcaoBadge a={c.a} />
               }
               {aqui.length > 0 && (
@@ -1638,14 +2097,16 @@ function Tabuleiro({ posicoes, jogadores, turnoMovendo }) {
         {/* Casa 23 — AINTAR centre */}
         <div style={{
           gridRow: 3, gridColumn: '3 / 5',
-          background: 'linear-gradient(135deg,#1e3a8a 0%,#0284c7 100%)', color: '#fff',
+          background: '#1d4ed8',
+          color: '#fff',
+          minHeight: 'clamp(100px, 16vh, 175px)',
         }}
-          className="relative rounded-xl p-4 flex flex-col items-center justify-center text-center border-2 border-white/30 shadow min-h-[150px]"
+          className="relative rounded-xl p-4 flex flex-col items-center justify-center text-center border-2 border-white/30 shadow"
         >
-          <span className="absolute top-2 left-3 text-[11px] font-black opacity-50">23</span>
-          <div className="text-2xl font-black tracking-widest">AINTAR</div>
-          <div className="text-[10px] font-medium opacity-75 italic">Juntos pelo Ambiente</div>
-          <div className="text-xl mt-0.5">🏆</div>
+          <span style={{ fontSize: 'clamp(8px, 0.9vw, 12px)', color: '#fff' }} className="absolute top-2 left-3 font-black opacity-50">23</span>
+          <div style={{ fontSize: 'clamp(16px, 2vw, 28px)', color: '#fff' }} className="font-black tracking-widest">AINTAR</div>
+          <div style={{ fontSize: 'clamp(8px, 0.85vw, 11px)', color: '#fff' }} className="font-medium opacity-75 italic">Juntos pelo Ambiente</div>
+          <div style={{ fontSize: 'clamp(14px, 1.8vw, 24px)' }} className="mt-0.5">🏆</div>
           {posicoes.map((p, i) => p === 23 && (
             <Peca key={i} playerIdx={i} moving={i === turnoMovendo} />
           ))}
@@ -1706,7 +2167,7 @@ function RegistoJogadores({ onStart }) {
 
 // ─── Active game ──────────────────────────────────────────────────────────────
 
-function JogoAtivo({ jogadores }) {
+function JogoAtivo({ jogadores, onRestart }) {
   const [dado, setDado] = useState(DADO_INIT)
   const [rolling, setRolling] = useState(false)
   const [dieVisible, setDieVisible] = useState(false)
@@ -1723,6 +2184,7 @@ function JogoAtivo({ jogadores }) {
   const [diferencasAtivo, setDiferencasAtivo] = useState(false)
   const [casaDiferencasRecua, setCasaDiferencasRecua] = useState(0)
   const [viagemAtivo, setViagemAtivo] = useState(false)
+  const [canosAtivo, setCanosAtivo] = useState(false)
   const [skipMsgJogador, setSkipMsgJogador] = useState(null)
   const semJogarRef = useRef(jogadores.map(() => false))
   const timersRef = useRef([])
@@ -1808,6 +2270,8 @@ function JogoAtivo({ jogadores }) {
             setDiferencasAtivo(true)
           } else if (casa?.viagem) {
             setViagemAtivo(true)
+          } else if (casa?.canos) {
+            setCanosAtivo(true)
           } else {
             setLancou(true)
           }
@@ -1924,13 +2388,22 @@ function JogoAtivo({ jogadores }) {
     }
   }
 
+  function handleCanosResult(passed) {
+    setCanosAtivo(false)
+    if (passed) {
+      setLancou(true)
+    } else {
+      recuarPeca(6, turno, posicoes[turno])
+    }
+  }
+
   return (
     <div ref={gameRef} style={isFullscreen ? {
       background: '#f1f5f9', padding: '24px', overflowY: 'auto',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh',
     } : { position: 'relative' }}>
 
-      {/* Fullscreen required overlay */}
+      {/* Fullscreen gate */}
       {!isFullscreen && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 50,
@@ -1943,7 +2416,7 @@ function JogoAtivo({ jogadores }) {
             Jogo do Tabuleiro AINTAR
           </h2>
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', maxWidth: 320, margin: 0, lineHeight: 1.6 }}>
-            Este jogo só pode ser jogado em <strong style={{ color: '#fff' }}>ecrã inteiro</strong> para uma melhor experiência.
+            Para a melhor experiência, o jogo é jogado em <strong style={{ color: '#fff' }}>ecrã inteiro</strong>.
           </p>
           <button
             onClick={() => gameRef.current?.requestFullscreen()}
@@ -1955,7 +2428,7 @@ function JogoAtivo({ jogadores }) {
             }}
           >
             <Maximize2 size={20} />
-            Entrar em Ecrã Inteiro
+            Voltar ao Jogo
           </button>
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
             Podes sair a qualquer momento com a tecla ESC
@@ -2038,6 +2511,13 @@ function JogoAtivo({ jogadores }) {
           onResult={handleViagemResult}
         />
       )}
+      {canosAtivo && (
+        <MinijogoCanosEtar
+          jogador={jogadorAtual}
+          cor={corAtual}
+          onResult={handleCanosResult}
+        />
+      )}
 
       {/* Header row: status + fullscreen button */}
       <div className="flex items-center justify-between w-full mb-4 gap-2">
@@ -2096,6 +2576,13 @@ function JogoAtivo({ jogadores }) {
             <div className="text-5xl mb-2">🏆</div>
             <h3 className="font-heading font-bold text-aintar-navy text-xl">{jogadorAtual} ganhou!</h3>
             <p className="text-gray-500 text-sm mt-1">Chegou à casa 23! Parabéns!</p>
+            <button
+              onClick={onRestart}
+              className="mt-5 px-7 py-3 rounded-2xl font-bold text-white text-sm hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+              style={{ background: '#1e3a5f' }}
+            >
+              🔄 Reiniciar Jogo
+            </button>
           </div>
         ) : !lancou ? (
           <button onClick={lancar}
@@ -2150,7 +2637,7 @@ export default function JogoPage() {
 
           {!jogadores
             ? <RegistoJogadores onStart={setJogadores} />
-            : <JogoAtivo jogadores={jogadores} />
+            : <JogoAtivo jogadores={jogadores} onRestart={() => setJogadores(null)} />
           }
 
           <div className="mt-4 text-center">
