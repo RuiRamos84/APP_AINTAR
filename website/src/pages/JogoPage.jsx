@@ -1,11 +1,15 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Minus, ChevronRight, Maximize2, Minimize2 } from 'lucide-react'
 import PageLayout from '../components/layout/PageLayout'
+import { motion, LayoutGroup } from 'framer-motion'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
+gsap.registerPlugin()
 
 // ─── 3D Die ───────────────────────────────────────────────────────────────────
 
-const SZ = 96
+const SZ = 112
 const HALF = SZ / 2
 
 const DOTS = {
@@ -64,17 +68,166 @@ function Face({ value, t }) {
   )
 }
 
-function Dado3D({ rx, ry }) {
+const BURST_COLORS = ['#fbbf24','#f97316','#ef4444','#a855f7','#3b82f6','#10b981','#ec4899','#06b6d4']
+
+function Dado3D({ rx, ry, rolling }) {
+  const prevRollingRef = useRef(false)
+  const particlesRef = useRef([])
+
+  useEffect(() => {
+    if (prevRollingRef.current && !rolling) {
+      const ps = particlesRef.current.filter(Boolean)
+      gsap.killTweensOf(ps)
+      gsap.set(ps, { x: 0, y: 0, opacity: 1, scale: 1 })
+      ps.forEach((p, i) => {
+        const angle = (i / ps.length) * Math.PI * 2
+        const dist = 52 + Math.random() * 30
+        gsap.to(p, {
+          x: Math.cos(angle) * dist,
+          y: Math.sin(angle) * dist,
+          opacity: 0,
+          scale: 0.2,
+          duration: 0.5 + Math.random() * 0.25,
+          ease: 'power2.out',
+        })
+      })
+    }
+    prevRollingRef.current = rolling
+  }, [rolling])
+
   return (
-    <div style={{ perspective: 500, width: SZ, height: SZ }}>
+    <div style={{
+      position: 'relative', width: SZ, height: SZ,
+      filter: rolling
+        ? 'drop-shadow(0 0 18px rgba(255,215,0,0.95)) drop-shadow(0 0 36px rgba(255,165,0,0.6))'
+        : 'drop-shadow(0 6px 14px rgba(0,0,0,0.55))',
+      transition: 'filter 0.4s ease',
+    }}>
+      {/* Particle burst sparks */}
+      {BURST_COLORS.map((color, i) => (
+        <div key={i} ref={el => particlesRef.current[i] = el} style={{
+          position: 'absolute', left: '50%', top: '50%',
+          width: 9, height: 9, borderRadius: '50%',
+          background: color,
+          transform: 'translate(-50%,-50%)',
+          pointerEvents: 'none', opacity: 0,
+        }} />
+      ))}
       <div style={{
-        width: SZ, height: SZ,
-        position: 'relative', transformStyle: 'preserve-3d',
-        transform: `rotateX(${rx}deg) rotateY(${ry}deg)`,
-        transition: 'transform 1.1s cubic-bezier(.23,.68,.35,1)',
+        perspective: 600, width: SZ, height: SZ,
       }}>
-        {[1,2,3,4,5,6].map((v, i) => <Face key={v} value={v} t={FACE_T[i]} />)}
+        <div style={{
+          width: SZ, height: SZ,
+          position: 'relative', transformStyle: 'preserve-3d',
+          transform: `rotateX(${rx}deg) rotateY(${ry}deg)`,
+          transition: 'transform 1.1s cubic-bezier(.23,.68,.35,1)',
+        }}>
+          {[1,2,3,4,5,6].map((v, i) => <Face key={v} value={v} t={FACE_T[i]} />)}
+        </div>
       </div>
+    </div>
+  )
+}
+
+// ─── CSS Keyframes ────────────────────────────────────────────────────────────
+
+function GameStyles() {
+  return (
+    <style>{`
+      @keyframes tokenFloat {
+        0%,100% { transform: translateY(0px)  scale(1);    }
+        50%      { transform: translateY(-7px) scale(1.03); }
+      }
+      @keyframes tokenSpin {
+        0%,100% { transform: translateY(-2px) scale(1.06) rotateZ(-4deg); }
+        25%      { transform: translateY(-6px) scale(1.11) rotateZ(0deg);  }
+        50%      { transform: translateY(-2px) scale(1.06) rotateZ(4deg);  }
+        75%      { transform: translateY(-6px) scale(1.11) rotateZ(0deg);  }
+      }
+      @keyframes tokenBounce {
+        0%   { transform: translateY(0px)   scale(1)    rotateZ(0deg);   }
+        25%  { transform: translateY(-22px) scale(1.35) rotateZ(-10deg); }
+        55%  { transform: translateY(-28px) scale(1.4)  rotateZ(8deg);  }
+        82%  { transform: translateY(-10px) scale(1.18) rotateZ(-3deg); }
+        100% { transform: translateY(0px)   scale(1)    rotateZ(0deg);  }
+      }
+      @keyframes glowPulse {
+        0%,100% { opacity: 0.5;  transform: scale(1);    }
+        50%      { opacity: 1;   transform: scale(1.38); }
+      }
+      @keyframes shimmerPurple {
+        0%,100% { filter: brightness(1) saturate(1); }
+        50%      { filter: brightness(1.18) saturate(1.25); }
+      }
+      @keyframes centerGlow {
+        0%,100% { box-shadow: 0 4px 0 rgba(0,0,0,0.3), 0 8px 24px rgba(2,132,199,0.4), inset 0 1px 0 rgba(255,255,255,0.25); }
+        50%      { box-shadow: 0 4px 0 rgba(0,0,0,0.3), 0 14px 40px rgba(14,165,233,0.75), inset 0 1px 0 rgba(255,255,255,0.38); }
+      }
+      @keyframes pieceLand {
+        0%   { opacity: 0; transform: scale(0.35) translateY(-18px); }
+        62%  { opacity: 1; transform: scale(1.18) translateY(4px);  }
+        82%  { transform: scale(0.94) translateY(-2px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @keyframes pieceLeave {
+        0%   { opacity: 1; transform: scale(1);    }
+        100% { opacity: 0; transform: scale(0.3) translateY(-12px); }
+      }
+      @keyframes trophyPulse {
+        0%,100% { transform: scale(1) rotate(0deg); }
+        50%      { transform: scale(1.3) rotate(8deg); }
+      }
+      @keyframes rollPulse {
+        0%,100% { transform: translateY(0) scale(1); }
+        50%      { transform: translateY(-4px) scale(1.04); }
+      }
+      @keyframes skipShake {
+        0%,100% { transform: translateX(0) rotate(0deg); }
+        15%      { transform: translateX(-10px) rotate(-3deg); }
+        30%      { transform: translateX(10px) rotate(3deg); }
+        50%      { transform: translateX(-7px) rotate(-2deg); }
+        70%      { transform: translateX(7px) rotate(2deg); }
+        85%      { transform: translateX(-3px); }
+      }
+      @keyframes confettiFall {
+        0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(105vh) rotate(800deg); opacity: 0; }
+      }
+      @keyframes winBounce {
+        0%,100% { transform: scale(1); }
+        50%      { transform: scale(1.04); }
+      }
+    `}</style>
+  )
+}
+
+// ─── Confetti ─────────────────────────────────────────────────────────────────
+
+const CONFETTI_COLORS = ['#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4']
+
+function Confetti() {
+  const pieces = useMemo(() =>
+    Array.from({ length: 90 }, (_, id) => ({
+      id,
+      left: Math.random() * 100,
+      delay: Math.random() * 3.5,
+      duration: 2.8 + Math.random() * 2.2,
+      size: 6 + Math.random() * 11,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      radius: Math.random() > 0.45 ? '50%' : '2px',
+    }))
+  , [])
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, pointerEvents: 'none', overflow: 'hidden' }}>
+      {pieces.map(p => (
+        <div key={p.id} style={{
+          position: 'absolute',
+          left: `${p.left}%`, top: '-24px',
+          width: p.size, height: p.size,
+          background: p.color, borderRadius: p.radius,
+          animation: `confettiFall ${p.duration}s ${p.delay}s linear infinite`,
+        }} />
+      ))}
     </div>
   )
 }
@@ -1573,84 +1726,296 @@ function MinijogoViagemAgua({ jogador, cor, onResult }) {
   )
 }
 
-// Poop piece with colour dot
-function Peca({ playerIdx, moving }) {
+// ─── 3D Player Token ──────────────────────────────────────────────────────────
+
+const TOKEN_PALETTE = [
+  { base: '#0ea5e9', light: '#e0f2fe', dark: '#0369a1', glow: 'rgba(14,165,233,0.85)' },
+  { base: '#16a34a', light: '#dcfce7', dark: '#14532d', glow: 'rgba(22,163,74,0.85)'  },
+  { base: '#dc2626', light: '#fee2e2', dark: '#991b1b', glow: 'rgba(220,38,38,0.85)'  },
+  { base: '#9333ea', light: '#f3e8ff', dark: '#581c87', glow: 'rgba(147,51,234,0.85)' },
+]
+
+// SVG viewBox 100×110 — poop built from overlapping circles + radial gradients
+
+function Peca({ playerIdx, moving, active }) {
+  const pal  = TOKEN_PALETTE[playerIdx % TOKEN_PALETTE.length]
+  const size = moving ? 64 : 46   // larger for visibility
+  const gid  = `pg${playerIdx}`
+
+  const glowFilter = moving
+    ? 'drop-shadow(0 0 14px rgba(251,191,36,0.95)) drop-shadow(0 4px 10px rgba(0,0,0,0.7))'
+    : active
+    ? `drop-shadow(0 0 8px ${pal.glow}) drop-shadow(0 3px 8px rgba(0,0,0,0.55))`
+    : 'drop-shadow(0 3px 8px rgba(0,0,0,0.6))'
+
+  const anim = moving
+    ? 'tokenBounce 0.75s cubic-bezier(0.22,0.61,0.36,1) forwards'
+    : active
+    ? 'tokenSpin 3s ease-in-out infinite'
+    : 'tokenFloat 4s ease-in-out infinite'
+
   return (
-    <div
-      key={playerIdx}
-      className={`flex flex-col items-center ${moving ? 'animate-bounce' : ''}`}
-      style={{ animationDuration: '0.4s' }}
-    >
-      <span className="text-xl leading-none drop-shadow-sm">💩</span>
-      <div className="w-2.5 h-2.5 rounded-full mt-0.5 border border-white/60"
-        style={{ background: CORES_JOGADOR[playerIdx] }} />
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      flexShrink: 0, zIndex: moving ? 22 : 1,
+    }}>
+      <div style={{ animation: anim, filter: glowFilter, transition: 'filter 0.3s' }}>
+        <svg width={size} height={Math.round(size * 1.15)}
+          viewBox="0 0 100 115"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ display: 'block', overflow: 'visible' }}
+        >
+          <defs>
+            {/* userSpaceOnUse with absolute coords — correct for radialGradient */}
+            <radialGradient id={`${gid}g`} cx="34" cy="24" r="72" fx="34" fy="24"
+              gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#cc7a28" />
+              <stop offset="32%"  stopColor="#8b4513" />
+              <stop offset="72%"  stopColor="#4c2008" />
+              <stop offset="100%" stopColor="#2a1003" />
+            </radialGradient>
+          </defs>
+
+          {/* ── BODY (overlapping circles — widest at base, spiralling up) ── */}
+          <ellipse cx="50" cy="98" rx="46" ry="16"  fill={`url(#${gid}g)`} />
+          <circle  cx="50" cy="77" r="34"            fill={`url(#${gid}g)`} />
+          <circle  cx="26" cy="56" r="23"            fill={`url(#${gid}g)`} />
+          <circle  cx="66" cy="50" r="22"            fill={`url(#${gid}g)`} />
+          <ellipse cx="57" cy="30" rx="18" ry="24"
+            transform="rotate(-12 57 30)"             fill={`url(#${gid}g)`} />
+          <circle  cx="59" cy="9"  r="12"            fill={`url(#${gid}g)`} />
+
+          {/* ── GLOSSY HIGHLIGHT (upper-left convex sheen) ── */}
+          <ellipse cx="37" cy="50" rx="15" ry="10"
+            transform="rotate(-22 37 50)"
+            fill="rgba(255,255,255,0.16)" />
+          {/* Secondary highlight on tip */}
+          <ellipse cx="54" cy="6" rx="6" ry="4"
+            fill="rgba(255,255,255,0.20)" />
+
+          {/* ── PLAYER BLUSH CHEEKS (identifies player) ── */}
+          <ellipse cx="20" cy="84" rx="10" ry="7" fill={pal.base} opacity="0.50" />
+          <ellipse cx="80" cy="84" rx="10" ry="7" fill={pal.base} opacity="0.50" />
+
+          {/* ── EYES ── */}
+          <circle cx="35"  cy="76" r="12"   fill="white" />
+          <circle cx="65"  cy="76" r="12"   fill="white" />
+          <circle cx="37"  cy="78" r="7.5"  fill="#1a0800" />
+          <circle cx="67"  cy="78" r="7.5"  fill="#1a0800" />
+          {/* Pupil shine */}
+          <circle cx="35"  cy="75" r="3"    fill="rgba(255,255,255,0.90)" />
+          <circle cx="65"  cy="75" r="3"    fill="rgba(255,255,255,0.90)" />
+
+          {/* ── SMILE WITH TEETH ── */}
+          {/* White teeth fill */}
+          <path d="M 30 90 Q 50 107 71 90" fill="white" />
+          {/* Gum / inside mouth */}
+          <path d="M 30 90 Q 50 97 71 90"  fill="#2a1003" />
+          {/* Outline */}
+          <path d="M 30 90 Q 50 107 71 90"
+            fill="none" stroke="#1a0800" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      {/* Player colour ring */}
+      <div style={{
+        width: size * 1.3, height: size * 0.22,
+        borderRadius: '50%', marginTop: -size * 0.05,
+        border: `${moving ? 2.5 : active ? 2 : 1.5}px solid ${moving ? '#fbbf24' : pal.light}`,
+        boxShadow: moving
+          ? '0 0 12px rgba(251,191,36,0.9)'
+          : `0 0 ${active ? 8 : 3}px ${pal.glow}`,
+        opacity: moving || active ? 1 : 0.65,
+        animation: active || moving ? 'glowPulse 1.2s ease-in-out infinite' : 'none',
+        pointerEvents: 'none',
+      }} />
     </div>
   )
 }
 
-function Tabuleiro({ posicoes, jogadores, turnoMovendo }) {
+function TiltCell({ children, row, col }) {
+  const ref      = useRef(null)
+  const shineRef = useRef(null)
+
+  function onMove(e) {
+    const r  = ref.current.getBoundingClientRect()
+    const px = (e.clientX - r.left) / r.width  - 0.5   // -0.5 … 0.5
+    const py = (e.clientY - r.top)  / r.height - 0.5
+    ref.current.style.transform  = `perspective(700px) rotateY(${px * 13}deg) rotateX(${py * -13}deg) scale(1.035)`
+    ref.current.style.transition = 'transform 0.06s ease-out'
+    if (shineRef.current) {
+      shineRef.current.style.opacity    = '1'
+      shineRef.current.style.background = `radial-gradient(circle at ${(px + 0.5) * 100}% ${(py + 0.5) * 100}%, rgba(255,255,255,0.22), transparent 65%)`
+    }
+  }
+
+  function onLeave() {
+    ref.current.style.transform  = 'perspective(700px) rotateY(0deg) rotateX(0deg) scale(1)'
+    ref.current.style.transition = 'transform 0.5s cubic-bezier(0.23,0.68,0.35,1)'
+    if (shineRef.current) shineRef.current.style.opacity = '0'
+  }
+
   return (
-    <div className="overflow-x-auto pb-2">
+    <div
+      ref={ref}
+      data-boardcell="true"
+      style={{ gridRow: row, gridColumn: col, position: 'relative', transformStyle: 'preserve-3d' }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
+      <div ref={shineRef} style={{
+        position: 'absolute', inset: 0, borderRadius: 12,
+        pointerEvents: 'none', zIndex: 28, opacity: 0,
+        transition: 'opacity 0.15s, background 0.1s',
+      }} />
+      {children}
+    </div>
+  )
+}
+
+function Tabuleiro({ posicoes, turnoMovendo, turnoAtual }) {
+  const gridRef = useRef(null)
+
+  useGSAP(() => {
+    gsap.from('[data-boardcell]', {
+      scale: 0.45,
+      opacity: 0,
+      y: 24,
+      rotateZ: -4,
+      duration: 0.5,
+      stagger: 0.038,
+      ease: 'back.out(1.7)',
+      clearProps: 'transform,opacity',
+    })
+  }, { scope: gridRef, dependencies: [] })
+
+  return (
+    <div ref={gridRef} style={{
+      background: 'linear-gradient(145deg,#1a472a 0%,#0d3320 50%,#133426 100%)',
+      borderRadius: 24, padding: 14, width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.55), inset 0 0 40px rgba(0,0,0,0.3)',
+    }}>
+      {/* Wooden frame */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(6, minmax(175px, 1fr))',
-        gap: '8px', minWidth: '1060px', maxWidth: '1500px', margin: '0 auto',
+        background: 'linear-gradient(145deg,#8B6914 0%,#A47C18 25%,#6B4F0F 50%,#9A7218 75%,#7A5C10 100%)',
+        borderRadius: 18, padding: 10, width: '100%',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,215,0,0.3)',
+        border: '1px solid rgba(255,200,50,0.35)',
       }}>
-
-        {/* Casas 1–22 */}
-        {casas.map(c => {
-          const aqui = posicoes.map((p, i) => i).filter(i => posicoes[i] === c.n)
-          return (
-            <div key={c.n}
-              style={{ gridRow: GRID_POS[c.n][0], gridColumn: GRID_POS[c.n][1], background: c.bg, color: c.fg }}
-              className="relative rounded-xl p-2.5 flex flex-col items-center text-center border-2 border-white/30 shadow min-h-[150px]"
-            >
-              <div className="flex justify-between w-full mb-1">
-                <span className="text-[11px] font-black">{c.n}</span>
-                <span className="text-sm leading-none opacity-80">{c.minijogo ? '🎮' : c.dir}</span>
-              </div>
-              <div className="text-[9px] font-bold leading-tight flex-1 flex items-center justify-center px-1">
-                {c.t}
-              </div>
-              {c.labirinto
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#065f46', color: '#fff' }}>🌀 AVANÇA 2 (LABIRINTO)</div>
-                : c.limpeza
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#0369a1', color: '#fff' }}>🚿 JOGA OUTRA VEZ (LIMPEZA)</div>
-                : c.corrida
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#991b1b', color: '#fff' }}>🏃 RECUA 3 (CORRIDA)</div>
-                : c.catcher
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#b45309', color: '#fff' }}>⚡ RECUA 2 (ECOPONTO)</div>
-                : c.diferencas
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#7e22ce', color: '#fff' }}>🔍 DIFERENÇAS (RECUA {c.diferencas})</div>
-                : c.viagem
-                ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: '#7c3aed', color: '#fff' }}>🧩 AVANÇA 1 (VIAGEM DA ÁGUA)</div>
-                : <AcaoBadge a={c.a} />
-              }
-              {aqui.length > 0 && (
-                <div className="flex gap-1 mt-1.5 flex-wrap justify-center">
-                  {aqui.map(i => <Peca key={i} playerIdx={i} moving={i === turnoMovendo} />)}
-                </div>
-              )}
-            </div>
-          )
-        })}
-
-        {/* Casa 23 — AINTAR centre */}
+        {/* Parchment surface */}
         <div style={{
-          gridRow: 3, gridColumn: '3 / 5',
-          background: 'linear-gradient(135deg,#1e3a8a 0%,#0284c7 100%)', color: '#fff',
-        }}
-          className="relative rounded-xl p-4 flex flex-col items-center justify-center text-center border-2 border-white/30 shadow min-h-[150px]"
-        >
-          <span className="absolute top-2 left-3 text-[11px] font-black opacity-50">23</span>
-          <div className="text-2xl font-black tracking-widest">AINTAR</div>
-          <div className="text-[10px] font-medium opacity-75 italic">Juntos pelo Ambiente</div>
-          <div className="text-xl mt-0.5">🏆</div>
-          {posicoes.map((p, i) => p === 23 && (
-            <Peca key={i} playerIdx={i} moving={i === turnoMovendo} />
-          ))}
-        </div>
+          background: 'linear-gradient(160deg,#fdf8f0 0%,#f5ead5 50%,#ede0c0 100%)',
+          borderRadius: 12, padding: 8, width: '100%',
+        }}>
+          <LayoutGroup id="board">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, 1fr)',
+            gap: '6px', width: '100%',
+          }}>
 
+            {casas.map(c => {
+              const aqui = posicoes.map((_, i) => i).filter(i => posicoes[i] === c.n)
+              const hasPlayer = aqui.length > 0
+              const isPurple = c.bg === '#7c3aed'
+              return (
+                <TiltCell key={c.n} row={GRID_POS[c.n][0]} col={GRID_POS[c.n][1]}>
+                <div style={{
+                  background: c.bg, color: c.fg, position: 'relative',
+                  boxShadow: hasPlayer
+                    ? `0 1px 0 rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 20px ${c.bg}aa`
+                    : '0 4px 0 rgba(0,0,0,0.22), 0 6px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)',
+                  transform: hasPlayer ? 'translateY(-3px)' : 'none',
+                  transition: 'transform 0.35s ease, box-shadow 0.35s ease',
+                  animation: isPurple ? 'shimmerPurple 3s ease-in-out infinite' : undefined,
+                  height: '100%',
+                }}
+                  className="rounded-xl p-2.5 flex flex-col items-center text-center border border-white/20 min-h-[120px]"
+                >
+                  {/* Sheen */}
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
+                    background: 'linear-gradient(180deg,rgba(255,255,255,0.18) 0%,transparent 100%)',
+                    borderRadius: '9px 9px 0 0', pointerEvents: 'none',
+                  }} />
+                  <div className="flex justify-between w-full mb-1" style={{ position: 'relative', zIndex: 1 }}>
+                    <span className="text-[11px] font-black opacity-75">{c.n}</span>
+                    <span className="text-sm leading-none opacity-80">{c.minijogo ? '🎮' : c.dir}</span>
+                  </div>
+                  <div className="text-[9px] font-bold leading-tight flex-1 flex items-center justify-center px-1" style={{ position: 'relative', zIndex: 1 }}>
+                    {c.t}
+                  </div>
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    {c.labirinto
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🌀 AVANÇA 2 (LABIRINTO)</div>
+                      : c.limpeza
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🚿 JOGA OUTRA VEZ (LIMPEZA)</div>
+                      : c.corrida
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🏃 RECUA 3 (CORRIDA)</div>
+                      : c.catcher
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>⚡ RECUA 2 (ECOPONTO)</div>
+                      : c.diferencas
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🔍 DIFERENÇAS (RECUA {c.diferencas})</div>
+                      : c.viagem
+                      ? <div className="rounded-full px-2 py-0.5 text-[8px] font-bold text-center leading-tight mt-1.5 whitespace-nowrap" style={{ background: 'rgba(0,0,0,0.28)', color: '#fff' }}>🧩 AVANÇA 1 (VIAGEM DA ÁGUA)</div>
+                      : <AcaoBadge a={c.a} />
+                    }
+                  </div>
+                  {aqui.length > 0 && (
+                    <div className="flex flex-wrap justify-center" style={{ position: 'relative', zIndex: 1, gap: 3, marginTop: 4 }}>
+                      {aqui.map(i => (
+                        <motion.div
+                          key={i}
+                          layoutId={`piece-${i}`}
+                          layout
+                          transition={{ type: 'spring', stiffness: 55, damping: 14, mass: 2.5 }}
+                          style={{ zIndex: i === turnoMovendo ? 22 : 1 }}
+                        >
+                          <Peca playerIdx={i} moving={i === turnoMovendo} active={i === turnoAtual} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                </TiltCell>
+              )
+            })}
+
+            {/* Casa 23 — AINTAR centre */}
+            <TiltCell row={3} col="3 / 5">
+            <div style={{
+              background: 'linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 40%,#0284c7 70%,#0ea5e9 100%)',
+              color: '#fff', position: 'relative',
+              animation: 'centerGlow 2.5s ease-in-out infinite',
+              height: '100%',
+            }}
+              className="rounded-xl p-4 flex flex-col items-center justify-center text-center border border-white/30 min-h-[145px]"
+            >
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
+                background: 'linear-gradient(180deg,rgba(255,255,255,0.22) 0%,transparent 100%)',
+                borderRadius: '10px 10px 0 0', pointerEvents: 'none',
+              }} />
+              <span className="absolute top-2 left-3 text-[11px] font-black opacity-50" style={{ zIndex: 1 }}>23</span>
+              <div className="text-2xl font-black tracking-widest" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.35)', position: 'relative', zIndex: 1 }}>AINTAR</div>
+              <div className="text-[10px] font-medium opacity-75 italic" style={{ position: 'relative', zIndex: 1 }}>Juntos pelo Ambiente</div>
+              <div className="text-2xl mt-1" style={{ animation: 'trophyPulse 1.8s ease-in-out infinite', position: 'relative', zIndex: 1 }}>🏆</div>
+              {posicoes.map((p, i) => p === 23 && (
+                <motion.div
+                  key={i}
+                  layoutId={`piece-${i}`}
+                  layout
+                  transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.7 }}
+                >
+                  <Peca playerIdx={i} moving={i === turnoMovendo} active={i === turnoAtual} />
+                </motion.div>
+              ))}
+            </div>
+            </TiltCell>
+
+          </div>
+          </LayoutGroup>
+        </div>
       </div>
     </div>
   )
@@ -1926,9 +2291,12 @@ function JogoAtivo({ jogadores }) {
 
   return (
     <div ref={gameRef} style={isFullscreen ? {
-      background: '#f1f5f9', padding: '24px', overflowY: 'auto',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh',
+      background: 'linear-gradient(145deg,#0f2d1a 0%,#0a1f10 50%,#0d2215 100%)',
+      padding: '16px 20px', overflowY: 'auto',
+      display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+      height: '100vh', boxSizing: 'border-box',
     } : { position: 'relative' }}>
+      <GameStyles />
 
       {/* Fullscreen required overlay */}
       {!isFullscreen && (
@@ -1974,18 +2342,21 @@ function JogoAtivo({ jogadores }) {
 
       {skipMsgJogador && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200,
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: '#fff', borderRadius: 24, padding: '36px 52px', textAlign: 'center',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.35)', maxWidth: 360,
+            background: 'linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)',
+            borderRadius: 24, padding: '36px 52px', textAlign: 'center',
+            boxShadow: '0 24px 64px rgba(220,38,38,0.55)', maxWidth: 360,
+            animation: 'skipShake 0.6s ease-out',
+            color: '#fff',
           }}>
-            <div style={{ fontSize: 52, marginBottom: 12 }}>⏸️</div>
-            <div style={{ fontWeight: 800, fontSize: 22, color: '#dc2626', marginBottom: 8 }}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>⛔</div>
+            <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 8 }}>
               {skipMsgJogador} fica sem jogar!
             </div>
-            <div style={{ color: '#6b7280', fontSize: 14 }}>
+            <div style={{ fontSize: 14, opacity: 0.8 }}>
               Esta jogada passa automaticamente...
             </div>
           </div>
@@ -2042,27 +2413,35 @@ function JogoAtivo({ jogadores }) {
       {/* Header row: status + fullscreen button */}
       <div className="flex items-center justify-between w-full mb-4 gap-2">
         <div className="flex items-center gap-2 min-h-[22px] flex-1 justify-center">
-          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: corAtual }} />
-          <p className="text-sm font-semibold text-aintar-navy text-center">
-            {rolling       ? 'A lançar…'
-            : dieVisible   ? `Saiu o ${dado.res}! Avança ${dado.res} casa${dado.res !== 1 ? 's' : ''}!`
-            : isMoving     ? `${jogadores[turnoMovendo]} a avançar…`
-            : lancou       ? `${jogadorAtual} jogou!`
-            :                `Vez de ${jogadorAtual}`}
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: corAtual, boxShadow: `0 0 6px ${corAtual}` }} />
+          <p className="text-sm font-semibold text-center" style={{ color: isFullscreen ? 'rgba(255,255,255,0.9)' : '#1e3a5f' }}>
+            {rolling       ? '🎲 A lançar…'
+            : dieVisible   ? `✨ Saiu o ${dado.res}! Avança ${dado.res} casa${dado.res !== 1 ? 's' : ''}!`
+            : isMoving     ? `🚶 ${jogadores[turnoMovendo]} a avançar…`
+            : lancou       ? `✅ ${jogadorAtual} jogou!`
+            :                `🎯 Vez de ${jogadorAtual}`}
           </p>
         </div>
         <button
           onClick={toggleFullscreen}
           title={isFullscreen ? 'Sair de ecrã inteiro' : 'Ecrã inteiro'}
-          className="flex-shrink-0 w-9 h-9 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-500 hover:text-aintar-navy transition-colors shadow-sm"
+          style={{ background: isFullscreen ? 'rgba(255,255,255,0.12)' : '#fff', color: isFullscreen ? '#fff' : '#6b7280', border: isFullscreen ? '1px solid rgba(255,255,255,0.2)' : '1px solid #e5e7eb' }}
+          className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm"
         >
           {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </button>
       </div>
 
-      {/* Board with die overlay */}
-      <div className="relative w-full">
-        <Tabuleiro posicoes={posicoes} jogadores={jogadores} turnoMovendo={turnoMovendo} />
+      {/* Board with die overlay — flex:1 fills remaining height */}
+      <div className="relative w-full" style={{ flex: 1, minHeight: 0 }}>
+        <Tabuleiro posicoes={posicoes} turnoMovendo={turnoMovendo} turnoAtual={turno} />
+
+        {/* Dim backdrop when die is shown */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 19, pointerEvents: 'none',
+          background: 'rgba(0,0,0,0.32)', borderRadius: 24,
+          opacity: dieVisible ? 1 : 0, transition: 'opacity 0.35s ease',
+        }} />
 
         {/* Die floats centred over board, fades in/out */}
         <div style={{
@@ -2072,44 +2451,88 @@ function JogoAtivo({ jogadores }) {
           opacity: dieVisible ? 1 : 0,
           transition: 'opacity 0.35s ease',
         }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <Dado3D rx={dado.rx} ry={dado.ry} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <Dado3D rx={dado.rx} ry={dado.ry} rolling={rolling} />
+            {!rolling && dado.res && (
+              <div style={{
+                background: 'rgba(10,20,10,0.88)', color: '#ffd700',
+                fontWeight: 900, fontSize: 18, letterSpacing: 1,
+                padding: '8px 24px', borderRadius: 99,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 12px rgba(255,215,0,0.3)',
+              }}>
+                {dado.res} ponto{dado.res !== 1 ? 's' : ''} ✨
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Turn controls */}
-      <div className="mt-2 flex flex-col items-center gap-4">
+      <div className="mt-3 flex flex-col items-center gap-4">
         <div className="flex flex-wrap items-center justify-center gap-2">
           {jogadores.map((j, i) => (
             <div key={i}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${i === turno ? 'scale-110 shadow-md' : 'opacity-45'}`}
-              style={{ background: i === turno ? CORES_JOGADOR[i] : '#e5e7eb', color: i === turno ? '#fff' : '#6b7280' }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300"
+              style={{
+                background: i === turno ? CORES_JOGADOR[i] : isFullscreen ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
+                color: i === turno ? '#fff' : isFullscreen ? 'rgba(255,255,255,0.5)' : '#6b7280',
+                transform: i === turno ? 'scale(1.12)' : 'scale(1)',
+                boxShadow: i === turno ? `0 4px 12px ${CORES_JOGADOR[i]}55` : 'none',
+                opacity: i === turno ? 1 : 0.5,
+              }}
             >
               💩 {j}
+              {i === turno && <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.25)', borderRadius: 99, padding: '1px 5px' }}>JOGA</span>}
             </div>
           ))}
         </div>
 
         {isVencedor ? (
-          <div className="text-center p-6 rounded-2xl bg-white border border-gray-100 shadow-sm">
-            <div className="text-5xl mb-2">🏆</div>
-            <h3 className="font-heading font-bold text-aintar-navy text-xl">{jogadorAtual} ganhou!</h3>
-            <p className="text-gray-500 text-sm mt-1">Chegou à casa 23! Parabéns!</p>
-          </div>
+          <>
+            <Confetti />
+            <div style={{
+              textAlign: 'center', padding: '32px 40px', borderRadius: 24,
+              background: 'linear-gradient(135deg,#1e3a8a 0%,#0284c7 100%)',
+              boxShadow: '0 8px 40px rgba(2,132,199,0.5)',
+              animation: 'winBounce 1.6s ease-in-out infinite',
+              color: '#fff',
+            }}>
+              <div style={{ fontSize: 80, marginBottom: 8 }}>🏆</div>
+              <h3 style={{ fontSize: 26, fontWeight: 900, margin: '0 0 8px 0', textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>{jogadorAtual} ganhou!</h3>
+              <p style={{ fontSize: 14, opacity: 0.8, margin: '0 0 16px 0' }}>Chegou à casa 23! Parabéns campeão! 🌍♻️</p>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', fontSize: 26 }}>
+                🎉 🌟 🎊 💧 🌿
+              </div>
+            </div>
+          </>
         ) : !lancou ? (
           <button onClick={lancar}
             disabled={rolling || dieVisible || isMoving}
-            className={`px-8 py-4 rounded-2xl font-bold text-white text-base transition-all duration-200 select-none shadow-lg
-              ${(rolling || dieVisible || isMoving) ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5 hover:shadow-xl active:scale-95'}`}
-            style={{ background: (rolling || dieVisible || isMoving) ? '#9ca3af' : corAtual }}
+            style={{
+              padding: '16px 44px', borderRadius: 20, border: 'none',
+              cursor: (rolling || dieVisible || isMoving) ? 'not-allowed' : 'pointer',
+              background: (rolling || dieVisible || isMoving) ? '#6b7280' : corAtual,
+              color: '#fff', fontWeight: 800, fontSize: 16,
+              boxShadow: (rolling || dieVisible || isMoving) ? 'none' : `0 4px 20px ${corAtual}70, 0 2px 8px rgba(0,0,0,0.2)`,
+              animation: (rolling || dieVisible || isMoving) ? undefined : 'rollPulse 2s ease-in-out infinite',
+              opacity: (rolling || dieVisible || isMoving) ? 0.55 : 1,
+              transition: 'background 0.25s, opacity 0.25s, box-shadow 0.25s',
+              userSelect: 'none',
+            }}
           >
             🎲 Vez de {jogadorAtual} — Lançar Dado
           </button>
         ) : (
           <button onClick={proximoTurno}
-            className="px-8 py-4 rounded-2xl text-white font-bold text-base hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-            style={{ background: CORES_JOGADOR[(turno + 1) % jogadores.length] }}
+            style={{
+              padding: '16px 44px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              background: CORES_JOGADOR[(turno + 1) % jogadores.length],
+              color: '#fff', fontWeight: 800, fontSize: 16,
+              boxShadow: `0 4px 20px ${CORES_JOGADOR[(turno + 1) % jogadores.length]}70`,
+              display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'transform 0.15s',
+            }}
+            className="hover:-translate-y-0.5 active:scale-95"
           >
             Próxima vez — {jogadores[(turno + 1) % jogadores.length]}
             <ChevronRight size={18} />

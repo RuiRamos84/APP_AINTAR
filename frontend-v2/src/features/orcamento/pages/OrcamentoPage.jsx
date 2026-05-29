@@ -117,22 +117,6 @@ const OrcamentoPage = () => {
 
     const isSncap = tab === 1;
 
-    const handleExport = () => {
-        const rows = registos.map(r => ({
-            'Classe':      r.classe    ?? '',
-            'Subclasse':   r.subclasse ?? '',
-            'SNC-AP':      r.sncap     ?? '',
-            'Descrição':   r.memo      ?? '',
-            'Dotação (€)': r.valor     ?? 0,
-        }));
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `Orcamento ${anoSelecionado}`);
-        XLSX.writeFile(wb, `orcamento_${anoSelecionado}.xlsx`);
-    };
-
-    const isSncap = tab === 1;
-
     return (
         <ModulePage
             title="Orçamento"

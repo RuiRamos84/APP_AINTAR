@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import confetti from 'canvas-confetti'
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 
@@ -135,6 +137,43 @@ const CICLO_AGUA = [
   { id: 7, label: 'Rio',          emoji: '🌊', desc: 'A água tratada regressa ao rio' },
 ]
 
+// ─── Shared game helpers ──────────────────────────────────────────────────────
+
+function useWinConfetti(shouldFire) {
+  useEffect(() => {
+    if (!shouldFire) return
+    confetti({
+      particleCount: 130, spread: 72, origin: { y: 0.55 },
+      colors: ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'],
+    })
+  }, [shouldFire])
+}
+
+const SPRING = { type: 'spring', damping: 22, stiffness: 310 }
+const MODAL_IN = { scale: 0.82, opacity: 0, y: 18 }
+const MODAL_OUT = { scale: 1, opacity: 1, y: 0 }
+
+function GameModal({ children, bg, maxWidth, flex }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100, background: bg || 'rgba(0,0,0,0.82)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <motion.div
+        initial={MODAL_IN} animate={MODAL_OUT} transition={SPRING}
+        style={{
+          background: '#fff', borderRadius: 24,
+          width: '100%', maxWidth: maxWidth || 520,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
+          ...(flex ? { display: 'flex', flexDirection: 'column', gap: 14 } : {}),
+        }}
+      >
+        {children}
+      </motion.div>
+    </div>
+  )
+}
+
 // ─── Mini-jogos ───────────────────────────────────────────────────────────────
 
 export function MinijogoModal({ jogador, cor, onResult }) {
@@ -169,10 +208,11 @@ export function MinijogoModal({ jogador, cor, onResult }) {
 
   const timerPct = (timeLeft / 30) * 100
   const timerColor = timeLeft > 10 ? '#22c55e' : timeLeft > 5 ? '#f59e0b' : '#ef4444'
+  useWinConfetti(done && passed)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
+    <GameModal bg="rgba(4,36,12,0.88)" maxWidth={520}>
+      <div style={{ padding: 28 }}>
         {!done ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
@@ -241,7 +281,7 @@ export function MinijogoModal({ jogador, cor, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }
 
@@ -311,10 +351,11 @@ export function MinijogoLimpeza({ jogador, cor, onResult }) {
   function remove(id) { if (done) return; setItems(prev => prev.map(i => i.id === id ? { ...i, removed: true } : i)) }
 
   const timerColor = timeLeft > 5 ? '#22c55e' : timeLeft > 3 ? '#f59e0b' : '#ef4444'
+  useWinConfetti(done && won)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <GameModal bg="rgba(0,20,50,0.92)" maxWidth={460} flex>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {!done ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -353,7 +394,7 @@ export function MinijogoLimpeza({ jogador, cor, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }
 
@@ -397,10 +438,11 @@ export function MinijogoLabirinto({ jogador, cor, onResult }) {
 
   const timerPct = (timeLeft / 30) * 100
   const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 8 ? '#f59e0b' : '#ef4444'
+  useWinConfetti(done && won)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+    <GameModal bg="rgba(8,14,32,0.93)" maxWidth={700} flex>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         {!done ? (
           <>
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -447,7 +489,7 @@ export function MinijogoLabirinto({ jogador, cor, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }
 
@@ -513,10 +555,11 @@ export function MinijogoCorreida({ jogador, onResult }) {
 
   const won = done && !crashed
   const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 7 ? '#f59e0b' : '#ef4444'
+  useWinConfetti(done && won)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 510, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+    <GameModal bg="rgba(10,8,0,0.92)" maxWidth={510} flex>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         {!done ? (
           <>
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -557,7 +600,7 @@ export function MinijogoCorreida({ jogador, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }
 
@@ -658,10 +701,11 @@ export function MinijogoEcoponto({ jogador, onResult }) {
   const won = done && livesRef.current > 0
   const timerColor = timeLeft > 15 ? '#22c55e' : timeLeft > 7 ? '#f59e0b' : '#ef4444'
   const areaBg = flash === 'good' ? 'linear-gradient(180deg,#dcfce7,#f0fdf4)' : flash === 'bad' ? 'linear-gradient(180deg,#fee2e2,#fef2f2)' : 'linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)'
+  useWinConfetti(done && won)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 470, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+    <GameModal bg="rgba(0,25,50,0.92)" maxWidth={470} flex>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         {!done ? (
           <>
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -707,7 +751,7 @@ export function MinijogoEcoponto({ jogador, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }
 
@@ -746,10 +790,11 @@ export function MinijogosDiferencas({ jogador, recuaCasas = 1, onResult }) {
   const timerPct = (timeLeft / 40) * 100
   const timerColor = timeLeft > 20 ? '#22c55e' : timeLeft > 10 ? '#f59e0b' : '#ef4444'
   const CELL_SZ = 52
+  useWinConfetti(done && won)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <GameModal bg="rgba(20,10,0,0.9)" maxWidth={620} flex>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {!done ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -812,7 +857,7 @@ export function MinijogosDiferencas({ jogador, recuaCasas = 1, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }
 
@@ -847,10 +892,11 @@ export function MinijogoViagemAgua({ jogador, cor, onResult }) {
   const timerPct = (timeLeft / 60) * 100
   const timerColor = timeLeft > 30 ? '#22c55e' : timeLeft > 15 ? '#f59e0b' : '#ef4444'
   const won = isCorrect
+  useWinConfetti(done && won)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <GameModal bg="rgba(0,18,46,0.93)" maxWidth={480} flex>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {!done ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -904,6 +950,6 @@ export function MinijogoViagemAgua({ jogador, cor, onResult }) {
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   )
 }

@@ -180,7 +180,10 @@
       "Bash(node -e \"import\\('./src/config/app.config.js'\\).then\\(m => console.log\\('Entities:', Object.keys\\(m.default.entities\\).length, '\\\\nModules:', m.default.modules.map\\(x=>x.id\\).join\\(', '\\)\\)\\).catch\\(e => console.error\\(e\\)\\)\")",
       "Bash(.venv/Scripts/python -c 'import ast; ast.parse\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\).read\\(\\)\\); print\\('\\\\''OK: __TRACKED_VAR__'\\\\''\\)')",
       "PowerShell(Get-ChildItem -Path C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\\\\features\\\\expenses -Recurse -File | ForEach-Object { $_.FullName })",
-      "PowerShell(Get-ChildItem -Path C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\\\\features\\\\fleet -Recurse -File | ForEach-Object { $_.FullName })"
+      "PowerShell(Get-ChildItem -Path C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\frontend-v2\\\\src\\\\features\\\\fleet -Recurse -File | ForEach-Object { $_.FullName })",
+      "Bash(\"c:/Users/rui.ramos/AppData/Local/Programs/Antigravity IDE/bin/code-tunnel.exe\" --version)",
+      "Bash(\"c:/Users/rui.ramos/AppData/Local/Programs/Antigravity IDE/bin/code-tunnel.exe\" forward-internal --port 5174)",
+      "Bash(ngrok version *)"
     ],
     "deny": [],
     "ask": [],

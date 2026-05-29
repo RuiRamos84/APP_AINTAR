@@ -1,5 +1,6 @@
 import { Droplets, Recycle, TreePine, Star, BookOpen, Smile, Gamepad2, Puzzle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import PageLayout from '../components/layout/PageLayout'
 import ScrollReveal from '../components/ui/ScrollReveal'
 
@@ -43,6 +44,40 @@ const atividades = [
   },
 ]
 
+/* 3D tilt card — mouse-tracking parallax via Framer Motion springs */
+function TiltCard({ children, className }) {
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  const sx = useSpring(x, { stiffness: 280, damping: 28 })
+  const sy = useSpring(y, { stiffness: 280, damping: 28 })
+  const rotateY = useTransform(sx, [-0.5, 0.5], ['-10deg', '10deg'])
+  const rotateX = useTransform(sy, [-0.5, 0.5], ['10deg', '-10deg'])
+  const shine   = useTransform(sx, [-0.5, 0.5], ['rgba(255,255,255,0)', 'rgba(255,255,255,0.08)'])
+
+  function onMove(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    x.set((e.clientX - r.left) / r.width - 0.5)
+    y.set((e.clientY - r.top) / r.height - 0.5)
+  }
+  function onLeave() { x.set(0); y.set(0) }
+
+  return (
+    <motion.div
+      style={{ rotateX, rotateY, transformPerspective: 900, transformStyle: 'preserve-3d' }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      className={className}
+    >
+      {/* Shine layer */}
+      <motion.div
+        style={{ background: shine }}
+        className="absolute inset-0 rounded-2xl pointer-events-none z-10 transition-none"
+      />
+      {children}
+    </motion.div>
+  )
+}
+
 export default function AintarKidsPage() {
   return (
     <PageLayout
@@ -78,20 +113,24 @@ export default function AintarKidsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {atividades.map((item, i) => (
               <ScrollReveal key={item.titulo} delay={i * 0.08}>
-                <div
-                  className={`p-7 rounded-2xl border border-${item.color}/20 bg-${item.color}/5 hover:shadow-md transition-shadow h-full`}
+                <TiltCard
+                  className={`relative p-7 rounded-2xl border border-${item.color}/20 bg-${item.color}/5 hover:shadow-xl transition-shadow h-full cursor-default`}
                 >
                   <div
                     className={`w-12 h-12 rounded-xl bg-${item.color}/15 flex items-center justify-center mb-5`}
+                    style={{ transform: 'translateZ(16px)' }}
                   >
                     <item.icon size={22} className={`text-${item.color}`} />
                   </div>
-                  <h3 className="font-heading font-bold text-aintar-navy text-base mb-3">
+                  <h3
+                    className="font-heading font-bold text-aintar-navy text-base mb-3"
+                    style={{ transform: 'translateZ(12px)' }}
+                  >
                     {item.titulo}
                   </h3>
                   <p className="text-gray-600 text-sm leading-relaxed">{item.descricao}</p>
                   {item.href && (
-                    <div className="mt-5 flex flex-col gap-2">
+                    <div className="mt-5 flex flex-col gap-2" style={{ transform: 'translateZ(16px)' }}>
                       <Link
                         to={item.href}
                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-aintar-teal text-white text-sm font-semibold hover:bg-aintar-teal/80 hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-md"
@@ -108,7 +147,7 @@ export default function AintarKidsPage() {
                       </Link>
                     </div>
                   )}
-                </div>
+                </TiltCard>
               </ScrollReveal>
             ))}
           </div>

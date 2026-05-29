@@ -6,21 +6,26 @@ import DarkBgDecorations from '../ui/DarkBgDecorations'
 // breadcrumbs: [{ label: 'Quem Somos', href: '/quem-somos' }, { label: 'Documentos Financeiros' }]
 export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
   const { scrollY } = useScroll()
-  const y1 = useTransform(scrollY, [0, 300], [0, 60])
+  const y1      = useTransform(scrollY, [0, 300], [0, 60])
   const opacity = useTransform(scrollY, [0, 200], [1, 0.6])
 
   return (
     <div className="bg-hero-gradient pt-28 pb-20 relative overflow-hidden min-h-[220px]">
- 
+
        {/* Decorações de fundo */}
        <DarkBgDecorations intensity="medium" />
- 
+
        {/* Conteúdo com Parallax */}
        <motion.div style={{ y: y1, opacity }} className="section-container relative z-10">
 
         {/* Breadcrumb */}
         {breadcrumbs.length > 0 && (
-          <nav className="flex items-center gap-1.5 mb-4 flex-wrap">
+          <motion.nav
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center gap-1.5 mb-4 flex-wrap"
+          >
             <Link to="/" className="text-white/40 hover:text-aintar-sky text-xs transition-colors flex items-center gap-1">
               <Home size={12} />
               Início
@@ -37,25 +42,27 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
                 )}
               </span>
             ))}
-          </nav>
+          </motion.nav>
         )}
 
-        {/* Título */}
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="font-heading font-extrabold text-white leading-tight"
-          style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)' }}
-        >
-          {title}
-        </motion.h1>
+        {/* Título — clip-path reveal (slides up from below a mask) */}
+        <div style={{ overflow: 'hidden' }}>
+          <motion.h1
+            initial={{ y: '105%', opacity: 0 }}
+            animate={{ y: '0%', opacity: 1 }}
+            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className="font-heading font-extrabold text-white leading-tight"
+            style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)' }}
+          >
+            {title}
+          </motion.h1>
+        </div>
 
         {subtitle && (
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.55, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="text-white/55 mt-3 max-w-2xl text-base leading-relaxed"
           >
             {subtitle}
