@@ -64,17 +64,14 @@ const PontoMapaPage = () => {
       icon={MapIcon}
       color={COLOR}
       breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Mapa de Ponto' }]}
-    >
-      {/* Filtros */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} flexWrap="wrap"
-        alignItems={{ xs: 'stretch', sm: 'center' }}>
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <Select value={userFk} onChange={e => setUserFk(e.target.value)} displayEmpty>
-            <MenuItem value="">— Todos os colaboradores —</MenuItem>
-            {colabs.map(c => <MenuItem key={c.pk} value={c.pk}>{c.name}</MenuItem>)}
-          </Select>
-        </FormControl>
+      actions={
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <Select value={userFk} onChange={e => setUserFk(e.target.value)} displayEmpty>
+              <MenuItem value="">— Todos os colaboradores —</MenuItem>
+              {colabs.map(c => <MenuItem key={c.pk} value={c.pk}>{c.name}</MenuItem>)}
+            </Select>
+          </FormControl>
           <Typography variant="body2" color="text.secondary">De</Typography>
           <TextField
             type="date" size="small" value={dataInicio}
@@ -89,15 +86,16 @@ const PontoMapaPage = () => {
             InputLabelProps={{ shrink: true }}
             sx={{ width: 150 }}
           />
+          {alertas.length > 0 && (
+            <Chip
+              icon={<AlertaIcon />}
+              label={`${alertas.length} alerta${alertas.length !== 1 ? 's' : ''}`}
+              color="error" variant="filled"
+            />
+          )}
         </Stack>
-        {alertas.length > 0 && (
-          <Chip
-            icon={<AlertaIcon />}
-            label={`${alertas.length} alerta${alertas.length !== 1 ? 's' : ''}`}
-            color="error" variant="filled"
-          />
-        )}
-      </Stack>
+      }
+    >
 
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  Box, Button, Stack, Chip, Typography, Tooltip,
+  Button, Stack, Chip, Typography, Tooltip,
 } from '@mui/material';
 import {
   ManageAccounts as GestaoIcon,
@@ -137,14 +137,15 @@ const GestaoColaboradoresPage = () => {
       color={COLOR}
       breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Gestão de Colaboradores' }]}
       actions={
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <SearchBar searchTerm={search} onSearch={setSearch} />
           <Tooltip title={`Inicializa o saldo de férias de ${currentYear} para todos os colaboradores sem configuração`}>
             <Button
               variant="outlined"
               startIcon={<InitIcon />}
               disabled={isInicializandoTodos}
               onClick={handleInitTodos}
-              sx={{ borderColor: COLOR, color: COLOR }}
+              sx={{ borderColor: COLOR, color: COLOR, whiteSpace: 'nowrap' }}
             >
               {isInicializandoTodos ? 'A inicializar…' : `Init Saldos ${currentYear}`}
             </Button>
@@ -152,10 +153,6 @@ const GestaoColaboradoresPage = () => {
         </Stack>
       }
     >
-      <Box sx={{ mb: 2 }}>
-        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar colaborador…" />
-      </Box>
-
       <DataGrid
         rows={results}
         columns={columns}

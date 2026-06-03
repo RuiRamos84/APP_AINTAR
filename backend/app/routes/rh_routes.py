@@ -6,7 +6,18 @@ from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 from sqlalchemy import text
+from ..services.rh_face_service import (
+    get_face_status, enroll_face, verify_face, reset_face_templates, get_face_users_status,
+)
+from ..services.rh_gestao_service import (
+    get_pendentes, get_equipa, workflow_bulk,
+)
+from ..services.rh_participacao_service import (
+    get_motivos, get_participacoes, criar_participacao,
+    editar_participacao, executar_wf, upload_anexos, download_anexo,
+)
 from ..services.rh_service import (
+    check_entrada,
     get_lookups,
     get_colaboradores, get_colaborador, get_saldo_ferias,
     registar_ponto_evento, get_ponto, submeter_ponto_mensal,
@@ -132,6 +143,18 @@ def ponto_list_route():
         data_inicio=request.args.get('data_inicio'),
         data_fim=request.args.get('data_fim'),
     )
+
+
+@bp.route('/rh/ponto/check-entrada', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@api_error_handler
+def ponto_check_entrada_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return check_entrada(user_fk, current_user)
 
 
 @bp.route('/rh/ponto/submeter', methods=['POST'])
@@ -574,3 +597,215 @@ def ponto_alertas_route():
     data_inicio = request.args.get('data_inicio')
     data_fim    = request.args.get('data_fim')
     return get_ponto_alertas(current_user, user_fk, data_inicio, data_fim)
+
+
+# ---------------------------------------------------------------------------
+# Reconhecimento Facial
+# ---------------------------------------------------------------------------
+
+@bp.route('/rh/face/status', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@api_error_handler
+def face_status_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = request.args.get('user_fk', type=int) or claims.get('user_id')
+    return get_face_status(user_fk, current_user)
+
+
+@bp.route('/rh/face/enroll', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def face_enroll_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return enroll_face(request.get_json(), user_fk, current_user)
+
+
+@bp.route('/rh/face/verify', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def face_verify_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return verify_face(request.get_json(), user_fk, current_user)
+
+
+@bp.route('/rh/face/<int:user_fk>/reset', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def face_reset_route(user_fk):
+    """Admin faz reset ao rosto de qualquer colaborador."""
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    requester_fk = claims.get('user_id')
+    return reset_face_templates(user_fk, current_user, requester_fk=requester_fk)
+
+
+@bp.route('/rh/face/users', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@api_error_handler
+def face_users_route():
+    """Lista colaboradores com estado de enrollment facial (admin)."""
+    current_user = get_jwt_identity()
+    return get_face_users_status(current_user)
+
+
+# ---------------------------------------------------------------------------
+# Participações de Ausências (faltas + parciais)
+# ---------------------------------------------------------------------------
+
+@bp.route('/rh/participacoes/motivos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def participacoes_motivos_route():
+    return get_motivos(get_jwt_identity())
+
+
+@bp.route('/rh/participacoes', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def participacoes_list_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk_jwt = claims.get('user_id')
+    # Utilizadores sem rh.admin só vêem as próprias participações
+    from app.core.permissions import permission_manager
+    user_profile = str(claims.get('profile', ''))
+    user_interfaces = claims.get('interfaces', [])
+    is_admin = permission_manager.check_permission('rh.admin', user_profile, user_interfaces)
+    user_fk = request.args.get('user_fk', type=int)
+    if not is_admin:
+        user_fk = user_fk_jwt
+    return get_participacoes(
+        current_user,
+        user_fk=user_fk,
+        ano=request.args.get('ano', type=int),
+        mes=request.args.get('mes', type=int),
+        estado=request.args.get('estado', type=int),
+        tipo=request.args.get('tipo'),
+    )
+
+
+@bp.route('/rh/participacoes', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def participacoes_create_route():
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    # Se não vier user_fk no payload, usa o do token
+    if not data.get('user_fk'):
+        claims = get_jwt()
+        data['user_fk'] = claims.get('user_id')
+    return criar_participacao(data, current_user)
+
+
+@bp.route('/rh/participacoes/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def participacoes_update_route(pk):
+    return editar_participacao(pk, request.get_json(), get_jwt_identity())
+
+
+@bp.route('/rh/participacoes/workflow', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.validate')
+@set_session
+@api_error_handler
+def participacoes_wf_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return executar_wf(request.get_json(), user_fk, current_user)
+
+
+@bp.route('/rh/participacoes/<int:pk>/anexos', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def participacoes_upload_route(pk):
+    return upload_anexos(pk, get_jwt_identity())
+
+
+@bp.route('/rh/participacoes/<int:pk>/anexos/<string:filename>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@set_session
+@api_error_handler
+def participacoes_download_route(pk, filename):
+    return download_anexo(pk, filename, get_jwt_identity())
+
+
+# ---------------------------------------------------------------------------
+# Gestão Centralizada RH (painel supervisor / admin)
+# ---------------------------------------------------------------------------
+
+@bp.route('/rh/gestao/pendentes', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.validate')
+@api_error_handler
+def gestao_pendentes_route():
+    """Fila unificada de pendentes: férias, faltas, ponto e participações.
+    Admins (rh.admin) vêem tudo; supervisores vêem apenas a equipa direta."""
+    current_user = get_jwt_identity()
+    return get_pendentes(
+        current_user,
+        tipo=request.args.get('tipo'),
+        user_fk_filter=request.args.get('user_fk', type=int),
+    )
+
+
+@bp.route('/rh/gestao/equipa', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.validate')
+@api_error_handler
+def gestao_equipa_route():
+    """Snapshot diário de cada colaborador (check-in, férias, faltas, piquete)."""
+    current_user = get_jwt_identity()
+    return get_equipa(
+        current_user,
+        user_fk_filter=request.args.get('user_fk', type=int),
+    )
+
+
+@bp.route('/rh/gestao/workflow/bulk', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.validate')
+@set_session
+@api_error_handler
+def gestao_workflow_bulk_route():
+    """Acção de workflow em massa: aprova/rejeita múltiplos itens de uma vez."""
+    current_user = get_jwt_identity()
+    return workflow_bulk(request.get_json(), current_user)

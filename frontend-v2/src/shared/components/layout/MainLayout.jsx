@@ -23,6 +23,8 @@ import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAvalPending } from '@/features/aval/hooks/useAvalPending';
 import { AvalPendingModal } from '@/features/aval/components/AvalPendingModal';
+import { usePontoCheckIn } from '@/features/rh/hooks/usePontoCheckIn';
+import PontoCheckModal from '@/features/rh/components/PontoCheckModal';
 
 export const MainLayout = () => {
   const theme = useTheme();
@@ -37,6 +39,8 @@ export const MainLayout = () => {
 
   const { hasPermission, hasAnyPermission } = usePermissionContext();
   const { data: pendingData, open: pendingOpen, dismiss: dismissPending } = useAvalPending();
+  const { open: pontoOpen, data: pontoData, dismiss: dismissPonto, onRegistered: pontoRegistered } =
+    usePontoCheckIn(hasPermission('rh.edit'));
 
   const accessibleModules = useMemo(
     () => getAccessibleModules(hasPermission, hasAnyPermission),
@@ -99,6 +103,14 @@ export const MainLayout = () => {
 
       {/* Modal de avaliações pendentes */}
       <AvalPendingModal open={pendingOpen} data={pendingData} onDismiss={dismissPending} />
+
+      {/* Alerta de registo de ponto em falta */}
+      <PontoCheckModal
+        open={pontoOpen}
+        data={pontoData}
+        onDismiss={dismissPonto}
+        onRegistered={pontoRegistered}
+      />
 
       {/* BottomNavigation mobile — troca de módulo */}
       {isMobile && accessibleModules.length > 0 && (

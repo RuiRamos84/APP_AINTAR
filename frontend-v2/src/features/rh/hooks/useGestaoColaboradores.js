@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification';
 import {
   getColaboradores,
+  getColaborador,
   upsertColaboradorPerfil,
   getConfigColaborador,
   upsertConfigAno,
@@ -21,6 +22,20 @@ export const useGestaoColaboradores = () => {
     colaboradores: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
     refetch: query.refetch,
+  };
+};
+
+// ─── Perfil de um colaborador específico (inclui gps_obrigatorio) ────────────
+export const useColaboradorPerfil = (userFk) => {
+  const query = useQuery({
+    queryKey: ['rh-colaborador-perfil', userFk],
+    queryFn: () => getColaborador(userFk),
+    enabled: !!userFk,
+    staleTime: 5 * 60 * 1000,
+  });
+  return {
+    perfil:    query.data || null,
+    isLoading: query.isLoading,
   };
 };
 

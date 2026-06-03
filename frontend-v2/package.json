@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "copy-face-models": "node -e \"const{cpSync}=require('fs');cpSync('node_modules/@vladmandic/face-api/model','public/models/face-api',{recursive:true,force:true});console.log('Face models copiados.');\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,6 +30,7 @@
     "@mui/x-data-grid": "^8.26.0",
     "@mui/x-date-pickers": "^8.23.0",
     "@tanstack/react-query": "^5.95.2",
+    "@vladmandic/face-api": "^1.7.15",
     "axios": "^1.13.2",
     "browser-image-compression": "^2.0.2",
     "date-fns": "^4.1.0",

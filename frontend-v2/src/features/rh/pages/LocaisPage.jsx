@@ -250,20 +250,19 @@ const LocaisPage = () => {
       color={COLOR}
       breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Locais Predefinidos' }]}
       actions={
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}
-          sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}>
-          Novo Local
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <SearchBar searchTerm={search} onSearch={setSearch} />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}
+            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, whiteSpace: 'nowrap' }}>
+            Novo Local
+          </Button>
+        </Stack>
       }
     >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Define os locais onde os colaboradores devem efetuar o registo de ponto.
         Se um registo GPS for efetuado fora do raio de tolerância, será gerado um alerta para o superior hierárquico.
       </Typography>
-
-      <Box sx={{ mb: 2 }}>
-        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
-      </Box>
 
       <DataGrid
         rows={results}

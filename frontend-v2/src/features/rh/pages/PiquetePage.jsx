@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Stack, Tabs, Tab, Chip, Typography, FormControl, Select, MenuItem } from '@mui/material';
+import { Box, Button, Stack, Tabs, Tab, Chip, FormControl, Select, MenuItem } from '@mui/material';
 import {
   Add as AddIcon,
   Refresh as GerarIcon,
@@ -28,37 +28,14 @@ function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
 }
 
-// ─── Escalas ────────────────────────────────────────────────────────────────
-const EscalasTab = ({ lookups }) => {
-  const { user } = useAuth();
-  const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission('rh.admin') || user?.profile === 0;
+const MESES = Array.from({ length: 12 }, (_, i) => ({
+  value: i + 1,
+  label: new Date(2000, i).toLocaleString('pt-PT', { month: 'long' }),
+}));
 
-  const now = new Date();
-  const [search, setSearch] = useState('');
-  const [ano, setAno]       = useState(now.getFullYear());
-  const [mes, setMes]       = useState(now.getMonth() + 1);
-
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [regrasOpen, setRegrasOpen] = useState(false);
-  const [selected, setSelected]     = useState(null);
-
-  const {
-    escalas, isLoading, gerar, isGerando, confirmar, isConfirmando,
-    criar, isCriando, editar, isEditando
-  } = usePiquete({ ano, mes });
-  
-  const { regras, save: saveRegras, isSaving: isSavingRegras } = usePiqueteRegras();
+// ─── Escalas (só DataGrid) ───────────────────────────────────────────────────
+const EscalasTab = ({ search, escalas, isLoading, confirmar, isConfirmando, isAdmin, user, onEdit }) => {
   const results = useSearch(escalas, search);
-
-  const openCreate = () => { setSelected(null); setModalOpen(true); };
-  const openEdit   = (row) => { setSelected(row); setModalOpen(true); };
-
-  const handleSave = async (data) => {
-    if (selected) await editar(data);
-    else await criar(data);
-    setModalOpen(false);
-  };
 
   const columns = useMemo(() => [
     { field: 'colaborador_nome', headerName: 'Colaborador', flex: 1, minWidth: 160 },
@@ -97,107 +74,35 @@ const EscalasTab = ({ lookups }) => {
         <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
           {!row.confirmado && row.tb_user_fk === user?.user_id && (
             <Button size="small" startIcon={<ConfirmarIcon />}
-              disabled={isConfirmando}
-              onClick={() => confirmar(row.pk)}>
+              disabled={isConfirmando} onClick={() => confirmar(row.pk)}>
               Confirmar
             </Button>
           )}
           {isAdmin && (
             <Button size="small" color="inherit" startIcon={<EditIcon />}
-              onClick={() => openEdit(row)}>
+              onClick={() => onEdit(row)}>
               Editar
             </Button>
           )}
         </Stack>
       ),
     },
-  ], [confirmar, isConfirmando, user?.user_id, isAdmin]);
+  ], [confirmar, isConfirmando, user?.user_id, isAdmin, onEdit]);
 
   return (
-    <>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap">
-        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
-        <Stack direction="row" spacing={1}>
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <Select value={mes} onChange={e => setMes(Number(e.target.value))}>
-              {Array.from({ length: 12 }, (_, i) => (
-                <MenuItem key={i + 1} value={i + 1}>
-                  {new Date(2000, i).toLocaleString('pt-PT', { month: 'long' })}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 90 }}>
-            <Select value={ano} onChange={e => setAno(Number(e.target.value))}>
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
-                <MenuItem key={y} value={y}>{y}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-        <Stack direction="row" spacing={1}>
-          {isAdmin && (
-            <>
-              <Button variant="outlined" startIcon={<ConfigIcon />} onClick={() => setRegrasOpen(true)} size="small">
-                Regras
-              </Button>
-              <Button variant="contained" startIcon={<GerarIcon />} disabled={isGerando} onClick={() => gerar({ ano, mes })} size="small"
-                sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}>
-                {isGerando ? 'A gerar…' : 'Gerar Escala'}
-              </Button>
-            </>
-          )}
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} size="small"
-            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}>
-            Manual
-          </Button>
-        </Stack>
-      </Stack>
-
-      <DataGrid
-        rows={results} columns={columns} loading={isLoading}
-        autoHeight density="compact"
-        pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
-      />
-      <EscalaModal
-        open={modalOpen} onClose={() => setModalOpen(false)}
-        initial={selected} onSave={handleSave}
-        lookups={lookups} isLoading={isCriando || isEditando}
-      />
-      <PiqueteRegrasModal
-        open={regrasOpen}
-        onClose={() => setRegrasOpen(false)}
-        regras={regras}
-        onSave={async (data) => {
-          await saveRegras(data);
-          setRegrasOpen(false);
-        }}
-        isSaving={isSavingRegras}
-      />
-    </>
+    <DataGrid
+      rows={results} columns={columns} loading={isLoading}
+      autoHeight density="compact"
+      pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+      localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+      sx={{ border: 0 }}
+    />
   );
 };
 
-// ─── Ocorrências ─────────────────────────────────────────────────────────────
-const OcorrenciasTab = ({ lookups }) => {
-  const [search, setSearch]       = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selected, setSelected]   = useState(null);
-  const [escalaFk, setEscalaFk]   = useState(null);
-
-  const { ocorrencias, isLoading, criar, isCriando, editar, isEditando } = useOcorrencias();
+// ─── Ocorrências (só DataGrid) ───────────────────────────────────────────────
+const OcorrenciasTab = ({ search, ocorrencias, isLoading, onEdit }) => {
   const results = useSearch(ocorrencias, search);
-
-  const openCreate = () => { setSelected(null); setEscalaFk(null); setModalOpen(true); };
-  const openEdit   = (row) => { setSelected(row); setEscalaFk(row.tb_piquete_escala_fk); setModalOpen(true); };
-
-  const handleSave = async (data) => {
-    if (selected) await editar(data);
-    else await criar(data);
-    setModalOpen(false);
-  };
 
   const columns = useMemo(() => [
     { field: 'colaborador_nome', headerName: 'Colaborador', flex: 1, minWidth: 160 },
@@ -213,44 +118,85 @@ const OcorrenciasTab = ({ lookups }) => {
       field: '_acoes', headerName: 'Acções', width: 90, sortable: false,
       renderCell: ({ row }) => (
         <Stack alignItems="center" sx={{ height: '100%' }}>
-          <Button size="small" onClick={() => openEdit(row)}>Editar</Button>
+          <Button size="small" onClick={() => onEdit(row)}>Editar</Button>
         </Stack>
       ),
     },
-  ], []);
+  ], [onEdit]);
 
   return (
-    <>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
-        <Button variant="contained" startIcon={<AddIcon />}
-          onClick={openCreate}
-          sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}>
-          Registar
-        </Button>
-      </Stack>
-
-      <DataGrid
-        rows={results} columns={columns} loading={isLoading}
-        autoHeight density="compact"
-        pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
-      />
-
-      <OcorrenciaModal
-        open={modalOpen} onClose={() => setModalOpen(false)}
-        onSave={handleSave} isSaving={isCriando || isEditando}
-        escalaFk={escalaFk} initial={selected} lookups={lookups}
-      />
-    </>
+    <DataGrid
+      rows={results} columns={columns} loading={isLoading}
+      autoHeight density="compact"
+      pageSizeOptions={[25, 50]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+      localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+      sx={{ border: 0 }}
+    />
   );
 };
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 const PiquetePage = () => {
-  const [tab, setTab] = useState(0);
+  const now = new Date();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission('rh.admin');
+
+  // Filtros
+  const [tab, setTab]       = useState(0);
+  const [search, setSearch] = useState('');
+  const [mes, setMes]       = useState(now.getMonth() + 1);
+  const [ano, setAno]       = useState(now.getFullYear());
+
+  // Modal — Escalas
+  const [escalaOpen, setEscalaOpen]   = useState(false);
+  const [regrasOpen, setRegrasOpen]   = useState(false);
+  const [selectedEscala, setSelectedEscala] = useState(null);
+
+  // Modal — Ocorrências
+  const [ocorrenciaOpen, setOcorrenciaOpen] = useState(false);
+  const [selectedOcorrencia, setSelectedOcorrencia] = useState(null);
+  const [escalaFk, setEscalaFk] = useState(null);
+
+  // Hooks de dados
+  const {
+    escalas, isLoading: isLoadingEscalas,
+    gerar, isGerando,
+    confirmar, isConfirmando,
+    criar: criarEscala, isCriando: isCriandoEscala,
+    editar: editarEscala, isEditando: isEditandoEscala,
+  } = usePiquete({ ano, mes });
+
+  const { regras, save: saveRegras, isSaving: isSavingRegras } = usePiqueteRegras();
+
+  const {
+    ocorrencias, isLoading: isLoadingOcorrencias,
+    criar: criarOcorrencia, isCriando: isCriandoOcorrencia,
+    editar: editarOcorrencia, isEditando: isEditandoOcorrencia,
+  } = useOcorrencias();
+
   const { lookups } = useRhLookups();
+
+  const anos = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+
+  const handleTabChange = (_, v) => { setTab(v); setSearch(''); };
+
+  // Handlers de modal — Escalas
+  const openCreateEscala = () => { setSelectedEscala(null); setEscalaOpen(true); };
+  const openEditEscala   = (row) => { setSelectedEscala(row); setEscalaOpen(true); };
+  const handleSaveEscala = async (data) => {
+    if (selectedEscala) await editarEscala(data);
+    else await criarEscala(data);
+    setEscalaOpen(false);
+  };
+
+  // Handlers de modal — Ocorrências
+  const openCreateOcorrencia = () => { setSelectedOcorrencia(null); setEscalaFk(null); setOcorrenciaOpen(true); };
+  const openEditOcorrencia   = (row) => { setSelectedOcorrencia(row); setEscalaFk(row.tb_piquete_escala_fk); setOcorrenciaOpen(true); };
+  const handleSaveOcorrencia = async (data) => {
+    if (selectedOcorrencia) await editarOcorrencia(data);
+    else await criarOcorrencia(data);
+    setOcorrenciaOpen(false);
+  };
 
   return (
     <ModulePage
@@ -260,19 +206,130 @@ const PiquetePage = () => {
       color={COLOR}
       breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Piquete' }]}
     >
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+      {/* Barra: tabs esquerda | controlos + botões direita */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        sx={{ borderBottom: 1, borderColor: 'divider', flexWrap: 'wrap', gap: 1 }}
+      >
+        <Tabs value={tab} onChange={handleTabChange} sx={{ flex: '0 0 auto' }}>
           <Tab label="Escalas" />
           <Tab label="Ocorrências" />
         </Tabs>
-      </Box>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ ml: 'auto', pr: 1, pb: 0.5 }}
+        >
+          <SearchBar searchTerm={search} onSearch={setSearch} />
+
+          {/* Mês/Ano apenas na tab Escalas */}
+          {tab === 0 && (
+            <>
+              <FormControl size="small" sx={{ minWidth: 130 }}>
+                <Select value={mes} onChange={e => setMes(Number(e.target.value))}>
+                  {MESES.map(m => (
+                    <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 80 }}>
+                <Select value={ano} onChange={e => setAno(Number(e.target.value))}>
+                  {anos.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </>
+          )}
+
+          {/* Botões de acção — Escalas */}
+          {tab === 0 && (
+            <>
+              {isAdmin && (
+                <>
+                  <Button variant="outlined" size="small"
+                    startIcon={<ConfigIcon />}
+                    onClick={() => setRegrasOpen(true)}>
+                    Regras
+                  </Button>
+                  <Button variant="contained" size="small"
+                    startIcon={<GerarIcon />}
+                    disabled={isGerando}
+                    onClick={() => gerar({ ano, mes })}
+                    sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, whiteSpace: 'nowrap' }}>
+                    {isGerando ? 'A gerar…' : 'Gerar Escala'}
+                  </Button>
+                </>
+              )}
+              <Button variant="contained" size="small"
+                startIcon={<AddIcon />}
+                onClick={openCreateEscala}
+                sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, whiteSpace: 'nowrap' }}>
+                Manual
+              </Button>
+            </>
+          )}
+
+          {/* Botões de acção — Ocorrências */}
+          {tab === 1 && (
+            <Button variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openCreateOcorrencia}
+              sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, whiteSpace: 'nowrap' }}>
+              Registar
+            </Button>
+          )}
+        </Stack>
+      </Stack>
 
       <TabPanel value={tab} index={0}>
-        <EscalasTab lookups={lookups} />
+        <EscalasTab
+          search={search}
+          escalas={escalas}
+          isLoading={isLoadingEscalas}
+          confirmar={confirmar}
+          isConfirmando={isConfirmando}
+          isAdmin={isAdmin}
+          user={user}
+          onEdit={openEditEscala}
+        />
       </TabPanel>
+
       <TabPanel value={tab} index={1}>
-        <OcorrenciasTab lookups={lookups} />
+        <OcorrenciasTab
+          search={search}
+          ocorrencias={ocorrencias}
+          isLoading={isLoadingOcorrencias}
+          onEdit={openEditOcorrencia}
+        />
       </TabPanel>
+
+      {/* Modais */}
+      <EscalaModal
+        open={escalaOpen}
+        onClose={() => setEscalaOpen(false)}
+        initial={selectedEscala}
+        onSave={handleSaveEscala}
+        lookups={lookups}
+        isLoading={isCriandoEscala || isEditandoEscala}
+      />
+      <PiqueteRegrasModal
+        open={regrasOpen}
+        onClose={() => setRegrasOpen(false)}
+        regras={regras}
+        onSave={async (data) => { await saveRegras(data); setRegrasOpen(false); }}
+        isSaving={isSavingRegras}
+      />
+      <OcorrenciaModal
+        open={ocorrenciaOpen}
+        onClose={() => setOcorrenciaOpen(false)}
+        onSave={handleSaveOcorrencia}
+        isSaving={isCriandoOcorrencia || isEditandoOcorrencia}
+        escalaFk={escalaFk}
+        initial={selectedOcorrencia}
+        lookups={lookups}
+      />
     </ModulePage>
   );
 };

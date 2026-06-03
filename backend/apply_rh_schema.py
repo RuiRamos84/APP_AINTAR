@@ -53,6 +53,12 @@ EXECUTION_PLAN = [
     ('18', '18_filtro_perfis_rh.sql',     'Filtro ts_profile IN (0,1,6)'),
     ('15', '15_verify.sql',               'Smoke tests (verificação)'),
     ('16', '16_permissions.sql',          'Permissões ts_interface'),
+    ('19', '19_vbl_lookups_config.sql',   'vbl_rh_tipo_* com filtro de perfis'),
+    ('20', '20_transitados.sql',          'Dados transitados / migrações'),
+    ('21', '21_geofencing.sql',           'Geofencing + fbo_rh_ponto_evento'),
+    ('22', '22_face_recognition.sql',     'Reconhecimento facial'),
+    ('23', '23_participacao_ausencias.sql', 'Participações de ausências'),
+    ('24', '24_gestao_central.sql',       'Gestão centralizada: vbl_rh_pendentes + vbl_rh_equipa_hoje'),
 ]
 
 # ─── Helpers de output ────────────────────────────────────────────────────────

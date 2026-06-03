@@ -298,6 +298,26 @@ export const SocketProvider = ({ children }) => {
   );
 
   /**
+   * Handler para notificações do módulo RH
+   * participacao_workflow → colaborador notificado de mudança de estado
+   * participacao_criada   → participação criada automaticamente após regresso
+   */
+  const handleRhNotification = useCallback(
+    (data) => {
+      const notif = {
+        ...data,
+        type: 'rh',
+        title: data.title || 'Recursos Humanos',
+        message: data.message || '',
+        priority: data.priority || 'medium',
+        route: data.route || '/rh/pessoal/faltas',
+      };
+      handleNewNotification(notif, true);
+    },
+    [handleNewNotification]
+  );
+
+  /**
    * Handler para notificações de operações (módulo de operação)
    * nova_tarefa → operador recebe tarefa atribuída
    * tarefa_executada → supervisor é notificado de execução
@@ -509,6 +529,7 @@ export const SocketProvider = ({ children }) => {
         );
         const removeTaskNotif = onEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleTaskNotification);
         const removeOperacaoNotif = onEvent('operacao_notification', handleOperacaoNotification);
+        const removeRhNotif = onEvent('rh_notification', handleRhNotification);
 
         // Event para atualização de conexão
         const removeConnect = onEvent(SOCKET_EVENTS.CONNECT, () => {
@@ -533,6 +554,7 @@ export const SocketProvider = ({ children }) => {
           removeDocTransfer,
           removeTaskNotif,
           removeOperacaoNotif,
+          removeRhNotif,
           removeConnect,
           removeDisconnect,
           () => clearInterval(heartbeatInterval),
@@ -562,6 +584,7 @@ export const SocketProvider = ({ children }) => {
     handleDocumentTransferred,
     handleTaskNotification,
     handleOperacaoNotification,
+    handleRhNotification,
   ]);
 
   // Polling de fallback: corre continuamente enquanto autenticado.

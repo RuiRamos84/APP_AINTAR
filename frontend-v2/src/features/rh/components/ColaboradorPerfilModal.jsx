@@ -55,6 +55,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
       ts_rh_local_fk: '',
       dias_ferias_base: 22,
       elegivel_piquete: true,
+      gps_obrigatorio: true,
       notas: '',
     },
   });
@@ -73,6 +74,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
         ts_rh_local_fk: colaborador.ts_rh_local_fk || '',
         dias_ferias_base: colaborador.dias_ferias_base || 22,
         elegivel_piquete: colaborador.elegivel_piquete ?? true,
+        gps_obrigatorio: colaborador.gps_obrigatorio ?? true,
         notas: colaborador.notas_rh || '',
       });
     }
@@ -152,7 +154,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
               )}
             />
           </Grid>
-          <Grid size={12}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="superior_fk" control={control}
               render={({ field }) => (
                 <FormControl fullWidth size="small">
@@ -169,7 +171,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
               )}
             />
           </Grid>
-          <Grid size={12}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="ts_rh_local_fk" control={control}
               render={({ field }) => (
                 <FormControl fullWidth size="small">
@@ -202,12 +204,22 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
               )}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 8 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Controller name="elegivel_piquete" control={control}
               render={({ field }) => (
                 <FormControlLabel
                   control={<Switch checked={!!field.value} onChange={e => field.onChange(e.target.checked)} />}
                   label="Elegível para Piquete"
+                />
+              )}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <Controller name="gps_obrigatorio" control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={!!field.value} onChange={e => field.onChange(e.target.checked)} color="success" />}
+                  label="GPS Obrigatório no Ponto"
                 />
               )}
             />

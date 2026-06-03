@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import notification from '@/core/services/notification';
 import {
   getPonto, registarPontoEvento, submeterPontoMensal,
-  getPontoMensal, corrigirPonto,
+  getPontoMensal, corrigirPonto, getFaceStatus,
+  resetFaceSelf, resetFaceAdmin, getFaceUsersStatus,
+  executarWorkflow,
 } from '../services/rhService';
-import { executarWorkflow } from '../services/rhService';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -14,8 +16,9 @@ export const usePontoHoje = (userFk) => {
     queryKey: ['rh-ponto-hoje', userFk],
     queryFn: () => getPonto({ user_fk: userFk, data_inicio: today(), data_fim: today() }),
     enabled: !!userFk,
-    staleTime: 30 * 1000,
+    staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   return {
@@ -56,8 +59,64 @@ export const usePontoMensal = (params = {}) => {
   };
 };
 
+export const useFaceStatus = (userFk) => {
+  const query = useQuery({
+    queryKey: ['rh-face-status', userFk],
+    queryFn: () => getFaceStatus(userFk),
+    enabled: !!userFk,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    enrolled: query.data?.enrolled ?? null,
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
+};
+
+export const useResetFaceSelf = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: resetFaceSelf,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rh-face-status'] });
+      notification.success('Rosto removido. Faça um novo registo facial.');
+    },
+    onError: (e) => notification.apiError(e, 'Erro ao remover rosto'),
+  });
+};
+
+export const useResetFaceAdmin = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userFk) => resetFaceAdmin(userFk),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rh-face-status'] });
+      qc.invalidateQueries({ queryKey: ['rh-face-users'] });
+      notification.success('Rosto do colaborador removido.');
+    },
+    onError: (e) => notification.apiError(e, 'Erro ao remover rosto'),
+  });
+};
+
+export const useFaceUsers = () => {
+  const query = useQuery({
+    queryKey: ['rh-face-users'],
+    queryFn: getFaceUsersStatus,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  return {
+    users: Array.isArray(query.data) ? query.data : [],
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
+};
+
 export const usePontoActions = (userFk) => {
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['rh-ponto-hoje'] });
@@ -67,7 +126,19 @@ export const usePontoActions = (userFk) => {
 
   const registar = useMutation({
     mutationFn: (data) => registarPontoEvento({ user_fk: userFk, ...data }),
-    onSuccess: () => { invalidate(); notification.success('Ponto registado'); },
+    onSuccess: (data) => {
+      invalidate();
+      if (data?.participacao_criada) {
+        qc.invalidateQueries({ queryKey: ['rh-participacoes'] });
+        toast.success('Regresso registado', {
+          description: 'Ausência parcial criada automaticamente. Adicione a justificação legal.',
+          action: { label: 'Justificar agora', onClick: () => navigate('/rh/pessoal/faltas') },
+          duration: 8000,
+        });
+      } else {
+        notification.success('Ponto registado');
+      }
+    },
     onError: (e) => notification.apiError(e, 'Erro ao registar ponto'),
   });
 

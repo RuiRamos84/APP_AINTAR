@@ -258,6 +258,7 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Operação.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Pagamentos.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Portal Cliente.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Recursos Humanos.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Website Público.md
 
 ### Integrações
@@ -287,6 +288,7 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Operação.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Pagamentos.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Portal Cliente.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Recursos Humanos.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Telemetria.md
 
 ### Socket.IO

@@ -97,18 +97,15 @@ const HorariosPage = () => {
           >
             {apenasActivos ? 'Apenas activos' : 'Todos'}
           </Button>
+          <SearchBar searchTerm={search} onSearch={setSearch} />
           <Button variant="contained" startIcon={<AddIcon />}
             onClick={openCreate}
-            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}>
+            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, whiteSpace: 'nowrap' }}>
             Novo Horário
           </Button>
         </Stack>
       }
     >
-      <Box sx={{ mb: 2 }}>
-        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
-      </Box>
-
       <DataGrid
         rows={results}
         columns={columns}

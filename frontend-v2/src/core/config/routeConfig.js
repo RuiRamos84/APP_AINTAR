@@ -824,6 +824,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/rh/gestao/central': {
+    id: 'rh_gestao_central',
+    text: 'Gestão Centralizada',
+    icon: SupervisorIcon,
+    module: 'rh',
+    permissions: { required: 'rh.validate' },
+    showInSidebar: true,
+  },
+
   '/epi': {
     id: 'epi',
     text: 'Gestão de EPI',

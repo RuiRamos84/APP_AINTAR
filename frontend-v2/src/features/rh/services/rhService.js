@@ -64,4 +64,33 @@ export const eliminarLocal      = (pk)    => api.delete(`${BASE}/locais/${pk}`);
 export const setLocalColaborador = (pk, d) => api.put(`${BASE}/colaboradores/${pk}/local`, d);
 
 // Geofencing — Alertas
-export const getPontoAlertas = (p) => api.get(`${BASE}/ponto/alertas`, { params: p });
+export const getPontoAlertas  = (p) => api.get(`${BASE}/ponto/alertas`, { params: p });
+
+// Alerta de entrada em falta
+export const checkEntrada     = ()  => api.get(`${BASE}/ponto/check-entrada`);
+
+// Participações de ausências
+export const getMotivosParticipacao  = ()       => api.get(`${BASE}/participacoes/motivos`);
+export const getParticipacoes        = (params) => api.get(`${BASE}/participacoes`, { params });
+export const criarParticipacao       = (data)   => api.post(`${BASE}/participacoes`, data);
+export const editarParticipacao      = (pk, d)  => api.put(`${BASE}/participacoes/${pk}`, d);
+export const workflowParticipacao    = (data)   => api.post(`${BASE}/participacoes/workflow`, data);
+export const uploadAnexosParticipacao = (pk, formData) =>
+  api.post(`${BASE}/participacoes/${pk}/anexos`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const downloadAnexoParticipacao = (pk, filename) =>
+  api.get(`${BASE}/participacoes/${pk}/anexos/${filename}`, { responseType: 'blob' });
+
+// Gestão Centralizada
+export const getPendentes    = (p)    => api.get(`${BASE}/gestao/pendentes`, { params: p });
+export const getEquipa       = (p)    => api.get(`${BASE}/gestao/equipa`, { params: p });
+export const workflowBulk    = (data) => api.post(`${BASE}/gestao/workflow/bulk`, data);
+
+// Reconhecimento Facial
+export const getFaceStatus      = (userFk) => api.get(`${BASE}/face/status`, { params: { user_fk: userFk } });
+export const enrollFace         = (data)   => api.post(`${BASE}/face/enroll`, data);
+export const verifyFace         = (data)   => api.post(`${BASE}/face/verify`, data);
+export const resetFaceSelf      = ()       => api.delete(`${BASE}/face/reset`);
+export const resetFaceAdmin     = (userFk) => api.delete(`${BASE}/face/${userFk}/reset`);
+export const getFaceUsersStatus = ()       => api.get(`${BASE}/face/users`);

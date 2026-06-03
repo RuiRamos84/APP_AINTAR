@@ -83,17 +83,16 @@ const FeriasPage = () => {
       color={COLOR}
       breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Férias' }]}
       actions={
-        <Button variant="contained" startIcon={<AddIcon />}
-          onClick={openCreate}
-          sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}>
-          Novo Pedido
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <SearchBar searchTerm={search} onSearch={setSearch} />
+          <Button variant="contained" startIcon={<AddIcon />}
+            onClick={openCreate}
+            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, whiteSpace: 'nowrap' }}>
+            Novo Pedido
+          </Button>
+        </Stack>
       }
     >
-      <Box sx={{ mb: 2 }}>
-        <SearchBar searchTerm={search} onSearch={setSearch} placeholder="Pesquisar…" />
-      </Box>
-
       <DataGrid
         rows={results}
         columns={columns}

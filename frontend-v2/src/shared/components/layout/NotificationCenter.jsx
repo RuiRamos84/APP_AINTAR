@@ -25,6 +25,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import InfoIcon from '@mui/icons-material/Info';
 import CircleIcon from '@mui/icons-material/Circle';
 import EngineeringIcon from '@mui/icons-material/Engineering';
+import BadgeIcon from '@mui/icons-material/Badge';
 import { useSocket } from '@/core/contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -63,6 +64,7 @@ export const NotificationCenter = () => {
       case 1: return notifications.filter((n) => n.type === 'task');
       case 2: return notifications.filter((n) => n.type === 'operacao');
       case 3: return notifications.filter((n) => n.type === 'document');
+      case 4: return notifications.filter((n) => n.type === 'rh');
       default: return notifications;
     }
   };
@@ -71,6 +73,7 @@ export const NotificationCenter = () => {
   const unreadTasks = notifications.filter((n) => n.type === 'task' && !n.read).length;
   const unreadOperacoes = notifications.filter((n) => n.type === 'operacao' && !n.read).length;
   const unreadDocs = notifications.filter((n) => n.type === 'document' && !n.read).length;
+  const unreadRh = notifications.filter((n) => n.type === 'rh' && !n.read).length;
 
   const handleNotificationClick = (notif) => {
     markAsRead(notif.id);
@@ -88,6 +91,8 @@ export const NotificationCenter = () => {
     } else if (notif.type === 'document' && notif.documentId) {
       // No portal, redirecionar para a lista de pedidos ou detalhe se implementado
       navigate(IS_PORTAL ? '/pedidos' : '/documents');
+    } else if (notif.type === 'rh') {
+      navigate(notif.route || '/rh/pessoal/faltas');
     }
   };
 
@@ -99,6 +104,8 @@ export const NotificationCenter = () => {
         return <EngineeringIcon sx={{ color: '#1565c0' }} />;
       case 'document':
         return <ArticleIcon color="secondary" />;
+      case 'rh':
+        return <BadgeIcon sx={{ color: '#be123c' }} />;
       case 'system':
         return <InfoIcon color="info" />;
       default:
@@ -241,6 +248,16 @@ export const NotificationCenter = () => {
                 </Box>
               }
             />
+            {!IS_PORTAL && (
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    RH
+                    {unreadRh > 0 && <Chip label={unreadRh} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                  </Box>
+                }
+              />
+            )}
           </Tabs>
         </Box>
 

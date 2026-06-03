@@ -1,6 +1,7 @@
 -- backend/app/sql/rh/03_tables_ponto.sql
 
--- Registo diário de ponto (cada evento: entrada, almoço, saída)
+-- Registo diário de ponto (cada evento: entrada, almoço, saída, saída temporária, regresso)
+-- Eventos 1-4 são únicos por dia; eventos 5 (saída temporária) e 6 (regresso) são repetíveis
 CREATE TABLE IF NOT EXISTS tb_rh_ponto (
     pk              INTEGER  NOT NULL DEFAULT fs_nextcode(),
     tb_user_fk      INTEGER  NOT NULL,
@@ -12,12 +13,17 @@ CREATE TABLE IF NOT EXISTS tb_rh_ponto (
     precisao_metros INTEGER,
     fonte           VARCHAR(20) NOT NULL DEFAULT 'app',
     notas           TEXT,
-    CONSTRAINT pk_tb_rh_ponto PRIMARY KEY (pk),
-    CONSTRAINT uq_tb_rh_ponto_user_data_evento UNIQUE (tb_user_fk, data, tt_evento_fk)
+    CONSTRAINT pk_tb_rh_ponto PRIMARY KEY (pk)
+    -- NOTA: sem UNIQUE global — constraint parcial abaixo permite repetição dos eventos 5 e 6
 );
 
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_user_data ON tb_rh_ponto (tb_user_fk, data);
 CREATE INDEX IF NOT EXISTS idx_tb_rh_ponto_data      ON tb_rh_ponto (data);
+
+-- Unicidade apenas para eventos não repetíveis (Entrada=1, Início Almoço=2, Fim Almoço=3, Saída=4)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tb_rh_ponto_user_data_evento_unico
+    ON tb_rh_ponto (tb_user_fk, data, tt_evento_fk)
+    WHERE tt_evento_fk NOT IN (5, 6);
 
 -- Mapa mensal — agrupa registos do mês para workflow de aprovação
 CREATE TABLE IF NOT EXISTS tb_rh_ponto_mensal (

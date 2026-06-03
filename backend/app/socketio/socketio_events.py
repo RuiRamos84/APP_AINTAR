@@ -291,6 +291,45 @@ class SocketIOEvents(Namespace):
                 logger.error(f"[OperaçãoNotif] Erro ao emitir para user {user_id}: {e}")
 
 
+    # =========================================================================
+    # RH (RECURSOS HUMANOS) NOTIFICATION HANDLERS
+    # =========================================================================
+
+    def emit_rh_notification(self, user_ids: list, notification_type: str,
+                              title: str, message: str,
+                              route: str = '/rh/pessoal/faltas'):
+        """
+        Emite notificação do módulo RH para utilizadores específicos.
+
+        notification_type:
+          - 'participacao_workflow' → estado da participação alterado
+          - 'participacao_criada'   → participação criada automaticamente (regresso)
+          - 'ponto_registo'         → ponto registado por admin em nome do colaborador
+        """
+        import datetime
+        notification_data = {
+            'type': 'rh',
+            'notification_type': notification_type,
+            'title': title,
+            'message': message,
+            'timestamp': datetime.datetime.now().isoformat(),
+            'route': route,
+        }
+        for user_id in user_ids:
+            if user_id is None:
+                continue
+            try:
+                room = f'user_{user_id}'
+                if int(user_id) in self.connected_users:
+                    self.socketio.emit('rh_notification', notification_data,
+                                       room=room, namespace='/')
+                    logger.info(f"[RH Notif] {notification_type} → user {user_id}")
+                else:
+                    logger.info(f"[RH Notif] user {user_id} offline — notificação perdida")
+            except Exception as e:
+                logger.error(f"[RH Notif] Erro ao emitir para user {user_id}: {e}")
+
+
 def register_socket_events(socketio):
     # Criamos uma instância da classe e a registramos no socketio
     socket_events = SocketIOEvents('/')

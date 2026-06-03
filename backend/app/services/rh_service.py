@@ -2,7 +2,7 @@ from flask import jsonify
 from sqlalchemy import text
 from typing import Optional
 from datetime import date, time, datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError, ResourceNotFoundError
 from app.utils.logger import get_logger
@@ -25,6 +25,7 @@ class ColaboradorUpsert(BaseModel):
     superior_fk: Optional[int] = None
     dias_ferias_base: Optional[int] = None
     elegivel_piquete: Optional[bool] = None
+    gps_obrigatorio: Optional[bool] = None
     notas: Optional[str] = None
 
 
@@ -41,6 +42,8 @@ class PontoEventoCreate(BaseModel):
     longitude: Optional[float] = None
     precisao: Optional[int] = None
     notas: Optional[str] = None
+    face_verified: Optional[bool] = None
+    face_score: Optional[float] = None
 
 
 class PontoSubmeter(BaseModel):
@@ -262,6 +265,102 @@ def get_saldo_ferias(pk: int, current_user: str):
 # ---------------------------------------------------------------------------
 
 @api_error_handler
+def check_entrada(user_fk: int, current_user: str):
+    """
+    Devolve o PRIMEIRO evento de ponto em falta que já devia ter sido registado.
+    Verifica todos os eventos do horário activo por ordem (Entrada → Almoços → Saída).
+    Condições globais que inibem qualquer alerta:
+      - Sem horário activo / hoje não é dia de trabalho / feriado / férias aprovadas / falta registada
+    """
+    from datetime import datetime, timedelta
+
+    GRACE = timedelta(minutes=15)
+
+    with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            SELECT
+                h.tt_jornada_fk,
+                h.descr               AS horario_descr,
+                h.dias_semana,
+                h.hora_entrada,
+                h.hora_inicio_almoco,
+                h.hora_fim_almoco,
+                h.hora_saida,
+                -- Eventos já registados hoje (bitmask via array)
+                ARRAY(
+                    SELECT tt_evento_fk FROM tb_rh_ponto
+                    WHERE tb_user_fk = :user_fk AND data = CURRENT_DATE
+                ) AS eventos_registados,
+                EXISTS(
+                    SELECT 1 FROM ts_feriados WHERE data = CURRENT_DATE
+                ) AS is_feriado,
+                EXISTS(
+                    SELECT 1 FROM tb_rh_ferias f
+                    WHERE f.tb_user_fk = :user_fk
+                      AND CURRENT_DATE BETWEEN f.data_inicio AND f.data_fim
+                      AND f.ts_estado_fk = 3
+                ) AS tem_ferias,
+                EXISTS(
+                    SELECT 1 FROM tb_rh_faltas fa
+                    WHERE fa.tb_user_fk = :user_fk
+                      AND fa.data = CURRENT_DATE
+                      AND fa.ts_estado_fk != 4
+                ) AS tem_falta
+            FROM ts_rh_horario h
+            WHERE h.tb_user_fk = :user_fk AND h.data_fim IS NULL
+            ORDER BY h.data_inicio DESC
+            LIMIT 1
+        """), {'user_fk': user_fk}).mappings().first()
+
+        no_alert = jsonify({'needs_check': False}), 200
+
+        if not row:
+            return no_alert
+
+        # Dia da semana (1=Segunda … 7=Domingo)
+        today_dow   = date.today().isoweekday()
+        dias_semana = list(row['dias_semana'] or [1, 2, 3, 4, 5])
+        if today_dow not in dias_semana:
+            return no_alert
+        if row['is_feriado'] or row['tem_ferias'] or row['tem_falta']:
+            return no_alert
+
+        now          = datetime.now().time()
+        registados   = list(row['eventos_registados'] or [])
+        jornada      = row['tt_jornada_fk']   # 1=Partida, 2=Contínua
+        horario_descr = row['horario_descr']
+
+        # Sequência de eventos a verificar: (evento_fk, label, hora_prevista)
+        # Jornada contínua (2) não tem almoço
+        candidatos = [
+            (1, 'Entrada',         row['hora_entrada']),
+        ]
+        if jornada != 2 and row['hora_inicio_almoco']:
+            candidatos.append((2, 'Início de Almoço', row['hora_inicio_almoco']))
+        if jornada != 2 and row['hora_fim_almoco']:
+            candidatos.append((3, 'Fim de Almoço',    row['hora_fim_almoco']))
+        candidatos.append((4, 'Saída', row['hora_saida']))
+
+        for evento_fk, label, hora_prevista in candidatos:
+            if hora_prevista is None:
+                continue
+            # Só alertar se já passou hora_prevista + tolerância de 15 min
+            limite = (datetime.combine(date.today(), hora_prevista) + GRACE).time()
+            if now < limite:
+                break   # eventos seguintes também ainda não são devidos
+            if evento_fk not in registados:
+                return jsonify({
+                    'needs_check':   True,
+                    'evento_fk':     evento_fk,
+                    'evento_label':  label,
+                    'hora_prevista': hora_prevista.strftime('%H:%M'),
+                    'horario_descr': horario_descr,
+                }), 200
+
+        return no_alert
+
+
+@api_error_handler
 def registar_ponto_evento(data: dict, current_user: str):
     from flask import current_app
     payload = PontoEventoCreate.model_validate(data)
@@ -272,6 +371,25 @@ def registar_ponto_evento(data: dict, current_user: str):
             ) AS result
         """), payload.model_dump()).scalar()
         _assert_success(result, 'Erro ao registar evento de ponto')
+
+        # Persistir dados de reconhecimento facial (UPDATE pela chave única user+data+evento)
+        if payload.face_verified is not None:
+            fonte = 'app+face' if payload.face_verified else 'app'
+            session.execute(text("""
+                UPDATE tb_rh_ponto
+                SET face_verified = :face_verified,
+                    face_score    = :face_score,
+                    fonte         = :fonte
+                WHERE tb_user_fk  = :user_fk
+                  AND data        = CURRENT_DATE
+                  AND tt_evento_fk = :tt_evento_fk
+            """), {
+                'face_verified': payload.face_verified,
+                'face_score':    payload.face_score,
+                'fonte':         fonte,
+                'user_fk':       payload.user_fk,
+                'tt_evento_fk':  payload.tt_evento_fk,
+            })
 
         # Emitir alerta de geofencing ao superior hierárquico se fora do local
         if result and 'fora_local=true' in result.lower():
@@ -294,7 +412,68 @@ def registar_ponto_evento(data: dict, current_user: str):
             except Exception as e:
                 logger.warning(f'Falhou notificação geofencing: {e}')
 
-        return jsonify({'message': 'Evento registado', 'result': format_message(result)}), 201
+        # Ao registar Regresso (evento 6): criar participação parcial automaticamente
+        participacao_criada = False
+        participacao_pk = None
+
+        if payload.tt_evento_fk == 6:
+            try:
+                ev6 = session.execute(text("""
+                    SELECT pk, ts_registo::TIME AS hora
+                    FROM tb_rh_ponto
+                    WHERE tb_user_fk = :user_fk
+                      AND data = CURRENT_DATE
+                      AND tt_evento_fk = 6
+                    ORDER BY ts_registo DESC LIMIT 1
+                """), {'user_fk': payload.user_fk}).fetchone()
+
+                ev5 = session.execute(text("""
+                    SELECT p.pk, p.ts_registo::TIME AS hora
+                    FROM tb_rh_ponto p
+                    WHERE p.tb_user_fk = :user_fk
+                      AND p.data = CURRENT_DATE
+                      AND p.tt_evento_fk = 5
+                      AND NOT EXISTS (
+                          SELECT 1 FROM tb_rh_participacao pt
+                          WHERE pt.ponto_saida_fk = p.pk
+                      )
+                    ORDER BY p.ts_registo DESC LIMIT 1
+                """), {'user_fk': payload.user_fk}).fetchone()
+
+                if ev5 and ev6:
+                    hora_saida   = str(ev5.hora)[:5]
+                    hora_regresso = str(ev6.hora)[:5]
+                    part_result = session.execute(text("""
+                        SELECT fbo_rh_participacao(
+                            0::SMALLINT, NULL,
+                            :user_fk, NULL, 'parcial',
+                            CURRENT_DATE, CURRENT_DATE,
+                            CAST(:hora_inicio AS TIME), CAST(:hora_fim AS TIME),
+                            :ponto_saida_fk, :ponto_regresso_fk,
+                            CURRENT_DATE, NULL,
+                            '[]'::JSONB
+                        ) AS result
+                    """), {
+                        'user_fk':           payload.user_fk,
+                        'hora_inicio':        hora_saida,
+                        'hora_fim':           hora_regresso,
+                        'ponto_saida_fk':     ev5.pk,
+                        'ponto_regresso_fk':  ev6.pk,
+                    }).scalar()
+
+                    if part_result and '<sucess>' in part_result.lower():
+                        participacao_criada = True
+                        participacao_pk = format_message(part_result)
+                        logger.info(f'Participação parcial auto-criada: pk={participacao_pk}, user={payload.user_fk}')
+            except Exception as e:
+                logger.warning(f'Falhou auto-criação de participação ao registar regresso: {e}')
+
+        return jsonify({
+            'message': 'Evento registado',
+            'result': format_message(result),
+            'participacao_criada': participacao_criada,
+            'participacao_pk': participacao_pk,
+        }), 201
 
 
 @api_error_handler
@@ -785,7 +964,7 @@ def upsert_colaborador_perfil(data: dict, current_user: str):
                 0, :pk,
                 :data_nascimento, :data_admissao, :categoria, :tipo_contrato,
                 :num_mecanografico, :departamento, :superior_fk,
-                :dias_ferias_base, :elegivel_piquete, :notas
+                :dias_ferias_base, :elegivel_piquete, :notas, :gps_obrigatorio
             ) AS result
         """), p).scalar()
         _assert_success(result, 'Erro ao guardar perfil RH')

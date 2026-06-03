@@ -72,7 +72,8 @@ DECLARE
     v_distancia  INTEGER;
     v_fora_local BOOLEAN := FALSE;
 BEGIN
-    IF EXISTS (
+    -- 1. Eventos 1-4 são únicos por dia; eventos 5 e 6 (saída temporária / regresso) são repetíveis
+    IF p_tt_evento_fk NOT IN (5, 6) AND EXISTS (
         SELECT 1 FROM tb_rh_ponto
         WHERE tb_user_fk = p_user_fk
           AND data = v_data
@@ -81,6 +82,23 @@ BEGIN
         RETURN '<error>Evento já registado para hoje</error>';
     END IF;
 
+    -- 2. Bloqueio universal: após Saída (evento 4) o dia está encerrado
+    IF EXISTS (
+        SELECT 1 FROM tb_rh_ponto
+        WHERE tb_user_fk = p_user_fk AND data = v_data AND tt_evento_fk = 4
+    ) THEN
+        RETURN '<error>O dia já foi encerrado. Não é possível registar eventos após a Saída.</error>';
+    END IF;
+
+    -- 3. Todos os eventos (excepto Entrada) requerem Entrada prévia
+    IF p_tt_evento_fk != 1 AND NOT EXISTS (
+        SELECT 1 FROM tb_rh_ponto
+        WHERE tb_user_fk = p_user_fk AND data = v_data AND tt_evento_fk = 1
+    ) THEN
+        RETURN '<error>É necessário registar a Entrada antes de outros eventos</error>';
+    END IF;
+
+    -- 4. Sequência obrigatória do almoço
     IF p_tt_evento_fk IN (2, 3) THEN
         SELECT tt_jornada_fk INTO v_jornada
         FROM ts_rh_horario
@@ -92,12 +110,46 @@ BEGIN
         END IF;
     END IF;
 
-    IF p_tt_evento_fk = 4 THEN
+    IF p_tt_evento_fk = 3 AND NOT EXISTS (
+        SELECT 1 FROM tb_rh_ponto
+        WHERE tb_user_fk = p_user_fk AND data = v_data AND tt_evento_fk = 2
+    ) THEN
+        RETURN '<error>É necessário registar o Início de Almoço antes do Fim de Almoço</error>';
+    END IF;
+
+    -- Saída Temporária (5): requer entrada e não pode ter saída temporária activa (sem regresso)
+    IF p_tt_evento_fk = 5 THEN
         IF NOT EXISTS (
             SELECT 1 FROM tb_rh_ponto
             WHERE tb_user_fk = p_user_fk AND data = v_data AND tt_evento_fk = 1
         ) THEN
-            RETURN '<error>Não é possível registar saída sem entrada</error>';
+            RETURN '<error>Não é possível registar saída temporária sem entrada</error>';
+        END IF;
+        IF EXISTS (
+            SELECT 1 FROM tb_rh_ponto p1
+            WHERE p1.tb_user_fk = p_user_fk AND p1.data = v_data AND p1.tt_evento_fk = 5
+              AND NOT EXISTS (
+                  SELECT 1 FROM tb_rh_ponto p2
+                  WHERE p2.tb_user_fk = p_user_fk AND p2.data = v_data
+                    AND p2.tt_evento_fk = 6 AND p2.ts_registo > p1.ts_registo
+              )
+        ) THEN
+            RETURN '<error>Já existe uma saída temporária activa — registe o Regresso primeiro</error>';
+        END IF;
+    END IF;
+
+    -- Regresso (6): requer saída temporária activa (sem regresso posterior)
+    IF p_tt_evento_fk = 6 THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM tb_rh_ponto p1
+            WHERE p1.tb_user_fk = p_user_fk AND p1.data = v_data AND p1.tt_evento_fk = 5
+              AND NOT EXISTS (
+                  SELECT 1 FROM tb_rh_ponto p2
+                  WHERE p2.tb_user_fk = p_user_fk AND p2.data = v_data
+                    AND p2.tt_evento_fk = 6 AND p2.ts_registo > p1.ts_registo
+              )
+        ) THEN
+            RETURN '<error>Não existe saída temporária activa para registar regresso</error>';
         END IF;
     END IF;
 

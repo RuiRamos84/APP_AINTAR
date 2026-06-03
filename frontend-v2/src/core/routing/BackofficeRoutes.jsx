@@ -38,13 +38,14 @@ import { EPIPage } from '@/features/administrativo/pages';
 import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
 import RhPessoalPage from '@/features/rh/pages/RhPessoalPage';
 import FeriasPage from '@/features/rh/pages/FeriasPage';
-import FaltasPage from '@/features/rh/pages/FaltasPage';
+import ParticipacaoPage from '@/features/rh/pages/ParticipacaoPage';
 import HorariosPage from '@/features/rh/pages/HorariosPage';
 import PiquetePage from '@/features/rh/pages/PiquetePage';
 import PontoPage from '@/features/rh/pages/PontoPage';
 import GestaoColaboradoresPage from '@/features/rh/pages/GestaoColaboradoresPage';
 import LocaisPage from '@/features/rh/pages/LocaisPage';
 import PontoMapaPage from '@/features/rh/pages/PontoMapaPage';
+import RhGestaoCentralPage from '@/features/rh/pages/RhGestaoCentralPage';
 import { TasksPage } from '@/features/tasks/pages';
 import { EntitiesPage } from '@/features/entities/pages';
 import DocumentsPage from '@/features/documents/pages/DocumentsPage';
@@ -180,12 +181,13 @@ export default function BackofficeRoutes() {
         <Route path="/rh/pessoal"                   element={<RhPessoalPage />} />
         <Route path="/rh/pessoal/ponto"             element={<PontoPage />} />
         <Route path="/rh/pessoal/ferias"            element={<FeriasPage />} />
-        <Route path="/rh/pessoal/faltas"            element={<FaltasPage />} />
+        <Route path="/rh/pessoal/faltas"            element={<ParticipacaoPage />} />
         <Route path="/rh/pessoal/horarios"          element={<HorariosPage />} />
         <Route path="/rh/pessoal/piquete"           element={<PiquetePage />} />
         <Route path="/rh/gestao/colaboradores"      element={<GestaoColaboradoresPage />} />
         <Route path="/rh/gestao/locais"             element={<LocaisPage />} />
         <Route path="/rh/gestao/ponto-mapa"         element={<PontoMapaPage />} />
+        <Route path="/rh/gestao/central"            element={<RhGestaoCentralPage />} />
         <Route path="/aval"                         element={<AvalPage />} />
         <Route path="/admin/aval"                   element={<AvalAdminPage />} />
         <Route path="/aval/analytics"               element={<AvalAnalyticsPage />} />
