@@ -161,9 +161,6 @@ def sibs_webhook():
 
     notification_id = None
 
-    # DEBUG TEMPORÁRIO - Log para confirmar que webhook chegou
-    logger.warning(f"[WEBHOOK DEBUG] Request recebido de {request.remote_addr}")
-
     try:
         # 1. Obter headers de autenticação
         iv_header = request.headers.get('X-Initialization-Vector')

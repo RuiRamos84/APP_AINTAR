@@ -121,7 +121,7 @@ const PaymentAdminPage = () => {
         onError: (err) => notification.apiError(err, 'Erro na devolução.'),
     });
 
-    // Verificação manual de estado SIBS
+    // Verificação manual de estado SIBS (apenas para estados não-finais)
     const handleCheckSibsStatus = async (payment) => {
         setCheckingStatusPk(payment.pk);
         try {
@@ -137,6 +137,29 @@ const PaymentAdminPage = () => {
             notification.apiError(err, 'Erro ao verificar estado junto da SIBS.');
         } finally {
             setCheckingStatusPk(null);
+        }
+    };
+
+    // Sincronização forçada com SIBS — inclui devoluções externas
+    const [syncingPk, setSyncingPk] = useState(null);
+    const handleForceSyncSibs = async (payment) => {
+        if (!['MBWAY', 'MULTIBANCO'].includes(payment.payment_method)) return;
+        setSyncingPk(payment.pk);
+        try {
+            const result = await paymentService.forceSyncStatus(payment.transaction_id);
+            if (result?.updated) {
+                notification.success(result.message || `Estado actualizado: ${getStatusLabel(result.payment_status)}`);
+                queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
+                queryClient.invalidateQueries({ queryKey: ['pendingPayments'] });
+                queryClient.invalidateQueries({ queryKey: ['invoiceAmount', result.document_id] });
+                queryClient.invalidateQueries({ queryKey: ['documents', 'detail'] });
+            } else {
+                notification.info(result?.message || 'Estado já sincronizado com SIBS.');
+            }
+        } catch (err) {
+            notification.apiError(err, 'Erro ao sincronizar com SIBS.');
+        } finally {
+            setSyncingPk(null);
         }
     };
 
@@ -519,17 +542,16 @@ const PaymentAdminPage = () => {
                                                 <CheckCircle fontSize="small" />
                                             </IconButton>
                                         )}
-                                        {tab === 1 && ['MBWAY', 'MULTIBANCO'].includes(payment.payment_method)
-                                            && !['SUCCESS', 'DECLINED', 'REJECTED', 'EXPIRED', 'REFUNDED'].includes(payment.payment_status) && (
-                                            <Tooltip title="Verificar estado junto da SIBS">
+                                        {tab === 1 && ['MBWAY', 'MULTIBANCO'].includes(payment.payment_method) && (
+                                            <Tooltip title="Sincronizar estado com SIBS (inclui devoluções externas)">
                                                 <span>
                                                     <IconButton
                                                         size="small"
                                                         color="info"
-                                                        disabled={checkingStatusPk === payment.pk}
-                                                        onClick={() => handleCheckSibsStatus(payment)}
+                                                        disabled={syncingPk === payment.pk}
+                                                        onClick={() => handleForceSyncSibs(payment)}
                                                     >
-                                                        {checkingStatusPk === payment.pk
+                                                        {syncingPk === payment.pk
                                                             ? <CircularProgress size={16} />
                                                             : <Sync fontSize="small" />
                                                         }
@@ -672,15 +694,14 @@ const PaymentAdminPage = () => {
                             Devolver
                         </Button>
                     )}
-                    {selectedPayment && ['MBWAY', 'MULTIBANCO'].includes(selectedPayment.payment_method)
-                        && !['SUCCESS', 'DECLINED', 'REJECTED', 'EXPIRED', 'REFUNDED'].includes(selectedPayment.payment_status) && (
+                    {selectedPayment && ['MBWAY', 'MULTIBANCO'].includes(selectedPayment.payment_method) && (
                         <Button
                             variant="outlined" color="info"
-                            startIcon={checkingStatusPk === selectedPayment.pk ? <CircularProgress size={16} /> : <Sync />}
-                            disabled={checkingStatusPk === selectedPayment.pk}
-                            onClick={() => handleCheckSibsStatus(selectedPayment)}
+                            startIcon={syncingPk === selectedPayment.pk ? <CircularProgress size={16} /> : <Sync />}
+                            disabled={syncingPk === selectedPayment.pk}
+                            onClick={() => handleForceSyncSibs(selectedPayment)}
                         >
-                            Verificar SIBS
+                            Sincronizar SIBS
                         </Button>
                     )}
                     {tab === 0 && selectedPayment && (

@@ -177,10 +177,10 @@ const MBWayPayment = ({ onSuccess, transactionId, amount, regnumber, onRetry }) 
     // Mutation para processar MB WAY
     const { mutate: payWithMBWay, isLoading: isSubmitting } = useMutation({
         mutationFn: (phoneNumber) => paymentService.processMBWay(transactionId, phoneNumber),
-        onSuccess: (data) => {
+        onSuccess: () => {
             setLocalStep(2);
             startPaymentListener();
-            onSuccess?.(data);
+            // Não chamar onSuccess aqui — aguardar confirmação SIBS via webhook/polling
         },
         onError: (err) => {
             setError(err.message || 'Erro ao processar MB WAY');

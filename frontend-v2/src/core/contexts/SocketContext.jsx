@@ -38,6 +38,7 @@ import {
 import { useAuth } from './AuthContext';
 import { notification } from '@/core/services/notification/notificationService';
 import apiClient from '@/services/api/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const SocketContext = createContext(null);
 
@@ -46,6 +47,7 @@ const SocketContext = createContext(null);
  */
 export const SocketProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
   // Estados da conexão
   const [socket, setSocket] = useState(null);
@@ -232,6 +234,28 @@ export const SocketProvider = ({ children }) => {
       });
     },
     [generateNotificationId, playNotificationSound]
+  );
+
+  /**
+   * Handler global para confirmação de pagamento SIBS (webhook).
+   * Sempre activo — invalida caches mesmo com o modal fechado.
+   */
+  const handlePaymentStatusUpdate = useCallback(
+    (data) => {
+      const documentId = data.document_id;
+      if (!documentId) return;
+
+      // Invalidar tab de pagamentos do documento
+      queryClient.invalidateQueries({ queryKey: ['invoiceAmount', documentId] });
+      // Invalidar detalhe do documento (para reflectir estado na lista e no modal)
+      queryClient.invalidateQueries({ queryKey: ['documents', 'detail'] });
+      queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
+
+      if (data.payment_status === 'SUCCESS') {
+        notification.success('Pagamento confirmado com sucesso.');
+      }
+    },
+    [queryClient]
   );
 
   /**
@@ -530,6 +554,7 @@ export const SocketProvider = ({ children }) => {
         const removeTaskNotif = onEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleTaskNotification);
         const removeOperacaoNotif = onEvent('operacao_notification', handleOperacaoNotification);
         const removeRhNotif = onEvent('rh_notification', handleRhNotification);
+        const removePaymentUpdate = onEvent('payment_status_update', handlePaymentStatusUpdate);
 
         // Event para atualização de conexão
         const removeConnect = onEvent(SOCKET_EVENTS.CONNECT, () => {
@@ -555,6 +580,7 @@ export const SocketProvider = ({ children }) => {
           removeTaskNotif,
           removeOperacaoNotif,
           removeRhNotif,
+          removePaymentUpdate,
           removeConnect,
           removeDisconnect,
           () => clearInterval(heartbeatInterval),
@@ -585,6 +611,7 @@ export const SocketProvider = ({ children }) => {
     handleTaskNotification,
     handleOperacaoNotification,
     handleRhNotification,
+    handlePaymentStatusUpdate,
   ]);
 
   // Polling de fallback: corre continuamente enquanto autenticado.

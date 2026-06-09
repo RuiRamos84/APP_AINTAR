@@ -1,4 +1,5 @@
 import requests
+import uuid
 from datetime import datetime, timedelta
 from app.utils.utils import db_session_manager, db_system_session
 from sqlalchemy import text
@@ -418,12 +419,17 @@ class PaymentService:
 
             # Gravar na BD
             with db_session_manager(current_user) as db:
+                document_id = checkout_data["document_id"]
+
+                # Garantir que existe registo de fatura antes de tentar ligar o SIBS
+                db.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
+
                 new_pk = db.execute(
                     text("SELECT nextval('sq_codes')")).scalar()
 
                 sibs_result = db.execute(text("""
-                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                :transaction_signature, :amount, :currency, 
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id,
+                                :transaction_signature, :amount, :currency,
                                 :method, :status, :pref, :entity,
                                 :expiry, :created_at, NULL, NULL, NULL)
                 """), {
@@ -441,11 +447,20 @@ class PaymentService:
                     "created_at": datetime.utcnow()
                 })
 
-                sibs_pk = sibs_result.scalar()
+                sibs_pk = sibs_result.scalar() or new_pk
 
                 db.execute(text("""
                     SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
-                """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
+                """), {"sibs_pk": sibs_pk, "document_id": document_id})
+
+                # Garantir que tb_sibs ficou preenchido (fbo_document_invoice$link pode falhar silenciosamente)
+                verify = db.execute(text(
+                    "SELECT tb_sibs FROM tb_document_invoice WHERE tb_document = :doc_id LIMIT 1"
+                ), {"doc_id": document_id}).scalar()
+                if verify != sibs_pk:
+                    db.execute(text(
+                        "UPDATE tb_document_invoice SET tb_sibs = :sibs_pk WHERE tb_document = :doc_id"
+                    ), {"sibs_pk": sibs_pk, "doc_id": document_id})
 
             # Limpar cache
             if transaction_id in self.checkout_cache:
@@ -506,13 +521,18 @@ class PaymentService:
 
             # Gravar na BD
             with db_session_manager(current_user) as db:
+                document_id = checkout_data["document_id"]
+
+                # Garantir que existe registo de fatura antes de tentar ligar o SIBS
+                db.execute(text("SELECT fbo_document_invoice$getset(:document_id)"), {"document_id": document_id})
+
                 new_pk = db.execute(
                     text("SELECT nextval('sq_codes')")).scalar()
 
                 sibs_result = db.execute(text("""
-                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id, 
-                                :transaction_signature, :amount, :currency, 
-                                :method, :status, :pref, :entity, 
+                    SELECT fbf_sibs(0, :pk, :order_id, :transaction_id,
+                                :transaction_signature, :amount, :currency,
+                                :method, :status, :pref, :entity,
                                 :expiry, :created_at, NULL, NULL, NULL)
                 """), {
                     "pk": new_pk,
@@ -529,11 +549,20 @@ class PaymentService:
                     "created_at": datetime.utcnow()
                 })
 
-                sibs_pk = sibs_result.scalar()
+                sibs_pk = sibs_result.scalar() or new_pk
 
                 db.execute(text("""
                     SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
-                """), {"sibs_pk": sibs_pk, "document_id": checkout_data["document_id"]})
+                """), {"sibs_pk": sibs_pk, "document_id": document_id})
+
+                # Garantir que tb_sibs ficou preenchido (fbo_document_invoice$link pode falhar silenciosamente)
+                verify = db.execute(text(
+                    "SELECT tb_sibs FROM tb_document_invoice WHERE tb_document = :doc_id LIMIT 1"
+                ), {"doc_id": document_id}).scalar()
+                if verify != sibs_pk:
+                    db.execute(text(
+                        "UPDATE tb_document_invoice SET tb_sibs = :sibs_pk WHERE tb_document = :doc_id"
+                    ), {"sibs_pk": sibs_pk, "doc_id": document_id})
 
             # Limpar cache
             if transaction_id in self.checkout_cache:
@@ -777,6 +806,107 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro em check_payment_status: {e}")
+            raise
+
+    def force_sync_with_sibs(self, transaction_id: str, current_user: str):
+        """
+        Força sincronização com SIBS independentemente do estado local.
+        Usado para reflectir devoluções feitas no backoffice SIBS ou
+        qualquer alteração de estado iniciada externamente.
+        """
+        try:
+            with db_session_manager(current_user) as db:
+                local_data = db.execute(text("""
+                    SELECT pk, payment_status, payment_method,
+                           tb_document, invoice_pk, order_id
+                    FROM vbl_sibs
+                    WHERE transaction_id = :transaction_id
+                """), {"transaction_id": transaction_id}).fetchone()
+
+            if not local_data:
+                raise ResourceNotFoundError("Transação não encontrada")
+
+            if local_data.payment_method not in ('MBWAY', 'MULTIBANCO'):
+                return {
+                    "success": True,
+                    "payment_status": local_data.payment_status,
+                    "payment_method": local_data.payment_method,
+                    "updated": False,
+                    "message": "Sincronização SIBS apenas disponível para MBWAY e MULTIBANCO."
+                }
+
+            # Consultar SIBS sem restrições
+            url = f"{self.base_url}/payments/{transaction_id}/status"
+            resp = requests.get(url, headers=self._get_headers(), timeout=30)
+            resp.raise_for_status()
+
+            sibs_data = resp.json()
+            payment_status = sibs_data.get("paymentStatus")
+            logger.info(f"[ForceSync] SIBS status para {transaction_id}: {payment_status} (local: {local_data.payment_status})")
+
+            status_map = {
+                "Success":  PaymentStatus.SUCCESS,
+                "Pending":  PaymentStatus.PENDING,
+                "Declined": PaymentStatus.DECLINED,
+                "Expired":  PaymentStatus.EXPIRED,
+                "Refunded": PaymentStatus.REFUNDED,
+                "Annulled": PaymentStatus.REFUNDED,
+            }
+            new_status = status_map.get(payment_status)
+
+            if not new_status:
+                return {
+                    "success": True,
+                    "payment_status": local_data.payment_status,
+                    "sibs_status": payment_status,
+                    "updated": False,
+                    "message": f"Estado SIBS '{payment_status}' não reconhecido."
+                }
+
+            if new_status == local_data.payment_status:
+                return {
+                    "success": True,
+                    "payment_status": local_data.payment_status,
+                    "updated": False,
+                    "message": "Estado já sincronizado."
+                }
+
+            # Actualizar BD com novo estado
+            with db_session_manager(current_user) as db:
+                db.execute(text("""
+                    SELECT fbo_sibs_status(:transaction_id, :status, :pref)
+                """), {
+                    "transaction_id": transaction_id,
+                    "status": new_status,
+                    "pref": json.dumps(sibs_data)
+                })
+
+                if new_status == PaymentStatus.SUCCESS and local_data.tb_document:
+                    sibs_pk = db.execute(text(
+                        "SELECT pk FROM tb_sibs WHERE transaction_id = :tid"
+                    ), {"tid": transaction_id}).scalar()
+                    if sibs_pk:
+                        db.execute(text("""
+                            SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
+                        """), {"document_id": local_data.tb_document, "sibs_pk": sibs_pk})
+
+                elif new_status == PaymentStatus.REFUNDED:
+                    pass  # fbo_sibs_status já actualiza o estado; sem função de refund na BD
+
+            logger.info(f"[ForceSync] {transaction_id}: {local_data.payment_status} → {new_status}")
+
+            return {
+                "success": True,
+                "payment_status": new_status,
+                "previous_status": local_data.payment_status,
+                "payment_method": local_data.payment_method,
+                "document_id": local_data.tb_document,
+                "updated": True,
+                "message": f"Estado actualizado: {local_data.payment_status} → {new_status}"
+            }
+
+        except Exception as e:
+            logger.error(f"Erro em force_sync_with_sibs: {e}", exc_info=True)
             raise
 
     def approve_payment(self, payment_pk: int, user_pk: int, current_user: str):
@@ -1076,15 +1206,24 @@ class PaymentService:
 
                 # Se sucesso, actualizar invoice
                 if internal_status == PaymentStatus.SUCCESS and document_id:
-                    db.execute(text("""
-                        SELECT "fbo_document_invoice$link"(:document_id, (
-                            SELECT pk FROM tb_sibs
-                            WHERE transaction_id = :transaction_id
-                        ))
-                    """), {
-                        "document_id": document_id,
-                        "transaction_id": transaction_id
-                    })
+                    sibs_pk = db.execute(text(
+                        "SELECT pk FROM tb_sibs WHERE transaction_id = :transaction_id"
+                    ), {"transaction_id": transaction_id}).scalar()
+
+                    if sibs_pk:
+                        db.execute(text("""
+                            SELECT "fbo_document_invoice$link"(:document_id, :sibs_pk)
+                        """), {"document_id": document_id, "sibs_pk": sibs_pk})
+
+                        # Garantir que tb_sibs ficou preenchido (fbo_document_invoice$link pode falhar silenciosamente)
+                        verify = db.execute(text(
+                            "SELECT tb_sibs FROM tb_document_invoice WHERE tb_document = :doc_id LIMIT 1"
+                        ), {"doc_id": document_id}).scalar()
+                        if verify != sibs_pk:
+                            db.execute(text(
+                                "UPDATE tb_document_invoice SET tb_sibs = :sibs_pk WHERE tb_document = :doc_id"
+                            ), {"sibs_pk": sibs_pk, "doc_id": document_id})
+                            logger.info(f"Fallback: tb_document_invoice.tb_sibs corrigido directamente (document_id={document_id}, sibs_pk={sibs_pk})")
 
                     # Actualizar parâmetro "Método de pagamento" automaticamente
                     payment_method_pk = self._map_payment_method_to_param(payment_method)
@@ -1412,16 +1551,22 @@ class PaymentService:
             # Chamar API SIBS para pagamentos eletrónicos
             if is_sibs and payment.transaction_id:
                 url = f"{self.base_url}/payments/{payment.transaction_id}/refund"
+                # O endpoint /refund já define a operação; não incluir paymentType
                 payload = {
-                    "merchant": {"terminalId": self.terminal_id},
+                    "merchant": {
+                        "terminalId": self.terminal_id,
+                        "channel": "web",
+                        "merchantTransactionId": f"refund-{payment.order_id or payment_pk}-{uuid.uuid4().hex[:8]}"
+                    },
                     "transaction": {
-                        "transactionTimestamp": datetime.utcnow().isoformat(),
+                        "transactionTimestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
                         "description": f"Devolução - {reason}" if reason else "Devolução",
+                        "moto": False,
                         "amount": {"value": float(payment.amount), "currency": "EUR"}
                     }
                 }
-                resp = requests.post(url, json=payload,
-                                     headers=self._get_headers(), timeout=30)
+                logger.info(f"[Refund] A processar devolução para transação {payment.transaction_id}")
+                resp = requests.post(url, json=payload, headers=self._get_headers(), timeout=30)
 
                 if not resp.ok:
                     sibs_error = {}
@@ -1430,6 +1575,40 @@ class PaymentService:
                     except Exception:
                         pass
                     logger.error(f"SIBS refund erro {resp.status_code}: {sibs_error}")
+
+                    sibs_code = sibs_error.get('returnStatus', {}).get('statusCode', '')
+
+                    # E0528 = valor de devolução excede o saldo disponível.
+                    # O SIBS não actualiza o estado da transação original após um refund
+                    # feito no backoffice — o endpoint de status continua a mostrar SUCCESS.
+                    # Portanto: E0528 = efectivamente devolvido. Marcar localmente como REFUNDED.
+                    if sibs_code == 'E0528':
+                        logger.warning(
+                            f"[Refund] E0528 — transação {payment.transaction_id} já não tem "
+                            f"saldo disponível para devolução. A marcar como REFUNDED localmente."
+                        )
+                        with db_session_manager(current_user) as db:
+                            db.execute(text("""
+                                SELECT fbo_sibs_status(:transaction_id, :status, :pref)
+                            """), {
+                                "transaction_id": payment.transaction_id,
+                                "status": PaymentStatus.REFUNDED,
+                                "pref": json.dumps({
+                                    "sibs_e0528": True,
+                                    "reason": reason or "Devolução detectada via E0528",
+                                    "detected_at": datetime.utcnow().isoformat()
+                                })
+                            })
+                        return {
+                            "success": True,
+                            "transaction_id": payment.transaction_id,
+                            "payment_status": PaymentStatus.REFUNDED,
+                            "amount": float(payment.amount),
+                            "payment_method": payment.payment_method,
+                            "sibs_processed": False,
+                            "message": "Pagamento já estava devolvido no SIBS. Estado actualizado."
+                        }
+
                     raise APIError(
                         f"Erro ao processar devolução junto da SIBS (código {resp.status_code}). "
                         "Contacte o suporte.", 502
@@ -1451,12 +1630,6 @@ class PaymentService:
                         "refunded_at": datetime.utcnow().isoformat()
                     })
                 })
-
-                # Reverter a fatura do documento
-                if payment.invoice_pk:
-                    db.execute(text("""
-                        SELECT fbo_document_invoice$refund(:invoice_pk)
-                    """), {"invoice_pk": payment.invoice_pk})
 
                 db.commit()
 

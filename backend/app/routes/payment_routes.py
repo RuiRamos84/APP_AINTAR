@@ -571,6 +571,19 @@ def check_payment_status(transaction_id):
     return jsonify(result), 200
 
 
+@bp.route("/payments/force-sync/<transaction_id>", methods=["POST"])
+@jwt_required()
+@token_required
+@set_session
+@require_permission('payments.manage')
+@api_error_handler
+def force_sync_payment(transaction_id):
+    """Forçar sincronização de estado com SIBS — inclui devoluções externas."""
+    user = get_jwt_identity()
+    result = payment_service.force_sync_with_sibs(transaction_id, user)
+    return jsonify(result), 200
+
+
 @bp.route("/payments/webhook", methods=["POST"])
 def webhook():
     """

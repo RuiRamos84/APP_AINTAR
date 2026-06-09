@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getSocket } from '../../../../../services/websocket/socketService';
 import {
     Box,
     Typography,
@@ -37,6 +38,7 @@ import paymentService from '../../../../../features/payments/services/paymentSer
 import PaymentDialog from '../../../../../features/payments/components/modals/PaymentDialog';
 import { formatAmount } from '../../../../../features/payments/utils/paymentUtils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { documentKeys } from '../../../hooks/useDocuments';
 
 const PaymentsTab = ({ document }) => {
     const theme = useTheme();
@@ -64,29 +66,62 @@ const PaymentsTab = ({ document }) => {
         if (!hasInvoiceData) return { status: 'unknown', label: 'Desconhecido', color: 'default' };
 
         const status = invoiceAmount.invoice_data.payment_status;
-
         if (!status) return { status: 'pending', label: 'Pendente', color: 'warning' };
 
-        const statusLower = status.toLowerCase();
-        if (statusLower.includes('success') || statusLower === 'paid') {
-            return { status: 'success', label: 'Pago', color: 'success' };
-        } else if (statusLower.includes('pending') || statusLower === 'processing') {
-            return { status: 'pending', label: 'Pendente', color: 'warning' };
-        } else if (statusLower.includes('failed') || statusLower.includes('error') || statusLower === 'declined') {
-            return { status: 'failed', label: 'Falha', color: 'error' };
+        switch (status.toUpperCase()) {
+            case 'SUCCESS':
+                return { status: 'success', label: 'Pago', color: 'success' };
+            case 'REFUNDED':
+                return { status: 'refunded', label: 'Devolvido', color: 'secondary' };
+            case 'DECLINED':
+                return { status: 'failed', label: 'Recusado', color: 'error' };
+            case 'EXPIRED':
+                return { status: 'expired', label: 'Expirado', color: 'error' };
+            case 'REJECTED':
+                return { status: 'failed', label: 'Rejeitado', color: 'error' };
+            case 'PENDING':
+            case 'PENDING_VALIDATION':
+            case 'CREATED':
+                return { status: 'pending', label: 'Pendente', color: 'warning' };
+            default:
+                return { status: 'unknown', label: status, color: 'default' };
         }
-
-        return { status: 'unknown', label: status, color: 'default' };
     };
 
     const paymentStatus = getPaymentStatus();
 
+    const invalidatePaymentData = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['invoiceAmount', document?.pk] });
+        if (document?.regnumber) {
+            queryClient.invalidateQueries({ queryKey: documentKeys.detail(document.regnumber) });
+            queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
+        }
+    }, [document?.pk, document?.regnumber, queryClient]);
+
+    // Escutar evento de webhook SIBS e invalidar cache quando o pagamento deste documento muda
+    useEffect(() => {
+        if (!document?.pk) return;
+        const socket = getSocket();
+        if (!socket) return;
+
+        const handlePaymentUpdate = (data) => {
+            if (data.document_id === document.pk) {
+                invalidatePaymentData();
+            }
+        };
+
+        socket.on('payment_status_update', handlePaymentUpdate);
+        return () => socket.off('payment_status_update', handlePaymentUpdate);
+    }, [document?.pk, invalidatePaymentData]);
+
     const getStatusIcon = () => {
         switch (paymentStatus.status) {
-            case 'success': return <DoneIcon />;
-            case 'pending': return <PendingIcon />;
-            case 'failed': return <ErrorIcon />;
-            default: return <InfoIcon />;
+            case 'success':  return <DoneIcon />;
+            case 'refunded': return <ReceiptIcon />;
+            case 'pending':  return <PendingIcon />;
+            case 'failed':
+            case 'expired':  return <ErrorIcon />;
+            default:         return <InfoIcon />;
         }
     };
 
@@ -300,7 +335,13 @@ const PaymentsTab = ({ document }) => {
 
              {paymentStatus.status !== 'success' && (
                 <Box sx={{ mt: 3, textAlign: 'center' }}>
-                    {!hasPaymentInfo && (
+                    {paymentStatus.status === 'refunded' && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                            <AlertTitle>Pagamento Devolvido</AlertTitle>
+                            O pagamento anterior foi devolvido. Pode efectuar um novo pagamento.
+                        </Alert>
+                    )}
+                    {!hasPaymentInfo && paymentStatus.status !== 'refunded' && (
                         <Alert severity="info" sx={{ mb: 2 }}>
                             <AlertTitle>Pagamento Pendente</AlertTitle>
                             Valor a pagar: <strong>{formatAmount(invoiceAmount.invoice_data.invoice)}€</strong>
@@ -311,10 +352,14 @@ const PaymentsTab = ({ document }) => {
                             Pode alterar o método de pagamento enquanto este não estiver concluído.
                         </Alert>
                     )}
-                    {paymentStatus.status === 'failed' && (
+                    {(paymentStatus.status === 'failed' || paymentStatus.status === 'expired') && (
                         <Alert severity="error" sx={{ mb: 2 }}>
-                            <AlertTitle>Pagamento Falhado</AlertTitle>
-                            O pagamento anterior falhou. Pode iniciar um novo pagamento.
+                            <AlertTitle>
+                                {paymentStatus.status === 'expired' ? 'Referência Expirada' : 'Pagamento Falhado'}
+                            </AlertTitle>
+                            {paymentStatus.status === 'expired'
+                                ? 'A referência de pagamento expirou. Gere uma nova referência.'
+                                : 'O pagamento anterior falhou. Pode iniciar um novo pagamento.'}
                         </Alert>
                     )}
                     <Button
@@ -323,11 +368,13 @@ const PaymentsTab = ({ document }) => {
                         startIcon={<PaymentIcon />}
                         onClick={() => setPaymentDialogOpen(true)}
                     >
-                        {paymentStatus.status === 'failed'
-                            ? 'Tentar Novamente'
-                            : hasPaymentInfo
-                                ? 'Alterar Método de Pagamento'
-                                : 'Efetuar Pagamento'}
+                        {paymentStatus.status === 'refunded'
+                            ? 'Efectuar Novo Pagamento'
+                            : (paymentStatus.status === 'failed' || paymentStatus.status === 'expired')
+                                ? 'Tentar Novamente'
+                                : hasPaymentInfo
+                                    ? 'Alterar Método de Pagamento'
+                                    : 'Efetuar Pagamento'}
                     </Button>
                 </Box>
              )}
@@ -336,7 +383,7 @@ const PaymentsTab = ({ document }) => {
                 open={paymentDialogOpen}
                 onClose={() => {
                     setPaymentDialogOpen(false);
-                    queryClient.invalidateQueries({ queryKey: ['invoiceAmount', document?.pk] });
+                    invalidatePaymentData();
                 }}
                 documentId={document?.pk}
                 amount={invoiceAmount?.invoice_data?.invoice || invoiceAmount?.invoice_data?.amount}

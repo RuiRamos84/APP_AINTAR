@@ -106,6 +106,12 @@ class PaymentService {
         return response;
     }
 
+    /** Força sincronização com SIBS — inclui devoluções feitas no backoffice SIBS */
+    async forceSyncStatus(transactionId) {
+        const response = await api.post(`/payments/force-sync/${transactionId}`);
+        return response;
+    }
+
     /**
      * ADMINISTRAÇÃO
      */
