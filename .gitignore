@@ -99,3 +99,6 @@ dist/
 # Local development specific
 .claude/
 ~.superpowers/
+
+# Scripts de auditoria e ferramentas IT locais
+FileServer-Audit/
