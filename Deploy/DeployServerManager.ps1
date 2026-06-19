@@ -228,7 +228,7 @@ function Invoke-RemoteServerCommand-TaskScheduler {
         # Criar um nome único para a tarefa
         $taskName = "DeployTask_$(Get-Date -Format 'yyyyMMddHHmmss')"
         $serverIP = $Global:DeployConfig.ServerIP
-        $credential = Get-DeployCredential
+        $credential = Get-RemoteTaskCredential
 
         # Converter o ScriptBlock para string e criar um script temporário
         $scriptContent = $ScriptBlock.ToString()

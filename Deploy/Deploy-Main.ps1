@@ -162,6 +162,13 @@ function Clear-LocalDevLogs {
     }
 }
 
+# Converte segundos decimais para hh:mm:ss
+function Format-Duration {
+    param([double]$TotalSeconds)
+    $ts = [timespan]::FromSeconds([Math]::Round($TotalSeconds))
+    return "{0:D2}:{1:D2}:{2:D2}" -f [int]$ts.TotalHours, $ts.Minutes, $ts.Seconds
+}
+
 # Imprime o resumo de tempos no final de cada operação
 function Write-DeployTimingSummary {
     param(
@@ -173,17 +180,17 @@ function Write-DeployTimingSummary {
     Write-DeployInfo "=== RESUMO DE TEMPOS: $OperationName ===" "MAIN"
     foreach ($key in $Timings.Keys) {
         $label = ($key + ":").PadRight(46)
-        $secs  = [Math]::Round($Timings[$key].TotalSeconds, 1)
-        Write-DeployInfo "  $label ${secs}s" "MAIN"
+        $fmt   = Format-Duration $Timings[$key].TotalSeconds
+        Write-DeployInfo "  $label $fmt" "MAIN"
     }
     if ($MaintenanceDuration.TotalSeconds -gt 0) {
         $mainLabel = "JANELA DE MANUTENÇÃO (indisponibilidade):".PadRight(46)
-        $mainSecs  = [Math]::Round($MaintenanceDuration.TotalSeconds, 1)
-        Write-DeployInfo "  $mainLabel ${mainSecs}s  ← tempo de downtime real" "MAIN"
+        $mainFmt   = Format-Duration $MaintenanceDuration.TotalSeconds
+        Write-DeployInfo "  $mainLabel $mainFmt  ← tempo de downtime real" "MAIN"
     }
     $totalLabel = "TOTAL:".PadRight(46)
-    $totalSecs  = [Math]::Round($TotalDuration.TotalSeconds, 1)
-    Write-DeployInfo "  $totalLabel ${totalSecs}s" "MAIN"
+    $totalFmt   = Format-Duration $TotalDuration.TotalSeconds
+    Write-DeployInfo "  $totalLabel $totalFmt" "MAIN"
     Write-DeployInfo "=============================================" "MAIN"
 }
 
@@ -696,19 +703,19 @@ function Invoke-WebsiteDeployment {
     } -OperationName "Copia Website"
     $timings["Copia website"] = (Get-Date) - $t
 
-    $totalSecs = [Math]::Round(((Get-Date) - $totalStart).TotalSeconds, 1)
+    $totalFmt = Format-Duration ((Get-Date) - $totalStart).TotalSeconds
     if ($copyOk) {
-        Write-DeployInfo "=== 'Deployment Website' FINALIZADO COM SUCESSO em ${totalSecs}s ===" "MAIN"
+        Write-DeployInfo "=== 'Deployment Website' FINALIZADO COM SUCESSO em $totalFmt ===" "MAIN"
     } else {
         Write-DeployError "Falha na copia do website para o servidor." "MAIN"
     }
     Write-DeployInfo "=== RESUMO DE TEMPOS: Website ===" "MAIN"
     foreach ($key in $timings.Keys) {
         $label = ($key + ":").PadRight(46)
-        $secs  = [Math]::Round($timings[$key].TotalSeconds, 1)
-        Write-DeployInfo "  $label ${secs}s" "MAIN"
+        $fmt   = Format-Duration $timings[$key].TotalSeconds
+        Write-DeployInfo "  $label $fmt" "MAIN"
     }
-    Write-DeployInfo "  $("TOTAL:".PadRight(46)) ${totalSecs}s" "MAIN"
+    Write-DeployInfo "  $("TOTAL:".PadRight(46)) $totalFmt" "MAIN"
     Write-DeployInfo "=================================" "MAIN"
 
     return $copyOk

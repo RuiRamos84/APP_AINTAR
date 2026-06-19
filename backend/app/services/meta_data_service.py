@@ -9,17 +9,19 @@ logger = get_logger(__name__)
 
 
 
-metadata_cache = {}
+metadata_cache = {}   # keyed by profile PK — cada perfil tem a sua entrada
 CACHE_DURATION = timedelta(hours=1)
 
 
 # @lru_cache(maxsize=1)
-def fetch_meta_data(current_user):
+def fetch_meta_data(current_user, profil=None):
     global metadata_cache
     current_time = datetime.now()
-    if metadata_cache and metadata_cache['timestamp'] > current_time - CACHE_DURATION:
-        logger.info("Returning cached metadata")
-        return metadata_cache['data'], 200
+    cache_key = str(profil) if profil is not None else 'default'
+    entry = metadata_cache.get(cache_key)
+    if entry and entry['timestamp'] > current_time - CACHE_DURATION:
+        logger.info(f"Returning cached metadata for profile {cache_key}")
+        return entry['data'], 200
 
     queries = {
         'ident_types': "SELECT * FROM vst_0001",
@@ -77,9 +79,13 @@ def fetch_meta_data(current_user):
     with db_session_manager(current_user) as session:
         response_data = _fetch_meta_data_combined(session, queries)
         if response_data is None:
+            # Após rollback da query combinada, o contexto de sessão PostgreSQL
+            # (fs_profile, etc.) pode ter sido perdido — re-estabelecer antes das queries individuais.
+            from ..utils.utils import fs_setsession
+            fs_setsession(current_user)
             response_data = _fetch_meta_data_individually(session, queries)
 
-    metadata_cache = {
+    metadata_cache[cache_key] = {
         'data': response_data,
         'timestamp': current_time
     }
@@ -118,7 +124,7 @@ def _fetch_meta_data_combined(session, queries):
             agg = f"json_agg(row_to_json(t) ORDER BY {order_clause})"
         else:
             agg = "json_agg(row_to_json(t))"
-        select_parts.append(f"(SELECT COALESCE({agg}, '[]'::json) FROM ({base_query}) t) AS {key}")
+        select_parts.append(f'(SELECT COALESCE({agg}, \'[]\'::json) FROM ({base_query}) t) AS "{key}"')
     sql = "SELECT " + ", ".join(select_parts)
 
     try:

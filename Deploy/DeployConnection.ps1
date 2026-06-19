@@ -35,11 +35,17 @@ class ServerConnection {
             
             try {
                 Write-DeployDebug "Tentativa de ligação $($this.ConnectionAttempts)/$maxAttempts" "CONNECTION"
-                
+
                 # Limpar conexão existente se houver
                 $this.Disconnect($false)
+
+                # Limpar sessões SMB residuais ao servidor (evita erro "múltiplas ligações")
+                $serverIP = $Global:DeployConfig.ServerIP
+                $shareName = $Global:DeployConfig.CompartilhamentoNome
+                net use "\\$serverIP\$shareName" /delete /yes 2>$null | Out-Null
+                net use "\\$serverIP" /delete /yes 2>$null | Out-Null
                 Start-Sleep -Seconds 1
-                
+
                 # Tentar nova conexão
                 Write-DeployDebug "A ligar a: $($this.ServerPath)" "CONNECTION"
                 New-PSDrive -Name $this.DriveName -PSProvider FileSystem -Root $this.ServerPath -Credential $this.Credential -Scope Global -ErrorAction Stop | Out-Null

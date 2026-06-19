@@ -535,8 +535,9 @@ const CreateDocumentModal = ({ open, onClose }) => {
                       >
                         {documentTypes
                           .filter((t) => {
-                            if (typeof t.intern === 'undefined' || t.intern === null) return true;
-                            return isInternal ? t.intern === 1 : t.intern === 0;
+                            if (t.intern == null) return true;
+                            const isTypeInternal = t.intern === 1 || t.intern === true;
+                            return isInternal ? isTypeInternal : !isTypeInternal;
                           })
                           .map((option) => (
                             <MenuItem key={option.code} value={option.code}>{option.label}</MenuItem>

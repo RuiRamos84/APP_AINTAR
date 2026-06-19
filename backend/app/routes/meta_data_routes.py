@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, current_app, g
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..services.meta_data_service import fetch_meta_data, clear_meta_data_cache
 from ..utils.utils import set_session, token_required, db_session_manager
 from sqlalchemy.exc import SQLAlchemyError
@@ -33,8 +33,9 @@ def get_meta_data_route():
         description: Objeto de metadados.
     """
     current_user = get_jwt_identity()
+    profil = get_jwt().get('profil')
     with db_session_manager(current_user):
-        metadata, status_code = fetch_meta_data(current_user)
+        metadata, status_code = fetch_meta_data(current_user, profil)
         return jsonify(metadata), status_code
 
 

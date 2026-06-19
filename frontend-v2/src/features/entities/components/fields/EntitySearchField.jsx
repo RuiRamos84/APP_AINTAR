@@ -30,37 +30,22 @@ const EntitySearchField = ({
                 return;
             }
 
-            console.log('[EntitySearchField] Starting search for NIF:', value, 'Trigger:', searchTrigger);
-
             setLoading(true);
             if (onSearchStatusChange) onSearchStatusChange('loading');
             try {
                 const response = await entitiesService.getEntityByNipc(value);
-                console.log('[EntitySearchField] API Response:', response);
-                
-                // Determine if response is the entity itself or contains it
                 const entity = response?.entity || (response?.pk || response?.nipc ? response : null);
-                console.log('[EntitySearchField] Extracted entity:', entity);
 
                 if (entity) {
-                    console.log('[EntitySearchField] Entity found successfully');
                     setSearchStatus('success');
                     if (onSearchStatusChange) onSearchStatusChange('success');
-                    if (onEntityFound) {
-                        console.log('[EntitySearchField] Calling onEntityFound with entity:', entity.name);
-                        onEntityFound(entity);
-                    }
+                    if (onEntityFound) onEntityFound(entity);
                 } else {
-                    console.warn('[EntitySearchField] Entity response invalid:', response);
-                    setSearchStatus('not_found'); // Treat invalid response as not found
+                    setSearchStatus('not_found');
                     if (onSearchStatusChange) onSearchStatusChange('not_found');
-                    if (onEntityFound) {
-                        console.log('[EntitySearchField] Calling onEntityFound with null (not found)');
-                        onEntityFound(null); // Not found
-                    }
+                    if (onEntityFound) onEntityFound(null);
                 }
             } catch (err) {
-                console.error('[EntitySearchField] Search error:', err);
                 // Check for 404 specifically
                 const isNotFound = err.response?.status === 404;
                 const status = isNotFound ? 'not_found' : 'error';

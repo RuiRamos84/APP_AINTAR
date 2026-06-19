@@ -108,21 +108,23 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport, onRefresh, isRefres
 
             {onRefresh && (
               <Tooltip title="Atualizar dados">
-                <IconButton
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  size="small"
-                  sx={{
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
-                    '& svg': {
-                      transition: 'transform 0.6s ease',
-                      transform: isRefreshing ? 'rotate(360deg)' : 'none',
-                    },
-                  }}
-                >
-                  <RefreshIcon fontSize="small" />
-                </IconButton>
+                <span>
+                  <IconButton
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                    size="small"
+                    sx={{
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      '& svg': {
+                        transition: 'transform 0.6s ease',
+                        transform: isRefreshing ? 'rotate(360deg)' : 'none',
+                      },
+                    }}
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             )}
 

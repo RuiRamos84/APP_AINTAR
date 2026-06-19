@@ -19,9 +19,13 @@ $Global:OutputEncoding    = [System.Text.Encoding]::UTF8
 # ============================================================================
 
 $Global:DeployConfig = @{
-    # Credenciais e servidor
+    # Credenciais SMB (ligação à partilha de rede) — usa sessão Windows atual
     Usuario = "aintar\rui.ramos"
     PasswordFile = "C:\Users\rui.ramos\Desktop\APP\PServ.txt"
+
+    # Credenciais admin para Task Scheduler remoto (schtasks) — conta com permissões de admin no servidor
+    RemoteTaskUsuario = "aintar\adm.rui.ramos"
+    RemoteTaskPasswordFile = "C:\Users\rui.ramos\Desktop\APP\PServAdm.txt"
     ServerIP = "172.16.2.35"
     CompartilhamentoNome = "app"
 
@@ -137,6 +141,17 @@ function Get-DeployCredential {
     }
     catch {
         Write-Error "Erro ao carregar credenciais: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+function Get-RemoteTaskCredential {
+    try {
+        $pass = Get-Content $Global:DeployConfig.RemoteTaskPasswordFile | ConvertTo-SecureString
+        return New-Object System.Management.Automation.PSCredential -ArgumentList $Global:DeployConfig.RemoteTaskUsuario, $pass
+    }
+    catch {
+        Write-Error "Erro ao carregar credenciais de admin remoto: $($_.Exception.Message)"
         return $null
     }
 }
