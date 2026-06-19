@@ -1,4 +1,6 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import {
   LoginPage, RegisterPage, PublicRoute, ProtectedRoute,
   ForgotPasswordPage, ResetPasswordPage, ActivationPage,
@@ -7,15 +9,25 @@ import { ForbiddenPage, UnauthorizedPage } from '@/features/errors/pages';
 
 import { PortalLayout } from '@/shared/components/layout/PortalLayout';
 import { PortalAuthLayout } from '@/shared/components/layout/PortalAuthLayout';
-import PortalPedidosPage from '@/features/portal/pages/PortalPedidosPage';
-import PortalNovoPedidoPage from '@/features/portal/pages/PortalNovoPedidoPage';
-import PortalFacturasPage from '@/features/portal/pages/PortalFacturasPage';
-import PortalPerfilPage from '@/features/portal/pages/PortalPerfilPage';
-import PortalPedidoDetailPage from '@/features/portal/pages/PortalPedidoDetailPage';
-import ChangePasswordPage from '@/features/user/pages/ChangePasswordPage';
+
+const PortalPedidosPage = lazy(() => import('@/features/portal/pages/PortalPedidosPage'));
+const PortalNovoPedidoPage = lazy(() => import('@/features/portal/pages/PortalNovoPedidoPage'));
+const PortalFacturasPage = lazy(() => import('@/features/portal/pages/PortalFacturasPage'));
+const PortalPerfilPage = lazy(() => import('@/features/portal/pages/PortalPerfilPage'));
+const PortalPedidoDetailPage = lazy(() => import('@/features/portal/pages/PortalPedidoDetailPage'));
+const ChangePasswordPage = lazy(() => import('@/features/user/pages/ChangePasswordPage'));
+
+function PageFallback() {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+      <CircularProgress />
+    </Box>
+  );
+}
 
 export default function PortalRoutes() {
   return (
+    <Suspense fallback={<PageFallback />}>
     <Routes>
       {/* ==================== AUTENTICAÇÃO (PortalAuthLayout) ==================== */}
       <Route element={<PortalAuthLayout />}>
@@ -44,5 +56,6 @@ export default function PortalRoutes() {
       {/* ==================== 404 ==================== */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

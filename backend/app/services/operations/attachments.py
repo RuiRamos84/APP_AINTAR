@@ -8,6 +8,7 @@ import os
 from functools import wraps
 from app import cache
 from app.utils.logger import get_logger
+from app.utils.file_processing import process_uploaded_file
 
 logger = get_logger(__name__)
 
@@ -145,6 +146,10 @@ def save_operation_photo(photo_file, operation_pk, instalacao_nome, current_user
         # Verificar se foi guardado
         if not os.path.exists(file_path):
             raise Exception(f"Falha ao guardar ficheiro: {file_path}")
+
+        # Comprimir (imagens/PDFs) para otimização de espaço
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
 
         # Definir permissões
         os.chmod(file_path, 0o644)

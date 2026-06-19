@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
-from ..utils.utils import token_required, set_session, db_session_manager
+from ..utils.utils import token_required, set_session
 from ..services.caixa_service import (
     list_movements, list_tipos, get_fecho_state, create_movement, update_movement, validate_fecho
 )
@@ -44,8 +44,7 @@ def get_tipos():
         description: Lista de tipos retornada com sucesso.
     """
     current_user = get_jwt_identity()
-    with db_session_manager(current_user):
-        return list_tipos(current_user)
+    return list_tipos(current_user)
 
 
 @bp.route('/caixa/fecho-state', methods=['GET'])
@@ -68,8 +67,7 @@ def get_fecho_state_route():
         description: Estado de rotação retornado com sucesso.
     """
     current_user = get_jwt_identity()
-    with db_session_manager(current_user):
-        return get_fecho_state(current_user)
+    return get_fecho_state(current_user)
 
 
 @bp.route('/caixa', methods=['GET'])
@@ -105,8 +103,7 @@ def get_movements():
     current_user = get_jwt_identity()
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
-    with db_session_manager(current_user):
-        return list_movements(current_user, date_from=date_from, date_to=date_to)
+    return list_movements(current_user, date_from=date_from, date_to=date_to)
 
 
 @bp.route('/caixa', methods=['POST'])
@@ -131,8 +128,7 @@ def post_movement():
     current_user = get_jwt_identity()
     user_client_pk = _get_user_client_pk()
     data = request.get_json()
-    with db_session_manager(current_user):
-        return create_movement(data, current_user, user_client_pk)
+    return create_movement(data, current_user, user_client_pk)
 
 
 @bp.route('/caixa/<int:pk>/validar', methods=['POST'])
@@ -161,8 +157,7 @@ def post_validar_fecho(pk):
     """
     current_user = get_jwt_identity()
     user_client_pk = _get_user_client_pk()
-    with db_session_manager(current_user):
-        return validate_fecho(pk, user_client_pk, current_user)
+    return validate_fecho(pk, user_client_pk, current_user)
 
 
 @bp.route('/caixa/<int:pk>', methods=['PUT'])
@@ -192,7 +187,6 @@ def put_movement(pk):
     current_user = get_jwt_identity()
     user_client_pk = _get_user_client_pk()
     data = request.get_json()
-    with db_session_manager(current_user):
-        return update_movement(pk, data, current_user, user_client_pk)
+    return update_movement(pk, data, current_user, user_client_pk)
 
 

@@ -15,6 +15,7 @@ Autenticação: JWT obrigatório em todos os endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.utils.error_handler import api_error_handler
+from app.utils.permissions_decorator import require_permission
 from app.utils.logger import get_logger
 from app import limiter
 from app.services.alert_whatsapp_service import get_latest_alert
@@ -61,6 +62,7 @@ def get_qr():
 @bp.route('/whatsapp/open', methods=['POST'])
 @limiter.exempt
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def abrir_whatsapp():
     """Abre o Chrome com web.whatsapp.com para registo via QR code."""
@@ -70,6 +72,7 @@ def abrir_whatsapp():
 @bp.route('/whatsapp/connect', methods=['POST'])
 @limiter.exempt
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def ligar_whatsapp():
     """Liga em headless usando a sessão guardada após login manual no Chrome."""
@@ -80,6 +83,7 @@ def ligar_whatsapp():
 
 @bp.route('/whatsapp/desligar', methods=['POST'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def desligar():
     """Termina a sessão WhatsApp e apaga os dados locais."""
@@ -137,6 +141,7 @@ def enviar_alerta_grupo():
 
 @bp.route('/whatsapp/config/grupos', methods=['GET'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def listar_grupos_config():
     """Lista os grupos guardados em tb_whatsapp_config."""
@@ -145,6 +150,7 @@ def listar_grupos_config():
 
 @bp.route('/whatsapp/config/grupos', methods=['POST'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def adicionar_grupo_config():
     """Adiciona um grupo à lista de auto-alerta."""
@@ -162,6 +168,7 @@ def adicionar_grupo_config():
 
 @bp.route('/whatsapp/config/grupos/<int:pk>', methods=['DELETE'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def remover_grupo_config(pk):
     """Remove um grupo da lista de auto-alerta."""
@@ -170,6 +177,7 @@ def remover_grupo_config(pk):
 
 @bp.route('/whatsapp/config/grupos/<int:pk>/toggle', methods=['PATCH'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def toggle_grupo_config(pk):
     """Activa ou desactiva um grupo."""

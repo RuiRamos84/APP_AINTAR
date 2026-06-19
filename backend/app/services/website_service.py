@@ -10,6 +10,7 @@ from typing import Optional
 
 from ..utils.utils import db_session_manager, send_mail
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError, APIError
+from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -51,7 +52,10 @@ def _save_website_file(file, tipo: str, pk: int) -> str:
 
     ext = os.path.splitext(file.filename)[1].lower() if file.filename else ''
     filename = f"{pk}_{uuid.uuid4().hex[:8]}{ext}"
-    file.save(os.path.join(folder, filename))
+    file_path = os.path.join(folder, filename)
+    file.save(file_path)
+    file_path, _, _ = process_uploaded_file(file_path, filename)
+    filename = os.path.basename(file_path)
     return filename
 
 
@@ -486,7 +490,10 @@ def cms_upload_noticia_imagem(pk: int, file, current_user: str):
         if os.path.exists(os.path.join(folder, filename)):
             filename = f"{titulo}-{pk}{ext}"
 
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
         rel_path = f"{ano}/{filename}"
 
         session.execute(
@@ -766,7 +773,10 @@ def cms_upload_documento_file(pk: int, file, current_user: str):
         if os.path.exists(os.path.join(folder, filename)):
             filename = f"{titulo}-{pk}{ext}"
 
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
 
         rel_path = f"{ano}/{categoria}/{filename}"
         session.execute(
@@ -875,7 +885,10 @@ def cms_upload_publicacao_file(pk: int, file, current_user: str):
         if os.path.exists(os.path.join(folder, filename)):
             filename = f"{titulo}-{pk}{ext}"
 
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
         rel_path = f"{ano}/{tipo}/{filename}"
 
         session.execute(
@@ -1013,7 +1026,10 @@ def cms_upload_procedimento_imagem(pk: int, file, current_user: str):
 
         ext      = os.path.splitext(file.filename)[1].lower() if file.filename else '.jpg'
         filename = f"imagem_{pk}{ext}"
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
 
         rel_path = f"{ref}/imagem do procedimento/{filename}"
         session.execute(
@@ -1066,7 +1082,10 @@ def cms_upload_procedimento_doc(proc_pk: int, categoria: str, titulo: str, file,
         nome_original = file.filename or f'documento{ext}'
         pk            = session.execute(text("SELECT fs_nextcode()")).scalar()
         filename      = f"{pk}{ext}"
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
 
         rel_path = f"{ref}/{_DOC_FOLDERS[categoria]}/{filename}"
         session.execute(text("""
@@ -1233,7 +1252,10 @@ def cms_upload_fase_file(pk: int, file, current_user: str):
         if os.path.exists(os.path.join(folder, filename)):
             filename = f"{label}-{pk}{ext}"
 
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
         rel_path = f"{ano}/{ref}/{filename}"
 
         session.execute(
@@ -1393,7 +1415,10 @@ def cms_upload_processo_doc_file(pk: int, file, current_user: str):
         if os.path.exists(os.path.join(folder, filename)):
             filename = f"{titulo}-{pk}{ext}"
 
-        file.save(os.path.join(folder, filename))
+        file_path = os.path.join(folder, filename)
+        file.save(file_path)
+        file_path, _, _ = process_uploaded_file(file_path, filename)
+        filename = os.path.basename(file_path)
         rel_path = f"{ano}/{tipo}/{filename}"
 
         session.execute(
@@ -1655,6 +1680,8 @@ def submit_concursal_candidatura(data: dict, files=None):
                 counter += 1
 
             file.save(dest)
+            dest, _, _ = process_uploaded_file(dest, safe_name)
+            safe_name = os.path.basename(dest)
 
             rel_path = os.path.join(ref_slug, 'candidatos', candidato_dir, tipo_dir, safe_name).replace('\\', '/')
 

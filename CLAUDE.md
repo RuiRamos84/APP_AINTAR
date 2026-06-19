@@ -296,6 +296,12 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Hooks Universais.md
 @C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Componentes Universais.md
 
+### Infraestrutura IT
+@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\FileServer.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\Active Directory.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\Departamentos e Funcionários.md
+@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\Guia de Administração.md
+
 ---
 
 ## Slash Commands Disponíveis

@@ -133,6 +133,7 @@ export const MyTasksPage = () => {
     setFilters,
     refresh,
   } = useTasks({
+    scope: 'mine',
     autoFetch: false,
     fetchOnMount: false,
   });
@@ -179,12 +180,7 @@ export const MyTasksPage = () => {
         sortable: true,
         align: 'center',
         render: (value) => (
-          <Chip
-            label={value}
-            color={getPriorityColor(value)}
-            size="small"
-            icon={<FlagIcon />}
-          />
+          <Chip label={value} color={getPriorityColor(value)} size="small" icon={<FlagIcon />} />
         ),
       },
       {
@@ -194,11 +190,7 @@ export const MyTasksPage = () => {
         sortable: true,
         align: 'center',
         render: (value) => (
-          <Chip
-            label={getStatusLabel(value)}
-            color={getStatusColor(value)}
-            size="small"
-          />
+          <Chip label={getStatusLabel(value)} color={getStatusColor(value)} size="small" />
         ),
       },
       {
@@ -212,9 +204,7 @@ export const MyTasksPage = () => {
           return (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarIcon fontSize="small" color="action" />
-              <Typography variant="body2">
-                {format(date, 'dd/MM/yyyy', { locale: pt })}
-              </Typography>
+              <Typography variant="body2">{format(date, 'dd/MM/yyyy', { locale: pt })}</Typography>
             </Box>
           );
         },
@@ -362,10 +352,7 @@ export const MyTasksPage = () => {
           </Typography>
 
           <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              onClick={() => setShowFilters(!showFilters)}
-            >
+            <Button variant="outlined" onClick={() => setShowFilters(!showFilters)}>
               {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
             </Button>
 

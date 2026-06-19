@@ -10,21 +10,18 @@ import os
 import requests
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
-from app import blacklist
 from flask_caching import Cache
 from datetime import datetime, timezone
 from app.utils.logger import get_logger
+from app.utils.jwt_blacklist import (
+    add_token_to_blacklist as _redis_add_token_to_blacklist,
+    is_token_revoked as _redis_is_token_revoked,
+)
 
 logger = get_logger(__name__)
 
 
-
-
 cache = Cache(config={'CACHE_TYPE': 'simple'})
-
-
-# Blacklist para tokens revogados
-token_blacklist = set()
 
 
 def get_access_token():
@@ -278,20 +275,16 @@ def verify_token_claims(token):
         raise InvalidTokenError('Token inválido')
 
 
-def add_token_to_blacklist(jti):
-    from app import blacklist  # Importação local — blacklist é um set()
-    blacklist.add(jti)
+def add_token_to_blacklist(jti, exp=None):
+    _redis_add_token_to_blacklist(jti, exp)
 
 
 def is_token_revoked(jti):
-    from app import blacklist  # Importação local — blacklist é um set()
-    return jti in blacklist
+    return _redis_is_token_revoked(jti)
 
 
 def check_if_token_revoked(jwt_payload):
-    from app import blacklist  # Importação local
-    jti = jwt_payload['jti']
-    return jti in blacklist
+    return _redis_is_token_revoked(jwt_payload['jti'])
 
 
 def get_current_user():

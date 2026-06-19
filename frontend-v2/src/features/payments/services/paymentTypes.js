@@ -3,12 +3,13 @@
  * ===== SISTEMA DE PAGAMENTOS =====
  *
  * MAPEAMENTO DE PERMISSÕES (ts_interface):
- * - 30:  admin.payments (Gestão de pagamentos)
- * - 700: payments.mbway
- * - 710: payments.multibanco
- * - 720: payments.bank_transfer
- * - 730: payments.cash.action
- * - 740: payments.municipality
+ * - 700:  payments.mbway
+ * - 710:  payments.multibanco
+ * - 720:  payments.bank_transfer
+ * - 730:  payments.cash.action
+ * - 740:  payments.municipality
+ * - 890:  payments.manage (gestão completa — reembolsos, histórico, aprovações)
+ * - 1615: payments.isencao (aplicar isenção a 0€ após validação de comprovativo)
  */
 
 import { usePermissionContext } from '../../../core/contexts/PermissionContext';
@@ -41,7 +42,7 @@ const PAYMENT_PERMISSION_MAP = {
     [PAYMENT_METHODS.CASH]: 730,
     [PAYMENT_METHODS.BANK_TRANSFER]: 720,
     [PAYMENT_METHODS.MUNICIPALITY]: 740,
-    [PAYMENT_METHODS.ISENCAO]: 30,  // payments.manage — só operadores com gestão de pagamentos
+    [PAYMENT_METHODS.ISENCAO]: 1615,  // payments.isencao — atendimento com comprovativo validado
 };
 
 export const PAYMENT_METHOD_LABELS = {
@@ -94,4 +95,4 @@ export const canUsePaymentMethod = (paymentMethod) => {
     return permissionService.hasPermission(permission);
 };
 
-export const canManagePayments = () => permissionService.hasPermission(30);
+export const canManagePayments = () => permissionService.hasPermission(890);

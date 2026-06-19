@@ -1,7 +1,6 @@
+import re
 from sqlalchemy.sql import text
-from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
-from functools import lru_cache
 from datetime import datetime, timedelta
 from ..utils.utils import db_session_manager
 from app.utils.logger import get_logger
@@ -75,26 +74,78 @@ def fetch_meta_data(current_user):
         'rh_piquete_ocorrencia': "SELECT pk, descr FROM vbl_rh_tipo_ocorrencia",
     }
 
-    response_data = {}
     with db_session_manager(current_user) as session:
-        for key, query in queries.items():
-            try:
-                result = session.execute(text(query))
-                columns = result.keys()
-                response_data[key] = [
-                    {column: value for column, value in zip(columns, row)}
-                    for row in result
-                ]
-            except Exception as e:
-                logger.warning(f"[meta_data] Falha na query '{key}': {e}")
-                response_data[key] = []   # lista vazia — não bloqueia o resto
-                session.rollback()        # limpa o estado da transacção
+        response_data = _fetch_meta_data_combined(session, queries)
+        if response_data is None:
+            response_data = _fetch_meta_data_individually(session, queries)
 
     metadata_cache = {
         'data': response_data,
         'timestamp': current_time
     }
     return response_data, 200
+
+
+_ORDER_BY_RE = re.compile(r'\border\s+by\s+(.+)$', re.IGNORECASE)
+
+
+def _split_order_by(query):
+    """Separa a cláusula ORDER BY de uma query simples (sem ORDER BY no WHERE/subquery).
+
+    Devolve (query_sem_order_by, colunas_order_by | None). As colunas devolvidas
+    referem-se às colunas do tipo `t` produzido por `row_to_json(t)`, para serem
+    usadas em `json_agg(row_to_json(t) ORDER BY <colunas>)` — preservando a
+    ordenação que `json_agg` por si só não garante.
+    """
+    match = _ORDER_BY_RE.search(query)
+    if not match:
+        return query, None
+    return query[:match.start()].rstrip(), match.group(1).strip()
+
+
+def _fetch_meta_data_combined(session, queries):
+    """Obtém todos os metadados numa única query (1 round-trip em vez de ~45).
+
+    Cada subconsulta é agregada com json_agg, devolvendo uma única linha com
+    uma coluna por chave. Se falhar (ex.: alguma view não existe), devolve
+    None para o caller recorrer ao modo query-a-query (mais lento, mas tolera
+    falhas individuais).
+    """
+    select_parts = []
+    for key, query in queries.items():
+        base_query, order_clause = _split_order_by(query)
+        if order_clause:
+            agg = f"json_agg(row_to_json(t) ORDER BY {order_clause})"
+        else:
+            agg = "json_agg(row_to_json(t))"
+        select_parts.append(f"(SELECT COALESCE({agg}, '[]'::json) FROM ({base_query}) t) AS {key}")
+    sql = "SELECT " + ", ".join(select_parts)
+
+    try:
+        row = session.execute(text(sql)).mappings().first()
+        return {key: row[key] for key in queries.keys()}
+    except SQLAlchemyError as e:
+        logger.warning(f"[meta_data] Query combinada falhou, a usar fallback query-a-query: {e}")
+        session.rollback()
+        return None
+
+
+def _fetch_meta_data_individually(session, queries):
+    """Modo de fallback: uma query por chave, tolerando falhas individuais."""
+    response_data = {}
+    for key, query in queries.items():
+        try:
+            result = session.execute(text(query))
+            columns = result.keys()
+            response_data[key] = [
+                {column: value for column, value in zip(columns, row)}
+                for row in result
+            ]
+        except SQLAlchemyError as e:
+            logger.warning(f"[meta_data] Falha na query '{key}': {e}")
+            response_data[key] = []   # lista vazia — não bloqueia o resto
+            session.rollback()        # limpa o estado da transacção
+    return response_data
 
 
 def clear_meta_data_cache():

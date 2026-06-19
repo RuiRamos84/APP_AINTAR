@@ -194,7 +194,13 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\" -Recurse -Directory)",
       "Bash(Select-Object -First 30)",
       "PowerShell(Select-String -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\flask-socketio.log\" -Pattern \"webhook|payment|sibs\" -CaseSensitive:$false | Select-Object -Last 20 | ForEach-Object { $_.Line })",
-      "PowerShell(Select-String -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\flask-socketio.log\" -Pattern \"webhook\" -CaseSensitive:$false)"
+      "PowerShell(Select-String -Path \"c:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\backend\\\\flask-socketio.log\" -Pattern \"webhook\" -CaseSensitive:$false)",
+      "Bash(rtk proxy *)",
+      "Bash(rtk du *)",
+      "Bash(rtk lint *)",
+      "Bash(tee /tmp/eslintout.txt)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(open\\('/tmp/eslintout.txt'\\)\\) if False else None\")",
+      "PowerShell(Import-Csv \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\FileServer-Audit\\\\Reports\\\\Shares_2026-06-17_1549.csv\")"
     ],
     "deny": [],
     "ask": [],

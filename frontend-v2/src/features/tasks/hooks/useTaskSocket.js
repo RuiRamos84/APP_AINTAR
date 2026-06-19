@@ -11,9 +11,10 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification';
 import { onEvent, offEvent, SOCKET_EVENTS } from '@/services/websocket/socketService';
-import { useTaskStore } from '../store/taskStore';
+import { TASK_KEYS } from './taskQueries';
 
 // Mapeamento status_id → string (idêntico ao taskService.js)
 const STATUS_MAP = {
@@ -33,7 +34,12 @@ const TOAST_MESSAGES = {
   task_reopened: (name) => `Tarefa reaberta: ${name}`,
 };
 
-export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onTaskUpdated } = {}) => {
+export const useTaskSocket = ({
+  selectedTaskId = null,
+  currentUserId = null,
+  onTaskUpdated,
+} = {}) => {
+  const qc = useQueryClient();
   // Proteção anti-duplicados (mesmo que SocketContext)
   const lastRef = useRef({ taskId: null, timestamp: 0 });
   // Debounce para full-refresh: coalesce múltiplas notificações simultâneas numa única chamada
@@ -48,39 +54,39 @@ export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onT
       const senderId = data.sender_id;
 
       // Ignorar duplicados (mesmo taskId em < 3s)
-      if (
-        taskId &&
-        lastRef.current.taskId === taskId &&
-        now - lastRef.current.timestamp < 3000
-      ) {
+      if (taskId && lastRef.current.taskId === taskId && now - lastRef.current.timestamp < 3000) {
         return;
       }
       lastRef.current = { taskId, timestamp: now };
 
-      const store = useTaskStore.getState();
       const isSelf = senderId != null && String(senderId) === String(currentUserId);
+
+      const updateTaskInCache = (updates) => {
+        const updater = (prev) => prev?.map((t) => (t.id === taskId ? { ...t, ...updates } : t));
+        qc.setQueryData(TASK_KEYS.list, updater);
+        qc.setQueryData(TASK_KEYS.my, updater);
+      };
 
       // --- Atualização in-place vs full refresh ---
       switch (notificationType) {
         case 'status_update': {
           // Atualização in-place: só o status mudou
           if (taskId && data.status_id != null) {
-            store.updateTask(taskId, { status: STATUS_MAP[data.status_id] ?? 'pending' });
+            updateTaskInCache({ status: STATUS_MAP[data.status_id] ?? 'pending' });
           } else {
             // Sem status_id no payload — fazer full refresh
-            store.invalidateCache();
-            window.dispatchEvent(new CustomEvent('task-refresh'));
+            qc.invalidateQueries({ queryKey: TASK_KEYS.all });
           }
           break;
         }
 
         case 'task_closed': {
-          store.updateTask(taskId, { when_stop: new Date().toISOString() });
+          updateTaskInCache({ when_stop: new Date().toISOString() });
           break;
         }
 
         case 'task_reopened': {
-          store.updateTask(taskId, { when_stop: null });
+          updateTaskInCache({ when_stop: null });
           break;
         }
 
@@ -88,10 +94,9 @@ export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onT
         case 'task_update':
         default: {
           // Full refresh com debounce: coalesce múltiplos eventos num único refresh
-          store.invalidateCache();
           if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
           refreshTimerRef.current = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('task-refresh'));
+            qc.invalidateQueries({ queryKey: TASK_KEYS.all });
           }, 300);
           break;
         }
@@ -110,7 +115,7 @@ export const useTaskSocket = ({ selectedTaskId = null, currentUserId = null, onT
         }
       }
     },
-    [selectedTaskId, currentUserId, onTaskUpdated]
+    [selectedTaskId, currentUserId, onTaskUpdated, qc]
   );
 
   useEffect(() => {

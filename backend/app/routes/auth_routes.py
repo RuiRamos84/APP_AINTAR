@@ -87,7 +87,7 @@ def logout():
         # Revogar o token actual na blacklist antes de terminar a sessão
         jwt_data = get_jwt()
         if jwt_data and jwt_data.get('jti'):
-            add_token_to_blacklist(jwt_data['jti'])
+            add_token_to_blacklist(jwt_data['jti'], jwt_data.get('exp'))
         logout_user(user_identity)
         return jsonify(msg="Logout bem-sucedido"), 200
     else:

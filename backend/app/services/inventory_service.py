@@ -9,7 +9,6 @@ import os
 from app import socket_io
 from flask import request, send_file
 from app.utils.utils import send_mail
-from .file_service import FileService
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas

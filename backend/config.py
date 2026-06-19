@@ -12,8 +12,18 @@ else:
     print("Variáveis de ambiente de desenvolvimento carregadas.")
 
 
+def _env(name, dev_default=None):
+    """Lê variável de ambiente; em produção falha o arranque se não definida."""
+    value = os.getenv(name)
+    if value:
+        return value
+    if ENVIRONMENT == 'production':
+        raise RuntimeError(f"Variável de ambiente obrigatória em produção: {name}")
+    return dev_default
+
+
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'default_secret_key')
+    SECRET_KEY = _env('SECRET_KEY', 'dev-secret-key-not-for-production')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
@@ -68,24 +78,24 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    FILES_DIR = os.getenv('UPLOAD_FOLDER', 'C:/Users/rui.ramos/Desktop/APP/files')
+    FILES_DIR = os.getenv('UPLOAD_FOLDER', os.path.join(os.path.dirname(__file__), 'files'))
     CACHE_TYPE = 'simple'
 
     # Caminhos para recursos de emissões (desenvolvimento)
-    LOGOS_DIR = 'C:/Users/rui.ramos/Desktop/APP/frontend/public'
-    PDF_OUTPUT_DIR = 'C:/Users/rui.ramos/Desktop/APP/backend/temp'
+    LOGOS_DIR = os.getenv('LOGOS_DIR', os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public'))
+    PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', os.path.join(os.path.dirname(__file__), 'temp'))
     FONTS_DIR = os.path.join(os.path.dirname(__file__), 'app', 'utils', 'fonts')
 
 
 class ProductionConfig(Config):
     DEBUG = False
-    FILES_DIR = 'D:\APP\FilesApp'
+    FILES_DIR = _env('FILES_DIR')
     CACHE_TYPE = 'redis'
     CACHE_REDIS_URL = Config.REDIS_URL
 
     # Caminhos para recursos de emissões (produção)
-    LOGOS_DIR = os.getenv('LOGOS_DIR', 'D:/APP/logos')
-    PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', 'D:/APP/pdfs')
+    LOGOS_DIR = _env('LOGOS_DIR')
+    PDF_OUTPUT_DIR = _env('PDF_OUTPUT_DIR')
     FONTS_DIR = os.path.join(os.path.dirname(__file__), 'app', 'utils', 'fonts')
 
 

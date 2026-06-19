@@ -5,6 +5,7 @@ from flask import current_app
 from werkzeug.utils import secure_filename
 from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler
+from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -29,6 +30,8 @@ def _save_file(file_obj, subfolder='equipamento'):
     unique_name = f"{timestamp}_{filename}"
     full_path = os.path.join(upload_dir, unique_name)
     file_obj.save(full_path)
+    full_path, _, _ = process_uploaded_file(full_path, unique_name)
+    unique_name = os.path.basename(full_path)
     return f"uploads/{subfolder}/{unique_name}"
 
 

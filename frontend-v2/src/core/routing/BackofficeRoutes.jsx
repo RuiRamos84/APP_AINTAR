@@ -2,70 +2,127 @@
  * BackofficeRoutes.jsx
  * Todas as rotas do backoffice interno (app.aintar.pt).
  * Conteúdo migrado de App.jsx — manter sincronizado.
+ *
+ * Code-splitting: páginas de funcionalidades são carregadas via React.lazy,
+ * autenticação/layout/erros mantêm-se eager (necessários no primeiro render).
  */
 
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import {
   LoginPage, RegisterPage, ProtectedRoute, PublicRoute,
   ForgotPasswordPage, ResetPasswordPage, ActivationPage,
 } from '@/features/auth';
-import { DashboardPage } from '@/features/dashboard';
 import { HomePage, HomeRedirect } from '@/features/home';
 import { MainLayout, PublicLayout } from '@/shared/components/layout';
 import { ForbiddenPage, UnauthorizedPage } from '@/features/errors/pages';
-import { UserProfilePage, ChangePasswordPage, SettingsPage } from '@/features/user/pages';
-import {
-  UserListPage, UserDetailPage, UserCreatePage, AdminDashboardPage,
-  PermissionsListPage, SystemConfigPage, ActivityLogsPage,
-  SessionLogsPage, AdminActionsPage,
-} from '@/features/admin/pages';
-import { OperationPage, OperationMetadataPage, OperationControlPage, SupervisorPage, TasksPage as OperationTasksPage } from '@/features/operations/pages';
-import { ETARPage, EEPage, AnalysisPage, TelemetryPage, OfficesPage, RequestsPage } from '@/features/gestao/pages';
-import { ClientsPage, InvoicesPage, ClientContractsPage, CaixaPage } from '@/features/payments/pages';
-import PaymentAdminPage from '@/features/payments/pages/PaymentAdminPage';
-import {
-  DashboardOverviewPage, DashboardRequestsPage, DashboardBranchesPage,
-  DashboardSepticTanksPage, DashboardInstallationsPage,
-  DashboardViolationsPage, DashboardAnalysesPage,
-  DashboardRepavPage, DashboardTramitacoesPage,
-  DashboardFaturacaoPage,
-} from '@/features/dashboards/pages';
-import { EmissoesPage } from '@/features/emissoes';
-import { EquipamentosPage } from '@/features/equipamentos';
-import { ObrasPage } from '@/features/obras';
-import { PavimentosPage } from '@/features/pavimentos';
-import { EPIPage } from '@/features/administrativo/pages';
-import { AvalPage, AvalAdminPage, AvalAnalyticsPage } from '@/features/aval';
-import RhPessoalPage from '@/features/rh/pages/RhPessoalPage';
-import FeriasPage from '@/features/rh/pages/FeriasPage';
-import ParticipacaoPage from '@/features/rh/pages/ParticipacaoPage';
-import HorariosPage from '@/features/rh/pages/HorariosPage';
-import PiquetePage from '@/features/rh/pages/PiquetePage';
-import PontoPage from '@/features/rh/pages/PontoPage';
-import GestaoColaboradoresPage from '@/features/rh/pages/GestaoColaboradoresPage';
-import LocaisPage from '@/features/rh/pages/LocaisPage';
-import PontoMapaPage from '@/features/rh/pages/PontoMapaPage';
-import RhGestaoCentralPage from '@/features/rh/pages/RhGestaoCentralPage';
-import { TasksPage } from '@/features/tasks/pages';
-import { EntitiesPage } from '@/features/entities/pages';
-import DocumentsPage from '@/features/documents/pages/DocumentsPage';
-import { InternalDashboardPage, RequisicaoInternaPage } from '@/features/internal';
-import { FleetDashboard } from '@/features/fleet';
-import {
-  WebsiteNoticiasPage, WebsiteAlertasPage, WebsiteDocumentosPage,
-  WebsitePublicacoesPage, WebsiteProcedimentosPage, WebsiteProcessosFinanceirosPage,
-} from '@/features/website/pages';
-import {
-  NetworkExpensesPage, BranchesExpensesPage,
-  MaintenanceExpensesPage, EquipmentExpensesPage,
-} from '@/features/expenses';
-import { OrcamentoPage } from '@/features/orcamento';
-import { StockPage } from '@/features/stock';
-import CatalogPage from '@/features/orcamento/pages/CatalogPage';
-import WhatsAppAlertasPage from '@/features/alertas/pages/WhatsAppAlertasPage';
+
+// ==================== PÁGINAS COM LAZY LOADING ====================
+
+const DashboardPage = lazy(() => import('@/features/dashboard').then(m => ({ default: m.DashboardPage })));
+
+const UserProfilePage = lazy(() => import('@/features/user/pages').then(m => ({ default: m.UserProfilePage })));
+const ChangePasswordPage = lazy(() => import('@/features/user/pages').then(m => ({ default: m.ChangePasswordPage })));
+const SettingsPage = lazy(() => import('@/features/user/pages').then(m => ({ default: m.SettingsPage })));
+
+const UserListPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.UserListPage })));
+const UserDetailPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.UserDetailPage })));
+const UserCreatePage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.UserCreatePage })));
+const AdminDashboardPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.AdminDashboardPage })));
+const PermissionsListPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.PermissionsListPage })));
+const SystemConfigPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.SystemConfigPage })));
+const ActivityLogsPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.ActivityLogsPage })));
+const SessionLogsPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.SessionLogsPage })));
+const AdminActionsPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.AdminActionsPage })));
+
+const OperationMetadataPage = lazy(() => import('@/features/operations/pages').then(m => ({ default: m.OperationMetadataPage })));
+const OperationControlPage = lazy(() => import('@/features/operations/pages').then(m => ({ default: m.OperationControlPage })));
+const SupervisorPage = lazy(() => import('@/features/operations/pages').then(m => ({ default: m.SupervisorPage })));
+const OperationTasksPage = lazy(() => import('@/features/operations/pages').then(m => ({ default: m.TasksPage })));
+
+const ETARPage = lazy(() => import('@/features/gestao/pages').then(m => ({ default: m.ETARPage })));
+const EEPage = lazy(() => import('@/features/gestao/pages').then(m => ({ default: m.EEPage })));
+const AnalysisPage = lazy(() => import('@/features/gestao/pages').then(m => ({ default: m.AnalysisPage })));
+const TelemetryPage = lazy(() => import('@/features/gestao/pages').then(m => ({ default: m.TelemetryPage })));
+const OfficesPage = lazy(() => import('@/features/gestao/pages').then(m => ({ default: m.OfficesPage })));
+const RequestsPage = lazy(() => import('@/features/gestao/pages').then(m => ({ default: m.RequestsPage })));
+
+const ClientsPage = lazy(() => import('@/features/payments/pages').then(m => ({ default: m.ClientsPage })));
+const InvoicesPage = lazy(() => import('@/features/payments/pages').then(m => ({ default: m.InvoicesPage })));
+const ClientContractsPage = lazy(() => import('@/features/payments/pages').then(m => ({ default: m.ClientContractsPage })));
+const CaixaPage = lazy(() => import('@/features/payments/pages').then(m => ({ default: m.CaixaPage })));
+const PaymentAdminPage = lazy(() => import('@/features/payments/pages/PaymentAdminPage'));
+
+const DashboardOverviewPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardOverviewPage })));
+const DashboardRequestsPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardRequestsPage })));
+const DashboardBranchesPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardBranchesPage })));
+const DashboardSepticTanksPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardSepticTanksPage })));
+const DashboardInstallationsPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardInstallationsPage })));
+const DashboardViolationsPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardViolationsPage })));
+const DashboardAnalysesPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardAnalysesPage })));
+const DashboardRepavPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardRepavPage })));
+const DashboardTramitacoesPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardTramitacoesPage })));
+const DashboardFaturacaoPage = lazy(() => import('@/features/dashboards/pages').then(m => ({ default: m.DashboardFaturacaoPage })));
+
+const EmissoesPage = lazy(() => import('@/features/emissoes').then(m => ({ default: m.EmissoesPage })));
+const EquipamentosPage = lazy(() => import('@/features/equipamentos').then(m => ({ default: m.EquipamentosPage })));
+const ObrasPage = lazy(() => import('@/features/obras').then(m => ({ default: m.ObrasPage })));
+const PavimentosPage = lazy(() => import('@/features/pavimentos').then(m => ({ default: m.PavimentosPage })));
+const EPIPage = lazy(() => import('@/features/administrativo/pages').then(m => ({ default: m.EPIPage })));
+const AvalPage = lazy(() => import('@/features/aval').then(m => ({ default: m.AvalPage })));
+const AvalAdminPage = lazy(() => import('@/features/aval').then(m => ({ default: m.AvalAdminPage })));
+const AvalAnalyticsPage = lazy(() => import('@/features/aval').then(m => ({ default: m.AvalAnalyticsPage })));
+
+const RhPessoalPage = lazy(() => import('@/features/rh/pages/RhPessoalPage'));
+const FeriasPage = lazy(() => import('@/features/rh/pages/FeriasPage'));
+const ParticipacaoPage = lazy(() => import('@/features/rh/pages/ParticipacaoPage'));
+const HorariosPage = lazy(() => import('@/features/rh/pages/HorariosPage'));
+const PiquetePage = lazy(() => import('@/features/rh/pages/PiquetePage'));
+const PontoPage = lazy(() => import('@/features/rh/pages/PontoPage'));
+const GestaoColaboradoresPage = lazy(() => import('@/features/rh/pages/GestaoColaboradoresPage'));
+const LocaisPage = lazy(() => import('@/features/rh/pages/LocaisPage'));
+const PontoMapaPage = lazy(() => import('@/features/rh/pages/PontoMapaPage'));
+const RhGestaoCentralPage = lazy(() => import('@/features/rh/pages/RhGestaoCentralPage'));
+
+const TasksPage = lazy(() => import('@/features/tasks/pages').then(m => ({ default: m.TasksPage })));
+const EntitiesPage = lazy(() => import('@/features/entities/pages').then(m => ({ default: m.EntitiesPage })));
+const DocumentsPage = lazy(() => import('@/features/documents/pages/DocumentsPage'));
+
+const InternalDashboardPage = lazy(() => import('@/features/internal').then(m => ({ default: m.InternalDashboardPage })));
+const RequisicaoInternaPage = lazy(() => import('@/features/internal').then(m => ({ default: m.RequisicaoInternaPage })));
+const FleetDashboard = lazy(() => import('@/features/fleet').then(m => ({ default: m.FleetDashboard })));
+
+const WebsiteNoticiasPage = lazy(() => import('@/features/website/pages').then(m => ({ default: m.WebsiteNoticiasPage })));
+const WebsiteAlertasPage = lazy(() => import('@/features/website/pages').then(m => ({ default: m.WebsiteAlertasPage })));
+const WebsiteDocumentosPage = lazy(() => import('@/features/website/pages').then(m => ({ default: m.WebsiteDocumentosPage })));
+const WebsitePublicacoesPage = lazy(() => import('@/features/website/pages').then(m => ({ default: m.WebsitePublicacoesPage })));
+const WebsiteProcedimentosPage = lazy(() => import('@/features/website/pages').then(m => ({ default: m.WebsiteProcedimentosPage })));
+const WebsiteProcessosFinanceirosPage = lazy(() => import('@/features/website/pages').then(m => ({ default: m.WebsiteProcessosFinanceirosPage })));
+
+const NetworkExpensesPage = lazy(() => import('@/features/expenses').then(m => ({ default: m.NetworkExpensesPage })));
+const BranchesExpensesPage = lazy(() => import('@/features/expenses').then(m => ({ default: m.BranchesExpensesPage })));
+const MaintenanceExpensesPage = lazy(() => import('@/features/expenses').then(m => ({ default: m.MaintenanceExpensesPage })));
+const EquipmentExpensesPage = lazy(() => import('@/features/expenses').then(m => ({ default: m.EquipmentExpensesPage })));
+
+const OrcamentoPage = lazy(() => import('@/features/orcamento').then(m => ({ default: m.OrcamentoPage })));
+const CatalogPage = lazy(() => import('@/features/orcamento/pages/CatalogPage'));
+const StockPage = lazy(() => import('@/features/stock').then(m => ({ default: m.StockPage })));
+const WhatsAppAlertasPage = lazy(() => import('@/features/alertas/pages/WhatsAppAlertasPage'));
+
+// ==================== FALLBACK DE CARREGAMENTO ====================
+
+function PageFallback() {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+      <CircularProgress />
+    </Box>
+  );
+}
 
 export default function BackofficeRoutes() {
   return (
+    <Suspense fallback={<PageFallback />}>
     <Routes>
       {/* ==================== HOME PAGE ==================== */}
       <Route path="/" element={<HomeRedirect />} />
@@ -216,5 +273,6 @@ export default function BackofficeRoutes() {
       {/* ==================== 404 ==================== */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

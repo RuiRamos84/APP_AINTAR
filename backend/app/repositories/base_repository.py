@@ -16,11 +16,17 @@ class BaseRepository(ABC):
         self.view_name = view_name
         self.table_name = table_name or view_name.replace('vbl_', 'tb_')
 
-    def find_all(self, current_user: str, filters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Buscar todos os registros com filtros opcionais"""
+    def find_all(self, current_user: str, filters: Dict[str, Any] = None,
+                  limit: int = None, offset: int = None) -> Dict[str, Any]:
+        """Buscar registros com filtros opcionais e paginação opcional (limit/offset).
+
+        Sem limit/offset, comportamento inalterado: devolve todos os registros e
+        `total` igual ao nº de registos devolvidos. Com limit/offset, `total`
+        passa a ser a contagem total de registos que cumprem os filtros (para paginação).
+        """
         try:
             with db_session_manager(current_user) as session:
-                query = f"SELECT * FROM {self.view_name}"
+                where_clause = ""
                 params = {}
 
                 if filters:
@@ -31,16 +37,32 @@ class BaseRepository(ABC):
                             params[key] = value
 
                     if where_clauses:
-                        query += " WHERE " + " AND ".join(where_clauses)
+                        where_clause = " WHERE " + " AND ".join(where_clauses)
+
+                query = f"SELECT * FROM {self.view_name}{where_clause}"
+
+                if limit is not None:
+                    query += " LIMIT :limit"
+                    params['limit'] = limit
+                if offset is not None:
+                    query += " OFFSET :offset"
+                    params['offset'] = offset
 
                 result = session.execute(text(query), params)
                 data = [dict(row) for row in result.mappings().all()]
+                columns = list(result.keys()) if result.returns_rows else []
+
+                total = len(data)
+                if limit is not None or offset is not None:
+                    count_query = f"SELECT COUNT(*) FROM {self.view_name}{where_clause}"
+                    count_params = {k: v for k, v in params.items() if k not in ('limit', 'offset')}
+                    total = session.execute(text(count_query), count_params).scalar()
 
                 return {
                     'success': True,
                     'data': data,
-                    'total': len(data),
-                    'columns': list(result.keys()) if result.returns_rows else []
+                    'total': total,
+                    'columns': columns
                 }
 
         except SQLAlchemyError as e:

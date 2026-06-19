@@ -71,9 +71,6 @@ def limiter_key_func():
     return get_remote_address()
 
 
-# Configuração da blacklist
-blacklist = set()
-
 limiter = Limiter(key_func=limiter_key_func, default_limits=["500 per day", "100 per hour"])
 
 
@@ -97,11 +94,18 @@ def create_app(config_class):
     migrate.init_app(app, db)
     jwt.init_app(app)
     mail.init_app(app)
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    cors_origins = [
+        "https://app.aintar.pt",
+        "https://clientes.aintar.pt",
+        "http://localhost:5173",  # dev frontend-v2 (Vite default)
+        "http://localhost:3001",  # dev frontend-v2 (porta fixa configurada em vite.config.js)
+        "http://localhost:3000",  # dev frontend CRA
+    ]
+    CORS(app, resources={r"/*": {"origins": cors_origins}}, supports_credentials=True)
     socket_io.init_app(app,
                        logger=False,
                        engineio_logger=False,
-                       cors_allowed_origins="*",
+                       cors_allowed_origins=cors_origins,
                        async_mode='eventlet',
                        ping_timeout=60,
                        ping_interval=25)
@@ -114,11 +118,11 @@ def create_app(config_class):
     # Inicializar o serviço de pagamento
     payment_service.init_app(app)
 
-    # Configuração da blacklist no JWT
+    # Configuração da blacklist no JWT (Redis — partilhada entre workers/restarts)
     @jwt.token_in_blocklist_loader
     def check_if_token_in_blacklist(jwt_header, jwt_payload):
-        jti = jwt_payload['jti']
-        return jti in blacklist
+        from app.utils.jwt_blacklist import is_token_revoked
+        return is_token_revoked(jwt_payload['jti'])
 
     if compress:
         compress.init_app(app)

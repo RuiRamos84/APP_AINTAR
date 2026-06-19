@@ -12,7 +12,7 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from ..utils.utils import set_session, token_required
 
 # ✅ NOVO SISTEMA DE PERMISSÕES
-from app.utils.permissions_decorator import require_permission, get_user_permissions_from_jwt
+from app.utils.permissions_decorator import require_permission, require_any_permission, get_user_permissions_from_jwt
 from app.core.permissions import permission_manager
 from app.utils.logger import get_logger
 
@@ -600,7 +600,7 @@ def webhook():
 
 @bp.route("/payments/exemptions/apply", methods=["POST"])
 @jwt_required()
-@require_permission('payments.manage')
+@require_any_permission('payments.manage', 'payments.isencao')
 @token_required
 @set_session
 @api_error_handler

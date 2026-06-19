@@ -234,7 +234,12 @@ def download_file(regnumber, filename, current_user):
             return jsonify({'error': 'Registo inválido'}), 400
 
         base_path = current_app.config.get('FILES_DIR', '/var/www/html/files')
-        request_path = os.path.join(base_path, regnumber)
+        base_path_abs = os.path.abspath(base_path)
+        request_path = os.path.abspath(os.path.join(base_path_abs, regnumber))
+
+        # Defesa em profundidade: garantir que o caminho resolvido fica dentro de FILES_DIR
+        if not request_path.startswith(base_path_abs + os.sep):
+            return jsonify({'error': 'Registo inválido'}), 400
 
         # ✅ USAR NORMALIZAÇÃO ROBUSTA
         filename_variations = normalize_filename_extensions(filename)

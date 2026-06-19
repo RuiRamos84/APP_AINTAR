@@ -1,7 +1,7 @@
 /**
  * useTasks - Hook para gestão de tarefas
  *
- * Integra Zustand store + API service
+ * Integra React Query (dados do servidor) + Zustand (filtros/seleção)
  * Facilita o uso de tarefas em qualquer componente
  *
  * @example
@@ -12,342 +12,208 @@
  *   fetchTasks,
  *   createTask,
  *   updateTask,
- *   deleteTask,
  * } = useTasks();
+ *
+ * // "Minhas tarefas":
+ * const { tasks } = useTasks({ scope: 'mine', autoFetch: false, fetchOnMount: false });
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTaskStore } from '../store/taskStore';
 import taskService from '../services/taskService';
 import notification from '@/core/services/notification';
+import {
+  TASK_KEYS,
+  useTasksQuery,
+  useMyTasksQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useUpdateTaskStatusMutation,
+  useCloseTaskMutation,
+  useReopenTaskMutation,
+  useAddTaskNoteMutation,
+  useBulkTaskActionMutation,
+} from './taskQueries';
 
 export const useTasks = (options = {}) => {
-  const { autoFetch = true, fetchOnMount = true, onSuccess, onError } = options;
+  const { scope = 'all', autoFetch = true, fetchOnMount = true, onSuccess, onError } = options;
+  const qc = useQueryClient();
 
-  // Estado do store
+  // Estado de UI (Zustand)
   const {
-    tasks,
-    currentTask,
-    loading,
-    bulkLoading,
-    error,
-    page,
-    rowsPerPage,
-    totalCount,
-    orderBy,
-    order,
     filters,
     selectedTasks,
-    viewMode,
-
-    // Actions
-    setTasks,
-    addTask,
-    updateTask: updateTaskInStore,
-    removeTask,
-    setCurrentTask,
-    clearCurrentTask,
-    setLoading,
-    setBulkLoading,
-    setError,
-    clearError,
-    setPage,
-    setRowsPerPage,
-    setSort,
     setFilters,
-    resetFilters,
-    setSelectedTasks,
     selectTask,
     deselectTask,
     selectAllVisible,
     clearSelection,
-    setViewMode,
-    isCacheValid,
-    invalidateCache,
-
-    // Selectors
-    getFilteredTasks,
-    getTaskStats,
-    getTasksByStatus,
   } = useTaskStore();
 
-  // ==================== FETCH TASKS ====================
+  // ==================== DADOS DO SERVIDOR (React Query) ====================
 
-  /**
-   * Carregar tarefas da API
-   */
-  const fetchTasks = useCallback(
-    async (forceRefresh = false) => {
-      // Cache desativado - sempre buscar dados frescos
-      if (!forceRefresh && isCacheValid()) {
-        return;
-      }
+  const tasksQuery = useTasksQuery({ enabled: scope === 'all' && autoFetch && fetchOnMount });
+  const myTasksQuery = useMyTasksQuery({ enabled: scope === 'mine' && autoFetch && fetchOnMount });
 
-      setLoading(true);
-      clearError();
+  const activeQuery = scope === 'mine' ? myTasksQuery : tasksQuery;
+  const tasks = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
+  const loading = activeQuery.isLoading || activeQuery.isFetching;
+  const error = activeQuery.error
+    ? { message: activeQuery.error.message || 'Erro ao carregar tarefas' }
+    : null;
+  const totalCount = tasks.length;
 
-      try {
-        const params = {
-          page,
-          limit: rowsPerPage,
-          orderBy,
-          order,
-          ...filters,
-        };
-
-        const result = await taskService.getTasks(params);
-        setTasks(result.tasks, result.totalCount);
-        onSuccess?.('Tarefas carregadas com sucesso');
-      } catch (err) {
-        const errorMsg = err.message || 'Erro ao carregar tarefas';
-        setError({ message: errorMsg });
-        notification.error(errorMsg);
-        onError?.(err);
-      }
-    },
-    [
-      page,
-      rowsPerPage,
-      orderBy,
-      order,
-      filters,
-      isCacheValid,
-      setLoading,
-      setError,
-      clearError,
-      setTasks,
-      onSuccess,
-      onError,
-    ]
-  );
-
-  /**
-   * Carregar minhas tarefas
-   */
-  const fetchMyTasks = useCallback(async () => {
-    setLoading(true);
-    clearError();
-
+  const fetchTasks = useCallback(async () => {
     try {
-      const params = {
-        page,
-        limit: rowsPerPage,
-        orderBy,
-        order,
-        assignedTo: 'me',
-        ...filters,
-      };
-
-      const result = await taskService.getMyTasks(params);
-      setTasks(result.tasks, result.totalCount);
+      await tasksQuery.refetch();
+      onSuccess?.('Tarefas carregadas com sucesso');
     } catch (err) {
-      const errorMsg = err.message || 'Erro ao carregar suas tarefas';
-      setError({ message: errorMsg });
-      notification.error(errorMsg);
+      notification.error(err.message || 'Erro ao carregar tarefas');
+      onError?.(err);
     }
-  }, [page, rowsPerPage, orderBy, order, filters, setLoading, setError, clearError, setTasks]);
+  }, [tasksQuery, onSuccess, onError]);
 
-  // ==================== CREATE ====================
+  const fetchMyTasks = useCallback(async () => {
+    try {
+      await myTasksQuery.refetch();
+    } catch (err) {
+      notification.error(err.message || 'Erro ao carregar suas tarefas');
+    }
+  }, [myTasksQuery]);
 
-  /**
-   * Criar nova tarefa
-   */
+  const refresh = useCallback(() => activeQuery.refetch(), [activeQuery]);
+
+  // ==================== MUTAÇÕES ====================
+
+  const createMutation = useCreateTaskMutation();
+  const updateMutation = useUpdateTaskMutation();
+  const statusMutation = useUpdateTaskStatusMutation();
+  const closeMutation = useCloseTaskMutation();
+  const reopenMutation = useReopenTaskMutation();
+  const noteMutation = useAddTaskNoteMutation();
+  const bulkMutation = useBulkTaskActionMutation();
+
+  const bulkLoading = bulkMutation.isPending;
+
   const createTask = useCallback(
     async (taskData) => {
-      setLoading(true);
-      clearError();
-
       try {
-        const newTask = await taskService.createTask(taskData);
-        invalidateCache();
-
+        const newTask = await createMutation.mutateAsync(taskData);
         notification.success('Tarefa criada com sucesso!');
         onSuccess?.('Tarefa criada');
-
         return newTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao criar tarefa';
-        setError({ message: errorMsg });
         notification.error(errorMsg);
         onError?.(err);
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
-    [setLoading, setError, clearError, addTask, invalidateCache, onSuccess, onError]
+    [createMutation, onSuccess, onError]
   );
 
-  // ==================== UPDATE ====================
-
-  /**
-   * Atualizar tarefa
-   */
   const updateTask = useCallback(
     async (taskId, taskData) => {
-      setLoading(true);
-      clearError();
-
       try {
-        const updatedTask = await taskService.updateTask(taskId, taskData);
-        updateTaskInStore(taskId, updatedTask);
-        invalidateCache();
-
+        const updatedTask = await updateMutation.mutateAsync({ taskId, taskData });
         notification.success('Tarefa atualizada com sucesso!');
         onSuccess?.('Tarefa atualizada');
-
         return updatedTask;
       } catch (err) {
         const errorMsg = err.message || 'Erro ao atualizar tarefa';
-        setError({ message: errorMsg });
         notification.error(errorMsg);
         onError?.(err);
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
-    [setLoading, setError, clearError, updateTaskInStore, invalidateCache, onSuccess, onError]
+    [updateMutation, onSuccess, onError]
   );
 
-  /**
-   * Atualizar status da tarefa
-   */
   const updateStatus = useCallback(
     async (taskId, statusId) => {
-      setLoading(true);
-      clearError();
-
       try {
-        const updatedTask = await taskService.updateTaskStatus(taskId, statusId);
-        updateTaskInStore(taskId, updatedTask);
-        invalidateCache();
-
+        const updatedTask = await statusMutation.mutateAsync({ taskId, statusId });
         notification.success('Status atualizado com sucesso!');
         return updatedTask;
       } catch (err) {
-        const errorMsg = err.message || 'Erro ao atualizar status';
-        notification.error(errorMsg);
+        notification.error(err.message || 'Erro ao atualizar status');
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
-    [setLoading, setError, clearError, updateTaskInStore, invalidateCache]
+    [statusMutation]
   );
 
-  /**
-   * Fechar/completar tarefa
-   */
   const closeTask = useCallback(
     async (taskId, note = null) => {
-      setLoading(true);
-      clearError();
-
       try {
-        const updatedTask = await taskService.closeTask(taskId, note);
-        updateTaskInStore(taskId, updatedTask);
-        invalidateCache();
-
+        const updatedTask = await closeMutation.mutateAsync({ taskId, note });
         notification.success('Tarefa concluída!');
         return updatedTask;
       } catch (err) {
-        const errorMsg = err.message || 'Erro ao concluir tarefa';
-        notification.error(errorMsg);
+        notification.error(err.message || 'Erro ao concluir tarefa');
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
-    [setLoading, setError, clearError, updateTaskInStore, invalidateCache]
+    [closeMutation]
   );
 
-  /**
-   * Reabrir tarefa
-   */
   const reopenTask = useCallback(
     async (taskId, reason = null) => {
-      setLoading(true);
-      clearError();
-
       try {
-        const updatedTask = await taskService.reopenTask(taskId, reason);
-        updateTaskInStore(taskId, updatedTask);
-        invalidateCache();
-
+        const updatedTask = await reopenMutation.mutateAsync({ taskId, reason });
         notification.success('Tarefa reaberta!');
         return updatedTask;
       } catch (err) {
-        const errorMsg = err.message || 'Erro ao reabrir tarefa';
-        notification.error(errorMsg);
+        notification.error(err.message || 'Erro ao reabrir tarefa');
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
-    [setLoading, setError, clearError, updateTaskInStore, invalidateCache]
+    [reopenMutation]
   );
 
-  // ==================== NOTES & HISTORY ====================
+  // ==================== NOTAS & HISTÓRICO ====================
 
-  /**
-   * Adicionar nota
-   */
   const addNote = useCallback(
     async (taskId, note) => {
-      setLoading(true);
-      clearError();
-
       try {
-        await taskService.addTaskNote(taskId, note);
-        invalidateCache();
-
-        // Disparar evento para atualizar UI em background
+        await noteMutation.mutateAsync({ taskId, note });
         window.dispatchEvent(new CustomEvent('task-refresh'));
       } catch (err) {
-        const errorMsg = err.message || 'Erro ao adicionar nota';
-        notification.error(errorMsg);
+        notification.error(err.message || 'Erro ao adicionar nota');
         throw err;
-      } finally {
-        setLoading(false);
       }
     },
-    [setLoading, setError, clearError, invalidateCache]
+    [noteMutation]
   );
 
-  /**
-   * Carregar histórico
-   */
   const fetchHistory = useCallback(async (taskId) => {
     try {
-      const history = await taskService.getTaskHistory(taskId);
-      return history;
+      return await taskService.getTaskHistory(taskId);
     } catch (err) {
       notification.error('Erro ao carregar histórico');
       throw err;
     }
   }, []);
 
-  /**
-   * Marcar notificação de tarefa como lida
-   */
   const markNotificationAsRead = useCallback(
     async (taskId) => {
       try {
         await taskService.markTaskAsRead(taskId);
-        // Atualizar tarefa local para remover notificação
-        updateTaskInStore(taskId, {
-          notification_owner: 0,
-          notification_client: 0,
-        });
+        const clearNotifications = (prev) =>
+          prev?.map((t) =>
+            t.id === taskId ? { ...t, notification_owner: 0, notification_client: 0 } : t
+          );
+        qc.setQueryData(TASK_KEYS.list, clearNotifications);
+        qc.setQueryData(TASK_KEYS.my, clearNotifications);
       } catch (err) {
         console.error('Erro ao marcar notificação como lida:', err);
       }
     },
-    [updateTaskInStore]
+    [qc]
   );
 
-  // ==================== BULK ACTIONS ====================
+  // ==================== AÇÕES EM MASSA ====================
 
   /**
    * Executar ação em massa sobre as tarefas selecionadas
@@ -357,11 +223,9 @@ export const useTasks = (options = {}) => {
   const bulkAction = useCallback(
     async (action, options = {}) => {
       if (selectedTasks.length === 0) return;
-      setBulkLoading(true);
-      clearError();
 
       try {
-        const result = await taskService.bulkTaskAction(selectedTasks, action, options);
+        const result = await bulkMutation.mutateAsync({ taskIds: selectedTasks, action, options });
         const count = result.succeeded?.length ?? selectedTasks.length;
         const failedCount = result.failed?.length ?? 0;
 
@@ -374,57 +238,81 @@ export const useTasks = (options = {}) => {
             status: 'atualizadas',
             priority: 'atualizadas',
           };
-          notification.success(`${count} tarefa(s) ${labels[action] ?? 'processadas'} com sucesso.`);
+          notification.success(
+            `${count} tarefa(s) ${labels[action] ?? 'processadas'} com sucesso.`
+          );
         }
 
         clearSelection();
-        invalidateCache();
-        await fetchTasks(true);
       } catch (err) {
         notification.error(err.message || 'Erro na ação em massa');
-      } finally {
-        setBulkLoading(false);
       }
     },
-    [selectedTasks, setBulkLoading, clearError, clearSelection, invalidateCache, fetchTasks]
+    [selectedTasks, bulkMutation, clearSelection]
   );
 
-  // ==================== UTILITIES ====================
+  // ==================== SELECTORS ====================
 
-  const refresh = useCallback(() => fetchTasks(true), [fetchTasks]);
+  const getFilteredTasks = useCallback(() => {
+    let filtered = [...tasks];
 
-  // ==================== EFFECTS ====================
-
-  // Auto-fetch on mount
-  useEffect(() => {
-    if (fetchOnMount && autoFetch) {
-      fetchTasks();
+    if (filters.search) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter(
+        (task) =>
+          task.title?.toLowerCase().includes(search) ||
+          task.description?.toLowerCase().includes(search)
+      );
     }
-  }, [fetchOnMount, autoFetch]);
 
-  // Re-fetch quando paginação/ordenação/filtros mudam
-  useEffect(() => {
-    if (autoFetch && !fetchOnMount) {
-      fetchTasks();
+    if (filters.status !== 'all') {
+      filtered = filtered.filter((task) => task.status === filters.status);
     }
-  }, [page, rowsPerPage, orderBy, order, filters]); // Excluir fetchTasks
+
+    if (filters.priority !== 'all') {
+      filtered = filtered.filter((task) => task.priority === filters.priority);
+    }
+
+    if (filters.client !== 'all') {
+      const clientId = parseInt(filters.client, 10);
+      filtered = filtered.filter((task) => task.client === clientId || task.ts_client === clientId);
+    }
+
+    return filtered;
+  }, [tasks, filters]);
+
+  const getTaskStats = useCallback(
+    () => ({
+      total: tasks.length,
+      pending: tasks.filter((t) => t.status === 'pending').length,
+      in_progress: tasks.filter((t) => t.status === 'in_progress').length,
+      completed: tasks.filter((t) => t.status === 'completed').length,
+      cancelled: tasks.filter((t) => t.status === 'cancelled').length,
+      high_priority: tasks.filter((t) => t.priority === 'alta' || t.priority === 'urgente').length,
+    }),
+    [tasks]
+  );
+
+  const getTasksByStatus = useCallback(() => {
+    const filtered = getFilteredTasks();
+    return {
+      pending: filtered.filter((t) => t.status === 'pending'),
+      in_progress: filtered.filter((t) => t.status === 'in_progress'),
+      completed: filtered.filter((t) => t.status === 'completed'),
+      cancelled: filtered.filter((t) => t.status === 'cancelled'),
+    };
+  }, [getFilteredTasks]);
 
   // ==================== RETURN ====================
 
   return {
     // Estado
     tasks,
-    currentTask,
     loading,
     error,
-    page,
-    rowsPerPage,
     totalCount,
-    orderBy,
-    order,
     filters,
     selectedTasks,
-    viewMode,
 
     // CRUD
     fetchTasks,
@@ -437,40 +325,30 @@ export const useTasks = (options = {}) => {
     closeTask,
     reopenTask,
 
-    // Notes & History
+    // Notas & Histórico
     addNote,
     fetchHistory,
 
-    // Notifications
+    // Notificações
     markNotificationAsRead,
 
-    // Store actions
-    setCurrentTask,
-    clearCurrentTask,
-    setPage,
-    setRowsPerPage,
-    setSort,
+    // Filtros & seleção (UI)
     setFilters,
-    resetFilters,
-    setSelectedTasks,
     selectTask,
     deselectTask,
     selectAllVisible,
     clearSelection,
-    setViewMode,
-    clearError,
-    invalidateCache,
 
     // Selectors
     getFilteredTasks,
     getTaskStats,
     getTasksByStatus,
 
-    // Bulk actions
+    // Ações em massa
     bulkAction,
     bulkLoading,
 
-    // Utilities
+    // Utilitários
     refresh,
     hasSelection: selectedTasks.length > 0,
     selectedCount: selectedTasks.length,
