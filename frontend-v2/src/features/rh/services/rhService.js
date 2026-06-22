@@ -19,19 +19,25 @@ export const submeterPontoMensal  = (data) => api.post(`${BASE}/ponto/submeter`,
 export const getPonto             = (p)    => api.get(`${BASE}/ponto`, { params: p });
 export const getPontoMensal       = (p)    => api.get(`${BASE}/ponto/mensal`, { params: p });
 export const corrigirPonto        = (pk, d) => api.put(`${BASE}/ponto/${pk}/corrigir`, d);
+export const adicionarPontoAdmin  = (data)  => api.post(`${BASE}/ponto/admin/evento`, data);
 
 // Workflow
 export const executarWorkflow = (data) => api.post(`${BASE}/workflow`, data);
 
 // Férias
-export const getFerias  = (p)       => api.get(`${BASE}/ferias`, { params: p });
-export const criarFerias = (data)   => api.post(`${BASE}/ferias`, data);
-export const editarFerias = (pk, d) => api.put(`${BASE}/ferias/${pk}`, d);
+export const getFerias        = (p)       => api.get(`${BASE}/ferias`, { params: p });
+export const criarFerias      = (data)    => api.post(`${BASE}/ferias`, data);
+export const editarFerias     = (pk, d)   => api.put(`${BASE}/ferias/${pk}`, d);
+export const getConflitosFerias = (p)     => api.get(`${BASE}/ferias/conflitos`, { params: p });
+export const getMapaFerias    = (p)       => api.get(`${BASE}/ferias/mapa`, { params: p });
 
 // Faltas
-export const getFaltas   = (p)      => api.get(`${BASE}/faltas`, { params: p });
-export const criarFalta  = (data)   => api.post(`${BASE}/faltas`, data);
-export const editarFalta = (pk, d)  => api.put(`${BASE}/faltas/${pk}`, d);
+export const getFaltas              = (p)              => api.get(`${BASE}/faltas`, { params: p });
+export const criarFalta             = (data)           => api.post(`${BASE}/faltas`, data);
+export const editarFalta            = (pk, d)          => api.put(`${BASE}/faltas/${pk}`, d);
+export const uploadAnexosFalta      = (pk, formData)   => api.post(`${BASE}/faltas/${pk}/anexos`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const downloadAnexoFalta     = (pk, filename)   => api.get(`${BASE}/faltas/${pk}/anexos/${filename}`, { responseType: 'blob' });
+export const deleteAnexoFalta       = (pk, filename)   => api.delete(`${BASE}/faltas/${pk}/anexos/${filename}`);
 
 // Horários
 export const getHorarios    = (p)       => api.get(`${BASE}/horarios`, { params: p });

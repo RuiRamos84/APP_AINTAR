@@ -2,14 +2,13 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   Box, Button, Stack, Tabs, Tab, Typography, Card, CardContent,
   CardActionArea, Tooltip, Chip, CircularProgress, Alert,
-  Switch, FormControlLabel, Grid, Divider, FormControl, Select, MenuItem,
+  Switch, FormControlLabel, Grid, FormControl, Select, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, List,
   ListItem, ListItemText, ListItemSecondaryAction,
 } from '@mui/material';
 import {
   AccessTime as PontoIcon,
   HowToReg as WorkflowIcon,
-  Send as SubmeterIcon,
   LoginOutlined as EntradaIcon,
   LunchDining as AlmocoInicioIcon,
   FreeBreakfast as AlmocoFimIcon,
@@ -37,6 +36,7 @@ import EstadoBadge from '../components/EstadoBadge';
 import WorkflowDialog from '../components/WorkflowDialog';
 import FaceCaptureModal from '../components/FaceCaptureModal';
 import FaceEnrollModal from '../components/FaceEnrollModal';
+import PontoCalendar from '../components/PontoCalendar';
 import { verifyFace } from '../services/rhService';
 
 import { MapContainer, TileLayer, Marker, Circle, Popup } from 'react-leaflet';
@@ -438,89 +438,30 @@ const PontoMapDialog = ({ registo, locais, onClose }) => {
 
 // ─── Tab 2: Histórico mensal ─────────────────────────────────────────────────
 
-const HistoricoTab = ({ userFk, search, mes, ano }) => {
+const HistoricoTab = ({ userFk, mes, ano }) => {
   const [mapTarget, setMapTarget] = useState(null);
 
   const { registosMes, isLoading } = usePontoMes(userFk, ano, mes);
   const { mapas } = usePontoMensal({ user_fk: userFk, ano, mes });
   const { submeter, isSubmetendo } = usePontoActions(userFk);
   const { locais } = useLocais();
-  const results = useSearch(registosMes, search);
 
   const mapaDoMes = mapas.find(m => m.ano === ano && m.mes === mes);
-  const diasUnicos = useMemo(() => [...new Set(registosMes.map(r => r.data))].length, [registosMes]);
 
-  const columns = useMemo(() => [
-    {
-      field: 'data', headerName: 'Data', width: 110,
-      renderCell: ({ value }) => fmtDate(value),
-    },
-    { field: 'evento_descr', headerName: 'Evento', width: 150 },
-    {
-      field: 'ts_registo', headerName: 'Hora', width: 90,
-      renderCell: ({ value }) => fmtTime(value),
-    },
-    {
-      field: 'fonte', headerName: 'Fonte', width: 130,
-      renderCell: ({ value }) => value === 'app+face'
-        ? <Chip icon={<FaceIcon sx={{ fontSize: '14px !important' }} />} label="Face" size="small" color="success" variant="outlined" />
-        : <Typography variant="body2">{value}</Typography>,
-    },
-    {
-      field: 'face_verified', headerName: 'Face', width: 80,
-      renderCell: ({ value }) => value
-        ? <Chip label="✓" size="small" color="success" />
-        : <Typography variant="body2" color="text.disabled" sx={{ pl: 1 }}>—</Typography>,
-    },
-    {
-      field: 'tem_gps', headerName: 'GPS', width: 70,
-      renderCell: ({ row }) => row.tem_gps
-        ? (
-          <Tooltip title="Ver localização no mapa">
-            <IconButton size="small" color="primary" onClick={() => setMapTarget(row)}>
-              <MapIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )
-        : <Typography variant="body2" color="text.disabled" sx={{ pl: 1 }}>—</Typography>,
-    },
-    { field: 'notas', headerName: 'Notas', flex: 1 },
-  ], []);
+  if (isLoading) return <Box sx={{ pt: 4, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap">
-        <Chip label={`${diasUnicos} dias registados`} color="primary" variant="outlined" />
-        {mapaDoMes && (
-          <>
-            <Chip label={`${mapaDoMes.total_horas ?? '?'}h totais`} color="info" variant="outlined" />
-            <EstadoBadge descr={mapaDoMes.estado_descr} cor={mapaDoMes.estado_cor} />
-          </>
-        )}
-        {!mapaDoMes && registosMes.length > 0 && (
-          <Button
-            variant="contained" size="small" startIcon={<SubmeterIcon />}
-            disabled={isSubmetendo}
-            onClick={() => submeter({ ano, mes })}
-            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}
-          >
-            {isSubmetendo ? 'A submeter…' : 'Submeter para Aprovação'}
-          </Button>
-        )}
-      </Stack>
-
-      <DataGrid
-        rows={results.map((r, i) => ({ ...r, id: r.pk ?? i }))}
-        columns={columns}
-        loading={isLoading}
-        autoHeight
-        density="compact"
-        pageSizeOptions={[25, 50]}
-        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
+      <PontoCalendar
+        registosMes={registosMes}
+        mapaDoMes={mapaDoMes}
+        ano={ano}
+        mes={mes}
+        onSubmeter={submeter}
+        isSubmetendo={isSubmetendo}
+        onMapOpen={setMapTarget}
+        userFk={userFk}
       />
-
       <PontoMapDialog
         registo={mapTarget}
         locais={locais}
@@ -721,7 +662,7 @@ const PontoPage = () => {
   const handleTabChange = (_, v) => { setTab(v); setSearch(''); };
 
   // Controlos do lado direito da barra de tabs
-  const showSearch  = tab > 0;
+  const showSearch  = tab === 2 || tab === 3; // Aprovação e Gestão Facial
   const showMesAno  = tab === 1 || tab === 2;
 
   return (
@@ -787,7 +728,7 @@ const PontoPage = () => {
       </TabPanel>
       <TabPanel value={tab} index={1}>
         {userFk
-          ? <HistoricoTab userFk={userFk} search={search} mes={mes} ano={ano} />
+          ? <HistoricoTab userFk={userFk} mes={mes} ano={ano} />
           : <Alert severity="warning">Não foi possível identificar o utilizador.</Alert>
         }
       </TabPanel>

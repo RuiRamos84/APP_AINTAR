@@ -15,10 +15,12 @@ import {
   PictureAsPdf as PdfIcon,
   Image as ImageIcon,
   Download as DownloadIcon,
+  Visibility as PreviewIcon,
   Close as RemoveIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
 import { downloadAnexoParticipacao } from '../services/rhService';
+import DocumentPreviewDialog from './DocumentPreviewDialog';
 import { useMotivosParticipacao } from '../hooks/useParticipacao';
 import { useColaboradores } from '../hooks/useRhLookups';
 import { usePermissions } from '@/core/contexts/PermissionContext';
@@ -112,6 +114,9 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
     setPendingFiles(prev => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const [preview, setPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
   const handleDownload = useCallback(async (doc) => {
     try {
       const blob = await downloadAnexoParticipacao(initial.pk, doc.filename);
@@ -125,6 +130,26 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
       toast.error('Erro ao descarregar ficheiro.');
     }
   }, [initial]);
+
+  const handlePreview = useCallback(async (doc) => {
+    setLoadingPreview(true);
+    setPreview({ url: null, filename: doc.filename, nomeOriginal: doc.nome_original });
+    try {
+      const blob = await downloadAnexoParticipacao(initial.pk, doc.filename);
+      const url = URL.createObjectURL(blob);
+      setPreview({ url, filename: doc.filename, nomeOriginal: doc.nome_original });
+    } catch {
+      toast.error('Erro ao carregar pré-visualização.');
+      setPreview(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  }, [initial]);
+
+  const handleClosePreview = useCallback(() => {
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  }, [preview]);
 
   useEffect(() => {
     if (!open) return;
@@ -394,11 +419,18 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
                     <ListItem key={doc.pk} disablePadding
                       sx={{ borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
                       secondaryAction={
-                        <Tooltip title="Descarregar">
-                          <IconButton size="small" edge="end" onClick={() => handleDownload(doc)}>
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        <Stack direction="row" spacing={0.5}>
+                          <Tooltip title="Pré-visualizar">
+                            <IconButton size="small" edge="end" onClick={() => handlePreview(doc)}>
+                              <PreviewIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Descarregar">
+                            <IconButton size="small" edge="end" onClick={() => handleDownload(doc)}>
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
                       }
                     >
                       <ListItemIcon sx={{ minWidth: 32 }}>
@@ -453,6 +485,16 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
           </Button>
         </DialogActions>
       </form>
+
+      <DocumentPreviewDialog
+        open={!!preview}
+        onClose={handleClosePreview}
+        url={preview?.url}
+        filename={preview?.filename}
+        nomeOriginal={preview?.nomeOriginal}
+        isLoading={loadingPreview}
+        onDownload={() => handleDownload({ filename: preview.filename, nome_original: preview.nomeOriginal })}
+      />
     </Dialog>
   );
 };

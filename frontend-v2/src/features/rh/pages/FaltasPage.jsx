@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Stack } from '@mui/material';
-import { Add as AddIcon, HowToReg as WorkflowIcon, EventBusy as FaltasIcon } from '@mui/icons-material';
+import { Box, Button, Stack, Badge, Tooltip, IconButton, Chip } from '@mui/material';
+import { Add as AddIcon, HowToReg as WorkflowIcon, EventBusy as FaltasIcon, AttachFile as AnexoIcon } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
@@ -11,15 +11,17 @@ import { useRhLookups } from '../hooks/useRhLookups';
 import EstadoBadge from '../components/EstadoBadge';
 import FaltaFormModal from '../components/FaltaFormModal';
 import WorkflowDialog from '../components/WorkflowDialog';
+import FaltasAnexosModal from '../components/FaltasAnexosModal';
 
 import { RH_COLOR as COLOR, fmtDate } from '../utils/rhUtils';
 
 const FaltasPage = () => {
-  const [search, setSearch]       = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [wfOpen, setWfOpen]       = useState(false);
-  const [selected, setSelected]   = useState(null);
-  const [wfTarget, setWfTarget]   = useState(null);
+  const [search, setSearch]         = useState('');
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [wfOpen, setWfOpen]         = useState(false);
+  const [selected, setSelected]     = useState(null);
+  const [wfTarget, setWfTarget]     = useState(null);
+  const [anexosTarget, setAnexosTarget] = useState(null);
 
   const { faltas, isLoading, criar, isCriando, editar, isEditando, workflow, isWorkflow } = useFaltas();
   const { lookups } = useRhLookups();
@@ -57,12 +59,28 @@ const FaltasPage = () => {
     { field: 'comunicado_por_nome', headerName: 'Comunicado por', width: 160 },
     { field: 'notas', headerName: 'Notas', flex: 1, minWidth: 120 },
     {
-      field: '_acoes', headerName: 'Acções', width: 180, sortable: false,
+      field: 'documentos', headerName: 'Anexos', width: 80, sortable: false,
+      renderCell: ({ value }) => {
+        const n = Array.isArray(value) ? value.length : 0;
+        return n > 0 ? (
+          <Chip label={n} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
+        ) : '—';
+      },
+    },
+    {
+      field: '_acoes', headerName: 'Acções', width: 220, sortable: false,
       renderCell: ({ row }) => (
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: '100%' }}>
           {row.ts_estado_fk <= 2 && (
             <Button size="small" onClick={() => openEdit(row)}>Editar</Button>
           )}
+          <Tooltip title="Gerir anexos">
+            <IconButton size="small" onClick={() => setAnexosTarget(row)}>
+              <Badge badgeContent={(row.documentos || []).length || null} color="primary">
+                <AnexoIcon sx={{ fontSize: 18 }} />
+              </Badge>
+            </IconButton>
+          </Tooltip>
           <Button size="small" color="secondary" startIcon={<WorkflowIcon />}
             onClick={() => openWf(row)}>
             Workflow
@@ -112,6 +130,12 @@ const FaltasPage = () => {
         open={wfOpen} onClose={() => setWfOpen(false)}
         refPk={wfTarget?.pk} tipoRef="faltas"
         onConfirm={workflow} isLoading={isWorkflow}
+      />
+
+      <FaltasAnexosModal
+        open={!!anexosTarget}
+        onClose={() => setAnexosTarget(null)}
+        falta={anexosTarget}
       />
     </ModulePage>
   );

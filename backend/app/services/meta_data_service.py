@@ -74,6 +74,7 @@ def fetch_meta_data(current_user, profil=None):
         'rh_tipo_falta':         "SELECT pk, descr, requer_justificativo FROM vbl_rh_tipo_falta",
         'rh_estado_workflow':    "SELECT pk, descr, cor FROM vbl_rh_estado_workflow",
         'rh_piquete_ocorrencia': "SELECT pk, descr FROM vbl_rh_tipo_ocorrencia",
+        'rh_equipas':            "SELECT pk, codigo, nome, max_simultaneos FROM vbl_rh_equipa WHERE ativo = TRUE",
     }
 
     with db_session_manager(current_user) as session:

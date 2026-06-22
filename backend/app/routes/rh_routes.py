@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from datetime import date
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.utils.permissions_decorator import require_permission
@@ -21,10 +21,12 @@ from ..services.rh_service import (
     get_lookups,
     get_colaboradores, get_colaborador, get_saldo_ferias,
     registar_ponto_evento, get_ponto, submeter_ponto_mensal,
-    get_ponto_mensal, corrigir_ponto,
+    get_ponto_mensal, corrigir_ponto, adicionar_ponto_admin,
     executar_workflow,
     criar_ferias, editar_ferias, get_ferias,
+    get_conflitos_ferias, get_mapa_ferias,
     criar_falta, editar_falta, get_faltas,
+    upload_anexos_falta, download_anexo_falta, delete_anexo_falta,
     criar_horario, editar_horario, get_horarios,
     upsert_config, get_config,
     get_piquete, gerar_escala_piquete, confirmar_piquete,
@@ -195,6 +197,17 @@ def ponto_corrigir_route(pk):
     return corrigir_ponto(pk, request.get_json(), current_user)
 
 
+@bp.route('/rh/ponto/admin/evento', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def ponto_admin_evento_route():
+    current_user = get_jwt_identity()
+    return adicionar_ponto_admin(request.get_json(), current_user)
+
+
 # ---------------------------------------------------------------------------
 # Workflow (ponto / férias / faltas)
 # ---------------------------------------------------------------------------
@@ -253,6 +266,34 @@ def ferias_update_route(pk):
     return editar_ferias(pk, request.get_json(), current_user)
 
 
+@bp.route('/rh/ferias/conflitos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def ferias_conflitos_route():
+    current_user = get_jwt_identity()
+    user_fk    = request.args.get('user_fk', type=int)
+    data_inicio = request.args.get('data_inicio')
+    data_fim    = request.args.get('data_fim')
+    excluir_pk  = request.args.get('excluir_pk', type=int)
+    if not user_fk or not data_inicio or not data_fim:
+        return jsonify([]), 200
+    return get_conflitos_ferias(current_user, user_fk, data_inicio, data_fim, excluir_pk)
+
+
+@bp.route('/rh/ferias/mapa', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def ferias_mapa_route():
+    current_user = get_jwt_identity()
+    ano       = request.args.get('ano', default=None, type=int) or __import__('datetime').date.today().year
+    equipa_fk = request.args.get('equipa_fk', type=int)
+    return get_mapa_ferias(current_user, ano, equipa_fk)
+
+
 # ---------------------------------------------------------------------------
 # Faltas
 # ---------------------------------------------------------------------------
@@ -292,6 +333,38 @@ def faltas_create_route():
 def faltas_update_route(pk):
     current_user = get_jwt_identity()
     return editar_falta(pk, request.get_json(), current_user)
+
+
+@bp.route('/rh/faltas/<int:pk>/anexos', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def faltas_upload_anexos_route(pk):
+    current_user = get_jwt_identity()
+    return upload_anexos_falta(pk, current_user)
+
+
+@bp.route('/rh/faltas/<int:pk>/anexos/<path:filename>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def faltas_download_anexo_route(pk, filename):
+    current_user = get_jwt_identity()
+    return download_anexo_falta(pk, filename, current_user)
+
+
+@bp.route('/rh/faltas/<int:pk>/anexos/<path:filename>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def faltas_delete_anexo_route(pk, filename):
+    current_user = get_jwt_identity()
+    return delete_anexo_falta(pk, filename, current_user)
 
 
 # ---------------------------------------------------------------------------

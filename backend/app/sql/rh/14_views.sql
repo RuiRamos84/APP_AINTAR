@@ -153,6 +153,7 @@ SELECT
     es.descr                        AS estado_descr,
     es.cor                          AS estado_cor,
     fa.justificativo_path,
+    fa.documentos,
     fa.comunicado_por,
     CASE WHEN fa.comunicado_por IS NOT NULL THEN cp.name ELSE NULL END AS comunicado_por_nome,
     fa.notas,

@@ -5,6 +5,7 @@ entre todos os workers/processos (necessário em produção com eventlet).
 """
 import time
 import redis
+import eventlet
 from flask import current_app
 from app.utils.logger import get_logger
 
@@ -39,25 +40,42 @@ def _mark_unavailable(action, e):
     logger.error(f"Erro ao {action} (Redis indisponível, a ignorar por {_REDIS_RETRY_INTERVAL}s): {e}")
 
 
+_REDIS_OP_TIMEOUT = 0.5  # segundos — garante fail-fast mesmo com eventlet monkey-patch
+
+
 def add_token_to_blacklist(jti, exp=None):
     """Marca o token (jti) como revogado, com TTL até à expiração do próprio token."""
     if time.time() < _redis_unavailable_until:
         return
+    timer = eventlet.Timeout(_REDIS_OP_TIMEOUT)
     try:
         if exp:
             ttl = max(int(exp - time.time()), 1)
         else:
             ttl = int(current_app.config['REFRESH_TOKEN_EXPIRES'].total_seconds())
         _get_redis().setex(_key(jti), ttl, "revoked")
+        timer.cancel()
+    except eventlet.Timeout as t:
+        if t is timer:
+            _mark_unavailable("adicionar token à blacklist", Exception("timeout após 0.5s"))
     except Exception as e:
+        timer.cancel()
         _mark_unavailable("adicionar token à blacklist", e)
 
 
 def is_token_revoked(jti):
     if time.time() < _redis_unavailable_until:
         return False
+    timer = eventlet.Timeout(_REDIS_OP_TIMEOUT)
     try:
-        return _get_redis().exists(_key(jti)) == 1
+        result = _get_redis().exists(_key(jti)) == 1
+        timer.cancel()
+        return result
+    except eventlet.Timeout as t:
+        if t is timer:
+            _mark_unavailable("verificar blacklist de tokens", Exception("timeout após 0.5s"))
+        return False
     except Exception as e:
+        timer.cancel()
         _mark_unavailable("verificar blacklist de tokens", e)
         return False

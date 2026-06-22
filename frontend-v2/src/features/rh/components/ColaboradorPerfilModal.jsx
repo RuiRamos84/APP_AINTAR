@@ -14,6 +14,7 @@ import {
 import { useColaboradores } from '../hooks/useRhLookups';
 import { useColaboradorConfig, useGestaoActions } from '../hooks/useGestaoColaboradores';
 import { useLocais } from '../hooks/usePontoLocais';
+import { useMetadata } from '@/core/contexts/MetadataContext';
 
 const currentYear = new Date().getFullYear();
 const ANOS = [currentYear - 1, currentYear, currentYear + 1];
@@ -41,6 +42,8 @@ const toISODate = (v) => {
 // ─── Tab 1: Dados Pessoais / Perfil RH ───────────────────────────────────────
 const PerfilTab = ({ colaborador, formRef, locais }) => {
   const { colaboradores } = useColaboradores();
+  const { metadata } = useMetadata();
+  const rhEquipas = metadata.rhEquipas || [];
 
   const { control, handleSubmit, reset } = useForm({
     defaultValues: {
@@ -50,7 +53,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
       categoria: '',
       tipo_contrato: '',
       num_mecanografico: '',
-      departamento: '',
+      tt_rh_equipa_fk: '',
       superior_fk: '',
       ts_rh_local_fk: '',
       dias_ferias_base: 22,
@@ -69,7 +72,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
         categoria: colaborador.categoria || '',
         tipo_contrato: colaborador.tipo_contrato || '',
         num_mecanografico: colaborador.num_mecanografico || '',
-        departamento: colaborador.departamento || '',
+        tt_rh_equipa_fk: colaborador.tt_rh_equipa_fk || '',
         superior_fk: colaborador.superior_fk || '',
         ts_rh_local_fk: colaborador.ts_rh_local_fk || '',
         dias_ferias_base: colaborador.dias_ferias_base || 22,
@@ -87,6 +90,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
       pk: colaborador.pk,
       dias_ferias_base: Number(data.dias_ferias_base),
       superior_fk: data.superior_fk ? Number(data.superior_fk) : null,
+      tt_rh_equipa_fk: data.tt_rh_equipa_fk ? Number(data.tt_rh_equipa_fk) : null,
       data_nascimento: data.data_nascimento || null,
       data_admissao: data.data_admissao || null,
       ts_rh_local_fk: ts_rh_local_fk ? Number(ts_rh_local_fk) : null,
@@ -148,9 +152,22 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <Controller name="departamento" control={control}
+            <Controller name="tt_rh_equipa_fk" control={control}
               render={({ field }) => (
-                <TextField {...field} label="Departamento / Secção" size="small" fullWidth />
+                <FormControl fullWidth size="small">
+                  <InputLabel>Equipa Operacional</InputLabel>
+                  <Select {...field} label="Equipa Operacional">
+                    <MenuItem value="">— Não atribuída —</MenuItem>
+                    {rhEquipas.map(e => (
+                      <MenuItem key={e.pk} value={e.pk}>
+                        {e.nome}
+                        <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                          ({e.codigo})
+                        </Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               )}
             />
           </Grid>

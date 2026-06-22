@@ -82,7 +82,8 @@ const PiquetePage = lazy(() => import('@/features/rh/pages/PiquetePage'));
 const PontoPage = lazy(() => import('@/features/rh/pages/PontoPage'));
 const GestaoColaboradoresPage = lazy(() => import('@/features/rh/pages/GestaoColaboradoresPage'));
 const LocaisPage = lazy(() => import('@/features/rh/pages/LocaisPage'));
-const PontoMapaPage = lazy(() => import('@/features/rh/pages/PontoMapaPage'));
+const PontoMapaPage      = lazy(() => import('@/features/rh/pages/PontoMapaPage'));
+const MapaFeriasPage     = lazy(() => import('@/features/rh/pages/MapaFeriasPage'));
 const RhGestaoCentralPage = lazy(() => import('@/features/rh/pages/RhGestaoCentralPage'));
 
 const TasksPage = lazy(() => import('@/features/tasks/pages').then(m => ({ default: m.TasksPage })));
@@ -244,6 +245,7 @@ export default function BackofficeRoutes() {
         <Route path="/rh/gestao/colaboradores"      element={<GestaoColaboradoresPage />} />
         <Route path="/rh/gestao/locais"             element={<LocaisPage />} />
         <Route path="/rh/gestao/ponto-mapa"         element={<PontoMapaPage />} />
+        <Route path="/rh/gestao/mapa-ferias"        element={<MapaFeriasPage />} />
         <Route path="/rh/gestao/central"            element={<RhGestaoCentralPage />} />
         <Route path="/aval"                         element={<AvalPage />} />
         <Route path="/admin/aval"                   element={<AvalAdminPage />} />

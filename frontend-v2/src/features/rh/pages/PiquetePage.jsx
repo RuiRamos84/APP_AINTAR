@@ -139,6 +139,7 @@ const OcorrenciasTab = ({ search, ocorrencias, isLoading, onEdit }) => {
 const PiquetePage = () => {
   const now = new Date();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const isAdmin = hasPermission('rh.admin');
 
   // Filtros

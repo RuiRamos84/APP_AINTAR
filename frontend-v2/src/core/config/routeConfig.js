@@ -824,6 +824,15 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  '/rh/gestao/mapa-ferias': {
+    id: 'rh_mapa_ferias',
+    text: 'Mapa de Férias',
+    icon: FeriasIcon,
+    module: 'rh',
+    permissions: { required: 'rh.view' },
+    showInSidebar: true,
+  },
+
   '/rh/gestao/central': {
     id: 'rh_gestao_central',
     text: 'Gestão Centralizada',

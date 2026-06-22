@@ -398,7 +398,7 @@ def executar_wf(data: dict, user_fk: int, current_user: str):
 
         result = session.execute(text("""
             SELECT fbo_rh_participacao_wf(
-                :ref_pk, :step::SMALLINT, :user_fk, :ts_estado_fk, :notas
+                :ref_pk, CAST(:step AS SMALLINT), :user_fk, :ts_estado_fk, :notas
             ) AS result
         """), {
             'ref_pk':       p.ref_pk,

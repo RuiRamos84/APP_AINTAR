@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useDeferredValue } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, FormControl, InputLabel, Select,
-  MenuItem, Stack, Grid,
+  MenuItem, Stack, Grid, Alert, Chip, Typography,
 } from '@mui/material';
+import { Warning as WarnIcon } from '@mui/icons-material';
 import { useColaboradores } from '../hooks/useRhLookups';
+import { useConflitosFerias } from '../hooks/useFerias';
+import { useAuth } from '@/core/contexts/AuthContext';
 
 const toISODate = (v) => {
   if (!v) return '';
@@ -19,14 +22,32 @@ const toISODate = (v) => {
 };
 
 const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) => {
+  const { user } = useAuth();
   const { colaboradores } = useColaboradores();
   const tipos = lookups?.tipos_ferias || [];
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm({
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
       user_fk: '', tt_tipo_fk: 1,
       data_inicio: '', data_fim: '', notas: '',
     },
+  });
+
+  const userFkWatch    = watch('user_fk');
+  const dataInicioWatch = watch('data_inicio');
+  const dataFimWatch    = watch('data_fim');
+
+  // Defer para não disparar query a cada tecla
+  const dDataInicio = useDeferredValue(dataInicioWatch);
+  const dDataFim    = useDeferredValue(dataFimWatch);
+
+  const resolvedUserFk = userFkWatch ? Number(userFkWatch) : user?.user_id;
+
+  const { conflitos, isLoading: isCheckingConflitos } = useConflitosFerias({
+    user_fk:    open ? resolvedUserFk : undefined,
+    data_inicio: open && dDataInicio ? dDataInicio : undefined,
+    data_fim:    open && dDataFim    ? dDataFim    : undefined,
+    excluir_pk: initial?.pk,
   });
 
   useEffect(() => {
@@ -40,10 +61,12 @@ const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) 
   }, [open, initial, reset]);
 
   const onSubmit = (data) => {
-    const payload = { ...data, user_fk: Number(data.user_fk), tt_tipo_fk: Number(data.tt_tipo_fk) };
+    const payload = { ...data, user_fk: Number(data.user_fk) || user?.user_id, tt_tipo_fk: Number(data.tt_tipo_fk) };
     if (initial) onSave({ pk: initial.pk, data: payload });
     else onSave(payload);
   };
+
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-PT') : '';
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -99,6 +122,30 @@ const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) 
                 />
               </Grid>
             </Grid>
+
+            {/* Aviso de conflito com colegas da mesma equipa */}
+            {!isCheckingConflitos && conflitos.length > 0 && (
+              <Alert severity="warning" icon={<WarnIcon />}
+                sx={{ '& .MuiAlert-message': { width: '100%' } }}>
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  Conflito com colega(s) da mesma equipa neste período:
+                </Typography>
+                <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 0.5 }}>
+                  {conflitos.map((c) => (
+                    <Chip
+                      key={c.ferias_pk}
+                      size="small"
+                      label={`${c.colaborador_nome} (${fmtDate(c.data_inicio)}–${fmtDate(c.data_fim)})`}
+                      color="warning"
+                      variant="outlined"
+                    />
+                  ))}
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  O pedido pode ser submetido — a decisão final cabe ao chefe direto.
+                </Typography>
+              </Alert>
+            )}
 
             <Controller name="notas" control={control}
               render={({ field }) => (

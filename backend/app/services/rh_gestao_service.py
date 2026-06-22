@@ -135,7 +135,8 @@ def get_equipa(current_user: str, user_fk_filter: Optional[int]):
         where = ' AND '.join(filters)
         rows = session.execute(
             text(f"""
-                SELECT pk, name, superior_fk, departamento,
+                SELECT pk, name, superior_fk,
+                       tt_rh_equipa_fk, equipa_codigo, equipa_nome,
                        entrada_hoje, saida_hoje,
                        em_ferias_hoje, tem_falta_hoje,
                        piquete_semana_inicio,

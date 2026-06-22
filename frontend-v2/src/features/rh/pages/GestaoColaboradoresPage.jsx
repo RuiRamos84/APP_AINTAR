@@ -58,8 +58,10 @@ const GestaoColaboradoresPage = () => {
       renderCell: ({ value }) => fmtAnos(value),
     },
     {
-      field: 'departamento', headerName: 'Departamento', width: 150,
-      renderCell: ({ value }) => value || <Typography color="text.disabled">—</Typography>,
+      field: 'equipa_nome', headerName: 'Equipa', width: 180,
+      renderCell: ({ value, row }) => value
+        ? <span>{value} <Typography component="span" variant="caption" color="text.secondary">({row.equipa_codigo})</Typography></span>
+        : <Typography color="text.disabled">—</Typography>,
     },
     {
       field: 'superior_nome', headerName: 'Superior', width: 160,

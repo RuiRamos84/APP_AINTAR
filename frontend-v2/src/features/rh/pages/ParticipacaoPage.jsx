@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  Box, Button, Stack, Chip, Typography, Alert,
+  Box, Button, Stack, Chip, Typography, Alert, Tooltip, IconButton, Badge,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material';
@@ -11,6 +11,7 @@ import {
   WarningAmber as AvisoIcon,
   Schedule as HoraIcon,
   CalendarMonth as DiaIcon,
+  AttachFile as AnexoIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
@@ -220,6 +221,28 @@ const ParticipacaoPage = () => {
     },
     { field: 'data_participacao', headerName: 'Comunicado', width: 110,
       renderCell: ({ value }) => fmtDate(value) },
+    {
+      field: 'documentos', headerName: 'Anexos', width: 80, sortable: false,
+      renderCell: ({ value, row }) => {
+        const n = Array.isArray(value) ? value.length : 0;
+        return (
+          <Tooltip title={n > 0 ? `${n} anexo(s) — clique para ver` : 'Sem anexos'}>
+            <span>
+              <IconButton
+                size="small"
+                disabled={n === 0}
+                onClick={() => openEdit(row)}
+                sx={{ opacity: n > 0 ? 1 : 0.3 }}
+              >
+                <Badge badgeContent={n || null} color="primary">
+                  <AnexoIcon sx={{ fontSize: 18 }} />
+                </Badge>
+              </IconButton>
+            </span>
+          </Tooltip>
+        );
+      },
+    },
     {
       field: '_acoes', headerName: 'Acções', width: 160, sortable: false,
       renderCell: ({ row }) => (

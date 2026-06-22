@@ -102,6 +102,7 @@ export function MetadataProvider({ children }) {
         rhTipoFalta:          data.rh_tipo_falta          || [],
         rhEstadoWorkflow:     data.rh_estado_workflow     || [],
         rhPiqueteOcorrencia:  data.rh_piquete_ocorrencia  || [],
+        rhEquipas:            data.rh_equipas             || [],
 
         // Keep raw data for custom access
         _raw: data,

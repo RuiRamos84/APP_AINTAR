@@ -1,11 +1,18 @@
-from flask import jsonify
+import json
+import os
+from flask import jsonify, request, current_app, send_file
 from sqlalchemy import text
 from typing import Optional
 from datetime import date, time, datetime
 from pydantic import BaseModel, Field
+from werkzeug.utils import secure_filename
 from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError, ResourceNotFoundError
+from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
+
+_FALTA_ALLOWED_EXTS = {'.pdf', '.jpg', '.jpeg', '.png', '.docx', '.doc'}
+_FALTA_MAX_FILES    = 10
 
 logger = get_logger(__name__)
 
@@ -21,12 +28,12 @@ class ColaboradorUpsert(BaseModel):
     categoria: Optional[str] = None
     tipo_contrato: Optional[str] = None
     num_mecanografico: Optional[str] = None
-    departamento: Optional[str] = None
     superior_fk: Optional[int] = None
     dias_ferias_base: Optional[int] = None
     elegivel_piquete: Optional[bool] = None
     gps_obrigatorio: Optional[bool] = None
     notas: Optional[str] = None
+    tt_rh_equipa_fk: Optional[int] = None
 
 
 class ConfigAnoInit(BaseModel):
@@ -55,6 +62,13 @@ class PontoSubmeter(BaseModel):
 
 class PontoCorrigir(BaseModel):
     ts_registo: str  # ISO datetime string
+    notas: Optional[str] = None
+
+
+class PontoEventoAdminCreate(BaseModel):
+    user_fk: int
+    tt_evento_fk: int
+    ts_registo: str   # "YYYY-MM-DDTHH:MM:SS"
     notas: Optional[str] = None
 
 
@@ -232,7 +246,9 @@ def get_colaborador(pk: int, current_user: str):
         ).mappings().first()
         if not row:
             raise ResourceNotFoundError('Colaborador', pk)
-        return jsonify(dict(row)), 200
+        data = {k: str(v) if hasattr(v, 'isoformat') and not hasattr(v, 'year') else v
+                for k, v in dict(row).items()}
+        return jsonify(data), 200
 
 
 @api_error_handler
@@ -539,10 +555,36 @@ def corrigir_ponto(pk: int, data: dict, current_user: str):
     payload = PontoCorrigir.model_validate(data)
     with db_session_manager(current_user) as session:
         result = session.execute(text("""
-            SELECT fbo_rh_ponto_corrigir(:pk, :ts_registo::TIMESTAMP, :notas) AS result
+            SELECT fbo_rh_ponto_corrigir(:pk, CAST(:ts_registo AS TIMESTAMP), :notas) AS result
         """), {'pk': pk, **payload.model_dump()}).scalar()
         _assert_success(result, 'Erro ao corrigir registo de ponto')
         return jsonify({'message': 'Registo corrigido', 'result': format_message(result)}), 200
+
+
+@api_error_handler
+def adicionar_ponto_admin(data: dict, current_user: str):
+    """Adiciona evento de ponto com timestamp personalizado (uso exclusivo admin)."""
+    payload = PontoEventoAdminCreate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            INSERT INTO tb_rh_ponto (pk, tb_user_fk, tt_evento_fk, data, ts_registo, fonte, notas)
+            VALUES (
+                fs_nextcode(),
+                :user_fk,
+                :tt_evento_fk,
+                CAST(:ts_registo AS DATE),
+                CAST(:ts_registo AS TIMESTAMP WITHOUT TIME ZONE),
+                'correcao',
+                :notas
+            )
+            RETURNING pk
+        """), {
+            'user_fk': payload.user_fk,
+            'tt_evento_fk': payload.tt_evento_fk,
+            'ts_registo': payload.ts_registo,
+            'notas': payload.notas or 'Registo manual (responsável)',
+        }).fetchone()
+        return jsonify({'ok': True, 'pk': row.pk}), 201
 
 
 # ---------------------------------------------------------------------------
@@ -617,6 +659,45 @@ def get_ferias(current_user: str, user_fk: Optional[int], ano: Optional[int], es
 
 
 # ---------------------------------------------------------------------------
+# Férias — conflitos de equipa e mapa anual
+# ---------------------------------------------------------------------------
+
+@api_error_handler
+def get_conflitos_ferias(current_user: str, user_fk: int, data_inicio: str, data_fim: str, excluir_pk: Optional[int] = None):
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("""
+            SELECT * FROM fn_rh_ferias_conflitos(
+                :user_fk,
+                CAST(:data_inicio AS DATE),
+                CAST(:data_fim AS DATE),
+                :excluir_pk
+            )
+        """), {
+            'user_fk': user_fk,
+            'data_inicio': data_inicio,
+            'data_fim': data_fim,
+            'excluir_pk': excluir_pk,
+        }).mappings().all()
+        return jsonify(_rows_to_list(rows)), 200
+
+
+@api_error_handler
+def get_mapa_ferias(current_user: str, ano: int, equipa_fk: Optional[int] = None):
+    with db_session_manager(current_user) as session:
+        filters = ['ano = :ano']
+        params: dict = {'ano': ano}
+        if equipa_fk:
+            filters.append('tt_rh_equipa_fk = :equipa_fk')
+            params['equipa_fk'] = equipa_fk
+        where = ' AND '.join(filters)
+        rows = session.execute(
+            text(f'SELECT * FROM vbl_rh_ferias_mapa WHERE {where} ORDER BY equipa_codigo, colaborador_nome, data_inicio'),
+            params
+        ).mappings().all()
+        return jsonify(_rows_to_list(rows)), 200
+
+
+# ---------------------------------------------------------------------------
 # Faltas
 # ---------------------------------------------------------------------------
 
@@ -668,6 +749,120 @@ def get_faltas(current_user: str, user_fk: Optional[int], ano: Optional[int], es
             params
         ).mappings().all()
         return jsonify(_rows_to_list(rows)), 200
+
+
+# ---------------------------------------------------------------------------
+# Faltas — Anexos
+# ---------------------------------------------------------------------------
+
+def _falta_upload_dir(pk: int, user_fk: int, data: date) -> str:
+    base = current_app.config.get('FILES_DIR', '')
+    ano  = str(data.year)
+    mes  = str(data.month).zfill(2)
+    return os.path.join(base, 'rh', 'faltas', str(user_fk), ano, mes, str(pk))
+
+
+def _falta_record(session, pk: int):
+    row = session.execute(
+        text("SELECT pk, tb_user_fk, data, documentos FROM tb_rh_faltas WHERE pk = :pk"),
+        {'pk': pk},
+    ).fetchone()
+    if not row:
+        raise APIError('Falta não encontrada', 404)
+    return row
+
+
+@api_error_handler
+def upload_anexos_falta(pk: int, current_user: str):
+    files = request.files.getlist('files')
+    if not files or all(f.filename == '' for f in files):
+        raise APIError('Nenhum ficheiro enviado', 400)
+
+    with db_session_manager(current_user) as session:
+        row  = _falta_record(session, pk)
+        docs = list(row.documentos or [])
+
+        if len(docs) >= _FALTA_MAX_FILES:
+            raise APIError(f'Limite de {_FALTA_MAX_FILES} anexos por falta atingido', 400)
+
+        upload_dir = _falta_upload_dir(pk, row.tb_user_fk, row.data)
+        os.makedirs(upload_dir, exist_ok=True)
+
+        novos, erros = [], []
+
+        for f in files[:(_FALTA_MAX_FILES - len(docs))]:
+            if not f.filename:
+                continue
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in _FALTA_ALLOWED_EXTS:
+                erros.append(f'{f.filename}: tipo não permitido (PDF, JPEG, PNG, DOCX)')
+                continue
+
+            file_pk   = session.execute(text("SELECT fs_nextcode()")).scalar()
+            safe_name = f"{file_pk}{ext}"
+            file_path = os.path.join(upload_dir, safe_name)
+            f.save(file_path)
+
+            final_path, _, _ = process_uploaded_file(file_path, safe_name)
+            final_name = os.path.basename(final_path)
+
+            entrada = {
+                'pk':            file_pk,
+                'nome_original': secure_filename(f.filename),
+                'filename':      final_name,
+                'data':          datetime.now().isoformat(),
+                'tamanho':       os.path.getsize(final_path),
+            }
+            docs.append(entrada)
+            novos.append(entrada)
+
+        if novos:
+            session.execute(
+                text("UPDATE tb_rh_faltas SET documentos = CAST(:docs AS JSONB) WHERE pk = :pk"),
+                {'docs': json.dumps(docs), 'pk': pk},
+            )
+
+    return jsonify({'adicionados': novos, 'erros': erros, 'total': len(novos)}), 201
+
+
+@api_error_handler
+def download_anexo_falta(pk: int, filename: str, current_user: str):
+    if '..' in filename or '/' in filename or '\\' in filename:
+        raise APIError('Nome de ficheiro inválido', 400)
+
+    with db_session_manager(current_user) as session:
+        row = _falta_record(session, pk)
+
+    file_path = os.path.join(_falta_upload_dir(pk, row.tb_user_fk, row.data), filename)
+    if not os.path.isfile(file_path):
+        raise APIError('Ficheiro não encontrado', 404)
+
+    return send_file(file_path, as_attachment=False)
+
+
+@api_error_handler
+def delete_anexo_falta(pk: int, filename: str, current_user: str):
+    if '..' in filename or '/' in filename or '\\' in filename:
+        raise APIError('Nome de ficheiro inválido', 400)
+
+    with db_session_manager(current_user) as session:
+        row  = _falta_record(session, pk)
+        docs = list(row.documentos or [])
+
+        docs_novos = [d for d in docs if d.get('filename') != filename]
+        if len(docs_novos) == len(docs):
+            raise APIError('Ficheiro não encontrado nos anexos', 404)
+
+        file_path = os.path.join(_falta_upload_dir(pk, row.tb_user_fk, row.data), filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+        session.execute(
+            text("UPDATE tb_rh_faltas SET documentos = CAST(:docs AS JSONB) WHERE pk = :pk"),
+            {'docs': json.dumps(docs_novos), 'pk': pk},
+        )
+
+    return jsonify({'message': 'Anexo removido'}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -963,8 +1158,9 @@ def upsert_colaborador_perfil(data: dict, current_user: str):
             SELECT fbo_rh_colaborador(
                 0, :pk,
                 :data_nascimento, :data_admissao, :categoria, :tipo_contrato,
-                :num_mecanografico, :departamento, :superior_fk,
-                :dias_ferias_base, :elegivel_piquete, :notas, :gps_obrigatorio
+                :num_mecanografico, :superior_fk,
+                :dias_ferias_base, :elegivel_piquete, :notas, :gps_obrigatorio,
+                :tt_rh_equipa_fk
             ) AS result
         """), p).scalar()
         _assert_success(result, 'Erro ao guardar perfil RH')

@@ -56,7 +56,7 @@ class Config:
     MAX_CONTENT_LENGTH = 210 * 1024 * 1024  # 210 MB (vídeos)
 
     # Configurações do Limiter
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379')
     RATELIMIT_STORAGE_URL = REDIS_URL
     RATELIMIT_STORAGE_OPTIONS = {}
     RATELIMIT_STRATEGY = 'fixed-window'

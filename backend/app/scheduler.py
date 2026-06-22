@@ -145,9 +145,11 @@ def init_scheduler(app):
     Guarda contra dupla inicialização: não corre se WERKZEUG_RUN_MAIN não estiver
     definido (processo pai do reloader) — em produção (waitress) corre sempre.
     """
-    # Em desenvolvimento com reloader do Flask o processo pai não deve iniciar o scheduler
-    if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-        logger.info("[Scheduler] Modo debug — scheduler não iniciado no processo pai")
+    # Só bloquear no processo pai do Werkzeug reloader (flask run).
+    # Com waitress (python run_waitress.py) FLASK_RUN_FROM_CLI não está definido → arranca sempre.
+    using_werkzeug_cli = bool(os.environ.get('FLASK_RUN_FROM_CLI'))
+    if using_werkzeug_cli and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        logger.info("[Scheduler] Werkzeug reloader (processo pai) — scheduler aguarda processo filho")
         return
 
     _scheduler.add_job(

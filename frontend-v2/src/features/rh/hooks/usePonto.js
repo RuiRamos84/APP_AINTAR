@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import notification from '@/core/services/notification';
 import {
   getPonto, registarPontoEvento, submeterPontoMensal,
-  getPontoMensal, corrigirPonto, getFaceStatus,
+  getPontoMensal, corrigirPonto, adicionarPontoAdmin, getFaceStatus,
   resetFaceSelf, resetFaceAdmin, getFaceUsersStatus,
   executarWorkflow,
 } from '../services/rhService';
@@ -154,6 +154,12 @@ export const usePontoActions = (userFk) => {
     onError: (e) => notification.apiError(e, 'Erro ao corrigir registo'),
   });
 
+  const adicionarAdmin = useMutation({
+    mutationFn: adicionarPontoAdmin,
+    onSuccess: () => { invalidate(); notification.success('Evento adicionado'); },
+    onError: (e) => notification.apiError(e, 'Erro ao adicionar evento'),
+  });
+
   const workflow = useMutation({
     mutationFn: (data) => executarWorkflow({ tipo_ref: 'ponto', ...data }),
     onSuccess: () => { invalidate(); notification.success('Workflow executado'); },
@@ -167,6 +173,8 @@ export const usePontoActions = (userFk) => {
     isSubmetendo: submeter.isPending,
     corrigir: corrigir.mutateAsync,
     isCorrigindo: corrigir.isPending,
+    adicionarAdmin: adicionarAdmin.mutateAsync,
+    isAdicionandoAdmin: adicionarAdmin.isPending,
     workflow: workflow.mutateAsync,
     isWorkflow: workflow.isPending,
   };

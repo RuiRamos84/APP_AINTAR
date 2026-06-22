@@ -221,8 +221,10 @@ const EquipaTab = ({ search, equipa, isLoading, isError }) => {
 
   const columns = useMemo(() => [
     { field: 'name', headerName: 'Colaborador', flex: 1, minWidth: 160 },
-    { field: 'departamento', headerName: 'Departamento', width: 150,
-      renderCell: ({ value }) => value || <Typography variant="caption" color="text.disabled">—</Typography> },
+    { field: 'equipa_nome', headerName: 'Equipa', width: 180,
+      renderCell: ({ value, row }) => value
+        ? <span>{value} <Typography component="span" variant="caption" color="text.secondary">({row.equipa_codigo})</Typography></span>
+        : <Typography variant="caption" color="text.disabled">—</Typography> },
     {
       field: 'entrada_hoje', headerName: 'Entrada Hoje', width: 120,
       renderCell: ({ value, row }) => {
