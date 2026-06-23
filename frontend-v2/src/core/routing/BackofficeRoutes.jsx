@@ -75,6 +75,8 @@ const AvalAdminPage = lazy(() => import('@/features/aval').then(m => ({ default:
 const AvalAnalyticsPage = lazy(() => import('@/features/aval').then(m => ({ default: m.AvalAnalyticsPage })));
 
 const RhPessoalPage = lazy(() => import('@/features/rh/pages/RhPessoalPage'));
+const RhChefiaPage = lazy(() => import('@/features/rh/pages/RhChefiaPage'));
+const RhAdminPage = lazy(() => import('@/features/rh/pages/RhAdminPage'));
 const FeriasPage = lazy(() => import('@/features/rh/pages/FeriasPage'));
 const ParticipacaoPage = lazy(() => import('@/features/rh/pages/ParticipacaoPage'));
 const HorariosPage = lazy(() => import('@/features/rh/pages/HorariosPage'));
@@ -237,6 +239,8 @@ export default function BackofficeRoutes() {
         {/* ==================== MÓDULO: ADMINISTRATIVO ==================== */}
         <Route path="/epi"                          element={<EPIPage />} />
         <Route path="/rh/pessoal"                   element={<RhPessoalPage />} />
+        <Route path="/rh/chefia"                    element={<RhChefiaPage />} />
+        <Route path="/rh/admin"                     element={<RhAdminPage />} />
         <Route path="/rh/pessoal/ponto"             element={<PontoPage />} />
         <Route path="/rh/pessoal/ferias"            element={<FeriasPage />} />
         <Route path="/rh/pessoal/faltas"            element={<ParticipacaoPage />} />
@@ -248,7 +252,7 @@ export default function BackofficeRoutes() {
         <Route path="/rh/gestao/mapa-ferias"        element={<MapaFeriasPage />} />
         <Route path="/rh/gestao/central"            element={<RhGestaoCentralPage />} />
         <Route path="/aval"                         element={<AvalPage />} />
-        <Route path="/admin/aval"                   element={<AvalAdminPage />} />
+        <Route path="/rh/gestao/aval-config"         element={<AvalAdminPage />} />
         <Route path="/aval/analytics"               element={<AvalAnalyticsPage />} />
 
         {/* ==================== ÁREA INTERNA ==================== */}

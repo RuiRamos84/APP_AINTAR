@@ -73,6 +73,7 @@ import {
   Map as MapaIcon,
   AccountBalance as OrcamentoIcon,
   Map as MapIcon,
+  AdminPanelSettings as RhAdminIcon,
 } from '@mui/icons-material';
 
 // Sem import de PERMISSIONS — as permissões são strings da BD resolvidas dinamicamente
@@ -641,15 +642,6 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
-  '/admin/aval': {
-    id: 'aval_admin',
-    text: 'Configuração de Avaliações',
-    icon: AvalIcon,
-    module: 'administracao',
-    permissions: { required: 'admin.users' },
-    showInSidebar: true,
-  },
-
   '/admin/users/new': {
     id: 'admin_users_create',
     text: 'Criar Utilizador',
@@ -749,14 +741,15 @@ export const ROUTE_CONFIG = {
   },
 
   // ==================== MÓDULO: RECURSOS HUMANOS ====================
-  // Ordem: Gestão Pessoal (landing + submenu), EPI, Avaliação
+  // Agrupado em 3 categorias: Colaborador, Chefia/Supervisão, Administração RH
+  // Sem permissions.required nos grupos-pai — visibilidade decidida pelo submenu filtrado
+  // (ver getSidebarRoutesForModule: grupo é omitido se o submenu ficar vazio)
 
   '/rh/pessoal': {
     id: 'rh_pessoal',
-    text: 'Gestão Pessoal',
+    text: 'Colaborador',
     icon: GestPessoalIcon,
     module: 'rh',
-    permissions: { required: 'rh.pessoal.view' },
     showInSidebar: true,
     submenu: {
       '/rh/pessoal/ponto': {
@@ -794,79 +787,90 @@ export const ROUTE_CONFIG = {
         permissions: { required: 'rh.pessoal.view' },
         showInSidebar: true,
       },
+      '/rh/gestao/mapa-ferias': {
+        id: 'rh_mapa_ferias',
+        text: 'Mapa de Férias',
+        icon: FeriasIcon,
+        permissions: { required: 'rh.view' },
+        showInSidebar: true,
+      },
+      '/aval': {
+        id: 'aval',
+        text: 'Avaliação',
+        icon: AvalIcon,
+        permissions: { required: 'aval.view' },
+        showInSidebar: true,
+      },
+      '/aval/analytics': {
+        id: 'aval_analytics',
+        text: 'Análise de Avaliações',
+        icon: AnalyticsIcon,
+        permissions: { required: 'aval.view' },
+        showInSidebar: true,
+      },
     },
   },
 
-  '/rh/gestao/colaboradores': {
-    id: 'rh_gestao_colaboradores',
-    text: 'Colaboradores',
-    icon: GestPessoalIcon,
-    module: 'rh',
-    permissions: { required: 'rh.admin' },
-    showInSidebar: true,
-  },
-
-  '/rh/gestao/locais': {
-    id: 'rh_gestao_locais',
-    text: 'Locais Predefinidos',
-    icon: LocalIcon,
-    module: 'rh',
-    permissions: { required: 'rh.admin' },
-    showInSidebar: true,
-  },
-
-  '/rh/gestao/ponto-mapa': {
-    id: 'rh_ponto_mapa',
-    text: 'Mapa de Ponto',
-    icon: MapaIcon,
-    module: 'rh',
-    permissions: { required: 'rh.validate' },
-    showInSidebar: true,
-  },
-
-  '/rh/gestao/mapa-ferias': {
-    id: 'rh_mapa_ferias',
-    text: 'Mapa de Férias',
-    icon: FeriasIcon,
-    module: 'rh',
-    permissions: { required: 'rh.view' },
-    showInSidebar: true,
-  },
-
-  '/rh/gestao/central': {
-    id: 'rh_gestao_central',
-    text: 'Gestão Centralizada',
+  '/rh/chefia': {
+    id: 'rh_chefia',
+    text: 'Chefia / Supervisão',
     icon: SupervisorIcon,
     module: 'rh',
-    permissions: { required: 'rh.validate' },
     showInSidebar: true,
+    submenu: {
+      '/rh/gestao/ponto-mapa': {
+        id: 'rh_ponto_mapa',
+        text: 'Mapa de Ponto',
+        icon: MapaIcon,
+        permissions: { required: 'rh.validate' },
+        showInSidebar: true,
+      },
+      '/rh/gestao/central': {
+        id: 'rh_gestao_central',
+        text: 'Gestão Centralizada',
+        icon: SupervisorIcon,
+        permissions: { required: 'rh.validate' },
+        showInSidebar: true,
+      },
+    },
   },
 
-  '/epi': {
-    id: 'epi',
-    text: 'Gestão de EPI',
-    icon: EPIIcon,
+  '/rh/admin': {
+    id: 'rh_admin',
+    text: 'Administração RH',
+    icon: RhAdminIcon,
     module: 'rh',
-    permissions: { required: 'epi.view' },
     showInSidebar: true,
-  },
-
-  '/aval': {
-    id: 'aval',
-    text: 'Avaliação',
-    icon: AvalIcon,
-    module: 'rh',
-    permissions: { required: 'aval.view' },
-    showInSidebar: true,
-  },
-
-  '/aval/analytics': {
-    id: 'aval_analytics',
-    text: 'Análise de Avaliações',
-    icon: AnalyticsIcon,
-    module: 'rh',
-    permissions: { required: 'aval.view' },
-    showInSidebar: true,
+    submenu: {
+      '/rh/gestao/colaboradores': {
+        id: 'rh_gestao_colaboradores',
+        text: 'Colaboradores',
+        icon: GestPessoalIcon,
+        permissions: { required: 'rh.admin' },
+        showInSidebar: true,
+      },
+      '/rh/gestao/locais': {
+        id: 'rh_gestao_locais',
+        text: 'Locais Predefinidos',
+        icon: LocalIcon,
+        permissions: { required: 'rh.admin' },
+        showInSidebar: true,
+      },
+      '/epi': {
+        id: 'epi',
+        text: 'Gestão de EPI',
+        icon: EPIIcon,
+        permissions: { required: 'epi.view' },
+        showInSidebar: true,
+      },
+      '/rh/gestao/aval-config': {
+        id: 'aval_admin',
+        text: 'Configuração de Avaliações',
+        icon: AvalIcon,
+        permissions: { required: 'aval.edit' },
+        showInSidebar: true,
+      },
+    },
   },
 
   // ==================== ROTAS LEGACY (mantidas para compatibilidade) ====================
@@ -1052,6 +1056,9 @@ export const getSidebarRoutesForModule = (moduleId, hasPermission) => {
         filteredSubmenu = null;
       }
     }
+
+    // Rota-grupo (definia submenu) cujo submenu ficou vazio após filtro de permissões → omitir
+    if (route.submenu && !filteredSubmenu) continue;
 
     routes.push({
       path,

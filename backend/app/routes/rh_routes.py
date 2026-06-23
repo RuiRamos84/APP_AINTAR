@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import date
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from app.utils.permissions_decorator import require_permission
+from app.utils.permissions_decorator import require_permission, require_any_permission
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
@@ -189,7 +189,7 @@ def ponto_mensal_route():
 @bp.route('/rh/ponto/<int:pk>/corrigir', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_permission('rh.admin')
+@require_any_permission('rh.admin', 'rh.validate')
 @set_session
 @api_error_handler
 def ponto_corrigir_route(pk):
@@ -200,7 +200,7 @@ def ponto_corrigir_route(pk):
 @bp.route('/rh/ponto/admin/evento', methods=['POST'])
 @jwt_required()
 @token_required
-@require_permission('rh.admin')
+@require_any_permission('rh.admin', 'rh.validate')
 @set_session
 @api_error_handler
 def ponto_admin_evento_route():

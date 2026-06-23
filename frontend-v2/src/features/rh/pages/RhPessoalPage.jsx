@@ -12,10 +12,13 @@ import {
   ManageAccounts as GestPessoalIcon,
   ChevronRight as ArrowIcon,
   Cake as AniversarioIcon,
+  Grading as AvalIcon,
+  Analytics as AnalyticsIcon,
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 import { useColaboradores } from '../hooks/useRhLookups';
 import { usePontoHoje } from '../hooks/usePonto';
 import { useFerias } from '../hooks/useFerias';
@@ -277,6 +280,20 @@ const AniversariosContent = () => {
   );
 };
 
+// ─── Conteúdo: Avaliação ─────────────────────────────────────────────────────
+
+const AvalContent = () => (
+  <Typography variant="body2" color="text.secondary">
+    Consulte as suas avaliações de desempenho.
+  </Typography>
+);
+
+const AvalAnalyticsContent = () => (
+  <Typography variant="body2" color="text.secondary">
+    Estatísticas e tendências sobre as suas avaliações.
+  </Typography>
+);
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 const SECTIONS = [
@@ -316,6 +333,22 @@ const SECTIONS = [
     Content: PiqueteContent,
   },
   {
+    to: '/aval',
+    icon: AvalIcon,
+    title: 'Avaliação',
+    color: '#4f46e5',
+    Content: AvalContent,
+    permission: 'aval.view',
+  },
+  {
+    to: '/aval/analytics',
+    icon: AnalyticsIcon,
+    title: 'Análise de Avaliações',
+    color: '#0d9488',
+    Content: AvalAnalyticsContent,
+    permission: 'aval.view',
+  },
+  {
     to: '/rh/gestao',
     icon: AniversarioIcon,
     title: 'Aniversários',
@@ -326,18 +359,20 @@ const SECTIONS = [
 
 const RhPessoalPage = () => {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const userFk = user?.user_id;
+  const visibleSections = SECTIONS.filter((s) => !s.permission || hasPermission(s.permission));
 
   return (
     <ModulePage
-      title="Gestão Pessoal"
+      title="Colaborador"
       subtitle="Resumo das suas informações de recursos humanos"
       icon={GestPessoalIcon}
       color={COLOR}
-      breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Gestão Pessoal' }]}
+      breadcrumbs={[{ label: 'Recursos Humanos' }, { label: 'Colaborador' }]}
     >
       <Grid container spacing={2.5}>
-        {SECTIONS.map(({ to, icon, title, color, Content }) => (
+        {visibleSections.map(({ to, icon, title, color, Content }) => (
           <Grid key={to} size={{ xs: 12, sm: 6, lg: 4 }}>
             <SectionCard to={to} icon={icon} title={title} color={color}>
               {userFk

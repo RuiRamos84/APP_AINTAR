@@ -33,6 +33,7 @@ export default function FaceCaptureModal({ open, onClose, onCapture, title = 'Ve
   const timerRef    = useRef(null);
   const frameCount  = useRef(0);
   const capturedRef = useRef(false);  // guarda contra chamadas duplas em callbacks async
+  const detectingRef = useRef(false); // impede chamadas sobrepostas de extractDescriptor
 
   const [phase, setPhase]         = useState('loading');  // loading | ready | detecting | captured | error
   const [progress, setProgress]   = useState(0);
@@ -83,23 +84,29 @@ export default function FaceCaptureModal({ open, onClose, onCapture, title = 'Ve
     if (phase !== 'detecting') { clearInterval(timerRef.current); return; }
 
     timerRef.current = setInterval(async () => {
+      if (detectingRef.current) return; // deteção anterior ainda em curso — ignora este tick
       if (!videoRef.current || videoRef.current.readyState < 2) return;
 
-      const descriptor = await extractDescriptor(videoRef.current);
-      if (descriptor) {
-        frameCount.current += 1;
-        setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
-        if (frameCount.current >= FRAMES_TO_CONFIRM) {
-          if (capturedRef.current) return;
-          capturedRef.current = true;
-          clearInterval(timerRef.current);
-          setPhase('captured');
-          stopCamera();
-          onCapture(descriptor);
+      detectingRef.current = true;
+      try {
+        const descriptor = await extractDescriptor(videoRef.current);
+        if (descriptor) {
+          frameCount.current += 1;
+          setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
+          if (frameCount.current >= FRAMES_TO_CONFIRM) {
+            if (capturedRef.current) return;
+            capturedRef.current = true;
+            clearInterval(timerRef.current);
+            setPhase('captured');
+            stopCamera();
+            onCapture(descriptor);
+          }
+        } else {
+          frameCount.current = Math.max(0, frameCount.current - 1);
+          setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
         }
-      } else {
-        frameCount.current = Math.max(0, frameCount.current - 1);
-        setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
+      } finally {
+        detectingRef.current = false;
       }
     }, DETECT_INTERVAL);
 

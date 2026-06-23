@@ -363,7 +363,6 @@ export const SOCKET_EVENTS = {
   NOTIFICATIONS_CLEARED: 'notifications_cleared',
 
   // Documents
-  DOCUMENT_TRANSFERRED: 'document_transferred',
   DOCUMENT_UPDATE: 'document_update',
 
   // Payments

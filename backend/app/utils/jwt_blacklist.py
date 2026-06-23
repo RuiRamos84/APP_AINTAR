@@ -37,7 +37,7 @@ def _key(jti):
 def _mark_unavailable(action, e):
     global _redis_unavailable_until
     _redis_unavailable_until = time.time() + _REDIS_RETRY_INTERVAL
-    logger.error(f"Erro ao {action} (Redis indisponível, a ignorar por {_REDIS_RETRY_INTERVAL}s): {e}")
+    logger.warning(f"Redis indisponível — {action} ignorado por {_REDIS_RETRY_INTERVAL}s ({e})")
 
 
 _REDIS_OP_TIMEOUT = 0.5  # segundos — garante fail-fast mesmo com eventlet monkey-patch

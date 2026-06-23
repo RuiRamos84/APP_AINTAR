@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
-  Box, Stack, Typography, Paper, Chip, Alert, useMediaQuery,
+  Box, Stack, Typography, Paper, Chip, Alert, useMediaQuery, Button,
 } from '@mui/material';
 import {
   Send as SubmeterIcon,
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { LoadingButton } from '@mui/lab';
 import {
   RH_COLOR as COLOR,
   calcHorasDia,
@@ -309,7 +308,7 @@ export default function PontoCalendar({
         </Stack>
 
         {!mapaDoMes && registosMes.length > 0 && (
-          <LoadingButton
+          <Button
             variant="contained"
             size="small"
             loading={isSubmetendo}
@@ -318,7 +317,7 @@ export default function PontoCalendar({
             sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}
           >
             Submeter para Aprovação
-          </LoadingButton>
+          </Button>
         )}
       </Stack>
 

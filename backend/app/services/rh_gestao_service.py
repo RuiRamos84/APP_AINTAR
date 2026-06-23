@@ -1,3 +1,4 @@
+from datetime import date, datetime, time
 from flask import jsonify, current_app
 from sqlalchemy import text
 from typing import Optional
@@ -7,6 +8,20 @@ from app.utils.error_handler import api_error_handler, APIError
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _rows_to_list(rows):
+    """Converte date/datetime/time para ISO antes do jsonify — o serializador
+    por omissão do Flask usa http_date() (formato GMT) em datetimes "naive",
+    o que desloca a hora exibida no browser (ex: 10:03 local passa a 11:03)."""
+    out = []
+    for r in rows:
+        d = dict(r)
+        for k, v in d.items():
+            if isinstance(v, (date, datetime, time)):
+                d[k] = v.isoformat()
+        out.append(d)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +83,60 @@ def _is_supervisor(current_user: str, session, user_pk: int) -> bool:
     return bool(row.has_team) if row else False
 
 
+def _is_full_rh_admin(session) -> bool:
+    """Admin de sistema (profile=0) ou rh.admin — sem restrição de equipa."""
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    if claims.get('profile') == 0:
+        return True
+    row = session.execute(text("""
+        SELECT EXISTS (
+            SELECT 1 FROM ts_client c
+            JOIN ts_interface i ON i.value = 'rh.admin'
+            WHERE c.pk = :pk AND c.interface @> ARRAY[i.pk]
+        ) AS is_admin
+    """), {'pk': claims.get('user_id')}).fetchone()
+    return bool(row.is_admin) if row else False
+
+
+def _is_direct_superior(session, employee_pk: int, supervisor_pk: int) -> bool:
+    row = session.execute(
+        text('SELECT 1 FROM ts_rh_colaborador WHERE pk = :emp AND superior_fk = :sup'),
+        {'emp': employee_pk, 'sup': supervisor_pk},
+    ).fetchone()
+    return row is not None
+
+
+_TIPO_TABELA_WORKFLOW = {
+    'ferias':       'tb_rh_ferias',
+    'faltas':       'tb_rh_faltas',
+    'ponto':        'tb_rh_ponto_mensal',
+    'participacao': 'tb_rh_participacao',
+}
+
+
+def _get_owner_fk(session, tipo_ref: str, ref_pk: int) -> Optional[int]:
+    tabela = _TIPO_TABELA_WORKFLOW.get(tipo_ref)
+    if not tabela:
+        return None
+    return session.execute(
+        text(f'SELECT tb_user_fk FROM {tabela} WHERE pk = :pk'), {'pk': ref_pk}
+    ).scalar()
+
+
+def _assert_pode_validar(session, tipo_ref: str, ref_pk: int, step: int, caller_pk: int) -> None:
+    """Só o superior directo do colaborador valida o passo 1; o passo 2 (RH) exige rh.admin."""
+    if _is_full_rh_admin(session):
+        return
+    if step != 1:
+        raise APIError('Só o RH pode validar este passo do workflow', 403)
+    owner_fk = _get_owner_fk(session, tipo_ref, ref_pk)
+    if owner_fk is None:
+        raise APIError(f'Registo não encontrado: {ref_pk}', 404)
+    if not _is_direct_superior(session, owner_fk, caller_pk):
+        raise APIError('Só o superior directo do colaborador pode validar este registo', 403)
+
+
 # ---------------------------------------------------------------------------
 # Serviços
 # ---------------------------------------------------------------------------
@@ -110,7 +179,7 @@ def get_pendentes(current_user: str, tipo: Optional[str], user_fk_filter: Option
             params,
         ).mappings().all()
 
-        return jsonify([dict(r) for r in rows]), 200
+        return jsonify(_rows_to_list(rows)), 200
 
 
 @api_error_handler
@@ -149,7 +218,7 @@ def get_equipa(current_user: str, user_fk_filter: Optional[int]):
             params,
         ).mappings().all()
 
-        return jsonify([dict(r) for r in rows]), 200
+        return jsonify(_rows_to_list(rows)), 200
 
 
 @api_error_handler
@@ -179,6 +248,7 @@ def workflow_bulk(data: dict, current_user: str):
     with db_session_manager(current_user) as session:
         for pk in payload.pks:
             try:
+                _assert_pode_validar(session, tipo_ref, pk, payload.step, caller_pk)
                 result = session.execute(text("""
                     SELECT fbo_rh_workflow(
                         :tipo_ref, :ref_pk, :step, :user_fk, :ts_estado_fk, :notas

@@ -6,10 +6,12 @@ from flask import jsonify, request, current_app, send_file
 from sqlalchemy import text
 from pydantic import BaseModel, Field
 from werkzeug.utils import secure_filename
+from flask_jwt_extended import get_jwt
 from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
+from .rh_gestao_service import _is_rh_admin
 
 ALLOWED_EXTS  = {'.pdf', '.jpg', '.jpeg', '.png'}
 MAX_FILES     = 5
@@ -25,6 +27,10 @@ def _ok(result: Optional[str], msg: str):
     if not result or '<sucess>' not in result:
         err = format_message(result) if result else msg
         raise APIError(err, 400)
+
+
+def _caller_pk() -> int:
+    return get_jwt().get('user_id')
 
 
 def _rows(rows) -> list:
@@ -84,7 +90,7 @@ def _emit_rh(notification_type: str, title: str, message: str,
 # ---------------------------------------------------------------------------
 
 class ParticipacaoCreate(BaseModel):
-    user_fk: int
+    user_fk: Optional[int] = None
     motivo_fk: Optional[int] = None
     tipo: str = 'dia'
     data_inicio: date
@@ -151,24 +157,28 @@ def get_participacoes(
     filters = ['1=1']
     params: dict = {}
 
-    if user_fk:
-        filters.append('tb_user_fk = :user_fk')
-        params['user_fk'] = user_fk
-    if ano:
-        filters.append('EXTRACT(YEAR FROM data_inicio) = :ano')
-        params['ano'] = ano
-    if mes:
-        filters.append('EXTRACT(MONTH FROM data_inicio) = :mes')
-        params['mes'] = mes
-    if estado:
-        filters.append('ts_estado_fk = :estado')
-        params['estado'] = estado
-    if tipo:
-        filters.append('tipo = :tipo')
-        params['tipo'] = tipo
-
-    where = ' AND '.join(filters)
     with db_session_manager(current_user) as session:
+        # Só chefes/RH/admin podem ver participações de outros colaboradores.
+        if not _is_rh_admin(current_user, session):
+            user_fk = _caller_pk()
+
+        if user_fk:
+            filters.append('tb_user_fk = :user_fk')
+            params['user_fk'] = user_fk
+        if ano:
+            filters.append('EXTRACT(YEAR FROM data_inicio) = :ano')
+            params['ano'] = ano
+        if mes:
+            filters.append('EXTRACT(MONTH FROM data_inicio) = :mes')
+            params['mes'] = mes
+        if estado:
+            filters.append('ts_estado_fk = :estado')
+            params['estado'] = estado
+        if tipo:
+            filters.append('tipo = :tipo')
+            params['tipo'] = tipo
+
+        where = ' AND '.join(filters)
         rows = session.execute(
             text(f'SELECT * FROM vbl_rh_participacao WHERE {where} ORDER BY data_inicio DESC'),
             params,
@@ -182,6 +192,8 @@ def criar_participacao(data: dict, current_user: str):
     docs = json.dumps(p.documentos or [])
 
     with db_session_manager(current_user) as session:
+        # Só chefes/RH/admin podem registar participações em nome de outros.
+        user_fk = p.user_fk if (p.user_fk and _is_rh_admin(current_user, session)) else _caller_pk()
         result = session.execute(text("""
             SELECT fbo_rh_participacao(
                 0::SMALLINT, NULL,
@@ -193,7 +205,7 @@ def criar_participacao(data: dict, current_user: str):
                 CAST(:documentos AS JSONB)
             ) AS result
         """), {
-            'user_fk':           p.user_fk,
+            'user_fk':           user_fk,
             'motivo_fk':         p.motivo_fk,
             'tipo':              p.tipo,
             'data_inicio':       p.data_inicio,
@@ -209,11 +221,11 @@ def criar_participacao(data: dict, current_user: str):
 
     _ok(result, 'Erro ao criar participação')
     pk = format_message(result)
-    logger.info(f'Participação criada: pk={pk}, user={p.user_fk}, tipo={p.tipo}')
+    logger.info(f'Participação criada: pk={pk}, user={user_fk}, tipo={p.tipo}')
 
     # Notificar o superior hierárquico que tem uma nova participação para validar
     with db_session_manager(current_user) as session:
-        superior_fk = _get_superior_fk(session, p.user_fk)
+        superior_fk = _get_superior_fk(session, user_fk)
         if not superior_fk:
             validators = _get_rh_validators(session)
 
@@ -241,6 +253,13 @@ def editar_participacao(pk: int, data: dict, current_user: str):
     p = ParticipacaoUpdate.model_validate(data)
 
     with db_session_manager(current_user) as session:
+        if not _is_rh_admin(current_user, session):
+            owner = session.execute(
+                text('SELECT tb_user_fk FROM tb_rh_participacao WHERE pk = :pk'), {'pk': pk}
+            ).scalar()
+            if owner != _caller_pk():
+                raise APIError('Não tem permissão para editar esta participação', 403)
+
         # Preservar documentos existentes se não fornecidos na actualização
         if p.documentos is None:
             row = session.execute(

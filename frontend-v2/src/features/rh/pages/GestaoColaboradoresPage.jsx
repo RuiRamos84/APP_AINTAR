@@ -142,15 +142,17 @@ const GestaoColaboradoresPage = () => {
         <Stack direction="row" spacing={1} alignItems="center">
           <SearchBar searchTerm={search} onSearch={setSearch} />
           <Tooltip title={`Inicializa o saldo de férias de ${currentYear} para todos os colaboradores sem configuração`}>
-            <Button
-              variant="outlined"
-              startIcon={<InitIcon />}
-              disabled={isInicializandoTodos}
-              onClick={handleInitTodos}
-              sx={{ borderColor: COLOR, color: COLOR, whiteSpace: 'nowrap' }}
-            >
-              {isInicializandoTodos ? 'A inicializar…' : `Init Saldos ${currentYear}`}
-            </Button>
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<InitIcon />}
+                disabled={isInicializandoTodos}
+                onClick={handleInitTodos}
+                sx={{ borderColor: COLOR, color: COLOR, whiteSpace: 'nowrap' }}
+              >
+                {isInicializandoTodos ? 'A inicializar…' : `Init Saldos ${currentYear}`}
+              </Button>
+            </span>
           </Tooltip>
         </Stack>
       }

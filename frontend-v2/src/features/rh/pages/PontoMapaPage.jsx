@@ -1,16 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Box, Stack, Typography, Chip, TextField, FormControl, Select, MenuItem, Paper,
-  List, ListItem, ListItemText, Alert, CircularProgress, Divider,
+  List, ListItemButton, ListItemText, Alert, CircularProgress, Divider,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Warning as AlertaIcon, Map as MapIcon } from '@mui/icons-material';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { usePontoAlertas, useLocais } from '../hooks/usePontoLocais';
 import { useRhLookups } from '../hooks/useRhLookups';
-import { RH_COLOR as COLOR, fmtDate, fmtTime } from '../utils/rhUtils';
+import { RH_COLOR as COLOR, fmtDate, fmtTime, fmtDistancia } from '../utils/rhUtils';
 
 // Fix leaflet marker icons (webpack/vite issue)
 delete L.Icon.Default.prototype._getIconUrl;
@@ -35,10 +36,21 @@ const localIcon = new L.Icon({
 const now = new Date();
 const ISO = (d) => d.toISOString().slice(0, 10);
 
+// Centra/aproxima o mapa quando a posição seleccionada muda (sem remontar o MapContainer)
+function FlyTo({ position }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.flyTo(position, Math.max(map.getZoom(), 16), { duration: 0.8 });
+  }, [position, map]);
+  return null;
+}
+
 const PontoMapaPage = () => {
   const [userFk, setUserFk]         = useState('');
   const [dataInicio, setDataInicio] = useState(ISO(new Date(now.getFullYear(), now.getMonth(), 1)));
   const [dataFim, setDataFim]       = useState(ISO(now));
+  const [selectedPk, setSelectedPk] = useState(null);
+  const markerRefs = useRef({});
 
   const params = useMemo(() => ({
     ...(userFk ? { user_fk: userFk } : {}),
@@ -50,6 +62,22 @@ const PontoMapaPage = () => {
   const { locais } = useLocais();
   const { lookups } = useRhLookups();
   const colabs = lookups?.colaboradores || [];
+
+  // Selecção perdeu-se se o filtro mudou e o alerta já não está na lista
+  useEffect(() => {
+    if (selectedPk && !alertas.some(a => a.pk === selectedPk)) setSelectedPk(null);
+  }, [alertas, selectedPk]);
+
+  const selectedPosition = useMemo(() => {
+    const a = alertas.find(x => x.pk === selectedPk);
+    return a?.latitude && a?.longitude ? [a.latitude, a.longitude] : null;
+  }, [alertas, selectedPk]);
+
+  const handleSelect = useCallback((a) => {
+    if (!a.latitude || !a.longitude) return;
+    setSelectedPk(a.pk);
+    markerRefs.current[a.pk]?.openPopup();
+  }, []);
 
   // Map center: first alerta or Portugal center
   const center = useMemo(() => {
@@ -117,6 +145,8 @@ const PontoMapaPage = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
+              <FlyTo position={selectedPosition} />
+
               {/* Locais predefinidos — círculos de tolerância */}
               {locais.filter(l => l.ativo).map(l => (
                 <Circle
@@ -140,12 +170,18 @@ const PontoMapaPage = () => {
 
               {/* Alertas — marcadores vermelhos */}
               {alertas.filter(a => a.latitude && a.longitude).map(a => (
-                <Marker key={a.pk} position={[a.latitude, a.longitude]} icon={alertaIcon}>
+                <Marker
+                  key={a.pk}
+                  position={[a.latitude, a.longitude]}
+                  icon={alertaIcon}
+                  ref={(el) => { if (el) markerRefs.current[a.pk] = el; }}
+                  eventHandlers={{ click: () => setSelectedPk(a.pk) }}
+                >
                   <Popup>
                     <strong>{a.colaborador_nome}</strong><br />
                     {fmtDate(a.data)} — {a.evento_descr}<br />
                     {fmtTime(a.ts_registo)}<br />
-                    Distância: {a.distancia_metros}m<br />
+                    Distância: {fmtDistancia(a.distancia_metros)}<br />
                     Local: {a.local_nome || '—'} (raio {a.local_raio}m)
                   </Popup>
                 </Marker>
@@ -171,7 +207,16 @@ const PontoMapaPage = () => {
                 {alertas.map((a, i) => (
                   <Box key={a.pk}>
                     {i > 0 && <Divider />}
-                    <ListItem>
+                    <ListItemButton
+                      selected={a.pk === selectedPk}
+                      onClick={() => handleSelect(a)}
+                      sx={{
+                        '&.Mui-selected': { bgcolor: alpha(COLOR, 0.1) },
+                        '&.Mui-selected:hover': { bgcolor: alpha(COLOR, 0.16) },
+                        borderLeft: '3px solid',
+                        borderLeftColor: a.pk === selectedPk ? COLOR : 'transparent',
+                      }}
+                    >
                       <ListItemText
                         primary={
                           <Stack direction="row" justifyContent="space-between">
@@ -179,7 +224,7 @@ const PontoMapaPage = () => {
                               {a.colaborador_nome}
                             </Typography>
                             <Chip
-                              label={`${a.distancia_metros}m`}
+                              label={fmtDistancia(a.distancia_metros)}
                               size="small" color="error" variant="outlined"
                             />
                           </Stack>
@@ -192,7 +237,7 @@ const PontoMapaPage = () => {
                         }
                         secondaryTypographyProps={{ component: 'div' }}
                       />
-                    </ListItem>
+                    </ListItemButton>
                   </Box>
                 ))}
               </List>

@@ -259,29 +259,6 @@ export const SocketProvider = ({ children }) => {
   );
 
   /**
-   * Handler para transferência de documentos
-   */
-  const handleDocumentTransferred = useCallback(
-    (data) => {
-      const isReceiver = data.toUser === user?.user_id;
-      const isSender = data.fromUser === user?.user_id;
-
-      const notif = {
-        ...data,
-        type: 'document',
-        title: isReceiver ? 'Documento Recebido' : 'Documento Transferido',
-        message: isReceiver
-          ? `Recebeu o documento ${data.documentNumber || 'N/D'} de ${data.fromUserName || 'Utilizador'}`
-          : `Documento ${data.documentNumber || 'N/D'} transferido para ${data.toUserName || 'Utilizador'}`,
-        priority: isReceiver ? 'high' : 'medium',
-      };
-
-      handleNewNotification(notif);
-    },
-    [user?.user_id, handleNewNotification]
-  );
-
-  /**
    * Handler para notificações de tarefas
    * Inclui proteção contra duplicados baseada em taskId e tempo
    */
@@ -371,6 +348,19 @@ export const SocketProvider = ({ children }) => {
     },
     [handleNewNotification]
   );
+
+  /**
+   * Handler para confirmação de leitura de tarefa vinda de outro ecrã
+   * (ex: tarefa aberta diretamente, não pelo sino). Sincroniza o estado
+   * `read` local para a notificação não ficar presa como não lida.
+   */
+  const handleTaskNotificationsUpdated = useCallback((data) => {
+    const { taskId, read } = data;
+    if (taskId == null) return;
+    setNotifications((prev) =>
+      prev.map((n) => (n.taskId === taskId ? { ...n, read } : n))
+    );
+  }, []);
 
   // ========================================================================
   // ACTIONS
@@ -547,11 +537,11 @@ export const SocketProvider = ({ children }) => {
 
         // Registar event listeners
         const removeNewNotif = onEvent(SOCKET_EVENTS.NEW_NOTIFICATION, handleNewNotification);
-        const removeDocTransfer = onEvent(
-          SOCKET_EVENTS.DOCUMENT_TRANSFERRED,
-          handleDocumentTransferred
-        );
         const removeTaskNotif = onEvent(SOCKET_EVENTS.TASK_NOTIFICATION, handleTaskNotification);
+        const removeTaskNotifUpdated = onEvent(
+          'task_notifications_updated',
+          handleTaskNotificationsUpdated
+        );
         const removeOperacaoNotif = onEvent('operacao_notification', handleOperacaoNotification);
         const removeRhNotif = onEvent('rh_notification', handleRhNotification);
         const removePaymentUpdate = onEvent('payment_status_update', handlePaymentStatusUpdate);
@@ -576,8 +566,8 @@ export const SocketProvider = ({ children }) => {
 
         cleanupFunctions = [
           removeNewNotif,
-          removeDocTransfer,
           removeTaskNotif,
+          removeTaskNotifUpdated,
           removeOperacaoNotif,
           removeRhNotif,
           removePaymentUpdate,
@@ -607,8 +597,8 @@ export const SocketProvider = ({ children }) => {
     user?.user_id, // primitivo estável — evita re-conexão por re-render do AuthContext
     emit,
     handleNewNotification,
-    handleDocumentTransferred,
     handleTaskNotification,
+    handleTaskNotificationsUpdated,
     handleOperacaoNotification,
     handleRhNotification,
     handlePaymentStatusUpdate,

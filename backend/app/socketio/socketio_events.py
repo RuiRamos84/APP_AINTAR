@@ -49,6 +49,16 @@ class SocketIOEvents(Namespace):
             logger.error(f'Erro na conexão Socket.IO: {str(e)}')
             return False
 
+    def on_disconnect(self):
+        """Remove o utilizador de connected_users para não emitir para sockets mortos."""
+        sid = request.sid
+        with self.user_lock:
+            stale_user_id = next(
+                (uid for uid, s in self.connected_users.items() if s == sid), None
+            )
+            if stale_user_id is not None:
+                del self.connected_users[stale_user_id]
+
     def emit_notification_count(self, user_id, session_id):
         """Busca a contagem de notificações no serviço e emite para o utilizador."""
         try:
@@ -180,38 +190,6 @@ class SocketIOEvents(Namespace):
                     f"Erro ao obter notificações: {str(e)}")
 
     # =========================================================================
-    # DOCUMENT NOTIFICATION HANDLERS
-    # =========================================================================
-
-    def emit_document_transfer(self, document_data, to_user_id):
-        """Emite notificação quando documento é transferido"""
-        try:
-            room_id = f'user_{to_user_id}'
-            if int(to_user_id) in self.connected_users:
-                self.socketio.emit('document_transferred', document_data, room=room_id, namespace='/')
-            # Log removido para reduzir verbosidade
-        except Exception as e:
-            logger.error(f"Erro ao emitir transferência de documento: {str(e)}")
-
-    def emit_document_status_update(self, document_data, user_id):
-        """Emite notificação quando status do documento é atualizado"""
-        try:
-            room_id = f'user_{user_id}'
-            if int(user_id) in self.connected_users:
-                self.socketio.emit('document_status_updated', document_data, room=room_id, namespace='/')
-        except Exception as e:
-            logger.error(f"Erro ao emitir atualização de status: {str(e)}")
-
-    def emit_document_rejected(self, document_data, user_id):
-        """Emite notificação quando documento é rejeitado"""
-        try:
-            room_id = f'user_{user_id}'
-            if int(user_id) in self.connected_users:
-                self.socketio.emit('document_rejected', document_data, room=room_id, namespace='/')
-        except Exception as e:
-            logger.error(f"Erro ao emitir rejeição de documento: {str(e)}")
-
-    # =========================================================================
     # PAYMENT NOTIFICATION HANDLERS
     # =========================================================================
 
@@ -281,12 +259,12 @@ class SocketIOEvents(Namespace):
                 continue
             try:
                 room = f'user_{user_id}'
-                if int(user_id) in self.connected_users:
-                    self.socketio.emit('operacao_notification', notification_data,
-                                       room=room, namespace='/')
-                    logger.info(f"[OperaçãoNotif] {notification_type} → user {user_id}")
-                else:
-                    logger.info(f"[OperaçãoNotif] user {user_id} offline — notificação perdida")
+                # Emitir sempre para a room: socketio.emit é inofensivo se vazia,
+                # e o gate por connected_users tem janelas de falso-negativo
+                # (reconexão, múltiplos separadores) que perdiam a notificação.
+                self.socketio.emit('operacao_notification', notification_data,
+                                   room=room, namespace='/')
+                logger.info(f"[OperaçãoNotif] {notification_type} → user {user_id}")
             except Exception as e:
                 logger.error(f"[OperaçãoNotif] Erro ao emitir para user {user_id}: {e}")
 
@@ -320,12 +298,9 @@ class SocketIOEvents(Namespace):
                 continue
             try:
                 room = f'user_{user_id}'
-                if int(user_id) in self.connected_users:
-                    self.socketio.emit('rh_notification', notification_data,
-                                       room=room, namespace='/')
-                    logger.info(f"[RH Notif] {notification_type} → user {user_id}")
-                else:
-                    logger.info(f"[RH Notif] user {user_id} offline — notificação perdida")
+                self.socketio.emit('rh_notification', notification_data,
+                                   room=room, namespace='/')
+                logger.info(f"[RH Notif] {notification_type} → user {user_id}")
             except Exception as e:
                 logger.error(f"[RH Notif] Erro ao emitir para user {user_id}: {e}")
 

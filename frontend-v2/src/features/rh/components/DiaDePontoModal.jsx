@@ -23,7 +23,6 @@ import {
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { LoadingButton } from '@mui/lab';
 import { usePermissions } from '@/core/contexts/PermissionContext';
 import { usePontoActions } from '../hooks/usePonto';
 import { useFaltas } from '../hooks/useFaltas';
@@ -199,7 +198,7 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
             inputProps={{ step: 60 }}
             sx={{ width: 120 }}
           />
-          <LoadingButton
+          <Button
             variant="contained"
             size="small"
             loading={isSaving}
@@ -209,7 +208,7 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
             sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, alignSelf: 'center' }}
           >
             Adicionar
-          </LoadingButton>
+          </Button>
         </Stack>
         <TextField
           size="small"
@@ -229,7 +228,9 @@ const DiaDePontoModal = ({ open, onClose, dateStr, eventos, userFk, onMapOpen })
   const theme    = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission('rh.admin');
+  // rh.admin corrige qualquer colaborador; rh.validate (supervisor) é restringido
+  // do lado do backend à sua equipa directa e apenas enquanto o mapa está pendente.
+  const podeCorrigir = hasPermission('rh.admin') || hasPermission('rh.validate');
 
   const { corrigir, isCorrigindo, adicionarAdmin, isAdicionandoAdmin } = usePontoActions(userFk);
   const { criar: criarFalta, isCriando: isCriandoFalta } = useFaltas();
@@ -325,7 +326,7 @@ const DiaDePontoModal = ({ open, onClose, dateStr, eventos, userFk, onMapOpen })
                 <EventoRow
                   key={ev.pk}
                   ev={ev}
-                  isAdmin={isAdmin}
+                  isAdmin={podeCorrigir}
                   onMapOpen={onMapOpen}
                   onSave={handleCorrigir}
                   isSaving={isCorrigindo}
@@ -335,7 +336,7 @@ const DiaDePontoModal = ({ open, onClose, dateStr, eventos, userFk, onMapOpen })
             </Stack>
           )}
 
-          {isAdmin && (
+          {podeCorrigir && (
             <AdicionarEventoForm
               dateStr={dateStr}
               userFk={userFk}

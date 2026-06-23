@@ -43,6 +43,7 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
   const streamRef  = useRef(null);
   const timerRef   = useRef(null);
   const frameCount = useRef(0);
+  const detectingRef = useRef(false); // impede chamadas sobrepostas de extractDescriptor
 
   const [step, setStep]             = useState(0);           // captura actual (0..TOTAL_CAPTURES-1)
   const [phase, setPhase]           = useState('loading');   // loading | ready | detecting | captured | saving | done | error
@@ -102,35 +103,41 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
     if (phase !== 'detecting') { clearInterval(timerRef.current); return; }
 
     timerRef.current = setInterval(async () => {
+      if (detectingRef.current) return; // deteção anterior ainda em curso — ignora este tick
       if (!videoRef.current || videoRef.current.readyState < 2) return;
 
-      const descriptor = await extractDescriptor(videoRef.current);
-      if (descriptor) {
-        frameCount.current += 1;
-        setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
+      detectingRef.current = true;
+      try {
+        const descriptor = await extractDescriptor(videoRef.current);
+        if (descriptor) {
+          frameCount.current += 1;
+          setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
 
-        if (frameCount.current >= FRAMES_TO_CONFIRM) {
-          clearInterval(timerRef.current);
-          frameCount.current = 0;
-          setProgress(100);
-          setPhase('captured');
+          if (frameCount.current >= FRAMES_TO_CONFIRM) {
+            clearInterval(timerRef.current);
+            frameCount.current = 0;
+            setProgress(100);
+            setPhase('captured');
 
-          setDescriptors(prev => {
-            const next = [...prev, descriptor];
-            if (next.length >= TOTAL_CAPTURES) {
-              // Todas as capturas feitas — enviar
-              setTimeout(() => saveEnrollment(next), 400);
-            } else {
-              // Avançar para próxima captura
-              setStep(s => s + 1);
-              setTimeout(() => { setPhase('detecting'); setProgress(0); }, 800);
-            }
-            return next;
-          });
+            setDescriptors(prev => {
+              const next = [...prev, descriptor];
+              if (next.length >= TOTAL_CAPTURES) {
+                // Todas as capturas feitas — enviar
+                setTimeout(() => saveEnrollment(next), 400);
+              } else {
+                // Avançar para próxima captura
+                setStep(s => s + 1);
+                setTimeout(() => { setPhase('detecting'); setProgress(0); }, 800);
+              }
+              return next;
+            });
+          }
+        } else {
+          frameCount.current = Math.max(0, frameCount.current - 1);
+          setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
         }
-      } else {
-        frameCount.current = Math.max(0, frameCount.current - 1);
-        setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
+      } finally {
+        detectingRef.current = false;
       }
     }, DETECT_INTERVAL);
 

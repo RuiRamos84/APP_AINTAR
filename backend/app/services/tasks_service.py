@@ -237,9 +237,15 @@ def update_task_note_notification(task_id: int, current_user: str):
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
                 socketio_events.emit_task_notification_count(user_id, current_user)
+                socketio_events.socketio.emit(
+                    'task_notifications_updated',
+                    {'taskId': task_id, 'read': True},
+                    room=f'user_{user_id}',
+                    namespace='/'
+                )
         except Exception as e:
             logger.warning(f"Falha ao enviar atualização de contagem de notificação via Socket.IO: {str(e)}")
-        
+
         return {'message': 'Notificações atualizadas com sucesso'}, 200
 
 

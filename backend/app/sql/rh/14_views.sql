@@ -136,7 +136,9 @@ SELECT
           ), 0)                     AS dias_disponiveis
 FROM ts_client c
 LEFT JOIN ts_rh_config cfg
-    ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT;
+    ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
+WHERE c.ts_profile IN (0, 1, 6)
+  AND COALESCE(c.active, 1) = 1;
 
 
 -- Vista de faltas

@@ -6,10 +6,12 @@ from typing import Optional
 from datetime import date, time, datetime
 from pydantic import BaseModel, Field
 from werkzeug.utils import secure_filename
+from flask_jwt_extended import get_jwt
 from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError, ResourceNotFoundError
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
+from .rh_gestao_service import _is_rh_admin, _is_full_rh_admin, _is_direct_superior, _assert_pode_validar
 
 _FALTA_ALLOWED_EXTS = {'.pdf', '.jpg', '.jpeg', '.png', '.docx', '.doc'}
 _FALTA_MAX_FILES    = 10
@@ -81,7 +83,7 @@ class WorkflowAction(BaseModel):
 
 
 class FeriasCreate(BaseModel):
-    user_fk: int
+    user_fk: Optional[int] = None
     tt_tipo_fk: int
     data_inicio: date
     data_fim: date
@@ -191,6 +193,21 @@ def _assert_success(result: Optional[str], msg: str):
     if not result or '<sucess>' not in result:
         err = format_message(result) if result else msg
         raise APIError(err, 400)
+
+
+def _caller_pk() -> int:
+    return get_jwt().get('user_id')
+
+
+def _mes_pendente_ou_nao_submetido(session, user_fk: int, data_evento) -> bool:
+    """True se o mapa mensal desse (utilizador, ano, mês) ainda não existe ou está Pendente (1)."""
+    estado = session.execute(text("""
+        SELECT ts_estado_fk FROM tb_rh_ponto_mensal
+        WHERE tb_user_fk = :user_fk
+          AND ano = EXTRACT(YEAR FROM CAST(:data AS DATE))::INT
+          AND mes = EXTRACT(MONTH FROM CAST(:data AS DATE))::INT
+    """), {'user_fk': user_fk, 'data': data_evento}).scalar()
+    return estado is None or estado == 1
 
 
 def _rows_to_list(rows):
@@ -554,6 +571,19 @@ def get_ponto_mensal(current_user: str, user_fk: Optional[int], ano: Optional[in
 def corrigir_ponto(pk: int, data: dict, current_user: str):
     payload = PontoCorrigir.model_validate(data)
     with db_session_manager(current_user) as session:
+        registo = session.execute(
+            text('SELECT tb_user_fk, data FROM tb_rh_ponto WHERE pk = :pk'), {'pk': pk}
+        ).fetchone()
+        if not registo:
+            raise APIError('Registo de ponto não encontrado', 404)
+
+        if not _is_full_rh_admin(session):
+            caller_pk = _caller_pk()
+            if not _is_direct_superior(session, registo.tb_user_fk, caller_pk):
+                raise APIError('Só pode corrigir registos de colaboradores da sua equipa', 403)
+            if not _mes_pendente_ou_nao_submetido(session, registo.tb_user_fk, registo.data):
+                raise APIError('Só é possível corrigir enquanto o mapa mensal está pendente', 403)
+
         result = session.execute(text("""
             SELECT fbo_rh_ponto_corrigir(:pk, CAST(:ts_registo AS TIMESTAMP), :notas) AS result
         """), {'pk': pk, **payload.model_dump()}).scalar()
@@ -563,9 +593,16 @@ def corrigir_ponto(pk: int, data: dict, current_user: str):
 
 @api_error_handler
 def adicionar_ponto_admin(data: dict, current_user: str):
-    """Adiciona evento de ponto com timestamp personalizado (uso exclusivo admin)."""
+    """Adiciona evento de ponto com timestamp personalizado (admin RH ou supervisor da equipa)."""
     payload = PontoEventoAdminCreate.model_validate(data)
     with db_session_manager(current_user) as session:
+        if not _is_full_rh_admin(session):
+            caller_pk = _caller_pk()
+            if not _is_direct_superior(session, payload.user_fk, caller_pk):
+                raise APIError('Só pode adicionar registos de colaboradores da sua equipa', 403)
+            if not _mes_pendente_ou_nao_submetido(session, payload.user_fk, payload.ts_registo[:10]):
+                raise APIError('Só é possível adicionar registos enquanto o mapa mensal está pendente', 403)
+
         row = session.execute(text("""
             INSERT INTO tb_rh_ponto (pk, tb_user_fk, tt_evento_fk, data, ts_registo, fonte, notas)
             VALUES (
@@ -595,6 +632,7 @@ def adicionar_ponto_admin(data: dict, current_user: str):
 def executar_workflow(data: dict, current_user_pk: int, current_user: str):
     payload = WorkflowAction.model_validate(data)
     with db_session_manager(current_user) as session:
+        _assert_pode_validar(session, payload.tipo_ref, payload.ref_pk, payload.step, current_user_pk)
         result = session.execute(text("""
             SELECT fbo_rh_workflow(
                 :tipo_ref, :ref_pk, :step, :user_fk, :ts_estado_fk, :notas
@@ -611,13 +649,16 @@ def executar_workflow(data: dict, current_user_pk: int, current_user: str):
 @api_error_handler
 def criar_ferias(data: dict, current_user: str):
     payload = FeriasCreate.model_validate(data)
+    # Pedidos são sempre em nome próprio — ignora qualquer user_fk submetido pelo cliente.
+    p = payload.model_dump()
+    p['user_fk'] = _caller_pk()
     with db_session_manager(current_user) as session:
         result = session.execute(text("""
             SELECT fbo_rh_ferias(
                 0, NULL, :user_fk, :tt_tipo_fk,
                 :data_inicio, :data_fim, :notas
             ) AS result
-        """), payload.model_dump()).scalar()
+        """), p).scalar()
         _assert_success(result, 'Erro ao criar pedido de férias')
         return jsonify({'message': 'Pedido de férias criado', 'result': format_message(result)}), 201
 
@@ -626,6 +667,12 @@ def criar_ferias(data: dict, current_user: str):
 def editar_ferias(pk: int, data: dict, current_user: str):
     payload = FeriasUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
+        if not _is_rh_admin(current_user, session):
+            owner = session.execute(
+                text('SELECT tb_user_fk FROM tb_rh_ferias WHERE pk = :pk'), {'pk': pk}
+            ).scalar()
+            if owner != _caller_pk():
+                raise APIError('Não tem permissão para editar este pedido', 403)
         result = session.execute(text("""
             SELECT fbo_rh_ferias(
                 1, :pk, NULL, :tt_tipo_fk,
@@ -639,6 +686,9 @@ def editar_ferias(pk: int, data: dict, current_user: str):
 @api_error_handler
 def get_ferias(current_user: str, user_fk: Optional[int], ano: Optional[int], estado: Optional[int]):
     with db_session_manager(current_user) as session:
+        # Só chefes/RH/admin podem ver pedidos de outros colaboradores.
+        if not _is_rh_admin(current_user, session):
+            user_fk = _caller_pk()
         filters = ['1=1']
         params: dict = {}
         if user_fk:
@@ -705,12 +755,20 @@ def get_mapa_ferias(current_user: str, ano: int, equipa_fk: Optional[int] = None
 def criar_falta(data: dict, current_user: str):
     payload = FaltaCreate.model_validate(data)
     with db_session_manager(current_user) as session:
+        p = payload.model_dump()
+        if _is_rh_admin(current_user, session):
+            # Chefe/RH a comunicar falta de outro colaborador.
+            p['comunicado_por'] = _caller_pk()
+        else:
+            # Auto-registo — sempre em nome próprio.
+            p['user_fk'] = _caller_pk()
+            p['comunicado_por'] = None
         result = session.execute(text("""
             SELECT fbo_rh_faltas(
                 0, NULL, :user_fk, :tt_tipo_falta_fk, :data,
                 :justificativo_path, :notas, :comunicado_por
             ) AS result
-        """), payload.model_dump()).scalar()
+        """), p).scalar()
         _assert_success(result, 'Erro ao registar falta')
         return jsonify({'message': 'Falta registada', 'result': format_message(result)}), 201
 
@@ -719,6 +777,12 @@ def criar_falta(data: dict, current_user: str):
 def editar_falta(pk: int, data: dict, current_user: str):
     payload = FaltaUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
+        if not _is_rh_admin(current_user, session):
+            owner = session.execute(
+                text('SELECT tb_user_fk FROM tb_rh_faltas WHERE pk = :pk'), {'pk': pk}
+            ).scalar()
+            if owner != _caller_pk():
+                raise APIError('Não tem permissão para editar esta falta', 403)
         result = session.execute(text("""
             SELECT fbo_rh_faltas(
                 1, :pk, NULL, :tt_tipo_falta_fk, NULL,
@@ -732,6 +796,8 @@ def editar_falta(pk: int, data: dict, current_user: str):
 @api_error_handler
 def get_faltas(current_user: str, user_fk: Optional[int], ano: Optional[int], estado: Optional[int]):
     with db_session_manager(current_user) as session:
+        if not _is_rh_admin(current_user, session):
+            user_fk = _caller_pk()
         filters = ['1=1']
         params: dict = {}
         if user_fk:

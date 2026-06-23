@@ -200,7 +200,9 @@
       "Bash(rtk lint *)",
       "Bash(tee /tmp/eslintout.txt)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(open\\('/tmp/eslintout.txt'\\)\\) if False else None\")",
-      "PowerShell(Import-Csv \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\FileServer-Audit\\\\Reports\\\\Shares_2026-06-17_1549.csv\")"
+      "PowerShell(Import-Csv \"C:\\\\Users\\\\rui.ramos\\\\Desktop\\\\APP\\\\FileServer-Audit\\\\Reports\\\\Shares_2026-06-17_1549.csv\")",
+      "Bash(sed -n '1,40p' run.py)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/react-leaflet/package.json'\\).version\\)\")"
     ],
     "deny": [],
     "ask": [],

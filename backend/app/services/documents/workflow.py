@@ -148,6 +148,9 @@ def add_document_step(data, pk, current_user):
 
                 if doc_details:
                     notification_data = {
+                        "type": "document",
+                        "title": "Pedido Atualizado",
+                        "documentId": tb_document,
                         "document_id": tb_document,
                         "document_number": doc_details.regnumber or f"Pedido #{tb_document}",
                         "document_description": doc_details.descr or "",
@@ -195,6 +198,9 @@ def add_document_step(data, pk, current_user):
                 else:
                     # Fallback se não conseguir buscar detalhes
                     notification_data = {
+                        "type": "document",
+                        "title": "Pedido Atualizado",
+                        "documentId": tb_document,
                         "document_id": tb_document,
                         "document_number": f"Pedido #{tb_document}",
                         "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,

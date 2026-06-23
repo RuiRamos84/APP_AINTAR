@@ -6,7 +6,6 @@ import {
   MenuItem, Stack, Grid, Alert, Chip, Typography,
 } from '@mui/material';
 import { Warning as WarnIcon } from '@mui/icons-material';
-import { useColaboradores } from '../hooks/useRhLookups';
 import { useConflitosFerias } from '../hooks/useFerias';
 import { useAuth } from '@/core/contexts/AuthContext';
 
@@ -23,17 +22,15 @@ const toISODate = (v) => {
 
 const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) => {
   const { user } = useAuth();
-  const { colaboradores } = useColaboradores();
   const tipos = lookups?.tipos_ferias || [];
 
   const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
-      user_fk: '', tt_tipo_fk: 1,
+      tt_tipo_fk: 1,
       data_inicio: '', data_fim: '', notas: '',
     },
   });
 
-  const userFkWatch    = watch('user_fk');
   const dataInicioWatch = watch('data_inicio');
   const dataFimWatch    = watch('data_fim');
 
@@ -41,10 +38,9 @@ const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) 
   const dDataInicio = useDeferredValue(dataInicioWatch);
   const dDataFim    = useDeferredValue(dataFimWatch);
 
-  const resolvedUserFk = userFkWatch ? Number(userFkWatch) : user?.user_id;
-
+  // Pedidos são sempre em nome próprio.
   const { conflitos, isLoading: isCheckingConflitos } = useConflitosFerias({
-    user_fk:    open ? resolvedUserFk : undefined,
+    user_fk:    open ? user?.user_id : undefined,
     data_inicio: open && dDataInicio ? dDataInicio : undefined,
     data_fim:    open && dDataFim    ? dDataFim    : undefined,
     excluir_pk: initial?.pk,
@@ -52,16 +48,16 @@ const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) 
 
   useEffect(() => {
     if (open) reset(initial
-      ? { user_fk: initial.tb_user_fk, tt_tipo_fk: initial.tt_tipo_fk,
+      ? { tt_tipo_fk: initial.tt_tipo_fk,
           data_inicio: toISODate(initial.data_inicio),
           data_fim: toISODate(initial.data_fim),
           notas: initial.notas || '' }
-      : { user_fk: '', tt_tipo_fk: 1, data_inicio: '', data_fim: '', notas: '' }
+      : { tt_tipo_fk: 1, data_inicio: '', data_fim: '', notas: '' }
     );
   }, [open, initial, reset]);
 
   const onSubmit = (data) => {
-    const payload = { ...data, user_fk: Number(data.user_fk) || user?.user_id, tt_tipo_fk: Number(data.tt_tipo_fk) };
+    const payload = { ...data, tt_tipo_fk: Number(data.tt_tipo_fk) };
     if (initial) onSave({ pk: initial.pk, data: payload });
     else onSave(payload);
   };
@@ -74,21 +70,6 @@ const FeriasFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) 
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            {!initial && (
-              <Controller name="user_fk" control={control} rules={{ required: true }}
-                render={({ field }) => (
-                  <FormControl fullWidth size="small" error={!!errors.user_fk}>
-                    <InputLabel>Colaborador *</InputLabel>
-                    <Select {...field} label="Colaborador *">
-                      {colaboradores.map(c => (
-                        <MenuItem key={c.pk} value={c.pk}>{c.name}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-              />
-            )}
-
             <Controller name="tt_tipo_fk" control={control}
               render={({ field }) => (
                 <FormControl fullWidth size="small">

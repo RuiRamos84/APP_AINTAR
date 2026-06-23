@@ -27,6 +27,7 @@ import { usePermissions } from '@/core/contexts/PermissionContext';
 import { usePendentes, useEquipa } from '../hooks/useGestaoCentral';
 import { useRhLookups } from '../hooks/useRhLookups';
 import EstadoBadge from '../components/EstadoBadge';
+import PontoMensalDetalheModal from '../components/PontoMensalDetalheModal';
 import { RH_COLOR as COLOR, fmtDate, fmtTime } from '../utils/rhUtils';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ const BulkToolbar = ({ selected, tipo, onAprovar, onRejeitar, isBulking }) => {
 
 // ─── Tab Pendentes ────────────────────────────────────────────────────────────
 
-const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBulking, onBulkAction }) => {
+const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBulking, onBulkAction, onOpenPonto }) => {
   const apiRef = useGridApiRef();
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -199,6 +200,8 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
         checkboxSelection
         disableRowSelectionOnClick
         onRowSelectionModelChange={(newSelection) => setSelectedIds([...newSelection])}
+        onRowClick={({ row }) => { if (row.tipo === 'ponto') onOpenPonto(row); }}
+        getRowClassName={({ row }) => row.tipo === 'ponto' ? 'rh-row-clicavel' : ''}
         isRowSelectable={({ row }) => {
           if (selectedIds.length === 0) return true;
           // Só permite seleccionar o mesmo tipo (workflow é por tipo)
@@ -208,7 +211,7 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
         pageSizeOptions={[25, 50, 100]}
         initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
         localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
+        sx={{ border: 0, '& .rh-row-clicavel': { cursor: 'pointer' } }}
       />
     </Box>
   );
@@ -325,6 +328,7 @@ const RhGestaoCentralPage = () => {
   const [tab, setTab]           = useState(0);
   const [search, setSearch]     = useState('');
   const [tipoFiltro, setTipo]   = useState('');
+  const [pontoDetalhe, setPontoDetalhe] = useState(null);
 
   const handleTabChange = (_, v) => { setTab(v); setSearch(''); };
 
@@ -419,6 +423,7 @@ const RhGestaoCentralPage = () => {
             isError={errP}
             isBulking={isBulking}
             onBulkAction={workflowBulk}
+            onOpenPonto={setPontoDetalhe}
           />
         </Box>
       )}
@@ -433,6 +438,12 @@ const RhGestaoCentralPage = () => {
           />
         </Box>
       )}
+
+      <PontoMensalDetalheModal
+        open={!!pontoDetalhe}
+        onClose={() => setPontoDetalhe(null)}
+        pendente={pontoDetalhe}
+      />
     </ModulePage>
   );
 };

@@ -85,7 +85,9 @@ LEFT JOIN ts_rh_config cfg
     ON cfg.tb_user_fk = c.pk
    AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
 LEFT JOIN ts_rh_horario h
-    ON h.tb_user_fk = c.pk AND h.data_fim IS NULL;
+    ON h.tb_user_fk = c.pk AND h.data_fim IS NULL
+WHERE c.ts_profile IN (0, 1, 6)
+  AND COALESCE(c.active, 1) = 1;
 
 -- ─── 2. Remover coluna e índice da tabela ────────────────────────────────────
 DROP INDEX IF EXISTS idx_ts_rh_col_depto;

@@ -519,6 +519,9 @@ def create_document(data, files, current_user):
 
             if doc_details:
                 notification_data = {
+                    "type": "document",
+                    "title": "Novo Pedido",
+                    "documentId": pk_result,
                     "document_id": pk_result,
                     "document_number": doc_details.regnumber or f"Pedido #{pk_result}",
                     "document_description": doc_details.descr or memo or "",
@@ -565,6 +568,9 @@ def create_document(data, files, current_user):
             else:
                 # Fallback se não conseguir buscar detalhes
                 notification_data = {
+                    "type": "document",
+                    "title": "Novo Pedido",
+                    "documentId": pk_result,
                     "document_id": pk_result,
                     "document_number": reg_result or f"Pedido #{pk_result}",
                     "from_user": current_user if isinstance(current_user, int) else int(current_user) if str(current_user).isdigit() else 17,

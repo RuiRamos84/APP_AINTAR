@@ -49,47 +49,60 @@ SELECT
     c.pk,
     c.name,
     e.email,
-    COALESCE(cfg.dias_ferias_total, 22)  AS dias_ferias_total,
-    COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_gozados,
-    COALESCE(cfg.dias_ferias_total, 22) - COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_disponiveis,
-    cfg.ano                              AS config_ano,
-    h.pk                                 AS horario_pk,
-    h.descr                              AS horario_descr,
-    j.descr                              AS jornada_descr,
-    j.pk                                 AS tt_jornada_fk,
-    h.hora_entrada,
-    h.hora_saida,
-    h.hora_inicio_almoco,
-    h.hora_fim_almoco,
+    c.ts_profile                          AS perfil,
     col.data_nascimento,
     col.data_admissao,
     col.categoria,
     col.tipo_contrato,
     col.num_mecanografico,
+    col.superior_fk,
+    sup.name                              AS superior_nome,
+    col.elegivel_piquete,
+    col.ts_rh_local_fk,
+    l.nome                                AS local_predefinido_nome,
+    col.notas                             AS notas_rh,
+    col.dias_ferias_base,
+    col.gps_obrigatorio,
+    col.created_at,
+    col.updated_at,
+    -- Equipa operacional (novo)
+    col.tt_rh_equipa_fk,
+    eq.codigo                             AS equipa_codigo,
+    eq.nome                               AS equipa_nome,
+    -- Saldo férias do ano corrente
+    COALESCE(cfg.dias_ferias_total,
+        fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+        22)                               AS dias_ferias_total,
+    COALESCE(cfg.dias_ferias_gozados, 0)  AS dias_ferias_gozados,
+    COALESCE(cfg.dias_ferias_total,
+        fn_rh_calcular_ferias_ano(c.pk, EXTRACT(YEAR FROM NOW())::INT),
+        22) - COALESCE(cfg.dias_ferias_gozados, 0) AS dias_ferias_disponiveis,
+    cfg.ano                               AS config_ano,
+    -- Horário activo
+    h.pk                                  AS horario_pk,
+    h.descr                               AS horario_descr,
+    j.descr                               AS jornada_descr,
+    j.pk                                  AS tt_jornada_fk,
+    h.hora_entrada,
+    h.hora_saida,
+    h.hora_inicio_almoco,
+    h.hora_fim_almoco,
+    -- Antiguidade
     CASE WHEN col.data_admissao IS NOT NULL
          THEN DATE_PART('year', AGE(NOW(), col.data_admissao))::INTEGER
          ELSE NULL
-    END                              AS anos_antiguidade,
-    col.tt_rh_equipa_fk,
-    eq.codigo  AS equipa_codigo,
-    eq.nome    AS equipa_nome,
-    col.superior_fk,
-    sup.name   AS superior_nome,
-    col.ts_rh_local_fk,
-    col.dias_ferias_base,
-    col.elegivel_piquete,
-    col.gps_obrigatorio,
-    col.notas  AS notas_rh,
-    col.created_at,
-    col.updated_at
+    END                                   AS anos_antiguidade
 FROM ts_client c
-LEFT JOIN ts_entity e       ON e.pk = c.ts_entity
-LEFT JOIN ts_rh_config cfg  ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
-LEFT JOIN ts_rh_horario h   ON h.tb_user_fk = c.pk AND h.data_fim IS NULL
-LEFT JOIN tt_rh_tipo_jornada j ON j.pk = h.tt_jornada_fk
+LEFT JOIN ts_entity e          ON e.pk = c.ts_entity
 LEFT JOIN ts_rh_colaborador col ON col.pk = c.pk
-LEFT JOIN ts_client sup     ON sup.pk = col.superior_fk
-LEFT JOIN tt_rh_equipa eq   ON eq.pk = col.tt_rh_equipa_fk;
+LEFT JOIN ts_client sup        ON sup.pk = col.superior_fk
+LEFT JOIN ts_rh_local l        ON l.pk = col.ts_rh_local_fk
+LEFT JOIN tt_rh_equipa eq      ON eq.pk = col.tt_rh_equipa_fk
+LEFT JOIN ts_rh_config cfg     ON cfg.tb_user_fk = c.pk AND cfg.ano = EXTRACT(YEAR FROM NOW())::INT
+LEFT JOIN ts_rh_horario h      ON h.tb_user_fk = c.pk AND h.data_fim IS NULL
+LEFT JOIN tt_rh_tipo_jornada j ON j.pk = h.tt_jornada_fk
+WHERE c.ts_profile IN (0, 1, 6)
+  AND COALESCE(c.active, 1) = 1;
 
 -- ─── 6. Actualizar fbo_rh_colaborador para aceitar tt_rh_equipa_fk ───────────
 -- (Substituição DROP→CREATE porque assinatura muda)
@@ -184,10 +197,11 @@ BEGIN
     WHERE col_ferias.tt_rh_equipa_fk = col_pedido.tt_rh_equipa_fk
       AND col_ferias.tt_rh_equipa_fk IS NOT NULL
       AND f.tb_user_fk <> p_user_fk
-      AND f.ts_estado_fk IN (2, 3, 5, 6)   -- validado, aprovado, autorizado, despachado
+      AND f.ts_estado_fk IN (1, 2, 3)   -- pendente, validado superior, aprovado RH (exclui só rejeitado)
       AND f.data_inicio <= p_fim
       AND f.data_fim    >= p_inicio
-      AND (p_excluir_pk IS NULL OR f.pk <> p_excluir_pk);
+      AND (p_excluir_pk IS NULL OR f.pk <> p_excluir_pk)
+      AND COALESCE(c.active, 1) = 1;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -211,4 +225,5 @@ JOIN ts_client c ON c.pk = f.tb_user_fk
 JOIN ts_rh_colaborador col ON col.pk = f.tb_user_fk
 JOIN tt_rh_estado_workflow es ON es.pk = f.ts_estado_fk
 LEFT JOIN tt_rh_equipa eq ON eq.pk = col.tt_rh_equipa_fk
-WHERE f.ts_estado_fk NOT IN (4, 7);   -- exclui rejeitados
+WHERE f.ts_estado_fk <> 4   -- exclui rejeitados
+  AND COALESCE(c.active, 1) = 1;

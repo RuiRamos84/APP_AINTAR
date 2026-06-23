@@ -24,6 +24,7 @@ import DocumentPreviewDialog from './DocumentPreviewDialog';
 import { useMotivosParticipacao } from '../hooks/useParticipacao';
 import { useColaboradores } from '../hooks/useRhLookups';
 import { usePermissions } from '@/core/contexts/PermissionContext';
+import { useAuth } from '@/core/contexts/AuthContext';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -59,6 +60,7 @@ const fmtBytes = (b) => b < 1024 * 1024
 
 const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => {
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const isAdmin = hasPermission('rh.admin');
   const [pendingFiles, setPendingFiles] = useState([]);
 
@@ -167,13 +169,13 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
       });
     } else {
       reset({
-        user_fk: '', tipo: 'dia', motivo_fk: '',
+        user_fk: isAdmin ? '' : (user?.user_id ?? ''), tipo: 'dia', motivo_fk: '',
         data_inicio: today(), data_fim: today(),
         hora_inicio: '', hora_fim: '',
         data_participacao: today(), observacoes: '',
       });
     }
-  }, [open, initial, reset]);
+  }, [open, initial, reset, isAdmin, user]);
 
   const preAviso = useMemo(
     () => diffDias(dataInicio, dataParticipacao),
@@ -250,8 +252,8 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
               />
             </Box>
 
-            {/* Colaborador (apenas em criação) */}
-            {!initial && (
+            {/* Colaborador — só visível para quem pode registar em nome de outros */}
+            {!initial && isAdmin && (
               <Controller name="user_fk" control={control} rules={{ required: true }}
                 render={({ field }) => (
                   <FormControl fullWidth size="small" error={!!errors.user_fk}>

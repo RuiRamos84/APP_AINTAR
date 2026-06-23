@@ -12,6 +12,13 @@ export const fmtTime = (ts) => {
   return isNaN(d) ? ts : d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 };
 
+export const fmtDistancia = (metros) => {
+  if (metros == null) return '—';
+  return metros >= 1000
+    ? `${(metros / 1000).toLocaleString('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}km`
+    : `${metros}m`;
+};
+
 export const MESES = Array.from({ length: 12 }, (_, i) => ({
   value: i + 1,
   label: new Date(2000, i).toLocaleString('pt-PT', { month: 'long' }),
