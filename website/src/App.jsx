@@ -24,6 +24,7 @@ import TarifarioPage from './pages/clientes/TarifarioPage'
 import FormulariosPage from './pages/clientes/FormulariosPage'
 import CandidaturaPage from './pages/clientes/CandidaturaPage'
 import FAQPage from './pages/clientes/FAQPage'
+import OpinioesPage from './pages/clientes/OpinioesPage'
 
 // Saneamento
 import SaneamentoPage from './pages/saneamento/SaneamentoPage'
@@ -82,6 +83,7 @@ function AppRoutes() {
             <Route path="/clientes/tarifario" element={<TarifarioPage />} />
             <Route path="/clientes/formularios" element={<FormulariosPage />} />
             <Route path="/clientes/faq" element={<FAQPage />} />
+            <Route path="/clientes/opinioes" element={<OpinioesPage />} />
 
             {/* Saneamento */}
             <Route path="/saneamento" element={<SaneamentoPage />} />

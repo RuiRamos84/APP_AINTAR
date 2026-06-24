@@ -14,6 +14,8 @@ from ..services.website_service import (
     get_procedimento_public,
     list_processos_financeiros_public,
     send_contacto,
+    list_avaliacoes_public,
+    submit_avaliacao,
     list_concursal_procedimentos_public,
     get_concursal_procedimento_public,
     get_concursal_referencias,
@@ -130,6 +132,19 @@ def serve_procedimento_doc(filepath):
     folder = os.path.join(current_app.config['FILES_DIR'], 'procedimento')
     os.makedirs(folder, exist_ok=True)
     return send_from_directory(folder, filepath)
+
+
+@website_public_bp.route('/avaliacoes', methods=['GET'])
+@api_error_handler
+def get_avaliacoes():
+    return list_avaliacoes_public()
+
+
+@website_public_bp.route('/avaliacoes', methods=['POST'])
+@api_error_handler
+def post_avaliacao():
+    data = request.get_json() or {}
+    return submit_avaliacao(data)
 
 
 @website_public_bp.route('/contacto', methods=['POST'])
