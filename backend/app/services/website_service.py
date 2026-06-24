@@ -5,7 +5,7 @@ import unicodedata
 from datetime import datetime
 from flask import current_app
 from sqlalchemy.sql import text
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 from ..utils.utils import db_session_manager, send_mail
@@ -341,6 +341,67 @@ def send_contacto(name: str, email: str, subject: str, message: str):
     )
     logger.info(f"Contacto do website enviado por {email}")
     return {'message': 'Mensagem enviada com sucesso'}, 200
+
+
+# ─── PÚBLICA — Avaliações do Website ─────────────────────────────────────────
+
+class AvaliacaoModel(BaseModel):
+    nome:       str
+    nota:       int = Field(..., ge=1, le=5)
+    comentario: Optional[str] = None
+
+    @field_validator('nome')
+    @classmethod
+    def nome_valido(cls, v: str) -> str:
+        v = (v or '').strip()
+        if not v:
+            raise ValueError('Nome é obrigatório')
+        return v[:255]
+
+    @field_validator('comentario')
+    @classmethod
+    def comentario_strip(cls, v):
+        if v:
+            return v.strip()[:2000] or None
+        return None
+
+
+@api_error_handler
+def list_avaliacoes_public():
+    from app import db
+    rows = db.session.execute(text("""
+        SELECT pk, nome, nota, nota_descricao, comentario, created_at
+        FROM vbl_avaliacao_website
+        LIMIT 100
+    """)).mappings().all()
+    return {'avaliacoes': [_serialize(r) for r in rows]}, 200
+
+
+@api_error_handler
+def submit_avaliacao(data: dict):
+    from app import db
+
+    avaliacao = AvaliacaoModel.model_validate(data)
+
+    result = db.session.execute(text("""
+        SELECT fbo_avaliacao_website_create(
+            CAST(:nome       AS VARCHAR),
+            CAST(:nota       AS SMALLINT),
+            CAST(:comentario AS TEXT)
+        )
+    """), {
+        'nome':       avaliacao.nome,
+        'nota':       avaliacao.nota,
+        'comentario': avaliacao.comentario,
+    }).scalar()
+
+    db.session.commit()
+
+    if result and result.startswith('<error>'):
+        msg = result.replace('<error>', '').replace('</error>', '')
+        raise APIError(msg, 400)
+
+    return {'message': 'Avaliação submetida com sucesso.'}, 201
 
 
 # ─── CMS — Metadados (lookups) ────────────────────────────────────────────────
