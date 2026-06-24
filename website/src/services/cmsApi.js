@@ -46,6 +46,19 @@ export const submitConcursalCandidatura = (data, docFiles = {}) => {
   })
 }
 
+export const getAvaliacoes = () => get('/avaliacoes')
+
+export const submitAvaliacao = (data) =>
+  fetch(`${API}/website/avaliacoes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(async r => {
+    const json = await r.json()
+    if (!r.ok) throw new Error(json.error || 'Erro ao submeter avaliação.')
+    return json
+  })
+
 export function fileUrl(path) {
   if (!path) return null
   if (path.startsWith('http') || path.startsWith('/api')) return path

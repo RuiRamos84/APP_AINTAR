@@ -26,6 +26,7 @@ const navMenu = [
       { label: 'Tarifário', href: '/clientes/tarifario' },
       { label: 'Formulários', href: '/clientes/formularios' },
       { label: 'Perguntas Frequentes', href: '/clientes/faq' },
+      { label: 'Opiniões', href: '/clientes/opinioes' },
       { label: '2ª Via de Fatura', href: PORTAL_URL, external: true },
     ],
   },

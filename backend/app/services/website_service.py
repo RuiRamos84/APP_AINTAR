@@ -369,12 +369,33 @@ class AvaliacaoModel(BaseModel):
 @api_error_handler
 def list_avaliacoes_public():
     from app import db
+
     rows = db.session.execute(text("""
         SELECT pk, nome, nota, nota_descricao, comentario, created_at
         FROM vbl_avaliacao_website
         LIMIT 100
     """)).mappings().all()
-    return {'avaliacoes': [_serialize(r) for r in rows]}, 200
+
+    stats = db.session.execute(text("""
+        SELECT
+            COUNT(*)                            AS total,
+            ROUND(AVG(nota)::NUMERIC, 1)        AS media,
+            COUNT(*) FILTER (WHERE nota = 1)    AS n1,
+            COUNT(*) FILTER (WHERE nota = 2)    AS n2,
+            COUNT(*) FILTER (WHERE nota = 3)    AS n3,
+            COUNT(*) FILTER (WHERE nota = 4)    AS n4,
+            COUNT(*) FILTER (WHERE nota = 5)    AS n5
+        FROM tb_avaliacao_website
+    """)).mappings().fetchone()
+
+    distribuicao = {str(i): int(stats[f'n{i}']) for i in range(1, 6)}
+
+    return {
+        'avaliacoes':   [_serialize(r) for r in rows],
+        'total':        int(stats['total']),
+        'media':        float(stats['media']) if stats['media'] else 0.0,
+        'distribuicao': distribuicao,
+    }, 200
 
 
 @api_error_handler
