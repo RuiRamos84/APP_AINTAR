@@ -100,6 +100,7 @@ def create_app(config_class):
         "http://localhost:5173",  # dev frontend-v2 (Vite default)
         "http://localhost:3001",  # dev frontend-v2 (porta fixa configurada em vite.config.js)
         "http://localhost:3000",  # dev frontend CRA
+        "http://localhost:3002",  # dev website estático AINTAR
     ]
     CORS(app, resources={r"/*": {"origins": cors_origins}}, supports_credentials=True)
     socket_io.init_app(app,

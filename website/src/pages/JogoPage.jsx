@@ -4272,7 +4272,7 @@ function MinijogoRodaLamas({ jogador, onResult }) {
     }
 
     setTimeout(() => {
-      if (missesRef.current >= 2) {
+      if (missesRef.current >= 1) {
         setDone(true)
         setWon(false)
         return
@@ -4388,7 +4388,7 @@ function MinijogoRodaLamas({ jogador, onResult }) {
         </button>
 
         <div style={{ fontSize: 11, color: '#64748b' }}>
-          Acertos: <strong style={{ color: '#7c3aed' }}>{score}/4</strong> — 2 erros seguidos = derrota
+          Acertos: <strong style={{ color: '#7c3aed' }}>{score}/4</strong> — 1 erro = derrota imediata
         </div>
       </div>
     </div>
