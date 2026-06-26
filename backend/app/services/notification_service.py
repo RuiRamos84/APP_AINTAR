@@ -1,11 +1,77 @@
+import json
 from flask import current_app
 from sqlalchemy import text
 from datetime import datetime
-from ..utils.utils import db_session_manager
+from ..utils.utils import db_session_manager, db_system_session
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+class CentralNotificationService:
+    """
+    Serviço para a tabela central de notificações (tb_notification),
+    usada pelos tipos que não têm persistência própria (operação, RH, ...).
+    Tasks e documentos continuam a usar os seus próprios flags por agora.
+    """
+
+    def add(self, ts_client: int, type_: str, notification_type: str,
+            title: str, message: str = None, route: str = None,
+            metadata: dict = None) -> int:
+        """
+        Persiste uma notificação para um utilizador. Usa sessão de sistema
+        porque é chamada a partir de contextos sem JWT (scheduler, webhooks,
+        rotinas de operação/RH em background).
+        """
+        with db_system_session() as session:
+            pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+            session.execute(text("""
+                SELECT fbf_notification(0, :pk, :ts_client, :type, :notification_type,
+                                        :title, :message, :route, :metadata)
+            """), {
+                'pk': pk, 'ts_client': ts_client, 'type': type_,
+                'notification_type': notification_type, 'title': title,
+                'message': message, 'route': route,
+                'metadata': json.dumps(metadata) if metadata is not None else None,
+            })
+            return pk
+
+    def get_feed(self, current_user: str, limit: int = 50, offset: int = 0) -> list:
+        """Lista as notificações do utilizador autenticado (mais recentes primeiro)."""
+        with db_session_manager(current_user) as session:
+            rows = session.execute(text("""
+                SELECT * FROM vbl_notification ORDER BY hist_time DESC LIMIT :limit OFFSET :offset
+            """), {'limit': limit, 'offset': offset}).mappings().all()
+            return [dict(r) for r in rows]
+
+    def get_unread_count(self, current_user: str) -> int:
+        with db_session_manager(current_user) as session:
+            return session.execute(text(
+                "SELECT count(*) FROM vbl_notification WHERE read = 0"
+            )).scalar() or 0
+
+    def mark_read(self, pk: int, current_user: str):
+        with db_session_manager(current_user) as session:
+            session.execute(text("SELECT fbf_notification$read(:pk)"), {'pk': pk})
+
+    def mark_all_read(self, current_user: str):
+        with db_session_manager(current_user) as session:
+            session.execute(text("SELECT fbf_notification$readall()"))
+
+    def mark_read_by_entity(self, current_user: str, type_: str, entity_key: str, entity_id: int):
+        """
+        Marca como lidas as notificações centrais do utilizador para uma
+        entidade específica (ex: type_='task', entity_key='task_id'). Usado
+        pelos endpoints legados de mark-read de tasks/documentos para manterem
+        a tabela central sincronizada (fase C da unificação).
+        """
+        with db_session_manager(current_user) as session:
+            rows = session.execute(text("""
+                SELECT pk FROM vbl_notification
+                WHERE type = :type AND read = 0 AND metadata->>:entity_key = :entity_id
+            """), {'type': type_, 'entity_key': entity_key, 'entity_id': str(entity_id)}).scalars().all()
+            for pk in rows:
+                session.execute(text("SELECT fbf_notification$read(:pk)"), {'pk': pk})
 
 
 class NotificationService:
@@ -238,22 +304,4 @@ class TaskService:
 notification_service = NotificationService()
 task_notification_service = TaskNotificationService()
 task_service = TaskService()
-
-def create_notification(user: str, title: str, message: str, type: str = 'info', data: dict = None):
-    """Criar notificação genérica para sistema de ofícios"""
-    try:
-        with db_session_manager(user) as session:
-            query = text("""
-                INSERT INTO tb_notifications (pk, user_id, title, message, type, data, read, created_at)
-                VALUES (fs_nextcode(), :user, :title, :message, :type, :data, false, NOW())
-            """)
-            session.execute(query, {
-                'user': user,
-                'title': title,
-                'message': message,
-                'type': type,
-                'data': str(data) if data else None
-            })
-            session.commit()
-    except Exception as e:
-        logger.warning(f"Notification error: {e}")
+central_notification_service = CentralNotificationService()

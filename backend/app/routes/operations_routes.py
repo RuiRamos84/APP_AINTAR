@@ -23,6 +23,18 @@ from ..services.operations_service import (
     # Inicialização de tarefas mensais
     init_operacao_month,
     init_operacao_remaining,
+    # Parâmetros de operação (catálogo, associação a ações, valores por tarefa)
+    list_param_catalog,
+    create_param,
+    update_param,
+    delete_param,
+    list_param_operacaoaccao,
+    create_param_operacaoaccao,
+    update_param_operacaoaccao,
+    delete_param_operacaoaccao,
+    get_operacao_params,
+    update_operacao_param,
+    get_operacao_param_reference_options,
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..utils.utils import token_required, db_session_manager, set_session
@@ -732,4 +744,126 @@ def operacao_init_remaining_route():
     """
     data = request.get_json()
     result, status = init_operacao_remaining(data, get_jwt_identity())
+    return jsonify(result), status
+
+
+# ---------------------------------------------------------------------------
+# Catálogo de parâmetros (tb_param) — partilhado com Documentos
+# ---------------------------------------------------------------------------
+
+@bp.route('/operacao_param/catalog', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def list_param_catalog_route():
+    result, status = list_param_catalog(get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/catalog', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def create_param_route():
+    result, status = create_param(request.get_json(), get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/catalog/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def update_param_route(pk):
+    result, status = update_param(pk, request.get_json(), get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/catalog/<int:pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def delete_param_route(pk):
+    result, status = delete_param(pk, get_jwt_identity())
+    return jsonify(result), status
+
+
+# ---------------------------------------------------------------------------
+# Associação de parâmetros a tipos de ação (tb_param_operacaoaccao)
+# ---------------------------------------------------------------------------
+
+@bp.route('/operacao_param/accao/<int:tt_operacaoaccao>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def list_param_operacaoaccao_route(tt_operacaoaccao):
+    result, status = list_param_operacaoaccao(tt_operacaoaccao, get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/accao', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def create_param_operacaoaccao_route():
+    result, status = create_param_operacaoaccao(request.get_json(), get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/accao/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def update_param_operacaoaccao_route(pk):
+    result, status = update_param_operacaoaccao(pk, request.get_json(), get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/accao/<int:pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('operacao_param.manage')
+@api_error_handler
+def delete_param_operacaoaccao_route(pk):
+    result, status = delete_param_operacaoaccao(pk, get_jwt_identity())
+    return jsonify(result), status
+
+
+# ---------------------------------------------------------------------------
+# Valores de parâmetros por tarefa (tb_operacao_param) — execução
+# ---------------------------------------------------------------------------
+
+@bp.route('/operacao_param/<int:tb_operacao>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@api_error_handler
+def get_operacao_params_route(tb_operacao):
+    result, status = get_operacao_params(tb_operacao, get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@api_error_handler
+def update_operacao_param_route(pk):
+    result, status = update_operacao_param(pk, request.get_json(), get_jwt_identity())
+    return jsonify(result), status
+
+
+@bp.route('/operacao_param/<int:pk>/reference', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')
+@api_error_handler
+def get_operacao_param_reference_options_route(pk):
+    result, status = get_operacao_param_reference_options(pk, get_jwt_identity())
     return jsonify(result), status

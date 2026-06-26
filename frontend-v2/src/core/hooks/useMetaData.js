@@ -135,6 +135,22 @@ export const useAnaliseParams = () => {
 };
 
 /**
+ * Hook para frequência de autocontrolo de instalações (ETAR)
+ */
+export const useInstalacaoAutocontrolo = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.instalacaoautocontrolo || [], isLoading, error };
+};
+
+/**
+ * Hook para tipos de ETAR
+ */
+export const useTipoEtar = () => {
+  const { data: metaData, isLoading, error } = useMetaData();
+  return { data: metaData?.tipoetar || [], isLoading, error };
+};
+
+/**
  * Hook para tipos de equipamento
  */
 export const useEquipTipos = () => {

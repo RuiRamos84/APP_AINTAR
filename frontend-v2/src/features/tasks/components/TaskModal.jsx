@@ -49,6 +49,7 @@ import PropTypes from 'prop-types';
 
 // Hooks
 import { useAuth } from '@/core/contexts/AuthContext';
+import { useSocket } from '@/core/contexts/SocketContext';
 import { useTasks } from '../hooks/useTasks';
 
 // Components
@@ -82,6 +83,7 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
+  const { unreadTaskIds } = useSocket();
   const { closeTask, reopenTask, loading } = useTasks({ autoFetch: false });
 
   const [currentTab, setCurrentTab] = useState(0);
@@ -111,16 +113,11 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
     };
   }, [task, user]);
 
-  // Verificar notificações
+  // Verificar notificações — deriva do feed central (fase B da unificação).
   const hasNotification = useMemo(() => {
-    if (!task || !user) return false;
-    const isOwner = task.owner === user.user_id;
-    const isClient = task.ts_client === user.user_id;
-
-    return (
-      (isOwner && task.notification_owner === 1) || (isClient && task.notification_client === 1)
-    );
-  }, [task, user]);
+    if (!task) return false;
+    return unreadTaskIds.has(task.pk || task.id);
+  }, [task, unreadTaskIds]);
 
   // Marcar notificação como lida quando modal abre
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsService } from '../api/documentsService';
 import notification from '@/core/services/notification';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { NOTIFICATION_KEYS } from '@/core/constants/notificationKeys';
 
 // Query Keys
 export const documentKeys = {
@@ -122,6 +123,9 @@ export const useClearNotification = () => {
         if (!old) return old;
         return { ...old, notification: 0 };
       });
+      // O badge por-item (DocumentCard) deriva do feed central — sem isto,
+      // o anel só desaparecia no próximo refetch natural (até 30s depois).
+      queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
     },
   });
 };

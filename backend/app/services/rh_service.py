@@ -435,13 +435,15 @@ def registar_ponto_evento(data: dict, current_user: str):
                 """), {'user_fk': payload.user_fk}).fetchone()
 
                 if row and row.superior_fk:
-                    socketio = current_app.extensions.get('socketio')
-                    if socketio:
-                        socketio.emit('rh_ponto_fora_local', {
-                            'colaborador_nome': row.colaborador_nome,
-                            'user_fk': payload.user_fk,
-                            'tt_evento_fk': payload.tt_evento_fk,
-                        }, room=f'user_{row.superior_fk}', namespace='/')
+                    socketio_events = current_app.extensions.get('socketio_events')
+                    if socketio_events:
+                        socketio_events.emit_rh_notification(
+                            user_ids=[row.superior_fk],
+                            notification_type='ponto_fora_local',
+                            title='Ponto fora do local',
+                            message=f'{row.colaborador_nome} registou ponto fora do local definido.',
+                            route='/rh/pessoal/ponto',
+                        )
             except Exception as e:
                 logger.warning(f'Falhou notificação geofencing: {e}')
 

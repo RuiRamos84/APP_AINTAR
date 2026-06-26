@@ -37,6 +37,11 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
     const [submitting, setSubmitting] = useState(false);
     const [annexFiles, setAnnexFiles] = useState([]);
     const [comment, setComment] = useState('');
+    const [extraParams, setExtraParams] = useState([]);
+    const [extraValues, setExtraValues] = useState({});
+    const [extraRefOptions, setExtraRefOptions] = useState({});
+    const [loadingExtraParams, setLoadingExtraParams] = useState(false);
+    const [collectedSamples, setCollectedSamples] = useState(null); // null = não mostrar; [] / [...] = mostrar ecrã de sucesso
 
     const actionType = task?.operacao_tipo || task?.tt_operacaoaccao_type || 1;
 
@@ -76,6 +81,68 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
             loadReferenceOptions();
         }
     }, [open, actionType, task?.tt_operacaoaccao_refobj]);
+
+    // Carregar parâmetros adicionais da tarefa (tb_param_operacaoaccao), independente do tipo de ação
+    useEffect(() => {
+        if (open && task?.pk) {
+            loadExtraParams();
+        }
+    }, [open, task?.pk]);
+
+    const loadExtraParams = async () => {
+        setLoadingExtraParams(true);
+        try {
+            const params = await operationService.getOperacaoParams(task.pk);
+            setExtraParams(params || []);
+            const initialValues = {};
+            (params || []).forEach((p) => { initialValues[p.pk] = p.value ?? ''; });
+            setExtraValues(initialValues);
+
+            const refParams = (params || []).filter((p) => p.type === 3);
+            if (refParams.length > 0) {
+                const optionsByPk = {};
+                await Promise.all(refParams.map(async (p) => {
+                    try {
+                        optionsByPk[p.pk] = await operationService.getOperacaoParamReferenceOptions(p.pk);
+                    } catch (err) {
+                        console.error(`[TaskCompletion] Erro ao carregar opções de referência (param ${p.pk}):`, err);
+                        optionsByPk[p.pk] = [];
+                    }
+                }));
+                setExtraRefOptions(optionsByPk);
+            }
+        } catch (err) {
+            console.error('[TaskCompletion] Erro ao carregar parâmetros adicionais:', err);
+        } finally {
+            setLoadingExtraParams(false);
+        }
+    };
+
+    const validateExtraParams = () => {
+        const missing = extraParams.filter((p) => {
+            if (!p.mandatory) return false;
+            const v = extraValues[p.pk];
+            return v === undefined || v === null || String(v).trim() === '';
+        });
+        if (missing.length > 0) {
+            setError(`Preencha o(s) parâmetro(s) obrigatório(s): ${missing.map((p) => p.name).join(', ')}`);
+            return false;
+        }
+        return true;
+    };
+
+    const saveExtraParams = async () => {
+        const editableParams = extraParams.filter((p) => p.editable !== 0 && p.editable !== false);
+        for (const p of editableParams) {
+            const value = extraValues[p.pk];
+            if (value === undefined || value === null || String(value).trim() === '') continue;
+            try {
+                await operationService.updateOperacaoParam(p.pk, { value: String(value) });
+            } catch (err) {
+                console.error(`[TaskCompletion] Erro ao gravar parâmetro ${p.name}:`, err);
+            }
+        }
+    };
 
     const loadAnalysisParameters = async () => {
         setLoading(true);
@@ -155,9 +222,12 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                     setSubmitting(false);
                     return;
             }
+            if (!validateExtraParams()) { setSubmitting(false); return; }
+
             const updateData = { valuetext: newValuetext };
             if (comment.trim()) updateData.valuememo = comment.trim();
             await onUpdate(task.pk, updateData);
+            await saveExtraParams();
             handleClose();
         } catch (err) {
             setError(err?.response?.data?.error || err?.message || 'Erro ao corrigir tarefa');
@@ -170,6 +240,8 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
         if (editMode) { await handleEditSubmit(); return; }
         setSubmitting(true);
         setError(null);
+
+        if (!validateExtraParams()) { setSubmitting(false); return; }
 
         try {
             // Validação de amostras laboratoriais (tipo 5)
@@ -295,6 +367,7 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
             if (comment.trim()) completionData.valuememo = comment.trim();
 
             await onComplete(task.pk, completionData);
+            await saveExtraParams();
 
             // Upload de anexos após conclusão (falha silenciosa — tarefa já concluída)
             if (annexFiles.length > 0) {
@@ -302,6 +375,16 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                     await operationService.addOperationAnnexes(task.pk, annexFiles);
                 } catch (uploadErr) {
                     console.error('[TaskCompletion] Erro ao enviar anexos:', uploadErr);
+                }
+            }
+
+            // Amostras laboratoriais recolhidas nesta tarefa: mostrar referência para etiquetar/identificar
+            if (actionType === OPERATION_TYPES.ANALYSIS) {
+                const labSamples = analysisParams.filter((p) => isLaboratoryParameter(p.tt_analiseforma));
+                if (labSamples.length > 0) {
+                    setCollectedSamples(labSamples);
+                    setSubmitting(false);
+                    return;
                 }
             }
 
@@ -323,8 +406,84 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
         setSelectedReference(null);
         setAnnexFiles([]);
         setComment('');
+        setExtraParams([]);
+        setExtraValues({});
+        setExtraRefOptions({});
+        setCollectedSamples(null);
         setError(null);
         onClose();
+    };
+
+    const renderExtraParams = () => {
+        if (loadingExtraParams) {
+            return <Box display="flex" justifyContent="center" py={2}><CircularProgress size={24} /></Box>;
+        }
+        if (extraParams.length === 0) return null;
+
+        return (
+            <>
+                <Divider />
+                <Typography variant="subtitle2" color="text.secondary">
+                    Parâmetros
+                </Typography>
+                <Stack spacing={2}>
+                    {extraParams.map((p) => {
+                        const isLocked = p.editable === 0 || p.editable === false;
+                        const label = `${p.name}${p.mandatory ? ' *' : ''}${p.units ? ` (${p.units})` : ''}`;
+
+                        if (p.type === 4) {
+                            return (
+                                <FormControlLabel
+                                    key={p.pk}
+                                    control={
+                                        <Checkbox
+                                            checked={extraValues[p.pk] === '1'}
+                                            disabled={isLocked}
+                                            onChange={(e) => setExtraValues((prev) => ({ ...prev, [p.pk]: e.target.checked ? '1' : '0' }))}
+                                        />
+                                    }
+                                    label={label}
+                                />
+                            );
+                        }
+
+                        if (p.type === 3) {
+                            const options = extraRefOptions[p.pk] || [];
+                            return (
+                                <FormControl key={p.pk} fullWidth size="small" disabled={isLocked}>
+                                    <InputLabel>{label}</InputLabel>
+                                    <Select
+                                        value={extraValues[p.pk] ?? ''}
+                                        label={label}
+                                        onChange={(e) => setExtraValues((prev) => ({ ...prev, [p.pk]: e.target.value }))}
+                                    >
+                                        {options.map((opt) => (
+                                            <MenuItem key={opt.pk} value={String(opt.pk)}>{opt.value}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            );
+                        }
+
+                        return (
+                            <TextField
+                                key={p.pk}
+                                fullWidth
+                                size="small"
+                                label={label}
+                                type={p.type === 1 ? 'number' : 'text'}
+                                multiline={p.type === 2}
+                                rows={p.type === 2 ? 2 : undefined}
+                                inputProps={p.type === 1 ? { step: 'any' } : undefined}
+                                value={extraValues[p.pk] ?? ''}
+                                disabled={isLocked}
+                                onChange={(e) => setExtraValues((prev) => ({ ...prev, [p.pk]: e.target.value }))}
+                            />
+                        );
+                    })}
+                </Stack>
+            </>
+        );
     };
 
     const renderInputField = () => {
@@ -526,10 +685,10 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
             {!isMobile && (
                 <DialogTitle>
                     <Box display="flex" alignItems="center" gap={1}>
-                        {editMode ? <Edit color="warning" /> : <CheckCircle color="success" />}
-                        {editMode ? 'Corrigir Resposta' : getModalTitle(actionType)}
+                        {collectedSamples ? <CheckCircle color="success" /> : editMode ? <Edit color="warning" /> : <CheckCircle color="success" />}
+                        {collectedSamples ? 'Amostra(s) Recolhida(s)' : editMode ? 'Corrigir Resposta' : getModalTitle(actionType)}
                     </Box>
-                    {task && (
+                    {task && !collectedSamples && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                             {task.description || task.acao_operacao}
                         </Typography>
@@ -537,6 +696,41 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                 </DialogTitle>
             )}
 
+            {collectedSamples ? (
+                <>
+                    <DialogContent sx={{ px: isMobile ? 2 : 3 }}>
+                        <Stack spacing={2} sx={{ mt: isMobile ? 0 : 1 }}>
+                            <Alert severity="success">
+                                Tarefa concluída. Identifique o(s) recipiente(s) da amostra com a(s) referência(s) abaixo —
+                                o laboratório vai usar este número para registar os resultados.
+                            </Alert>
+                            <Stack spacing={1.5}>
+                                {collectedSamples.map((s) => (
+                                    <Box key={s.id_analise} sx={{
+                                        p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2,
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}>
+                                        <Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {s.tt_analiseponto} — {s.tt_analiseparam}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant="h5" fontWeight={700} color="success.main">
+                                            #{s.id_analise}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Stack>
+                        </Stack>
+                    </DialogContent>
+                    <DialogActions sx={{ px: isMobile ? 2 : 3, py: isMobile ? 2 : 1.5 }}>
+                        <Button onClick={handleClose} variant="contained" color="success" fullWidth={isMobile}>
+                            Concluir
+                        </Button>
+                    </DialogActions>
+                </>
+            ) : (
+            <>
             <DialogContent sx={{ px: isMobile ? 2 : 3 }}>
                 {isMobile && task && (
                     <Box sx={{ mb: 2, mt: 1 }}>
@@ -553,6 +747,8 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                     {error && <Alert severity="error">{error}</Alert>}
 
                     {renderInputField()}
+
+                    {renderExtraParams()}
 
                     <Divider />
 
@@ -603,6 +799,8 @@ const TaskCompletionDialog = ({ open, onClose, task, onComplete, editMode = fals
                     {submitting ? MESSAGES.LOADING.COMPLETING : editMode ? 'Guardar Correção' : MESSAGES.ACTIONS.COMPLETE_TASK}
                 </Button>
             </DialogActions>
+            </>
+            )}
         </Dialog>
     );
 };

@@ -40,9 +40,12 @@ import { operationService } from '../services/operationService';
 // ──────────────────────────────────────────────
 // Mapeamento de ações disponíveis por tipo
 // ──────────────────────────────────────────────
+// ETAR/EE mostram o catálogo completo (tt_operacaoaccao) sem filtro — inclui
+// ações normalmente só usadas pelo fluxo automático/cíclico (tb_operacaometa,
+// ex. leituras, limpeza de cisterna), para permitir criar manualmente uma
+// ocorrência fora do ciclo quando necessário. CAIXA/REDE mantêm uma lista
+// curta — leituras de energia/água não se aplicam a esses tipos.
 const ACTIONS_BY_TYPE = {
-  ETAR: [100, 102, 104, 105, 6], // Limpeza lamas, Reparação, Vedação, Desmatação, Visita técnica
-  EE: [100, 102, 104, 105, 6],
   CAIXA: [101, 106, 102], // Desobstrução, Rep. tampa, Reparação
   REDE: [102, 101], // Reparação, Desobstrução
 };
@@ -232,9 +235,11 @@ const DirectTaskForm = ({ onSubmit, onCancel, fixedInstType = null, fixedPk = nu
     return installationList.filter((i) => i.ts_entity === selectedAssociate);
   }, [installationList, selectedAssociate]);
 
-  // Filtrar ações permitidas para o tipo escolhido
+  // Ações disponíveis para o tipo escolhido: ETAR/EE veem o catálogo completo;
+  // CAIXA/REDE ficam restritos à lista curta em ACTIONS_BY_TYPE.
   const filteredActions = useMemo(() => {
     if (!instType) return [];
+    if (instType === 'ETAR' || instType === 'EE') return allActions;
     const allowed = ACTIONS_BY_TYPE[instType] || [];
     return allActions.filter((a) => allowed.includes(a.pk));
   }, [instType, allActions]);

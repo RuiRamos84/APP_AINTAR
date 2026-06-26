@@ -2,7 +2,7 @@ from flask import request, current_app
 import jwt
 from flask_socketio import emit, join_room, leave_room, Namespace
 from threading import Lock
-from ..services.notification_service import notification_service, task_notification_service
+from ..services.notification_service import notification_service, task_notification_service, central_notification_service
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -104,8 +104,10 @@ class SocketIOEvents(Namespace):
         try:
             count = task_notification_service.get_task_notification_count(user_id, session_id)
             room_id = f'user_{user_id}'
-            if int(user_id) in self.connected_users:
-                self.socketio.emit('task_notification_count', {'count': count}, room=room_id, namespace='/')
+            # Emitir sempre para a room: socketio.emit é inofensivo se vazia,
+            # e o gate por connected_users tem janelas de falso-negativo
+            # (reconexão, múltiplos separadores) que perdiam a notificação.
+            self.socketio.emit('task_notification_count', {'count': count}, room=room_id, namespace='/')
         except Exception as e:
             logger.error(
                 f"Erro ao emitir contagem de tarefas: {str(e)}")
@@ -114,41 +116,42 @@ class SocketIOEvents(Namespace):
     def emit_task_notification(self, task_id, session_id, **kwargs):
         """Emite notificações quando uma tarefa é atualizada"""
         try:
-            logger.info(f"🔔 EMIT_TASK_NOTIFICATION: task_id={task_id}, session_id={session_id}, kwargs={kwargs}")
-
             result = task_notification_service.prepare_task_notification(task_id, session_id)
             recipient_id = result['recipient_id']
             notification_data = result['notification_data']
+            notification_data.update(kwargs)  # Adiciona dados extra como 'notification_type'
 
-            logger.info(f"👤 Destinatário calculado: recipient_id={recipient_id}")
-            logger.info(f"📦 Notification data: {notification_data}")
-
-            notification_data.update(kwargs) # Adiciona dados extra como 'notification_type'
-            logger.info(f"📦 Notification data APÓS kwargs: {notification_data}")
+            # Dual-write na tabela central (fase A da unificação): os flags
+            # legados (tb_task.notification_*) continuam a ser a fonte da UI
+            # por-item por agora; isto só alimenta o feed central do sino.
+            # Best-effort: se falhar, a notificação legada já foi escrita e o
+            # utilizador continua a vê-la no card.
+            try:
+                notification_type = kwargs.get('notification_type', 'task_update')
+                if notification_type == 'status_update':
+                    message = f"Estado alterado para: {kwargs.get('status', '')}"
+                else:
+                    message = notification_data.get('content', 'Nova atualização')
+                central_notification_service.add(
+                    ts_client=recipient_id, type_='task', notification_type=notification_type,
+                    title=notification_data.get('taskName', 'Tarefa'), message=message,
+                    route=f"/tasks?taskId={task_id}",
+                    metadata={'task_id': task_id},
+                )
+            except Exception as central_err:
+                logger.warning(f"Falha no dual-write central de notificação de tarefa: {central_err}")
 
             room_id = f'user_{recipient_id}'
-            # IMPORTANTE: recipient_id pode ser int ou str, connected_users usa int como chave
-            is_connected = int(recipient_id) in self.connected_users
-
-            logger.info(f"🔌 Verificando conexão: recipient_id={recipient_id} (type: {type(recipient_id).__name__}), room={room_id}, is_connected={is_connected}")
-            logger.info(f"👥 Utilizadores conectados: {list(self.connected_users.keys())} (types: {[type(k).__name__ for k in self.connected_users.keys()]})")
-
-            if is_connected:
-                logger.info(f"✅ Utilizador {recipient_id} ESTÁ CONECTADO - Emitindo notificação")
-                self.socketio.emit('task_notification', notification_data, room=room_id, namespace='/')
-                logger.info(f"📤 Evento 'task_notification' emitido para room={room_id}")
-
-                self.emit_task_notification_count(recipient_id, session_id)
-                logger.info(f"🔢 Contador de notificações atualizado para recipient_id={recipient_id}")
-
-                # Opcional: emitir a lista completa de notificações atualizada
-                self.on_get_task_notifications({'userId': recipient_id, 'sessionId': session_id})
-                logger.info(f"📋 Lista de notificações atualizada emitida")
-            else:
-                logger.warning(f"⚠️ Utilizador {recipient_id} NÃO está conectado - Notificação será guardada na BD apenas")
-
+            # Emitir sempre para a room (ver nota em emit_task_notification_count):
+            # o destinatário pode estar ligado noutro separador/dispositivo que o
+            # connected_users deste worker não conhece.
+            # 'task_notification' é o gatilho de invalidação do feed central no
+            # frontend-v2 (fase D da unificação) — os eventos de contagem/lista
+            # legados ('task_notification_count', 'task_notifications') já não
+            # têm listener e deixaram de ser emitidos aqui.
+            self.socketio.emit('task_notification', notification_data, room=room_id, namespace='/')
         except Exception as e:
-            logger.error(f"❌ ERRO ao emitir notificação de tarefa: {str(e)}", exc_info=True)
+            logger.error(f"Erro ao emitir notificação de tarefa: {str(e)}", exc_info=True)
 
     # Handler para marcar notificação de tarefa como lida
     def on_mark_task_notification_read(self, data):
@@ -244,20 +247,29 @@ class SocketIOEvents(Namespace):
           - 'tarefa_validada'  → supervisor validou execução (notifica operador)
         """
         import datetime
-        notification_data = {
-            'type': 'operacao',
-            'notification_type': notification_type,
-            'title': title,
-            'message': message,
-            'timestamp': datetime.datetime.now().isoformat(),
-            'meta_pk': meta_pk,
-            'operacao_pk': operacao_pk,
-            'route': '/operation/supervisor',
-        }
+        route = '/operation/supervisor'
         for user_id in user_ids:
             if user_id is None:
                 continue
             try:
+                # Persiste antes de emitir: garante que a notificação sobrevive
+                # mesmo que o destinatário esteja offline no momento do evento.
+                pk = central_notification_service.add(
+                    ts_client=user_id, type_='operacao', notification_type=notification_type,
+                    title=title, message=message, route=route,
+                    metadata={'meta_pk': meta_pk, 'operacao_pk': operacao_pk},
+                )
+                notification_data = {
+                    'notification_id': pk,
+                    'type': 'operacao',
+                    'notification_type': notification_type,
+                    'title': title,
+                    'message': message,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'meta_pk': meta_pk,
+                    'operacao_pk': operacao_pk,
+                    'route': route,
+                }
                 room = f'user_{user_id}'
                 # Emitir sempre para a room: socketio.emit é inofensivo se vazia,
                 # e o gate por connected_users tem janelas de falso-negativo
@@ -285,18 +297,23 @@ class SocketIOEvents(Namespace):
           - 'ponto_registo'         → ponto registado por admin em nome do colaborador
         """
         import datetime
-        notification_data = {
-            'type': 'rh',
-            'notification_type': notification_type,
-            'title': title,
-            'message': message,
-            'timestamp': datetime.datetime.now().isoformat(),
-            'route': route,
-        }
         for user_id in user_ids:
             if user_id is None:
                 continue
             try:
+                pk = central_notification_service.add(
+                    ts_client=user_id, type_='rh', notification_type=notification_type,
+                    title=title, message=message, route=route,
+                )
+                notification_data = {
+                    'notification_id': pk,
+                    'type': 'rh',
+                    'notification_type': notification_type,
+                    'title': title,
+                    'message': message,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'route': route,
+                }
                 room = f'user_{user_id}'
                 self.socketio.emit('rh_notification', notification_data,
                                    room=room, namespace='/')

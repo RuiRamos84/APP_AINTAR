@@ -167,23 +167,22 @@ def run_admin_action(key: str, current_user: str):
     elif key == 'send-test-notification':
         try:
             from app import socketio
-            socketio.emit('notification', {
-                'type': 'info',
+            with db_session_manager(current_user) as session:
+                admin_id = session.execute(text("SELECT fs_client()")).scalar()
+            socketio.emit('new_notification', {
+                'type': 'system',
                 'title': 'Notificação de Teste',
                 'message': (
                     'Esta é uma notificação de teste '
                     'enviada pelo administrador.'
                 ),
                 'timestamp': datetime.now(timezone.utc).isoformat(),
-            })
+            }, room=f'user_{admin_id}')
             logger.info(
                 f"Notificação de teste enviada por {current_user}"
             )
             return {
-                'message': (
-                    'Notificação de teste enviada '
-                    'a todos os utilizadores online'
-                )
+                'message': 'Notificação de teste enviada'
             }, 200
         except Exception as e:
             logger.error(f"Failed to send test notification: {e}")

@@ -233,10 +233,20 @@ def update_task_note_notification(task_id: int, current_user: str):
                 note_query = text("SELECT fbo_task_note_notification(:note_id)")
                 session.execute(note_query, {"note_id": note.pk})
 
+        # Sincronizar a tabela central (fase C da unificação): o badge por-item
+        # já deriva do feed central, por isso a leitura legada tem de se refletir lá.
+        try:
+            from .notification_service import central_notification_service
+            central_notification_service.mark_read_by_entity(current_user, 'task', 'task_id', task_id)
+        except Exception as e:
+            logger.warning(f"Falha ao sincronizar leitura central de notificação de tarefa: {str(e)}")
+
         try:
             socketio_events = current_app.extensions.get('socketio_events')
             if socketio_events:
-                socketio_events.emit_task_notification_count(user_id, current_user)
+                # 'task_notifications_updated' é o gatilho de invalidação do feed
+                # central no frontend-v2; 'task_notification_count' (legado, sem
+                # listener) deixou de ser emitido aqui (fase D da unificação).
                 socketio_events.socketio.emit(
                     'task_notifications_updated',
                     {'taskId': task_id, 'read': True},

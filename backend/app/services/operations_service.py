@@ -1,3 +1,4 @@
+import re
 from .. import db
 from sqlalchemy.sql import text
 from sqlalchemy.exc import ProgrammingError, OperationalError, SQLAlchemyError
@@ -907,16 +908,24 @@ def create_operacao(data: dict, current_user: str):
                 VALUES
                     (:data, :descr, :tt_operacaomodo, :tb_instalacao,
                      :ts_operador1, :ts_operador2, :tt_operacaoaccao)
+                RETURNING pk
             """)
 
-            session.execute(query, operacao_data.model_dump())
+            new_pk = session.execute(query, operacao_data.model_dump()).scalar()
+
+            session.execute(
+                text('CALL "fbf_operacao_param$init"(:pk, :tt_operacaoaccao)'),
+                {'pk': new_pk, 'tt_operacaoaccao': operacao_data.tt_operacaoaccao}
+            )
+
             session.commit()
 
-            logger.info(f"Operação criada com sucesso")
+            logger.info(f"Operação criada com sucesso (pk={new_pk})")
 
             return {
                 'success': True,
-                'message': 'Operação criada com sucesso'
+                'message': 'Operação criada com sucesso',
+                'pk': new_pk
             }, 201
 
     except ValueError as e:
@@ -990,3 +999,184 @@ def update_operacao(operacao_id: int, data: dict, current_user: str):
     except Exception as e:
         logger.error(f"Erro inesperado ao atualizar operação {operacao_id}: {str(e)}")
         return {'success': False, 'error': 'Erro interno do servidor'}, 500
+
+
+# ===================================================================
+# PARÂMETROS DE OPERAÇÃO (tb_param / tb_param_operacaoaccao / tb_operacao_param)
+# ===================================================================
+
+class ParamCreate(BaseModel):
+    """Parâmetro do catálogo partilhado (tb_param)."""
+    name: str = Field(..., min_length=1, description="Nome do parâmetro")
+    type: int = Field(..., ge=1, le=4, description="1=Numérico, 2=Texto, 3=Referência, 4=Booleano")
+    units: Optional[str] = None
+    refobj: Optional[str] = None
+    refpk: Optional[str] = None
+    refvalue: Optional[str] = None
+
+
+class ParamUpdate(ParamCreate):
+    pass
+
+
+class ParamOperacaoaccaoCreate(BaseModel):
+    """Associação de um parâmetro a um tipo de ação (tb_param_operacaoaccao)."""
+    tb_param: int = Field(..., gt=0)
+    tt_operacaoaccao: int = Field(..., gt=0)
+    sort: int = Field(0, ge=0)
+    mandatory: int = Field(0, ge=0, le=1)
+    editable: int = Field(1, ge=0, le=1)
+    oncreate: int = Field(0, ge=0, le=1)
+
+
+class ParamOperacaoaccaoUpdate(BaseModel):
+    """Atualização de sort/mandatory/editable/oncreate de uma associação existente."""
+    sort: int = Field(0, ge=0)
+    mandatory: int = Field(0, ge=0, le=1)
+    editable: int = Field(1, ge=0, le=1)
+    oncreate: int = Field(0, ge=0, le=1)
+
+
+class OperacaoParamUpdate(BaseModel):
+    value: Optional[str] = None
+    memo: Optional[str] = None
+
+
+@api_error_handler
+def list_param_catalog(current_user: str):
+    """Lista o catálogo partilhado de parâmetros (tb_param)."""
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("SELECT * FROM tb_param ORDER BY name")).mappings().all()
+        return {'params': [dict(r) for r in rows]}, 200
+
+
+@api_error_handler
+def create_param(data: dict, current_user: str):
+    """Cria um novo parâmetro no catálogo partilhado, via fbf_param (pop=0)."""
+    param = ParamCreate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+        session.execute(text("""
+            SELECT fbf_param(0, :pk, :name, :type, :units, :refobj, :refpk, :refvalue)
+        """), {'pk': new_pk, **param.model_dump()})
+        return {'message': 'Parâmetro criado com sucesso', 'pk': new_pk}, 201
+
+
+@api_error_handler
+def update_param(pk: int, data: dict, current_user: str):
+    """Atualiza um parâmetro do catálogo partilhado, via fbf_param (pop=1)."""
+    param = ParamUpdate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        session.execute(text("""
+            SELECT fbf_param(1, :pk, :name, :type, :units, :refobj, :refpk, :refvalue)
+        """), {'pk': pk, **param.model_dump()})
+        return {'message': 'Parâmetro atualizado com sucesso'}, 200
+
+
+@api_error_handler
+def delete_param(pk: int, current_user: str):
+    """Elimina um parâmetro do catálogo partilhado, via fbf_param (pop=2)."""
+    with db_session_manager(current_user) as session:
+        session.execute(text("""
+            SELECT fbf_param(2, :pk, NULL, NULL, NULL, NULL, NULL, NULL)
+        """), {'pk': pk})
+        return {'message': 'Parâmetro eliminado com sucesso'}, 200
+
+
+@api_error_handler
+def list_param_operacaoaccao(tt_operacaoaccao: int, current_user: str):
+    """Lista os parâmetros associados a um tipo de ação (vbl_param_operacaoaccao)."""
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("""
+            SELECT * FROM vbl_param_operacaoaccao
+            WHERE tt_operacaoaccao = :tt_operacaoaccao
+            ORDER BY sort
+        """), {'tt_operacaoaccao': tt_operacaoaccao}).mappings().all()
+        return {'params': [dict(r) for r in rows]}, 200
+
+
+@api_error_handler
+def create_param_operacaoaccao(data: dict, current_user: str):
+    """Associa um parâmetro a um tipo de ação, via fbf_param_operacaoaccao (pop=0)."""
+    assoc = ParamOperacaoaccaoCreate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+        session.execute(text("""
+            SELECT fbf_param_operacaoaccao(0, :pk, :tb_param, :tt_operacaoaccao, :sort, :mandatory, :editable, :oncreate)
+        """), {'pk': new_pk, **assoc.model_dump()})
+        return {'message': 'Parâmetro associado com sucesso', 'pk': new_pk}, 201
+
+
+@api_error_handler
+def update_param_operacaoaccao(pk: int, data: dict, current_user: str):
+    """Atualiza sort/mandatory/editable/oncreate de uma associação, via fbf_param_operacaoaccao (pop=1)."""
+    assoc = ParamOperacaoaccaoUpdate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        session.execute(text("""
+            SELECT fbf_param_operacaoaccao(1, :pk, NULL, NULL, :sort, :mandatory, :editable, :oncreate)
+        """), {'pk': pk, **assoc.model_dump()})
+        return {'message': 'Associação atualizada com sucesso'}, 200
+
+
+@api_error_handler
+def delete_param_operacaoaccao(pk: int, current_user: str):
+    """Remove a associação de um parâmetro a um tipo de ação, via fbf_param_operacaoaccao (pop=2)."""
+    with db_session_manager(current_user) as session:
+        session.execute(text("""
+            SELECT fbf_param_operacaoaccao(2, :pk, NULL, NULL, NULL, NULL, NULL, NULL)
+        """), {'pk': pk})
+        return {'message': 'Associação removida com sucesso'}, 200
+
+
+@api_error_handler
+def get_operacao_params(tb_operacao: int, current_user: str):
+    """Lista os parâmetros (e valores já registados) de uma tarefa (vbl_operacao_param)."""
+    with db_session_manager(current_user) as session:
+        rows = session.execute(text("""
+            SELECT * FROM vbl_operacao_param
+            WHERE tb_operacao = :tb_operacao
+            ORDER BY sort
+        """), {'tb_operacao': tb_operacao}).mappings().all()
+        return {'params': [dict(r) for r in rows]}, 200
+
+
+@api_error_handler
+def update_operacao_param(pk: int, data: dict, current_user: str):
+    """Grava o valor/memo de um parâmetro de tarefa via fbf_operacao_param."""
+    payload = OperacaoParamUpdate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbf_operacao_param(1, :pk, :value, :memo)
+        """), {'pk': pk, 'value': payload.value, 'memo': payload.memo}).scalar()
+        return {'message': 'Parâmetro gravado com sucesso', 'pk': result}, 200
+
+
+_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_$]*$')
+
+
+@api_error_handler
+def get_operacao_param_reference_options(pk: int, current_user: str):
+    """
+    Opções de referência (tipo 3) para um parâmetro de tarefa.
+
+    O refobj/refpk/refvalue vêm do catálogo (tb_param) — nunca do cliente —
+    para evitar SQL injection via nomes de tabela/coluna arbitrários.
+    """
+    with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            SELECT p.refobj, p.refpk, p.refvalue
+            FROM tb_operacao_param b
+            JOIN tb_param p ON p.pk = b.tb_param
+            WHERE b.pk = :pk
+        """), {'pk': pk}).mappings().first()
+
+        if not row or not row['refobj'] or not row['refpk'] or not row['refvalue']:
+            return {'error': 'Parâmetro sem referência configurada'}, 400
+
+        refobj, refpk, refvalue = row['refobj'], row['refpk'], row['refvalue']
+        if not all(_IDENTIFIER_RE.match(v) for v in (refobj, refpk, refvalue)):
+            return {'error': 'Referência configurada de forma inválida'}, 500
+
+        query = text(f"SELECT {refpk} AS pk, {refvalue} AS value FROM {refobj} ORDER BY {refvalue}")
+        rows = session.execute(query).mappings().all()
+        return {'options': [dict(r) for r in rows]}, 200

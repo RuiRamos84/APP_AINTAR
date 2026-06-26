@@ -7,18 +7,21 @@ import {
 } from '@mui/material';
 import {
     Settings as SettingsIcon,
-    Add, Edit, Close, Refresh, AdminPanelSettings, CalendarMonth as CalendarIcon
+    Add, Edit, Close, Refresh, AdminPanelSettings, CalendarMonth as CalendarIcon,
+    Tune as ParamIcon
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import { SearchBar, SortableHeadCell } from '@/shared/components/data';
 import { useSortable } from '@/shared/hooks/useSortable';
 import { useMetaData } from '@/core/hooks/useMetaData';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 import { operationService } from '../services/operationService';
 import { exportMetasToExcel } from '../services/exportService';
 import ExportButton from '../components/ExportButton';
 import ProgressiveTaskFormV2 from '../components/ProgressiveTaskFormV2';
 import GenerateTasksPanel from '../components/supervisor/GenerateTasksPanel';
+import ParamConfigDialog from '../components/ParamConfigDialog';
 import notification from '@/core/services/notification/notificationService';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -37,8 +40,11 @@ const OperationMetadataPage = () => {
     const [formOpen, setFormOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null); // null = criar, object = editar
     const [generateOpen, setGenerateOpen] = useState(false);
+    const [paramConfigOpen, setParamConfigOpen] = useState(false);
 
     const { data: metaData } = useMetaData();
+    const { hasPermission } = usePermissions();
+    const canManageParams = hasPermission('operacao_param.manage');
 
     // Debounce da pesquisa (400ms)
     const debounceRef = useRef(null);
@@ -186,6 +192,13 @@ const OperationMetadataPage = () => {
                             </Fab>
                         </span>
                     </Tooltip>
+                    {canManageParams && (
+                        <Tooltip title="Parâmetros de operação (catálogo e associação a ações)">
+                            <Fab color="info" size="small" onClick={() => setParamConfigOpen(true)}>
+                                <ParamIcon />
+                            </Fab>
+                        </Tooltip>
+                    )}
                     <Tooltip title="Atualizar">
                         <span>
                             <Fab color="primary" size="small" onClick={refetch} disabled={isLoading}>
@@ -317,6 +330,14 @@ const OperationMetadataPage = () => {
                 onGenerateRemaining={(data) => initRemainingMutation.mutate(data)}
                 isGeneratingRemaining={initRemainingMutation.isPending}
             />
+
+            {/* Dialog — Parâmetros de Operação */}
+            {canManageParams && (
+                <ParamConfigDialog
+                    open={paramConfigOpen}
+                    onClose={() => setParamConfigOpen(false)}
+                />
+            )}
 
             {/* Dialog com stepper — Criar / Editar */}
             <Dialog

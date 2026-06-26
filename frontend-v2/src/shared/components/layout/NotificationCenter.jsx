@@ -80,7 +80,7 @@ export const NotificationCenter = () => {
     handleClose();
 
     if (notif.type === 'task' && notif.taskId) {
-      navigate(`/tasks?taskId=${notif.taskId}`, {
+      navigate(`/intern/tasks?taskId=${notif.taskId}`, {
         state: { refreshData: true, timestamp: Date.now() },
       });
     } else if (notif.type === 'operacao') {
@@ -89,8 +89,7 @@ export const NotificationCenter = () => {
         : '/operation/supervisor';
       navigate(route, { state: { tab: 1, timestamp: Date.now() } });
     } else if (notif.type === 'document' && notif.documentId) {
-      // No portal, redirecionar para a lista de pedidos ou detalhe se implementado
-      navigate(IS_PORTAL ? '/pedidos' : '/documents');
+      navigate(IS_PORTAL ? `/pedidos/${notif.documentId}` : `/documents?id=${notif.documentId}`);
     } else if (notif.type === 'rh') {
       navigate(notif.route || '/rh/pessoal/faltas');
     }

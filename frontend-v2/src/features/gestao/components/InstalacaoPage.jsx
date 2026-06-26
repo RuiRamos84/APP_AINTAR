@@ -23,6 +23,7 @@ import {
   Schedule as ScheduleIcon, FlashOn as FlashOnIcon,
   CheckCircle as CheckCircleIcon,
   Image as ImageIcon,
+  MyLocation as MyLocationIcon,
   PrecisionManufacturing as EquipamentosTabIcon,
   Construction as ObrasTabIcon,
   Block as DescargaIcon,
@@ -59,6 +60,7 @@ import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import {
   useExpenseTypes, useAssociates, useSpotList, useWhoList, useAnaliseParams,
+  useInstalacaoAutocontrolo, useTipoEtar,
 } from '@/core/hooks/useMetaData';
 import { useInstalacao } from '../hooks/useInstalacao';
 import {
@@ -498,6 +500,11 @@ const SectionHeader = ({ title, color }) => (
 const CaracteristicasTab = ({ pk, type, color, details: d = {}, isLoading, updateDetails, isUpdating }) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
+  const [locating, setLocating] = useState(false);
+
+  const { data: autocontroloOptions = [] } = useInstalacaoAutocontrolo();
+  const { data: associates = [] } = useAssociates();
+  const { data: tipoEtarOptions = [] } = useTipoEtar();
 
   const startEdit = () => {
     setForm({
@@ -506,12 +513,15 @@ const CaracteristicasTab = ({ pk, type, color, details: d = {}, isLoading, updat
       coord_p:       d.coord_p != null ? String(d.coord_p) : '',
       ener_cpe:      d.ener_cpe || '',
       ener_potencia: d.ener_potencia != null ? String(d.ener_potencia) : '',
-      ener_val:      d.ener_val != null ? String(d.ener_val) : '',
       ...(type === 'etar' ? {
         apa_licenca:  d.apa_licenca || '',
         apa_data_ini: d.apa_data_ini ? String(d.apa_data_ini).split('T')[0] : '',
         apa_data_fim: d.apa_data_fim ? String(d.apa_data_fim).split('T')[0] : '',
-      } : {}),
+        tt_instalacaoautocontrolo: d.tt_instalacaoautocontrolo != null ? String(d.tt_instalacaoautocontrolo) : '',
+        memo: d.memo || '',
+      } : {
+        ener_val: d.ener_val != null ? String(d.ener_val) : '',
+      }),
     });
     setEditing(true);
   };
@@ -526,18 +536,43 @@ const CaracteristicasTab = ({ pk, type, color, details: d = {}, isLoading, updat
         ener_entidade: null,
         ener_cpe:      form.ener_cpe || null,
         ener_potencia: form.ener_potencia ? parseFloat(form.ener_potencia) : null,
-        ener_val:      form.ener_val ? parseInt(form.ener_val, 10) : null,
         ...(type === 'etar' ? {
           apa_licenca:  form.apa_licenca || null,
           apa_data_ini: form.apa_data_ini || null,
           apa_data_fim: form.apa_data_fim || null,
-        } : {}),
+          tt_instalacaoautocontrolo: form.tt_instalacaoautocontrolo ? parseInt(form.tt_instalacaoautocontrolo, 10) : null,
+          memo: form.memo || null,
+        } : {
+          ener_val: form.ener_val ? parseInt(form.ener_val, 10) : null,
+        }),
       },
     });
     setEditing(false);
   };
 
   const set = (name) => (e) => setForm((p) => ({ ...p, [name]: e.target.value }));
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      notification.error('Geolocalização não suportada neste dispositivo.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setForm((p) => ({ ...p, coord_m: String(coords.longitude), coord_p: String(coords.latitude) }));
+        notification.success('Localização obtida com sucesso.');
+        setLocating(false);
+      },
+      (err) => {
+        notification.error(err.code === 1
+          ? 'Permissão de localização negada.'
+          : 'Não foi possível obter a localização.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
 
   // Returns TextField in edit mode, InfoField in view mode
   const F = (name, label, ftype = 'text') => editing
@@ -569,19 +604,49 @@ const CaracteristicasTab = ({ pk, type, color, details: d = {}, isLoading, updat
         <SectionHeader title="Identificação" color={color} />
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>{F('nome', 'Nome')}</Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Associado" value={d.ts_entity} /></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <InfoField label="Associado" value={associates.find((a) => a.pk === d.ts_entity)?.name} />
+          </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Subsistema" value={d.subsistema} /></Grid>
           {type === 'etar' && (<>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Tipo" value={d.tt_tipoetar} /></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <InfoField label="Tipo" value={tipoEtarOptions.find((o) => o.pk === d.tt_tipoetar)?.value} />
+            </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Nível de Tratamento" value={d.nivel_tratamento} /></Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Linha de Tratamento" value={d.linha_tratamento} /></Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Pop. Dimensionada" value={d.pop_dimen} /></Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Pop. Servida" value={d.pop_servida} /></Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}><InfoField label="Água Tratada (m³/ano)" value={d.agua_tratada} /></Grid>
-            {d.memo && <Grid size={12}><InfoField label="Notas" value={d.memo} /></Grid>}
+            <Grid size={12}>
+              {editing
+                ? <TextField label="Notas" value={form.memo ?? ''} onChange={set('memo')} size="small" fullWidth multiline rows={2} />
+                : <InfoField label="Notas" value={d.memo} />}
+            </Grid>
           </>)}
         </Grid>
       </Box>
+
+      {/* Autocontrolo — ETAR only */}
+      {type === 'etar' && (
+        <Box sx={{ mb: 3 }}>
+          <SectionHeader title="Autocontrolo" color={color} />
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              {editing
+                ? (
+                  <TextField select label="Frequência" value={form.tt_instalacaoautocontrolo ?? ''}
+                    onChange={set('tt_instalacaoautocontrolo')} size="small" fullWidth>
+                    <MenuItem value="">— Nenhuma —</MenuItem>
+                    {autocontroloOptions.map((o) => (
+                      <MenuItem key={o.pk} value={String(o.pk)}>{o.value}</MenuItem>
+                    ))}
+                  </TextField>
+                )
+                : <InfoField label="Frequência" value={autocontroloOptions.find((o) => o.pk === d.tt_instalacaoautocontrolo)?.value} />}
+            </Grid>
+          </Grid>
+        </Box>
+      )}
 
       {/* Licença APA — ETAR only */}
       {type === 'etar' && (
@@ -609,13 +674,23 @@ const CaracteristicasTab = ({ pk, type, color, details: d = {}, isLoading, updat
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>{F('ener_cpe', 'CPE')}</Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>{F('ener_potencia', 'Potência (kVA)', 'number')}</Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>{F('ener_val', 'Valor Contrato (€)', 'number')}</Grid>
+          {type === 'ee' && (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>{F('ener_val', 'Valor Contrato (€)', 'number')}</Grid>
+          )}
         </Grid>
       </Box>
 
       {/* Localização */}
       <Box sx={{ mb: 1 }}>
-        <SectionHeader title="Localização" color={color} />
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionHeader title="Localização" color={color} />
+          {editing && (
+            <Button size="small" variant="outlined" startIcon={<MyLocationIcon />}
+              onClick={getCurrentLocation} disabled={locating} sx={{ mb: 1.5 }}>
+              {locating ? 'A obter…' : 'Obter Localização Atual'}
+            </Button>
+          )}
+        </Box>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6 }}>{F('coord_m', 'Longitude')}</Grid>
           <Grid size={{ xs: 12, sm: 6 }}>{F('coord_p', 'Latitude')}</Grid>
@@ -1279,15 +1354,42 @@ const SEVERITY = (falha) => {
   return               { label: 'Baixo',      color: 'success' };
 };
 
+// Parâmetros cuja conformidade é um intervalo [limitemin, limite] em vez de um limite único (ex: pH)
+const RANGE_PARAM_PKS = [1];
+const isRangeParam = (pk) => RANGE_PARAM_PKS.includes(parseInt(pk, 10));
+
+// Desvio (%) ao intervalo de conformidade: <0 dentro do intervalo, >0 fora (acima ou abaixo)
+const calcDesvio = (resultado, limite, limitemin) => {
+  const res = parseFloat(resultado), lim = parseFloat(limite);
+  if (isNaN(res) || isNaN(lim)) return null;
+  const min = limitemin !== null && limitemin !== undefined && limitemin !== '' ? parseFloat(limitemin) : null;
+  if (min !== null && !isNaN(min)) {
+    if (res < min && min !== 0) return { pct: ((min - res) / min) * 100, dir: 'min' };
+    if (res > lim && lim !== 0) return { pct: ((res - lim) / lim) * 100, dir: 'max' };
+    return { pct: 0, dir: null };
+  }
+  if (lim === 0) return null;
+  return { pct: ((res - lim) / lim) * 100, dir: 'max' };
+};
+
 const incumpSchema = z.object({
   data_incump:     z.string().min(1, 'Data obrigatória'),
   tt_analiseparam: z.string().min(1, 'Parâmetro obrigatório'),
   resultado:       z.string().min(1, 'Resultado obrigatório').refine((v) => !isNaN(parseFloat(v)), 'Valor inválido'),
   limite:          z.string().min(1, 'Limite obrigatório').refine((v) => !isNaN(parseFloat(v)), 'Valor inválido'),
+  limitemin:       z.string().optional(),
   operador1:       z.string().optional(),
   operador2:       z.string().optional(),
+}).superRefine((vals, ctx) => {
+  if (isRangeParam(vals.tt_analiseparam)) {
+    if (!vals.limitemin || isNaN(parseFloat(vals.limitemin))) {
+      ctx.addIssue({ code: 'custom', path: ['limitemin'], message: 'Limite mínimo obrigatório' });
+    } else if (parseFloat(vals.limitemin) >= parseFloat(vals.limite)) {
+      ctx.addIssue({ code: 'custom', path: ['limitemin'], message: 'Limite mínimo deve ser menor que o máximo' });
+    }
+  }
 });
-const incumpDefaults = { data_incump: toStr(new Date()), tt_analiseparam: '', resultado: '', limite: '', operador1: '', operador2: '' };
+const incumpDefaults = { data_incump: toStr(new Date()), tt_analiseparam: '', resultado: '', limite: '', limitemin: '', operador1: '', operador2: '' };
 
 const SEVERITY_OPTIONS = [
   { value: 'critico',  label: 'Crítico'  },
@@ -1297,12 +1399,11 @@ const SEVERITY_OPTIONS = [
 ];
 
 const severityKey = (r) => {
-  const res = parseFloat(r.resultado), lim = parseFloat(r.limite);
-  if (isNaN(res) || isNaN(lim) || lim === 0) return null;
-  const pct = ((res - lim) / lim) * 100;
-  if (pct >= 100) return 'critico';
-  if (pct >= 50)  return 'elevado';
-  if (pct >= 20)  return 'moderado';
+  const desvio = calcDesvio(r.resultado, r.limite, r.limitemin);
+  if (!desvio || desvio.pct <= 0) return null;
+  if (desvio.pct >= 100) return 'critico';
+  if (desvio.pct >= 50)  return 'elevado';
+  if (desvio.pct >= 20)  return 'moderado';
   return 'baixo';
 };
 
@@ -1337,9 +1438,11 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
     return true;
   }), [data, filters]);
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm({
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({
     resolver: zodResolver(incumpSchema), defaultValues: incumpDefaults,
+    mode: 'onBlur', reValidateMode: 'onChange',
   });
+  const isRangeSelected = isRangeParam(watch('tt_analiseparam'));
 
   const onSubmit = async (vals) => {
     await addIncumprimento({
@@ -1347,6 +1450,7 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
       tt_analiseparam: parseInt(vals.tt_analiseparam, 10),
       resultado:       parseFloat(vals.resultado),
       limite:          parseFloat(vals.limite),
+      limitemin:       isRangeParam(vals.tt_analiseparam) && vals.limitemin ? parseFloat(vals.limitemin) : null,
       data_incump:     vals.data_incump,
       operador1:       vals.operador1 ? parseInt(vals.operador1, 10) : null,
       operador2:       vals.operador2 ? parseInt(vals.operador2, 10) : null,
@@ -1366,6 +1470,7 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
       date: formatDate(r.data),
       'Resultado': parseFloat(r.resultado) || 0,
       'Limite': parseFloat(r.limite) || 0,
+      ...(r.limitemin !== null && r.limitemin !== undefined ? { 'Limite Mínimo': parseFloat(r.limitemin) || 0 } : {}),
     })));
     setChartOpen(true);
   };
@@ -1374,53 +1479,60 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
     { key: 'data', label: 'Data', fn: r => formatDate(r.data) },
     { key: 'tt_analiseparam', label: 'Parâmetro', fn: r => r.tt_analiseparam || '' },
     { key: 'resultado', label: 'Resultado', fn: r => parseFloat(r.resultado) || 0 },
+    { key: 'limitemin', label: 'Limite Mínimo', fn: r => (r.limitemin !== null && r.limitemin !== undefined) ? parseFloat(r.limitemin) : '' },
     { key: 'limite', label: 'Limite', fn: r => parseFloat(r.limite) || 0 },
     { key: '_excesso', label: 'Excesso (%)', fn: r => {
-      const res = parseFloat(r.resultado), lim = parseFloat(r.limite);
-      return (!isNaN(res) && !isNaN(lim) && lim > 0) ? (((res - lim) / lim) * 100).toFixed(1) : '';
+      const desvio = calcDesvio(r.resultado, r.limite, r.limitemin);
+      return (desvio && desvio.pct > 0) ? desvio.pct.toFixed(1) : '';
     }},
     { key: 'operador1', label: 'Operador', fn: r => r.operador1 || '' },
   ], `incumprimentos_${pk}`);
 
   const cols = [
-    { field: 'data', headerName: 'Data', width: 110,
+    { field: 'data', headerName: 'Data', flex: 0.8, minWidth: 110,
       valueGetter: dateValueGetter,
       renderCell: ({ row }) => <Cell><Typography variant="body2">{formatDate(row.data)}</Typography></Cell> },
-    { field: 'tt_analiseparam', headerName: 'Parâmetro', width: 160,
+    { field: 'tt_analiseparam', headerName: 'Parâmetro', flex: 1.3, minWidth: 160,
       valueGetter: (v) => v || '',
       renderCell: ({ row }) => <Cell><Chip label={row.tt_analiseparam || '—'} size="small" variant="outlined" /></Cell> },
-    { field: 'resultado', headerName: 'Resultado', width: 110, align: 'right', headerAlign: 'right', type: 'number',
+    { field: 'resultado', headerName: 'Resultado', flex: 0.8, minWidth: 110, align: 'right', headerAlign: 'right', type: 'number',
       renderCell: ({ value }) => <Cell><Typography variant="body2" fontWeight={600} sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
-    { field: 'limite', headerName: 'Limite', width: 100, align: 'right', headerAlign: 'right', type: 'number',
-      renderCell: ({ value }) => <Cell><Typography variant="body2" sx={{ ml: 'auto' }}>{formatNum(value)}</Typography></Cell> },
+    { field: 'limite', headerName: 'Limite', flex: 1, minWidth: 130, align: 'right', headerAlign: 'right',
+      valueGetter: (_, row) => (row.limitemin !== null && row.limitemin !== undefined) ? `${formatNum(row.limitemin)} – ${formatNum(row.limite)}` : formatNum(row.limite),
+      renderCell: ({ row }) => (
+        <Cell>
+          <Typography variant="body2" sx={{ ml: 'auto' }}>
+            {(row.limitemin !== null && row.limitemin !== undefined)
+              ? `${formatNum(row.limitemin)} – ${formatNum(row.limite)}`
+              : formatNum(row.limite)}
+          </Typography>
+        </Cell>
+      ) },
     {
-      field: '_falha', headerName: 'Excesso', width: 110,
-      valueGetter: (_, row) => {
-        const res = parseFloat(row.resultado), lim = parseFloat(row.limite);
-        if (isNaN(res) || isNaN(lim) || lim === 0) return null;
-        return ((res - lim) / lim) * 100;
-      },
-      renderCell: ({ value }) => {
-        if (value === null) return <Cell>—</Cell>;
+      field: '_falha', headerName: 'Excesso', flex: 1.2, minWidth: 140,
+      valueGetter: (_, row) => calcDesvio(row.resultado, row.limite, row.limitemin)?.pct ?? null,
+      renderCell: ({ row, value }) => {
+        if (value === null || value <= 0) return <Cell><Chip label="Conforme" size="small" color="success" variant="outlined" /></Cell>;
+        const desvio = calcDesvio(row.resultado, row.limite, row.limitemin);
         const sev = SEVERITY(value);
-        return <Cell><Chip label={`${value.toFixed(1)}%`} size="small" color={sev.color} /></Cell>;
+        const suffix = desvio?.dir === 'min' ? ' (abaixo do mín.)' : desvio?.dir === 'max' && row.limitemin != null ? ' (acima do máx.)' : '';
+        return <Cell><Chip label={`${value.toFixed(1)}%${suffix}`} size="small" color={sev.color} /></Cell>;
       },
     },
     {
-      field: '_severity', headerName: 'Gravidade', width: 110,
+      field: '_severity', headerName: 'Gravidade', flex: 0.9, minWidth: 120,
       // valueGetter devolve número (nível de gravidade) para ordenação correcta
-      // 0=Baixo, 1=Moderado, 2=Elevado, 3=Crítico
+      // -1=Conforme, 0=Baixo, 1=Moderado, 2=Elevado, 3=Crítico
       valueGetter: (_, row) => {
-        const res = parseFloat(row.resultado), lim = parseFloat(row.limite);
-        if (isNaN(res) || isNaN(lim) || lim === 0) return -1;
-        const pct = ((res - lim) / lim) * 100;
-        if (pct >= 100) return 3;
-        if (pct >= 50)  return 2;
-        if (pct >= 20)  return 1;
+        const desvio = calcDesvio(row.resultado, row.limite, row.limitemin);
+        if (!desvio || desvio.pct <= 0) return -1;
+        if (desvio.pct >= 100) return 3;
+        if (desvio.pct >= 50)  return 2;
+        if (desvio.pct >= 20)  return 1;
         return 0;
       },
       renderCell: ({ value }) => {
-        if (value < 0) return <Cell>—</Cell>;
+        if (value < 0) return <Cell><Chip label="Conforme" size="small" color="success" variant="outlined" /></Cell>;
         const sev = [
           { label: 'Baixo',    color: 'success' },
           { label: 'Moderado', color: 'warning' },
@@ -1430,7 +1542,7 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
         return <Cell><Chip label={sev.label} size="small" color={sev.color} variant="outlined" /></Cell>;
       },
     },
-    { field: 'operador1', headerName: 'Operador 1', flex: 1, minWidth: 130,
+    { field: 'operador1', headerName: 'Operador 1', flex: 1.2, minWidth: 140,
       renderCell: ({ row }) => <Cell><Typography variant="body2">{row.operador1 || '—'}</Typography></Cell> },
   ];
 
@@ -1451,6 +1563,7 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
         series={[
           { key: 'Resultado', label: 'Resultado', color: '#ef5350' },
           { key: 'Limite', label: 'Limite', color: '#42a5f5' },
+          ...(chartData.some((d) => 'Limite Mínimo' in d) ? [{ key: 'Limite Mínimo', label: 'Limite Mínimo', color: '#7e57c2' }] : []),
         ]} />
 
       <AddDialog open={open} onClose={() => { setOpen(false); reset(incumpDefaults); }} title="Registar Incumprimento"
@@ -1475,12 +1588,20 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
                 error={!!errors.resultado} helperText={errors.resultado?.message} />
             )} />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          <Grid size={{ xs: 12, sm: isRangeSelected ? 3 : 6 }}>
             <Controller name="limite" control={control} render={({ field }) => (
-              <TextField {...field} label="Limite" type="number" fullWidth inputProps={{ step: 'any' }}
+              <TextField {...field} label={isRangeSelected ? 'Limite Máximo' : 'Limite'} type="number" fullWidth inputProps={{ step: 'any' }}
                 error={!!errors.limite} helperText={errors.limite?.message} />
             )} />
           </Grid>
+          {isRangeSelected && (
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <Controller name="limitemin" control={control} render={({ field }) => (
+                <TextField {...field} label="Limite Mínimo" type="number" fullWidth inputProps={{ step: 'any' }}
+                  error={!!errors.limitemin} helperText={errors.limitemin?.message} />
+              )} />
+            </Grid>
+          )}
           <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="operador1" control={control} render={({ field }) => (
               <TextField {...field} select label="Operador 1 (opcional)" fullWidth>

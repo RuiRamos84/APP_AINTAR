@@ -10,6 +10,7 @@ from functools import wraps
 from .utils import ensure_directories, emit_socket_notification, validate_document_data, sanitize_input
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
+from app.services.notification_service import central_notification_service
 
 logger = get_logger(__name__)
 
@@ -385,7 +386,9 @@ def create_document(data, files, current_user):
                 'nut4': data.get('nut4'),
                 'glat': sanitize_input(data.get('glat'), 'float') if data.get('glat') else None,
                 'glong': sanitize_input(data.get('glong'), 'float') if data.get('glong') else None,
-                'notification': 1,
+                # Fase D da unificação: deixa de se escrever o flag legado —
+                # o destinatário é notificado via tabela central (dual-write acima).
+                'notification': 0,
                 'tt_presentation': tt_presentation
             }
 
@@ -606,7 +609,39 @@ def create_document(data, files, current_user):
                     }
                 }
 
-            emit_socket_notification(notification_data, f"user_{who}")
+            # Destinatários: who (responsável do passo) + criador. Push em tempo
+            # real e persistência central têm de ir para a MESMA lista — antes só
+            # 'who' recebia o push e o criador só via a notificação ao recarregar
+            # o feed (bug encontrado em teste manual: criador não via nada na hora).
+            try:
+                creator_pk = session.execute(
+                    text("SELECT hist_client FROM tb_document WHERE pk = :pk"),
+                    {'pk': pk_result}
+                ).scalar()
+            except Exception as creator_err:
+                logger.warning(f"Falha ao obter criador do documento para notificação: {creator_err}")
+                creator_pk = None
+            recipients = {r for r in (who, creator_pk) if r is not None}
+
+            # Persist-then-emit: a linha central tem de estar COMMITADA antes do
+            # push por socket, senão o cliente recebe o evento, invalida a query
+            # e o refetch chega antes do INSERT — só aparece após reload (bug
+            # encontrado em teste manual). Dual-write é best-effort; se falhar,
+            # ainda assim emitimos o evento legado.
+            try:
+                for recipient_id in recipients:
+                    central_notification_service.add(
+                        ts_client=recipient_id, type_='document', notification_type='criado',
+                        title=notification_data.get('title', 'Novo Pedido'),
+                        message=notification_data.get('message', ''),
+                        route=f"/documents?id={pk_result}",
+                        metadata={'document_id': pk_result},
+                    )
+            except Exception as central_err:
+                logger.warning(f"Falha no dual-write central de notificação de documento: {central_err}")
+
+            for recipient_id in recipients:
+                emit_socket_notification(notification_data, f"user_{recipient_id}")
 
             # Buscar e atualizar parâmetros
             try:
@@ -732,6 +767,13 @@ def update_document_notification(pk, current_user):
             )
             session.execute(update_query, {'pk': pk})
             session.commit()
+
+            # Sincronizar a tabela central (fase C da unificação): o anel
+            # por-item já deriva do feed central.
+            try:
+                central_notification_service.mark_read_by_entity(current_user, 'document', 'document_id', pk)
+            except Exception as e:
+                logger.warning(f"Falha ao sincronizar leitura central de notificação de documento: {str(e)}")
 
             # Limpar cache relacionado
             cache.delete_memoized(list_documents)

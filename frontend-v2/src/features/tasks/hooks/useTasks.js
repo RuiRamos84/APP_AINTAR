@@ -23,6 +23,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTaskStore } from '../store/taskStore';
 import taskService from '../services/taskService';
 import notification from '@/core/services/notification';
+import { NOTIFICATION_KEYS } from '@/core/constants/notificationKeys';
 import {
   TASK_KEYS,
   useTasksQuery,
@@ -206,6 +207,9 @@ export const useTasks = (options = {}) => {
           );
         qc.setQueryData(TASK_KEYS.list, clearNotifications);
         qc.setQueryData(TASK_KEYS.my, clearNotifications);
+        // O badge por-item (TaskCard, ...) deriva do feed central — sem isto,
+        // o badge só desaparecia no próximo refetch natural (até 30s depois).
+        qc.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
       } catch (err) {
         console.error('Erro ao marcar notificação como lida:', err);
       }

@@ -21,6 +21,7 @@ import {
   Business as AssociateIcon,
 } from '@mui/icons-material';
 import { getStatusColor, getStatusLabel, formatDate, getBusinessDaysSince, formatBusinessDays, getDocumentDeadline } from '../../utils/documentUtils';
+import { useSocket } from '@/core/contexts/SocketContext';
 
 /**
  * Card Component for Grid View
@@ -38,6 +39,8 @@ import { getStatusColor, getStatusLabel, formatDate, getBusinessDaysSince, forma
 const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { unreadDocumentIds } = useSocket();
+  const hasUnreadNotification = unreadDocumentIds.has(document.pk);
 
   const rawStatusColor = getStatusColor(document.what);
   const statusColor = rawStatusColor === 'default' ? 'info' : rawStatusColor;
@@ -98,8 +101,9 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
         },
       }}
     >
-      {/* Notification Badge */}
-      {document.notification === 1 && (
+      {/* Notification Badge — deriva do feed central (fase B da unificação),
+          por-utilizador (who do passo atual + criador), não mais global ao documento */}
+      {hasUnreadNotification && (
         <Tooltip title="Nova notificação" arrow>
           <Box sx={{ position: 'absolute', top: -8, right: -8, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Box sx={{

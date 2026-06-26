@@ -30,6 +30,7 @@ import {
   NotificationsOff as MarkReadIcon,
 } from '@mui/icons-material';
 import PropTypes from 'prop-types';
+import { useSocket } from '@/core/contexts/SocketContext';
 
 /**
  * Tipos de ações disponíveis
@@ -59,11 +60,13 @@ export const QuickActionsMenu = ({
   canReopen = false,
 }) => {
   const open = Boolean(anchorEl);
+  const { unreadTaskIds } = useSocket();
 
   if (!task) return null;
 
   const isCompleted = task.status === 'completed' || task.when_stop;
-  const hasNotification = task.notification_owner === 1 || task.notification_client === 1;
+  // Deriva do feed central (fase B da unificação).
+  const hasNotification = unreadTaskIds.has(task.pk || task.id);
 
   const handleAction = (action) => {
     onAction?.(action, task);

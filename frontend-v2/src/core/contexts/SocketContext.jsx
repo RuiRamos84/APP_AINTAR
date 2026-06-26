@@ -38,9 +38,14 @@ import {
 import { useAuth } from './AuthContext';
 import { notification } from '@/core/services/notification/notificationService';
 import apiClient from '@/services/api/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { NOTIFICATION_KEYS } from '@/core/constants/notificationKeys';
 
 const SocketContext = createContext(null);
+
+// Tipos cuja persistência vive na tabela central (após a unificação faseada).
+// Os restantes (payment, system) são só estado local efémero.
+const CENTRAL_TYPES = ['operacao', 'rh', 'task', 'document'];
 
 /**
  * Socket Provider Component
@@ -53,83 +58,93 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Estados de notificações
-  const [notifications, setNotifications] = useState([]);
+  // Estado local: APENAS para tipos sem persistência própria ainda
+  // (document, payment, system). Operação/RH vivem no React Query.
+  const [localNotifications, setNotifications] = useState([]);
 
-  // Calcular unreadCount a partir do array (evita dessincronização)
+  // ========================================================================
+  // FEED CENTRAL (React Query) — operação, RH
+  // ========================================================================
+
+  const { data: centralFeed } = useQuery({
+    queryKey: NOTIFICATION_KEYS.central,
+    queryFn: async () => {
+      const res = await apiClient.get('/notifications/feed', { params: { limit: 50 } });
+      return res?.notifications || [];
+    },
+    enabled: !!user?.user_id,
+    staleTime: 1000 * 30,
+  });
+
+  const centralNotifications = useMemo(
+    () =>
+      (centralFeed || []).map((n) => ({
+        id: n.pk,
+        type: n.type,
+        notification_type: n.notification_type,
+        title: n.title,
+        message: n.message || '',
+        route: n.route,
+        timestamp: n.hist_time,
+        read: !!n.read,
+        priority: 'medium',
+        metadata: n.metadata || {},
+        // Tasks/documentos guardam o id da entidade em metadata; expor a
+        // nível de topo para o NotificationCenter navegar sem saber do shape interno.
+        ...(n.metadata?.task_id != null && { taskId: n.metadata.task_id }),
+        ...(n.metadata?.document_id != null && { documentId: n.metadata.document_id }),
+      })),
+    [centralFeed]
+  );
+
+  // Notificações expostas ao resto da app: central (RQ) + locais (estado efémero)
+  const notifications = useMemo(
+    () =>
+      [...centralNotifications, ...localNotifications].sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      ),
+    [centralNotifications, localNotifications]
+  );
+
+  // Calcular unreadCount a partir da lista combinada (evita dessincronização)
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+
+  // Seletores por-entidade (fase B da unificação): badges por-item (TaskCard,
+  // DocumentCard, ...) derivam destes Sets em vez de flags legados
+  // (tb_task.notification_*, tb_document.notification). A fonte é o próprio
+  // feed central já em memória — sem pedidos extra à BD.
+  const unreadTaskIds = useMemo(() => {
+    const ids = new Set();
+    for (const n of centralNotifications) {
+      if (n.type === 'task' && !n.read && n.metadata?.task_id != null) {
+        ids.add(n.metadata.task_id);
+      }
+    }
+    return ids;
+  }, [centralNotifications]);
+
+  const unreadDocumentIds = useMemo(() => {
+    const ids = new Set();
+    for (const n of centralNotifications) {
+      if (n.type === 'document' && !n.read && n.metadata?.document_id != null) {
+        ids.add(n.metadata.document_id);
+      }
+    }
+    return ids;
+  }, [centralNotifications]);
+
+  const markCentralReadMutation = useMutation({
+    mutationFn: (pk) => apiClient.put(`/notifications/${pk}/read`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central }),
+  });
+
+  const markAllCentralReadMutation = useMutation({
+    mutationFn: () => apiClient.put('/notifications/read-all'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central }),
+  });
 
   // Refs para controlo
   const audioRef = useRef(null);
-  const hasLoadedFromStorageRef = useRef(false);
-
-  // ========================================================================
-  // ARMAZENAMENTO PERSISTENTE
-  // ========================================================================
-
-  /**
-   * Carregar notificações do localStorage
-   */
-  const loadFromStorage = useCallback(() => {
-    if (hasLoadedFromStorageRef.current) return;
-
-    const userId = user?.user_id;
-    if (!userId) return;
-
-    const key = `socket_notifications_${userId}`;
-
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.notifications && Array.isArray(parsed.notifications)) {
-          setNotifications(parsed.notifications);
-          // unreadCount é calculado automaticamente via useMemo
-          hasLoadedFromStorageRef.current = true;
-        }
-      }
-    } catch (error) {
-      console.error('[SocketContext] Error loading from storage:', error);
-    }
-  }, [user?.user_id]);
-
-  /**
-   * Salvar notificações no localStorage
-   */
-  const saveToStorage = useCallback(
-    (notifs, count) => {
-      const userId = user?.user_id;
-      if (!userId) return;
-
-      const key = `socket_notifications_${userId}`;
-      const data = {
-        notifications: notifs,
-        unreadCount: count,
-        timestamp: Date.now(),
-      };
-
-      try {
-        localStorage.setItem(key, JSON.stringify(data));
-      } catch (error) {
-        console.error('[SocketContext] Error saving to storage:', error);
-      }
-    },
-    [user?.user_id]
-  );
-
-  // Carregar do storage quando utilizador muda
-  useEffect(() => {
-    if (user?.user_id) {
-      loadFromStorage();
-    }
-  }, [user?.user_id, loadFromStorage]);
-
-  // Salvar automaticamente quando notificações mudam
-  useEffect(() => {
-    if (hasLoadedFromStorageRef.current && notifications.length > 0) {
-      saveToStorage(notifications, unreadCount);
-    }
-  }, [notifications, unreadCount, saveToStorage]);
 
   // Atualizar título da aba com contador
   useEffect(() => {
@@ -186,6 +201,20 @@ export const SocketProvider = ({ children }) => {
    */
   const handleNewNotification = useCallback(
     (data, showToast = true) => {
+      // Documentos já são persistidos na tabela central pelo backend (dual-write,
+      // fase A). Não duplicar em estado local — só toast/som + invalidar o feed,
+      // tal como já acontece para operação/RH.
+      if (data.type === 'document') {
+        if (showToast) {
+          playNotificationSound();
+          notification.info(`${data.title || 'Novo Pedido'}: ${data.message || ''}`, {
+            duration: 5000,
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
+        return;
+      }
+
       const notificationId = data.notification_id || generateNotificationId();
       const taskId = data.taskId || data.task_id;
 
@@ -219,6 +248,7 @@ export const SocketProvider = ({ children }) => {
           // Campos específicos por tipo
           ...(data.documentId && { documentId: data.documentId }),
           ...(data.taskId && { taskId: data.taskId }),
+          ...(data.route && { route: data.route }),
         };
 
         // Som e toast (apenas se showToast for true)
@@ -233,7 +263,7 @@ export const SocketProvider = ({ children }) => {
         return [newNotification, ...prev.slice(0, 99)]; // Manter só 100 notificações
       });
     },
-    [generateNotificationId, playNotificationSound]
+    [generateNotificationId, playNotificationSound, queryClient]
   );
 
   /**
@@ -282,20 +312,28 @@ export const SocketProvider = ({ children }) => {
       // Atualizar referência
       lastTaskNotificationRef.current = { taskId, timestamp: now };
 
-      const notif = {
-        ...data,
-        type: 'task',
-        title: data.title || 'Atualização de Tarefa',
-        message: data.message || `Tarefa ${data.taskName || 'N/D'} foi atualizada`,
-        priority: data.priority || 'medium',
-        taskId,
-      };
-
-      // Não mostrar toast para notificações de tarefas
-      // O refresh em tempo real é gerido pelo hook useTaskSocket (subscreve diretamente ao evento)
-      handleNewNotification(notif, false);
+      // Tarefas já são persistidas na tabela central pelo backend (dual-write,
+      // fase A). Não duplicar em estado local — só invalidar o feed, para o
+      // badge por-item (derivado do feed) e o sino atualizarem.
+      // Sem toast, tal como já era o comportamento anterior.
+      queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
     },
-    [handleNewNotification]
+    [queryClient]
+  );
+
+  /**
+   * Notificações de Operação/RH são persistidas na BD pelo backend antes
+   * de o evento chegar (ver Fase 1). Aqui não tocamos no estado local —
+   * apenas mostramos o toast imediato e invalidamos o feed central do
+   * React Query, que é a fonte de verdade para estes dois tipos.
+   */
+  const notifyAndRefreshCentral = useCallback(
+    (title, message) => {
+      playNotificationSound();
+      notification.info(`${title}: ${message}`, { duration: 5000 });
+      queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
+    },
+    [playNotificationSound, queryClient]
   );
 
   /**
@@ -305,17 +343,9 @@ export const SocketProvider = ({ children }) => {
    */
   const handleRhNotification = useCallback(
     (data) => {
-      const notif = {
-        ...data,
-        type: 'rh',
-        title: data.title || 'Recursos Humanos',
-        message: data.message || '',
-        priority: data.priority || 'medium',
-        route: data.route || '/rh/pessoal/faltas',
-      };
-      handleNewNotification(notif, true);
+      notifyAndRefreshCentral(data.title || 'Recursos Humanos', data.message || '');
     },
-    [handleNewNotification]
+    [notifyAndRefreshCentral]
   );
 
   /**
@@ -327,40 +357,27 @@ export const SocketProvider = ({ children }) => {
   const handleOperacaoNotification = useCallback(
     (data) => {
       const notifTypeMap = {
-        nova_tarefa: { title: 'Nova tarefa atribuída', priority: 'high' },
-        tarefa_executada: { title: 'Tarefa executada', priority: 'high' },
-        tarefa_validada: { title: 'Tarefa validada', priority: 'medium' },
+        nova_tarefa: 'Nova tarefa atribuída',
+        tarefa_executada: 'Tarefa executada',
+        tarefa_validada: 'Tarefa validada',
       };
-      const meta = notifTypeMap[data.notification_type] || { title: data.title || 'Operação', priority: 'medium' };
-
-      const notif = {
-        ...data,
-        type: 'operacao',
-        title: data.title || meta.title,
-        message: data.message || '',
-        priority: meta.priority,
-        meta_pk: data.meta_pk,
-        operacao_pk: data.operacao_pk,
-        route: data.route || '/operation/supervisor',
-      };
-
-      handleNewNotification(notif, true);
+      const title = data.title || notifTypeMap[data.notification_type] || 'Operação';
+      notifyAndRefreshCentral(title, data.message || '');
     },
-    [handleNewNotification]
+    [notifyAndRefreshCentral]
   );
 
   /**
    * Handler para confirmação de leitura de tarefa vinda de outro ecrã
-   * (ex: tarefa aberta diretamente, não pelo sino). Sincroniza o estado
-   * `read` local para a notificação não ficar presa como não lida.
+   * (ex: tarefa aberta diretamente, não pelo sino, ou noutro separador).
+   * Tarefas vivem agora na tabela central — invalidar o feed garante que o
+   * badge por-item (derivado dele) e o sino refletem o estado lido.
    */
   const handleTaskNotificationsUpdated = useCallback((data) => {
-    const { taskId, read } = data;
+    const { taskId } = data;
     if (taskId == null) return;
-    setNotifications((prev) =>
-      prev.map((n) => (n.taskId === taskId ? { ...n, read } : n))
-    );
-  }, []);
+    queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
+  }, [queryClient]);
 
   // ========================================================================
   // ACTIONS
@@ -368,20 +385,17 @@ export const SocketProvider = ({ children }) => {
 
   /**
    * Marcar notificação como lida.
-   * Para notificações de tarefas, também persiste no backend via REST.
+   * Tipos centrais (operação/RH/tarefa/documento): a tabela central é dona do
+   * estado — a mutação invalida o React Query, que reflete o `read` da BD.
    */
   const markAsRead = useCallback(
     (notificationId) => {
-      // Encontrar antes de actualizar estado para aceder ao taskId
       const notif = notifications.find((n) => n.id === notificationId);
+      if (!notif) return;
 
-      // Persistir no backend para notificações de tarefas
-      if (notif?.taskId) {
-        apiClient
-          .put(`/tasks/${notif.taskId}/notification`)
-          .catch((err) =>
-            console.error('[SocketContext] Erro ao marcar tarefa como lida:', err)
-          );
+      if (CENTRAL_TYPES.includes(notif.type)) {
+        markCentralReadMutation.mutate(notif.id);
+        return;
       }
 
       setNotifications((prev) =>
@@ -394,29 +408,19 @@ export const SocketProvider = ({ children }) => {
         userId: user?.user_id,
       });
     },
-    [notifications, user?.user_id]
+    [notifications, user?.user_id, markCentralReadMutation]
   );
 
   /**
    * Marcar todas como lidas.
-   * Para notificações de tarefas, persiste no backend via REST em batch.
+   * Uma única chamada marca tudo na tabela central (operação/RH/tarefa/documento).
    */
   const markAllAsRead = useCallback(() => {
     const unread = notifications.filter((n) => !n.read);
     const unreadIds = unread.map((n) => n.id);
 
-    // Persistir no backend as notificações de tarefas não lidas
-    const taskUnread = unread.filter((n) => n.taskId);
-    if (taskUnread.length > 0) {
-      Promise.all(
-        taskUnread.map((n) =>
-          apiClient
-            .put(`/tasks/${n.taskId}/notification`)
-            .catch((err) =>
-              console.error(`[SocketContext] Erro ao marcar tarefa ${n.taskId} como lida:`, err)
-            )
-        )
-      );
+    if (unread.some((n) => CENTRAL_TYPES.includes(n.type))) {
+      markAllCentralReadMutation.mutate();
     }
 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -430,7 +434,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     notification.success(`${unreadIds.length} notificações marcadas como lidas`);
-  }, [notifications, user?.user_id]);
+  }, [notifications, user?.user_id, markAllCentralReadMutation]);
 
   /**
    * Limpar notificações antigas (mais de 7 dias)
@@ -440,68 +444,6 @@ export const SocketProvider = ({ children }) => {
 
     setNotifications((prev) => prev.filter((n) => new Date(n.timestamp).getTime() > weekAgo));
   }, []);
-
-  /**
-   * Carregar notificações de tarefas pendentes da base de dados (recuperação offline).
-   * Chamado ao montar o contexto quando o utilizador está autenticado.
-   * Filtra tarefas com notification_owner=1 (owner) ou notification_client=1 (client).
-   */
-  const loadOfflineTaskNotifications = useCallback(async () => {
-    if (!user?.user_id) return;
-
-    try {
-      const response = await apiClient.get('/tasks');
-      const tasks = response?.tasks || [];
-
-      const tasksWithNotifs = tasks.filter(
-        (task) =>
-          (task.owner === user.user_id && task.notification_owner === 1) ||
-          (task.ts_client === user.user_id && task.notification_client === 1)
-      );
-
-      if (tasksWithNotifs.length === 0) return;
-
-      const offlineNotifications = tasksWithNotifs.map((task) => ({
-        id: `offline_task_${task.pk}`,
-        type: 'task',
-        title: 'Nota não lida',
-        message: `Tarefa "${task.name}" tem atualizações não lidas`,
-        timestamp: task.when_start || new Date().toISOString(),
-        read: false,
-        priority: 'medium',
-        taskId: task.pk,
-        taskName: task.name,
-        metadata: { offline: true },
-      }));
-
-      // Merge evitando duplicados por taskId
-      setNotifications((prev) => {
-        const existingTaskIds = new Set(
-          prev.filter((n) => n.taskId).map((n) => n.taskId)
-        );
-        const newOnes = offlineNotifications.filter(
-          (n) => !existingTaskIds.has(n.taskId)
-        );
-        if (newOnes.length === 0) return prev;
-        return [...newOnes, ...prev];
-      });
-    } catch (error) {
-      const isAuthError =
-        error?.response?.status === 401 ||
-        error?.message?.includes('refresh token') ||
-        error?.message?.includes('No refresh token');
-      if (!isAuthError) {
-        console.error('[SocketContext] Erro ao carregar notificações offline de tarefas:', error);
-      }
-    }
-  }, [user?.user_id]);
-
-  // Recuperar notificações offline de tarefas ao autenticar
-  useEffect(() => {
-    if (user?.user_id) {
-      loadOfflineTaskNotifications();
-    }
-  }, [user?.user_id, loadOfflineTaskNotifications]);
 
   /**
    * Emitir evento customizado
@@ -639,6 +581,10 @@ export const SocketProvider = ({ children }) => {
     markAsRead,
     markAllAsRead,
     clearOldNotifications,
+
+    // Seletores por-entidade para badges por-item (TaskCard, DocumentCard, ...)
+    unreadTaskIds,
+    unreadDocumentIds,
 
     // Helpers
     playNotificationSound,

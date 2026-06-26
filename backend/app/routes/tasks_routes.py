@@ -14,6 +14,7 @@ from ..services.tasks_service import (
     update_task_note_notification,
     bulk_task_action_service,
 )
+from ..services.notification_service import central_notification_service
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
@@ -380,3 +381,87 @@ def get_notifications():
     with db_session_manager(current_user):
         count = get_notification_count(current_user, user_id)
         return {"count": count}
+
+
+@bp.route('/notifications/feed', methods=['GET'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def get_notifications_feed():
+    """
+    Feed de Notificações Centrais
+    ---
+    tags:
+      - Notificações
+    summary: Lista as notificações persistidas (operação, RH, ...) do utilizador autenticado.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        type: integer
+        required: false
+      - name: offset
+        in: query
+        type: integer
+        required: false
+    responses:
+      200:
+        description: Lista de notificações e contagem de não lidas.
+    """
+    current_user = get_jwt_identity()
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    notifications = central_notification_service.get_feed(current_user, limit=limit, offset=offset)
+    unread_count = central_notification_service.get_unread_count(current_user)
+    return jsonify({'notifications': notifications, 'unread_count': unread_count})
+
+
+@bp.route('/notifications/<int:pk>/read', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def mark_notification_feed_read(pk):
+    """
+    Marcar Notificação Central como Lida
+    ---
+    tags:
+      - Notificações
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Notificação marcada como lida.
+    """
+    current_user = get_jwt_identity()
+    central_notification_service.mark_read(pk, current_user)
+    return jsonify({'message': 'Notificação marcada como lida'})
+
+
+@bp.route('/notifications/read-all', methods=['PUT'])
+@jwt_required()
+@token_required
+@set_session
+@api_error_handler
+def mark_all_notifications_feed_read():
+    """
+    Marcar Todas as Notificações Centrais como Lidas
+    ---
+    tags:
+      - Notificações
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Todas as notificações do utilizador marcadas como lidas.
+    """
+    current_user = get_jwt_identity()
+    central_notification_service.mark_all_read(current_user)
+    return jsonify({'message': 'Notificações marcadas como lidas'})

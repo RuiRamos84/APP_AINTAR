@@ -11,6 +11,7 @@ import { useDocuments } from '../../hooks/useDocuments';
 import { useDocumentsStore } from '../../store/documentsStore';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
+import { useSocket } from '@/core/contexts/SocketContext';
 
 /**
  * Statistics Dashboard for Documents
@@ -20,6 +21,7 @@ const DocumentStats = () => {
   const { activeTab, setActiveTab } = useDocumentsStore();
   const { user } = useAuth();
   const { hasPermission } = usePermissionContext();
+  const { unreadDocumentIds } = useSocket();
 
   // Perfis restritos (município) usam endpoint filtrado por associado
   const isRestrictedProfile = user ? String(user.profil ?? '') !== '0' && String(user.profil ?? '') !== '1' : null;
@@ -42,9 +44,10 @@ const DocumentStats = () => {
   const createdDocsArr = Array.isArray(createdDocs) ? createdDocs : (createdDocs?.results ?? []);
   const lateDocsArr = Array.isArray(lateDocs) ? lateDocs : (lateDocs?.results ?? []);
 
+  // Deriva do feed central (fase B), por-utilizador
   const notificationCount = useMemo(
-    () => assignedDocsArr.filter((doc) => doc.notification === 1).length,
-    [assignedDocsArr]
+    () => assignedDocsArr.filter((doc) => unreadDocumentIds.has(doc.pk)).length,
+    [assignedDocsArr, unreadDocumentIds]
   );
 
   const stats = [

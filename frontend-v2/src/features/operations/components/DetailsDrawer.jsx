@@ -12,6 +12,8 @@ import {
     useTheme,
     alpha,
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { operationService } from '../services/operationService';
 import {
     Close as CloseIcon,
     CheckCircle,
@@ -50,6 +52,13 @@ const DetailsDrawer = ({
     onComplete,
 }) => {
     const theme = useTheme();
+
+    const { data: extraParams = [] } = useQuery({
+        queryKey: ['operacaoParams', item?.pk],
+        queryFn: () => operationService.getOperacaoParams(item.pk),
+        enabled: open && !!item?.pk,
+        staleTime: 1000 * 30,
+    });
 
     if (!item) return null;
 
@@ -308,6 +317,35 @@ const DetailsDrawer = ({
                                 variant="outlined"
                             />
                         </Box>
+                    )}
+
+                    {/* Parâmetros */}
+                    {extraParams.length > 0 && (
+                        <>
+                            <Divider />
+                            <Box>
+                                <Typography variant="subtitle2" gutterBottom color="text.secondary">
+                                    Parâmetros
+                                </Typography>
+                                <Stack spacing={1}>
+                                    {extraParams.map((p) => {
+                                        const hasValue = p.value !== null && p.value !== undefined && p.value !== '';
+                                        let displayValue = hasValue ? p.value : '—';
+                                        if (hasValue && p.type === 4) displayValue = p.value === '1' ? 'Sim' : 'Não';
+                                        return (
+                                            <Stack key={p.pk} direction="row" justifyContent="space-between" alignItems="baseline" spacing={1}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {p.name}{p.units ? ` (${p.units})` : ''}
+                                                </Typography>
+                                                <Typography variant="body2" fontWeight={500} sx={{ textAlign: 'right' }}>
+                                                    {displayValue}
+                                                </Typography>
+                                            </Stack>
+                                        );
+                                    })}
+                                </Stack>
+                            </Box>
+                        </>
                     )}
 
                     {/* Anexos */}

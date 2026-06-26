@@ -9,6 +9,7 @@ from functools import wraps
 from app import cache
 from .utils import emit_socket_notification, sanitize_input
 from app.utils.logger import get_logger
+from app.services.notification_service import central_notification_service
 
 logger = get_logger(__name__)
 
@@ -228,6 +229,20 @@ def add_document_step(data, pk, current_user):
                             }
                         }
                     }
+
+                # Persist-then-emit (vd. core.py): a linha central tem de estar
+                # commitada antes do push por socket, senão o refetch do
+                # cliente chega antes do INSERT e só aparece após reload.
+                try:
+                    central_notification_service.add(
+                        ts_client=who, type_='document', notification_type='step',
+                        title=notification_data.get('title', 'Pedido Atualizado'),
+                        message=notification_data.get('message', ''),
+                        route=f"/documents?id={tb_document}",
+                        metadata={'document_id': tb_document},
+                    )
+                except Exception as central_err:
+                    logger.warning(f"Falha no dual-write central de notificação de passo: {central_err}")
 
                 emit_socket_notification(notification_data, f"user_{who}")
 

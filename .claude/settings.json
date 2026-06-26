@@ -34,7 +34,41 @@
       "Bash(mkdir -p \"/c/Users/rui.ramos/Documents/Obsidian Vault/04 - Manual de Utilizador\")",
       "Bash(mkdir -p \"/c/Users/rui.ramos/Documents/Obsidian Vault/08 - Backlog & Roadmap\")",
       "Bash(mkdir -p \"/c/Users/rui.ramos/Documents/Obsidian Vault/09 - Configuração Local\")",
-      "Bash(mkdir -p \"/c/Users/rui.ramos/Documents/Obsidian Vault/10 - API Reference\")"
+      "Bash(mkdir -p \"/c/Users/rui.ramos/Documents/Obsidian Vault/10 - API Reference\")",
+      "Bash(./venv/Scripts/python.exe -m py_compile app/services/rh_service.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile app/scheduler.py app/services/rh_service.py)",
+      "Bash(./venv/Scripts/python.exe -c ' *)",
+      "Bash(python \"/c/Users/RUI~1.RAM/AppData/Local/Temp/claude/c--Users-rui-ramos-Desktop-APP/85943cc4-eba0-4c12-8e8b-2da376026f9d/scratchpad/db_show_def.py\")",
+      "Bash(cat > *)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/tasks/components/TaskCard.jsx src/features/tasks/components/TaskHistoryTab.jsx src/features/tasks/components/TaskModal.jsx --format unix)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/tasks/components/TaskCard.jsx src/features/tasks/components/TaskHistoryTab.jsx src/features/tasks/components/TaskModal.jsx)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/tasks/components/TaskHistoryTab.jsx)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/tasks/components/QuickActionsMenu.jsx src/features/documents/pages/DocumentsPage.jsx)",
+      "Bash(./node_modules/.bin/eslint.cmd src/core/contexts/SocketContext.jsx src/features/documents/components/card/DocumentCard.jsx)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/documents/utils/documentUtils.js src/features/documents/pages/DocumentsPage.jsx src/features/documents/components/list/DocumentList.jsx src/features/documents/components/list/DocumentGroupedList.jsx src/features/documents/components/stats/DocumentStats.jsx)",
+      "Bash(rtk curl *)",
+      "Bash(./venv/Scripts/python.exe run_waitress.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile app/services/documents/core.py app/services/notification_service.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile app/services/documents/core.py app/services/documents/workflow.py)",
+      "Bash(./node_modules/.bin/eslint.cmd src/core/config/moduleConfig.js src/core/contexts/SocketContext.jsx src/features/documents/hooks/useDocuments.js src/features/documents/pages/DocumentsPage.jsx src/features/tasks/hooks/useTasks.js src/shared/components/layout/NotificationCenter.jsx)",
+      "Bash(./node_modules/.bin/eslint.cmd src/core/contexts/SocketContext.jsx src/features/documents/hooks/useDocuments.js src/features/tasks/hooks/useTasks.js src/core/constants/notificationKeys.js)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/tasks/hooks/useTasks.js)",
+      "Bash(./venv/Scripts/python.exe -m py_compile app/services/documents/core.py app/services/documents/workflow.py app/services/notification_service.py)",
+      "Bash(./node_modules/.bin/eslint.cmd src/services/websocket/socketService.js)",
+      "Bash(awk '/filteredActions/{print NR\": \"$0}' src/features/operations/components/DirectTaskForm.jsx)",
+      "Bash(awk '/Select|MenuItem/{print NR\": \"$0}' src/features/operations/components/DirectTaskForm.jsx)",
+      "Bash(awk '/tt_operacaoaccao.*Select|<Select/{print NR\": \"$0}' src/features/operations/components/ProgressiveTaskFormV2.jsx)",
+      "Bash(rtk grep *)",
+      "Bash(grep -rln \"SimpleTaskForm\" src/)",
+      "Bash(grep -rln \"ProgressiveTaskFormV2\" src/)",
+      "Bash(./node_modules/.bin/eslint.cmd src/features/operations/components/DirectTaskForm.jsx)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=30536\")",
+      "PowerShell(Stop-Process -Id 30536 -Force)",
+      "PowerShell(Get-Process -Id 30536 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\")",
+      "PowerShell(Get-Process -Id 55056 -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 55056,48980 -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process python -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp",
@@ -52,7 +86,8 @@
       "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault\\08 - Backlog & Roadmap",
       "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault\\09 - Configuração Local",
       "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault\\10 - API Reference",
-      "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault"
+      "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault",
+      "C:\\Users\\RUI~1.RAM\\AppData\\Local\\Temp\\claude\\c--Users-rui-ramos-Desktop-APP\\85943cc4-eba0-4c12-8e8b-2da376026f9d\\scratchpad"
     ]
   }
 }

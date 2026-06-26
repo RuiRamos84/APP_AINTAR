@@ -21,7 +21,8 @@ class EtarUpdate(BaseModel):
     ener_entidade: Optional[int] = None
     ener_cpe: Optional[str] = None
     ener_potencia: Optional[float] = None
-    ener_val: Optional[int] = None
+    tt_instalacaoautocontrolo: Optional[int] = None
+    memo: Optional[str] = None
 
 
 class EeUpdate(BaseModel):
@@ -100,11 +101,14 @@ def update_etar_details(pk: int, data: dict, current_user: str):
                     :ener_entidade,
                     :ener_cpe,
                     :ener_potencia,
-                    :ener_val
+                    :tt_instalacaoautocontrolo,
+                    :file_operacao,
+                    :memo
                 )
             """)
         params = update_data.model_dump()
         params['pk'] = pk
+        params['file_operacao'] = None
         result = session.execute(query, params).scalar()
         return {'message': 'ETAR actualizada com sucesso', 'pk': result}, 200
 
@@ -640,6 +644,7 @@ def create_instalacao_incumprimento(data: dict, current_user: str):
                 :pntt_analiseparam,
                 :pnresultado,
                 :pnlimite,
+                :pnlimitemin,
                 :pndata,
                 :pnoperador1,
                 :pnoperador2
@@ -651,6 +656,7 @@ def create_instalacao_incumprimento(data: dict, current_user: str):
             'pntt_analiseparam': data.get('tt_analiseparam'),
             'pnresultado': data.get('resultado'),
             'pnlimite': data.get('limite'),
+            'pnlimitemin': data.get('limitemin'),
             'pndata': data.get('data_incump') or data.get('data'),
             'pnoperador1': data.get('operador1'),
             'pnoperador2': data.get('operador2')

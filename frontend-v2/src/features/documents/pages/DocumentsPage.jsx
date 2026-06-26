@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient, useIsFetching } from '@tanstack/react-query';
 import DocumentsLayout from './DocumentsLayout';
 import DocumentList from '../components/list/DocumentList';
@@ -12,6 +13,7 @@ import LateDocumentsAlert from '../components/alerts/LateDocumentsAlert';
 import { exportDocumentsToExcel } from '../utils/excelExport';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { useSocket } from '@/core/contexts/SocketContext';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import KeyboardShortcutsHelp from '../components/keyboard/KeyboardShortcutsHelp';
@@ -27,6 +29,7 @@ const DocumentDetailsModal = lazy(() => import('../components/details/DocumentDe
  */
 const DocumentsPage = () => {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isRefreshing = useIsFetching({ queryKey: ['documents'] }) > 0;
   const {
     activeTab,
@@ -40,6 +43,7 @@ const DocumentsPage = () => {
 
   const { data: metaData } = useMetaData();
   const { user } = useAuth();
+  const { unreadDocumentIds } = useSocket();
   const { hasPermission } = usePermissionContext();
 
   // Perfis 0 (super admin) e 1 (admin) vêem todos os pedidos.
@@ -82,8 +86,8 @@ const DocumentsPage = () => {
 
   // 1. Filtros estruturados (dropdowns + datas)
   const structurallyFiltered = useMemo(
-    () => filterDocuments(documents, filters, dateRange),
-    [documents, filters, dateRange]
+    () => filterDocuments(documents, filters, dateRange, unreadDocumentIds),
+    [documents, filters, dateRange, unreadDocumentIds]
   );
 
   // 2. Pesquisa de texto — dinâmica em todos os campos (useDeferredValue incluído no hook)
@@ -104,7 +108,9 @@ const DocumentsPage = () => {
   const handleCloseCreate = () => setIsCreateOpen(false);
 
   const handleViewDetails = (doc) => {
-     if (doc.notification === 1 || doc.notification === true) {
+     // Deriva do feed central (fase B): por-utilizador (who + criador),
+     // já não global ao documento.
+     if (unreadDocumentIds.has(doc.pk)) {
         clearNotificationMutation.mutate(doc.pk);
      }
      setSelectedDocument(doc);
@@ -113,6 +119,20 @@ const DocumentsPage = () => {
   const handleCloseDetails = () => {
     setSelectedDocument(null);
   };
+
+  // Abrir modal se id estiver na URL (vindo de notificação) — limpa a
+  // notificação tal como acontece ao abrir a partir da lista (handleViewDetails).
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id && documents?.length) {
+      const doc = documents.find((d) => String(d.pk) === id);
+      if (doc) {
+        handleViewDetails(doc);
+        setSearchParams({}, { replace: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, documents]);
 
   const handleActionSuccess = () => {
     setSelectedDocument(null);

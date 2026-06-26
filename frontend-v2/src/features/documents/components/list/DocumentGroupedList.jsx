@@ -12,6 +12,7 @@ import { NotificationsActive as NotifIcon } from '@mui/icons-material';
 import DocumentList from './DocumentList';
 import DocumentGrid from '../card/DocumentGrid';
 import { getStatusColor, getStatusLabel } from '../../utils/documentUtils';
+import { useSocket } from '@/core/contexts/SocketContext';
 
 /**
  * Grouped list of documents by status (what), shown as tabs.
@@ -20,8 +21,10 @@ import { getStatusColor, getStatusLabel } from '../../utils/documentUtils';
 const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData, viewMode = 'list' }) => {
   const theme = useTheme();
   const [selectedStatus, setSelectedStatus] = useState(null); // null = first group
+  const { unreadDocumentIds } = useSocket();
 
   // Build ordered groups: notifications first, then by status code
+  // Notificação deriva do feed central (fase B), por-utilizador
   const groups = useMemo(() => {
     if (!documents?.length) return [];
     const map = {};
@@ -31,12 +34,12 @@ const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData, view
       map[key].docs.push(doc);
     });
     return Object.values(map).sort((a, b) => {
-      const aNotif = a.docs.some((d) => d.notification === 1) ? 1 : 0;
-      const bNotif = b.docs.some((d) => d.notification === 1) ? 1 : 0;
+      const aNotif = a.docs.some((d) => unreadDocumentIds.has(d.pk)) ? 1 : 0;
+      const bNotif = b.docs.some((d) => unreadDocumentIds.has(d.pk)) ? 1 : 0;
       if (aNotif !== bNotif) return bNotif - aNotif;
       return Number(a.statusId) - Number(b.statusId);
     });
-  }, [documents]);
+  }, [documents, unreadDocumentIds]);
 
   // Active tab key — default to first group
   const activeKey = selectedStatus ?? (groups[0] ? String(groups[0].statusId) : null);
@@ -89,7 +92,7 @@ const DocumentGroupedList = ({ documents, loading, onViewDetails, metaData, view
             const key = String(statusId);
             const label = getStatusLabel(statusId, metaData);
             const color = getStatusColor(statusId);
-            const notifCount = docs.filter((d) => d.notification === 1).length;
+            const notifCount = docs.filter((d) => unreadDocumentIds.has(d.pk)).length;
             const muiColor = MUI_COLORS.includes(color) ? color : 'default';
 
             return (

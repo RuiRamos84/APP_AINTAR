@@ -118,7 +118,7 @@ export const formatDate = (dateStr) => {
  * Filtros estruturados (dropdowns + intervalo de datas).
  * Pesquisa de texto é gerida separadamente por useSearch (@shared/hooks/useSearch).
  */
-export const filterDocuments = (documents, filters, dateRange) => {
+export const filterDocuments = (documents, filters, dateRange, unreadDocumentIds = null) => {
     if (!documents || !Array.isArray(documents)) return [];
 
     return documents.filter(doc => {
@@ -137,9 +137,9 @@ export const filterDocuments = (documents, filters, dateRange) => {
             if (String(doc.tt_type || '') !== String(filters.type)) return false;
         }
 
-        // Notification Filter
+        // Notification Filter — deriva do feed central (fase B), por-utilizador
         if (filters.notification !== '' && filters.notification != null) {
-            const hasNotification = Number(doc.notification) > 0;
+            const hasNotification = unreadDocumentIds?.has(doc.pk) ?? false;
             if (filters.notification === '1' && !hasNotification) return false;
             if (filters.notification === '0' && hasNotification) return false;
         }

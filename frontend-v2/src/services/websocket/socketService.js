@@ -349,41 +349,31 @@ export const reconnectSocket = () => {
   return connectSocket(user?.user_id);
 };
 
-// Event names constants (para evitar typos)
+// Event names constants (para evitar typos).
+// Auditoria cruzada feita: removidas as constantes sem nenhum emit/listener
+// correspondente em frontend-v2 (CONNECT_ERROR, NOTIFICATION_UPDATE,
+// NOTIFICATION_COUNT, NOTIFICATIONS_CLEARED, DOCUMENT_UPDATE, TASK_NOTIFICATIONS,
+// TASK_UPDATE, SYSTEM_MESSAGE, USER_STATUS_CHANGE, LEAVE, GET_NOTIFICATIONS,
+// GET_TASK_NOTIFICATIONS) — eram vestígios do sistema de notificação legado de
+// documento único, ou de um fluxo de polling nunca adotado neste frontend.
 export const SOCKET_EVENTS = {
   // Connection
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',
-  CONNECT_ERROR: 'connect_error',
 
   // Notifications
   NEW_NOTIFICATION: 'new_notification',
-  NOTIFICATION_UPDATE: 'notification_update',
-  NOTIFICATION_COUNT: 'notification_count',
-  NOTIFICATIONS_CLEARED: 'notifications_cleared',
-
-  // Documents
-  DOCUMENT_UPDATE: 'document_update',
 
   // Payments
   PAYMENT_STATUS_UPDATE: 'payment_status_update',
 
   // Tasks
   TASK_NOTIFICATION: 'task_notification',
-  TASK_NOTIFICATIONS: 'task_notifications',
-  TASK_UPDATE: 'task_update',
-
-  // System
-  SYSTEM_MESSAGE: 'system_message',
-  USER_STATUS_CHANGE: 'user_status_change',
 
   // Actions
   JOIN: 'join',
-  LEAVE: 'leave',
   MARK_NOTIFICATION_READ: 'mark_notification_read',
   MARK_ALL_NOTIFICATIONS_READ: 'mark_all_notifications_read',
-  GET_NOTIFICATIONS: 'get_notifications',
-  GET_TASK_NOTIFICATIONS: 'get_task_notifications',
 };
 
 export default {

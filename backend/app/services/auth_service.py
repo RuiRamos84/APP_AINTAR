@@ -41,45 +41,6 @@ def _remove_active_user(user_id) -> None:
     cache.set(ACTIVE_USERS_CACHE_KEY, list(users), timeout=86400)
 
 
-# Define a função para criar um token de acesso
-def fsf_client_notificationget():
-    try:
-        with db_session_manager() as session:
-            result = session.execute(text("SELECT * FROM vsl_client$self"))
-            row = result.fetchone()
-            return row.notification if row else None
-    except Exception as e:
-        logger.error(f"Erro ao obter notificação: {str(e)}")
-        return {'erro': f"Erro ao obter notificação: {str(e)}"}, 500
-
-
-def fsf_client_notificationadd(user_id):
-    try:
-        with db_session_manager() as session:
-            result = session.execute(
-                text("SELECT fsf_client_notificationadd(:user_id)"),
-                {"user_id": user_id}
-            )
-            s = result.fetchone()[0]
-            return format_message(s)
-    except Exception as e:
-        logger.error(f"Erro ao adicionar notificação: {str(e)}")
-        return f"Erro ao adicionar notificação: {str(e)}"
-
-
-def fsf_client_notificationclean(user_id):
-    try:
-        with db_session_manager() as session:
-            result = session.execute(
-                text("SELECT fsf_client_notificationclean(:user_id)"),
-                {"user_id": user_id},
-            )
-            s = result.fetchone()[0]
-            return format_message(s)
-    except Exception as e:
-        return f"Erro ao deletar notificação: {str(e)}"
-
-
 def fsf_client_darkmodeclean(user_id, current_user):
     try:
         with db_session_manager(current_user) as session:

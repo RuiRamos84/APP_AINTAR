@@ -41,7 +41,7 @@ import {
 import notification from '@/core/services/notification';
 import PropTypes from 'prop-types';
 
-import { useAuth } from '@/core/contexts/AuthContext';
+import { useSocket } from '@/core/contexts/SocketContext';
 import { useTasks } from '../hooks/useTasks';
 import taskService from '../services/taskService';
 
@@ -49,7 +49,7 @@ import taskService from '../services/taskService';
  * TaskHistoryTab Component
  */
 export const TaskHistoryTab = ({ task, canAddNote = false, onNoteAdded }) => {
-  const { user } = useAuth();
+  const { unreadTaskIds } = useSocket();
   const { addNote, loading: taskLoading } = useTasks({ autoFetch: false });
 
   // State
@@ -62,24 +62,15 @@ export const TaskHistoryTab = ({ task, canAddNote = false, onNoteAdded }) => {
   // Ref para scroll automático
   const firstUnreadRef = useRef(null);
 
-  // Determinar se user é owner ou client
-  const isOwner = task ? task.owner === user?.user_id : false;
-  const isClient = task ? task.ts_client === user?.user_id : false;
   // IMPORTANTE: isClosed = encerrada pelo owner (when_stop preenchido)
   const isClosed = !!task?.when_stop;
 
-  // Verificar se a tarefa tem notificação não lida para o utilizador atual
+  // Verificar se a tarefa tem notificação não lida para o utilizador atual —
+  // deriva do feed central (fase B da unificação).
   const hasTaskNotification = useMemo(() => {
     if (!task) return false;
-    if (isOwner && isClient) {
-      return task.notification_owner === 1 || task.notification_client === 1;
-    } else if (isOwner) {
-      return task.notification_owner === 1;
-    } else if (isClient) {
-      return task.notification_client === 1;
-    }
-    return false;
-  }, [task, isOwner, isClient]);
+    return unreadTaskIds.has(task.pk || task.id);
+  }, [task, unreadTaskIds]);
 
   // Ordenar história da mais recente para a mais antiga
   const sortedHistory = useMemo(() => {

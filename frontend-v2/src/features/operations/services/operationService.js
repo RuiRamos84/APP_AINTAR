@@ -104,6 +104,70 @@ export const operationService = {
     return response?.data?.data || response?.data || [];
   },
 
+  // ============================================================
+  // PARÂMETROS DE OPERAÇÃO (tb_param / tb_param_operacaoaccao / tb_operacao_param)
+  // ============================================================
+
+  /** Parâmetros configurados (com valores) para uma tarefa */
+  getOperacaoParams: async (tbOperacao) => {
+    const response = await apiClient.get(`/operacao_param/${tbOperacao}`);
+    return response?.params || [];
+  },
+
+  /** Gravar valor/memo de um parâmetro de tarefa */
+  updateOperacaoParam: async (pk, { value, memo } = {}) => {
+    const response = await apiClient.put(`/operacao_param/${pk}`, { value, memo });
+    return response;
+  },
+
+  /** Opções de referência para um parâmetro de tarefa do tipo 3 */
+  getOperacaoParamReferenceOptions: async (pk) => {
+    const response = await apiClient.get(`/operacao_param/${pk}/reference`);
+    return response?.options || [];
+  },
+
+  /** Catálogo partilhado de parâmetros (tb_param) */
+  getParamCatalog: async () => {
+    const response = await apiClient.get('/operacao_param/catalog');
+    return response?.params || [];
+  },
+
+  createParam: async (data) => {
+    const response = await apiClient.post('/operacao_param/catalog', data);
+    return response;
+  },
+
+  updateParam: async (pk, data) => {
+    const response = await apiClient.put(`/operacao_param/catalog/${pk}`, data);
+    return response;
+  },
+
+  deleteParam: async (pk) => {
+    const response = await apiClient.delete(`/operacao_param/catalog/${pk}`);
+    return response;
+  },
+
+  /** Parâmetros associados a um tipo de ação */
+  getParamsByAccao: async (ttOperacaoaccao) => {
+    const response = await apiClient.get(`/operacao_param/accao/${ttOperacaoaccao}`);
+    return response?.params || [];
+  },
+
+  createParamAccao: async (data) => {
+    const response = await apiClient.post('/operacao_param/accao', data);
+    return response;
+  },
+
+  updateParamAccao: async (pk, data) => {
+    const response = await apiClient.put(`/operacao_param/accao/${pk}`, data);
+    return response;
+  },
+
+  deleteParamAccao: async (pk) => {
+    const response = await apiClient.delete(`/operacao_param/accao/${pk}`);
+    return response;
+  },
+
   /** URL de foto de operação */
   getOperationPhotoUrl: (photoPath) => {
     const normalizedPath = photoPath.replace(/\\/g, '/');

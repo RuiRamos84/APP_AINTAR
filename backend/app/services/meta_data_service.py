@@ -46,6 +46,8 @@ def fetch_meta_data(current_user, profil=None):
         'payment_method': "SELECT * FROM vbl_metodopagamento ORDER BY pk",
         'step_transitions': "SELECT * FROM vbl_step_transition ORDER BY doctype, from_step, to_step",
         'analiseParams': "SELECT * FROM vbl_analiseparam",
+        'instalacaoautocontrolo': "SELECT * FROM tt_instalacaoautocontrolo ORDER BY pk",
+        'tipoetar': "SELECT code AS pk, nome AS value FROM tt_tipoetar ORDER BY code",
         'operacaodia': "SELECT * FROM vbl_operacaodia ORDER BY pk",
         'operacaoaccao': "SELECT * FROM vbl_operacaoaccao ORDER BY pk",
         'operacamodo': "SELECT * FROM vbl_operacaomodo ORDER BY pk",
@@ -65,8 +67,6 @@ def fetch_meta_data(current_user, profil=None):
         'despesaobra': "SELECT * FROM vbl_despesaobra ORDER BY pk",
         'contractfrequency': "SELECT * FROM vbl_contractfrequency ORDER BY pk",
         'entities': "SELECT pk, name FROM ts_entity ORDER BY name",
-        # ── Recursos Humanos ─────────────────────────────────────────────
-        # Leitura sempre por views (vbl_), nunca directamente nas tabelas base
         'rh_colaboradores':      "SELECT pk, name, data_nascimento FROM vbl_rh_colaborador ORDER BY name",
         'rh_tipo_jornada':       "SELECT pk, descr FROM vbl_rh_tipo_jornada",
         'rh_ponto_evento':       "SELECT pk, descr, ordem FROM vbl_rh_ponto_evento",

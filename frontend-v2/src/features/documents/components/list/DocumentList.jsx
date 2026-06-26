@@ -24,6 +24,7 @@ import {
   formatBusinessDays,
   getDocumentDeadline,
 } from '../../utils/documentUtils';
+import { useSocket } from '@/core/contexts/SocketContext';
 
 /**
  * DataGrid List View for Documents - Responsive columns
@@ -36,17 +37,20 @@ const DocumentList = ({ documents, loading, onViewDetails, metaData, showDeadlin
   const isSm = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const isMd = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   const isLg = useMediaQuery(theme.breakpoints.between('lg', 'xl'));
+  const { unreadDocumentIds } = useSocket();
 
   const columns = useMemo(() => {
     const cols = [];
 
-    // Notification
+    // Notification — deriva do feed central (fase B), por-utilizador
     cols.push({
       field: 'notification',
       headerName: '',
       width: 40, minWidth: 40, maxWidth: 40,
-      sortable: false, disableColumnMenu: true, disableReorder: true,
+      sortable: true,
+      disableColumnMenu: true, disableReorder: true,
       headerAlign: 'center', align: 'center',
+      valueGetter: (value, row) => (unreadDocumentIds.has(row.pk) ? 1 : 0),
       renderCell: (params) =>
         params.value === 1 ? (
           <Tooltip title="Nova notificação">
@@ -250,7 +254,7 @@ const DocumentList = ({ documents, loading, onViewDetails, metaData, showDeadlin
     });
 
     return cols;
-  }, [isXs, isSm, isMd, isLg, metaData, onViewDetails, theme]);
+  }, [isXs, isSm, isMd, isLg, metaData, onViewDetails, theme, unreadDocumentIds]);
 
   // Row class for deadline highlighting
   const getRowClassName = (params) => {

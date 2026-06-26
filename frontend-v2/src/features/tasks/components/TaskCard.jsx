@@ -45,6 +45,7 @@ import {
   AttachFile as AttachIcon,
 } from '@mui/icons-material';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { useSocket } from '@/core/contexts/SocketContext';
 import PropTypes from 'prop-types';
 
 // Components
@@ -124,6 +125,7 @@ export const TaskCard = ({
 }) => {
   const theme = useTheme();
   const { user } = useAuth();
+  const { unreadTaskIds } = useSocket();
 
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -183,18 +185,9 @@ export const TaskCard = ({
     [task, columnId, canDrag]
   );
 
-  // Verificar notificações
-  const hasOwnerNotification = useMemo(
-    () => task.notification_owner === 1 && task.owner === user?.user_id,
-    [task, user]
-  );
-
-  const hasClientNotification = useMemo(
-    () => task.notification_client === 1 && task.ts_client === user?.user_id,
-    [task, user]
-  );
-
-  const hasNotification = hasOwnerNotification || hasClientNotification;
+  // Verificar notificações — deriva do feed central (fase B da unificação),
+  // já filtrado por destinatário (ts_client) no backend.
+  const hasNotification = unreadTaskIds.has(task.pk || task.id);
 
   // Formatação de datas
   const startDate = task.when_start

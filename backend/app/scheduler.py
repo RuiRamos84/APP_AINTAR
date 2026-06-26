@@ -137,6 +137,23 @@ def _notify_operators(app, operator_ids, month, year):
         logger.warning(f"[Scheduler] Falha ao enviar notificações: {e}")
 
 
+def _job_purge_old_notifications(app):
+    """
+    Elimina notificações lidas com mais de 90 dias da tabela central
+    (tb_notification), via fbf_notification$purge(). Sem isto a tabela
+    cresce indefinidamente.
+    """
+    with app.app_context():
+        from app import db
+        try:
+            with db.engine.connect() as conn:
+                result = conn.execute(text("SELECT fbf_notification$purge()")).scalar()
+                conn.commit()
+                logger.info(f"[Scheduler] Purga de notificações: {result} registos eliminados")
+        except Exception as e:
+            logger.warning(f"[Scheduler] Falha na purga de notificações: {e}")
+
+
 def init_scheduler(app):
     """
     Regista o job mensal e arranca o APScheduler.
@@ -162,8 +179,18 @@ def init_scheduler(app):
         misfire_grace_time=3600,
     )
 
+    _scheduler.add_job(
+        func=_job_purge_old_notifications,
+        args=[app],
+        trigger=CronTrigger(hour=4, minute=0, timezone='Europe/Lisbon'),
+        id='purge_old_notifications',
+        name='Purga diária de notificações lidas com mais de 90 dias',
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     _scheduler.start()
-    logger.info("[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00)")
+    logger.info("[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00) + purga diária de notificações (04:00)")
 
     import atexit
     atexit.register(lambda: _scheduler.shutdown(wait=False))

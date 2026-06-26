@@ -216,6 +216,7 @@ export const detectModuleFromPath = (pathname) => {
 
     // PEDIDOS
     '/pedidos': 'pedidos',
+    '/documents': 'pedidos',
     '/pavements': 'pedidos',
     '/internal': 'pedidos',
     '/entities': 'pedidos',
