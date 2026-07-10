@@ -98,7 +98,14 @@ dist/
 
 # Local development specific
 .claude/
-~.superpowers/
+.superpowers/
+.playwright-mcp/
 
 # Scripts de auditoria e ferramentas IT locais
 FileServer-Audit/
+
+# Scripts de referência/diagnóstico (mantidos no disco, fora do versionamento)
+backend/_dev-scripts/
+
+# Ficheiros de teste/scratch avulsos na raiz
+_deltest.txt
