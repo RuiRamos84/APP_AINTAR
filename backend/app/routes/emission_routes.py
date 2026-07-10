@@ -848,32 +848,6 @@ def get_audit_logs():
 # DOCUMENT GENERATION
 # =============================================================================
 
-# Endpoint de DEBUG - Remover depois
-@emission_bp.route('/debug-test', methods=['POST', 'GET'])
-def debug_test():
-    logger.info("🔥 [DEBUG] Endpoint de teste chamado!")
-    return jsonify({'success': True, 'message': 'Debug endpoint funcionando!'}), 200
-
-
-# Endpoint de teste MINIMAL sem decorators para diagnosticar 422
-@emission_bp.route('/test-minimal/<int:emission_id>', methods=['POST', 'OPTIONS'])
-def test_minimal_generate(emission_id):
-    """Teste minimal sem JWT/permission para diagnosticar 422"""
-    logger.info(f"✅ [TEST-MINIMAL] FUNÇÃO CHAMADA! emission_id={emission_id}")
-    logger.info(f"✅ [TEST-MINIMAL] Method: {request.method}")
-    logger.info(f"✅ [TEST-MINIMAL] Headers: {dict(request.headers)}")
-    logger.info(f"✅ [TEST-MINIMAL] Body: {request.get_data()}")
-    logger.info(f"✅ [TEST-MINIMAL] Content-Type: {request.content_type}")
-    logger.info(f"✅ [TEST-MINIMAL] JSON: {request.get_json(silent=True)}")
-
-    return jsonify({
-        'success': True,
-        'message': f'Test minimal OK para emission {emission_id}',
-        'received_id': emission_id,
-        'method': request.method
-    }), 200
-
-
 @emission_bp.route('/<int:emission_id>/generate', methods=['POST', 'OPTIONS'])
 @jwt_required()
 @require_permission('letters.manage')

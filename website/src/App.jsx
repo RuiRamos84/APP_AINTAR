@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import ScrollToTop from './components/layout/ScrollToTop'
 import PageTransition from './components/ui/PageTransition'
+import RouteFallback from './components/ui/RouteFallback'
 import CookieBanner from './components/ui/CookieBanner'
 import LenisProvider from './components/layout/LenisProvider'
 
@@ -10,7 +12,6 @@ import HomePage from './pages/HomePage'
 // Quem Somos
 import QuemSomosPage from './pages/quem-somos/QuemSomosPage'
 import OrgaosSociaisPage from './pages/quem-somos/OrgaosSociaisPage'
-import OrganogramaPage from './pages/quem-somos/OrganogramaPage'
 import EstatutosPage from './pages/quem-somos/EstatutosPage'
 import DocumentosFinanceirosPage from './pages/quem-somos/DocumentosFinanceirosPage'
 import RecursosHumanosPage from './pages/quem-somos/RecursosHumanosPage'
@@ -22,7 +23,6 @@ import ClientesPage from './pages/clientes/ClientesPage'
 import RegulamentoPage from './pages/clientes/RegulamentoPage'
 import TarifarioPage from './pages/clientes/TarifarioPage'
 import FormulariosPage from './pages/clientes/FormulariosPage'
-import CandidaturaPage from './pages/clientes/CandidaturaPage'
 import FAQPage from './pages/clientes/FAQPage'
 import OpinioesPage from './pages/clientes/OpinioesPage'
 
@@ -43,8 +43,6 @@ import EditaisPage from './pages/comunicacao/EditaisPage'
 // Educação Ambiental
 import EducacaoAmbientalPage from './pages/EducacaoAmbientalPage'
 import AintarKidsPage from './pages/AintarKidsPage'
-import JogoPage from './pages/JogoPage'
-import MinijogosPage from './pages/MinijogosPage'
 
 // Contactos
 import ContactosPage from './pages/ContactosPage'
@@ -54,6 +52,12 @@ import TermosUtilizacaoPage from './pages/TermosUtilizacaoPage'
 // 404
 import NotFoundPage from './pages/NotFoundPage'
 
+// Rotas pesadas — carregamento diferido (code-splitting) para aliviar o bundle inicial
+const OrganogramaPage = lazy(() => import('./pages/quem-somos/OrganogramaPage'))
+const CandidaturaPage = lazy(() => import('./pages/clientes/CandidaturaPage'))
+const JogoPage = lazy(() => import('./pages/JogoPage'))
+const MinijogosPage = lazy(() => import('./pages/MinijogosPage'))
+
 function AppRoutes() {
   const location = useLocation()
   return (
@@ -61,6 +65,7 @@ function AppRoutes() {
       <ScrollToTop />
       <AnimatePresence mode="sync" initial={false}>
         <PageTransition key={location.key}>
+          <Suspense fallback={<RouteFallback />}>
           <Routes location={location}>
             <Route path="/" element={<HomePage />} />
 
@@ -115,6 +120,7 @@ function AppRoutes() {
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          </Suspense>
         </PageTransition>
       </AnimatePresence>
     </>

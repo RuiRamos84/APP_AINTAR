@@ -42,6 +42,7 @@ from ..utils.utils import set_session, token_required
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
+from app import limiter
 
 logger = get_logger(__name__)
 
@@ -141,6 +142,7 @@ def get_avaliacoes():
 
 
 @website_public_bp.route('/avaliacoes', methods=['POST'])
+@limiter.limit("10 per hour")
 @api_error_handler
 def post_avaliacao():
     data = request.get_json() or {}
@@ -148,6 +150,7 @@ def post_avaliacao():
 
 
 @website_public_bp.route('/contacto', methods=['POST'])
+@limiter.limit("10 per hour")
 @api_error_handler
 def post_contacto():
     data = request.get_json() or {}
@@ -180,6 +183,7 @@ def get_concursal_refs():
 
 
 @website_public_bp.route('/concursal/candidatura', methods=['POST'])
+@limiter.limit("5 per hour")
 @api_error_handler
 def post_concursal_candidatura():
     import json

@@ -44,6 +44,7 @@ bp = Blueprint('alert_whatsapp', __name__)
 @bp.route('/whatsapp/status', methods=['GET'])
 @limiter.exempt
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def get_status():
     """Devolve o estado actual da ligação WhatsApp."""
@@ -53,6 +54,7 @@ def get_status():
 @bp.route('/whatsapp/qr', methods=['GET'])
 @limiter.exempt
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def get_qr():
     """Devolve o QR code para ligar o WhatsApp (ou status 'connected'/'loading')."""
@@ -92,6 +94,7 @@ def desligar():
 
 @bp.route('/whatsapp/entrar-grupo', methods=['POST'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def entrar_grupo():
     """Entra num grupo WhatsApp via link de convite."""
@@ -107,6 +110,7 @@ def entrar_grupo():
 
 @bp.route('/whatsapp/grupos', methods=['GET'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def listar_grupos():
     """Lista todos os grupos WhatsApp onde a conta participa."""
@@ -115,6 +119,7 @@ def listar_grupos():
 
 @bp.route('/whatsapp/enviar-grupo', methods=['POST'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def enviar_alerta_grupo():
     """
@@ -191,6 +196,7 @@ def toggle_grupo_config(pk):
 
 @bp.route('/whatsapp/grupo-padrao', methods=['GET'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def get_grupo_padrao():
     """Devolve o link de convite do grupo padrão configurado em .env."""
@@ -199,6 +205,7 @@ def get_grupo_padrao():
 
 @bp.route('/whatsapp/enviar-padrao', methods=['POST'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def enviar_alerta_padrao():
     """
@@ -216,6 +223,7 @@ def enviar_alerta_padrao():
 
 @bp.route('/whatsapp/ultimo', methods=['GET'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def get_ultimo_alerta():
     """
@@ -234,6 +242,7 @@ def get_ultimo_alerta():
 
 @bp.route('/whatsapp/enviar', methods=['POST'])
 @jwt_required()
+@require_permission('whatsapp.manage')
 @api_error_handler
 def enviar_alerta_whatsapp():
     """

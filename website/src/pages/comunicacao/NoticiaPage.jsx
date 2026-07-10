@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import { Calendar, ArrowLeft } from 'lucide-react'
 import PageLayout from '../../components/layout/PageLayout'
 import { getNoticia, fileUrl } from '../../services/cmsApi'
@@ -96,7 +97,7 @@ export default function NoticiaPage() {
               {noticia.conteudo_html && (
                 <div
                   className="prose prose-aintar max-w-none text-gray-700 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: noticia.conteudo_html }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(noticia.conteudo_html ?? '') }}
                 />
               )}
 

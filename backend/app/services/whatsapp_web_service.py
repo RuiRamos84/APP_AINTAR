@@ -4,7 +4,7 @@ Serviço Flask que comunica com o microserviço Node.js whatsapp-web.js.
 
 Variáveis de ambiente necessárias:
     WA_SERVICE_URL   URL base do microserviço  (default: http://localhost:3010)
-    WA_API_KEY       Chave de API partilhada    (default: aintar-wa-2025)
+    WA_API_KEY       Chave de API partilhada    (obrigatória em produção)
 """
 
 import os
@@ -18,7 +18,16 @@ from app.services.alert_whatsapp_service import get_latest_alert
 logger = get_logger(__name__)
 
 WA_SERVICE_URL  = os.getenv('WA_SERVICE_URL', 'http://localhost:3010')
-WA_API_KEY      = os.getenv('WA_API_KEY', 'aintar-wa-2025')
+
+# Chave partilhada com o microserviço. Em produção é obrigatória — nunca deve
+# existir um valor por omissão embutido no código. Em desenvolvimento permite-se
+# um default para não travar o arranque local.
+WA_API_KEY = os.getenv('WA_API_KEY')
+if not WA_API_KEY:
+    if os.getenv('FLASK_ENV') == 'production' or os.getenv('ENVIRONMENT') == 'production':
+        raise RuntimeError('WA_API_KEY não definida — obrigatória em produção.')
+    WA_API_KEY = 'aintar-wa-dev'
+
 WA_GROUP_INVITE = os.getenv('WA_GROUP_INVITE', '')
 
 # Script inline executado em subprocess separado — fora do eventlet monkey-patch
