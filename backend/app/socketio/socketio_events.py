@@ -328,6 +328,10 @@ class SocketIOEvents(Namespace):
 
         notification_type:
           - 'avaria_reportada' → condutor reportou avaria via "A Minha Viatura"
+          - '{seguro|inspecao|iuc}_a_expirar' / '_expirado' → documento de
+            viatura a expirar/expirado (job diário, ver
+            app/services/vehicle_alert_service.py). maintenance_pk fica None
+            nestes casos — o parâmetro é opcional.
         """
         import datetime
         route = '/fleet'

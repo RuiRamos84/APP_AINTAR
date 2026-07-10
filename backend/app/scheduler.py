@@ -166,6 +166,19 @@ def _job_check_licencas_etar(app):
         logger.error(f"[Scheduler] ❌ Erro ao verificar licenças de ETAR: {e}", exc_info=True)
 
 
+def _job_check_vehicle_documents(app):
+    """
+    Job diário: alerta sobre documentos de viatura (seguro/inspeção/IUC) a
+    expirar ou já expirados (notificação in-app). Ver
+    app/services/vehicle_alert_service.py.
+    """
+    from app.services.vehicle_alert_service import check_vehicle_documents_expirando
+    try:
+        check_vehicle_documents_expirando(app)
+    except Exception as e:
+        logger.error(f"[Scheduler] ❌ Erro ao verificar documentos de viaturas: {e}", exc_info=True)
+
+
 def init_scheduler(app):
     """
     Regista o job mensal e arranca o APScheduler.
@@ -211,10 +224,21 @@ def init_scheduler(app):
         misfire_grace_time=3600,
     )
 
+    _scheduler.add_job(
+        func=_job_check_vehicle_documents,
+        args=[app],
+        trigger=CronTrigger(hour=8, minute=15, timezone='Europe/Lisbon'),
+        id='check_vehicle_documents',
+        name='Alerta diário de documentos de viatura (seguro/inspeção/IUC)',
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     _scheduler.start()
     logger.info(
         "[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00) + purga diária de "
-        "notificações (04:00) + alerta diário de licenças de ETAR (08:00)"
+        "notificações (04:00) + alerta diário de licenças de ETAR (08:00) + alerta "
+        "diário de documentos de viatura (08:15)"
     )
 
     import atexit
