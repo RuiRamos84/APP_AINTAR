@@ -5,6 +5,6 @@
 
 export { colorTokens } from './colors';
 export { spacingTokens, getResponsiveSpacing } from './spacing';
-export { typographyTokens, typographyHierarchy } from './typography';
+export { typographyTokens, typographyHierarchy, fluidFontSize, fluidClamp } from './typography';
 export { breakpointsTokens, mediaQueries, deviceDetection } from './breakpoints';
 export { elevationTokens, elevationDarkTokens } from './elevation';

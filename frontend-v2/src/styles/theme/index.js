@@ -9,6 +9,7 @@ import {
   colorTokens,
   spacingTokens,
   typographyTokens,
+  fluidFontSize,
   breakpointsTokens,
   elevationTokens,
   elevationDarkTokens,
@@ -58,69 +59,51 @@ export const getTheme = (mode = 'light') => {
       fontFamily: typographyTokens.fontFamily.primary,
       fontSize: 16,
 
-      // Headings - Outfit (display) + Responsivos
+      // Headings - Outfit (display) + fluidos (clamp entre 360px e 1280px)
       h1: {
         fontFamily: typographyTokens.fontFamily.display,
-        fontSize: typographyTokens.fontSize.mobile['3xl'],
+        fontSize: fluidFontSize.h1,
         fontWeight: typographyTokens.fontWeight.bold,
         lineHeight: typographyTokens.lineHeight.tight,
         letterSpacing: '-0.02em',
-        '@media (min-width:960px)': {
-          fontSize: typographyTokens.fontSize.desktop['4xl'],
-        },
       },
 
       h2: {
         fontFamily: typographyTokens.fontFamily.display,
-        fontSize: typographyTokens.fontSize.mobile['2xl'],
+        fontSize: fluidFontSize.h2,
         fontWeight: typographyTokens.fontWeight.semibold,
         lineHeight: typographyTokens.lineHeight.tight,
         letterSpacing: '-0.015em',
-        '@media (min-width:960px)': {
-          fontSize: typographyTokens.fontSize.desktop['3xl'],
-        },
       },
 
       h3: {
         fontFamily: typographyTokens.fontFamily.display,
-        fontSize: typographyTokens.fontSize.mobile.xl,
+        fontSize: fluidFontSize.h3,
         fontWeight: typographyTokens.fontWeight.semibold,
         lineHeight: typographyTokens.lineHeight.snug,
         letterSpacing: '-0.01em',
-        '@media (min-width:960px)': {
-          fontSize: typographyTokens.fontSize.desktop['2xl'],
-        },
       },
 
       h4: {
         fontFamily: typographyTokens.fontFamily.display,
-        fontSize: typographyTokens.fontSize.mobile.lg,
+        fontSize: fluidFontSize.h4,
         fontWeight: typographyTokens.fontWeight.semibold,
         lineHeight: typographyTokens.lineHeight.snug,
         letterSpacing: '-0.01em',
-        '@media (min-width:960px)': {
-          fontSize: typographyTokens.fontSize.desktop.xl,
-        },
       },
 
       h5: {
         fontFamily: typographyTokens.fontFamily.display,
-        fontSize: typographyTokens.fontSize.mobile.md,
+        fontSize: fluidFontSize.h5,
         fontWeight: typographyTokens.fontWeight.medium,
         lineHeight: typographyTokens.lineHeight.normal,
-        '@media (min-width:960px)': {
-          fontSize: typographyTokens.fontSize.desktop.lg,
-        },
       },
 
       h6: {
         fontFamily: typographyTokens.fontFamily.display,
-        fontSize: typographyTokens.fontSize.mobile.sm,
+        fontSize: fluidFontSize.h6,
         fontWeight: typographyTokens.fontWeight.medium,
         lineHeight: typographyTokens.lineHeight.normal,
-        '@media (min-width:960px)': {
-          fontSize: typographyTokens.fontSize.desktop.md,
-        },
       },
 
       // Body text

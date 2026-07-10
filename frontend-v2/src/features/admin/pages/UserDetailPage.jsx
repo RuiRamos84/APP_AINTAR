@@ -50,6 +50,7 @@ import { useIdentTypes } from '@/core/hooks/useMetaData';
 import { useProfiles } from '@/core/contexts/MetadataContext';
 import { notification } from '@/core/services/notification';
 import { UserPermissionsEditor } from '../components/UserPermissionsEditor';
+import { fluidClamp } from '@/styles/tokens';
 
 // Cor por perfil (igual ao UserListPage)
 const PROFILE_COLORS = {
@@ -257,7 +258,7 @@ const UserDetailPage = () => {
               sx={{
                 width: { xs: 72, md: 88 },
                 height: { xs: 72, md: 88 },
-                fontSize: { xs: '1.6rem', md: '2rem' },
+                fontSize: fluidClamp(25.6, 32, 360, 960),
                 bgcolor: avatarColor,
                 mx: 'auto',
                 mb: 2,

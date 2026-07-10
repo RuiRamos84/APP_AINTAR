@@ -42,6 +42,7 @@ import {
   DialogActions,
   Avatar,
 } from '@mui/material';
+import { fluidClamp } from '@/styles/tokens';
 import {
   Add as AddIcon,
   Refresh as RefreshIcon,
@@ -546,11 +547,11 @@ export const TasksPage = () => {
                 flexShrink: 0,
               }}
             >
-              <TaskIcon sx={{ fontSize: { xs: 24, sm: 28 }, color: 'primary.main' }} />
+              <TaskIcon sx={{ fontSize: fluidClamp(24, 28, 360, 600), color: 'primary.main' }} />
               <Typography
                 variant="h6"
                 fontWeight={600}
-                sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, whiteSpace: 'nowrap' }}
+                sx={{ fontSize: fluidClamp(16, 20, 360, 600), whiteSpace: 'nowrap' }}
               >
                 Gestão de Tarefas
               </Typography>
@@ -574,7 +575,7 @@ export const TasksPage = () => {
                   px: { xs: 1, sm: 1.5 },
                   textTransform: 'none',
                   fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                  fontSize: fluidClamp(12, 12.8, 360, 600),
                 },
                 '& .MuiTabs-indicator': {
                   height: 3,
@@ -587,7 +588,7 @@ export const TasksPage = () => {
                   value={TAB_TYPES.ALL}
                   icon={
                     <Badge badgeContent={tabStats.all} color="primary" max={99}>
-                      <AdminIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                      <AdminIcon sx={{ fontSize: fluidClamp(18, 20, 360, 600) }} />
                     </Badge>
                   }
                   iconPosition="start"
@@ -600,7 +601,7 @@ export const TasksPage = () => {
                 value={TAB_TYPES.ASSIGNED}
                 icon={
                   <Badge badgeContent={tabStats.assigned} color="info" max={99}>
-                    <PersonIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                    <PersonIcon sx={{ fontSize: fluidClamp(18, 20, 360, 600) }} />
                   </Badge>
                 }
                 iconPosition="start"
@@ -612,7 +613,7 @@ export const TasksPage = () => {
                 value={TAB_TYPES.CREATED}
                 icon={
                   <Badge badgeContent={tabStats.created} color="secondary" max={99}>
-                    <EditIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                    <EditIcon sx={{ fontSize: fluidClamp(18, 20, 360, 600) }} />
                   </Badge>
                 }
                 iconPosition="start"
@@ -624,7 +625,7 @@ export const TasksPage = () => {
                 value={TAB_TYPES.CLOSED}
                 icon={
                   <Badge badgeContent={tabStats.closed} color="default" max={99}>
-                    <ArchiveIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                    <ArchiveIcon sx={{ fontSize: fluidClamp(18, 20, 360, 600) }} />
                   </Badge>
                 }
                 iconPosition="start"

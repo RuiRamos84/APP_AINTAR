@@ -6,8 +6,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList, Legend,
 } from 'recharts';
-import { useTheme } from '@mui/material';
-import { CHART_PALETTE, formatValue, formatAxisTick, tooltipStyle } from './chartUtils';
+import { Box, useTheme } from '@mui/material';
+import { CHART_PALETTE, formatValue, formatAxisTick, tooltipStyle, fluidChartHeight } from './chartUtils';
 
 const AppBarChart = ({
   data = [],
@@ -63,7 +63,8 @@ const AppBarChart = ({
   const layout = horizontal ? 'vertical' : 'horizontal';
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <Box sx={{ width: '100%', height: fluidChartHeight(height) }}>
+    <ResponsiveContainer width="100%" height="100%">
       <ChartComponent {...commonProps} layout={layout}>
         <CartesianGrid
           strokeDasharray="3 3"
@@ -113,6 +114,7 @@ const AppBarChart = ({
           )}
       </ChartComponent>
     </ResponsiveContainer>
+    </Box>
   );
 };
 

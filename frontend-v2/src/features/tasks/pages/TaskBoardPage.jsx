@@ -28,6 +28,7 @@ import {
   alpha,
   Chip,
 } from '@mui/material';
+import { fluidClamp } from '@/styles/tokens';
 import {
   Add as AddIcon,
   Refresh as RefreshIcon,
@@ -240,7 +241,7 @@ export const TaskBoardPage = () => {
                       size="small"
                       sx={{
                         fontWeight: 700,
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                        fontSize: fluidClamp(12, 14, 360, 600),
                       }}
                     />
 
@@ -252,7 +253,7 @@ export const TaskBoardPage = () => {
                         size="small"
                         sx={{
                           fontWeight: 700,
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          fontSize: fluidClamp(12, 14, 360, 600),
                         }}
                       />
                     )}
@@ -265,7 +266,7 @@ export const TaskBoardPage = () => {
                         size="small"
                         sx={{
                           fontWeight: 700,
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          fontSize: fluidClamp(12, 14, 360, 600),
                         }}
                       />
                     )}
@@ -278,7 +279,7 @@ export const TaskBoardPage = () => {
                         size="small"
                         sx={{
                           fontWeight: 700,
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          fontSize: fluidClamp(12, 14, 360, 600),
                         }}
                       />
                     )}

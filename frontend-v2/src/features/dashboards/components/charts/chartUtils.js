@@ -3,6 +3,19 @@
  * Shared helpers for all Recharts-based chart components
  */
 
+import { fluidClamp } from '@/styles/tokens';
+
+/**
+ * Altura fluida para gráficos Recharts.
+ * O prop `height` do ResponsiveContainer não aceita `clamp()` diretamente
+ * (a lib faz `Number(height)` internamente) — por isso aplica-se o clamp
+ * a uma `Box` wrapper (`height: fluidChartHeight(...)`) e passa-se
+ * `height="100%"` ao ResponsiveContainer, que mede o tamanho real via
+ * ResizeObserver.
+ */
+export const fluidChartHeight = (maxPx, minRatio = 0.65, minVw = 360, maxVw = 960) =>
+  fluidClamp(Math.round(maxPx * minRatio), maxPx, minVw, maxVw);
+
 export const CHART_PALETTE = [
   '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336',
   '#00BCD4', '#3F51B5', '#E91E63', '#009688', '#FF5722',

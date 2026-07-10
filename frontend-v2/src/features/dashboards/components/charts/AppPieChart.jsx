@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { useTheme, Box, Typography } from '@mui/material';
-import { CHART_PALETTE, formatValue, tooltipStyle } from './chartUtils';
+import { CHART_PALETTE, formatValue, tooltipStyle, fluidChartHeight } from './chartUtils';
 
 const LEGEND_ITEM_HEIGHT = 28; // px per item
 const LEGEND_VISIBLE_ITEMS = 6;
@@ -41,12 +41,13 @@ const AppPieChart = ({
   const total = data.reduce((s, d) => s + (Number(d[valueKey]) || 0), 0);
   const innerRadius = donut ? '38%' : 0;
   const hasMany = data.length > LEGEND_VISIBLE_ITEMS;
+  const chartHeight = fluidChartHeight(height);
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: chartHeight }}>
       {/* Pie chart */}
-      <Box sx={{ position: 'relative', flex: showLegend ? '0 0 55%' : '1', height }}>
-        <ResponsiveContainer width="100%" height={height}>
+      <Box sx={{ position: 'relative', flex: showLegend ? '0 0 55%' : '1', height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}

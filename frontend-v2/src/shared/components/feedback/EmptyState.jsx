@@ -8,6 +8,10 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import FolderOffIcon from '@mui/icons-material/FolderOff';
 import PropTypes from 'prop-types';
+import { fluidClamp } from '@/styles/tokens';
+
+const titleFontSize = fluidClamp(18, 20, 360, 600);
+const messageFontSize = fluidClamp(14, 16, 360, 600);
 
 /**
  * Empty State genérico
@@ -53,7 +57,7 @@ export function EmptyState({
         variant="h6"
         gutterBottom
         sx={{
-          fontSize: { xs: '1.125rem', sm: '1.25rem' },
+          fontSize: titleFontSize,
           fontWeight: 600,
         }}
       >
@@ -66,7 +70,7 @@ export function EmptyState({
         sx={{
           mb: 3,
           maxWidth: 500,
-          fontSize: { xs: '0.875rem', sm: '1rem' },
+          fontSize: messageFontSize,
         }}
       >
         {message}

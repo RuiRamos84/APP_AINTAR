@@ -28,6 +28,7 @@ import {
   Stack,
   Divider,
 } from '@mui/material';
+import { fluidClamp } from '@/styles/tokens';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDrop } from 'react-dnd';
 import TaskCard from './TaskCard';
@@ -176,7 +177,7 @@ export const TaskColumn = ({
             fontWeight={700}
             sx={{
               flex: 1,
-              fontSize: { xs: '0.875rem', sm: '1.25rem' },
+              fontSize: fluidClamp(14, 20, 360, 600),
               lineHeight: 1.2,
             }}
           >
@@ -193,7 +194,7 @@ export const TaskColumn = ({
                 bgcolor: '#fff',
                 color: config.color,
                 fontWeight: 700,
-                fontSize: { xs: '0.625rem', sm: '0.75rem' },
+                fontSize: fluidClamp(10, 12, 360, 600),
                 minWidth: { xs: 16, sm: 20 },
                 height: { xs: 16, sm: 20 },
               },

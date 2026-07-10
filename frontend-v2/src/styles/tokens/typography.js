@@ -4,6 +4,22 @@
  * Mobile-first com escalas adaptadas
  */
 
+/**
+ * Gera um valor `clamp()` para tipografia fluida.
+ * Interpola linearmente entre `minPx` (em `minVw`) e `maxPx` (em `maxVw`),
+ * em `rem` (não `vw` puro) para continuar a respeitar o zoom de texto do browser.
+ */
+export const fluidClamp = (minPx, maxPx, minVw = 360, maxVw = 1280) => {
+  const root = 16;
+  const slope = (maxPx - minPx) / (maxVw - minVw);
+  const yIntersection = -minVw * slope + minPx;
+  const preferredRem = (yIntersection / root).toFixed(4);
+  const slopeVw = (slope * 100).toFixed(4);
+  return `clamp(${(minPx / root).toFixed(4)}rem, calc(${preferredRem}rem + ${slopeVw}vw), ${(maxPx / root).toFixed(4)}rem)`;
+};
+
+const fluidSize = fluidClamp;
+
 export const typographyTokens = {
   // Famílias de Fontes — Website Matching
   fontFamily: {
@@ -67,6 +83,22 @@ export const typographyTokens = {
     wider: '0.05em',
     widest: '0.1em',
   },
+};
+
+/**
+ * Tamanhos de Fonte Fluidos (clamp)
+ * Substitui o salto abrupto mobile→desktop no breakpoint `md` por uma
+ * escala contínua entre 360px e 1280px de viewport. Abaixo/acima destes
+ * limites o tamanho fica fixo no mínimo/máximo (sem overflow de layout).
+ * Só se aplica a headings — texto de corpo mantém-se fixo por legibilidade.
+ */
+export const fluidFontSize = {
+  h1: fluidSize(28, 40),   // 3xl → 4xl
+  h2: fluidSize(24, 30),   // 2xl → 3xl
+  h3: fluidSize(20, 26),   // xl  → 2xl
+  h4: fluidSize(18, 21.6), // lg  → xl
+  h5: fluidSize(16, 18),   // md  → lg
+  h6: fluidSize(14, 16),   // sm  → md
 };
 
 /**

@@ -11,6 +11,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { IS_PORTAL } from '@/core/config/appContext';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { fluidClamp } from '@/styles/tokens';
 
 const ForbiddenPage = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ const ForbiddenPage = () => {
           <Typography
             variant="h1"
             sx={{
-              fontSize: { xs: '4rem', sm: '6rem' },
+              fontSize: fluidClamp(64, 96, 360, 600),
               fontWeight: 700,
               color: 'error.main',
               mb: 2,

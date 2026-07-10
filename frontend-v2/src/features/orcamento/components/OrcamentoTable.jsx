@@ -15,6 +15,7 @@ import {
     WarningAmber as WarnIcon,
     AccountBalance as OrcamentoIcon,
 } from '@mui/icons-material';
+import { fluidClamp } from '@/styles/tokens';
 import { toast } from 'sonner';
 import { useOrcamentoStore } from '../store/orcamentoStore';
 import { useOrcamentoDetalhe, useDeleteRegisto } from '../hooks/useOrcamentoQueries';
@@ -62,7 +63,7 @@ const ClasseCard = ({ label, value, total, count, accent }) => {
                 {label}
             </Typography>
             <Typography variant="h6" fontWeight={700} mt={0.25}
-                sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }}>
+                sx={{ fontSize: fluidClamp(16, 19.2, 360, 600) }}>
                 {fmt(value)}
             </Typography>
             <Typography variant="caption" color="text.disabled" display="block" mb={0.75}>
@@ -101,7 +102,7 @@ const SummaryDashboard = ({ porClasse }) => {
                     Total Geral
                 </Typography>
                 <Typography variant="h6" fontWeight={700} mt={0.25}
-                    sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }}>
+                    sx={{ fontSize: fluidClamp(16, 19.2, 360, 600) }}>
                     {fmt(totalGeral)}
                 </Typography>
                 <Typography variant="caption" color="text.disabled">

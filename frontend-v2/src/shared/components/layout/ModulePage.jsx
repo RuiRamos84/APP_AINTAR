@@ -13,6 +13,9 @@ import { Box, Typography, Breadcrumbs, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { useCurrentModule } from '@/shared/hooks/useCurrentModule';
+import { fluidClamp } from '@/styles/tokens';
+
+const titleFontSize = fluidClamp(19.2, 28, 360, 960); // 1.2rem → 1.75rem
 
 export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, color, actions, search, center, children, compact = false, fillHeight = false }) => {
   const navigate = useNavigate();
@@ -98,7 +101,7 @@ export const ModulePage = ({ title, subtitle, breadcrumbs = [], icon: Icon, colo
             <Typography
               variant={compact ? 'h6' : 'h4'}
               fontWeight={600}
-              sx={compact ? {} : { fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.75rem' }, mb: 0.5 }}
+              sx={compact ? {} : { fontSize: titleFontSize, mb: 0.5 }}
             >
               {title}
             </Typography>

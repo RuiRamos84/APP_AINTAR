@@ -12,6 +12,7 @@ import { useAuth } from '@/core/contexts/AuthContext';
 import { useSocket } from '@/core/contexts/SocketContext';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { getAccessibleModules } from '@/core/config/moduleConfig';
+import { fluidClamp } from '@/styles/tokens';
 
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
@@ -164,7 +165,7 @@ export default function HomePage() {
                   textAlign: 'center',
                   color: alpha('#fff', 0.92),
                   fontWeight: 300,
-                  fontSize: { xs: '0.9rem', sm: '1.05rem', md: '1.2rem' },
+                  fontSize: fluidClamp(14.4, 19.2, 360, 960),
                   letterSpacing: 0.3,
                   mb: 1.5,
                 }}
@@ -181,7 +182,7 @@ export default function HomePage() {
                   textAlign: 'center',
                   color: alpha('#fff', 0.78),
                   fontStyle: 'italic',
-                  fontSize: { xs: '0.82rem', sm: '0.95rem' },
+                  fontSize: fluidClamp(13.12, 15.2, 360, 600),
                   mb: 4,
                   maxWidth: 720,
                   mx: 'auto',
@@ -209,7 +210,7 @@ export default function HomePage() {
                     py: { xs: 1.5, sm: 1.8 },
                     fontWeight: 700,
                     borderRadius: 3,
-                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                    fontSize: fluidClamp(15.2, 16, 360, 600),
                     width: { xs: '100%', sm: 'auto' },
                     boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
                     '&:hover': { bgcolor: alpha('#fff', 0.92), boxShadow: '0 12px 40px rgba(0,0,0,0.45)' },
@@ -229,7 +230,7 @@ export default function HomePage() {
                     py: { xs: 1.5, sm: 1.8 },
                     fontWeight: 700,
                     borderRadius: 3,
-                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                    fontSize: fluidClamp(15.2, 16, 360, 600),
                     width: { xs: '100%', sm: 'auto' },
                     backdropFilter: 'blur(8px)',
                     '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.12), borderWidth: 2 },
@@ -315,18 +316,18 @@ export default function HomePage() {
                 >
                   <CardContent sx={{ textAlign: 'center', py: { xs: 2.5, sm: 3.5 } }}>
                     <Avatar sx={{ bgcolor: alpha(stat.color, 0.15), width: { xs: 48, sm: 58 }, height: { xs: 48, sm: 58 }, mx: 'auto', mb: 1.5 }}>
-                      <stat.icon sx={{ fontSize: { xs: 26, sm: 32 }, color: stat.color }} />
+                      <stat.icon sx={{ fontSize: fluidClamp(26, 32, 360, 600), color: stat.color }} />
                     </Avatar>
                     <Typography
                       variant="h3"
-                      sx={{ fontWeight: 900, color: stat.color, fontSize: { xs: '1.6rem', sm: '2.2rem' }, lineHeight: 1 }}
+                      sx={{ fontWeight: 900, color: stat.color, fontSize: fluidClamp(25.6, 35.2, 360, 600), lineHeight: 1 }}
                     >
                       {stat.value}
                     </Typography>
-                    <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5, fontSize: { xs: '0.82rem', sm: '0.9rem' } }}>
+                    <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5, fontSize: fluidClamp(13.12, 14.4, 360, 600) }}>
                       {stat.label}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: fluidClamp(11.52, 12.8, 360, 600) }}>
                       {stat.description}
                     </Typography>
                   </CardContent>
@@ -429,7 +430,7 @@ export default function HomePage() {
           <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
             <Typography
               variant="h3"
-              sx={{ textAlign: 'center', fontWeight: 900, mb: 1, fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.8rem' } }}
+              sx={{ textAlign: 'center', fontWeight: 900, mb: 1, fontSize: fluidClamp(28.8, 44.8, 360, 960) }}
             >
               Áreas de Atuação
             </Typography>
@@ -471,7 +472,7 @@ export default function HomePage() {
                     <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2.5}>
                         <Avatar sx={{ bgcolor: alpha(svc.color, 0.14), width: { xs: 52, sm: 60 }, height: { xs: 52, sm: 60 } }}>
-                          <svc.icon sx={{ fontSize: { xs: 28, sm: 34 }, color: svc.color }} />
+                          <svc.icon sx={{ fontSize: fluidClamp(28, 34, 360, 600), color: svc.color }} />
                         </Avatar>
                         <Chip
                           label={svc.badge}
@@ -480,7 +481,7 @@ export default function HomePage() {
                         />
                       </Stack>
 
-                      <Typography variant="h5" fontWeight={800} sx={{ color: svc.color, mb: 1.5, fontSize: { xs: '1.2rem', sm: '1.4rem' } }}>
+                      <Typography variant="h5" fontWeight={800} sx={{ color: svc.color, mb: 1.5, fontSize: fluidClamp(19.2, 22.4, 360, 600) }}>
                         {svc.title}
                       </Typography>
 

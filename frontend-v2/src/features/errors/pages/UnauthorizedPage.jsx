@@ -8,6 +8,7 @@ import { Box, Typography, Button, Paper, Container } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import LoginIcon from '@mui/icons-material/Login';
 import HomeIcon from '@mui/icons-material/Home';
+import { fluidClamp } from '@/styles/tokens';
 
 const UnauthorizedPage = () => {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ const UnauthorizedPage = () => {
           <Typography
             variant="h1"
             sx={{
-              fontSize: { xs: '4rem', sm: '6rem' },
+              fontSize: fluidClamp(64, 96, 360, 600),
               fontWeight: 700,
               color: 'warning.main',
               mb: 2,

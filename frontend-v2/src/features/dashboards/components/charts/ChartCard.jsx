@@ -17,7 +17,7 @@ import AppBarChart from './AppBarChart';
 import AppAreaChart from './AppAreaChart';
 import AppPieChart from './AppPieChart';
 import AppLineChart from './AppLineChart';
-import { detectKeys, autoDetectChartType } from './chartUtils';
+import { detectKeys, autoDetectChartType, fluidChartHeight } from './chartUtils';
 import DataTableView from '../DataTableView';
 
 const CHART_TYPES = [
@@ -121,7 +121,7 @@ const ChartCard = ({
         </Box>
 
         {isLoading ? (
-          <Skeleton variant="rounded" height={height} />
+          <Skeleton variant="rounded" height={fluidChartHeight(height)} />
         ) : isError ? (
           <Alert severity="error" sx={{ borderRadius: 2 }}>Erro ao carregar dados.</Alert>
         ) : (

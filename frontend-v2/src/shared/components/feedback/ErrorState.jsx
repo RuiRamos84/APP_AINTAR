@@ -7,6 +7,10 @@ import { Box, Typography, Button } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PropTypes from 'prop-types';
+import { fluidClamp } from '@/styles/tokens';
+
+const titleFontSize = fluidClamp(20, 24, 360, 600);
+const messageFontSize = fluidClamp(14, 16, 360, 600);
 
 /**
  * Error State genérico
@@ -43,7 +47,7 @@ export function ErrorState({
         variant="h5"
         gutterBottom
         sx={{
-          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          fontSize: titleFontSize,
           fontWeight: 600,
         }}
       >
@@ -56,7 +60,7 @@ export function ErrorState({
         sx={{
           mb: 3,
           maxWidth: 500,
-          fontSize: { xs: '0.875rem', sm: '1rem' },
+          fontSize: messageFontSize,
         }}
       >
         {message}

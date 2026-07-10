@@ -5,8 +5,8 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
-import { useTheme } from '@mui/material';
-import { CHART_PALETTE, formatValue, formatAxisTick, tooltipStyle } from './chartUtils';
+import { Box, useTheme } from '@mui/material';
+import { CHART_PALETTE, formatValue, formatAxisTick, tooltipStyle, fluidChartHeight } from './chartUtils';
 
 const AppAreaChart = ({
   data = [],
@@ -28,7 +28,8 @@ const AppAreaChart = ({
   const bottomMargin = data.length > 12 ? 60 : 40;
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <Box sx={{ width: '100%', height: fluidChartHeight(height) }}>
+    <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: bottomMargin }}>
         <defs>
           {(yKeys ?? ['value']).map((key, idx) => (
@@ -74,6 +75,7 @@ const AppAreaChart = ({
         ))}
       </AreaChart>
     </ResponsiveContainer>
+    </Box>
   );
 };
 
