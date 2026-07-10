@@ -1,0 +1,104 @@
+import os
+from dotenv import load_dotenv
+from datetime import timedelta
+
+ENVIRONMENT = os.environ.get('FLASK_ENV', 'development').lower()
+
+if ENVIRONMENT == 'production':
+    load_dotenv('.env.production')
+    print("Variáveis de ambiente de produção carregadas.")
+else:
+    load_dotenv('.env.development')
+    print("Variáveis de ambiente de desenvolvimento carregadas.")
+
+
+def _env(name, dev_default=None):
+    """Lê variável de ambiente; em produção falha o arranque se não definida."""
+    value = os.getenv(name)
+    if value:
+        return value
+    if ENVIRONMENT == 'production':
+        raise RuntimeError(f"Variável de ambiente obrigatória em produção: {name}")
+    return dev_default
+
+
+class Config:
+    SECRET_KEY = _env('SECRET_KEY', 'dev-secret-key-not-for-production')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+
+    # Configurações centralizadas de tempo
+    ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    REFRESH_TOKEN_EXPIRES = timedelta(hours=2)
+    INACTIVITY_TIMEOUT = timedelta(hours=1)
+    WARNING_TIMEOUT = timedelta(minutes=45)
+    TOKEN_REFRESH_INTERVAL = timedelta(minutes=14)
+
+    # Configurações JWT
+    JWT_ACCESS_TOKEN_EXPIRES = ACCESS_TOKEN_EXPIRES
+    JWT_REFRESH_TOKEN_EXPIRES = REFRESH_TOKEN_EXPIRES
+    JWT_BLACKLIST_ENABLED = True
+    JWT_BLACKLIST_TOKEN_CHECKS = ['access', 'refresh']
+
+    SEARCH_PATH = os.getenv('SEARCH_PATH', 'public')
+
+    # Configurações de e-mail
+    MAIL_SERVER = os.getenv('MAIL_SERVER')
+    MAIL_PORT = os.getenv('MAIL_PORT')
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS') == 'True'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL') == 'True'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
+
+    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER')
+    MAX_CONTENT_LENGTH = 210 * 1024 * 1024  # 210 MB (vídeos)
+
+    # Configurações do Limiter
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379')
+    RATELIMIT_STORAGE_URL = REDIS_URL
+    RATELIMIT_STORAGE_OPTIONS = {}
+    RATELIMIT_STRATEGY = 'fixed-window'
+    RATELIMIT_DEFAULT = "200 per day, 50 per hour"
+
+    # Configurações do Cache
+    CACHE_TYPE = os.getenv('CACHE_TYPE', 'simple')
+    CACHE_DEFAULT_TIMEOUT = 300
+
+    # Configurações SIBS
+    SIBS_BASE_URL = os.getenv('SIBS_BASE_URL')
+    SIBS_TERMINAL_ID = os.getenv('SIBS_TERMINAL_ID')
+    SIBS_CLIENT_ID = os.getenv('SIBS_CLIENT_ID')
+    SIBS_MERCHANT_ID = os.getenv('SIBS_MERCHANT_ID')
+    SIBS_API_TOKEN = os.getenv('SIBS_API_TOKEN')
+    SIBS_WEBHOOK_SECRET = os.getenv('SIBS_WEBHOOK_SECRET')
+    SIBS_PRODUCTION = os.getenv('SIBS_PRODUCTION', 'false').lower() == 'true'
+
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+    FILES_DIR = os.getenv('UPLOAD_FOLDER', os.path.join(os.path.dirname(__file__), 'files'))
+    CACHE_TYPE = 'simple'
+
+    # Caminhos para recursos de emissões (desenvolvimento)
+    LOGOS_DIR = os.getenv('LOGOS_DIR', os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public'))
+    PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', os.path.join(os.path.dirname(__file__), 'temp'))
+    FONTS_DIR = os.path.join(os.path.dirname(__file__), 'app', 'utils', 'fonts')
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+    FILES_DIR = _env('FILES_DIR')
+    CACHE_TYPE = 'redis'
+    CACHE_REDIS_URL = Config.REDIS_URL
+
+    # Caminhos para recursos de emissões (produção)
+    LOGOS_DIR = _env('LOGOS_DIR')
+    PDF_OUTPUT_DIR = _env('PDF_OUTPUT_DIR')
+    FONTS_DIR = os.path.join(os.path.dirname(__file__), 'app', 'utils', 'fonts')
+
+
+def get_config():
+    env = os.environ.get('FLASK_ENV', 'development')
+    return ProductionConfig if env == 'production' else DevelopmentConfig
