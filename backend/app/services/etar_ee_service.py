@@ -1,12 +1,35 @@
+import unicodedata
 from sqlalchemy.sql import text
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from ..utils.utils import db_session_manager, format_message
 from pydantic import BaseModel, Field, field_validator
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 from app.utils.error_handler import api_error_handler, ResourceNotFoundError
 from app.utils.logger import get_logger
+from app.services.meta_data_service import clear_meta_data_cache
 
 logger = get_logger(__name__)
+
+
+def _normalize_text(value):
+    """Remove acentos e caixa para comparação aproximada de texto (ex: 'Saída' -> 'saida')."""
+    if not value:
+        return ''
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    return value.strip().lower()
+
+
+def _resolve_lookup_pk(session, tabela: str, contains: str):
+    """Resolve o pk de uma linha de uma tabela de lookup (tt_analiseponto,
+    tt_analiseforma) cujo 'value' contenha o texto indicado, ignorando
+    acentos/maiúsculas. `tabela` nunca vem do cliente — é sempre uma das
+    constantes fixas chamadas abaixo."""
+    rows = session.execute(text(f"SELECT pk, value FROM {tabela}")).mappings().all()
+    for row in rows:
+        if contains in _normalize_text(row['value']):
+            return row['pk']
+    return None
 
 
 
@@ -84,7 +107,6 @@ class GenericExpenseCreate(BaseModel):
     pnmemo: Optional[str] = None
 
 
-@api_error_handler
 def update_etar_details(pk: int, data: dict, current_user: str):
     update_data = EtarUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
@@ -110,10 +132,10 @@ def update_etar_details(pk: int, data: dict, current_user: str):
         params['pk'] = pk
         params['file_operacao'] = None
         result = session.execute(query, params).scalar()
+        clear_meta_data_cache()  # a lista 'etar' da metadata fica desatualizada (ex: periodicidade de autocontrolo)
         return {'message': 'ETAR actualizada com sucesso', 'pk': result}, 200
 
 
-@api_error_handler
 def update_ee_details(pk: int, data: dict, current_user: str):
     update_data = EeUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
@@ -133,6 +155,7 @@ def update_ee_details(pk: int, data: dict, current_user: str):
         params = update_data.model_dump()
         params['pk'] = pk
         result = session.execute(query, params).scalar()
+        clear_meta_data_cache()  # a lista 'ee' da metadata fica desatualizada
         return {'message': 'EE actualizada com sucesso', 'pk': result}, 200
 
 
@@ -336,6 +359,94 @@ def delete_rede_saneamento(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
         session.execute(text("DELETE FROM vbf_rede_saneamento WHERE pk = :pk"), {'pk': pk})
         return {'message': 'Ligação eliminada com sucesso'}, 200
+
+
+class InstalacaoAutocontroloUpdate(BaseModel):
+    boletim: Optional[str] = None
+    data: Optional[date] = None
+    cumprimento: Optional[int] = None
+
+
+def list_instalacao_autocontrolo(tb_instalacao: int, current_user: str, ano: int = None):
+    """Listar períodos de autocontrolo de uma instalação (opcionalmente filtrado por ano)."""
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT * FROM vbl_instalacao_autocontrolo
+            WHERE tb_instalacao = :tb_instalacao
+            AND (:ano IS NULL OR ano = :ano)
+            ORDER BY ano DESC, periodo
+        """)
+        results = session.execute(
+            query, {'tb_instalacao': tb_instalacao, 'ano': ano}).mappings().all()
+        return {'autocontrolo': [dict(row) for row in results]}, 200
+
+
+def update_instalacao_autocontrolo(pk: int, data: dict, current_user: str):
+    """Atualizar um período de autocontrolo (boletim, data, cumprimento)."""
+    payload = InstalacaoAutocontroloUpdate.model_validate(data)
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT fbf_instalacao_autocontrolo(
+                1, -- pop: 1 para UPDATE (único suportado)
+                :pnpk, :pnboletim, :pndata, :pncumprimento
+            )
+        """)
+        params = {
+            'pnpk': pk,
+            'pnboletim': payload.boletim,
+            'pndata': payload.data,
+            'pncumprimento': payload.cumprimento,
+        }
+        result = session.execute(query, params).scalar()
+        success_message = format_message(result)
+        return {'message': 'Autocontrolo atualizado com sucesso', 'result': success_message}, 200
+
+
+def get_instalacao_autocontrolo_resumo(current_user, ano: int):
+    """Estado agregado de autocontrolo por instalação, para um dado ano.
+
+    Prioridade do estado agregado: 3 (atraso) > 2 (atenção) > 1 (não cumpre) > -1 (cumpre) > 0 (a aguardar).
+    """
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT
+                tb_instalacao,
+                COUNT(*) AS total_periodos,
+                COUNT(*) FILTER (WHERE cumprimento IS NOT NULL) AS reportados,
+                COUNT(*) FILTER (WHERE status = -1) AS cumpre,
+                COUNT(*) FILTER (WHERE status = 1) AS nao_cumpre,
+                COUNT(*) FILTER (WHERE status = 2) AS atencao,
+                COUNT(*) FILTER (WHERE status = 3) AS atraso,
+                CASE
+                    WHEN bool_or(status = 3) THEN 3
+                    WHEN bool_or(status = 2) THEN 2
+                    WHEN bool_or(status = 1) THEN 1
+                    WHEN bool_and(status = -1) THEN -1
+                    ELSE 0
+                END AS status_resumo
+            FROM vbl_instalacao_autocontrolo
+            WHERE ano = :ano
+            GROUP BY tb_instalacao
+        """)
+        results = session.execute(query, {'ano': ano}).mappings().all()
+        resumo = {row['tb_instalacao']: dict(row) for row in results}
+        return {'resumo': resumo}, 200
+
+
+def get_instalacao_autocontrolo_periodos(current_user, ano: int):
+    """Períodos de autocontrolo de TODAS as instalações, agrupados por instalação,
+    para um dado ano — usado na grelha visual da página de entrada."""
+    with db_session_manager(current_user) as session:
+        query = text("""
+            SELECT * FROM vbl_instalacao_autocontrolo
+            WHERE ano = :ano
+            ORDER BY tb_instalacao, periodo
+        """)
+        results = session.execute(query, {'ano': ano}).mappings().all()
+        periodos = {}
+        for row in results:
+            periodos.setdefault(row['tb_instalacao'], []).append(dict(row))
+        return {'periodos': periodos}, 200
 
 
 @api_error_handler
@@ -631,6 +742,186 @@ def create_descarga_interdita(pk_instalacao, pk_entity, pnmemo, current_user):
         return {'message': 'Descarga interdita registada com sucesso', 'document_id': doc_pk}, 201
 
 
+def _sync_autocontrolo_periodo(session, tb_instalacao, data_incump, boletim=None):
+    """Ao registar um incumprimento, marca automaticamente o período de autocontrolo
+    correspondente (mês ou trimestre, segundo a periodicidade da instalação) como
+    'não cumpre'. Não cria períodos nem altera o boletim já registado, exceto se for
+    indicado um novo. Marcar 'Cumpre' continua a ser feito manualmente na tab Autocontrolo."""
+    periodicidade = session.execute(
+        text("SELECT tt_instalacaoautocontrolo FROM tb_instalacao WHERE pk = :pk"),
+        {'pk': tb_instalacao}
+    ).scalar()
+    if periodicidade not in (1, 2):
+        return  # instalação sem autocontrolo configurado
+
+    data_obj = data_incump if isinstance(data_incump, date) else date.fromisoformat(str(data_incump))
+    ano = data_obj.year
+    periodo = data_obj.month if periodicidade == 1 else ((data_obj.month - 1) // 3) + 1
+
+    row = session.execute(
+        text("""
+            SELECT pk, boletim, data FROM vbl_instalacao_autocontrolo
+            WHERE tb_instalacao = :tb_instalacao AND ano = :ano AND periodo = :periodo
+        """),
+        {'tb_instalacao': tb_instalacao, 'ano': ano, 'periodo': periodo}
+    ).mappings().first()
+    if not row:
+        return  # período ainda não foi gerado ($init/$initall)
+
+    session.execute(
+        text("SELECT fbf_instalacao_autocontrolo(1, :pnpk, :pnboletim, :pndata, 0)"),
+        # Preserva boletim/data já registados manualmente; só usa os novos valores
+        # quando o período ainda não tem nenhum (mesma lógica para ambos os campos).
+        {'pnpk': row['pk'], 'pnboletim': boletim or row['boletim'], 'pndata': row['data'] or data_obj}
+    )
+
+
+class NaoConformidadePayload(BaseModel):
+    tt_analiseparam: int
+    resultado: Optional[float] = None
+    limite: Optional[float] = None
+    limitemin: Optional[float] = None
+
+
+class ParametroAnalisePayload(BaseModel):
+    """Um parâmetro do boletim (conforme ou não) — para o histórico de análises."""
+    tt_analiseparam: int
+    resultado: Optional[float] = None
+
+
+class ImportarBoletimPayload(BaseModel):
+    """Payload do endpoint transacional de importação de boletim PDF."""
+    pk_periodo: int = Field(..., gt=0, description="pk do período de autocontrolo a atualizar")
+    tb_instalacao: int = Field(..., gt=0)
+    boletim: Optional[str] = None
+    data: Optional[date] = None
+    cumprimento: Optional[int] = None
+    local_colheita: Optional[str] = None
+    tipo: Optional[str] = None  # 'entrada' | 'saida' — ponto de colheita do boletim
+    nao_conformidades: List[NaoConformidadePayload] = Field(default_factory=list)
+    parametros: List[ParametroAnalisePayload] = Field(default_factory=list)
+
+
+def importar_boletim_autocontrolo(data: dict, current_user: str):
+    """Grava, numa única transação, o resultado da importação de um boletim de
+    autocontrolo: atualiza o período (boletim/data/cumprimento), regista os
+    incumprimentos assinalados pelo utilizador e guarda o mapeamento do 'Local
+    de Colheita' para instalação. Se qualquer passo falhar, nada é gravado —
+    substitui a sequência de pedidos HTTP separados feita anteriormente pelo
+    frontend, que podia deixar o boletim gravado sem os incumprimentos (ou
+    vice-versa) se um dos pedidos falhasse a meio."""
+    payload = ImportarBoletimPayload.model_validate(data)
+    with db_session_manager(current_user) as session:
+        session.execute(
+            text("SELECT fbf_instalacao_autocontrolo(1, :pnpk, :pnboletim, :pndata, :pncumprimento)"),
+            {
+                'pnpk': payload.pk_periodo,
+                'pnboletim': payload.boletim,
+                'pndata': payload.data,
+                'pncumprimento': payload.cumprimento,
+            }
+        )
+
+        registados = 0
+        for nc in payload.nao_conformidades:
+            new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+            # Savepoint próprio: (tb_instalacao, tt_analiseparam, data) é UNIQUE —
+            # reimportar o mesmo boletim (ex: duplo clique, novo upload do mesmo
+            # PDF) não pode reverter o período nem os outros incumprimentos já
+            # gravados acima/antes neste loop.
+            try:
+                with session.begin_nested():
+                    session.execute(
+                        text("""
+                            SELECT fbf_instalacao_incumprimento(
+                                0, :pnpk, :pntb_instalacao, :pntt_analiseparam,
+                                :pnresultado, :pnlimite, :pnlimitemin, :pndata, :pnoperador1, :pnoperador2
+                            )
+                        """),
+                        {
+                            'pnpk': new_pk,
+                            'pntb_instalacao': payload.tb_instalacao,
+                            'pntt_analiseparam': nc.tt_analiseparam,
+                            'pnresultado': nc.resultado,
+                            'pnlimite': nc.limite,
+                            'pnlimitemin': nc.limitemin,
+                            'pndata': payload.data,
+                            'pnoperador1': None,
+                            'pnoperador2': None,
+                        }
+                    )
+                registados += 1
+            except IntegrityError:
+                logger.info(
+                    f"Incumprimento já registado (tb_instalacao={payload.tb_instalacao}, "
+                    f"tt_analiseparam={nc.tt_analiseparam}, data={payload.data}) — ignorado."
+                )
+
+        analises_registadas = 0
+        if payload.parametros and payload.tipo in ('entrada', 'saida'):
+            tt_ponto = _resolve_lookup_pk(session, 'tt_analiseponto', 'entrada' if payload.tipo == 'entrada' else 'sa')
+            tt_forma = _resolve_lookup_pk(session, 'tt_analiseforma', 'laborat')
+            if tt_ponto and tt_forma:
+                for p in payload.parametros:
+                    if p.resultado is None:
+                        continue
+                    new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
+                    # Savepoint próprio: (instalação, parâmetro, ponto, forma, data) é
+                    # UNIQUE — reimportar o mesmo boletim não pode reverter o resto.
+                    try:
+                        with session.begin_nested():
+                            session.execute(
+                                text("""
+                                    SELECT fbf_instalacao_analise(
+                                        0, :pnpk, :pndata, :pntb_instalacao,
+                                        :pnponto, :pnparam, :pnforma, :pnresultado, NULL, NULL, NULL
+                                    )
+                                """),
+                                {
+                                    'pnpk': new_pk,
+                                    'pndata': payload.data,
+                                    'pntb_instalacao': payload.tb_instalacao,
+                                    'pnponto': tt_ponto,
+                                    'pnparam': p.tt_analiseparam,
+                                    'pnforma': tt_forma,
+                                    'pnresultado': p.resultado,
+                                }
+                            )
+                        analises_registadas += 1
+                    except IntegrityError:
+                        logger.info(
+                            f"Análise já registada (tb_instalacao={payload.tb_instalacao}, "
+                            f"tt_analiseparam={p.tt_analiseparam}, data={payload.data}) — ignorada."
+                        )
+            else:
+                logger.warning(
+                    "tt_analiseponto/tt_analiseforma não resolvidos — histórico de análises não gravado"
+                )
+
+        if payload.local_colheita:
+            # Savepoint próprio: o mapeamento é só uma conveniência para boletins
+            # futuros — se a função ainda não existir na BD (ver
+            # backend/sql/pdf_boletim_mapping.sql) ou falhar por outro motivo,
+            # isso não pode reverter o boletim/incumprimentos já gravados acima.
+            try:
+                with session.begin_nested():
+                    session.execute(
+                        text("SELECT fbf_pdf_local_colheita(0, :local_colheita, :tb_instalacao)"),
+                        {'local_colheita': payload.local_colheita, 'tb_instalacao': payload.tb_instalacao}
+                    )
+            except SQLAlchemyError:
+                logger.warning(
+                    "fbf_pdf_local_colheita indisponível — mapeamento do Local de Colheita não guardado",
+                    exc_info=True,
+                )
+
+        return {
+            'message': 'Boletim importado com sucesso',
+            'incumprimentos_registados': registados,
+            'analises_registadas': analises_registadas,
+        }, 200
+
+
 def create_instalacao_incumprimento(data: dict, current_user: str):
     """Registar incumprimento numa instalação (ETAR ou EE)."""
     with db_session_manager(current_user) as session:
@@ -650,6 +941,7 @@ def create_instalacao_incumprimento(data: dict, current_user: str):
                 :pnoperador2
             )
         """)
+        data_incump = data.get('data_incump') or data.get('data')
         params = {
             'pnpk': new_pk,
             'pntb_instalacao': data.get('tb_instalacao'),
@@ -657,11 +949,12 @@ def create_instalacao_incumprimento(data: dict, current_user: str):
             'pnresultado': data.get('resultado'),
             'pnlimite': data.get('limite'),
             'pnlimitemin': data.get('limitemin'),
-            'pndata': data.get('data_incump') or data.get('data'),
+            'pndata': data_incump,
             'pnoperador1': data.get('operador1'),
             'pnoperador2': data.get('operador2')
         }
         result = session.execute(query, params).scalar()
+        _sync_autocontrolo_periodo(session, data.get('tb_instalacao'), data_incump, data.get('boletim'))
         return {'message': 'Incumprimento registado com sucesso', 'pk': result}, 201
 
 

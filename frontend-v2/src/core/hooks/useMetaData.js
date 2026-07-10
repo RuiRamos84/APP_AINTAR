@@ -10,6 +10,7 @@
  * - columns: Definição de colunas para tabelas
  */
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMetaData } from '@/services/metadataService';
 import { useAuth } from '@/core/contexts/AuthContext';
@@ -140,6 +141,20 @@ export const useAnaliseParams = () => {
 export const useInstalacaoAutocontrolo = () => {
   const { data: metaData, isLoading, error } = useMetaData();
   return { data: metaData?.instalacaoautocontrolo || [], isLoading, error };
+};
+
+/**
+ * vbl_etar devolve o RÓTULO de texto da periodicidade de autocontrolo
+ * (ex: "Mensal"/"Trimestral"), não o código numérico (pk em
+ * ts_instalacaoautocontrolo: 1=Mensal, 2=Trimestral) usado nos cálculos de
+ * período. Este hook devolve o mapa { rótulo -> pk } para essa conversão.
+ */
+export const usePeriodicidadeAutocontroloPk = () => {
+  const { data: options } = useInstalacaoAutocontrolo();
+  return useMemo(
+    () => Object.fromEntries(options.map((o) => [o.value, o.pk])),
+    [options],
+  );
 };
 
 /**

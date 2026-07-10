@@ -72,10 +72,21 @@ from ..services.etar_ee_service import (
     create_etar_incumprimento,
     list_etar_incumprimentos,
     create_instalacao_incumprimento,
+    list_instalacao_autocontrolo,
+    update_instalacao_autocontrolo,
+    get_instalacao_autocontrolo_resumo,
+    get_instalacao_autocontrolo_periodos,
+    importar_boletim_autocontrolo,
     list_rede_saneamento,
     create_rede_saneamento,
     delete_rede_saneamento,
 )
+from ..services.pdf_extraction_service import (
+    extract_lab_report,
+    sugerir_instalacao,
+    confirmar_mapeamento_instalacao,
+)
+from ..services.licenca_service import list_licencas_etar
 from ..utils.utils import set_session, token_required
 from app.utils.permissions_decorator import require_permission
 from app.utils.error_handler import api_error_handler
@@ -1425,6 +1436,140 @@ def get_etar_incumprimentos(tb_etar):
     """Listar incumprimentos de uma ETAR"""
     current_user = get_jwt_identity()
     result, status_code = list_etar_incumprimentos(tb_etar, current_user)
+    return jsonify(result), status_code
+
+
+# ==================== AUTOCONTROLO ====================
+
+@bp.route('/instalacao_autocontrolo/<int:tb_instalacao>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def get_instalacao_autocontrolo(tb_instalacao):
+    """Listar períodos de autocontrolo de uma instalação"""
+    current_user = get_jwt_identity()
+    ano = request.args.get('ano', type=int)
+    result, status_code = list_instalacao_autocontrolo(tb_instalacao, current_user, ano)
+    return jsonify(result), status_code
+
+
+@bp.route('/instalacao_autocontrolo/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def put_instalacao_autocontrolo(pk):
+    """Atualizar um período de autocontrolo (boletim, data, cumprimento)"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    result, status_code = update_instalacao_autocontrolo(pk, data, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/instalacao_autocontrolo_resumo', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def get_instalacao_autocontrolo_resumo_route():
+    """Estado agregado de autocontrolo por instalação, para um dado ano"""
+    current_user = get_jwt_identity()
+    ano = request.args.get('ano', type=int)
+    if not ano:
+        return jsonify({'error': 'O parâmetro ano é obrigatório'}), 400
+    result, status_code = get_instalacao_autocontrolo_resumo(current_user, ano)
+    return jsonify(result), status_code
+
+
+@bp.route('/instalacao_autocontrolo_periodos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def get_instalacao_autocontrolo_periodos_route():
+    """Períodos de autocontrolo de todas as instalações, agrupados, para um dado ano"""
+    current_user = get_jwt_identity()
+    ano = request.args.get('ano', type=int)
+    if not ano:
+        return jsonify({'error': 'O parâmetro ano é obrigatório'}), 400
+    result, status_code = get_instalacao_autocontrolo_periodos(current_user, ano)
+    return jsonify(result), status_code
+
+
+@bp.route('/instalacao_autocontrolo/extract_pdf', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def extract_pdf_boletim():
+    """Extrai os dados de um boletim laboratorial em PDF e sugere a instalação
+    correspondente. Não escreve nada na BD — apenas leitura/análise."""
+    current_user = get_jwt_identity()
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nenhum ficheiro foi enviado'}), 400
+
+    file = request.files['file']
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'O ficheiro tem de ser um PDF'}), 400
+
+    dados = extract_lab_report(file.stream)
+    sugestao = sugerir_instalacao(current_user, dados.get('local_colheita'))
+
+    return jsonify({'boletim': dados, 'instalacao': sugestao}), 200
+
+
+@bp.route('/instalacao_autocontrolo/importar_boletim', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def importar_boletim_autocontrolo_route():
+    """Grava, numa única transação, o período de autocontrolo (boletim/data/
+    cumprimento), os incumprimentos assinalados e o mapeamento do Local de
+    Colheita — evita o estado parcial de fazer isto em vários pedidos separados."""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    result, status_code = importar_boletim_autocontrolo(data, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/instalacao_autocontrolo/confirmar_mapeamento', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def confirmar_mapeamento_pdf():
+    """Guarda o mapeamento 'Local de Colheita' -> instalação para uso em boletins futuros"""
+    current_user = get_jwt_identity()
+    payload = request.get_json()
+    local_colheita = payload.get('local_colheita')
+    tb_instalacao = payload.get('tb_instalacao')
+    if not local_colheita or not tb_instalacao:
+        return jsonify({'error': 'local_colheita e tb_instalacao são obrigatórios'}), 400
+    result, status_code = confirmar_mapeamento_instalacao(current_user, local_colheita, tb_instalacao)
+    return jsonify(result), status_code
+
+
+# ==================== LICENÇAS (APA) ====================
+
+@bp.route('/licencas/etar', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def get_licencas_etar():
+    """Licenças APA de todas as ETARs com data de fim registada, com estado calculado"""
+    current_user = get_jwt_identity()
+    result, status_code = list_licencas_etar(current_user)
     return jsonify(result), status_code
 
 

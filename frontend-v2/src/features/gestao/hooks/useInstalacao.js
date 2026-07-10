@@ -8,6 +8,8 @@ import {
   getETARIncumprimentos, createETARIncumprimento,
   getETARDetails, getEEDetails,
   updateETARDetails, updateEEDetails,
+  getInstalacaoAutocontrolo, updateInstalacaoAutocontrolo,
+  getInstalacaoAutocontroloResumo, getInstalacaoAutocontroloPeriodos,
 } from '../services/etarEeService';
 
 const normalize = (arr, key = 'pk') =>
@@ -72,6 +74,14 @@ export const useInstalacao = (pk, type = 'etar') => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const autocontroloQ = useQuery({
+    queryKey: ['etar', 'autocontrolo', pk],
+    queryFn: () => getInstalacaoAutocontrolo(pk),
+    enabled: on && type === 'etar',
+    select: (d) => normalize(d?.autocontrolo),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // ── Mutations ──────────────────────────────────────────────────────────────
 
   const volumeMut = useMutation({
@@ -114,6 +124,11 @@ export const useInstalacao = (pk, type = 'etar') => {
     mutationFn: createETARIncumprimento,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['etar', 'incumprimentos', pk] });
+      // O registo de um incumprimento pode marcar automaticamente o período de
+      // autocontrolo correspondente como "não cumpre" — refrescar ambos.
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo', pk] });
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo-resumo'] });
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo-periodos'] });
       notification.success('Incumprimento registado com sucesso!');
     },
     onError: (e) => notification.error(`Erro: ${e.message}`),
@@ -124,7 +139,21 @@ export const useInstalacao = (pk, type = 'etar') => {
       type === 'etar' ? updateETARDetails(pkArg, data) : updateEEDetails(pkArg, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [type, 'details', pk] });
+      // A lista de instalações (useETARList/useEEList) vem do cache de metadata (1h) —
+      // sem isto, a periodicidade de autocontrolo no painel de entrada fica desatualizada.
+      qc.invalidateQueries({ queryKey: ['metadata'] });
       notification.success('Características atualizadas com sucesso!');
+    },
+    onError: (e) => notification.error(`Erro ao atualizar: ${e.message}`),
+  });
+
+  const autocontroloMut = useMutation({
+    mutationFn: updateInstalacaoAutocontrolo,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo', pk] });
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo-resumo'] });
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo-periodos'] });
+      notification.success('Autocontrolo atualizado com sucesso!');
     },
     onError: (e) => notification.error(`Erro ao atualizar: ${e.message}`),
   });
@@ -157,5 +186,41 @@ export const useInstalacao = (pk, type = 'etar') => {
     isLoadingDetails:  detailsQ.isLoading,
     updateDetails:     detailsMut.mutateAsync,
     isUpdatingDetails: detailsMut.isPending,
+
+    autocontrolo:          autocontroloQ.data || [],
+    isLoadingAutocontrolo: autocontroloQ.isLoading,
+    updateAutocontrolo:    autocontroloMut.mutateAsync,
+    isUpdatingAutocontrolo: autocontroloMut.isPending,
   };
+};
+
+/**
+ * Estado agregado de autocontrolo por instalação, para um dado ano.
+ * Usado no painel de seleção para mostrar o resumo antes de entrar no detalhe.
+ */
+export const useAutocontroloResumo = (ano) => {
+  const query = useQuery({
+    queryKey: ['etar', 'autocontrolo-resumo', ano],
+    queryFn: () => getInstalacaoAutocontroloResumo(ano),
+    enabled: !!ano,
+    select: (d) => d?.resumo || {},
+    staleTime: 5 * 60 * 1000,
+  });
+  return { resumo: query.data || {}, isLoading: query.isLoading };
+};
+
+/**
+ * Períodos de autocontrolo de TODAS as instalações, agrupados por tb_instalacao,
+ * para um dado ano — usado para desenhar a grelha visual logo na página de entrada,
+ * sem ser necessário selecionar a instalação.
+ */
+export const useAutocontroloPeriodos = (ano) => {
+  const query = useQuery({
+    queryKey: ['etar', 'autocontrolo-periodos', ano],
+    queryFn: () => getInstalacaoAutocontroloPeriodos(ano),
+    enabled: !!ano,
+    select: (d) => d?.periodos || {},
+    staleTime: 5 * 60 * 1000,
+  });
+  return { periodos: query.data || {}, isLoading: query.isLoading };
 };

@@ -9,7 +9,7 @@ import {
   Button, Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, LinearProgress, Grid, Chip, InputAdornment,
   MenuItem, Paper, Divider, Alert, Stack, Collapse, Badge,
-  ToggleButton, ToggleButtonGroup, List, ListItemButton, ListItemText,
+  ToggleButton, ToggleButtonGroup,
   Autocomplete, Switch, FormControlLabel,
 } from '@mui/material';
 import {
@@ -34,6 +34,7 @@ import {
   RestartAlt as ResetIcon,
   BarChart as BarChartIcon,
   ShowChart as LineChartIcon,
+  ErrorOutline as ErrorIcon,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, AreaChart, Area, LineChart, Line,
@@ -61,7 +62,7 @@ import notification from '@/core/services/notification';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
 import {
   useExpenseTypes, useAssociates, useSpotList, useWhoList, useAnaliseParams,
-  useInstalacaoAutocontrolo, useTipoEtar,
+  useInstalacaoAutocontrolo, useTipoEtar, usePeriodicidadeAutocontroloPk,
 } from '@/core/hooks/useMetaData';
 import { useInstalacao, useAutocontroloResumo, useAutocontroloPeriodos } from '../hooks/useInstalacao';
 import {
@@ -69,12 +70,14 @@ import {
   createInstalacaoReparacao, createInstalacaoVedacao,
   createInstalacaoQualidadeAmbiental,
   createDescargaInterdita,
-  getInstalacaoAutocontrolo, updateInstalacaoAutocontrolo, createETARIncumprimento,
-  extractPdfBoletim, confirmarMapeamentoPdf,
+  getInstalacaoAutocontrolo,
+  extractPdfBoletim, importarBoletimAutocontrolo,
+  getLicencasEtar,
 } from '../services/etarEeService';
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
 import { operationService } from '../../operations/services/operationService';
 import AnnexesSection from '../../operations/components/AnnexesSection';
+import { queryAnalyses } from '../services/analysisService';
 import { SearchBar } from '@/shared/components/data/SearchBar/SearchBar';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1630,12 +1633,16 @@ const IncumprimentosTab = ({ pk, color, data, isLoading, addIncumprimento, isAdd
 // ─── TAB: Autocontrolo ────────────────────────────────────────────────────────
 
 const AUTOCONTROLO_STATUS = {
-  '-1': { label: 'Cumpre',      color: '#2e7d32' },
-  '0':  { label: 'A aguardar',  color: '#bdbdbd' },
-  '1':  { label: 'Não cumpre',  color: '#d32f2f' },
-  '2':  { label: 'Atenção',     color: '#ed6c02' },
-  '3':  { label: 'Atraso',      color: '#b71c1c' },
+  '-1': { label: 'Cumpre',      color: '#2e7d32', icon: CheckCircleIcon },
+  '0':  { label: 'A aguardar',  color: '#bdbdbd', icon: ScheduleIcon },
+  '1':  { label: 'Não cumpre',  color: '#d32f2f', icon: IncumpIcon },
+  '2':  { label: 'Atenção',     color: '#ed6c02', icon: IncumpIcon },
+  '3':  { label: 'Atraso',      color: '#b71c1c', icon: ErrorIcon },
 };
+
+// Ordem de urgência para o painel de resumo — dos casos que precisam de
+// atenção primeiro (atraso, não cumpre) até aos que estão bem (cumpre).
+const AUTOCONTROLO_SEVERITY = { '3': 0, '1': 1, '2': 2, '0': 3, '-1': 4 };
 
 // periodicidade aqui é sempre o código numérico (pk em ts_instalacaoautocontrolo:
 // 1=Mensal, 2=Trimestral) — nunca o rótulo de texto. Ver periodicidadePk em InstalacaoPage.
@@ -1647,6 +1654,33 @@ const calcPeriodo = (dataColheita, periodicidade) => {
     ano: d.getFullYear(),
     periodo: periodicidade === 1 ? mes : Math.floor((mes - 1) / 3) + 1,
   };
+};
+
+const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+// Rótulo legível do período: "Jan" (mensal) ou "T1" (trimestral) em vez do
+// genérico "P1" — mais fácil de reconhecer de relance.
+const periodoLabel = (periodo, periodicidade) =>
+  periodicidade === 1 ? (MESES_ABREV[periodo - 1] || `P${periodo}`) : `T${periodo}`;
+
+// Data de fim do período — mesma lógica de fbf_instalacao_autocontrolo$status
+// no backend (mensal: último dia do mês; trimestral: último dia do
+// trimestre). Usado só para mostrar a contagem decrescente ao utilizador;
+// o status oficial ("Atenção"/"Atraso") continua sempre a vir da BD.
+const periodoFim = (ano, periodo, periodicidade) => {
+  if (periodicidade === 1) return new Date(ano, periodo, 0);
+  if (periodicidade === 2) return new Date(ano, periodo * 3, 0);
+  return null;
+};
+
+// Dias até ao fim do período (negativo se já terminou). null se não aplicável.
+const diasAteFim = (ano, periodo, periodicidade) => {
+  const fim = periodoFim(ano, periodo, periodicidade);
+  if (!fim) return null;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  fim.setHours(0, 0, 0, 0);
+  return Math.round((fim - hoje) / 86400000);
 };
 
 const AutocontroloGrid = ({ data = [], periodicidade, size = 'normal' }) => {
@@ -1661,9 +1695,14 @@ const AutocontroloGrid = ({ data = [], periodicidade, size = 'normal' }) => {
       {Array.from({ length: n }, (_, i) => i + 1).map((periodo) => {
         const p = byPeriodo[periodo];
         const st = p && p.status !== null && p.status !== undefined ? AUTOCONTROLO_STATUS[String(p.status)] : null;
+        const rotulo = periodoLabel(periodo, periodicidade);
+        const dias = p && (p.status === 2 || p.status === 3) ? diasAteFim(p.ano, p.periodo, periodicidade) : null;
+        const alerta = dias !== null
+          ? (dias >= 0 ? ` — faltam ${dias}d` : ` — atrasado ${-dias}d`)
+          : '';
         const label = p
-          ? `${periodo}: ${st?.label || '—'}${p.boletim ? ` (Bol. ${p.boletim})` : ''}`
-          : `${periodo}: sem período gerado`;
+          ? `${rotulo}: ${st?.label || '—'}${p.boletim ? ` (Bol. ${p.boletim})` : ''}${alerta}`
+          : `${rotulo}: sem período gerado`;
         return (
           <Tooltip key={periodo} title={label} arrow>
             <Box sx={{ flex: 1, height: h, minWidth: 4, borderRadius: 0.5, bgcolor: st?.color || '#e0e0e0' }} />
@@ -1674,7 +1713,90 @@ const AutocontroloGrid = ({ data = [], periodicidade, size = 'normal' }) => {
   );
 };
 
-const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdating, periodicidade }) => {
+const PONTO_COLORS = { Entrada: '#0288d1', Saída: '#2e7d32' };
+
+// Evolução de um parâmetro ao longo do tempo, a partir do histórico completo
+// de análises (tb_instalacao_analise) — inclui todos os boletins importados,
+// não só os que geraram incumprimento. Uma linha por ponto de colheita
+// (Entrada/Saída) quando ambos têm dados para o parâmetro escolhido.
+const EvolucaoParametrosPanel = ({ pk, color }) => {
+  const [param, setParam] = useState('');
+
+  const { data: analisesRes, isLoading } = useQuery({
+    queryKey: ['analysis', 'query', pk],
+    queryFn: () => queryAnalyses({ tb_instalacao: pk }),
+    enabled: !!pk,
+    select: (d) => d?.data || [],
+  });
+  const analises = analisesRes || [];
+
+  const paramsComDados = useMemo(
+    () => [...new Set(analises.map((r) => r.tt_analiseparam))]
+      .sort((a, b) => (a || '').localeCompare(b || '', 'pt')),
+    [analises],
+  );
+
+  useEffect(() => {
+    if (!param && paramsComDados.length) setParam(paramsComDados[0]);
+  }, [paramsComDados, param]);
+
+  const chartData = useMemo(() => {
+    if (!param) return { rows: [], pontos: [] };
+    const filtradas = analises.filter((r) => r.tt_analiseparam === param);
+    const pontos = [...new Set(filtradas.map((r) => r.tt_analiseponto))];
+    const byDate = {};
+    filtradas
+      .slice()
+      .sort((a, b) => new Date(a.data) - new Date(b.data))
+      .forEach((r) => {
+        const label = formatDate(r.data);
+        byDate[label] = byDate[label] || { date: label };
+        byDate[label][r.tt_analiseponto] = parseFloat(r.resultado);
+      });
+    return { rows: Object.values(byDate), pontos };
+  }, [analises, param]);
+
+  if (isLoading) return null;
+  if (!paramsComDados.length) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+        <Typography variant="subtitle2">Evolução de Parâmetros</Typography>
+        <TextField
+          select size="small" label="Parâmetro" value={param}
+          onChange={(e) => setParam(e.target.value)} sx={{ minWidth: 220 }}
+        >
+          {paramsComDados.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+        </TextField>
+      </Box>
+      {chartData.rows.length < 2 ? (
+        <Typography variant="caption" color="text.secondary">
+          Ainda não há registos suficientes para traçar a evolução deste parâmetro.
+        </Typography>
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={chartData.rows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <ReTooltip />
+            <Legend />
+            {chartData.pontos.map((ponto) => (
+              <Line
+                key={ponto} type="monotone" dataKey={ponto} name={ponto}
+                stroke={PONTO_COLORS[ponto] || color} strokeWidth={2}
+                dot={{ r: 3 }} connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </Paper>
+  );
+};
+
+const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdating, periodicidade, incumprimentos = [], pk }) => {
   const [editPeriodo, setEditPeriodo] = useState(null);
   const [form, setForm] = useState({ boletim: '', data: '', cumprimento: '' });
 
@@ -1682,6 +1804,20 @@ const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdatin
     () => [...new Set((data || []).map((p) => p.ano))].sort((a, b) => b - a),
     [data],
   );
+
+  // Os incumprimentos não têm FK direta para o período — associam-se pela
+  // data (mesmo ano/mês-ou-trimestre, consoante a periodicidade). É a mesma
+  // lógica usada no backend (_sync_autocontrolo_periodo) para os marcar.
+  const incumprimentosPorPeriodo = useMemo(() => {
+    const map = {};
+    for (const inc of incumprimentos) {
+      const p = calcPeriodo(inc.data, periodicidade);
+      if (!p) continue;
+      const key = `${p.ano}-${p.periodo}`;
+      (map[key] = map[key] || []).push(inc);
+    }
+    return map;
+  }, [incumprimentos, periodicidade]);
 
   const openEdit = (p) => {
     setEditPeriodo(p);
@@ -1712,26 +1848,74 @@ const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdatin
     return <Alert severity="info">Sem períodos de autocontrolo gerados.</Alert>;
   }
 
+  const incumprimentosEdit = editPeriodo
+    ? incumprimentosPorPeriodo[`${editPeriodo.ano}-${editPeriodo.periodo}`] || []
+    : [];
+
   return (
     <Box>
       {anos.map((ano) => {
-        const periodosAno = data.filter((p) => p.ano === ano);
+        const periodosAno = data.filter((p) => p.ano === ano).sort((a, b) => a.periodo - b.periodo);
         return (
           <Paper key={ano} variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
             <Typography variant="subtitle2" sx={{ mb: 1.5 }}>{ano}</Typography>
             <AutocontroloGrid data={periodosAno} periodicidade={periodicidade} />
-            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {periodosAno.sort((a, b) => a.periodo - b.periodo).map((p) => {
+            <Box sx={{
+              mt: 2, display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 1,
+            }}>
+              {periodosAno.map((p) => {
                 const st = p.status !== null && p.status !== undefined ? AUTOCONTROLO_STATUS[String(p.status)] : null;
+                const StatusIcon = st?.icon;
+                const nc = incumprimentosPorPeriodo[`${p.ano}-${p.periodo}`] || [];
+                // Contagem decrescente só faz sentido enquanto o período ainda não
+                // tem cumprimento reportado (status 2=Atenção ou 3=Atraso).
+                const dias = (p.status === 2 || p.status === 3) ? diasAteFim(p.ano, p.periodo, periodicidade) : null;
                 return (
-                  <Chip
-                    key={p.pk}
-                    label={`P${p.periodo}${p.boletim ? ` · ${p.boletim}` : ''}`}
-                    size="small"
-                    onClick={() => openEdit(p)}
-                    sx={{ bgcolor: st?.color ? alpha(st.color, 0.15) : undefined, borderColor: st?.color, color: st?.color }}
-                    variant="outlined"
-                  />
+                  <Paper
+                    key={p.pk} variant="outlined" onClick={() => openEdit(p)}
+                    sx={{
+                      p: 1.25, borderRadius: 2, cursor: 'pointer',
+                      borderLeft: '3px solid', borderLeftColor: st?.color || 'divider',
+                      transition: 'background-color .15s',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                      <Typography variant="body2" fontWeight={700}>{periodoLabel(p.periodo, periodicidade)}</Typography>
+                      <Chip
+                        size="small" label={st?.label || '—'}
+                        icon={StatusIcon ? <StatusIcon sx={{ fontSize: '14px !important' }} /> : undefined}
+                        sx={{ bgcolor: st?.color ? alpha(st.color, 0.15) : undefined, color: st?.color, fontWeight: 600, height: 22 }}
+                      />
+                    </Box>
+                    {dias !== null && (
+                      <Typography variant="caption" component="div" fontWeight={600} sx={{ mt: 0.5, color: st?.color }}>
+                        {dias >= 0 ? `Faltam ${dias} dia${dias === 1 ? '' : 's'}` : `Atrasado há ${-dias} dia${-dias === 1 ? '' : 's'}`}
+                      </Typography>
+                    )}
+                    {(p.boletim || p.data) && (
+                      <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+                        {p.boletim ? `Bol. ${p.boletim}` : ''}{p.boletim && p.data ? ' · ' : ''}{p.data ? formatDate(p.data) : ''}
+                      </Typography>
+                    )}
+                    {nc.length > 0 && (
+                      <Box sx={{ mt: 0.75, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {nc.map((inc, i) => {
+                          const desvio = calcDesvio(inc.resultado, inc.limite, inc.limitemin);
+                          return (
+                            <Tooltip key={i} arrow title={`${inc.tt_analiseparam}: ${formatNum(inc.resultado)} (limite ${formatNum(inc.limite)})`}>
+                              <Chip
+                                size="small" variant="outlined" color="error"
+                                label={`${inc.tt_analiseparam}${desvio && desvio.pct > 0 ? ` +${desvio.pct.toFixed(0)}%` : ''}`}
+                                sx={{ height: 20, fontSize: '0.7rem' }}
+                              />
+                            </Tooltip>
+                          );
+                        })}
+                      </Box>
+                    )}
+                  </Paper>
                 );
               })}
             </Box>
@@ -1739,9 +1923,11 @@ const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdatin
         );
       })}
 
+      <EvolucaoParametrosPanel pk={pk} color={color} />
+
       <Dialog open={!!editPeriodo} onClose={() => setEditPeriodo(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ pb: 1 }}>
-          Período {editPeriodo?.periodo} / {editPeriodo?.ano}
+          {editPeriodo && periodoLabel(editPeriodo.periodo, periodicidade)} / {editPeriodo?.ano}
         </DialogTitle>
         <DialogContent dividers sx={{ pt: 2 }}>
           <Stack spacing={2}>
@@ -1753,6 +1939,31 @@ const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdatin
               <MenuItem value="1">Cumpre</MenuItem>
               <MenuItem value="0">Não cumpre</MenuItem>
             </TextField>
+
+            {incumprimentosEdit.length > 0 && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                  Incumprimentos registados neste período
+                </Typography>
+                <Stack spacing={0.5}>
+                  {incumprimentosEdit.map((inc, i) => {
+                    const desvio = calcDesvio(inc.resultado, inc.limite, inc.limitemin);
+                    return (
+                      <Box key={i} sx={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        px: 1, py: 0.5, borderRadius: 1, bgcolor: 'action.hover',
+                      }}>
+                        <Typography variant="caption" fontWeight={600}>{inc.tt_analiseparam}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatNum(inc.resultado)} / {formatNum(inc.limite)}
+                          {desvio && desvio.pct > 0 ? ` (+${desvio.pct.toFixed(0)}%)` : ''} · {formatDate(inc.data)}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -1785,13 +1996,7 @@ const ImportarBoletimDialog = ({ open, onClose, entityList }) => {
   );
   const selecionada = opcoesInstalacao.find((i) => i.pk === selectedPk) || null;
 
-  // entityList vem de vbl_etar, que devolve o RÓTULO da periodicidade ("Mensal"/"Trimestral"),
-  // não o código numérico — converter para o pk antes de usar em cálculos de período.
-  const { data: autocontroloOptions = [] } = useInstalacaoAutocontrolo();
-  const periodicidadePk = useMemo(
-    () => Object.fromEntries(autocontroloOptions.map((o) => [o.value, o.pk])),
-    [autocontroloOptions],
-  );
+  const periodicidadePk = usePeriodicidadeAutocontroloPk();
   const periodicidade = periodicidadePk[selecionada?.tt_instalacaoautocontrolo];
 
   const { data: periodos = [] } = useQuery({
@@ -1840,39 +2045,42 @@ const ImportarBoletimDialog = ({ open, onClose, entityList }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateInstalacaoAutocontrolo({
-        pk: periodoExistente.pk,
-        data: {
-          boletim: boletim.numero_boletim,
-          data: boletim.data_colheita,
-          cumprimento: cumprimento === '' ? null : parseInt(cumprimento, 10),
-        },
-      });
-      let registados = 0;
-      for (const p of boletim.nao_conformidades || []) {
-        if (!registarFalhas[p.tt_analiseparam]) continue;
-        await createETARIncumprimento({
-          tb_instalacao: selectedPk,
+      const naoConformidades = (boletim.nao_conformidades || [])
+        .filter((p) => registarFalhas[p.tt_analiseparam])
+        .map((p) => ({
           tt_analiseparam: p.tt_analiseparam,
           resultado: p.resultado,
           limite: p.limite,
           limitemin: p.limitemin,
-          data_incump: boletim.data_colheita,
-          boletim: boletim.numero_boletim,
-        });
-        registados += 1;
-      }
-      if (boletim.local_colheita) {
-        try {
-          await confirmarMapeamentoPdf({ local_colheita: boletim.local_colheita, tb_instalacao: selectedPk });
-        } catch (mapErr) {
-          console.warn('Não foi possível guardar o mapeamento do Local de Colheita', mapErr);
-        }
-      }
+        }));
+
+      // Todos os parâmetros do boletim (conformes ou não) — para o histórico
+      // de análises (tb_instalacao_analise), que permite ver a evolução de
+      // qualquer parâmetro ao longo do tempo, não só os que falharam.
+      const parametros = (boletim.parametros || [])
+        .filter((p) => p.resultado !== null && p.resultado !== undefined)
+        .map((p) => ({ tt_analiseparam: p.tt_analiseparam, resultado: p.resultado }));
+
+      // Um único pedido, gravado numa transação no backend — evita ficar com o
+      // boletim gravado sem os incumprimentos (ou vice-versa) se algo falhar a meio.
+      const res = await importarBoletimAutocontrolo({
+        pk_periodo: periodoExistente.pk,
+        tb_instalacao: selectedPk,
+        boletim: boletim.numero_boletim,
+        data: boletim.data_colheita,
+        cumprimento: cumprimento === '' ? null : parseInt(cumprimento, 10),
+        local_colheita: boletim.local_colheita || null,
+        tipo: boletim.tipo,
+        nao_conformidades: naoConformidades,
+        parametros,
+      });
+
       qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo', selectedPk] });
       qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo-resumo'] });
       qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo-periodos'] });
       qc.invalidateQueries({ queryKey: ['etar', 'incumprimentos', selectedPk] });
+      qc.invalidateQueries({ queryKey: ['analysis', 'query', selectedPk] });
+      const registados = res.incumprimentos_registados || 0;
       notification.success(registados > 0
         ? `Boletim importado com sucesso — ${registados} incumprimento(s) registado(s).`
         : 'Boletim importado com sucesso.');
@@ -2449,6 +2657,206 @@ const TABS_EE = [
   { label: 'Obras',        icon: ObrasTabIcon },       // 6
 ];
 
+// ─── Painel: Estado de autocontrolo (ecrã de seleção) ──────────────────────────
+// Mostra só instalações com periodicidade configurada, ordenadas por urgência
+// (atraso/não cumpre primeiro) para que os casos problemáticos saltem à vista.
+const AutocontroloResumoPanel = ({
+  entityList, anoAtual, periodicidadePk, autocontroloResumo, autocontroloPeriodos,
+  selectedAssociado, onSelect,
+}) => {
+  const instalacoes = useMemo(() => {
+    return entityList
+      .filter((inst) => !!periodicidadePk[inst.tt_instalacaoautocontrolo])
+      .filter((inst) => !selectedAssociado || inst.ts_entity === selectedAssociado)
+      .sort((a, b) => {
+        const sevA = AUTOCONTROLO_SEVERITY[String(autocontroloResumo[a.pk]?.status_resumo ?? 0)] ?? 3;
+        const sevB = AUTOCONTROLO_SEVERITY[String(autocontroloResumo[b.pk]?.status_resumo ?? 0)] ?? 3;
+        if (sevA !== sevB) return sevA - sevB;
+        return (a.nome || '').localeCompare(b.nome || '', 'pt');
+      });
+  }, [entityList, periodicidadePk, autocontroloResumo, selectedAssociado]);
+
+  const contagens = useMemo(() => {
+    return instalacoes.reduce((acc, inst) => {
+      const key = String(autocontroloResumo[inst.pk]?.status_resumo ?? 0);
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+  }, [instalacoes, autocontroloResumo]);
+
+  const subtitulo = selectedAssociado ? ` · ${selectedAssociado}` : '';
+
+  if (!instalacoes.length) {
+    return (
+      <Box sx={{ maxWidth: 1800, mx: 'auto', px: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Estado de autocontrolo — {anoAtual}{subtitulo}</Typography>
+        <Alert severity="info">
+          {selectedAssociado
+            ? 'Nenhuma instalação deste associado tem periodicidade de autocontrolo configurada.'
+            : 'Nenhuma instalação tem periodicidade de autocontrolo configurada. Configure-a na secção "Características" de cada instalação.'}
+        </Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ maxWidth: 1100, mx: 'auto', px: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+        <Typography variant="subtitle2">
+          Estado de autocontrolo — {anoAtual}{subtitulo} · {instalacoes.length} instalaç{instalacoes.length === 1 ? 'ão' : 'ões'}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+          {Object.entries(AUTOCONTROLO_STATUS)
+            .sort(([a], [b]) => AUTOCONTROLO_SEVERITY[a] - AUTOCONTROLO_SEVERITY[b])
+            .filter(([key]) => contagens[key])
+            .map(([key, st]) => (
+              <Chip
+                key={key} size="small" label={`${contagens[key]} · ${st.label}`}
+                icon={<st.icon sx={{ fontSize: '16px !important' }} />}
+                sx={{ bgcolor: alpha(st.color, 0.12), color: st.color, fontWeight: 600 }}
+              />
+            ))}
+        </Box>
+      </Box>
+
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+        gap: 1.5,
+      }}>
+        {instalacoes.map((inst) => {
+          const pkInst = periodicidadePk[inst.tt_instalacaoautocontrolo];
+          const resumoInst = autocontroloResumo[inst.pk];
+          const periodosInst = autocontroloPeriodos[inst.pk] || [];
+          const st = AUTOCONTROLO_STATUS[String(resumoInst?.status_resumo ?? 0)];
+          const StatusIcon = st?.icon;
+          return (
+            <Paper
+              key={inst.pk}
+              variant="outlined" onClick={() => onSelect(inst)}
+              sx={{
+                p: 1.5, borderRadius: 2, cursor: 'pointer',
+                borderLeft: '4px solid', borderLeftColor: st?.color || 'divider',
+                display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap',
+                transition: 'background-color .15s',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <Box sx={{ flex: '0 0 150px', minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={600} noWrap>{inst.nome}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap>{inst.ts_entity}</Typography>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 120 }}>
+                <AutocontroloGrid data={periodosInst} periodicidade={pkInst} size="compact" />
+              </Box>
+              <Chip
+                size="small" label={st?.label || '—'}
+                icon={StatusIcon ? <StatusIcon sx={{ fontSize: '16px !important' }} /> : undefined}
+                sx={{ bgcolor: alpha(st?.color || '#bdbdbd', 0.15), color: st?.color, fontWeight: 600 }}
+              />
+            </Paper>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+};
+
+// ─── Painel: Estado das Licenças APA (ecrã de seleção, ETAR only) ──────────────
+// Mostra só ETARs com licença registada (apa_data_fim), ordenadas por
+// urgência — o mesmo alerta que já vai por notificação in-app + email
+// (ver app/services/licenca_service.py), aqui visível sempre que se entra
+// no módulo, sem depender de ter visto a notificação.
+const LICENCA_STATUS = {
+  atraso:  { label: 'Expirada',   color: '#b71c1c', icon: ErrorIcon },
+  atencao: { label: 'A expirar',  color: '#ed6c02', icon: IncumpIcon },
+  ok:      { label: 'Válida',     color: '#2e7d32', icon: CheckCircleIcon },
+};
+const LICENCA_SEVERITY = { atraso: 0, atencao: 1, ok: 2 };
+
+const LicencasResumoPanel = ({ entityList, selectedAssociado, onSelect }) => {
+  const { data: licencasRes, isLoading } = useQuery({
+    queryKey: ['etar', 'licencas'],
+    queryFn: getLicencasEtar,
+    staleTime: 5 * 60 * 1000,
+    select: (d) => d?.licencas || [],
+  });
+  const licencas = licencasRes || [];
+
+  const entityByPk = useMemo(
+    () => Object.fromEntries(entityList.map((i) => [i.pk, i])),
+    [entityList],
+  );
+
+  const licencasOrdenadas = useMemo(() => {
+    return licencas
+      .filter((l) => l.status && (!selectedAssociado || l.ts_entity === selectedAssociado))
+      .sort((a, b) => {
+        const sevA = LICENCA_SEVERITY[a.status] ?? 3;
+        const sevB = LICENCA_SEVERITY[b.status] ?? 3;
+        if (sevA !== sevB) return sevA - sevB;
+        return (a.dias_restantes ?? 0) - (b.dias_restantes ?? 0);
+      });
+  }, [licencas, selectedAssociado]);
+
+  if (isLoading || !licencasOrdenadas.length) return null;
+
+  return (
+    <Box sx={{ maxWidth: 1800, mx: 'auto', px: 2, mt: 3 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+        Estado das Licenças (APA) · {licencasOrdenadas.length} instalaç{licencasOrdenadas.length === 1 ? 'ão' : 'ões'}
+      </Typography>
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: 1.5,
+      }}>
+        {licencasOrdenadas.map((l) => {
+          const st = LICENCA_STATUS[l.status];
+          const StatusIcon = st?.icon;
+          const inst = entityByPk[l.tb_etar];
+          const dias = l.dias_restantes;
+          return (
+            <Paper
+              key={l.tb_etar} variant="outlined"
+              onClick={() => inst && onSelect(inst)}
+              sx={{
+                p: 1.5, borderRadius: 2, cursor: inst ? 'pointer' : 'default',
+                borderLeft: '4px solid', borderLeftColor: st?.color || 'divider',
+                display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap',
+                transition: 'background-color .15s',
+                '&:hover': inst ? { bgcolor: 'action.hover' } : undefined,
+              }}
+            >
+              <Box sx={{ flex: '0 0 160px', minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={600} noWrap>{l.nome}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap>{l.ts_entity}</Typography>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 140 }}>
+                <Typography variant="caption" color="text.secondary" component="div">
+                  {l.apa_licenca || '(sem número)'}
+                </Typography>
+                <Typography variant="caption" fontWeight={600} component="div" sx={{ color: st?.color }}>
+                  {l.status === 'ok'
+                    ? `Válida até ${formatDate(l.apa_data_fim)}`
+                    : dias < 0
+                      ? `Expirou há ${-dias} dia${-dias === 1 ? '' : 's'}`
+                      : `Expira em ${dias} dia${dias === 1 ? '' : 's'}`}
+                </Typography>
+              </Box>
+              <Chip
+                size="small" label={st?.label || '—'}
+                icon={StatusIcon ? <StatusIcon sx={{ fontSize: '14px !important' }} /> : undefined}
+                sx={{ bgcolor: st?.color ? alpha(st.color, 0.15) : undefined, color: st?.color, fontWeight: 600 }}
+              />
+            </Paper>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+};
+
 /**
  * @param {Object}   props
  * @param {'etar'|'ee'} props.type        - Tipo de instalação
@@ -2490,13 +2898,7 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
     autocontrolo, isLoadingAutocontrolo, updateAutocontrolo, isUpdatingAutocontrolo,
   } = useInstalacao(pk, type);
 
-  // entityList (vbl_etar) devolve o RÓTULO de texto da periodicidade, não o pk
-  // numérico usado pelos cálculos de período — converter via tabela de lookup.
-  const { data: autocontroloOptions = [] } = useInstalacaoAutocontrolo();
-  const periodicidadePk = useMemo(
-    () => Object.fromEntries(autocontroloOptions.map((o) => [o.value, o.pk])),
-    [autocontroloOptions],
-  );
+  const periodicidadePk = usePeriodicidadeAutocontroloPk();
   const periodicidade = periodicidadePk[selected?.tt_instalacaoautocontrolo];
 
   const { resumo: autocontroloResumo } = useAutocontroloResumo(type === 'etar' ? anoAtual : null);
@@ -2571,7 +2973,7 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
           </IconButton>
         </span>
       </Tooltip>
-      {type === 'etar' && (
+      {type === 'etar' && !selected && (
         <Button size="small" variant="outlined" startIcon={<CheckCircleIcon />}
           onClick={() => setImportPdfOpen(true)} sx={{ textTransform: 'none' }}>
           Importar Boletim PDF
@@ -2580,57 +2982,47 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
     </Box>
   );
 
+  const autocontroloTabIndex = tabs.findIndex((t) => t.label === 'Autocontrolo');
+
   return (
     <ModulePage title={title} icon={PageIcon} color={color} breadcrumbs={breadcrumbs} actions={selectorActions}>
       {!selected ? (
-        <Box sx={{ py: 8 }}>
-          <Box sx={{ textAlign: 'center', mb: type === 'etar' ? 4 : 0 }}>
-            <PageIcon sx={{ fontSize: 56, color: 'text.disabled', mb: 1.5 }} />
-            <Typography color="text.secondary">
-              {!selectedAssociado
-                ? 'Selecione um Associado e depois a instalação para aceder aos registos.'
-                : `Selecione uma ${type === 'etar' ? 'ETAR' : 'Estação Elevatória'} para aceder aos registos.`}
-            </Typography>
-          </Box>
-          {type === 'etar' && entityList.length > 0 && (
-            <Box sx={{ maxWidth: 720, mx: 'auto', px: 2 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
-                Estado de autocontrolo — {anoAtual}
+        <Box sx={{ py: type === 'etar' && entityList.length > 0 ? 2 : 8 }}>
+          {(type !== 'etar' || entityList.length === 0) && (
+            <Box sx={{ textAlign: 'center', mb: 0 }}>
+              <PageIcon sx={{ fontSize: 56, color: 'text.disabled', mb: 1.5 }} />
+              <Typography color="text.secondary">
+                {!selectedAssociado
+                  ? 'Selecione um Associado e depois a instalação para aceder aos registos.'
+                  : `Selecione uma ${type === 'etar' ? 'ETAR' : 'Estação Elevatória'} para aceder aos registos.`}
               </Typography>
-              <List sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                {entityList
-                  .slice()
-                  .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt'))
-                  .map((inst) => {
-                    const pkInst = periodicidadePk[inst.tt_instalacaoautocontrolo];
-                    const resumoInst = autocontroloResumo[inst.pk];
-                    const periodosInst = autocontroloPeriodos[inst.pk] || [];
-                    return (
-                      <ListItemButton key={inst.pk}
-                        onClick={() => { setSelectedAssociado(inst.ts_entity); setSelected(inst); setTab(0); }}
-                        sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.25 }}>
-                        <ListItemText
-                          primary={inst.nome}
-                          secondary={inst.ts_entity}
-                          sx={{ flex: '0 0 220px', minWidth: 0 }}
-                        />
-                        {pkInst ? (
-                          <AutocontroloGrid data={periodosInst} periodicidade={pkInst} size="compact" />
-                        ) : (
-                          <Typography variant="caption" color="text.disabled">Sem periodicidade configurada</Typography>
-                        )}
-                        {resumoInst && (
-                          <Chip size="small" label={AUTOCONTROLO_STATUS[String(resumoInst.status_resumo)]?.label || '—'}
-                            sx={{
-                              bgcolor: alpha(AUTOCONTROLO_STATUS[String(resumoInst.status_resumo)]?.color || '#bdbdbd', 0.15),
-                              color: AUTOCONTROLO_STATUS[String(resumoInst.status_resumo)]?.color,
-                            }} />
-                        )}
-                      </ListItemButton>
-                    );
-                  })}
-              </List>
             </Box>
+          )}
+          {type === 'etar' && entityList.length > 0 && (
+            <AutocontroloResumoPanel
+              entityList={entityList}
+              anoAtual={anoAtual}
+              periodicidadePk={periodicidadePk}
+              autocontroloResumo={autocontroloResumo}
+              autocontroloPeriodos={autocontroloPeriodos}
+              selectedAssociado={selectedAssociado}
+              onSelect={(inst) => {
+                setSelectedAssociado(inst.ts_entity);
+                setSelected(inst);
+                setTab(autocontroloTabIndex >= 0 ? autocontroloTabIndex : 0);
+              }}
+            />
+          )}
+          {type === 'etar' && entityList.length > 0 && (
+            <LicencasResumoPanel
+              entityList={entityList}
+              selectedAssociado={selectedAssociado}
+              onSelect={(inst) => {
+                setSelectedAssociado(inst.ts_entity);
+                setSelected(inst);
+                setDrawerOpen(true);
+              }}
+            />
           )}
         </Box>
       ) : (
@@ -2673,7 +3065,7 @@ const InstalacaoPage = ({ type, entityList, title, icon: PageIcon, color, breadc
           {tab === 5 && type === 'etar' && (
             <AutocontroloTab color={color} data={autocontrolo} isLoading={isLoadingAutocontrolo}
               updateAutocontrolo={updateAutocontrolo} isUpdating={isUpdatingAutocontrolo}
-              periodicidade={periodicidade} />
+              periodicidade={periodicidade} incumprimentos={incumprimentos} pk={pk} />
           )}
           {/* ETAR only: Incumprimentos = tab 6 */}
           {tab === 6 && type === 'etar' && (

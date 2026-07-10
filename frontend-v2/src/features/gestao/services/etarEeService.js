@@ -84,6 +84,56 @@ export const createETARIncumprimento = async (data) => {
   return res;
 };
 
+// ─── Autocontrolo (ETAR) ──────────────────────────────────────────────────────
+
+export const getInstalacaoAutocontrolo = async (pk, ano) => {
+  const res = await api.get(`/instalacao_autocontrolo/${pk}`, { params: { ano } });
+  return res;
+};
+
+export const updateInstalacaoAutocontrolo = async ({ pk, data }) => {
+  const res = await api.put(`/instalacao_autocontrolo/${pk}`, data);
+  return res;
+};
+
+export const getInstalacaoAutocontroloResumo = async (ano) => {
+  const res = await api.get('/instalacao_autocontrolo_resumo', { params: { ano } });
+  return res;
+};
+
+export const getInstalacaoAutocontroloPeriodos = async (ano) => {
+  const res = await api.get('/instalacao_autocontrolo_periodos', { params: { ano } });
+  return res;
+};
+
+export const extractPdfBoletim = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/instalacao_autocontrolo/extract_pdf', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res;
+};
+
+export const confirmarMapeamentoPdf = async ({ local_colheita, tb_instalacao }) => {
+  const res = await api.post('/instalacao_autocontrolo/confirmar_mapeamento', { local_colheita, tb_instalacao });
+  return res;
+};
+
+// Grava boletim + incumprimentos + mapeamento do Local de Colheita numa única
+// transação no backend — evita o estado parcial de fazer isto em vários pedidos.
+export const importarBoletimAutocontrolo = async (payload) => {
+  const res = await api.post('/instalacao_autocontrolo/importar_boletim', payload);
+  return res;
+};
+
+// ─── Licenças (APA) ───────────────────────────────────────────────────────────
+
+export const getLicencasEtar = async () => {
+  const res = await api.get('/licencas/etar');
+  return res;
+};
+
 // ─── Descarga Interdita ───────────────────────────────────────────────────────
 
 export const createDescargaInterdita = async ({ pk_instalacao, pk_entity, pnmemo }) => {
