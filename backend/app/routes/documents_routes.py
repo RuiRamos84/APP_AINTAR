@@ -14,6 +14,7 @@ from ..services.documents import (
     download_file,
     check_vacation_status,
     get_entity_count_types,
+    check_ramal_coercivo,
     create_document_direct,
     update_document_notification,
     buscar_dados_pedido,
@@ -420,7 +421,24 @@ def get_entity_count_types_route(pk):
         return jsonify(get_entity_count_types(pk, current_user))
 
 
+@bp.route('/documents/check-ramal-coercivo', methods=['GET'])
+@jwt_required()
+@require_permission('docs.create')
+@token_required
+@set_session
+@api_error_handler
+def check_ramal_coercivo_route():
+    """Verifica se existe Ramal: Execução Coerciva em curso para o NIF+morada indicados"""
+    current_user = get_jwt_identity()
+    nipc = request.args.get('nipc')
+    address = request.args.get('address')
+    postal = request.args.get('postal')
+    with db_session_manager(current_user):
+        return check_ramal_coercivo(nipc, address, postal, current_user)
+
+
 @bp.route('document/create_direct', methods=['POST'])
+@limiter.limit("5 per hour")
 @api_error_handler
 # Rota pública (webhook/formulário externo), não necessita de @jwt_required
 def create_document_extern():

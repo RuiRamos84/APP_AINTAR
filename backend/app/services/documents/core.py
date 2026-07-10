@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 from functools import wraps
 from .utils import ensure_directories, emit_socket_notification, validate_document_data, sanitize_input
+from .specialized import RAMAL_COERCIVO_TYPE_NAME, RAMAL_COERCIVO_EXCLUDED_WHAT
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
 from app.services.notification_service import central_notification_service
@@ -396,6 +397,38 @@ def create_document(data, files, current_user):
                 for field in ['address', 'postal', 'door', 'floor', 'nut1', 'nut2', 'nut3', 'nut4']:
                     doc_fields[field] = data.get(
                         f'shipping_{field}', doc_fields[field])
+
+            # Pedido de Limpeza de Fossa (tt_type=2): bloquear se já existir um
+            # Ramal: Execução Coerciva em curso para a mesma entidade+morada —
+            # a fossa deve ser ligada à rede de saneamento, não voltar a ser limpa.
+            if tt_type == 2:
+                entity_nipc_row = session.execute(
+                    text("SELECT nipc FROM vbf_entity WHERE pk = :pk"), {'pk': ts_entity}
+                ).fetchone()
+                entity_nipc = entity_nipc_row.nipc if entity_nipc_row else None
+                check_address = doc_fields.get('address')
+                check_postal = doc_fields.get('postal')
+                if entity_nipc and check_address and check_postal:
+                    coercivo_row = session.execute(text(f"""
+                        SELECT regnumber FROM vbl_document
+                        WHERE tt_type = :type_name
+                          AND nipc = :nipc
+                          AND upper(trim(postal)) = upper(trim(:postal))
+                          AND upper(trim(address)) = upper(trim(:address))
+                          AND what NOT IN {RAMAL_COERCIVO_EXCLUDED_WHAT}
+                        LIMIT 1
+                    """), {
+                        'type_name': RAMAL_COERCIVO_TYPE_NAME,
+                        'nipc': entity_nipc,
+                        'postal': check_postal,
+                        'address': check_address,
+                    }).fetchone()
+                    if coercivo_row:
+                        raise APIError(
+                            f"Não é possível criar este pedido: já existe um pedido de {RAMAL_COERCIVO_TYPE_NAME} "
+                            f"({coercivo_row.regnumber}) em curso para esta morada.",
+                            400, "ERR_RAMAL_COERCIVO"
+                        )
 
             # Gerar PK do documento
             pk_query = text("SELECT fs_nextcode()")

@@ -295,3 +295,56 @@ def get_entity_count_types(pk, current_user):
         logger.error(
             f"Erro inesperado ao obter tipos de pedidos: {str(e)}")
         return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500
+
+
+# Tipo criado quando a AINTAR obriga à ligação à rede de saneamento em vez de
+# continuar a limpar a fossa (água/saneamento disponíveis a menos de 20m).
+RAMAL_COERCIVO_TYPE_NAME = "Ramal: Execução Coerciva"
+
+# what: -3 CONCLUIDO POR REPLICAÇÃO, -1 ANULADO, 0 CONCLUIDO — não bloqueiam
+RAMAL_COERCIVO_EXCLUDED_WHAT = (-3, -1, 0)
+
+
+def check_ramal_coercivo(nipc, address, postal, current_user):
+    """
+    Verifica se existe um pedido de Ramal: Execução Coerciva ainda em curso
+    (não concluído/anulado) para o mesmo NIF e morada — usado para impedir a
+    criação de um novo Pedido de Limpeza de Fossa nesses casos.
+    """
+    try:
+        nipc = sanitize_input(nipc, 'int')
+        if not nipc or not address or not postal:
+            return {'blocked': False}, 200
+
+        with db_session_manager(current_user) as session:
+            query = text(f"""
+                SELECT pk, regnumber, submission
+                FROM vbl_document
+                WHERE tt_type = :type_name
+                  AND nipc = :nipc
+                  AND upper(trim(postal)) = upper(trim(:postal))
+                  AND upper(trim(address)) = upper(trim(:address))
+                  AND what NOT IN {RAMAL_COERCIVO_EXCLUDED_WHAT}
+                ORDER BY submission DESC
+                LIMIT 1
+            """)
+            row = session.execute(query, {
+                'type_name': RAMAL_COERCIVO_TYPE_NAME,
+                'nipc': nipc,
+                'postal': postal,
+                'address': address,
+            }).mappings().first()
+
+            if row:
+                return {
+                    'blocked': True,
+                    'document': {'pk': row['pk'], 'regnumber': row['regnumber'], 'submission': row['submission']}
+                }, 200
+            return {'blocked': False}, 200
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de BD ao verificar Ramal: Execução Coerciva: {str(e)}")
+        return {'error': "Erro ao verificar pedidos de ramal coercivo", 'code': "ERR_DATABASE"}, 500
+    except Exception as e:
+        logger.error(f"Erro inesperado ao verificar Ramal: Execução Coerciva: {str(e)}")
+        return {'error': "Erro interno do servidor", 'code': "ERR_INTERNAL"}, 500

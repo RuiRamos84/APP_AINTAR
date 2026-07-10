@@ -97,6 +97,24 @@ def add_document_step(data, pk, current_user):
             if not doc:
                 raise ResourceNotFoundError("Documento", tb_document)
 
+            # Ao concluir (what=0 CONCLUIDO), garantir que os parâmetros do pedido
+            # foram respondidos antes de fechar o workflow. Não cobre what=-3
+            # (CONCLUIDO POR REPLICAÇÃO) — esse estado não é escolhido pelo operador.
+            if what == 0:
+                params_rows = session.execute(text("""
+                    SELECT name, value FROM vbl_document_param WHERE tb_document = :tb_document
+                """), {'tb_document': tb_document}).mappings().all()
+                missing = [
+                    p['name'] for p in params_rows
+                    if (p['name'] or '').strip().lower() != 'método de pagamento'
+                    and (p['value'] is None or str(p['value']).strip() == '')
+                ]
+                if missing:
+                    raise APIError(
+                        f"Preencha os parâmetros do pedido antes de concluir: {', '.join(missing)}",
+                        400, "ERR_MISSING_PARAMS"
+                    )
+
             # Verificar se o passo existe
             document_step_query = text(
                 "SELECT * FROM vbf_document_step WHERE pk = :pk")

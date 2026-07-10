@@ -48,6 +48,7 @@ from .specialized import (
     update_document_pavenext,         # Função de ramais movida para specialized
     update_document_pavpaid,          # NOVA: Marcar ramal como pago
     get_entity_count_types,
+    check_ramal_coercivo,
 )
 
 # Replicação
@@ -77,6 +78,7 @@ __all__ = [
     'create_etar_document_direct', 'create_ee_document_direct',
     'get_document_ramais', 'get_document_ramais_executed', 'get_document_ramais_concluded',
     'update_document_pavenext', 'update_document_pavpaid', 'get_entity_count_types',
+    'check_ramal_coercivo',
 
     # Replicação
     'replicate_document_service', 'reopen_document',
