@@ -277,7 +277,6 @@ const VehicleFormModal = ({ open, onClose, vehicle = null }) => {
                     label="Data de Inspeção"
                     value={toDate(field.value)}
                     onChange={(date) => field.onChange(toStr(date))}
-                    disabled={isEditMode}
                     slots={{ openPickerIcon: InspectionIcon }}
                     slotProps={{
                       textField: {
@@ -409,7 +408,7 @@ const VehicleFormModal = ({ open, onClose, vehicle = null }) => {
                   border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
                 }}>
                   <Typography variant="caption" color="info.main">
-                    Em modo de edição apenas a data de seguro pode ser alterada. Os restantes campos são imutáveis.
+                    Em modo de edição apenas as datas de inspeção, seguro e IUC, e a quilometragem atual podem ser alteradas. Os restantes campos são imutáveis.
                   </Typography>
                 </Box>
               </Grid>
