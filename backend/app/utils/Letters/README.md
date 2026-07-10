@@ -2,45 +2,31 @@
 
 ## Sistema Atual (Ativo)
 
-**Geração via ReportLab (Python PDF)**
-- ✅ Totalmente funcional
-- ✅ Controle total sobre layout e formatação
-- ✅ Performance otimizada
-- ✅ Suporta assinatura digital
-
-**Localização:** Código em `backend/app/services/file_service.py`
+**Emissão via `emission_routes.py` + `app/services/emissions/`**
+- `generator_service.py`, `core_service.py`, `html_generator_service.py`, `numbering_service.py`
+- Sistema de mapeamento documento → emissão (substituiu o antigo `letter_service.py`)
 
 ---
 
 ## Templates Depreciados
 
-Os seguintes templates foram descontinuados:
+Os seguintes ficheiros são histórico, sem uso ativo:
 
-### Arquivos Movidos (Prefixo `_DEPRECATED_`):
-- `_DEPRECATED_Oficio.html` - Template HTML (não utilizado)
-- `_DEPRECATED_OficioLivre.html` - Template HTML (não utilizado)
-- `_DEPRECATED_Oficio.docx` - Template DOCX (legado)
-- `_DEPRECATED_OficioLivre.docx` - Template DOCX (legado)
+- `_DEPRECATED_Oficio.html`, `_DEPRECATED_OficioLivre.html` — templates HTML (não utilizados)
+- `_DEPRECATED_Oficio.docx`, `_DEPRECATED_OficioLivre.docx` — templates DOCX (legado, pré-ReportLab)
 
-**Motivo:** Sistema migrado para ReportLab para melhor controle e funcionalidades avançadas.
-
-**Data da Mudança:** 2025-01-06
+**Nota:** `file_service.py` e `letter_service.py` (mencionados em versões anteriores deste README) foram removidos do projeto — confirmados como código morto, sem imports ativos (ver `REVISAO_PROJETO_2026-06.md`).
 
 ---
 
-## Estrutura de Geração
+## Estrutura de Geração Atual
 
-```python
-BaseLetterTemplate (ReportLab)
-    ↓
-LetterDocument (Conteúdo)
-    ↓
-FileService.generate_letter()
-    ↓
-PDF Final
 ```
-
----
-
-**NOTA:** Não apagar os ficheiros depreciados por enquanto.
-Manter como referência por 3 meses, depois remover definitivamente.
+documents/core.py (criação do pedido)
+    ↓
+emission_routes.py
+    ↓
+services/emissions/core_service.py + generator_service.py
+    ↓
+PDF Final (app/generated_pdfs/)
+```

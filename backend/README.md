@@ -4,13 +4,14 @@ API REST desenvolvida em Flask para o sistema AINTAR.
 
 ## Tecnologias
 
-- **Framework:** Flask 2.x
-- **ORM:** SQLAlchemy
+- **Framework:** Flask 3.1.0
+- **ORM:** SQLAlchemy 2.0
 - **Base de Dados:** PostgreSQL
-- **Autenticacao:** JWT (flask-jwt-extended)
-- **WebSockets:** Flask-SocketIO
+- **Autenticacao:** JWT (flask-jwt-extended, access + refresh tokens)
+- **Cache/Rate Limit:** Redis (Flask-Caching + Flask-Limiter)
+- **WebSockets:** Flask-SocketIO (eventlet em producao)
 - **Documentacao:** Flasgger (Swagger)
-- **Server (Producao):** Waitress
+- **Server (Producao):** Waitress (`run_waitress.py`) atras de Nginx
 
 ## Estrutura
 
@@ -85,6 +86,19 @@ python run_waitress.py
 | GET | `/dados` | JWT | Listar dados |
 | PUT | `/dados/<pk>/processed` | JWT | Marcar como processado |
 | GET | `/stats` | JWT | Estatisticas |
+
+### Pagamentos (`/api/v1/payments`)
+| Metodo | Endpoint | Auth | Descricao |
+|--------|----------|------|-----------|
+| POST | `/checkout`, `/mbway`, `/multibanco` | JWT + permissao | Fluxo de pagamento SIBS |
+| POST | `/webhook` (proxy) / `/api/v1/webhook/sibs` | Publica (AES-GCM) | Notificacoes SIBS |
+| PUT | `/approve/<pk>` | `payments.manage` | Aprovar pagamento manual (cria movimento de Caixa so se Numerario) |
+| GET | `/invoices`, `/invoices/pending` | `payments.manage` | Listagem de facturas (fonte: `vbl_sibs`) |
+| POST | `/refund/<pk>`, `/force-sync/<transaction_id>` | `payments.manage` | Reembolso e sincronizacao com SIBS |
+
+Ver detalhe completo em `app/routes/payment_routes.py` e no Obsidian Vault (`10 - API Reference/Pagamentos.md`, `02 - Modulos/Pagamentos.md`).
+
+Nota: `app/__init__.py` estava a forcar `CACHE_TYPE='simple'`/`RATELIMIT_STORAGE_URI='memory://'` mesmo em producao, ignorando a config Redis ja pronta em `config.py` (corrigido 2026-07-02, com fallback automatico para memoria se o Redis nao responder). A cache de checkout SIBS em `PaymentService` segue o mesmo padrao.
 
 ## Autenticacao
 

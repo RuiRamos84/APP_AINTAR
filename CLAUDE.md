@@ -15,6 +15,7 @@
 - **Error handling:** Errors are as important as success. Every async operation must handle loading, success AND error states. Backend returns consistent JSON with `@api_error_handler`. Frontend shows toast + inline feedback. Never swallow errors silently.
 - **State architecture:** React Query owns ALL server/remote state. Zustand owns ONLY client UI state (modals, selections, filters). Never duplicate: don't fetch in Zustand what React Query already manages.
 - **Git:** Conventional commits in Portuguese (feat, fix, refactor, docs). Branch naming: `feature/`, `fix/`, `refactor/`
+- **Documentação sempre sincronizada:** Qualquer alteração de arquitetura, nova/alterada rota ou serviço, mudança de stack/dependências, ou correção de bug não-óbvia DEVE ser refletida na mesma sessão em: (1) o `README.md` do módulo afetado (`backend/`, `frontend/`, `frontend-v2/`); (2) este `CLAUDE.md`, se for um padrão transversal ao projeto; (3) a nota correspondente no Obsidian Vault (`02 - Módulos`, `10 - API Reference`, `07 - Bugs & Soluções` ou `08 - Backlog & Roadmap`, conforme aplicável). O Vault vive fora do repositório (OneDrive) — o git não o consegue vigiar, por isso esta atualização depende de leitura ativa desta regra, não de automação. Um hook `Stop` local (`.claude/hooks/doc_sync_check.py`) lembra quando código em `routes/`, `services/` ou `features/` muda sem nenhum `.md` acompanhar — mas cobre só os ficheiros do repositório, nunca o Vault.
 
 ## Overview
 Water utility management application (AINTAR) with Flask backend + React frontend.
@@ -93,11 +94,25 @@ Domain: app.aintar.pt | Production server: Windows Server 2019
   2. `useSearch` de `@/shared/hooks` para o filtro — nunca `.filter()` inline
   3. Registar rota em `routeConfig.js` + módulo em `moduleConfig.js`
 
+### Tipografia Fluida — clamp() (frontend-v2) — Standard Obrigatório
+- **Helper:** `fluidClamp(minPx, maxPx, minVw?, maxVw?)` em `@/styles/tokens` — gera `clamp(minRem, calc(rem + vw), maxRem)`. Usa `rem` no termo de crescimento (não `vw` puro) para continuar a respeitar o zoom de texto do browser.
+- **Nunca** usar um objeto de breakpoints (`{ xs: '1.2rem', sm: '1.4rem', md: '1.75rem' }`) para `fontSize` de headings/títulos — isso produz saltos abruptos ao cruzar o breakpoint. Usar `fluidClamp(...)` para escala contínua.
+- **Já aplicado em:**
+  - Tema global (`styles/theme/index.js`): `h1`–`h6` usam `fluidFontSize.h1..h6` (tokens em `styles/tokens/typography.js`, fluidos entre 360px e 1280px de viewport)
+  - `ModulePage` — título da página (fluido 360px→960px)
+  - `EmptyState` / `ErrorState` — título e mensagem (fluido 360px→600px)
+  - HomePage, UnauthorizedPage/ForbiddenPage, DocumentDetailsModal/DocumentCard, OrcamentoTable, TaskBoardPage/TasksPage/TaskColumn, UserDetailPage — todos os `fontSize: { xs, sm, md }` de texto convertidos
+  - Gráficos Recharts (`features/dashboards/components/charts/`) — ver abaixo
+- **Texto de corpo (`body1`/`body2`/`caption`) mantém-se fixo** — não escalar, por legibilidade.
+- **Altura fluida de gráficos Recharts:** o prop `height` do `ResponsiveContainer` **não aceita** uma string `clamp()` diretamente — internamente faz `Number(height)` quando não é percentagem, o que resulta em `NaN`. Solução aplicada: `fluidChartHeight(maxPx)` em `features/dashboards/components/charts/chartUtils.js` (usa `fluidClamp` com `minRatio=0.65`) é aplicado a uma `Box` wrapper (`sx={{ height: fluidChartHeight(height) }}`), e o `ResponsiveContainer` interno recebe `height="100%"`. Já implementado em `AppBarChart`, `AppAreaChart`, `AppLineChart`, `AppPieChart` e no `Skeleton` de loading do `ChartCard` — os call-sites (`ChartCard`, `DashboardLanding`, `DashboardCategoryPage`, `DashboardOverviewPage`) não precisaram de alterações, continuam a passar `height` como número normal.
+
 ## Key Patterns
 
 ### Backend
 - Routes: `@bp.route()` + `@require_permission('string.value')` + `@api_error_handler`
-- DB reads use views (`vbl_*`), writes use tables (`tb_*`, `vbf_*`)
+- DB reads use views (`vbl_*`), writes go through `vbf_*` views / `fbf_*`/`fbo_*` functions — never `INSERT`/`UPDATE`/`DELETE` directly on `tb_*`
+- Some `vbl_*` views (e.g. `vbl_document`, `vbl_entity`) are permission-scoped to the calling session (`fs_entity()`, `vsl_perms`) and return empty/NULL outside a real app session — for admin/generic joins that just need a reference value, join the base `tb_*` table directly instead
+- Financial/audit ledger tables (e.g. `tb_caixa`) deliberately have no `fbf_*` DELETE path — correct with a reversing entry, never delete
 - PK generation: `fs_nextcode()` database function
 - Session: `db_session_manager(current_user)`
 - Error messages in Portuguese
@@ -237,70 +252,72 @@ cd website && npm run build     # Production build
 
 ## Knowledge Base — Obsidian Vault
 
+> **Manter atualizado:** sempre que uma alteração de código mudar o comportamento descrito numa destas notas (novo endpoint, módulo novo, bug conhecido resolvido, decisão de arquitetura), edita a nota correspondente no mesmo momento em que editas o código. Não deixar para "depois" — o Vault fica obsoleto rapidamente se a atualização for adiada.
+
 ### Arquitectura
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Visão Geral.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Backend Flask.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Frontend v2 Vite.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Autenticação & Permissões.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Base de Dados.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Componentes Partilhados.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Guia para Novos Módulos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Sistema de Notificações.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Fluxo de Trabalho Git.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\01 - Arquitectura\Guia do Desenvolvedor.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Visão Geral.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Backend Flask.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Frontend v2 Vite.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Autenticação & Permissões.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Base de Dados.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Componentes Partilhados.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Guia para Novos Módulos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Sistema de Notificações.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Fluxo de Trabalho Git.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\01 - Arquitectura\Guia do Desenvolvedor.md
 
 ### Módulos
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Administração.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Dashboards.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Documentos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Gestão (ETARs).md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Interno.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Operação.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Pagamentos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Portal Cliente.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Recursos Humanos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\02 - Módulos\Website Público.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Administração.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Dashboards.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Documentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Gestão (ETARs).md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Interno.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Operação.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Pagamentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Portal Cliente.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Recursos Humanos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Website Público.md
 
 ### Integrações
-@C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\Email Office365.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\SIBS Pagamentos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\03 - Integrações\Socket.IO.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\03 - Integrações\Email Office365.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\03 - Integrações\SIBS Pagamentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\03 - Integrações\Socket.IO.md
 
 ### Backlog & Roadmap
-@C:\Users\rui.ramos\Documents\Obsidian Vault\08 - Backlog & Roadmap\Roadmap.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\08 - Backlog & Roadmap\Endpoints em Falta.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\08 - Backlog & Roadmap\Melhorias Pendentes.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\08 - Backlog & Roadmap\Roadmap.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\08 - Backlog & Roadmap\Endpoints em Falta.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\08 - Backlog & Roadmap\Melhorias Pendentes.md
 
 ### Bugs & Soluções Conhecidas
-@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\Padrões de Erro.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\AnimatePresence Race Condition.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\Double Unwrap API Response.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\MUI Grid v7 Syntax.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\PermissionContext Race Condition.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\07 - Bugs & Soluções\Session Pool Checkout BD.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Padrões de Erro.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\AnimatePresence Race Condition.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Double Unwrap API Response.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\MUI Grid v7 Syntax.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\PermissionContext Race Condition.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Session Pool Checkout BD.md
 
 ### API Reference
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Auth.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Dashboards & Admin.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Documentos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Gestão ETARs.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Interno.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Operação.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Pagamentos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Portal Cliente.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Recursos Humanos.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\10 - API Reference\Telemetria.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Auth.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Dashboards & Admin.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Documentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Gestão ETARs.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Interno.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Operação.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Pagamentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Portal Cliente.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Recursos Humanos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Telemetria.md
 
 ### Socket.IO
-@C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Socket.IO — Referência Completa.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Hooks Universais.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\11 - Socket.IO\Componentes Universais.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\11 - Socket.IO\Socket.IO — Referência Completa.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\11 - Socket.IO\Hooks Universais.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\11 - Socket.IO\Componentes Universais.md
 
 ### Infraestrutura IT
-@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\FileServer.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\Active Directory.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\Departamentos e Funcionários.md
-@C:\Users\rui.ramos\Documents\Obsidian Vault\12 - Infraestrutura IT\Guia de Administração.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\12 - Infraestrutura IT\FileServer.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\12 - Infraestrutura IT\Active Directory.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\12 - Infraestrutura IT\Departamentos e Funcionários.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\12 - Infraestrutura IT\Guia de Administração.md
 
 ---
 

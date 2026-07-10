@@ -4,12 +4,12 @@ Interface web React para o sistema AINTAR. Esta e a versao em producao.
 
 ## Tecnologias
 
-- **Framework:** React 18
-- **UI Library:** Material-UI (MUI)
-- **Estado:** Redux + Context API
-- **Routing:** React Router v6
-- **HTTP Client:** Axios
-- **Build Tool:** Create React App
+- **Framework:** React 19
+- **UI Library:** Material-UI (MUI) 7
+- **Estado:** Zustand + Context API + React Query (TanStack)
+- **Routing:** React Router 7
+- **HTTP Client:** Axios (interceptors JWT em `services/api.js`)
+- **Build Tool:** Create React App 5
 
 ## Estrutura
 

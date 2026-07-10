@@ -1,26 +1,27 @@
-# AINTAR Frontend v2 (Em Desenvolvimento)
+# AINTAR Frontend v2
 
-Nova versao da interface web React para o sistema AINTAR, usando Vite e arquitetura modular.
+Nova versao da interface web React para o sistema AINTAR, usando Vite e arquitetura modular. Migracao das rotas privadas concluida; coexiste com `frontend/` (producao).
 
 ## Tecnologias
 
-- **Framework:** React 18
-- **Build Tool:** Vite (mais rapido que CRA)
-- **UI Library:** Material-UI (MUI)
-- **Estado:** Zustand + Context API
-- **Routing:** React Router v6
+- **Framework:** React 19
+- **Build Tool:** Vite 7 (mais rapido que CRA)
+- **UI Library:** Material-UI (MUI) 7
+- **Estado:** React Query (dados de servidor) + Zustand (UI state) + Context API
+- **Routing:** React Router 7
 - **HTTP Client:** Axios
-- **Validacao:** Zod
+- **Formularios/Validacao:** React Hook Form + Zod
 
 ## Diferencas vs Frontend v1
 
 | Aspecto | v1 (frontend/) | v2 (frontend-v2/) |
 |---------|----------------|-------------------|
 | Build | Create React App | Vite |
-| Estado | Redux | Zustand |
-| Arquitetura | Paginas monoliticas | Modular por features |
+| Estado servidor | Context API + React Query | React Query (exclusivo) |
+| Estado UI | Zustand + Context API | Zustand (exclusivo) |
+| Arquitetura | Paginas monoliticas | Modular por features (FSD) |
 | Performance | Lento em dev | Rapido (HMR) |
-| Validacao | Manual | Zod schemas |
+| Validacao | Manual | React Hook Form + Zod |
 
 ## Estrutura
 
@@ -35,12 +36,12 @@ frontend-v2/
 │   │   └── utils/        # Utilitarios core
 │   ├── features/         # Modulos por funcionalidade
 │   │   ├── auth/         # Autenticacao
-│   │   ├── admin/        # Administracao
-│   │   ├── dashboard/    # Dashboards
-│   │   ├── tasks/        # Gestao de tarefas
-│   │   ├── entities/     # Gestao de entidades
-│   │   ├── operations/   # Operacoes
-│   │   └── payments/     # Pagamentos
+│   │   ├── administracao/# Sistema (users, config, logs)
+│   │   ├── administrativo/# Interno (tarefas, EPI, frota)
+│   │   ├── dashboards/   # Dashboards
+│   │   ├── gestao/       # Gestao (ETARs/EE)
+│   │   ├── operacao/     # Operacao
+│   │   └── pagamentos/   # Pagamentos
 │   ├── services/         # Servicos partilhados
 │   │   ├── api/          # Cliente API + interceptors
 │   │   ├── auth/         # AuthManager, TokenManager
@@ -91,16 +92,14 @@ VITE_SOCKET_URL=http://localhost:5000
 
 ## Sistema de Permissoes
 
-O sistema usa IDs numericos para permissoes:
+RBAC granular baseado em strings (nao em IDs numericos). Os checks usam o valor exato definido na tabela `ts_interface`:
 
 ```javascript
-// core/config/permissionMap.js
-export const PERMISSION_IDS = {
-  ADMIN_USERS: 1,
-  ADMIN_PAYMENTS: 2,
-  // ...
-};
+// exemplo de uso em rota/componente
+permissions: { required: 'docs.view' }
 ```
+
+Convencao `.view`/`.edit` por modulo (ou acoes especificas como `payments.mbway`). Nao existem permissoes "guarda-chuva" (`global.access`, `admin.dashboard`) — foram removidas permanentemente e nao devem ser reintroduzidas.
 
 ## Modulos (Features)
 
@@ -117,17 +116,9 @@ features/[nome]/
 
 ## Estado da Migracao
 
-| Modulo | Estado | Notas |
-|--------|--------|-------|
-| Auth | Completo | Login, logout, tokens |
-| Dashboard | Completo | - |
-| Tasks | Em progresso | Kanban board |
-| Entities | Parcial | - |
-| Operations | Parcial | - |
-| Payments | Parcial | - |
+Migracao completa — todas as rotas privadas implementadas, sem stubs "Coming Soon". Modulos: Operacao, Gestao (ETARs), Pagamentos, Dashboards, Sistema (admin), Interno (tarefas/EPI/frota), Portal do Cliente.
 
 ## Notas
 
-- Esta versao esta **em desenvolvimento**
-- Nao usar em producao ate migracao completa
-- Versao de producao atual: `frontend/`
+- Ambas as versoes coexistem: `frontend/` (producao, CRA) e `frontend-v2/` (Vite, em rollout gradual)
+- Dual context: o mesmo build serve backoffice (`app.aintar.pt`) e portal (`clientes.aintar.pt`), detectado via hostname em `src/core/config/appContext.js`
