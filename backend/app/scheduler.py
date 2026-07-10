@@ -179,6 +179,19 @@ def _job_check_vehicle_documents(app):
         logger.error(f"[Scheduler] ❌ Erro ao verificar documentos de viaturas: {e}", exc_info=True)
 
 
+def _job_check_vehicle_maintenance(app):
+    """
+    Job diário: alerta sobre revisão/manutenção por km/meses em atenção ou
+    atraso (notificação in-app). Ver
+    app/services/vehicle_alert_service.py::check_vehicle_maintenance_expirando.
+    """
+    from app.services.vehicle_alert_service import check_vehicle_maintenance_expirando
+    try:
+        check_vehicle_maintenance_expirando(app)
+    except Exception as e:
+        logger.error(f"[Scheduler] ❌ Erro ao verificar manutenção de viaturas: {e}", exc_info=True)
+
+
 def init_scheduler(app):
     """
     Regista o job mensal e arranca o APScheduler.
@@ -234,11 +247,22 @@ def init_scheduler(app):
         misfire_grace_time=3600,
     )
 
+    _scheduler.add_job(
+        func=_job_check_vehicle_maintenance,
+        args=[app],
+        trigger=CronTrigger(hour=8, minute=30, timezone='Europe/Lisbon'),
+        id='check_vehicle_maintenance',
+        name='Alerta diário de revisão/manutenção de viatura por km/meses',
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     _scheduler.start()
     logger.info(
         "[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00) + purga diária de "
         "notificações (04:00) + alerta diário de licenças de ETAR (08:00) + alerta "
-        "diário de documentos de viatura (08:15)"
+        "diário de documentos de viatura (08:15) + alerta diário de manutenção de "
+        "viatura (08:30)"
     )
 
     import atexit

@@ -322,7 +322,8 @@ class SocketIOEvents(Namespace):
 
     def emit_fleet_notification(self, user_ids: list, notification_type: str,
                                  title: str, message: str,
-                                 tb_vehicle: int = None, maintenance_pk: int = None):
+                                 tb_vehicle: int = None, maintenance_pk: int = None,
+                                 tt_maintenancetype: int = None):
         """
         Emite notificação de frota para utilizadores com fleet.edit (ou admin).
 
@@ -332,6 +333,12 @@ class SocketIOEvents(Namespace):
             viatura a expirar/expirado (job diário, ver
             app/services/vehicle_alert_service.py). maintenance_pk fica None
             nestes casos — o parâmetro é opcional.
+          - 'manutencao_atencao' / 'manutencao_atraso' → revisão/manutenção
+            por km ou meses em atenção/atraso (job diário, ver
+            check_vehicle_maintenance_expirando em vehicle_alert_service.py).
+            tt_maintenancetype identifica o tipo (Revisão/Pneus/...) — usado
+            também para o próprio job saber se já alertou esta viatura+tipo
+            (consulta o histórico em tb_notification via metadata).
         """
         import datetime
         route = '/fleet'
@@ -342,7 +349,10 @@ class SocketIOEvents(Namespace):
                 pk = central_notification_service.add(
                     ts_client=user_id, type_='fleet', notification_type=notification_type,
                     title=title, message=message, route=route,
-                    metadata={'tb_vehicle': tb_vehicle, 'maintenance_pk': maintenance_pk},
+                    metadata={
+                        'tb_vehicle': tb_vehicle, 'maintenance_pk': maintenance_pk,
+                        'tt_maintenancetype': tt_maintenancetype,
+                    },
                 )
                 notification_data = {
                     'notification_id': pk,
@@ -353,6 +363,7 @@ class SocketIOEvents(Namespace):
                     'timestamp': datetime.datetime.now().isoformat(),
                     'tb_vehicle': tb_vehicle,
                     'maintenance_pk': maintenance_pk,
+                    'tt_maintenancetype': tt_maintenancetype,
                     'route': route,
                 }
                 room = f'user_{user_id}'
