@@ -270,6 +270,7 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Administração.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Dashboards.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Documentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Frota.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Gestão (ETARs).md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Interno.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\02 - Módulos\Operação.md
@@ -290,6 +291,7 @@ cd website && npm run build     # Production build
 
 ### Bugs & Soluções Conhecidas
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Padrões de Erro.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Segredo SIBS Exposto no Histórico Git.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\AnimatePresence Race Condition.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Double Unwrap API Response.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\MUI Grid v7 Syntax.md
@@ -300,6 +302,7 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Auth.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Dashboards & Admin.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Documentos.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Frota.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Gestão ETARs.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Interno.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Operação.md
