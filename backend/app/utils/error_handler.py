@@ -65,6 +65,18 @@ def map_sql_error(error):
     if isinstance(error, IntegrityError) and "foreign key constraint" in error_str.lower():
         return APIError("Referência inválida.", 400, "ERR_INVALID_REF")
 
+    # Sobreposição de reservas de viaturas (RAISE EXCEPTION com ERRCODE 23P01 no trigger
+    # fbf_vehicle_reservation_check_overlap — ver backend/sql/vehicle_reservation.sql)
+    if isinstance(error, IntegrityError) and "vehicle_reservation_no_overlap" in error_str:
+        return APIError(
+            "A viatura já está reservada nesse período. Escolha outro horário ou viatura.",
+            409, "ERR_RESERVATION_CONFLICT"
+        )
+
+    # Violação de exclusão genérica (ex.: EXCLUDE USING gist noutra tabela)
+    if isinstance(error, IntegrityError) and "exclusion constraint" in error_str.lower():
+        return APIError("Este registo entra em conflito com outro já existente.", 409, "ERR_CONFLICT")
+
     # Erro de tipo/formato de dados
     if isinstance(error, DataError):
         return APIError("Formato de dados inválido.", 400, "ERR_INVALID_DATA")
