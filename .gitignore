@@ -95,6 +95,8 @@ dist/
 .cache/
 .parcel-cache/
 .env.*.local
+.vite/
+**/.vite/
 
 # Local development specific
 .claude/
