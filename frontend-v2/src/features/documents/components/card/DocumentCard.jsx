@@ -12,6 +12,7 @@ import {
   alpha,
   Divider
 } from '@mui/material';
+import { fluidClamp } from '@/styles/tokens';
 import {
   AccessTime as TimeIcon,
   LocationOn as LocationIcon,
@@ -130,7 +131,7 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
                 '95%': { transform: 'scale(0.95)' },
               },
             }}>
-              <NotificationIcon sx={{ fontSize: { xs: 11, sm: 13 } }} />
+              <NotificationIcon sx={{ fontSize: fluidClamp(11, 13, 360, 600) }} />
             </Box>
           </Box>
         </Tooltip>
@@ -145,7 +146,7 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
             fontWeight="700"
             noWrap
             sx={{
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: fluidClamp(12.8, 14.4, 360, 600),
               lineHeight: 1.3,
               transition: 'color 0.2s ease',
               color: 'text.primary',
@@ -159,14 +160,14 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
               label={statusLabel}
               color={statusColor}
               size="small"
-              sx={{ fontWeight: 600, height: { xs: 20, sm: 22 }, fontSize: { xs: '0.62rem', sm: '0.68rem' }, borderRadius: '6px', '& .MuiChip-label': { px: { xs: 0.75, sm: 1 } } }}
+              sx={{ fontWeight: 600, height: { xs: 20, sm: 22 }, fontSize: fluidClamp(9.92, 10.88, 360, 600), borderRadius: '6px', '& .MuiChip-label': { px: { xs: 0.75, sm: 1 } } }}
             />
             {hasUrgency && (
               <Chip
                 label={document.urgency === '2' ? 'Muito Urgente' : 'Urgente'}
                 color={document.urgency === '2' ? 'error' : 'warning'}
                 size="small"
-                sx={{ fontWeight: 600, height: { xs: 20, sm: 22 }, fontSize: { xs: '0.62rem', sm: '0.68rem' }, borderRadius: '6px', '& .MuiChip-label': { px: { xs: 0.75, sm: 1 } } }}
+                sx={{ fontWeight: 600, height: { xs: 20, sm: 22 }, fontSize: fluidClamp(9.92, 10.88, 360, 600), borderRadius: '6px', '& .MuiChip-label': { px: { xs: 0.75, sm: 1 } } }}
               />
             )}
           </Box>
@@ -176,13 +177,13 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5, mb: 1.5, gap: 0.5 }}>
           <Typography
             noWrap
-            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, color: 'text.secondary', minWidth: 0, flex: 1 }}
+            sx={{ fontSize: fluidClamp(11.2, 12, 360, 600), color: 'text.secondary', minWidth: 0, flex: 1 }}
           >
             {document.tt_type || '—'}
           </Typography>
           <Typography
             noWrap
-            sx={{ fontSize: { xs: '0.68rem', sm: '0.72rem' }, color: 'text.disabled', flexShrink: 0 }}
+            sx={{ fontSize: fluidClamp(10.88, 11.52, 360, 600), color: 'text.disabled', flexShrink: 0 }}
           >
             {formatDate(document.submission)}
           </Typography>
@@ -193,9 +194,9 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
         {/* Entity */}
         {entityName && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
-            <PersonIcon sx={{ fontSize: { xs: 13, sm: 14 }, color: 'text.disabled', flexShrink: 0 }} />
+            <PersonIcon sx={{ fontSize: fluidClamp(13, 14, 360, 600), color: 'text.disabled', flexShrink: 0 }} />
             <Tooltip title={entityName} arrow enterDelay={500}>
-              <Typography noWrap sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, fontWeight: 500, minWidth: 0 }}>
+              <Typography noWrap sx={{ fontSize: fluidClamp(11.52, 12.48, 360, 600), fontWeight: 500, minWidth: 0 }}>
                 {entityName}
               </Typography>
             </Tooltip>
@@ -208,15 +209,15 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
           return (
             <Tooltip title={tooltip} arrow enterDelay={500}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, mb: 0.75 }}>
-                <LocationIcon sx={{ fontSize: { xs: 13, sm: 14 }, color: 'text.disabled', mt: 0.15, flexShrink: 0 }} />
+                <LocationIcon sx={{ fontSize: fluidClamp(13, 14, 360, 600), color: 'text.disabled', mt: 0.15, flexShrink: 0 }} />
                 <Box sx={{ minWidth: 0 }}>
                   {addrLine1 && (
-                    <Typography noWrap sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: 'text.secondary', lineHeight: 1.4 }}>
+                    <Typography noWrap sx={{ fontSize: fluidClamp(11.52, 12.48, 360, 600), color: 'text.secondary', lineHeight: 1.4 }}>
                       {addrLine1}
                     </Typography>
                   )}
                   {addrLine2 && (
-                    <Typography noWrap sx={{ fontSize: { xs: '0.68rem', sm: '0.72rem' }, color: 'text.disabled', lineHeight: 1.3 }}>
+                    <Typography noWrap sx={{ fontSize: fluidClamp(10.88, 11.52, 360, 600), color: 'text.disabled', lineHeight: 1.3 }}>
                       {addrLine2}
                     </Typography>
                   )}
@@ -229,9 +230,9 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
         {/* Associate */}
         {document.ts_associate && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-            <AssociateIcon sx={{ fontSize: { xs: 13, sm: 14 }, color: 'text.disabled', flexShrink: 0 }} />
+            <AssociateIcon sx={{ fontSize: fluidClamp(13, 14, 360, 600), color: 'text.disabled', flexShrink: 0 }} />
             <Tooltip title={document.ts_associate} arrow enterDelay={500}>
-              <Typography noWrap sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: 'text.secondary', minWidth: 0 }}>
+              <Typography noWrap sx={{ fontSize: fluidClamp(11.52, 12.48, 360, 600), color: 'text.secondary', minWidth: 0 }}>
                 {document.ts_associate}
               </Typography>
             </Tooltip>
@@ -263,7 +264,7 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
               <Typography
                 noWrap
                 sx={{
-                  fontSize: { xs: '0.62rem', sm: '0.65rem' },
+                  fontSize: fluidClamp(9.92, 10.4, 360, 600),
                   fontWeight: 600,
                   color: `${timerColor}.dark`,
                   minWidth: 0,
@@ -293,7 +294,7 @@ const DocumentCard = ({ document, onViewDetails, metaData, showDeadline = false 
                 '&:hover': { bgcolor: alpha(paletteColor, 0.08) },
               }}
             >
-              <ViewIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
+              <ViewIcon sx={{ fontSize: fluidClamp(16, 18, 360, 600) }} />
             </IconButton>
           </Tooltip>
         </Box>

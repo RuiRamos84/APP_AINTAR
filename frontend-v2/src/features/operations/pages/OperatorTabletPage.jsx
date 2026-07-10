@@ -34,13 +34,16 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
 import notification from '@/core/services/notification';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { useOperationTasks } from '../hooks/useOperationTasks';
 import { useDocuments, useDocumentDetails, useAddStep } from '@/features/documents/hooks/useDocuments';
 import { useMetaData } from '@/core/hooks/useMetaData';
-import { getAvailableSteps, getAvailableUsersForStep } from '@/features/documents/utils/workflowUtils';
-import { getStatusColor, getStatusLabel } from '@/features/documents/utils/documentUtils';
+import { getAvailableSteps, getAvailableUsersForStep, isConclusionWhat } from '@/features/documents/utils/workflowUtils';
+import { getStatusColor, getStatusLabel, getEmptyDocumentParams, isEmptyParamValue } from '@/features/documents/utils/documentUtils';
+import { documentsService } from '@/features/documents/api/documentsService';
+import ParametersStep from '@/features/documents/components/forms/steps/ParametersStep';
 import { operationService } from '../services/operationService';
 import DirectTaskForm from '../components/DirectTaskForm';
 import LocationPickerMap from '@/features/documents/components/forms/LocationPickerMap';
@@ -82,11 +85,50 @@ const PedidoOperadorModal = ({ open, onClose, docData }) => {
     const [user, setUser] = useState('');
     const [memo, setMemo] = useState('');
     const [photo, setPhoto] = useState(null);
+    const [paramValues, setParamValues] = useState({});
+    const [savingParams, setSavingParams] = useState(false);
 
     // Reset ao abrir
     React.useEffect(() => {
-        if (open) { setStep(''); setUser(''); setMemo(''); setPhoto(null); }
+        if (open) { setStep(''); setUser(''); setMemo(''); setPhoto(null); setParamValues({}); }
     }, [open]);
+
+    // Parâmetros do pedido — só relevantes quando o próximo passo é "Concluído".
+    // Só os que ainda estão a null entram aqui: os já respondidos não são
+    // reapresentados nem tocados por este gate.
+    const isConclusionStep = isConclusionWhat(step);
+    const { data: rawParams = [], isFetching: paramsLoading, isSuccess: paramsReady } = useQuery({
+        queryKey: ['documentParams', doc?.pk],
+        queryFn: () => documentsService.fetchParams(doc.pk),
+        enabled: open && isConclusionStep && !!doc?.pk,
+    });
+
+    const emptyParams = useMemo(() => getEmptyDocumentParams(rawParams), [rawParams]);
+
+    const docTypeParams = useMemo(() => emptyParams.map((p) => ({
+        param_pk: p.tb_param || p.pk,
+        link_pk: p.pk,
+        name: p.name,
+        type: p.type,
+        units: p.units,
+        multiline: 0,
+    })), [emptyParams]);
+
+    React.useEffect(() => {
+        if (emptyParams.length) {
+            const values = {};
+            emptyParams.forEach((p) => { values[`param_${p.tb_param || p.pk}`] = ''; });
+            setParamValues(values);
+        }
+    }, [emptyParams]);
+
+    const handleParamChange = (paramId, value) => {
+        setParamValues((prev) => ({ ...prev, [`param_${paramId}`]: value }));
+    };
+
+    const missingParams = isConclusionStep
+        ? docTypeParams.filter((p) => isEmptyParamValue(paramValues[`param_${p.param_pk}`]))
+        : [];
 
     // Passos e utilizadores disponíveis
     const availableSteps = useMemo(() => {
@@ -113,8 +155,35 @@ const PedidoOperadorModal = ({ open, onClose, docData }) => {
         if (f) setPhoto(f);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!step || !user) return;
+        if (isConclusionStep && !paramsReady) {
+            notification.error('Aguarde o carregamento dos parâmetros do pedido antes de concluir.');
+            return;
+        }
+        if (isConclusionStep && missingParams.length > 0) {
+            notification.error(`Preencha o(s) parâmetro(s) do pedido antes de concluir: ${missingParams.map((p) => p.name).join(', ')}`);
+            return;
+        }
+
+        if (isConclusionStep && emptyParams.length > 0) {
+            setSavingParams(true);
+            try {
+                // Só envia os parâmetros que estavam a null — os já respondidos ficam intocados
+                const payload = emptyParams.map((p) => ({
+                    pk: p.pk,
+                    value: paramValues[`param_${p.tb_param || p.pk}`],
+                    memo: p.memo,
+                }));
+                await documentsService.updateParams(doc.pk, payload);
+            } catch (err) {
+                notification.error(err?.response?.data?.error || err?.message || 'Erro ao gravar parâmetros do pedido.');
+                setSavingParams(false);
+                return;
+            }
+            setSavingParams(false);
+        }
+
         const fd = new FormData();
         fd.append('tb_document', doc.pk);
         fd.append('what', step);
@@ -126,7 +195,9 @@ const PedidoOperadorModal = ({ open, onClose, docData }) => {
         });
     };
 
-    const canSubmit = step && user && !addStepMutation.isPending;
+    const canSubmit = step && user && !addStepMutation.isPending && !savingParams
+        && !(isConclusionStep && (paramsLoading || !paramsReady))
+        && !(isConclusionStep && missingParams.length > 0);
 
     const rawStatusColor = doc ? getStatusColor(doc.what) : 'default';
     const statusColor = rawStatusColor === 'default' ? 'info' : rawStatusColor;
@@ -241,6 +312,32 @@ const PedidoOperadorModal = ({ open, onClose, docData }) => {
                                     </FormControl>
                                 )}
 
+                                {isConclusionStep && (paramsLoading || docTypeParams.length > 0) && (
+                                    <>
+                                        <Divider />
+                                        <Typography variant="subtitle2" fontWeight={700} color="warning.main">
+                                            Parâmetros do Pedido
+                                        </Typography>
+                                        {paramsLoading ? (
+                                            <Skeleton variant="rounded" height={56} />
+                                        ) : (
+                                            <>
+                                                <ParametersStep
+                                                    docTypeParams={docTypeParams}
+                                                    paramValues={paramValues}
+                                                    handleParamChange={handleParamChange}
+                                                    associateName={doc?.ts_associate}
+                                                />
+                                                {missingParams.length > 0 && (
+                                                    <Alert severity="warning">
+                                                        Responda a todos os parâmetros do pedido antes de o concluir.
+                                                    </Alert>
+                                                )}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+
                                 <TextField
                                     label="Observações (opcional)"
                                     fullWidth
@@ -283,18 +380,18 @@ const PedidoOperadorModal = ({ open, onClose, docData }) => {
             </DialogContent>
 
             <DialogActions sx={{ px: 2.5, pb: 2.5 }}>
-                <Button onClick={onClose} disabled={addStepMutation.isPending} size="large">
+                <Button onClick={onClose} disabled={addStepMutation.isPending || savingParams} size="large">
                     Cancelar
                 </Button>
                 <Button
                     variant="contained"
                     onClick={handleSubmit}
                     disabled={!canSubmit || availableSteps.length === 0}
-                    startIcon={addStepMutation.isPending ? <CircularProgress size={18} /> : <SendIcon />}
+                    startIcon={(addStepMutation.isPending || savingParams) ? <CircularProgress size={18} /> : <SendIcon />}
                     size="large"
                     sx={{ minWidth: 140 }}
                 >
-                    {addStepMutation.isPending ? 'A enviar...' : 'Tramitar'}
+                    {savingParams ? 'A gravar parâmetros...' : addStepMutation.isPending ? 'A enviar...' : 'Tramitar'}
                 </Button>
             </DialogActions>
         </Dialog>

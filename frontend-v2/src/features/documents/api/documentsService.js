@@ -225,6 +225,18 @@ export const documentsService = {
   },
 
   /**
+   * Verifica se existe um pedido de "Ramal: Execução Coerciva" em curso para o
+   * mesmo NIF+morada — usado para bloquear a criação de Pedido de Limpeza de Fossa.
+   * @returns {Promise<{blocked: boolean, document?: object}>}
+   */
+  async checkRamalCoercivo({ nipc, address, postal }) {
+    const response = await api.get('/documents/check-ramal-coercivo', {
+      params: { nipc, address, postal },
+    });
+    return response;
+  },
+
+  /**
    * Check if a user is on vacation
    * @param {string|number} userPk - User ID
    * @returns {Promise<Object>} Vacation status

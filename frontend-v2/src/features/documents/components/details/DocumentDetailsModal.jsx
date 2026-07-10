@@ -24,6 +24,7 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+import { fluidClamp } from '@/styles/tokens';
 import {
   Close as CloseIcon,
   Edit as EditIcon,
@@ -586,7 +587,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                 label={getStatusLabel(document.what, metaData)}
                 color={getStatusColor(document.what)}
                 size="small"
-                sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
+                sx={{ fontWeight: 600, fontSize: fluidClamp(11.2, 12.8, 360, 600) }}
               />
               {document.urgency && document.urgency !== '0' && (
                 <Chip
@@ -596,7 +597,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                   }
                   size="small"
                   color={document.urgency === '2' ? 'error' : 'warning'}
-                  sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
+                  sx={{ fontWeight: 600, fontSize: fluidClamp(11.2, 12.8, 360, 600) }}
                 />
               )}
               {document.origin && (
@@ -610,7 +611,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                     onClick={() => setOriginOpen(true)}
                     sx={{
                       fontWeight: 600,
-                      fontSize: { xs: '0.68rem', sm: '0.75rem' },
+                      fontSize: fluidClamp(10.88, 12, 360, 600),
                       cursor: 'pointer',
                       '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
                     }}
@@ -704,7 +705,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               minHeight: { xs: 40, sm: 48 },
               '& .MuiTab-root': {
                 minHeight: { xs: 40, sm: 48 },
-                fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                fontSize: fluidClamp(12, 13.6, 360, 600),
                 px: { xs: 1, sm: 2 },
                 minWidth: 0,
               },
@@ -1133,7 +1134,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               startIcon={downloadComprovativo.isPending ? <CircularProgress size={16} /> : <DownloadIcon />}
               onClick={() => safeDocumentPk && downloadComprovativo.mutate(safeDocumentPk)}
               disabled={!document || downloadComprovativo.isPending}
-              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+              sx={{ fontSize: fluidClamp(12, 13.6, 360, 600) }}
             >
               {isMobile ? 'Comprov.' : 'Comprovativo'}
             </Button>
@@ -1145,7 +1146,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               startIcon={<FileCopyIcon />}
               onClick={() => setIsReplicateOpen(true)}
               disabled={!document}
-              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+              sx={{ fontSize: fluidClamp(12, 13.6, 360, 600) }}
             >
               Replicar
             </Button>
@@ -1157,7 +1158,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               color="warning"
               startIcon={<ReopenIcon />}
               onClick={() => { setReopenUserId(''); setReopenDialogOpen(true); }}
-              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+              sx={{ fontSize: fluidClamp(12, 13.6, 360, 600) }}
             >
               Reabrir
             </Button>
@@ -1170,7 +1171,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               size={isMobile ? 'small' : 'medium'}
               onClick={() => setIsAddAnnexOpen(true)}
               disabled={!document}
-              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+              sx={{ fontSize: fluidClamp(12, 13.6, 360, 600) }}
             >
               Adicionar Anexo
             </Button>
@@ -1178,7 +1179,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
               variant="contained"
               size={isMobile ? 'small' : 'medium'}
               onClick={() => setIsAddStepOpen(true)}
-              sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+              sx={{ fontSize: fluidClamp(12, 13.6, 360, 600) }}
             >
               Adicionar Ação
             </Button>
@@ -1192,7 +1193,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
             startIcon={<EditIcon />}
             onClick={() => setIsEditOpen(true)}
             disabled={!document}
-            sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, ml: effectiveIsOwner ? 0 : 'auto' }}
+            sx={{ fontSize: fluidClamp(12, 13.6, 360, 600), ml: effectiveIsOwner ? 0 : 'auto' }}
           >
             {isMobile ? 'Editar' : 'Editar Pedido'}
           </Button>

@@ -34,6 +34,14 @@ export const getValidTransitions = (document, metaData) => {
 };
 
 /**
+ * Verifica se um "what" representa o passo terminal do workflow (CONCLUIDO).
+ * Alinhado com vst_document_step$what: what=0 é sempre "CONCLUIDO", em todos os tipos de documento.
+ * @param {number|string} what
+ * @returns {boolean}
+ */
+export const isConclusionWhat = (what) => what !== '' && what !== null && what !== undefined && Number(what) === 0;
+
+/**
  * Verifica se o documento pode ficar no mesmo passo (transferência)
  * @param {Object} document
  * @param {Object} metaData

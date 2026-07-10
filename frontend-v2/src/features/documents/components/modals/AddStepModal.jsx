@@ -24,6 +24,8 @@ import {
   ListItemSecondaryAction,
   useTheme,
   alpha,
+  Divider,
+  Skeleton,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
@@ -38,10 +40,14 @@ import {
   CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { useAddStep, useDocumentDetails } from '../../hooks/useDocuments';
 import { useMetaData } from '@/core/hooks/useMetaData';
-import { getAvailableSteps, getAvailableUsersForStep } from '../../utils/workflowUtils';
+import { getAvailableSteps, getAvailableUsersForStep, isConclusionWhat } from '../../utils/workflowUtils';
+import { getEmptyDocumentParams, isEmptyParamValue } from '../../utils/documentUtils';
 import { useVacationChecker } from '../../hooks/useVacationChecker.jsx';
+import { documentsService } from '../../api/documentsService';
+import ParametersStep from '../forms/steps/ParametersStep';
 import notification from '@/core/services/notification';
 
 const MAX_FILES = 5;
@@ -111,12 +117,53 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
       setFiles([]);
       setShowSuccess(false);
       setConfirmClose(false);
+      setParamValues({});
     }
   }, [open, reset, initialStep]);
 
   const selectedStep = watch('step');
+  const isConclusionStep = isConclusionWhat(selectedStep);
 
   const addStepMutation = useAddStep();
+  const [savingParams, setSavingParams] = useState(false);
+
+  // Parâmetros do pedido — só relevantes quando o próximo passo é "Concluído".
+  // Só os que ainda estão a null entram aqui: os já respondidos não são
+  // reapresentados nem tocados por este gate.
+  const { data: rawParams = [], isFetching: paramsLoading, isSuccess: paramsReady } = useQuery({
+    queryKey: ['documentParams', documentId],
+    queryFn: () => documentsService.fetchParams(documentId),
+    enabled: open && isConclusionStep && !!documentId,
+  });
+
+  const emptyParams = useMemo(() => getEmptyDocumentParams(rawParams), [rawParams]);
+
+  const docTypeParams = useMemo(() => emptyParams.map((p) => ({
+    param_pk: p.tb_param || p.pk,
+    link_pk: p.pk,
+    name: p.name,
+    type: p.type,
+    units: p.units,
+    multiline: 0,
+  })), [emptyParams]);
+
+  const [paramValues, setParamValues] = useState({});
+
+  React.useEffect(() => {
+    if (emptyParams.length) {
+      const values = {};
+      emptyParams.forEach((p) => { values[`param_${p.tb_param || p.pk}`] = ''; });
+      setParamValues(values);
+    }
+  }, [emptyParams]);
+
+  const handleParamChange = (paramId, value) => {
+    setParamValues((prev) => ({ ...prev, [`param_${paramId}`]: value }));
+  };
+
+  const missingParams = isConclusionStep
+    ? docTypeParams.filter((p) => isEmptyParamValue(paramValues[`param_${p.param_pk}`]))
+    : [];
 
   // Available steps based on workflow transitions
   const availableSteps = useMemo(() => {
@@ -202,7 +249,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
   };
 
   // --- Submit ---
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     // Validate file descriptions
     if (files.length > 0) {
       const missingDesc = files.some((f) => !f.description.trim());
@@ -215,6 +262,33 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
     if (data.user === null || data.user === undefined || data.user === '') {
       notification.error('Deve selecionar um utilizador.');
       return;
+    }
+
+    if (isConclusionStep && paramsLoading) {
+      notification.error('Aguarde o carregamento dos parâmetros do pedido antes de concluir.');
+      return;
+    }
+    if (isConclusionStep && missingParams.length > 0) {
+      notification.error(`Preencha o(s) parâmetro(s) do pedido antes de concluir: ${missingParams.map((p) => p.name).join(', ')}`);
+      return;
+    }
+
+    if (isConclusionStep && emptyParams.length > 0) {
+      setSavingParams(true);
+      try {
+        // Só envia os parâmetros que estavam a null — os já respondidos ficam intocados
+        const payload = emptyParams.map((p) => ({
+          pk: p.pk,
+          value: paramValues[`param_${p.tb_param || p.pk}`],
+          memo: p.memo,
+        }));
+        await documentsService.updateParams(documentId, payload);
+      } catch (err) {
+        notification.error(err?.response?.data?.error || err?.message || 'Erro ao gravar parâmetros do pedido.');
+        setSavingParams(false);
+        return;
+      }
+      setSavingParams(false);
     }
 
     const formData = new FormData();
@@ -242,7 +316,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
     );
   };
 
-  const isSubmitting = addStepMutation.isPending;
+  const isSubmitting = addStepMutation.isPending || savingParams;
 
   return (
     <>
@@ -383,6 +457,37 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
                   )}
                 />
               </Grid>
+
+              {/* Parâmetros do Pedido — obrigatório antes de concluir */}
+              {isConclusionStep && (paramsLoading || docTypeParams.length > 0) && (
+                <>
+                  <Grid size={12}>
+                    <Divider />
+                  </Grid>
+                  <Grid size={12}>
+                    <Typography variant="subtitle2" fontWeight={700} color="warning.main" sx={{ mb: 1 }}>
+                      Parâmetros do Pedido
+                    </Typography>
+                    {paramsLoading ? (
+                      <Skeleton variant="rounded" height={56} />
+                    ) : (
+                      <>
+                        <ParametersStep
+                          docTypeParams={docTypeParams}
+                          paramValues={paramValues}
+                          handleParamChange={handleParamChange}
+                          associateName={document?.ts_associate}
+                        />
+                        {missingParams.length > 0 && (
+                          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2 }}>
+                            Responda a todos os parâmetros do pedido antes de o concluir.
+                          </Alert>
+                        )}
+                      </>
+                    )}
+                  </Grid>
+                </>
+              )}
 
               {/* Memo */}
               <Grid size={12}>
@@ -534,7 +639,7 @@ const AddStepModal = ({ open, onClose, documentId, document: propDocument, initi
               type="submit"
               variant="contained"
               color={showSuccess ? 'success' : 'primary'}
-              disabled={isSubmitting || showSuccess}
+              disabled={isSubmitting || showSuccess || (isConclusionStep && (paramsLoading || !paramsReady || missingParams.length > 0))}
               startIcon={
                 isSubmitting
                   ? <CircularProgress size={20} />

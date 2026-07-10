@@ -196,6 +196,7 @@ const ParametersTab = ({ document }) => {
                         paramValues={editValues}
                         handleParamChange={handleParamChange}
                         isSibsPaymentCompleted={isSibsPaymentCompleted}
+                        associateName={document?.ts_associate}
                     />
                 </DialogContent>
                 <Divider />

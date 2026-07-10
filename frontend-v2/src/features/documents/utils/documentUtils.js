@@ -1,6 +1,45 @@
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
+// Parâmetros geridos noutro fluxo (ex: método de pagamento) — nunca exigidos aqui.
+const HIDDEN_PARAM_NAMES = ['método de pagamento'];
+
+/**
+ * Um parâmetro sem valor respondido
+ */
+export const isEmptyParamValue = (value) =>
+  value === null || value === undefined || String(value).trim() === '';
+
+/**
+ * Parâmetros do pedido (vbl_document_param) que ainda não têm resposta.
+ * Os já respondidos ficam de fora — não devem ser reapresentados nem alterados
+ * num gate de conclusão, só através do separador de edição de parâmetros dedicado.
+ * @param {Array} rawParams - resultado de documentsService.fetchParams(pk)
+ */
+export const getEmptyDocumentParams = (rawParams = []) =>
+  rawParams.filter(
+    (p) => !HIDDEN_PARAM_NAMES.includes((p.name || '').toLowerCase()) && isEmptyParamValue(p.value)
+  );
+
+/**
+ * Remove o prefixo "Município de " para comparar nomes de concelho/associado
+ * com o campo ts_entity das instalações (ETAR/EE).
+ */
+const normalizeZoneName = (name) => (name || '').replace(/^Município de\s+/i, '').trim();
+
+/**
+ * Filtra instalações (ETAR/EE, com campo ts_entity) para as do mesmo concelho
+ * do associado do pedido. Sem associado conhecido, devolve a lista completa
+ * (evita esconder opções por falta momentânea de contexto).
+ * @param {Array} installations - metaData.etar ou metaData.ee
+ * @param {string} associateName - nome do associado (ex: "Município de Tondela")
+ */
+export const filterInstallationsByAssociate = (installations = [], associateName) => {
+  const zone = normalizeZoneName(associateName);
+  if (!zone) return installations;
+  return installations.filter((i) => normalizeZoneName(i.ts_entity) === zone);
+};
+
 /**
  * Mapeamento de cores MUI para cada status de documento
  * Alinhado com a view vst_document_step$what do backend

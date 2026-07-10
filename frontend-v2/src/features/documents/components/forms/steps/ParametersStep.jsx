@@ -14,6 +14,7 @@ import {
   Box,
 } from '@mui/material';
 import { useMetaData } from '@/core/hooks/useMetaData';
+import { filterInstallationsByAssociate } from '@/features/documents/utils/documentUtils';
 import { useTheme, alpha } from '@mui/material/styles';
 
 const PARAM_TYPES = { NUMBER: 1, TEXT: 2, REFERENCE: 3, BOOLEAN: 4 };
@@ -61,7 +62,7 @@ const computeGridSizes = (params) =>
     return prevIsBoolean || nextIsBoolean ? { xs: 12, sm: 6 } : { xs: 12 };
   });
 
-const ParametersStep = ({ docTypeParams, paramValues, handleParamChange }) => {
+const ParametersStep = ({ docTypeParams, paramValues, handleParamChange, associateName }) => {
   const { data: metaData } = useMetaData();
   const theme = useTheme();
 
@@ -127,8 +128,11 @@ const ParametersStep = ({ docTypeParams, paramValues, handleParamChange }) => {
     // ── REFERENCE ─────────────────────────────────────────────────────────
     if (type === PARAM_TYPES.REFERENCE) {
       let options = [];
-      if (param.name === 'Local de descarga/ETAR' || param.name === 'ETAR') options = metaData?.etar || [];
-      else if (param.name === 'EE') options = metaData?.ee || [];
+      if (param.name === 'Local de descarga/ETAR' || param.name === 'ETAR') {
+        options = filterInstallationsByAssociate(metaData?.etar || [], associateName);
+      } else if (param.name === 'EE') {
+        options = metaData?.ee || [];
+      }
 
       return (
         <FormControl fullWidth required>

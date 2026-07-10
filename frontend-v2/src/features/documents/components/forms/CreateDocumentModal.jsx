@@ -46,6 +46,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createDocumentSchema, defaultValues } from './schema';
 import StepWizard from './StepWizard';
 import { useCreateDocument } from '../../hooks/useDocuments';
+import { documentsService } from '../../api/documentsService';
 import { useMetaData } from '@/core/hooks/useMetaData';
 import ParametersStep from './steps/ParametersStep';
 import IdentificationStep from './steps/IdentificationStep';
@@ -69,6 +70,10 @@ const getFileIcon = (filename) => {
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png,.gif,.webp,.docx,.xlsx,.eml,.msg';
 const MAX_FILES = 10;
 
+// tt_doctype pk de "Pedido de Limpeza de Fossa" — mesmo id usado no backend
+// (TYPE_TO_INVOICE em workflow.py/core.py, e no gate de Ramal: Execução Coerciva)
+const LFS_DOCTYPE_PK = 2;
+
 const CreateDocumentModal = ({ open, onClose }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -76,6 +81,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
   // Wizard State
   const [activeStep, setActiveStep] = useState(0);
   const steps = ['Identificação', 'Detalhes', 'Localização', 'Parâmetros', 'Ficheiros', 'Confirmação'];
+  const [checkingRamal, setCheckingRamal] = useState(false);
 
   // Entity Logic State
   const [isInternal, setIsInternal] = useState(false);
@@ -243,7 +249,29 @@ const CreateDocumentModal = ({ open, onClose }) => {
         fieldsToValidate = ['type', 'presentation', 'text'];
         break;
       case 2: // Localização
-        // Optional
+        if (Number(watchedValues.type) === LFS_DOCTYPE_PK) {
+          const nipc = entityData?.nipc || watchedValues.nipc;
+          const address = watchedValues.address;
+          const postal = watchedValues.postal;
+          if (nipc && address && postal) {
+            setCheckingRamal(true);
+            try {
+              const result = await documentsService.checkRamalCoercivo({ nipc, address, postal });
+              if (result?.blocked) {
+                notification.error('Não é possível criar este pedido.', {
+                  description: `Já existe um pedido de Ramal: Execução Coerciva${result.document?.regnumber ? ` (${result.document.regnumber})` : ''} em curso para esta morada. A fossa deve ser ligada à rede de saneamento — não são feitas mais limpezas até essa ligação estar concluída.`,
+                  duration: 10000,
+                });
+                setCheckingRamal(false);
+                return;
+              }
+            } catch (err) {
+              // Falha na verificação não deve impedir o fluxo — regista e deixa avançar
+              console.error('[CreateDocumentModal] Erro ao verificar Ramal: Execução Coerciva:', err);
+            }
+            setCheckingRamal(false);
+          }
+        }
         break;
       case 3: // Params
         if (docTypeParams && docTypeParams.length > 0) {
@@ -817,10 +845,11 @@ const CreateDocumentModal = ({ open, onClose }) => {
                 <Typography variant="subtitle2" gutterBottom>
                     {watchedValues.type ? `Tipo: ${getTypeLabel(watchedValues.type)}` : 'Selecione um tipo'}
                 </Typography>
-                <ParametersStep 
+                <ParametersStep
                     docTypeParams={docTypeParams}
                     paramValues={paramValues}
                     handleParamChange={handleParamChange}
+                    associateName={getAssociateLabel(watchedValues.associate)}
                 />
             </Box>
         );
@@ -1081,7 +1110,7 @@ const CreateDocumentModal = ({ open, onClose }) => {
                 handleNext={handleNext}
                 handleBack={handleBack}
                 isLastStep={activeStep === steps.length - 1}
-                isLoading={createMutation.isPending}
+                isLoading={createMutation.isPending || checkingRamal}
                 onClose={handleClose}
             >
                 {renderStepContent(activeStep)}

@@ -1,4 +1,5 @@
 import re
+import re
 from .. import db
 from sqlalchemy.sql import text
 from sqlalchemy.exc import ProgrammingError, OperationalError, SQLAlchemyError
