@@ -54,13 +54,17 @@ class PaymentHistoryFilters(BaseModel):
 class PaymentService:
     """Serviço de integração com SIBS Payments"""
 
+    _CHECKOUT_TTL = 900  # 15 min
+    _CHECKOUT_KEY_PREFIX = "sibs:checkout:"
+
     def __init__(self):
         self.base_url = None
         self.terminal_id = None
         self.client_id = None
         self.entity = None
         self.api_token = None
-        self.checkout_cache = {}  # Cache de instância
+        self._redis = None
+        self.checkout_cache = {}  # Fallback em memória (usado só se o Redis não estiver disponível)
 
     def init_app(self, app):
         self.base_url = app.config.get('SIBS_BASE_URL')
@@ -68,6 +72,42 @@ class PaymentService:
         self.client_id = app.config.get('SIBS_CLIENT_ID')
         self.entity = app.config.get('SIBS_ENTITY', '52764')
         self.api_token = app.config.get('SIBS_API_TOKEN')
+
+        redis_url = app.config.get('CACHE_REDIS_URL') or app.config.get('REDIS_URL')
+        if redis_url:
+            try:
+                import redis
+                client = redis.Redis.from_url(redis_url, socket_connect_timeout=2, decode_responses=True)
+                client.ping()
+                self._redis = client
+                logger.info("PaymentService: cache de checkout SIBS a usar Redis")
+            except Exception as e:
+                logger.warning(f"PaymentService: Redis indisponível ({e}) — cache de checkout usa memória (fallback)")
+                self._redis = None
+
+    def _cache_set_checkout(self, transaction_id: str, data: dict):
+        if self._redis:
+            self._redis.setex(f"{self._CHECKOUT_KEY_PREFIX}{transaction_id}", self._CHECKOUT_TTL, json.dumps(data, default=str))
+        else:
+            data = dict(data)
+            data["timestamp"] = time.time()
+            self.checkout_cache[transaction_id] = data
+
+    def _cache_get_checkout(self, transaction_id: str):
+        if self._redis:
+            raw = self._redis.get(f"{self._CHECKOUT_KEY_PREFIX}{transaction_id}")
+            return json.loads(raw) if raw else None
+
+        data = self.checkout_cache.get(transaction_id)
+        if data and time.time() - data["timestamp"] <= self._CHECKOUT_TTL:
+            return data
+        return None
+
+    def _cache_delete_checkout(self, transaction_id: str):
+        if self._redis:
+            self._redis.delete(f"{self._CHECKOUT_KEY_PREFIX}{transaction_id}")
+        else:
+            self.checkout_cache.pop(transaction_id, None)
 
     def _get_headers(self, auth_type="Bearer", token=None):
         """Headers para API SIBS"""
@@ -78,14 +118,6 @@ class PaymentService:
             "Accept": "application/json",
             "X-IBM-Client-Id": self.client_id
         }
-
-    def _cleanup_expired_cache(self):
-        """Limpeza automática de cache expirado"""
-        now = time.time()
-        expired = [k for k, v in self.checkout_cache.items()
-                   if now - v["timestamp"] > 900]
-        for k in expired:
-            del self.checkout_cache[k]
 
     def _map_payment_method_to_param(self, payment_method: str) -> str:
         """
@@ -246,9 +278,6 @@ class PaymentService:
         """Criar checkout SIBS sem gravar BD"""
         checkout_data = CheckoutCreate.model_validate(data)
         try:
-            # Limpeza do cache
-            self._cleanup_expired_cache()
-
             with db_session_manager(current_user) as db:
                 regnumber = db.execute(text("""
                     SELECT regnumber FROM tb_document WHERE pk = :doc_id
@@ -291,14 +320,13 @@ class PaymentService:
             transaction_id = data["transactionID"]
 
             # Guardar no cache (15 min)
-            self.checkout_cache[transaction_id] = {
+            self._cache_set_checkout(transaction_id, {
                 "document_id": checkout_data.document_id,
                 "amount": checkout_data.amount,
                 "order_id": regnumber,
                 "transaction_signature": data.get("transactionSignature"),
                 "payment_reference": data.get("paymentReference", {}),
-                "timestamp": time.time()
-            }
+            })
 
             return {
                 "success": True,
@@ -312,20 +340,16 @@ class PaymentService:
             raise
 
     def _get_checkout_data(self, transaction_id):
-        """Recuperar dados do cache"""
-        data = self.checkout_cache.get(transaction_id)
+        """Recuperar dados do cache. A expiração (15 min) é gerida pelo próprio
+        cache (TTL no Redis, timestamp manual no fallback em memória) — se os
+        dados já não estiverem lá, é equivalente a estarem expirados."""
+        data = self._cache_get_checkout(transaction_id)
         if not data:
-            logger.info(f"Checkout {transaction_id} não encontrado no cache.")
-            return None, False # Não existe, não está expirado
-
-        # Verificar expiração (15 min)
-        if time.time() - data["timestamp"] > 900:
-            # Não apagar já, para permitir recriação
-            logger.info(f"Checkout {transaction_id} encontrado no cache, mas está expirado.")
-            return data, True  # Retorna os dados e um indicador de que está expirado
+            logger.info(f"Checkout {transaction_id} não encontrado no cache (ou expirado).")
+            return None, False
 
         logger.info(f"Checkout {transaction_id} encontrado no cache e válido.")
-        return data, False  # Retorna os dados e indica que não está expirado
+        return data, False
 
     def process_mbway_from_checkout(self, data: dict, current_user: str):
         """MBWay usando checkout cache"""
@@ -463,8 +487,7 @@ class PaymentService:
                     ), {"sibs_pk": sibs_pk, "doc_id": document_id})
 
             # Limpar cache
-            if transaction_id in self.checkout_cache:
-                del self.checkout_cache[transaction_id]
+            self._cache_delete_checkout(transaction_id)
 
             return {
                 "success": True,
@@ -565,8 +588,7 @@ class PaymentService:
                     ), {"sibs_pk": sibs_pk, "doc_id": document_id})
 
             # Limpar cache
-            if transaction_id in self.checkout_cache:
-                del self.checkout_cache[transaction_id]
+            self._cache_delete_checkout(transaction_id)
 
             return {
                 "success": True,
@@ -689,9 +711,14 @@ class PaymentService:
         """
         Verificar estado do pagamento.
 
-        Lógica diferenciada por método:
-        - MBWAY: Chamado apenas como fallback se webhook não chegar em 5min
-        - MULTIBANCO: Chamado apenas na data de expiração da referência
+        Chamado como fallback de polling (MBWAY, se o webhook não chegar em 5min)
+        ou como verificação manual do admin (qualquer método, PaymentAdminPage).
+        Em ambos os casos quem chama quer o estado actual — por isso consulta-se
+        sempre a SIBS quando o estado local ainda não é final. (Antes havia um
+        atalho que evitava consultar a SIBS para Multibanco antes da data de
+        expiração, pensado para poupar chamadas de um polling automático que
+        nunca chegou a existir no frontend — na prática só impedia o botão de
+        verificação manual do admin de mostrar o estado real.)
         """
         try:
             # Estado local primeiro
@@ -720,27 +747,6 @@ class PaymentService:
                     "document_id": local_data.tb_document,
                     "updated": False
                 }
-
-            # Para MULTIBANCO: só consultar SIBS se a data de
-            # expiração já foi atingida
-            if local_data.payment_method == 'MULTIBANCO':
-                if local_data.expiry_date:
-                    expiry = local_data.expiry_date
-                    if hasattr(expiry, 'date'):
-                        expiry_date = expiry.date()
-                    else:
-                        expiry_date = expiry
-                    if date.today() < expiry_date:
-                        return {
-                            "success": True,
-                            "payment_status": local_data.payment_status,
-                            "payment_method": "MULTIBANCO",
-                            "document_id": local_data.tb_document,
-                            "expiry_date": str(local_data.expiry_date),
-                            "updated": False,
-                            "message": "Referência ainda válida. "
-                                       "Aguardar webhook ou expiração."
-                        }
 
             # Consultar SIBS API
             url = f"{self.base_url}/payments/{transaction_id}/status"
@@ -967,7 +973,9 @@ class PaymentService:
                         )
 
                     # Criar movimento de caixa automático (tipo 2 = entrada com documento)
-                    if amount and amount > 0:
+                    # Apenas para pagamentos em numerário (pk 1) — Caixa regista só dinheiro físico,
+                    # não transferências bancárias, município ou outros métodos manuais.
+                    if amount and amount > 0 and payment_method_pk == "1":
                         try:
                             caixa_pk = db.execute(text("SELECT fs_nextcode()")).scalar()
 
@@ -1143,6 +1151,79 @@ class PaymentService:
 
         except Exception as e:
             logger.error(f"Erro get_payment_history: {e}")
+            raise
+
+    # Mapeamento de payment_status (backend) para status de fatura (InvoicesPage)
+    _INVOICE_STATUS_MAP = {
+        "SUCCESS": "paid",
+        "PENDING": "pending",
+        "CREATED": "pending",
+        "PENDING_VALIDATION": "pending",
+        "EXPIRED": "overdue",
+        "DECLINED": "overdue",
+        "REJECTED": "overdue",
+        "REFUNDED": "issued",
+    }
+
+    def _map_invoice_row(self, row: dict) -> dict:
+        row = dict(row)
+        row["status"] = self._INVOICE_STATUS_MAP.get(row.get("payment_status"), "issued")
+        return row
+
+    def get_invoices(self, current_user: str, filters: dict):
+        """Lista de facturas (todos os pagamentos, com filtros opcionais de estado/pesquisa)."""
+        try:
+            with db_session_manager(current_user) as session:
+                where = ["s.payment_method != 'ISENCAO'"]
+                params = {}
+
+                status = filters.get("status")
+                if status:
+                    where.append("s.payment_status = :status")
+                    params["status"] = status
+
+                search = filters.get("search")
+                if search:
+                    where.append("(s.regnumber ILIKE :search OR d.ts_entity ILIKE :search)")
+                    params["search"] = f"%{search}%"
+
+                where_clause = " AND ".join(where)
+                rows = session.execute(text(f"""
+                    SELECT s.pk, s.regnumber, ent.name AS ts_entity, s.amount, s.created_at,
+                           s.payment_status, s.payment_method, s.tb_document
+                    FROM vbl_sibs s
+                    LEFT JOIN tb_document d ON d.pk = s.tb_document
+                    LEFT JOIN ts_entity ent ON ent.pk = d.ts_entity
+                    WHERE {where_clause}
+                    ORDER BY s.created_at DESC
+                    LIMIT 200
+                """), params).mappings().all()
+
+                return [self._map_invoice_row(r) for r in rows]
+
+        except Exception as e:
+            logger.error(f"Erro get_invoices: {e}")
+            raise
+
+    def get_pending_invoices(self, current_user: str):
+        """Facturas com pagamento ainda não concluído."""
+        try:
+            with db_session_manager(current_user) as session:
+                rows = session.execute(text("""
+                    SELECT s.pk, s.regnumber, ent.name AS ts_entity, s.amount, s.created_at,
+                           s.payment_status, s.payment_method, s.tb_document
+                    FROM vbl_sibs s
+                    LEFT JOIN tb_document d ON d.pk = s.tb_document
+                    LEFT JOIN ts_entity ent ON ent.pk = d.ts_entity
+                    WHERE s.payment_status IN ('PENDING', 'CREATED', 'PENDING_VALIDATION')
+                      AND s.payment_method != 'ISENCAO'
+                    ORDER BY s.created_at DESC
+                """)).mappings().all()
+
+                return [self._map_invoice_row(r) for r in rows]
+
+        except Exception as e:
+            logger.error(f"Erro get_pending_invoices: {e}")
             raise
 
     def get_sibs_data(self, order_id: str, current_user: str):

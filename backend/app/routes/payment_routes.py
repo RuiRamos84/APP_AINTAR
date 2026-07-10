@@ -504,6 +504,66 @@ def get_payment_history():
     result = payment_service.get_payment_history(user, page, page_size, filters)
     return jsonify(result), 200
 
+
+@bp.route("/payments/invoices", methods=["GET"])
+@jwt_required()
+@require_permission('payments.manage')
+@token_required
+@set_session
+@api_error_handler
+def get_invoices():
+    """
+    Listar Facturas (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Lista de facturas com filtros opcionais de estado e pesquisa (regnumber/entidade).
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: status
+        type: string
+      - in: query
+        name: search
+        type: string
+    responses:
+      200:
+        description: Lista de facturas devolvida com sucesso.
+    """
+    user = get_jwt_identity()
+    filters = {
+        'status': request.args.get('status'),
+        'search': request.args.get('search'),
+    }
+    invoices = payment_service.get_invoices(user, filters)
+    return jsonify({"success": True, "invoices": invoices}), 200
+
+
+@bp.route("/payments/invoices/pending", methods=["GET"])
+@jwt_required()
+@require_permission('payments.manage')
+@token_required
+@set_session
+@api_error_handler
+def get_pending_invoices():
+    """
+    Listar Facturas Pendentes (Admin)
+    ---
+    tags:
+      - Pagamentos (Admin)
+    summary: Facturas cujo pagamento ainda não foi concluído.
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Lista de facturas pendentes devolvida com sucesso.
+    """
+    user = get_jwt_identity()
+    invoices = payment_service.get_pending_invoices(user)
+    return jsonify({"success": True, "invoices": invoices}), 200
+
+
 @bp.route("/payments/refund/<int:payment_pk>", methods=["POST"])
 @jwt_required()
 @require_permission('payments.manage')

@@ -12,16 +12,19 @@ import { useMutation } from '@tanstack/react-query';
 import paymentService from '../services/paymentService';
 import { getSocket, SOCKET_EVENTS, isSocketConnected } from '@/services/websocket/socketService';
 
+const POLLING_INTERVAL_MS = 20000;
+
 const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, regnumber, onRetry }) => {
     const [referenceData, setReferenceData] = useState(null);
     const [copied, setCopied] = useState({ entity: false, ref: false });
     const [step, setStep] = useState('generate');
     const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
-    // Ref para o listener do webhook
+    // Refs para controlo de listener/polling
     const socketListenerRef = useRef(null);
+    const pollingIntervalRef = useRef(null);
 
-    // Limpar listener de socket
+    // Limpar listener de socket e polling
     const cleanupListener = useCallback(() => {
         if (socketListenerRef.current) {
             const socket = getSocket();
@@ -30,7 +33,33 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, regnu
             }
             socketListenerRef.current = null;
         }
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+        }
     }, []);
+
+    const handleConfirmed = useCallback((status) => {
+        setPaymentConfirmed(true);
+        setStep('confirmed');
+        cleanupListener();
+        onSuccess?.({ payment_status: status });
+    }, [cleanupListener, onSuccess]);
+
+    // Fallback de polling — só corre se o socket não estiver disponível quando o
+    // listener arranca. Usa checkStatus (JWT only, sem permissão especial) para
+    // funcionar também no Portal do Cliente, não só no backoffice.
+    const { mutate: pollStatus } = useMutation({
+        mutationFn: () => paymentService.checkStatus(transactionId),
+        onSuccess: (data) => {
+            if (data?.payment_status === 'SUCCESS') {
+                handleConfirmed(data.payment_status);
+            }
+        },
+        onError: (err) => {
+            console.error('[Multibanco] Erro ao verificar status (polling):', err);
+        }
+    });
 
     // Iniciar listener de webhook via SocketIO
     const startWebhookListener = useCallback(() => {
@@ -44,7 +73,12 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, regnu
         console.log('[Multibanco] Registando listener para:', transactionId, '| Socket connected:', connected);
 
         if (!socket || !connected) {
-            console.warn('[Multibanco] Socket não disponível');
+            console.warn('[Multibanco] Socket não disponível, usando polling como fallback');
+            pollStatus();
+            pollingIntervalRef.current = setInterval(() => {
+                console.log('[Multibanco] Verificando status via polling (fallback)...');
+                pollStatus();
+            }, POLLING_INTERVAL_MS);
             return;
         }
 
@@ -61,10 +95,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, regnu
                 console.log('[Multibanco] Match! Status:', data.payment_status);
 
                 if (data.payment_status === 'SUCCESS') {
-                    setPaymentConfirmed(true);
-                    setStep('confirmed');
-                    cleanupListener();
-                    onSuccess?.({ payment_status: data.payment_status });
+                    handleConfirmed(data.payment_status);
                 }
             }
         };
@@ -72,7 +103,7 @@ const MultibancoPayment = ({ onSuccess, transactionId, onComplete, amount, regnu
         // Registar listener
         socket.on(SOCKET_EVENTS.PAYMENT_STATUS_UPDATE, handleWebhookEvent);
         socketListenerRef.current = handleWebhookEvent;
-    }, [transactionId, cleanupListener, onSuccess]);
+    }, [transactionId, pollStatus, handleConfirmed]);
 
     // Cleanup no unmount
     useEffect(() => {
