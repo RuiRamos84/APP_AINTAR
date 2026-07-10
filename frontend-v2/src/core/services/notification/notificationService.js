@@ -7,65 +7,55 @@
  *   notification.success('Guardado!')
  *   notification.apiError(err, 'Fallback se sem mensagem')
  *
- * Nunca usar { toast } from 'sonner' diretamente fora deste ficheiro.
+ * Nunca usar { toast } from 'sonner' ou { sileo } from 'sileo' diretamente
+ * fora dos adapters em ./adapters — este ficheiro só conhece a interface
+ * comum e delega no motor ativo (ver ./engine.js).
  */
 
-import { toast } from 'sonner';
+import { getActiveEngine } from './engine';
+import { sonnerAdapter } from './adapters/sonnerAdapter';
+import { sileoAdapter } from './adapters/sileoAdapter';
 
-const DEFAULT_DURATION = 5000;
+const ADAPTERS = { sonner: sonnerAdapter, sileo: sileoAdapter };
 
 // Statuses que indicam erro de negócio (warning laranja) vs erro técnico (vermelho)
 const BUSINESS_STATUSES = new Set([400, 403, 404, 409, 422]);
+
+const activeAdapter = () => ADAPTERS[getActiveEngine()] ?? sonnerAdapter;
 
 /**
  * Notificação de sucesso
  */
 export const notifySuccess = (message, options = {}) => {
-  toast.success(message, {
-    duration: DEFAULT_DURATION,
-    ...options,
-  });
+  activeAdapter().success(message, options);
 };
 
 /**
  * Notificação de erro
  */
 export const notifyError = (message, options = {}) => {
-  toast.error(message, {
-    duration: DEFAULT_DURATION,
-    ...options,
-  });
+  activeAdapter().error(message, options);
 };
 
 /**
  * Notificação informativa
  */
 export const notifyInfo = (message, options = {}) => {
-  toast.info(message, {
-    duration: DEFAULT_DURATION,
-    ...options,
-  });
+  activeAdapter().info(message, options);
 };
 
 /**
  * Notificação de aviso
  */
 export const notifyWarning = (message, options = {}) => {
-  toast.warning(message, {
-    duration: DEFAULT_DURATION,
-    ...options,
-  });
+  activeAdapter().warning(message, options);
 };
 
 /**
  * Notificação com descrição adicional
  */
 export const notifyDescription = (message, description, options = {}) => {
-  toast(message, {
-    description,
-    duration: DEFAULT_DURATION,
-    ...options,
-  });
+  activeAdapter().description(message, description, options);
 };
 
 /**
@@ -77,40 +67,21 @@ export const notifyLoading = async (
   successMessageFn = () => 'Concluído com sucesso',
   errorMessage = 'Ocorreu um erro'
 ) => {
-  try {
-    const result = await toast.promise(promiseFn(), {
-      loading: loadingMessage,
-      success: successMessageFn,
-      error: errorMessage,
-    });
-    return result;
-  } catch (error) {
-    throw error;
-  }
+  return activeAdapter().loading(promiseFn, loadingMessage, successMessageFn, errorMessage);
 };
 
 /**
  * Notificação com ação customizada
  */
 export const notifyAction = (message, actionLabel, actionFn, options = {}) => {
-  toast(message, {
-    action: {
-      label: actionLabel,
-      onClick: actionFn,
-    },
-    duration: DEFAULT_DURATION,
-    ...options,
-  });
+  activeAdapter().action(message, actionLabel, actionFn, options);
 };
 
 /**
  * Notificação customizada
  */
 export const notifyCustom = (content, options = {}) => {
-  toast.custom(content, {
-    duration: 10000,
-    ...options,
-  });
+  activeAdapter().custom(content, options);
 };
 
 /**
@@ -123,12 +94,12 @@ export const notifyCustom = (content, options = {}) => {
  */
 export const notifyApiError = (err, fallback = 'Ocorreu um erro inesperado.') => {
   const message = err?.message || fallback;
-  const status  = err?.status ?? err?.response?.status;
+  const status = err?.status ?? err?.response?.status;
 
   if (status && BUSINESS_STATUSES.has(status)) {
-    toast.warning(message, { duration: DEFAULT_DURATION });
+    activeAdapter().warning(message);
   } else {
-    toast.error(message, { duration: DEFAULT_DURATION });
+    activeAdapter().error(message);
   }
 };
 
@@ -136,16 +107,16 @@ export const notifyApiError = (err, fallback = 'Ocorreu um erro inesperado.') =>
  * Objeto consolidado com todas as funções de notificação
  */
 export const notification = {
-  success:  notifySuccess,
-  error:    notifyError,
-  info:     notifyInfo,
-  warning:  notifyWarning,
+  success: notifySuccess,
+  error: notifyError,
+  info: notifyInfo,
+  warning: notifyWarning,
   description: notifyDescription,
-  loading:  notifyLoading,
-  action:   notifyAction,
-  custom:   notifyCustom,
+  loading: notifyLoading,
+  action: notifyAction,
+  custom: notifyCustom,
   apiError: notifyApiError,
-  toast,    // Acesso direto para casos especiais (dismiss, custom, etc.)
+  toast: sonnerAdapter.raw, // Acesso direto para casos especiais (dismiss, custom, etc.) — sempre sonner
 };
 
 export default notification;

@@ -35,6 +35,7 @@ const SystemConfigPage = lazy(() => import('@/features/admin/pages').then(m => (
 const ActivityLogsPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.ActivityLogsPage })));
 const SessionLogsPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.SessionLogsPage })));
 const AdminActionsPage = lazy(() => import('@/features/admin/pages').then(m => ({ default: m.AdminActionsPage })));
+const AdminNotificationLab = lazy(() => import('@/features/admin/components/AdminNotificationLab'));
 
 const OperationMetadataPage = lazy(() => import('@/features/operations/pages').then(m => ({ default: m.OperationMetadataPage })));
 const OperationControlPage = lazy(() => import('@/features/operations/pages').then(m => ({ default: m.OperationControlPage })));
@@ -159,17 +160,20 @@ export default function BackofficeRoutes() {
         <Route path="/change-password" element={<ChangePasswordPage />} />
 
         {/* ==================== ADMINISTRAÇÃO ==================== */}
-        <Route path="/admin"                        element={<AdminDashboardPage />} />
-        <Route path="/admin/dashboard"              element={<AdminDashboardPage />} />
-        <Route path="/admin/users"                  element={<UserListPage />} />
-        <Route path="/admin/users/list"             element={<UserListPage />} />
-        <Route path="/admin/users/new"              element={<UserCreatePage />} />
-        <Route path="/admin/users/:userId/edit"     element={<UserDetailPage />} />
-        <Route path="/admin/permissions"            element={<PermissionsListPage />} />
-        <Route path="/admin/config"                 element={<SystemConfigPage />} />
-        <Route path="/admin/activity-logs"          element={<ActivityLogsPage />} />
-        <Route path="/admin/session-logs"           element={<SessionLogsPage />} />
-        <Route path="/admin/actions"                element={<AdminActionsPage />} />
+        {/* AdminNotificationLab: scope de teste do motor de toasts Sileo (só /admin/*) */}
+        <Route element={<AdminNotificationLab />}>
+          <Route path="/admin"                        element={<AdminDashboardPage />} />
+          <Route path="/admin/dashboard"              element={<AdminDashboardPage />} />
+          <Route path="/admin/users"                  element={<UserListPage />} />
+          <Route path="/admin/users/list"             element={<UserListPage />} />
+          <Route path="/admin/users/new"              element={<UserCreatePage />} />
+          <Route path="/admin/users/:userId/edit"     element={<UserDetailPage />} />
+          <Route path="/admin/permissions"            element={<PermissionsListPage />} />
+          <Route path="/admin/config"                 element={<SystemConfigPage />} />
+          <Route path="/admin/activity-logs"          element={<ActivityLogsPage />} />
+          <Route path="/admin/session-logs"           element={<SessionLogsPage />} />
+          <Route path="/admin/actions"                element={<AdminActionsPage />} />
+        </Route>
         <Route path="/users" element={<Navigate to="/admin/users" replace />} />
 
         {/* ==================== CMS WEBSITE ==================== */}
