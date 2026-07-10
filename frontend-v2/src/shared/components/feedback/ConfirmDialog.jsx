@@ -59,6 +59,7 @@ export const ConfirmDialog = ({
   loading = false,
   onConfirm,
   onCancel,
+  children,
 }) => {
   const theme = useTheme();
   const Icon = iconMap[type] || WarningIcon;
@@ -113,6 +114,7 @@ export const ConfirmDialog = ({
         <Typography variant="body2" color="text.secondary" textAlign="center">
           {message}
         </Typography>
+        {children && <Box sx={{ mt: 2 }}>{children}</Box>}
       </DialogContent>
 
       {/* Botões */}
@@ -152,6 +154,7 @@ ConfirmDialog.propTypes = {
   loading: PropTypes.bool,
   onConfirm: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
+  children: PropTypes.node,
 };
 
 export default ConfirmDialog;
