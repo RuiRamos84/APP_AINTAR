@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useSearch } from '@/shared/hooks';
-import { Box, Typography, Button, Chip, Avatar, Stack, Tooltip } from '@mui/material';
-import { Add as AddIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material';
+import { Box, Typography, Button, Chip, Avatar, Stack, Tooltip, IconButton } from '@mui/material';
+import { Add as AddIcon, OpenInNew as OpenInNewIcon, KeyboardReturn as ReturnIcon } from '@mui/icons-material';
 import { SearchBar } from '@/shared/components/data';
+import ConfirmDialog from '@/shared/components/feedback/ConfirmDialog';
 import { alpha, useTheme } from '@mui/material/styles';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
@@ -30,12 +31,23 @@ const Cell = ({ children, justify = 'flex-start' }) => (
 
 const AssignmentsList = () => {
   const theme = useTheme();
-  const { assignments, isLoading } = useAssignments();
+  const { assignments, isLoading, returnToPool, isReturning } = useAssignments();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedLicence, setSelectedLicence] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [returnTarget, setReturnTarget] = useState(null);
   const filteredAssignments = useSearch(assignments, searchQuery);
+
+  const handleConfirmReturn = async () => {
+    if (!returnTarget) return;
+    try {
+      await returnToPool(returnTarget.tb_vehicle);
+      setReturnTarget(null);
+    } catch {
+      // Erros tratados pelos toasts no hook
+    }
+  };
 
   const handleLicenceClick = (licence) => {
     setSelectedLicence(licence);
@@ -104,18 +116,48 @@ const AssignmentsList = () => {
       minWidth: 180,
       renderCell: ({ value }) => (
         <Cell>
-          {value ? (
-            <>
-              <Avatar sx={{ width: 28, height: 28, fontSize: '0.7rem', bgcolor: 'secondary.main', flexShrink: 0 }}>
-                {getInitials(value)}
-              </Avatar>
-              <Typography variant="body2" sx={{ ml: 1 }} noWrap>{value}</Typography>
-            </>
-          ) : (
-            <Typography variant="body2" color="text.disabled">—</Typography>
-          )}
+          <Avatar sx={{ width: 28, height: 28, fontSize: '0.7rem', bgcolor: 'secondary.main', flexShrink: 0 }}>
+            {getInitials(value)}
+          </Avatar>
+          <Typography variant="body2" sx={{ ml: 1 }} noWrap>{value}</Typography>
         </Cell>
       ),
+    },
+    {
+      field: 'estado',
+      headerName: 'Estado',
+      width: 160,
+      renderCell: ({ row }) => {
+        if (row.is_current) {
+          return <Cell><Chip label="Ativa" size="small" color="success" variant="outlined" /></Cell>;
+        }
+        if (row.end_date) {
+          const d = parseDate(row.end_date);
+          return <Cell><Chip label={`Devolvida em ${d ? d.toLocaleDateString('pt-PT') : row.end_date}`} size="small" variant="outlined" /></Cell>;
+        }
+        return <Cell><Chip label="Substituída" size="small" variant="outlined" color="default" /></Cell>;
+      },
+    },
+    {
+      field: 'actions',
+      headerName: 'Ações',
+      width: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }) => {
+        if (!row.is_current) {
+          return <Cell justify="center"><Typography variant="body2" color="text.disabled">—</Typography></Cell>;
+        }
+        return (
+          <Cell justify="center">
+            <Tooltip title="Devolver à pool">
+              <IconButton size="small" color="warning" onClick={() => setReturnTarget(row)}>
+                <ReturnIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Cell>
+        );
+      },
     },
   ], []);
 
@@ -168,6 +210,18 @@ const AssignmentsList = () => {
         onClose={() => { setHistoryOpen(false); setSelectedLicence(null); }}
         licence={selectedLicence}
         assignments={assignments}
+      />
+
+      <ConfirmDialog
+        open={!!returnTarget}
+        title="Devolver à pool?"
+        message={`A viatura ${returnTarget?.licence ?? ''} deixa de estar atribuída a ${returnTarget?.ts_client ?? ''} e passa a ficar disponível para reserva.`}
+        confirmText="Devolver à Pool"
+        confirmColor="warning"
+        type="warning"
+        loading={isReturning}
+        onConfirm={handleConfirmReturn}
+        onCancel={() => setReturnTarget(null)}
       />
     </Box>
   );

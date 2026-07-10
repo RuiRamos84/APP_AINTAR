@@ -349,6 +349,18 @@ export const SocketProvider = ({ children }) => {
   );
 
   /**
+   * Handler para alertas de renovação de licenças de ETAR (módulo Gestão)
+   * licenca_expirar  → licença a aproximar-se do fim (90/60/30/15/7/1 dias)
+   * licenca_expirada → licença já expirada (repete a cada 7 dias)
+   */
+  const handleLicencaNotification = useCallback(
+    (data) => {
+      notifyAndRefreshCentral(data.title || 'Licença', data.message || '');
+    },
+    [notifyAndRefreshCentral]
+  );
+
+  /**
    * Handler para notificações de operações (módulo de operação)
    * nova_tarefa → operador recebe tarefa atribuída
    * tarefa_executada → supervisor é notificado de execução
@@ -363,6 +375,17 @@ export const SocketProvider = ({ children }) => {
       };
       const title = data.title || notifTypeMap[data.notification_type] || 'Operação';
       notifyAndRefreshCentral(title, data.message || '');
+    },
+    [notifyAndRefreshCentral]
+  );
+
+  /**
+   * Handler para notificações de frota (módulo Frota)
+   * avaria_reportada → condutor reportou avaria via "A Minha Viatura"
+   */
+  const handleFleetNotification = useCallback(
+    (data) => {
+      notifyAndRefreshCentral(data.title || 'Frota', data.message || '');
     },
     [notifyAndRefreshCentral]
   );
@@ -486,6 +509,8 @@ export const SocketProvider = ({ children }) => {
         );
         const removeOperacaoNotif = onEvent('operacao_notification', handleOperacaoNotification);
         const removeRhNotif = onEvent('rh_notification', handleRhNotification);
+        const removeLicencaNotif = onEvent('licenca_notification', handleLicencaNotification);
+        const removeFleetNotif = onEvent('fleet_notification', handleFleetNotification);
         const removePaymentUpdate = onEvent('payment_status_update', handlePaymentStatusUpdate);
 
         // Event para atualização de conexão
@@ -512,6 +537,8 @@ export const SocketProvider = ({ children }) => {
           removeTaskNotifUpdated,
           removeOperacaoNotif,
           removeRhNotif,
+          removeLicencaNotif,
+          removeFleetNotif,
           removePaymentUpdate,
           removeConnect,
           removeDisconnect,
@@ -543,6 +570,8 @@ export const SocketProvider = ({ children }) => {
     handleTaskNotificationsUpdated,
     handleOperacaoNotification,
     handleRhNotification,
+    handleLicencaNotification,
+    handleFleetNotification,
     handlePaymentStatusUpdate,
   ]);
 

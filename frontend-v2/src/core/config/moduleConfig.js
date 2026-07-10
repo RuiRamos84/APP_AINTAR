@@ -47,6 +47,8 @@ export const MODULES = {
         'equipamentos.view',   // Equipamentos
         'obras.view',          // Obras
         'fleet.view',          // Frota
+        'fleet.reservations.view', // Reservas de viaturas (self-service)
+        'fleet.myvehicle.view',    // A Minha Viatura (self-service)
         'telemetry.view',      // Telemetria
         'stock.view',          // Stock
       ]

@@ -327,12 +327,17 @@ export const ROUTE_CONFIG = {
     showInSidebar: true,
   },
 
+  // Sem permissions.required aqui (mesmo padrão de /rh/pessoal): a página tem
+  // tabs para vários públicos (Veículos/Atribuições/Manutenções exigem
+  // fleet.view; Reservas exige fleet.reservations.view; A Minha Viatura exige
+  // fleet.myvehicle.view) — FleetDashboard.jsx decide, tab a tab, o que mostrar.
+  // Gatekeeping só no pai bloquearia condutores comuns que só têm uma dessas
+  // permissões e não fleet.view.
   '/fleet': {
     id: 'fleet',
     text: 'Gestão de Frota',
     icon: FleetIcon,
     module: 'gestao',
-    permissions: { required: 'fleet.view' },
     showInSidebar: true,
   },
 

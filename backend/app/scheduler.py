@@ -154,6 +154,18 @@ def _job_purge_old_notifications(app):
             logger.warning(f"[Scheduler] Falha na purga de notificações: {e}")
 
 
+def _job_check_licencas_etar(app):
+    """
+    Job diário: alerta sobre licenças APA de ETAR a expirar ou já expiradas
+    (notificação in-app + email). Ver app/services/licenca_service.py.
+    """
+    from app.services.licenca_service import check_licencas_expirando
+    try:
+        check_licencas_expirando(app)
+    except Exception as e:
+        logger.error(f"[Scheduler] ❌ Erro ao verificar licenças de ETAR: {e}", exc_info=True)
+
+
 def init_scheduler(app):
     """
     Regista o job mensal e arranca o APScheduler.
@@ -189,8 +201,21 @@ def init_scheduler(app):
         misfire_grace_time=3600,
     )
 
+    _scheduler.add_job(
+        func=_job_check_licencas_etar,
+        args=[app],
+        trigger=CronTrigger(hour=8, minute=0, timezone='Europe/Lisbon'),
+        id='check_licencas_etar',
+        name='Alerta diário de renovação de licenças de ETAR',
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     _scheduler.start()
-    logger.info("[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00) + purga diária de notificações (04:00)")
+    logger.info(
+        "[Scheduler] ✅ Iniciado — tarefas mensais (dia 25 às 10:00) + purga diária de "
+        "notificações (04:00) + alerta diário de licenças de ETAR (08:00)"
+    )
 
     import atexit
     atexit.register(lambda: _scheduler.shutdown(wait=False))

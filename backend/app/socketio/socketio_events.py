@@ -281,6 +281,84 @@ class SocketIOEvents(Namespace):
                 logger.error(f"[OperaçãoNotif] Erro ao emitir para user {user_id}: {e}")
 
 
+    def emit_licenca_notification(self, user_ids: list, notification_type: str,
+                                   title: str, message: str, tb_etar: int = None):
+        """
+        Emite notificação de renovação de licença (APA) de uma ETAR para
+        utilizadores com acesso ao módulo Gestão.
+
+        notification_type:
+          - 'licenca_expirar'  → licença a aproximar-se do fim (90/60/30/15/7/1 dias)
+          - 'licenca_expirada' → licença já expirada (repete a cada 7 dias)
+        """
+        import datetime
+        route = '/etar'
+        for user_id in user_ids:
+            if user_id is None:
+                continue
+            try:
+                pk = central_notification_service.add(
+                    ts_client=user_id, type_='licenca', notification_type=notification_type,
+                    title=title, message=message, route=route,
+                    metadata={'tb_etar': tb_etar},
+                )
+                notification_data = {
+                    'notification_id': pk,
+                    'type': 'licenca',
+                    'notification_type': notification_type,
+                    'title': title,
+                    'message': message,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'tb_etar': tb_etar,
+                    'route': route,
+                }
+                room = f'user_{user_id}'
+                self.socketio.emit('licenca_notification', notification_data,
+                                   room=room, namespace='/')
+                logger.info(f"[LicençaNotif] {notification_type} → user {user_id}")
+            except Exception as e:
+                logger.error(f"[LicençaNotif] Erro ao emitir para user {user_id}: {e}")
+
+
+    def emit_fleet_notification(self, user_ids: list, notification_type: str,
+                                 title: str, message: str,
+                                 tb_vehicle: int = None, maintenance_pk: int = None):
+        """
+        Emite notificação de frota para utilizadores com fleet.edit (ou admin).
+
+        notification_type:
+          - 'avaria_reportada' → condutor reportou avaria via "A Minha Viatura"
+        """
+        import datetime
+        route = '/fleet'
+        for user_id in user_ids:
+            if user_id is None:
+                continue
+            try:
+                pk = central_notification_service.add(
+                    ts_client=user_id, type_='fleet', notification_type=notification_type,
+                    title=title, message=message, route=route,
+                    metadata={'tb_vehicle': tb_vehicle, 'maintenance_pk': maintenance_pk},
+                )
+                notification_data = {
+                    'notification_id': pk,
+                    'type': 'fleet',
+                    'notification_type': notification_type,
+                    'title': title,
+                    'message': message,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'tb_vehicle': tb_vehicle,
+                    'maintenance_pk': maintenance_pk,
+                    'route': route,
+                }
+                room = f'user_{user_id}'
+                self.socketio.emit('fleet_notification', notification_data,
+                                   room=room, namespace='/')
+                logger.info(f"[FrotaNotif] {notification_type} → user {user_id}")
+            except Exception as e:
+                logger.error(f"[FrotaNotif] Erro ao emitir para user {user_id}: {e}")
+
+
     # =========================================================================
     # RH (RECURSOS HUMANOS) NOTIFICATION HANDLERS
     # =========================================================================

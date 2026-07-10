@@ -20,6 +20,8 @@ from .operation_metadata_routes import bp as operation_metadata_bp
 from .telemetry_routes import bp as telemetry_bp
 from .inventory_routes import bp as inventory_bp
 from .vehicle_routes import bp as vehicle_bp
+from .vehicle_reservation_routes import bp as vehicle_reservation_bp
+from .my_vehicle_routes import bp as my_vehicle_bp
 from .alert_whatsapp_routes import bp as alert_whatsapp_bp
 from .aval_routes import bp as aval_bp
 from .equipamentos_routes import bp as equipamentos_bp
@@ -39,7 +41,7 @@ __all__ = [
     'dashboard_bp', 'etar_ee_bp', 'epi_bp', 'webhook_bp', 'payment_bp',
     'tasks_bp', 'operations_bp', 'operation_control_bp', 'permissions_bp',
     'analysis_bp', 'operation_metadata_bp', 'telemetry_bp', 'inventory_bp',
-    'vehicle_bp', 'alert_whatsapp_bp', 'aval_bp', 'equipamentos_bp',
+    'vehicle_bp', 'vehicle_reservation_bp', 'my_vehicle_bp', 'alert_whatsapp_bp', 'aval_bp', 'equipamentos_bp',
     'equipamento_bp', 'obras_bp', 'obra_despesa_bp', 'offices_bp',
     'client_contracts_bp', 'caixa_bp',
     'website_public_bp', 'website_cms_bp',

@@ -12,11 +12,13 @@ from ..services.vehicle_service import (
     list_vehicle_assign,
     add_vehicle_assign,
     update_vehicle_assign,
-    
+    end_vehicle_assign,
+
     list_vehicle_maintenance,
     add_vehicle_maintenance,
     update_vehicle_maintenance,
-    
+    set_vehicle_maintenance_status,
+
 )
 
 logger = get_logger(__name__)
@@ -215,6 +217,36 @@ def update_vehicle_assign_route(pk):
         return {"message": "JSON inválido ou body vazio"}, 400
     return update_vehicle_assign(current_user, pk, data)
 
+# ========================= VEHICLE ASSIGN END (DEVOLVER À POOL) =========================
+@bp.route('/vehicle_assign_end/<int:tb_vehicle>', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
+@set_session
+@api_error_handler
+def end_vehicle_assign_route(tb_vehicle):
+    """
+    Devolver Viatura à Pool
+    ---
+    tags:
+      - Gestão de Frota (Veículos)
+    summary: Termina a atribuição perpétua vigente da viatura (insere uma nova linha já com end_date).
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: tb_vehicle
+        in: path
+        type: integer
+        required: true
+    responses:
+      201:
+        description: Viatura devolvida à pool.
+      400:
+        description: A viatura já não tem nenhuma atribuição ativa.
+    """
+    current_user = get_jwt_identity()
+    return end_vehicle_assign(current_user, tb_vehicle)
+
 # ========================= VEHICLE ASSIGN DELETE =========================
 
 
@@ -312,5 +344,47 @@ def update_vehicle_maintenance_route(pk):
     if not data:
         return {"message": "JSON inválido ou body vazio"}, 400
     return update_vehicle_maintenance(current_user, pk,data)
+
+# ========================= VEHICLE MAINTENANCE STATUS =========================
+@bp.route('/vehicle_maintenance_status/<int:pk>', methods=['PUT'])
+@jwt_required()
+@token_required
+@require_permission('fleet.edit')  # ts_interface: fleet.edit
+@set_session
+@api_error_handler
+def set_vehicle_maintenance_status_route(pk):
+    """
+    Atualizar estado de uma manutenção/avaria (Reportada/Em resolução/Resolvida)
+    ---
+    tags:
+      - Gestão de Frota (Veículos)
+    summary: Transição de estado do fluxo de tratamento de avarias.
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - name: pk
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              description: 1=Reportada, 2=Em resolução, 3=Resolvida
+    responses:
+      200:
+        description: Estado atualizado com sucesso.
+    """
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    if not data or "status" not in data:
+        return {"message": "JSON inválido ou campo 'status' em falta"}, 400
+    return set_vehicle_maintenance_status(current_user, pk, data["status"])
 
 # ========================= VEHICLE MAINTENANCE DELETE =========================

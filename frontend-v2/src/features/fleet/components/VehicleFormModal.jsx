@@ -12,6 +12,8 @@ import {
   LocalShipping as DeliveryIcon,
   VerifiedUser as InsuranceIcon,
   Build as InspectionIcon,
+  Speed as SpeedIcon,
+  ReceiptLong as IucIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useForm, Controller } from 'react-hook-form';
@@ -31,6 +33,8 @@ const formatLicence = (value) => {
   return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 4)}-${cleaned.slice(4)}`;
 };
 
+const NON_NEGATIVE_INT_REGEX = /^\d+$/;
+
 const vehicleSchema = z.object({
   licence: z.string()
     .min(1, 'Matrícula é obrigatória')
@@ -38,8 +42,11 @@ const vehicleSchema = z.object({
   brand: z.string().min(1, 'Marca é obrigatória'),
   model: z.string().min(1, 'Modelo é obrigatório'),
   delivery: z.string().min(1, 'Data de entrega é obrigatória'),
+  delivery_km: z.string().regex(NON_NEGATIVE_INT_REGEX, 'Km de entrega inválido'),
+  current_km: z.string().refine(v => v === '' || NON_NEGATIVE_INT_REGEX.test(v), 'Km atual inválido'),
   inspection_date: z.string().min(1, 'Data de inspeção é obrigatória'),
   insurance_date: z.string().min(1, 'Data de seguro é obrigatória'),
+  iuc_date: z.string().optional(),
 });
 
 const defaultValues = {
@@ -47,8 +54,11 @@ const defaultValues = {
   model: '',
   licence: '',
   delivery: '',
+  delivery_km: '0',
+  current_km: '',
   inspection_date: '',
   insurance_date: '',
+  iuc_date: '',
 };
 
 const SectionHeader = ({ icon: Icon, title }) => (
@@ -87,8 +97,11 @@ const VehicleFormModal = ({ open, onClose, vehicle = null }) => {
         model: vehicle.model || '',
         licence: vehicle.licence || '',
         delivery: toStr(toDate(vehicle.delivery)),
+        delivery_km: vehicle.delivery_km != null ? String(vehicle.delivery_km) : '0',
+        current_km: vehicle.current_km != null ? String(vehicle.current_km) : '',
         inspection_date: toStr(toDate(vehicle.inspection_date)),
         insurance_date: toStr(toDate(vehicle.insurance_date)),
+        iuc_date: toStr(toDate(vehicle.iuc_date)),
       });
     } else if (!open) {
       reset(defaultValues);
@@ -97,10 +110,16 @@ const VehicleFormModal = ({ open, onClose, vehicle = null }) => {
 
   const onSubmit = async (data) => {
     try {
+      const payload = {
+        ...data,
+        delivery_km: data.delivery_km === '' ? 0 : parseInt(data.delivery_km, 10),
+        current_km: data.current_km === '' ? null : parseInt(data.current_km, 10),
+        iuc_date: data.iuc_date || null,
+      };
       if (isEditMode) {
-        await editVehicle({ id: vehicle.pk, data });
+        await editVehicle({ id: vehicle.pk, data: payload });
       } else {
-        await addVehicle(data);
+        await addVehicle(payload);
       }
       onClose();
     } catch {
@@ -289,6 +308,90 @@ const VehicleFormModal = ({ open, onClose, vehicle = null }) => {
                         onBlur: field.onBlur,
                         error: !!errors.insurance_date,
                         helperText: errors.insurance_date?.message,
+                      },
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
+            {/* Separador */}
+            <Grid size={12}>
+              <Divider sx={{ my: 0.5 }} />
+            </Grid>
+
+            {/* Secção: Quilometragem e IUC */}
+            <Grid size={12}>
+              <SectionHeader icon={SpeedIcon} title="Quilometragem e IUC" />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Controller
+                name="delivery_km"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Km de Entrega"
+                    type="number"
+                    fullWidth
+                    disabled={isEditMode}
+                    inputProps={{ min: 0 }}
+                    error={!!errors.delivery_km}
+                    helperText={errors.delivery_km?.message || 'Km da viatura quando entrou na frota'}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SpeedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Controller
+                name="current_km"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Km Atual"
+                    type="number"
+                    fullWidth
+                    inputProps={{ min: 0 }}
+                    error={!!errors.current_km}
+                    helperText={errors.current_km?.message || 'Quilometragem atual (odómetro)'}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SpeedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Controller
+                name="iuc_date"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    label="Data de IUC"
+                    value={toDate(field.value)}
+                    onChange={(date) => field.onChange(toStr(date))}
+                    slots={{ openPickerIcon: IucIcon }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        onBlur: field.onBlur,
+                        error: !!errors.iuc_date,
+                        helperText: errors.iuc_date?.message,
                       },
                     }}
                   />

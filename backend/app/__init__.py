@@ -174,17 +174,26 @@ def create_app(config_class):
     swagger.template = swagger_template
     swagger.init_app(app)
 
-    # Inicialização do Cache e Limiter
-    if app.config['ENV'] == 'production':
-        cache_config = {'CACHE_TYPE': 'simple'}
+    # Inicialização do Cache e Limiter — usa Redis quando configurado e alcançável
+    # (produção: ProductionConfig.CACHE_TYPE='redis'), com fallback automático para
+    # memória (ex: ambiente de dev sem Redis local a correr).
+    redis_available = False
+    redis_url = app.config.get('CACHE_REDIS_URL') or app.config.get('REDIS_URL')
+    if app.config.get('CACHE_TYPE') == 'redis' and redis_url:
+        try:
+            import redis as _redis
+            _redis.Redis.from_url(redis_url, socket_connect_timeout=2).ping()
+            redis_available = True
+        except Exception as e:
+            logger.warning(f"Redis indisponível ({e}) — cache e rate limit usam memória (fallback).")
+
+    if redis_available:
+        cache.init_app(app)  # usa CACHE_TYPE='redis' + CACHE_REDIS_URL já carregados de config.py
+        app.config['RATELIMIT_STORAGE_URI'] = app.config.get('RATELIMIT_STORAGE_URL', 'memory://')
     else:
-        # Mudado para 'simple' em vez de 'redis'
-        cache_config = {'CACHE_TYPE': 'simple'}
+        cache.init_app(app, config={'CACHE_TYPE': 'simple'})
+        app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
 
-    cache.init_app(app, config=cache_config)
-
-    # Configuração do Limiter para usar armazenamento em memória em ambos os ambientes
-    app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
     limiter.init_app(app)
 
     # Rate limiting configurado
@@ -208,7 +217,7 @@ def create_app(config_class):
             dashboard_bp, etar_ee_bp, epi_bp, webhook_bp, payment_bp,
             tasks_bp, operations_bp, permissions_bp, operation_control_bp,
             analysis_bp, operation_metadata_bp, telemetry_bp, inventory_bp,
-            vehicle_bp, alert_whatsapp_bp, aval_bp, equipamentos_bp,
+            vehicle_bp, vehicle_reservation_bp, my_vehicle_bp, alert_whatsapp_bp, aval_bp, equipamentos_bp,
             equipamento_bp, obras_bp, obra_despesa_bp, offices_bp,
             client_contracts_bp, caixa_bp,
             website_public_bp, website_cms_bp,
@@ -239,6 +248,8 @@ def create_app(config_class):
         app.register_blueprint(telemetry_bp, url_prefix='/api/v1/telemetry')
         app.register_blueprint(inventory_bp, url_prefix='/api/v1')
         app.register_blueprint(vehicle_bp, url_prefix='/api/v1')
+        app.register_blueprint(vehicle_reservation_bp, url_prefix='/api/v1')
+        app.register_blueprint(my_vehicle_bp, url_prefix='/api/v1')
         app.register_blueprint(alert_whatsapp_bp, url_prefix='/api/v1/alertas')
         app.register_blueprint(aval_bp, url_prefix='/api/v1')
         app.register_blueprint(equipamentos_bp, url_prefix='/api/v1')

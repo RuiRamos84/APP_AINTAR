@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useSearch } from '@/shared/hooks';
-import { Box, Typography, Button, Chip, Stack, Tooltip } from '@mui/material';
+import { Box, Typography, Button, Chip, Stack, Tooltip, Select, MenuItem, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { Add as AddIcon, EuroSymbol as EuroIcon } from '@mui/icons-material';
 import { SearchBar } from '@/shared/components/data';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -9,6 +9,19 @@ import { ptPT } from '@mui/x-data-grid/locales';
 import { useMaintenances } from '../hooks/useMaintenances';
 import MaintenanceFormModal from '../components/MaintenanceFormModal.jsx';
 import MaintenanceHistoryModal from '../components/MaintenanceHistoryModal.jsx';
+
+// tt_maintenancetype_pk=3 'Reparação' — só avarias têm fluxo de estado editável;
+// manutenções lançadas diretamente pelo gestor já nascem "Resolvida".
+const BREAKDOWN_TYPE_PK = 3;
+
+const STATUS_LABELS = { 1: 'Reportada', 2: 'Em resolução', 3: 'Resolvida' };
+
+const getStatusColor = (statusId) => {
+  if (statusId === 1) return 'warning';
+  if (statusId === 2) return 'info';
+  if (statusId === 3) return 'success';
+  return 'default';
+};
 
 const parseDate = (str) => {
   if (!str) return null;
@@ -41,12 +54,28 @@ const Cell = ({ children, justify = 'flex-start' }) => (
 
 const MaintenanceList = () => {
   const theme = useTheme();
-  const { maintenances, isLoading } = useMaintenances();
+  const { maintenances, isLoading, updateStatus } = useMaintenances();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedLicence, setSelectedLicence] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const filteredMaintenances = useSearch(maintenances, searchQuery);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
+
+  const pendingCount = useMemo(
+    () => maintenances.filter((m) => m.ts_maintenancestatus !== 3).length,
+    [maintenances]
+  );
+
+  const structurallyFiltered = useMemo(
+    () => (showPendingOnly ? maintenances.filter((m) => m.ts_maintenancestatus !== 3) : maintenances),
+    [maintenances, showPendingOnly]
+  );
+
+  const filteredMaintenances = useSearch(structurallyFiltered, searchQuery);
+
+  const handleStatusChange = useCallback((pk, status) => {
+    updateStatus({ id: pk, status });
+  }, [updateStatus]);
 
   const handleLicenceClick = (licence) => {
     setSelectedLicence(licence);
@@ -121,6 +150,47 @@ const MaintenanceList = () => {
       ),
     },
     {
+      field: 'status',
+      headerName: 'Estado',
+      width: 170,
+      renderCell: ({ row }) => (
+        <Cell>
+          {row.tt_maintenancetype_pk === BREAKDOWN_TYPE_PK ? (
+            <Select
+              size="small"
+              variant="standard"
+              disableUnderline
+              value={row.ts_maintenancestatus ?? 3}
+              onChange={(e) => handleStatusChange(row.pk, Number(e.target.value))}
+              onClick={(e) => e.stopPropagation()}
+              renderValue={(v) => (
+                <Chip label={STATUS_LABELS[v] ?? '—'} size="small" color={getStatusColor(v)} />
+              )}
+            >
+              {Object.entries(STATUS_LABELS).map(([id, label]) => (
+                <MenuItem key={id} value={Number(id)}>{label}</MenuItem>
+              ))}
+            </Select>
+          ) : (
+            <Chip label={row.status ?? 'Resolvida'} size="small" color={getStatusColor(row.ts_maintenancestatus ?? 3)} />
+          )}
+        </Cell>
+      ),
+    },
+    {
+      field: 'reported_by',
+      headerName: 'Reportado por',
+      width: 160,
+      renderCell: ({ value }) => (
+        <Cell>
+          {value
+            ? <Typography variant="body2">{value}</Typography>
+            : <Typography variant="body2" color="text.disabled">—</Typography>
+          }
+        </Cell>
+      ),
+    },
+    {
       field: 'price',
       headerName: 'Custo',
       width: 120,
@@ -160,7 +230,7 @@ const MaintenanceList = () => {
         </Cell>
       ),
     },
-  ], []);
+  ], [handleStatusChange]);
 
   const totalCost = useMemo(() =>
     maintenances.reduce((sum, m) => {
@@ -182,6 +252,17 @@ const MaintenanceList = () => {
               sx={{ fontWeight: 600 }}
             />
           )}
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={showPendingOnly ? 'pending' : 'all'}
+            onChange={(_, v) => v && setShowPendingOnly(v === 'pending')}
+          >
+            <ToggleButton value="all">Todas</ToggleButton>
+            <ToggleButton value="pending">
+              Pendentes{pendingCount > 0 ? ` (${pendingCount})` : ''}
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <SearchBar searchTerm={searchQuery} onSearch={setSearchQuery} />

@@ -5,11 +5,12 @@ import {
   getMaintenances,
   createMaintenance,
   updateMaintenance,
+  updateMaintenanceStatus,
 } from '../services/vehicleService';
 
 export const MAINTENANCES_QUERY_KEY = ['vehicle-maintenances'];
 
-export const useMaintenances = () => {
+export const useMaintenances = ({ enabled = true } = {}) => {
   const queryClient = useQueryClient();
 
   const maintenancesQuery = useQuery({
@@ -19,6 +20,7 @@ export const useMaintenances = () => {
       const rawData = response?.vehicle_maintenance || response?.data?.vehicle_maintenance || [];
       return rawData.map((m, idx) => ({ ...m, id: m.pk ?? idx }));
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -51,6 +53,17 @@ export const useMaintenances = () => {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }) => updateMaintenanceStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MAINTENANCES_QUERY_KEY });
+      notification.success('Estado atualizado com sucesso!');
+    },
+    onError: (error) => {
+      notification.error(`Erro ao atualizar estado: ${error.message}`);
+    },
+  });
+
   return {
     maintenances: maintenancesQuery.data || [],
     isLoading: maintenancesQuery.isLoading,
@@ -61,5 +74,8 @@ export const useMaintenances = () => {
 
     editMaintenance: updateMutation.mutateAsync,
     isEditing: updateMutation.isPending,
+
+    updateStatus: updateStatusMutation.mutateAsync,
+    isUpdatingStatus: updateStatusMutation.isPending,
   };
 };

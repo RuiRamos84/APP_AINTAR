@@ -31,7 +31,16 @@ const queryClient = new QueryClient({
       refetchOnMount: true,
     },
     mutations: {
-      retry: 1,
+      // Erros de negócio (4xx) nunca se resolvem ao repetir — só faz sentido
+      // reexecutar em falhas transitórias (rede, 5xx). Sem isto, qualquer
+      // conflito/validação falhada (ex.: reserva sobreposta, 409) era
+      // automaticamente reenviado pelo React Query, duplicando o pedido e o
+      // log no servidor sem qualquer ação do utilizador.
+      retry: (failureCount, error) => {
+        const status = error?.response?.status;
+        if (status >= 400 && status < 500) return false;
+        return failureCount < 1;
+      },
       onError: (error) => {
         console.error('[Mutation Error]', error);
       },

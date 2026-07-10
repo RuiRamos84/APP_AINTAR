@@ -13,8 +13,13 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
 import { useVehicles } from '../hooks/useVehicles';
+import { useMaintenances } from '../hooks/useMaintenances';
+import { useMetaData } from '@/core/hooks/useMetaData';
+import { getNextMaintenanceStatus } from '../utils/maintenanceRules';
 import VehicleFormModal from '../components/VehicleFormModal.jsx';
 import VehicleOverviewModal from '../components/VehicleOverviewModal.jsx';
+
+const EMPTY_MAINTENANCE_TYPES = [];
 
 const parseDate = (str) => {
   if (!str) return null;
@@ -44,9 +49,33 @@ const DateCell = ({ rawDate }) => {
   return <Cell><Typography variant="body2">{label}</Typography></Cell>;
 };
 
+const formatKm = (km) => (km != null ? `${km.toLocaleString('pt-PT')} km` : null);
+
+const NextMaintenanceCell = ({ vehicle, maintenances, maintenanceTypes }) => {
+  const next = getNextMaintenanceStatus(vehicle, maintenances, maintenanceTypes);
+  if (!next) return <Cell><Typography variant="body2" color="text.disabled">—</Typography></Cell>;
+  const label = next.status === 'overdue' ? `Em atraso (${next.typeName})` : `Brevemente (${next.typeName})`;
+  const color = next.status === 'overdue' ? 'error' : 'warning';
+  const Icon = next.status === 'overdue' ? ErrorIcon : WarningIcon;
+  return (
+    <Cell>
+      <Tooltip title={
+        next.kmSince != null
+          ? `${formatKm(Math.round(next.kmSince))} desde a última manutenção deste tipo`
+          : `${next.monthsSince} meses desde a última manutenção deste tipo`
+      }>
+        <Chip icon={<Icon />} label={label} size="small" color={color} variant="outlined" sx={{ fontWeight: 600 }} />
+      </Tooltip>
+    </Cell>
+  );
+};
+
 const VehicleList = () => {
   const theme = useTheme();
   const { vehicles, isLoading } = useVehicles();
+  const { maintenances } = useMaintenances();
+  const { data: metaData } = useMetaData();
+  const maintenanceTypes = metaData?.maintenancetype || EMPTY_MAINTENANCE_TYPES;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [overviewOpen, setOverviewOpen] = useState(false);
@@ -105,6 +134,19 @@ const VehicleList = () => {
       ),
     },
     {
+      field: 'current_km',
+      headerName: 'Km Atual',
+      width: 130,
+      type: 'number',
+      renderCell: ({ value }) => (
+        <Cell>
+          {value != null
+            ? <Typography variant="body2">{formatKm(value)}</Typography>
+            : <Typography variant="body2" color="text.disabled">—</Typography>}
+        </Cell>
+      ),
+    },
+    {
       field: 'delivery',
       headerName: 'Data de Entrega',
       width: 150,
@@ -139,6 +181,23 @@ const VehicleList = () => {
       renderCell: ({ row }) => <DateCell rawDate={row.insurance_date} />,
     },
     {
+      field: 'iuc_date',
+      headerName: 'IUC',
+      width: 155,
+      type: 'date',
+      valueGetter: (value) => value ? new Date(value + 'T00:00:00') : null,
+      renderCell: ({ row }) => <DateCell rawDate={row.iuc_date} />,
+    },
+    {
+      field: 'next_maintenance',
+      headerName: 'Próxima Manutenção',
+      width: 200,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <NextMaintenanceCell vehicle={row} maintenances={maintenances} maintenanceTypes={maintenanceTypes} />
+      ),
+    },
+    {
       field: 'actions',
       headerName: '',
       width: 56,
@@ -155,14 +214,18 @@ const VehicleList = () => {
         </Cell>
       ),
     },
-  ], [theme]);
+  ], [theme, maintenances, maintenanceTypes]);
 
   const stats = useMemo(() => {
     let inspExpired = 0, inspWarning = 0;
     let insurExpired = 0, insurWarning = 0;
+    let maintOverdue = 0, maintWarning = 0;
     vehicles.forEach(v => {
       const insp = daysUntil(v.inspection_date);
       const insur = daysUntil(v.insurance_date);
+      const nextMaint = getNextMaintenanceStatus(v, maintenances, maintenanceTypes);
+      if (nextMaint?.status === 'overdue') maintOverdue++;
+      else if (nextMaint?.status === 'warning') maintWarning++;
       if (insp !== null) {
         if (insp < 0) inspExpired++;
         else if (insp <= 30) inspWarning++;
@@ -172,8 +235,8 @@ const VehicleList = () => {
         else if (insur <= 30) insurWarning++;
       }
     });
-    return { inspExpired, inspWarning, insurExpired, insurWarning };
-  }, [vehicles]);
+    return { inspExpired, inspWarning, insurExpired, insurWarning, maintOverdue, maintWarning };
+  }, [vehicles, maintenances, maintenanceTypes]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -191,6 +254,12 @@ const VehicleList = () => {
           )}
           {stats.insurWarning > 0 && (
             <Chip icon={<WarningIcon />} label={`${stats.insurWarning} seguro a expirar`} size="small" color="warning" />
+          )}
+          {stats.maintOverdue > 0 && (
+            <Chip icon={<ErrorIcon />} label={`${stats.maintOverdue} manutenção em atraso`} size="small" color="error" variant="outlined" />
+          )}
+          {stats.maintWarning > 0 && (
+            <Chip icon={<WarningIcon />} label={`${stats.maintWarning} manutenção a aproximar`} size="small" color="warning" variant="outlined" />
           )}
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center">

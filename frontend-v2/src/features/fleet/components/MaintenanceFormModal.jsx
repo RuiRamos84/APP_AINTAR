@@ -13,6 +13,7 @@ import {
   CalendarMonth as CalendarIcon,
   Settings as SettingsIcon,
   Notes as NotesIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useForm, Controller } from 'react-hook-form';
@@ -31,6 +32,7 @@ const maintenanceSchema = z.object({
   tb_vehicle: z.string().min(1, 'Selecione um veículo'),
   tt_maintenancetype: z.string().min(1, 'Selecione o tipo de manutenção'),
   data: z.string().min(1, 'Data é obrigatória'),
+  km: z.string().optional(),
   price: z.string().min(1, 'Preço é obrigatório'),
   memo: z.string().optional(),
 });
@@ -39,6 +41,7 @@ const defaultValues = {
   tb_vehicle: '',
   tt_maintenancetype: '',
   data: '',
+  km: '',
   price: '',
   memo: '',
 };
@@ -86,6 +89,7 @@ const MaintenanceFormModal = ({ open, onClose }) => {
         tb_vehicle: parseInt(data.tb_vehicle, 10),
         tt_maintenancetype: data.tt_maintenancetype,
         data: data.data,
+        km: data.km ? parseInt(data.km, 10) : null,
         price: parseInt(data.price, 10),
         memo: data.memo || null,
       });
@@ -207,7 +211,7 @@ const MaintenanceFormModal = ({ open, onClose }) => {
               <SectionHeader icon={SettingsIcon} title="Detalhe da Intervenção" />
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={12}>
               <Controller
                 name="tt_maintenancetype"
                 control={control}
@@ -237,7 +241,7 @@ const MaintenanceFormModal = ({ open, onClose }) => {
               />
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Controller
                 name="data"
                 control={control}
@@ -260,7 +264,32 @@ const MaintenanceFormModal = ({ open, onClose }) => {
               />
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Controller
+                name="km"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Km da Viatura"
+                    type="number"
+                    fullWidth
+                    inputProps={{ min: 0 }}
+                    error={!!errors.km}
+                    helperText={errors.km?.message || 'Opcional'}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SpeedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Controller
                 name="price"
                 control={control}
