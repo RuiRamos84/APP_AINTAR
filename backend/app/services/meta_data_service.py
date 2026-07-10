@@ -47,7 +47,7 @@ def fetch_meta_data(current_user, profil=None):
         'step_transitions': "SELECT * FROM vbl_step_transition ORDER BY doctype, from_step, to_step",
         'analiseParams': "SELECT * FROM vbl_analiseparam",
         'instalacaoautocontrolo': "SELECT * FROM tt_instalacaoautocontrolo ORDER BY pk",
-        'tipoetar': "SELECT code AS pk, nome AS value FROM tt_tipoetar ORDER BY code",
+        'tipoetar': "SELECT code AS pk, nome AS value FROM tt_tipoetar ORDER BY pk",
         'operacaodia': "SELECT * FROM vbl_operacaodia ORDER BY pk",
         'operacaoaccao': "SELECT * FROM vbl_operacaoaccao ORDER BY pk",
         'operacamodo': "SELECT * FROM vbl_operacaomodo ORDER BY pk",
