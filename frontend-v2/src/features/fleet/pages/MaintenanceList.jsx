@@ -1,14 +1,17 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearch } from '@/shared/hooks';
-import { Box, Typography, Button, Chip, Stack, Tooltip, Select, MenuItem, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Typography, Button, Chip, Stack, Tooltip, Select, MenuItem, ToggleButton, ToggleButtonGroup, TextField } from '@mui/material';
 import { Add as AddIcon, EuroSymbol as EuroIcon } from '@mui/icons-material';
 import { SearchBar } from '@/shared/components/data';
+import ConfirmDialog from '@/shared/components/feedback/ConfirmDialog';
 import { alpha, useTheme } from '@mui/material/styles';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
 import { useMaintenances } from '../hooks/useMaintenances';
 import MaintenanceFormModal from '../components/MaintenanceFormModal.jsx';
 import MaintenanceHistoryModal from '../components/MaintenanceHistoryModal.jsx';
+
+const RESOLVED_STATUS = 3;
 
 // tt_maintenancetype_pk=3 'Reparação' — só avarias têm fluxo de estado editável;
 // manutenções lançadas diretamente pelo gestor já nascem "Resolvida".
@@ -54,12 +57,15 @@ const Cell = ({ children, justify = 'flex-start' }) => (
 
 const MaintenanceList = () => {
   const theme = useTheme();
-  const { maintenances, isLoading, updateStatus } = useMaintenances();
+  const { maintenances, isLoading, updateStatus, isUpdatingStatus } = useMaintenances();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedLicence, setSelectedLicence] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [resolveTarget, setResolveTarget] = useState(null);
+  const [resolvePrice, setResolvePrice] = useState('');
+  const [resolveMemo, setResolveMemo] = useState('');
 
   const pendingCount = useMemo(
     () => maintenances.filter((m) => m.ts_maintenancestatus !== 3).length,
@@ -73,9 +79,39 @@ const MaintenanceList = () => {
 
   const filteredMaintenances = useSearch(structurallyFiltered, searchQuery);
 
-  const handleStatusChange = useCallback((pk, status) => {
-    updateStatus({ id: pk, status });
+  const handleStatusChange = useCallback((row, status) => {
+    // Ao concluir, pede custo real + descrição do trabalho (o registo nasce
+    // com price=0/memo=NULL via "A Minha Viatura") — outras transições mudam
+    // logo, sem diálogo.
+    if (status === RESOLVED_STATUS) {
+      setResolveTarget(row);
+      setResolvePrice(row.price != null ? String(row.price) : '');
+      setResolveMemo(row.memo ?? '');
+      return;
+    }
+    updateStatus({ id: row.pk, status });
   }, [updateStatus]);
+
+  const closeResolveDialog = () => {
+    setResolveTarget(null);
+    setResolvePrice('');
+    setResolveMemo('');
+  };
+
+  const handleConfirmResolve = async () => {
+    if (!resolveTarget) return;
+    try {
+      await updateStatus({
+        id: resolveTarget.pk,
+        status: RESOLVED_STATUS,
+        price: resolvePrice !== '' ? parseFloat(resolvePrice) : undefined,
+        memo: resolveMemo !== '' ? resolveMemo : undefined,
+      });
+      closeResolveDialog();
+    } catch {
+      // Erros tratados pelos toasts no hook
+    }
+  };
 
   const handleLicenceClick = (licence) => {
     setSelectedLicence(licence);
@@ -161,7 +197,7 @@ const MaintenanceList = () => {
               variant="standard"
               disableUnderline
               value={row.ts_maintenancestatus ?? 3}
-              onChange={(e) => handleStatusChange(row.pk, Number(e.target.value))}
+              onChange={(e) => handleStatusChange(row, Number(e.target.value))}
               onClick={(e) => e.stopPropagation()}
               renderValue={(v) => (
                 <Chip label={STATUS_LABELS[v] ?? '—'} size="small" color={getStatusColor(v)} />
@@ -308,6 +344,39 @@ const MaintenanceList = () => {
         licence={selectedLicence}
         maintenances={maintenances}
       />
+
+      <ConfirmDialog
+        open={!!resolveTarget}
+        title="Concluir avaria?"
+        message={`Confirma a conclusão da avaria na viatura ${resolveTarget?.licence ?? ''}? Indique o custo real e o que foi feito.`}
+        confirmText="Concluir"
+        confirmColor="success"
+        type="success"
+        loading={isUpdatingStatus}
+        onConfirm={handleConfirmResolve}
+        onCancel={closeResolveDialog}
+      >
+        <Stack spacing={2}>
+          <TextField
+            label="Custo (€)"
+            type="number"
+            fullWidth
+            size="small"
+            inputProps={{ min: 0 }}
+            value={resolvePrice}
+            onChange={(e) => setResolvePrice(e.target.value)}
+          />
+          <TextField
+            label="Descrição do trabalho realizado"
+            fullWidth
+            multiline
+            rows={3}
+            size="small"
+            value={resolveMemo}
+            onChange={(e) => setResolveMemo(e.target.value)}
+          />
+        </Stack>
+      </ConfirmDialog>
     </Box>
   );
 };

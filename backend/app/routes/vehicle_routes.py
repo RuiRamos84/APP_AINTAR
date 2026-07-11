@@ -377,6 +377,12 @@ def set_vehicle_maintenance_status_route(pk):
             status:
               type: integer
               description: 1=Reportada, 2=Em resolução, 3=Resolvida
+            price:
+              type: number
+              description: Custo real da intervenção (opcional — ex. ao concluir uma avaria reportada)
+            memo:
+              type: string
+              description: Descrição do trabalho realizado (opcional)
     responses:
       200:
         description: Estado atualizado com sucesso.
@@ -385,6 +391,6 @@ def set_vehicle_maintenance_status_route(pk):
     data = request.get_json()
     if not data or "status" not in data:
         return {"message": "JSON inválido ou campo 'status' em falta"}, 400
-    return set_vehicle_maintenance_status(current_user, pk, data["status"])
+    return set_vehicle_maintenance_status(current_user, pk, data["status"], data.get("price"), data.get("memo"))
 
 # ========================= VEHICLE MAINTENANCE DELETE =========================

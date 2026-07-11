@@ -54,7 +54,7 @@ export const useMaintenances = ({ enabled = true } = {}) => {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => updateMaintenanceStatus(id, status),
+    mutationFn: ({ id, status, price, memo }) => updateMaintenanceStatus(id, status, price, memo),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MAINTENANCES_QUERY_KEY });
       notification.success('Estado atualizado com sucesso!');

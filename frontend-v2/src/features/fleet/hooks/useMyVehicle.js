@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import notification from '@/core/services/notification';
 import { getMyVehicle, reportBreakdown } from '../services/vehicleService';
 import { VEHICLES_QUERY_KEY } from './useVehicles';
+import { MAINTENANCES_QUERY_KEY } from './useMaintenances';
 
 export const MY_VEHICLE_QUERY_KEY = ['my-vehicle'];
 
@@ -30,6 +31,7 @@ export const useMyVehicle = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MY_VEHICLE_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: MAINTENANCES_QUERY_KEY });
       notification.success('Avaria reportada com sucesso.');
     },
     onError: (error) => notification.apiError(error, 'Erro ao reportar avaria.'),

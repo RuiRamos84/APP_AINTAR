@@ -58,8 +58,8 @@ export const updateMaintenance = async (id, data) => {
   return response;
 };
 
-export const updateMaintenanceStatus = async (id, status) => {
-  const response = await api.put(`/vehicle_maintenance_status/${id}`, { status });
+export const updateMaintenanceStatus = async (id, status, price, memo) => {
+  const response = await api.put(`/vehicle_maintenance_status/${id}`, { status, price, memo });
   return response;
 };
 

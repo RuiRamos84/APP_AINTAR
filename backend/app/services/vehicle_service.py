@@ -453,20 +453,26 @@ MAINTENANCE_STATUS_IDS = (1, 2, 3)  # 1=Reportada, 2=Em resolução, 3=Resolvida
 
 
 @api_error_handler
-def set_vehicle_maintenance_status(current_user: str, pk: int, status: int):
+def set_vehicle_maintenance_status(current_user: str, pk: int, status: int, price=None, memo=None):
     """
     Transição de estado de uma manutenção/avaria (fbf_vehicle_maintenance$status).
     Separado do UPDATE genérico porque este está bloqueado de propósito
     (fbf_vehicle_maintenance trata o registo como histórico imutável) — o
     estado é metadado de fluxo de trabalho, não parte do registo em si.
+
+    price/memo são opcionais: permitem informar o custo real e o que foi
+    feito ao concluir uma avaria reportada (que nasce com price=0/memo=NULL
+    via "A Minha Viatura"). Quando omitidos (ex: só mudar Reportada → Em
+    resolução), os valores existentes mantêm-se — a função na BD usa
+    COALESCE, nunca zera o que já lá estava.
     """
     if status not in MAINTENANCE_STATUS_IDS:
         raise APIError("Estado inválido.", 400, "ERR_VALIDATION")
 
     with db_session_manager(current_user) as session:
         result = session.execute(
-            text("SELECT fbf_vehicle_maintenance$status(:pk, :status)"),
-            {"pk": pk, "status": status},
+            text("SELECT \"fbf_vehicle_maintenance$status\"(:pk, :status, :price, :memo)"),
+            {"pk": pk, "status": status, "price": price, "memo": memo},
         )
         session.commit()
         if result.scalar() is None:
