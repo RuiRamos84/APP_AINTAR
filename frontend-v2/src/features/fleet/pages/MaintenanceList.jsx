@@ -15,7 +15,7 @@ const RESOLVED_STATUS = 3;
 
 // tt_maintenancetype_pk=3 'Reparação' — só avarias têm fluxo de estado editável;
 // manutenções lançadas diretamente pelo gestor já nascem "Resolvida".
-const BREAKDOWN_TYPE_PK = 3;
+export const BREAKDOWN_TYPE_PK = 3;
 
 const STATUS_LABELS = { 1: 'Reportada', 2: 'Em resolução', 3: 'Resolvida' };
 

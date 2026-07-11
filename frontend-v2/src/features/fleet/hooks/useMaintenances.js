@@ -68,6 +68,7 @@ export const useMaintenances = ({ enabled = true } = {}) => {
     maintenances: maintenancesQuery.data || [],
     isLoading: maintenancesQuery.isLoading,
     isError: maintenancesQuery.isError,
+    refetch: maintenancesQuery.refetch,
 
     addMaintenance: createMutation.mutateAsync,
     isAdding: createMutation.isPending,

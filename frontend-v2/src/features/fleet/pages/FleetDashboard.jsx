@@ -8,6 +8,7 @@ import { usePermissions } from '@/core/contexts/PermissionContext';
 import { useReservations } from '../hooks/useReservations';
 import { useMyVehicle } from '../hooks/useMyVehicle';
 import { useMaintenances } from '../hooks/useMaintenances';
+import FleetOverview from './FleetOverview.jsx';
 import VehicleList from './VehicleList.jsx';
 import AssignmentsList from './AssignmentsList.jsx';
 import MaintenanceList from './MaintenanceList.jsx';
@@ -34,6 +35,7 @@ function TabPanel({ children, activeKey, panelKey }) {
 const FleetDashboard = () => {
   const theme = useTheme();
   const { hasPermission } = usePermissions();
+  const canViewOverview = hasPermission('fleet.edit');
   const canManageFleet = hasPermission('fleet.view');
   const canViewReservations = hasPermission('fleet.reservations.view');
   const canViewMyVehicle = hasPermission('fleet.myvehicle.view');
@@ -67,6 +69,7 @@ const FleetDashboard = () => {
   // ou só com fleet.myvehicle.view continue a ver a tab que lhe diz respeito.
   const tabs = useMemo(() => {
     const list = [];
+    if (canViewOverview) list.push({ key: 'overview', label: 'Visão Geral' });
     if (canManageFleet) list.push({ key: 'vehicles', label: 'Veículos' });
     if (canManageFleet) list.push({ key: 'assignments', label: 'Atribuições (Check-in/out)' });
     if (canManageFleet) {
@@ -80,7 +83,7 @@ const FleetDashboard = () => {
     if (canViewReservations) list.push({ key: 'reservations', label: 'Reservas' });
     if (canViewMyVehicle && hasMyVehicle) list.push({ key: 'myvehicle', label: 'A Minha Viatura' });
     return list;
-  }, [canManageFleet, canViewReservations, canViewMyVehicle, hasMyVehicle, pendingMaintenanceCount]);
+  }, [canViewOverview, canManageFleet, canViewReservations, canViewMyVehicle, hasMyVehicle, pendingMaintenanceCount]);
 
   const activeTab = tabs.some((t) => t.key === requestedTab) ? requestedTab : tabs[0]?.key ?? null;
   const isReservationsTab = activeTab === 'reservations';
@@ -148,6 +151,11 @@ const FleetDashboard = () => {
         )}
       </Box>
 
+      {canViewOverview && (
+        <TabPanel activeKey={activeTab} panelKey="overview">
+          <FleetOverview onNavigateTab={setRequestedTab} />
+        </TabPanel>
+      )}
       {canManageFleet && (
         <TabPanel activeKey={activeTab} panelKey="vehicles">
           <VehicleList />

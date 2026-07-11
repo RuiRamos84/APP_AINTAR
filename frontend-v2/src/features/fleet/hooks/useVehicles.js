@@ -57,6 +57,7 @@ return rawData.map(v => ({ ...v, id: v.pk }));
     isLoading: vehiclesQuery.isLoading,
     isError: vehiclesQuery.isError,
     error: vehiclesQuery.error,
+    refetch: vehiclesQuery.refetch,
 
     addVehicle: createMutation.mutateAsync,
     isAdding: createMutation.isPending,
