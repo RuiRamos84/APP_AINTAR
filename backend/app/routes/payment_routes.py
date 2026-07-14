@@ -360,7 +360,8 @@ def register_manual_payment():
         return jsonify({"error": f"Sem permissão para o método de pagamento {payment_method}"}), 403
     
     user_session = get_jwt_identity()
-    result = payment_service.register_manual_payment_direct(data, user_session)
+    user_id, _, _, _ = get_user_permissions_from_jwt()
+    result = payment_service.register_manual_payment_direct(data, user_session, user_id)
     return jsonify(result), 200
 
 # ✅ ENDPOINTS ADMINISTRATIVOS - MIGRADOS PARA NOVO SISTEMA

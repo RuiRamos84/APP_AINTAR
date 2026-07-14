@@ -98,9 +98,8 @@ const CashPayment = ({ onSuccess, documentId, amount, regnumber }) => {
                 <Alert severity="info" sx={{ mt: 2 }} icon={false}>
                     <Typography variant="body2">
                         <strong>Importante:</strong><br />
-                        • Este pagamento requer validação posterior<br />
-                        • Forneça informações detalhadas para agilizar a aprovação<br />
-                        • O documento ficará pendente até à validação
+                        • O pagamento fica confirmado de imediato e entra em Caixa<br />
+                        • Forneça informações detalhadas para ficar rastreável (recibo, quem recebeu)
                     </Typography>
                 </Alert>
             </Box>

@@ -602,7 +602,7 @@ class PaymentService:
             logger.error(f"Erro process_multibanco_from_checkout: {e}")
             raise
 
-    def register_manual_payment_direct(self, data: dict, user_session: str):
+    def register_manual_payment_direct(self, data: dict, user_session: str, user_pk: int = None):
         """Registar pagamento manual direto - CORRIGIDO"""
         payment_data = ManualPaymentRegister.model_validate(data)
         try:
@@ -687,14 +687,33 @@ class PaymentService:
                         f"(document_id={document_id}, método={payment_data.payment_type})"
                     )
 
+                # Numerário: quem regista é quem tem o dinheiro na mão — não faz sentido
+                # exigir uma segunda pessoa a "validar" mais tarde. Aprova-se de imediato
+                # e lança-se logo em Caixa, na mesma transação. Restantes métodos (Transferência,
+                # Município) continuam PENDING_VALIDATION — só o backoffice pode confirmar
+                # que o dinheiro chegou à conta.
+                final_status = PaymentStatus.PENDING_VALIDATION
+                if payment_data.payment_type == 'CASH' and user_pk:
+                    db.execute(text("""
+                        SELECT fbo_sibs_approve(:payment_pk, :user_pk)
+                    """), {"payment_pk": sibs_pk, "user_pk": user_pk})
+                    final_status = PaymentStatus.SUCCESS
+
                 # Commit explícito
                 db.commit()
+
+            if final_status == PaymentStatus.SUCCESS:
+                self._create_caixa_entry(
+                    document_id, float(payment_data.amount), user_pk, sibs_pk,
+                    source_label="pagamento manual"
+                )
 
             return {
                 "success": True,
                 "transaction_id": transaction_id,
-                "payment_status": PaymentStatus.PENDING_VALIDATION,
-                "message": "Pagamento registado com sucesso"
+                "payment_status": final_status,
+                "message": "Pagamento registado e confirmado com sucesso" if final_status == PaymentStatus.SUCCESS
+                            else "Pagamento registado com sucesso"
             }
 
         except Exception as e:
@@ -915,6 +934,36 @@ class PaymentService:
             logger.error(f"Erro em force_sync_with_sibs: {e}", exc_info=True)
             raise
 
+    def _create_caixa_entry(self, document_id, amount, user_pk, source_pk, source_label="pagamento"):
+        """Cria a entrada de Caixa (tipo 2) para um pagamento CASH já aprovado.
+        Usa sessão de sistema (None) para contornar permissões da view vbf_caixa."""
+        try:
+            with db_session_manager(None) as admin_db:
+                caixa_pk = admin_db.execute(text("SELECT fs_nextcode()")).scalar()
+                admin_db.execute(text("""
+                    INSERT INTO vbf_caixa (
+                        pk, tt_caixamovimento, data, valor,
+                        tb_document, ordempagamento,
+                        ts_client1, ts_client2,
+                        hist_client, hist_time
+                    ) VALUES (
+                        :pk, 2, NOW(), :valor,
+                        :tb_document, NULL,
+                        :ts_client1, NULL,
+                        :ts_client1, NOW()
+                    )
+                """), {
+                    'pk':          caixa_pk,
+                    'valor':       amount,
+                    'tb_document': document_id,
+                    'ts_client1':  user_pk,
+                })
+                admin_db.commit()
+            logger.info(f"Movimento de caixa {caixa_pk} criado para {source_label} {source_pk} (doc={document_id} valor={amount})")
+        except Exception as caixa_err:
+            logger.error(f"[CAIXA] Falha ao criar movimento para {source_label} {source_pk} doc={document_id}: {caixa_err}", exc_info=True)
+            raise
+
     def approve_payment(self, payment_pk: int, user_pk: int, current_user: str):
         """Aprovar pagamento pendente"""
         try:
@@ -976,36 +1025,7 @@ class PaymentService:
                     # Apenas para pagamentos em numerário (pk 1) — Caixa regista só dinheiro físico,
                     # não transferências bancárias, município ou outros métodos manuais.
                     if amount and amount > 0 and payment_method_pk == "1":
-                        try:
-                            caixa_pk = db.execute(text("SELECT fs_nextcode()")).scalar()
-
-                            # Usar sessão de sistema (None) para contornar verificações de permissões
-                            # da view vbf_caixa e garantir inserção do movimento automático
-                            with db_session_manager(None) as admin_db:
-                                admin_db.execute(text("""
-                                    INSERT INTO vbf_caixa (
-                                        pk, tt_caixamovimento, data, valor,
-                                        tb_document, ordempagamento,
-                                        ts_client1, ts_client2,
-                                        hist_client, hist_time
-                                    ) VALUES (
-                                        :pk, 2, NOW(), :valor,
-                                        :tb_document, NULL,
-                                        :ts_client1, NULL,
-                                        :ts_client1, NOW()
-                                    )
-                                """), {
-                                    'pk':          caixa_pk,
-                                    'valor':       amount,
-                                    'tb_document': document_id,
-                                    'ts_client1':  user_pk,
-                                })
-                                admin_db.commit()
-
-                            logger.info(f"Movimento de caixa {caixa_pk} criado para pagamento {payment_pk} (doc={document_id} valor={amount})")
-                        except Exception as caixa_err:
-                            logger.error(f"[APPROVE_CAIXA] FALHA caixa_pk={caixa_pk} doc={document_id}: {caixa_err}", exc_info=True)
-                            raise
+                        self._create_caixa_entry(document_id, amount, user_pk, payment_pk, source_label="pagamento")
 
             return {"success": True, "message": "Pagamento aprovado"}
 

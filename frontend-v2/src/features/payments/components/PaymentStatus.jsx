@@ -4,7 +4,8 @@ import { CheckCircle, Schedule, Euro, VerifiedUser } from '@mui/icons-material';
 
 const PaymentStatus = ({ transactionId, status: paymentResult, onComplete }) => {
     const isIsencao = transactionId?.startsWith('ISENCAO-');
-    const isManual = transactionId?.startsWith('MANUAL-');
+    const isManualCash = transactionId?.startsWith('MANUAL-CASH-');
+    const isManual = transactionId?.startsWith('MANUAL-') && !isManualCash;
 
     // Isenção: fechar automaticamente após breve delay
     useEffect(() => {
