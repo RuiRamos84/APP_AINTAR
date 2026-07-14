@@ -68,7 +68,10 @@
       "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\")",
       "PowerShell(Get-Process -Id 55056 -ErrorAction SilentlyContinue)",
       "PowerShell(Stop-Process -Id 55056,48980 -Force -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-Process python -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Process python -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(Get-CimInstance Win32_Process *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\rui.ramos\\AppData\\Local\\Temp",
@@ -88,6 +91,20 @@
       "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault\\10 - API Reference",
       "C:\\Users\\rui.ramos\\Documents\\Obsidian Vault",
       "C:\\Users\\RUI~1.RAM\\AppData\\Local\\Temp\\claude\\c--Users-rui-ramos-Desktop-APP\\85943cc4-eba0-4c12-8e8b-2da376026f9d\\scratchpad"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/doc_sync_check.py",
+            "timeout": 15,
+            "statusMessage": "A verificar sincronizacao de documentacao..."
+          }
+        ]
+      }
     ]
   }
 }
