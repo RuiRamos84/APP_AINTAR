@@ -48,6 +48,31 @@ def _signed_valor(tipo: int, valor: float) -> float:
     return valor
 
 
+def _resolve_document_pk(session, value):
+    """Aceita PK numérico ou regnumber (ex: 2026.E.LFS.000074) e devolve sempre o PK.
+    Front-end nunca expõe o PK interno do pedido — só o regnumber."""
+    if value in (None, ''):
+        return None
+    value = str(value).strip()
+    if not value:
+        return None
+
+    try:
+        pk = int(value)
+    except ValueError:
+        pk = session.execute(
+            text("SELECT pk FROM tb_document WHERE regnumber = :v"), {'v': value}
+        ).scalar()
+        if not pk:
+            raise ResourceNotFoundError("Pedido", value)
+        return pk
+
+    exists = session.execute(text("SELECT 1 FROM tb_document WHERE pk = :v"), {'v': pk}).scalar()
+    if not exists:
+        raise ResourceNotFoundError("Pedido", value)
+    return pk
+
+
 def _get_last_two_person(session, tipo: int):
     """Devolve o último movimento de dois utilizadores (tipo 4 ou 5) com dados dos clientes.
     LEFT JOIN em ts_client c2 para suportar registos pendentes (ts_client2 IS NULL)."""
@@ -240,6 +265,8 @@ def create_movement(data: dict, current_user: str, user_client_pk: int):
             # ts_client2 fica NULL — será definido pelo validador via /validar
             ts_client2 = None
 
+        tb_document_pk = _resolve_document_pk(session, data.get('tb_document'))
+
         new_pk = session.execute(text("SELECT fs_nextcode()")).scalar()
         try:
             session.execute(text("""
@@ -259,7 +286,7 @@ def create_movement(data: dict, current_user: str, user_client_pk: int):
                 'tipo':           tipo,
                 'data':           movimento_data,
                 'valor':          valor,
-                'tb_document':    data.get('tb_document') or None,
+                'tb_document':    tb_document_pk,
                 'ordempagamento': data.get('ordempagamento') or None,
                 'ts_client1':     user_client_pk,
                 'ts_client2':     ts_client2,
@@ -356,6 +383,8 @@ def update_movement(pk: int, data: dict, current_user: str, user_client_pk: int)
         if not exists:
             raise ResourceNotFoundError("Movimento", pk)
 
+        tb_document_pk = _resolve_document_pk(session, data.get('tb_document'))
+
         session.execute(text("""
             UPDATE vbf_caixa
             SET tt_caixamovimento = :tipo,
@@ -373,7 +402,7 @@ def update_movement(pk: int, data: dict, current_user: str, user_client_pk: int)
             'tipo':           tipo,
             'data':           data.get('data'),
             'valor':          valor,
-            'tb_document':    data.get('tb_document') or None,
+            'tb_document':    tb_document_pk,
             'ordempagamento': data.get('ordempagamento') or None,
             'ts_client1':     user_client_pk,
             'ts_client2':     data.get('ts_client2') or None,

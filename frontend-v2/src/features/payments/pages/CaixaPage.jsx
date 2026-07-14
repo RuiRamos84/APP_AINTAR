@@ -15,7 +15,7 @@
  *  3. Rotação: próximo criador = último validador; próximo validador = último criador
  */
 
-import { useState, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Box, Grid, Paper, Typography, TextField, Button, Chip, Stack,
   Alert, Skeleton, Card, CardContent, Badge,
@@ -50,6 +50,7 @@ import { exportToExcel } from '@/features/epi/utils/exportUtils';
 import apiClient from '@/services/api/client';
 import { usePermissionContext } from '@/core/contexts/PermissionContext';
 import { useAuth } from '@/core/contexts/AuthContext';
+import { useDocumentDetails } from '@/features/documents/hooks/useDocuments';
 
 const DocumentDetailsModal = lazy(() => import('@/features/documents/components/details/DocumentDetailsModal'));
 
@@ -167,6 +168,41 @@ const PendingBanner = ({ pending, label, icon: Icon, currentUserId, onValidar, v
           : ' Aguarda validação por outro utilizador.'}
       </Typography>
     </Alert>
+  );
+};
+
+// ─── Campo de Pedido (por regnumber, nunca PK) ────────────────────────────────
+
+const PedidoField = ({ label, required, value, onChange }) => {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value?.trim() || ''), 400);
+    return () => clearTimeout(t);
+  }, [value]);
+
+  const { data: doc, isFetching, isError, error: fetchError } = useDocumentDetails(debounced || null);
+  const isForbidden = fetchError?.response?.status === 403;
+
+  let helperText = 'Nº de registo do pedido (ex: 2026.E.LFS.000074)';
+  let error = false;
+  if (debounced) {
+    if (isFetching) helperText = 'A verificar…';
+    else if (isForbidden) helperText = 'Sem permissão para pré-visualizar — confirmado ao gravar.';
+    else if (isError) { helperText = 'Pedido não encontrado.'; error = true; }
+    else if (doc) helperText = `Pedido encontrado: ${doc.regnumber || debounced}`;
+  }
+
+  return (
+    <TextField
+      fullWidth required={required}
+      label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="2026.E.LFS.000074"
+      helperText={helperText}
+      error={error}
+    />
   );
 };
 
@@ -310,12 +346,11 @@ const MovementDialog = ({ open, onClose, initial, tipos, currentUserId, fechoSta
 
           {/* Tipo 2: pedido obrigatório */}
           {meta.docRequired && (
-            <TextField
-              fullWidth required
+            <PedidoField
+              required
               label={meta.docLabel}
               value={form.tb_document}
-              onChange={set('tb_document')}
-              helperText="PK do pedido (número interno)"
+              onChange={(v) => setForm((p) => ({ ...p, tb_document: v }))}
             />
           )}
 
@@ -340,11 +375,10 @@ const MovementDialog = ({ open, onClose, initial, tipos, currentUserId, fechoSta
           )}
 
           {!meta.docRequired && !meta.isTwoPerson && (
-            <TextField
-              fullWidth
+            <PedidoField
               label="Nº Pedido associado (opcional)"
               value={form.tb_document}
-              onChange={set('tb_document')}
+              onChange={(v) => setForm((p) => ({ ...p, tb_document: v }))}
             />
           )}
 
@@ -500,7 +534,7 @@ const CaixaPage = () => {
       data:              form.data,
       valor:             TIPO_META[tipo]?.noValor ? 0 : parseFloat(form.valor),
       ordempagamento:    form.ordempagamento || null,
-      tb_document:       form.tb_document ? Number(form.tb_document) : null,
+      tb_document:       form.tb_document?.trim() || null,
     };
     if (editRow) updateMut.mutate({ pk: editRow.pk, ...body });
     else         createMut.mutate(body);
@@ -513,7 +547,7 @@ const CaixaPage = () => {
       data:              row.data?.slice(0, 10) ?? '',
       valor:             row.valor != null ? Math.abs(row.valor) : '',
       ordempagamento:    row.ordempagamento ?? '',
-      tb_document:       row.tb_document_pk ?? row.tb_document ?? '',
+      tb_document:       row.tb_document ?? '',
     });
     setFormOpen(true);
   };
