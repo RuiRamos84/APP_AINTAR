@@ -11,12 +11,35 @@
     Nao escreve CSV de historico.
 .PARAMETER ShowAll
     Mostra tambem aplicacoes nao-AIRC com Publisher AIRC vazio (modo diagnostico).
+.PARAMETER Download
+    Tier 1: descarrega os installers das versoes desactualizadas para a pasta
+    de staging e gera o manifest INSTALAR.txt. Nao instala nada.
+.PARAMETER Extract
+    Tier 2: alem do download, extrai os .zip descarregados e localiza o
+    installer (.exe/.msi) dentro de cada pacote. Implica -Download.
+.PARAMETER Install
+    Tier 3: executa os installers de forma silenciosa quando o tipo e
+    reconhecido (MSI, Inno Setup, InstallShield, NSIS) e verifica a versao
+    apos instalar. Implica -Download e -Extract. Nao instala se a aplicacao
+    tiver processos em execucao.
+.PARAMETER Unattended
+    Modo tarefa agendada: grava transcript em logs\run-*.log e nunca abre UI
+    (installers de tipo desconhecido sao ignorados em vez de bloquearem).
+.PARAMETER StagingDir
+    Pasta destino dos installers (default: updates-pendentes junto ao script).
 .EXAMPLE
     .\verificar-airc.ps1
     Execucao normal: tabela na consola + log em CSV.
 .EXAMPLE
-    .\verificar-airc.ps1 -CsvOnly -NoLog:$false
-    Modo silencioso para tarefa agendada: so escreve no CSV.
+    .\verificar-airc.ps1 -Download -Extract
+    Verifica, descarrega e extrai os updates pendentes, sem instalar.
+.EXAMPLE
+    .\verificar-airc.ps1 -Install
+    Ciclo completo: verifica, descarrega, extrai e instala silenciosamente.
+    Correr numa consola elevada (Administrador).
+.EXAMPLE
+    .\configurar-tarefa-agendada.ps1
+    Cria a tarefa agendada semanal (ver script proprio para opcoes).
 .NOTES
     Compativel com Windows PowerShell 5.1 e PowerShell 7+.
     API publica AIRC, sem autenticacao necessaria.
@@ -29,11 +52,31 @@ param(
     [switch]$ShowAll,
     [switch]$Diagnose,
     [switch]$Download,
+    [switch]$Extract,
+    [switch]$Install,
+    [switch]$Unattended,
     [string]$StagingDir
 )
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Cadeia de implicacoes: instalar precisa de extrair, extrair precisa de descarregar
+if ($Install) { $Extract  = $true }
+if ($Extract) { $Download = $true }
+
+$LogDir = Join-Path $PSScriptRoot 'logs'
+
+# Em modo nao-assistido (tarefa agendada) gravar transcript completo da execucao
+if ($Unattended) {
+    if (-not (Test-Path $LogDir)) { New-Item -Path $LogDir -ItemType Directory -Force | Out-Null }
+    $transcriptPath = Join-Path $LogDir ("run-{0}.log" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    try { Start-Transcript -Path $transcriptPath | Out-Null } catch {}
+    # Retencao: manter apenas os 30 transcripts mais recentes
+    Get-ChildItem $LogDir -Filter 'run-*.log' -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | Select-Object -Skip 30 |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
 
 # PS 5.1 usa TLS 1.0 por defeito; airc.pt exige TLS 1.2+
 try {
@@ -119,7 +162,11 @@ function Save-AircInstaller {
     $downloadUrl = "$Url${separator}download=1"
     $safeCode    = ($ProductCode -replace '[^A-Za-z0-9_\-]', '_')
     if (-not $safeCode) { $safeCode = 'AIRC' }
-    $tempFile    = Join-Path $env:TEMP "airc-tmp-$safeCode-$Version-$([guid]::NewGuid().ToString('N').Substring(0,8)).bin"
+    # Temp dentro da propria pasta de destino: o rename final preserva o ACL
+    # herdado. (Um Move-Item vindo de %TEMP% arrasta o ACL restritivo de
+    # C:\Windows\Temp quando a tarefa corre como SYSTEM, deixando o ficheiro
+    # ilegivel para os administradores que vao instalar.)
+    $tempFile    = Join-Path $Destination "airc-tmp-$safeCode-$Version-$([guid]::NewGuid().ToString('N').Substring(0,8)).part"
 
     try {
         $response = Invoke-WebRequest -Uri $downloadUrl -OutFile $tempFile -PassThru -UseBasicParsing -TimeoutSec 600
@@ -159,6 +206,208 @@ function Save-AircInstaller {
             Success  = $false
             Error    = $_.Exception.Message
         }
+    }
+}
+
+function Get-InstallerKind {
+    # Identifica a tecnologia do installer para escolher os switches silenciosos
+    # correctos. Primeiro tenta o VersionInfo (barato); depois procura assinaturas
+    # de texto no inicio e fim do binario (Inno Setup guarda a sua no final).
+    param([string]$Path)
+    $ext = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
+    if ($ext -eq '.msi') { return 'MSI' }
+    if ($ext -ne '.exe') { return 'Desconhecido' }
+
+    try {
+        $vi = (Get-Item $Path).VersionInfo
+        $meta = "$($vi.CompanyName) $($vi.FileDescription) $($vi.ProductName) $($vi.Comments)"
+        if ($meta -match '(?i)inno setup')    { return 'InnoSetup' }
+        if ($meta -match '(?i)installshield') { return 'InstallShield' }
+        if ($meta -match '(?i)nullsoft|nsis') { return 'NSIS' }
+    } catch {}
+
+    try {
+        $fs = [System.IO.File]::OpenRead($Path)
+        try {
+            $headLen = [int][Math]::Min($fs.Length, 2MB)
+            $head = New-Object byte[] $headLen
+            [void]$fs.Read($head, 0, $headLen)
+            $tailLen = [int][Math]::Min($fs.Length, 512KB)
+            [void]$fs.Seek(-$tailLen, [System.IO.SeekOrigin]::End)
+            $tail = New-Object byte[] $tailLen
+            [void]$fs.Read($tail, 0, $tailLen)
+        } finally { $fs.Close() }
+        foreach ($enc in @([System.Text.Encoding]::ASCII, [System.Text.Encoding]::Unicode)) {
+            $txt = $enc.GetString($head) + ' ' + $enc.GetString($tail)
+            if ($txt -match 'Inno Setup')    { return 'InnoSetup' }
+            if ($txt -match 'InstallShield') { return 'InstallShield' }
+            if ($txt -match 'Nullsoft')      { return 'NSIS' }
+        }
+    } catch {}
+    return 'Desconhecido'
+}
+
+function Expand-AircPackage {
+    # Prepara o pacote descarregado para instalacao:
+    #   .exe/.msi -> devolve o proprio ficheiro
+    #   .zip      -> extrai para subpasta com o mesmo nome e localiza o installer
+    # Ficheiros .bin (sem Content-Disposition) sao testados pelo magic number PK.
+    param([string]$Path)
+    $ext = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
+
+    if ($ext -notin @('.zip', '.exe', '.msi')) {
+        try {
+            $fs = [System.IO.File]::OpenRead($Path)
+            try {
+                $magic = New-Object byte[] 4
+                [void]$fs.Read($magic, 0, 4)
+            } finally { $fs.Close() }
+            if ($magic[0] -eq 0x50 -and $magic[1] -eq 0x4B) { $ext = '.zip' }
+        } catch {}
+    }
+
+    if ($ext -in @('.exe', '.msi')) {
+        return [pscustomobject]@{ Success = $true; Installer = $Path; Extracted = $false; ExtractDir = $null }
+    }
+    if ($ext -ne '.zip') {
+        return [pscustomobject]@{ Success = $false; Error = "Formato de pacote nao suportado: '$ext'" }
+    }
+
+    $extractDir = Join-Path (Split-Path $Path -Parent) ([System.IO.Path]::GetFileNameWithoutExtension($Path))
+    $errCount = 0
+    $firstErr = $null
+    try {
+        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+        New-Item -Path $extractDir -ItemType Directory -Force | Out-Null
+        # ZipFile em vez de Expand-Archive (que recusa extensoes != .zip), e
+        # extraccao manual entrada-a-entrada em vez de ExtractToDirectory: os
+        # zips AIRC/SharePoint trazem entradas de directoria COM dados ("Zip
+        # entry name ends in directory separator character but contains data"),
+        # que o ExtractToDirectory rejeita por inteiro, deixando o pacote a meio.
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $rootFull = (Get-Item $extractDir).FullName.TrimEnd('\') + '\'
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($Path)
+        try {
+            foreach ($entry in $zip.Entries) {
+                $rel = $entry.FullName -replace '/', '\'
+                $isDirEntry = $rel.EndsWith('\')
+                # Entrada marcada como directoria mas com dados -> tratar como ficheiro
+                if ($isDirEntry -and $entry.Length -gt 0) {
+                    $rel = $rel.TrimEnd('\')
+                    $isDirEntry = $false
+                }
+                if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+
+                # Proteccao zip-slip: o alvo tem de ficar dentro de $extractDir
+                $targetFull = [System.IO.Path]::GetFullPath((Join-Path $extractDir $rel))
+                if (-not $targetFull.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+
+                try {
+                    if ($isDirEntry) {
+                        if (-not (Test-Path $targetFull)) {
+                            New-Item -Path $targetFull -ItemType Directory -Force | Out-Null
+                        }
+                        continue
+                    }
+                    $parent = Split-Path $targetFull -Parent
+                    if (-not (Test-Path $parent)) {
+                        New-Item -Path $parent -ItemType Directory -Force | Out-Null
+                    }
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $targetFull, $true)
+                } catch {
+                    $errCount++
+                    if (-not $firstErr) { $firstErr = "$($entry.FullName): $($_.Exception.Message)" }
+                }
+            }
+        } finally {
+            $zip.Dispose()
+        }
+    } catch {
+        return [pscustomobject]@{ Success = $false; Error = "Falha a extrair: $($_.Exception.Message)" }
+    }
+    $warning = if ($errCount -gt 0) {
+        "{0} entrada(s) do zip falharam a extrair (primeira: {1})" -f $errCount, $firstErr
+    } else { $null }
+
+    # Localizar o installer dentro do zip: setup*/install*.exe > .msi > maior .exe
+    $files = @(Get-ChildItem -Path $extractDir -Recurse -File -ErrorAction SilentlyContinue)
+    $installer = $files | Where-Object { $_.Extension -eq '.exe' -and $_.BaseName -match '(?i)^(setup|install)' } |
+        Sort-Object Length -Descending | Select-Object -First 1
+    if (-not $installer) {
+        $installer = $files | Where-Object { $_.Extension -eq '.msi' } |
+            Sort-Object Length -Descending | Select-Object -First 1
+    }
+    if (-not $installer) {
+        $installer = $files | Where-Object { $_.Extension -eq '.exe' } |
+            Sort-Object Length -Descending | Select-Object -First 1
+    }
+    if (-not $installer) {
+        return [pscustomobject]@{ Success = $false; Error = 'Nenhum .exe/.msi encontrado dentro do pacote'; ExtractDir = $extractDir; Warning = $warning }
+    }
+    return [pscustomobject]@{ Success = $true; Installer = $installer.FullName; Extracted = $true; ExtractDir = $extractDir; Warning = $warning }
+}
+
+function Test-AircAppInUse {
+    # Devolve os processos em execucao a partir da pasta da aplicacao.
+    # Instalar por cima de binarios em uso falha ou deixa a app inconsistente.
+    param([string]$InstallPath)
+    if ([string]::IsNullOrWhiteSpace($InstallPath)) { return @() }
+    if (-not (Test-Path $InstallPath)) { return @() }
+    $norm = $InstallPath.TrimEnd('\') + '\'
+    return @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Path -and $_.Path.StartsWith($norm, [System.StringComparison]::OrdinalIgnoreCase)
+    })
+}
+
+function Invoke-AircInstaller {
+    # Executa o installer com os switches silenciosos do tipo detectado.
+    # Tipos desconhecidos: em -Unattended sao ignorados (sem sessao grafica,
+    # um installer interactivo ficaria pendurado); em modo interactivo abrem UI.
+    # Exit codes aceites: 0 (OK) e 3010 (OK, requer reboot).
+    param(
+        [string]$Installer,
+        [string]$LogDir,
+        [switch]$Unattended
+    )
+    $kind = Get-InstallerKind -Path $Installer
+    if (-not (Test-Path $LogDir)) { New-Item -Path $LogDir -ItemType Directory -Force | Out-Null }
+    $safeName = [System.IO.Path]::GetFileNameWithoutExtension($Installer) -replace '[^\w\-]', '_'
+    $logBase  = Join-Path $LogDir ("install-{0}-{1}" -f $safeName, (Get-Date -Format 'yyyyMMdd-HHmmss'))
+
+    $exe     = $Installer
+    $argList = $null
+    switch ($kind) {
+        'MSI'           { $exe = 'msiexec.exe'; $argList = "/i `"$Installer`" /qn /norestart /l*v `"$logBase.msi.log`"" }
+        'InnoSetup'     { $argList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$logBase.inno.log`"" }
+        'InstallShield' { $argList = '/s /v"/qn /norestart"' }  # variante MSI-based; legacy exigiria .iss gravado
+        'NSIS'          { $argList = '/S' }
+        default {
+            if ($Unattended) {
+                return [pscustomobject]@{
+                    Success = $false; Kind = $kind; ExitCode = $null
+                    Error   = 'Tipo de installer desconhecido - sem switches silenciosos seguros. Correr manualmente uma vez para identificar.'
+                }
+            }
+            # Modo interactivo: abre a UI do installer e espera
+        }
+    }
+
+    try {
+        if ($argList) {
+            $proc = Start-Process -FilePath $exe -ArgumentList $argList -Wait -PassThru
+        } else {
+            $proc = Start-Process -FilePath $exe -Wait -PassThru
+        }
+        $code = $proc.ExitCode
+        $ok = ($code -eq 0 -or $code -eq 3010)
+        return [pscustomobject]@{
+            Success  = $ok
+            Kind     = $kind
+            ExitCode = $code
+            Error    = if (-not $ok) { "Exit code $code" } else { $null }
+        }
+    } catch {
+        return [pscustomobject]@{ Success = $false; Kind = $kind; ExitCode = $null; Error = $_.Exception.Message }
     }
 }
 
@@ -728,6 +977,75 @@ if (-not $NoLog) {
     }
 }
 
+# --- Staging: manifest e limpeza automatica ---
+# O staged.json regista o que o script descarregou (produto, versao, ficheiros).
+# Em cada execucao, pacotes cujo update entretanto foi instalado - ou que foram
+# substituidos por versao mais recente - sao removidos, para a pasta de staging
+# so mostrar o que esta realmente pendente. So se apaga o que o proprio script
+# registou no manifest; conteudo manual na mesma pasta fica intacto.
+if (-not $StagingDir) { $StagingDir = Join-Path $PSScriptRoot 'updates-pendentes' }
+$stagedManifestPath = Join-Path $StagingDir 'staged.json'
+
+# Varrer temporarios orfaos de downloads interrompidos: um processo morto a
+# meio (reboot, tarefa parada) nao consegue apagar o proprio .part. Um .part
+# de um download ATIVO esta trancado pelo Windows, logo o Remove-Item falha
+# silenciosamente e nao interfere.
+if (Test-Path $StagingDir) {
+    Get-ChildItem (Join-Path $StagingDir 'airc-tmp-*.part') -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+$stagedEntries = @()
+if (Test-Path $stagedManifestPath) {
+    try {
+        # ForEach-Object enumera o array JSON: no PS 5.1 o ConvertFrom-Json
+        # devolve-o como UM item e o @() sozinho criaria array-dentro-de-array
+        $stagedEntries = @(Get-Content $stagedManifestPath -Raw -Encoding UTF8 |
+            ConvertFrom-Json | ForEach-Object { $_ })
+    } catch {
+        $stagedEntries = @()
+    }
+}
+
+if ($stagedEntries.Count -gt 0) {
+    $stagingRoot = (Get-Item $StagingDir).FullName.TrimEnd('\') + '\'
+    $kept = @()
+    foreach ($s in $stagedEntries) {
+        $row = $report | Where-Object { $_.Codigo -eq $s.Codigo } | Select-Object -First 1
+        $motivo = $null
+        if (-not $row) {
+            $motivo = 'produto ja nao esta instalado'
+        } else {
+            $cmp = Compare-AircVersion -Installed $row.VersaoInstalada -Available ([string]$s.Versao)
+            if ($null -ne $cmp -and $cmp -ge 0) {
+                $motivo = 'update ja instalado'
+            } elseif ($row.VersaoDisponivel -and $row.VersaoDisponivel -ne [string]$s.Versao) {
+                $motivo = ('substituido pela versao {0}' -f $row.VersaoDisponivel)
+            }
+        }
+        if (-not $motivo) { $kept += $s; continue }
+
+        foreach ($nome in @([string]$s.Ficheiro, [string]$s.PastaExtraida)) {
+            if ([string]::IsNullOrWhiteSpace($nome)) { continue }
+            $alvo = [System.IO.Path]::GetFullPath((Join-Path $StagingDir $nome))
+            # Nunca apagar fora da pasta de staging
+            if (-not $alvo.StartsWith($stagingRoot, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+            if (Test-Path $alvo) { Remove-Item $alvo -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+        Write-Host ("Staging: [{0}] pacote {1} removido ({2})" -f $s.Codigo, $s.Versao, $motivo) -ForegroundColor DarkGray
+    }
+    if ($kept.Count -ne $stagedEntries.Count) {
+        $stagedEntries = $kept
+        if ($kept.Count -eq 0) {
+            # Sem nada pendente: o INSTALAR.txt antigo tambem ja nao se aplica
+            Remove-Item (Join-Path $StagingDir 'INSTALAR.txt') -Force -ErrorAction SilentlyContinue
+            Remove-Item $stagedManifestPath -Force -ErrorAction SilentlyContinue
+        } else {
+            try { ConvertTo-Json @($kept) -Depth 4 | Set-Content -Path $stagedManifestPath -Encoding UTF8 } catch {}
+        }
+    }
+}
+
 # --- Tier 1: Staging dos installers ---
 # Descarrega installers das versoes desactualizadas para uma pasta local.
 # Nao instala nada. Gera INSTALAR.txt com manifest e notas de seguranca.
@@ -738,9 +1056,6 @@ if ($Download) {
         Write-Host ''
         Write-Host 'Nada para descarregar - sem updates pendentes.' -ForegroundColor Green
     } else {
-        if (-not $StagingDir) {
-            $StagingDir = Join-Path $PSScriptRoot 'updates-pendentes'
-        }
         Write-Host ''
         Write-Host '==============================================' -ForegroundColor Cyan
         Write-Host (' A descarregar {0} installer(s)' -f $toDownload.Count) -ForegroundColor Cyan
@@ -752,16 +1067,57 @@ if ($Download) {
             Write-Host ''
             Write-Host ("[{0}] {1}" -f $r.Codigo, $r.Aplicacao) -ForegroundColor White
             Write-Host ("   {0} -> {1}" -f $r.VersaoInstalada, $r.VersaoDisponivel) -ForegroundColor Gray
-            Write-Host '   A descarregar...' -ForegroundColor DarkGray
 
-            $res = Save-AircInstaller -Url $r.LinkDownload -Destination $StagingDir `
-                -ProductCode $r.Codigo -Version $r.VersaoDisponivel
+            # Reutilizar download de execucao anterior da mesma versao - evita
+            # re-sacar centenas de MB em cada corrida enquanto o update espera
+            # pela instalacao manual
+            $res = $null
+            $prev = $stagedEntries | Where-Object {
+                $_.Codigo -eq $r.Codigo -and [string]$_.Versao -eq [string]$r.VersaoDisponivel
+            } | Select-Object -First 1
+            if ($prev -and $prev.Ficheiro) {
+                $zipPrev = Join-Path $StagingDir ([string]$prev.Ficheiro)
+                if (Test-Path $zipPrev) {
+                    Write-Host '   Ja em staging de execucao anterior - a reutilizar.' -ForegroundColor DarkGray
+                    $res = [pscustomobject]@{
+                        Success  = $true
+                        Path     = $zipPrev
+                        Filename = [string]$prev.Ficheiro
+                        Size     = (Get-Item $zipPrev).Length
+                    }
+                }
+            }
+            if (-not $res) {
+                Write-Host '   A descarregar...' -ForegroundColor DarkGray
+                $res = Save-AircInstaller -Url $r.LinkDownload -Destination $StagingDir `
+                    -ProductCode $r.Codigo -Version $r.VersaoDisponivel
+            }
 
             if ($res.Success) {
                 $sizeMB = [Math]::Round($res.Size / 1MB, 1)
                 Write-Host ("   OK: {0} ({1} MB)" -f $res.Filename, $sizeMB) -ForegroundColor Green
             } else {
                 Write-Host ("   FALHOU: {0}" -f $res.Error) -ForegroundColor Red
+            }
+
+            # Tier 2: extrair o pacote e localizar o installer
+            $installerPath = $null
+            $extractErr    = $null
+            $pkg           = $null
+            if ($res.Success -and $Extract) {
+                $pkg = Expand-AircPackage -Path $res.Path
+                if ($pkg.Success) {
+                    $installerPath = $pkg.Installer
+                    if ($pkg.Extracted) {
+                        Write-Host ("   Extraido: {0}" -f $installerPath) -ForegroundColor Green
+                    }
+                    if ($pkg.Warning) {
+                        Write-Host ("   AVISO: {0}" -f $pkg.Warning) -ForegroundColor Yellow
+                    }
+                } else {
+                    $extractErr = $pkg.Error
+                    Write-Host ("   EXTRACCAO FALHOU: {0}" -f $extractErr) -ForegroundColor Red
+                }
             }
 
             $stagingResults += [pscustomobject]@{
@@ -773,10 +1129,30 @@ if ($Download) {
                 Sucesso          = $res.Success
                 Ficheiro         = if ($res.Success) { $res.Filename } else { $null }
                 TamanhoBytes     = if ($res.Success) { $res.Size } else { 0 }
-                Erro             = if (-not $res.Success) { $res.Error } else { $null }
+                Erro             = if (-not $res.Success) { $res.Error } else { $extractErr }
                 LinkOriginal     = $r.LinkDownload
+                Installer        = $installerPath
+                InstallPath      = $r.InstallPath
+            }
+
+            # Registar no manifest de staging (usado pela limpeza automatica e
+            # pela reutilizacao de downloads em execucoes seguintes)
+            if ($res.Success) {
+                $stagedEntries = @($stagedEntries | Where-Object { $_.Codigo -ne $r.Codigo })
+                $stagedEntries += [pscustomobject]@{
+                    Codigo        = $r.Codigo
+                    Versao        = $r.VersaoDisponivel
+                    Ficheiro      = $res.Filename
+                    PastaExtraida = if ($pkg -and $pkg.Success -and $pkg.ExtractDir) { Split-Path $pkg.ExtractDir -Leaf } else { $null }
+                    Data          = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+                }
             }
         }
+
+        # Persistir manifest de staging
+        try {
+            ConvertTo-Json @($stagedEntries) -Depth 4 | Set-Content -Path $stagedManifestPath -Encoding UTF8
+        } catch {}
 
         # Gerar manifest INSTALAR.txt
         $mdPath = Join-Path $StagingDir 'INSTALAR.txt'
@@ -862,5 +1238,83 @@ if ($Download) {
         } catch {
             Write-Host ("AVISO: nao foi possivel escrever manifest ({0}): {1}" -f $mdPath, $_.Exception.Message) -ForegroundColor Yellow
         }
+
+        # --- Tier 3: Instalacao automatica ---
+        # Corre os installers extraidos de forma silenciosa. Salvaguardas:
+        # exige elevacao, nao instala se a aplicacao tiver processos abertos,
+        # e re-verifica a versao do binario no fim.
+        if ($Install) {
+            $toInstall = @($stagingResults | Where-Object { $_.Sucesso -and $_.Installer })
+
+            $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+                       ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+            Write-Host ''
+            Write-Host '==============================================' -ForegroundColor Cyan
+            Write-Host (' A instalar {0} update(s)' -f $toInstall.Count) -ForegroundColor Cyan
+            Write-Host '==============================================' -ForegroundColor Cyan
+
+            if (-not $isAdmin) {
+                Write-Host ''
+                Write-Host 'AVISO: sessao sem privilegios de administrador.' -ForegroundColor Yellow
+                if ($Unattended) {
+                    Write-Host 'Instalacao cancelada em modo nao-assistido (installers exigem elevacao).' -ForegroundColor Yellow
+                    $toInstall = @()
+                } else {
+                    Write-Host 'Os installers podem pedir elevacao (UAC) ou falhar.' -ForegroundColor Yellow
+                }
+            }
+
+            $installedCodes = @()
+            foreach ($s in $toInstall) {
+                Write-Host ''
+                Write-Host ("[{0}] {1}  ({2} -> {3})" -f $s.Codigo, $s.Aplicacao, $s.VersaoInstalada, $s.VersaoDisponivel) -ForegroundColor White
+
+                $emUso = Test-AircAppInUse -InstallPath $s.InstallPath
+                if ($emUso.Count -gt 0) {
+                    $nomes = ($emUso | Select-Object -ExpandProperty ProcessName -Unique) -join ', '
+                    Write-Host ("   IGNORADO: aplicacao em uso (processos: {0}). Fechar e repetir." -f $nomes) -ForegroundColor Yellow
+                    continue
+                }
+
+                Write-Host ("   A executar installer: {0}" -f (Split-Path $s.Installer -Leaf)) -ForegroundColor DarkGray
+                $inst = Invoke-AircInstaller -Installer $s.Installer -LogDir $LogDir -Unattended:$Unattended
+                if ($inst.Success) {
+                    Write-Host ("   OK ({0}, exit code {1})" -f $inst.Kind, $inst.ExitCode) -ForegroundColor Green
+                    if ($inst.ExitCode -eq 3010) {
+                        Write-Host '   NOTA: o sistema precisa de reiniciar para concluir.' -ForegroundColor Yellow
+                    }
+                    $installedCodes += $s.Codigo
+                } else {
+                    Write-Host ("   FALHOU ({0}): {1}" -f $inst.Kind, $inst.Error) -ForegroundColor Red
+                }
+            }
+
+            # Verificacao pos-instalacao: re-varrer o registo/binarios e confirmar
+            if ($installedCodes.Count -gt 0) {
+                Write-Host ''
+                Write-Host 'Verificacao pos-instalacao:' -ForegroundColor Cyan
+                $after = @(Get-AircInstalled -Catalog $catalog -ProductCatalog $productCatalog)
+                foreach ($code in $installedCodes) {
+                    $app = $after | Where-Object { $_.Codigo -eq $code } | Select-Object -First 1
+                    $api = $catalog[$code]
+                    $versaoNova = if ($app -and $app.VersaoFicheiro) { $app.VersaoFicheiro }
+                                  elseif ($app) { $app.Versao } else { $null }
+                    $cmp = if ($versaoNova -and $api) {
+                        Compare-AircVersion -Installed $versaoNova -Available $api.Versao
+                    } else { $null }
+                    if ($null -ne $cmp -and $cmp -ge 0) {
+                        Write-Host ("   [{0}] {1} - ACTUALIZADO" -f $code, $versaoNova) -ForegroundColor Green
+                    } else {
+                        Write-Host ("   [{0}] {1} - ainda desfasado da versao {2} (ver log do installer em {3})" -f `
+                            $code, $versaoNova, $api.Versao, $LogDir) -ForegroundColor Yellow
+                    }
+                }
+            }
+        }
     }
+}
+
+if ($Unattended) {
+    try { Stop-Transcript | Out-Null } catch {}
 }
