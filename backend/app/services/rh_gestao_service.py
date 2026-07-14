@@ -232,12 +232,23 @@ def workflow_bulk(data: dict, current_user: str):
     if not payload.pks:
         raise APIError('Nenhum item seleccionado', 400)
 
+    # Participações têm workflow de 3 níveis com estados-destino diferentes
+    # por nível (fbo_rh_participacao_wf) — não há um único par (step,
+    # ts_estado_fk) válido para uma selecção em massa. O redesenho da
+    # validação exige rever motivo/documentos/evidência de ponto por item,
+    # por isso este tipo é deliberadamente excluído da acção em massa.
+    if payload.tipo == 'participacao':
+        raise APIError(
+            'Participações não suportam aprovação em massa — '
+            'valide cada uma individualmente após rever os dados.',
+            422,
+        )
+
     # Mapeamento tipo → workflow tipo_ref (compatível com fbo_rh_workflow)
     tipo_map = {
-        'ferias':       'ferias',
-        'faltas':       'faltas',
-        'ponto':        'ponto',
-        'participacao': 'participacao',
+        'ferias': 'ferias',
+        'faltas': 'faltas',
+        'ponto':  'ponto',
     }
     tipo_ref = tipo_map.get(payload.tipo)
     if not tipo_ref:

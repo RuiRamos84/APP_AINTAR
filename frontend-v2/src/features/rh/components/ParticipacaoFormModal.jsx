@@ -17,6 +17,7 @@ import {
   Download as DownloadIcon,
   Visibility as PreviewIcon,
   Close as RemoveIcon,
+  DeleteOutline as DeleteAnexoIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
 import { downloadAnexoParticipacao } from '../services/rhService';
@@ -58,11 +59,27 @@ const fmtBytes = (b) => b < 1024 * 1024
   ? `${(b / 1024).toFixed(0)} KB`
   : `${(b / 1048576).toFixed(1)} MB`;
 
-const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => {
+const ParticipacaoFormModal = ({
+  open, onClose, onSave, isSaving, initial,
+  onRemoveAnexo, isRemovendoAnexo,
+}) => {
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
   const isAdmin = hasPermission('rh.admin');
   const [pendingFiles, setPendingFiles] = useState([]);
+
+  // Anexos só podem ser removidos enquanto a participação está em Pendente
+  // ou Validado Superior (fbo_rh_participacao bloqueia edição depois disso)
+  // e por quem é dono do registo ou Admin RH.
+  const canDeleteAnexo = !!initial
+    && [1, 2].includes(initial.ts_estado_fk)
+    && (isAdmin || initial.tb_user_fk === user?.user_id);
+
+  const handleRemoveAnexo = useCallback(async (doc) => {
+    if (!onRemoveAnexo || !initial) return;
+    if (!window.confirm('Remover este anexo?')) return;
+    await onRemoveAnexo({ pk: initial.pk, filename: doc.filename });
+  }, [onRemoveAnexo, initial]);
 
   const { motivos } = useMotivosParticipacao();
   const { colaboradores } = useColaboradores();
@@ -432,6 +449,15 @@ const ParticipacaoFormModal = ({ open, onClose, onSave, isSaving, initial }) => 
                               <DownloadIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
+                          {canDeleteAnexo && (
+                            <Tooltip title="Remover">
+                              <IconButton size="small" edge="end" color="error"
+                                disabled={isRemovendoAnexo}
+                                onClick={() => handleRemoveAnexo(doc)}>
+                                <DeleteAnexoIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Stack>
                       }
                     >

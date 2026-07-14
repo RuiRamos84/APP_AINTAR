@@ -1,15 +1,59 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import notification from '@/core/services/notification';
 import {
-  getMotivosParticipacao, getParticipacoes,
+  getMotivosParticipacao, getParticipacoes, getParticipacaoByPk,
   criarParticipacao, editarParticipacao, workflowParticipacao,
-  uploadAnexosParticipacao,
+  uploadAnexosParticipacao, deleteAnexoParticipacao,
 } from '../services/rhService';
 
 export const PART_KEYS = {
   all:    ['rh-participacoes'],
   list:   (p) => ['rh-participacoes', 'list', p],
+  detail: (pk) => ['rh-participacoes', 'detail', pk],
   motivos: ['rh-participacoes-motivos'],
+};
+
+// Invalidação partilhada — a fila de pendentes (Gestão Centralizada) mostra
+// o mesmo registo; sem isto o item não desaparece da lista ao validar a
+// partir de lá.
+const _invalidateAll = (qc) => {
+  qc.invalidateQueries({ queryKey: PART_KEYS.all });
+  qc.invalidateQueries({ queryKey: ['rh-gestao-pendentes'] });
+};
+
+// ---------------------------------------------------------------------------
+// Detalhe de uma participação (modal de revisão)
+// ---------------------------------------------------------------------------
+
+export const useParticipacaoDetail = (pk) => {
+  const q = useQuery({
+    queryKey: PART_KEYS.detail(pk),
+    queryFn:  () => getParticipacaoByPk(pk),
+    enabled:  !!pk,
+    staleTime: 2 * 60 * 1000,
+  });
+  return {
+    participacao: q.data ?? null,
+    isLoading:    q.isLoading,
+    isError:      q.isError,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Workflow isolado — usado pelo modal de revisão, que não precisa da lista
+// completa de participações só para disparar a acção de aprovar/rejeitar.
+// ---------------------------------------------------------------------------
+
+export const useParticipacaoWorkflow = () => {
+  const qc = useQueryClient();
+
+  const workflow = useMutation({
+    mutationFn: workflowParticipacao,
+    onSuccess: () => { _invalidateAll(qc); notification.success('Acção executada'); },
+    onError:   (e) => notification.apiError(e, 'Erro no workflow'),
+  });
+
+  return { workflow: workflow.mutateAsync, isWorkflow: workflow.isPending };
 };
 
 // ---------------------------------------------------------------------------
@@ -41,7 +85,9 @@ export const useParticipacoes = (params = {}) => {
     staleTime: 2 * 60 * 1000,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: PART_KEYS.all });
+  const invalidate = () => _invalidateAll(qc);
+
+  const { workflow, isWorkflow } = useParticipacaoWorkflow();
 
   const criar = useMutation({
     mutationFn: criarParticipacao,
@@ -55,12 +101,6 @@ export const useParticipacoes = (params = {}) => {
     onError:   (e) => notification.apiError(e, 'Erro ao actualizar participação'),
   });
 
-  const workflow = useMutation({
-    mutationFn: workflowParticipacao,
-    onSuccess: () => { invalidate(); notification.success('Acção executada'); },
-    onError:   (e) => notification.apiError(e, 'Erro no workflow'),
-  });
-
   const uploadAnexos = useMutation({
     mutationFn: ({ pk, files }) => {
       const fd = new FormData();
@@ -71,6 +111,12 @@ export const useParticipacoes = (params = {}) => {
     onError:   (e) => notification.apiError(e, 'Erro ao adicionar anexos'),
   });
 
+  const removeAnexo = useMutation({
+    mutationFn: ({ pk, filename }) => deleteAnexoParticipacao(pk, filename),
+    onSuccess: () => { invalidate(); notification.success('Anexo removido'); },
+    onError:   (e) => notification.apiError(e, 'Erro ao remover anexo'),
+  });
+
   return {
     participacoes: Array.isArray(q.data) ? q.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading:      q.isLoading,
@@ -79,9 +125,11 @@ export const useParticipacoes = (params = {}) => {
     isCriando:      criar.isPending,
     editar:         editar.mutateAsync,
     isEditando:     editar.isPending,
-    workflow:       workflow.mutateAsync,
-    isWorkflow:     workflow.isPending,
+    workflow,
+    isWorkflow,
     uploadAnexos:   uploadAnexos.mutateAsync,
     isUploading:    uploadAnexos.isPending,
+    removeAnexo:    removeAnexo.mutateAsync,
+    isRemovendo:    removeAnexo.isPending,
   };
 };

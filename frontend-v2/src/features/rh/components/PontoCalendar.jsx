@@ -1,9 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Box, Stack, Typography, Paper, Chip, Alert, useMediaQuery, Button,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Send as SubmeterIcon,
+  WarningAmber as AvisoIcon,
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
@@ -18,6 +20,13 @@ import DiaDePontoModal from './DiaDePontoModal';
 const DOW_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+
+// Só é possível submeter o mapa de um mês já terminado — nunca o corrente
+// nem um futuro (o backend valida o mesmo em fbo_rh_ponto_submeter).
+const isMesFechado = (ano, mes) => {
+  const now = new Date();
+  return ano < now.getFullYear() || (ano === now.getFullYear() && mes < now.getMonth() + 1);
+};
 
 // ─── Célula de dia no calendário ─────────────────────────────────────────────
 
@@ -247,6 +256,19 @@ export default function PontoCalendar({
   const isMobile  = useMediaQuery(theme.breakpoints.down('sm'));
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalOpen, setModalOpen]       = useState(false);
+  const [diasBloqueio, setDiasBloqueio] = useState(null); // { dias_sem_registo, dias_incompletos }
+
+  const handleSubmeter = useCallback(async () => {
+    try {
+      await onSubmeter({ ano, mes });
+    } catch (err) {
+      const payload = err?.response?.data;
+      if (payload?.dias_sem_registo?.length || payload?.dias_incompletos?.length) {
+        setDiasBloqueio(payload);
+      }
+      // Erro genérico (ex: mapa já submetido, mês corrente) já mostra toast via mutation.
+    }
+  }, [onSubmeter, ano, mes]);
 
   // Agrupar eventos por dia
   const dayMap = useMemo(() => {
@@ -308,16 +330,25 @@ export default function PontoCalendar({
         </Stack>
 
         {!mapaDoMes && registosMes.length > 0 && (
-          <Button
-            variant="contained"
-            size="small"
-            loading={isSubmetendo}
-            startIcon={<SubmeterIcon />}
-            onClick={() => onSubmeter({ ano, mes })}
-            sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}
-          >
-            Submeter para Aprovação
-          </Button>
+          isMesFechado(ano, mes) ? (
+            <Button
+              variant="contained"
+              size="small"
+              loading={isSubmetendo}
+              startIcon={<SubmeterIcon />}
+              onClick={handleSubmeter}
+              sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}
+            >
+              Submeter para Aprovação
+            </Button>
+          ) : (
+            <Chip
+              label="Só pode submeter depois do mês terminar"
+              size="small"
+              variant="outlined"
+              color="default"
+            />
+          )
         )}
       </Stack>
 
@@ -362,6 +393,39 @@ export default function PontoCalendar({
         userFk={userFk}
         onMapOpen={onMapOpen}
       />
+
+      {/* Bloqueio de submissão — dias por corrigir */}
+      <Dialog open={!!diasBloqueio} onClose={() => setDiasBloqueio(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Não é possível submeter</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" icon={<AvisoIcon />} sx={{ mb: 2 }}>
+            Corrija os dias assinalados antes de submeter o mapa mensal.
+          </Alert>
+          {diasBloqueio?.dias_sem_registo?.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={700}>
+                Sem qualquer registo (dia {diasBloqueio.dias_sem_registo.length > 1 ? 's' : ''})
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {diasBloqueio.dias_sem_registo.map(d => Number(d.slice(-2))).join(', ')}
+              </Typography>
+            </Box>
+          )}
+          {diasBloqueio?.dias_incompletos?.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>
+                Sem Saída registada (dia {diasBloqueio.dias_incompletos.length > 1 ? 's' : ''})
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {diasBloqueio.dias_incompletos.map(d => Number(d.slice(-2))).join(', ')}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDiasBloqueio(null)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

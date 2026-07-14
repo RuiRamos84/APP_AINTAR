@@ -1,9 +1,10 @@
+import calendar
 import json
 import os
 from flask import jsonify, request, current_app, send_file
 from sqlalchemy import text
 from typing import Optional
-from datetime import date, time, datetime
+from datetime import date, time, datetime, timedelta
 from pydantic import BaseModel, Field
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import get_jwt
@@ -36,6 +37,7 @@ class ColaboradorUpsert(BaseModel):
     gps_obrigatorio: Optional[bool] = None
     notas: Optional[str] = None
     tt_rh_equipa_fk: Optional[int] = None
+    data_fim_contrato: Optional[date] = None
 
 
 class ConfigAnoInit(BaseModel):
@@ -197,6 +199,66 @@ def _assert_success(result: Optional[str], msg: str):
 
 def _caller_pk() -> int:
     return get_jwt().get('user_id')
+
+
+def _dias_problematicos_mes(session, user_fk: int, ano: int, mes: int) -> dict:
+    """Dias úteis do mês (segundo o horário activo) sem qualquer registo de
+    ponto ou sem Saída registada — excluindo feriados, férias aprovadas e
+    faltas não rejeitadas. Usado para bloquear a submissão do mapa mensal
+    enquanto houver dias por corrigir."""
+    primeiro = date(ano, mes, 1)
+    ultimo   = date(ano, mes, calendar.monthrange(ano, mes)[1])
+
+    horario = session.execute(text("""
+        SELECT dias_semana FROM ts_rh_horario
+        WHERE tb_user_fk = :user_fk AND data_fim IS NULL
+        ORDER BY data_inicio DESC LIMIT 1
+    """), {'user_fk': user_fk}).mappings().first()
+    dias_semana = set(horario['dias_semana']) if horario and horario['dias_semana'] else {1, 2, 3, 4, 5}
+
+    feriados = {r[0] for r in session.execute(text(
+        "SELECT data FROM ts_feriados WHERE data BETWEEN :ini AND :fim"
+    ), {'ini': primeiro, 'fim': ultimo}).fetchall()}
+
+    dias_ferias = set()
+    for data_inicio, data_fim in session.execute(text("""
+        SELECT data_inicio, data_fim FROM tb_rh_ferias
+        WHERE tb_user_fk = :user_fk AND ts_estado_fk = 3
+          AND data_inicio <= :fim AND data_fim >= :ini
+    """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).fetchall():
+        d = max(data_inicio, primeiro)
+        while d <= min(data_fim, ultimo):
+            dias_ferias.add(d)
+            d += timedelta(days=1)
+
+    dias_falta = {r[0] for r in session.execute(text("""
+        SELECT data FROM tb_rh_faltas
+        WHERE tb_user_fk = :user_fk AND ts_estado_fk != 4
+          AND data BETWEEN :ini AND :fim
+    """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).fetchall()}
+
+    registos = {
+        r['data']: set(r['eventos'] or [])
+        for r in session.execute(text("""
+            SELECT data, ARRAY_AGG(DISTINCT tt_evento_fk) AS eventos
+            FROM tb_rh_ponto
+            WHERE tb_user_fk = :user_fk AND data BETWEEN :ini AND :fim
+            GROUP BY data
+        """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).mappings().all()
+    }
+
+    sem_registo, incompletos = [], []
+    d = primeiro
+    while d <= ultimo:
+        if d.isoweekday() in dias_semana and d not in feriados and d not in dias_ferias and d not in dias_falta:
+            eventos = registos.get(d)
+            if not eventos:
+                sem_registo.append(d.isoformat())
+            elif 4 not in eventos:
+                incompletos.append(d.isoformat())
+        d += timedelta(days=1)
+
+    return {'dias_sem_registo': sem_registo, 'dias_incompletos': incompletos}
 
 
 def _mes_pendente_ou_nao_submetido(session, user_fk: int, data_evento) -> bool:
@@ -537,6 +599,14 @@ def get_ponto(current_user: str, user_fk: Optional[int], data_inicio: Optional[s
 def submeter_ponto_mensal(data: dict, current_user: str):
     payload = PontoSubmeter.model_validate(data)
     with db_session_manager(current_user) as session:
+        problemas = _dias_problematicos_mes(session, payload.user_fk, payload.ano, payload.mes)
+        if problemas['dias_sem_registo'] or problemas['dias_incompletos']:
+            raise APIError(
+                'Existem dias por corrigir antes de submeter o mapa mensal.',
+                400,
+                payload=problemas,
+            )
+
         result = session.execute(text("""
             SELECT fbo_rh_ponto_submeter(:user_fk, :ano, :mes, :notas) AS result
         """), payload.model_dump()).scalar()
@@ -1228,7 +1298,7 @@ def upsert_colaborador_perfil(data: dict, current_user: str):
                 :data_nascimento, :data_admissao, :categoria, :tipo_contrato,
                 :num_mecanografico, :superior_fk,
                 :dias_ferias_base, :elegivel_piquete, :notas, :gps_obrigatorio,
-                :tt_rh_equipa_fk
+                :tt_rh_equipa_fk, :data_fim_contrato
             ) AS result
         """), p).scalar()
         _assert_success(result, 'Erro ao guardar perfil RH')

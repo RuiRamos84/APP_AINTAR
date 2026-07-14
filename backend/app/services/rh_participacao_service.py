@@ -11,7 +11,7 @@ from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
-from .rh_gestao_service import _is_rh_admin
+from .rh_gestao_service import _is_rh_admin, _is_direct_superior
 
 ALLOWED_EXTS  = {'.pdf', '.jpg', '.jpeg', '.png'}
 MAX_FILES     = 5
@@ -69,7 +69,7 @@ def _get_rh_validators(session):
 
 
 def _emit_rh(notification_type: str, title: str, message: str,
-             user_ids: list, route: str = '/rh/pessoal/faltas'):
+             user_ids: list, route: str = '/rh/pessoal/participacoes'):
     """Emite notificação RH via Socket.IO, silenciando falhas."""
     try:
         socketio_events = current_app.extensions.get('socketio_events')
@@ -187,6 +187,30 @@ def get_participacoes(
 
 
 @api_error_handler
+def get_participacao_by_pk(pk: int, current_user: str):
+    """Detalhe de uma participação — usado pelo modal de revisão na Gestão
+    Centralizada. Autorizado para o próprio, Admin RH ou o superior directo
+    do colaborador (um supervisor precisa de ver a linha completa da sua
+    equipa, o que get_participacoes nega por omissão a não-admins)."""
+    with db_session_manager(current_user) as session:
+        row = session.execute(
+            text('SELECT * FROM vbl_rh_participacao WHERE pk = :pk'), {'pk': pk}
+        ).mappings().first()
+        if not row:
+            raise APIError('Participação não encontrada', 404)
+
+        caller_pk = _caller_pk()
+        if (
+            row['tb_user_fk'] != caller_pk
+            and not _is_rh_admin(current_user, session)
+            and not _is_direct_superior(session, row['tb_user_fk'], caller_pk)
+        ):
+            raise APIError('Sem permissão para ver esta participação', 403)
+
+        return jsonify(_rows([row])[0]), 200
+
+
+@api_error_handler
 def criar_participacao(data: dict, current_user: str):
     p = ParticipacaoCreate.model_validate(data)
     docs = json.dumps(p.documentos or [])
@@ -253,12 +277,17 @@ def editar_participacao(pk: int, data: dict, current_user: str):
     p = ParticipacaoUpdate.model_validate(data)
 
     with db_session_manager(current_user) as session:
-        if not _is_rh_admin(current_user, session):
+        is_admin = _is_rh_admin(current_user, session)
+        if not is_admin:
             owner = session.execute(
                 text('SELECT tb_user_fk FROM tb_rh_participacao WHERE pk = :pk'), {'pk': pk}
             ).scalar()
             if owner != _caller_pk():
                 raise APIError('Não tem permissão para editar esta participação', 403)
+            # data_participacao tem peso legal (prazo de pré-aviso) — só o
+            # Admin RH pode alterá-la após a criação. Ignorar silenciosamente
+            # qualquer valor enviado por um não-admin (o SQL preserva o actual).
+            p.data_participacao = None
 
         # Preservar documentos existentes se não fornecidos na actualização
         if p.documentos is None:
@@ -321,11 +350,13 @@ def upload_anexos(pk: int, current_user: str):
 
     with db_session_manager(current_user) as session:
         row = session.execute(
-            text("SELECT pk, documentos FROM tb_rh_participacao WHERE pk = :pk"),
+            text("SELECT pk, documentos, ts_estado_fk FROM tb_rh_participacao WHERE pk = :pk"),
             {'pk': pk},
         ).fetchone()
         if not row:
             raise APIError('Participação não encontrada', 404)
+        if row.ts_estado_fk not in (1, 2):
+            raise APIError('Não é possível adicionar anexos a uma participação já validada.', 400)
 
         docs = list(row.documentos or [])
 
@@ -375,6 +406,42 @@ def download_anexo(pk: int, filename: str, _current_user: str):
         raise APIError('Ficheiro não encontrado', 404)
 
     return send_file(file_path, as_attachment=False)
+
+
+@api_error_handler
+def delete_anexo(pk: int, filename: str, current_user: str):
+    if '..' in filename or '/' in filename or '\\' in filename:
+        raise APIError('Nome de ficheiro inválido', 400)
+
+    with db_session_manager(current_user) as session:
+        row = session.execute(
+            text("SELECT tb_user_fk, documentos, ts_estado_fk FROM tb_rh_participacao WHERE pk = :pk"),
+            {'pk': pk},
+        ).fetchone()
+        if not row:
+            raise APIError('Participação não encontrada', 404)
+
+        if not _is_rh_admin(current_user, session) and row.tb_user_fk != _caller_pk():
+            raise APIError('Não tem permissão para remover anexos desta participação', 403)
+        if row.ts_estado_fk not in (1, 2):
+            raise APIError('Não é possível remover anexos de uma participação já validada.', 400)
+
+        docs = list(row.documentos or [])
+        docs_novos = [d for d in docs if d.get('filename') != filename]
+        if len(docs_novos) == len(docs):
+            raise APIError('Ficheiro não encontrado nos anexos', 404)
+
+        file_path = os.path.join(_upload_dir(pk), filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+        session.execute(
+            text("UPDATE tb_rh_participacao SET documentos = CAST(:docs AS JSONB) WHERE pk = :pk"),
+            {'docs': json.dumps(docs_novos), 'pk': pk},
+        )
+
+    logger.info(f'Participação {pk}: anexo removido ({filename})')
+    return jsonify({'message': 'Anexo removido'}), 200
 
 
 # ---------------------------------------------------------------------------

@@ -13,8 +13,12 @@ from ..services.rh_gestao_service import (
     get_pendentes, get_equipa, workflow_bulk,
 )
 from ..services.rh_participacao_service import (
-    get_motivos, get_participacoes, criar_participacao,
-    editar_participacao, executar_wf, upload_anexos, download_anexo,
+    get_motivos, get_participacoes, get_participacao_by_pk, criar_participacao,
+    editar_participacao, executar_wf, upload_anexos, download_anexo, delete_anexo,
+)
+from ..services.rh_documento_service import (
+    get_tipos_documento, get_documentos, upload_documento,
+    download_documento, delete_documento,
 )
 from ..services.rh_service import (
     check_entrada,
@@ -779,6 +783,18 @@ def participacoes_list_route():
     )
 
 
+@bp.route('/rh/participacoes/<int:pk>', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def participacoes_detail_route(pk):
+    """Detalhe de uma participação — usado pelo modal de revisão da Gestão
+    Centralizada. Autorização (próprio/admin/superior directo) no serviço."""
+    current_user = get_jwt_identity()
+    return get_participacao_by_pk(pk, current_user)
+
+
 @bp.route('/rh/participacoes', methods=['POST'])
 @jwt_required()
 @token_required
@@ -836,6 +852,73 @@ def participacoes_upload_route(pk):
 @api_error_handler
 def participacoes_download_route(pk, filename):
     return download_anexo(pk, filename, get_jwt_identity())
+
+
+@bp.route('/rh/participacoes/<int:pk>/anexos/<string:filename>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def participacoes_delete_anexo_route(pk, filename):
+    return delete_anexo(pk, filename, get_jwt_identity())
+
+
+# ---------------------------------------------------------------------------
+# Gestão Documental — pasta pessoal do colaborador, organizada por ano
+# ---------------------------------------------------------------------------
+
+@bp.route('/rh/documentos/tipos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def documentos_tipos_route():
+    return get_tipos_documento(get_jwt_identity())
+
+
+@bp.route('/rh/documentos', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@api_error_handler
+def documentos_list_route():
+    current_user = get_jwt_identity()
+    return get_documentos(
+        current_user,
+        user_fk=request.args.get('user_fk', type=int),
+        ano=request.args.get('ano', type=int),
+    )
+
+
+@bp.route('/rh/documentos/<int:user_fk>', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def documentos_upload_route(user_fk):
+    return upload_documento(user_fk, get_jwt_identity())
+
+
+@bp.route('/rh/documentos/<int:pk>/download', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.view')
+@set_session
+@api_error_handler
+def documentos_download_route(pk):
+    return download_documento(pk, get_jwt_identity())
+
+
+@bp.route('/rh/documentos/<int:pk>', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def documentos_delete_route(pk):
+    return delete_documento(pk, get_jwt_identity())
 
 
 # ---------------------------------------------------------------------------

@@ -132,7 +132,7 @@ export const usePontoActions = (userFk) => {
         qc.invalidateQueries({ queryKey: ['rh-participacoes'] });
         toast.success('Regresso registado', {
           description: 'Ausência parcial criada automaticamente. Adicione a justificação legal.',
-          action: { label: 'Justificar agora', onClick: () => navigate('/rh/pessoal/faltas') },
+          action: { label: 'Justificar agora', onClick: () => navigate('/rh/pessoal/participacoes') },
           duration: 8000,
         });
       } else {

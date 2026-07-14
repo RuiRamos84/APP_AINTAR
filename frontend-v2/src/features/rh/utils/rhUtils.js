@@ -83,3 +83,12 @@ export const STATUS_COR = {
   incompleto: '#d97706',
   vazio:      null,
 };
+
+// Deriva o nível de aprovação do workflow de Participações a partir do
+// estado actual — evita o erro mais comum ao validar: escolher o step
+// errado para o estado em que a participação já está.
+export const stepFromEstado = (tsEstadoFk) => {
+  if (tsEstadoFk === 2) return 2;
+  if (tsEstadoFk === 5) return 3;
+  return 1;
+};

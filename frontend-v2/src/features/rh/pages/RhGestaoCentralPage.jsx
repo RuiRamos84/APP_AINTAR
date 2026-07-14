@@ -28,6 +28,7 @@ import { usePendentes, useEquipa } from '../hooks/useGestaoCentral';
 import { useRhLookups } from '../hooks/useRhLookups';
 import EstadoBadge from '../components/EstadoBadge';
 import PontoMensalDetalheModal from '../components/PontoMensalDetalheModal';
+import ParticipacaoDetalheModal from '../components/ParticipacaoDetalheModal';
 import { RH_COLOR as COLOR, fmtDate, fmtTime } from '../utils/rhUtils';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ const BulkToolbar = ({ selected, tipo, onAprovar, onRejeitar, isBulking }) => {
 
 // ─── Tab Pendentes ────────────────────────────────────────────────────────────
 
-const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBulking, onBulkAction, onOpenPonto }) => {
+const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBulking, onBulkAction, onOpenPonto, onOpenParticipacao }) => {
   const apiRef = useGridApiRef();
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -200,9 +201,16 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
         checkboxSelection
         disableRowSelectionOnClick
         onRowSelectionModelChange={(newSelection) => setSelectedIds([...newSelection])}
-        onRowClick={({ row }) => { if (row.tipo === 'ponto') onOpenPonto(row); }}
-        getRowClassName={({ row }) => row.tipo === 'ponto' ? 'rh-row-clicavel' : ''}
+        onRowClick={({ row }) => {
+          if (row.tipo === 'ponto') onOpenPonto(row);
+          if (row.tipo === 'participacao') onOpenParticipacao(row);
+        }}
+        getRowClassName={({ row }) => (row.tipo === 'ponto' || row.tipo === 'participacao') ? 'rh-row-clicavel' : ''}
         isRowSelectable={({ row }) => {
+          // Participações têm workflow de 3 níveis com dados a rever
+          // (motivo, documentos, evidência de ponto) — sem acção em massa,
+          // clicar na linha abre o detalhe para validar individualmente.
+          if (row.tipo === 'participacao') return false;
           if (selectedIds.length === 0) return true;
           // Só permite seleccionar o mesmo tipo (workflow é por tipo)
           const firstSelected = results.find(r => r.id === selectedIds[0]);
@@ -329,6 +337,7 @@ const RhGestaoCentralPage = () => {
   const [search, setSearch]     = useState('');
   const [tipoFiltro, setTipo]   = useState('');
   const [pontoDetalhe, setPontoDetalhe] = useState(null);
+  const [participacaoDetalhe, setParticipacaoDetalhe] = useState(null);
 
   const handleTabChange = (_, v) => { setTab(v); setSearch(''); };
 
@@ -424,6 +433,7 @@ const RhGestaoCentralPage = () => {
             isBulking={isBulking}
             onBulkAction={workflowBulk}
             onOpenPonto={setPontoDetalhe}
+            onOpenParticipacao={setParticipacaoDetalhe}
           />
         </Box>
       )}
@@ -443,6 +453,12 @@ const RhGestaoCentralPage = () => {
         open={!!pontoDetalhe}
         onClose={() => setPontoDetalhe(null)}
         pendente={pontoDetalhe}
+      />
+
+      <ParticipacaoDetalheModal
+        open={!!participacaoDetalhe}
+        onClose={() => setParticipacaoDetalhe(null)}
+        pendente={participacaoDetalhe}
       />
     </ModulePage>
   );

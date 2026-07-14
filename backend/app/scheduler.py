@@ -192,6 +192,32 @@ def _job_check_vehicle_maintenance(app):
         logger.error(f"[Scheduler] ❌ Erro ao verificar manutenção de viaturas: {e}", exc_info=True)
 
 
+def _job_check_rh_alertas(app):
+    """
+    Job diário: alertas proativos de RH — contrato de prestação de serviços
+    a terminar, férias transitadas a expirar (prazo legal 30 Abr), documentos
+    com validade a vencer (ex: exame de medicina no trabalho). Notificação
+    in-app apenas. Ver app/services/rh_alert_service.py.
+    """
+    from app.services.rh_alert_service import (
+        check_rh_contratos_expirando,
+        check_rh_ferias_transitadas_expirando,
+        check_rh_documentos_expirando,
+    )
+    try:
+        check_rh_contratos_expirando(app)
+    except Exception as e:
+        logger.error(f"[Scheduler] ❌ Erro ao verificar contratos a terminar: {e}", exc_info=True)
+    try:
+        check_rh_ferias_transitadas_expirando(app)
+    except Exception as e:
+        logger.error(f"[Scheduler] ❌ Erro ao verificar férias transitadas: {e}", exc_info=True)
+    try:
+        check_rh_documentos_expirando(app)
+    except Exception as e:
+        logger.error(f"[Scheduler] ❌ Erro ao verificar documentos de RH a vencer: {e}", exc_info=True)
+
+
 def init_scheduler(app):
     """
     Regista o job mensal e arranca o APScheduler.
@@ -253,6 +279,16 @@ def init_scheduler(app):
         trigger=CronTrigger(hour=8, minute=30, timezone='Europe/Lisbon'),
         id='check_vehicle_maintenance',
         name='Alerta diário de revisão/manutenção de viatura por km/meses',
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    _scheduler.add_job(
+        func=_job_check_rh_alertas,
+        args=[app],
+        trigger=CronTrigger(hour=8, minute=45, timezone='Europe/Lisbon'),
+        id='check_rh_alertas',
+        name='Alerta diário de RH (contrato a terminar, férias transitadas, documentos a vencer)',
         replace_existing=True,
         misfire_grace_time=3600,
     )

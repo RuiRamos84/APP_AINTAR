@@ -78,6 +78,7 @@ export const checkEntrada     = ()  => api.get(`${BASE}/ponto/check-entrada`);
 // Participações de ausências
 export const getMotivosParticipacao  = ()       => api.get(`${BASE}/participacoes/motivos`);
 export const getParticipacoes        = (params) => api.get(`${BASE}/participacoes`, { params });
+export const getParticipacaoByPk     = (pk)     => api.get(`${BASE}/participacoes/${pk}`);
 export const criarParticipacao       = (data)   => api.post(`${BASE}/participacoes`, data);
 export const editarParticipacao      = (pk, d)  => api.put(`${BASE}/participacoes/${pk}`, d);
 export const workflowParticipacao    = (data)   => api.post(`${BASE}/participacoes/workflow`, data);
@@ -87,6 +88,18 @@ export const uploadAnexosParticipacao = (pk, formData) =>
   });
 export const downloadAnexoParticipacao = (pk, filename) =>
   api.get(`${BASE}/participacoes/${pk}/anexos/${filename}`, { responseType: 'blob' });
+export const deleteAnexoParticipacao = (pk, filename) =>
+  api.delete(`${BASE}/participacoes/${pk}/anexos/${filename}`);
+
+// Documentos — pasta pessoal do colaborador, por ano
+export const getTiposDocumento = ()       => api.get(`${BASE}/documentos/tipos`);
+export const getDocumentos     = (params) => api.get(`${BASE}/documentos`, { params });
+export const uploadDocumento   = (userFk, formData) =>
+  api.post(`${BASE}/documentos/${userFk}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const downloadDocumento = (pk) => api.get(`${BASE}/documentos/${pk}/download`, { responseType: 'blob' });
+export const deleteDocumento   = (pk) => api.delete(`${BASE}/documentos/${pk}`);
 
 // Gestão Centralizada
 export const getPendentes    = (p)    => api.get(`${BASE}/gestao/pendentes`, { params: p });

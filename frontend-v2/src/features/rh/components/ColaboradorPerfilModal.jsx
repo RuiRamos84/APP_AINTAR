@@ -10,18 +10,18 @@ import {
   Person as PersonIcon,
   BeachAccess as FeriasIcon,
   Settings as ConfigIcon,
+  Folder as DocumentosIcon,
 } from '@mui/icons-material';
 import { useColaboradores } from '../hooks/useRhLookups';
 import { useColaboradorConfig, useGestaoActions } from '../hooks/useGestaoColaboradores';
 import { useLocais } from '../hooks/usePontoLocais';
 import { useMetadata } from '@/core/contexts/MetadataContext';
+import ColaboradorDocumentosTab from './ColaboradorDocumentosTab';
 
 const currentYear = new Date().getFullYear();
 const ANOS = [currentYear - 1, currentYear, currentYear + 1];
 
-const TIPOS_CONTRATO = [
-  'Efectivo', 'A Prazo', 'Estágio', 'Prestação de Serviços', 'Outro'
-];
+const TIPOS_CONTRATO = ['Sem Termo', 'Prestação de Serviços'];
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
@@ -45,13 +45,14 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
   const { metadata } = useMetadata();
   const rhEquipas = metadata.rhEquipas || [];
 
-  const { control, handleSubmit, reset } = useForm({
+  const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: {
       pk: 0,
       data_nascimento: '',
       data_admissao: '',
       categoria: '',
       tipo_contrato: '',
+      data_fim_contrato: '',
       num_mecanografico: '',
       tt_rh_equipa_fk: '',
       superior_fk: '',
@@ -63,6 +64,8 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
     },
   });
 
+  const tipoContrato = watch('tipo_contrato');
+
   useEffect(() => {
     if (colaborador) {
       reset({
@@ -71,6 +74,7 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
         data_admissao: toISODate(colaborador.data_admissao),
         categoria: colaborador.categoria || '',
         tipo_contrato: colaborador.tipo_contrato || '',
+        data_fim_contrato: toISODate(colaborador.data_fim_contrato),
         num_mecanografico: colaborador.num_mecanografico || '',
         tt_rh_equipa_fk: colaborador.tt_rh_equipa_fk || '',
         superior_fk: colaborador.superior_fk || '',
@@ -94,6 +98,9 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
       data_nascimento: data.data_nascimento || null,
       data_admissao: data.data_admissao || null,
       ts_rh_local_fk: ts_rh_local_fk ? Number(ts_rh_local_fk) : null,
+      data_fim_contrato: data.tipo_contrato === 'Prestação de Serviços'
+        ? (data.data_fim_contrato || null)
+        : null,
     };
     formRef.current?.(payload);
   };
@@ -151,6 +158,16 @@ const PerfilTab = ({ colaborador, formRef, locais }) => {
               )}
             />
           </Grid>
+          {tipoContrato === 'Prestação de Serviços' && (
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Controller name="data_fim_contrato" control={control}
+                render={({ field }) => (
+                  <TextField {...field} label="Data de Fim de Contrato" type="date"
+                    size="small" fullWidth InputLabelProps={{ shrink: true }} />
+                )}
+              />
+            </Grid>
+          )}
           <Grid size={{ xs: 12, sm: 6 }}>
             <Controller name="tt_rh_equipa_fk" control={control}
               render={({ field }) => (
@@ -477,6 +494,7 @@ const ColaboradorPerfilModal = ({ open, onClose, colaborador }) => {
         <Tabs value={tab} onChange={(_, v) => setTab(v)}>
           <Tab icon={<PersonIcon fontSize="small" />} iconPosition="start" label="Perfil" />
           <Tab icon={<FeriasIcon fontSize="small" />} iconPosition="start" label="Saldo de Férias" />
+          <Tab icon={<DocumentosIcon fontSize="small" />} iconPosition="start" label="Documentos" />
         </Tabs>
       </Box>
 
@@ -490,6 +508,9 @@ const ColaboradorPerfilModal = ({ open, onClose, colaborador }) => {
         </TabPanel>
         <TabPanel value={tab} index={1}>
           <SaldoTab colaborador={colaborador} />
+        </TabPanel>
+        <TabPanel value={tab} index={2}>
+          <ColaboradorDocumentosTab colaborador={colaborador} />
         </TabPanel>
       </DialogContent>
 

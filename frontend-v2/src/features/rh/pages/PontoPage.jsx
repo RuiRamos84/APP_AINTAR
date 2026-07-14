@@ -614,14 +614,14 @@ const PontoPage = () => {
           )}
         </Tabs>
 
-        {showSearch && (
+        {(showSearch || showMesAno) && (
           <Stack
             direction="row"
             spacing={1}
             alignItems="center"
             sx={{ ml: 'auto', pr: 1, pb: 0.5 }}
           >
-            <SearchBar searchTerm={search} onSearch={setSearch} />
+            {showSearch && <SearchBar searchTerm={search} onSearch={setSearch} />}
             {showMesAno && (
               <>
                 <FormControl size="small" sx={{ minWidth: 130 }}>
