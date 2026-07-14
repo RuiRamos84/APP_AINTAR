@@ -16,6 +16,23 @@
 - **State architecture:** React Query owns ALL server/remote state. Zustand owns ONLY client UI state (modals, selections, filters). Never duplicate: don't fetch in Zustand what React Query already manages.
 - **Git:** Conventional commits in Portuguese (feat, fix, refactor, docs). Branch naming: `feature/`, `fix/`, `refactor/`
 - **Documentação sempre sincronizada:** Qualquer alteração de arquitetura, nova/alterada rota ou serviço, mudança de stack/dependências, ou correção de bug não-óbvia DEVE ser refletida na mesma sessão em: (1) o `README.md` do módulo afetado (`backend/`, `frontend/`, `frontend-v2/`); (2) este `CLAUDE.md`, se for um padrão transversal ao projeto; (3) a nota correspondente no Obsidian Vault (`02 - Módulos`, `10 - API Reference`, `07 - Bugs & Soluções` ou `08 - Backlog & Roadmap`, conforme aplicável). O Vault vive fora do repositório (OneDrive) — o git não o consegue vigiar, por isso esta atualização depende de leitura ativa desta regra, não de automação. Um hook `Stop` local (`.claude/hooks/doc_sync_check.py`) lembra quando código em `routes/`, `services/` ou `features/` muda sem nenhum `.md` acompanhar — mas cobre só os ficheiros do repositório, nunca o Vault.
+- **Aprendizagem contínua:** quando uma sessão valida um padrão novo, corrige uma assunção documentada, ou descobre um facto de infraestrutura/domínio, capitalizar via `/aprender` — o conhecimento vai para o lugar canónico certo (CLAUDE.md, skill, Vault ou memória), nunca se perde no fim da sessão.
+
+### Comentários no Código (política transversal)
+Comentários **essenciais, não em demasia**. Em pt-PT, como o código existente. Regras:
+- **Comentar o PORQUÊ, nunca o quê:** decisões não-óbvias, constraints externos, workarounds com razão de existir, regras de negócio que o código não consegue exprimir sozinho. Exemplo real do projeto: o comentário em `vehicle_reservation.sql` a explicar porque se usa `pg_advisory_xact_lock` em vez de `EXCLUDE USING gist`
+- **Proibido:** comentário que repete a linha seguinte (`# incrementa contador`), comentários de narração de PR ("alterado para corrigir X"), código morto comentado, TODO sem dono/contexto
+- **Docstrings:** obrigatórias em services e funções públicas do backend (1-3 linhas: o que faz + o que devolve); dispensáveis em funções privadas óbvias
+- **Densidade:** seguir a do ficheiro em que se está a mexer — um ficheiro limpo não ganha 10 comentários novos, um ficheiro denso não fica mudo
+- **Teste do comentário:** se apagar o comentário e o próximo leitor não perde nada → apagar. Se perde uma decisão/razão → fica
+
+### Abstração com Juízo (dinâmico e simples ao mesmo tempo)
+A reutilização é obrigatória, o over-engineering é proibido — a fronteira é esta:
+- **Abstrair quando há 2+ usos reais** (não hipotéticos). O 1.º uso escreve-se concreto; ao 2.º extrai-se o genérico (componente partilhado, hook, função util, view SQL)
+- **Preferir composição e configuração a herança e duplicação:** componentes genéricos parametrizáveis (`GenericTable`, `ModulePage`, `useSearch`, `useRecords`) são o padrão da casa — verificar SEMPRE se já existe um antes de criar
+- **Config-driven onde a variação é dados, não lógica:** rotas em `routeConfig.js`, módulos em `moduleConfig.js`, permissões em `ts_interface` — variação nova entra por configuração, não por `if` espalhados
+- **YAGNI como travão:** não construir a abstração "para o futuro" — generalizar cedo demais cria APIs erradas que custam mais a desfazer do que a duplicação custava
+- **Otimização de recursos por defeito:** paginação em listas grandes, `staleTime` adequado no React Query, cache Redis em lookups estáticos, `lazy()` por rota, índices nas colunas de filtro — não é otimização prematura, é o custo mínimo de fazer bem à primeira
 
 ## Overview
 Water utility management application (AINTAR) with Flask backend + React frontend.
@@ -334,13 +351,13 @@ Usa sempre o comando mais adequado à tarefa. Todos estão em `.claude/commands/
 | `/feature` | Criar uma feature nova completa (backend + frontend em simultâneo) |
 | `/route` | Adicionar apenas uma rota Flask + service layer |
 | `/component` | Criar apenas um componente React (frontend-v2) |
-| `/migration` | Criar script Alembic para alterações de schema PostgreSQL |
+| `/migration` | Criar script SQL de migração (`backend/sql/`, padrão tb_/vbl_/vbf_/fbf_) |
 | `/test` | Gerar testes pytest (backend) ou vitest (frontend) |
 
 ### Qualidade & Revisão
 | Comando | Quando usar |
 |---------|-------------|
-| `/review` | Code review de senior developer antes de commitar |
+| `/review-aintar` | Code review com padrões específicos AINTAR (complementa o `/code-review` built-in) |
 | `/simplify` | Rever código alterado para remover duplicação e melhorar qualidade |
 | `/perf` | Auditar performance (N+1, re-renders, bundle, queries sem índice) |
 | `/security-review` | Antes de qualquer PR com auth, pagamentos ou dados sensíveis |
@@ -364,3 +381,15 @@ Usa sempre o comando mais adequado à tarefa. Todos estão em `.claude/commands/
 |---------|-------------|
 | `/openapi` | Gerar spec OpenAPI 3.0 a partir de rotas Flask |
 | `/standards` | Consultar os princípios de desenvolvimento AINTAR |
+| `/procedimento` | Gerar procedimento formal (ISO 27001-like) no Vault `14 - Procedimentos/` — RACI, riscos/controlos, evidências |
+| `/aprender` | Capitalizar conhecimento novo no lugar canónico certo (CLAUDE.md, skill, Vault ou memória) — com verificação de contradições |
+
+### Segurança & Conformidade
+| Comando | Quando usar |
+|---------|-------------|
+| `/rgpd` | Privacy-by-design de features, pedidos de titulares (acesso/apagamento), violação de dados (72h CNPD), registo art. 30.º |
+| `/incident` | Incidente de segurança (≠ bug): conter, preservar evidência, rodar segredos, relatório. Se envolver dados pessoais, corre em paralelo com `/rgpd violacao` |
+| `/audit-perms` | Auditoria RBAC: endpoints desprotegidos + permissões fantasma/órfãs vs `ts_interface` (script read-only em `.claude/scripts/audit_perms.py`; cadência mensal) |
+| `/infra` | Runbook do parque: serviços Windows Server, backups (BD + ficheiros), certificados Let's Encrypt, patching mensal, saúde dos sistemas, AD/FileServer |
+
+> Documentação RGPD e de segurança vive no Vault em `13 - RGPD & Segurança/` (registo art. 30.º, registo de violações, pedidos de titulares, auditorias RBAC) e os procedimentos formais em `14 - Procedimentos/` (índice PR-NNN) — não são @-importados para não carregar contexto legal/processual em todas as sessões.
