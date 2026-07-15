@@ -139,6 +139,15 @@ class AuthManager {
       async (error) => {
         const originalRequest = error.config;
 
+        // Manutenção activa: qualquer 503 redirecciona de imediato para a
+        // página de manutenção — cobre o heartbeat periódico, refetches do
+        // React Query e qualquer acção do utilizador, sem esperar por um
+        // refresh manual. A navegação (não a promise) resolve o pedido.
+        if (error.response?.status === 503 && !window.location.pathname.endsWith('/maintenance.html')) {
+          window.location.href = '/maintenance.html';
+          return new Promise(() => {});
+        }
+
         // Handle 401 Unauthorized — but NOT for auth endpoints (login, etc.)
         const isAuthEndpoint = originalRequest?.url?.includes('/auth/');
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {

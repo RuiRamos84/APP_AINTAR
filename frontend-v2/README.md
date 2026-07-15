@@ -101,6 +101,14 @@ permissions: { required: 'docs.view' }
 
 Convencao `.view`/`.edit` por modulo (ou acoes especificas como `payments.mbway`). Nao existem permissoes "guarda-chuva" (`global.access`, `admin.dashboard`) — foram removidas permanentemente e nao devem ser reintroduzidas.
 
+## Deteção de Modo de Manutenção
+
+`services/api/client.js` + `services/auth/AuthManager.js` (interceptor Axios) e
+`core/contexts/SocketContext.jsx` (desconexao do socket) detetam automaticamente
+quando o backend entra em manutencao e redireccionam para `/maintenance.html`
+sem precisar de refresh manual — ver detalhe completo em `Deploy/README.md`
+("Pagina de Manutencao").
+
 ## Modulos (Features)
 
 Cada feature segue a estrutura:

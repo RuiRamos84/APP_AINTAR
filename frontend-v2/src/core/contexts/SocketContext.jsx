@@ -513,13 +513,37 @@ export const SocketProvider = ({ children }) => {
         const removeFleetNotif = onEvent('fleet_notification', handleFleetNotification);
         const removePaymentUpdate = onEvent('payment_status_update', handlePaymentStatusUpdate);
 
+        // Deteção automática de manutenção: o Enable-MaintenanceMode reinicia
+        // o nginx, o que derruba TODAS as ligações activas em segundos. Uma
+        // desconexão pode ser isso ou só uma instabilidade de rede pontual —
+        // por isso nunca decidimos pelo erro do socket sozinho: confirmamos
+        // com pedidos HTTP reais a "/" (mesma rota que a maintenance.html usa)
+        // durante uma janela curta, e só redireccionamos se algum vier 503.
+        let maintenanceCheckTimers = [];
+        const clearMaintenanceCheck = () => {
+          maintenanceCheckTimers.forEach(clearTimeout);
+          maintenanceCheckTimers = [];
+        };
+        const checkMaintenanceOnce = () => {
+          fetch('/', { method: 'HEAD', cache: 'no-store' })
+            .then((r) => {
+              if (r.status === 503) window.location.href = '/maintenance.html';
+            })
+            .catch(() => {}); // nginx ainda a reiniciar — a proxima tentativa confirma
+        };
+
         // Event para atualização de conexão
         const removeConnect = onEvent(SOCKET_EVENTS.CONNECT, () => {
           setIsConnected(true);
+          clearMaintenanceCheck(); // reconectou sozinho — não era manutenção
         });
 
         const removeDisconnect = onEvent(SOCKET_EVENTS.DISCONNECT, () => {
           setIsConnected(false);
+          clearMaintenanceCheck();
+          [1500, 3500, 6000, 10000].forEach((delay) => {
+            maintenanceCheckTimers.push(setTimeout(checkMaintenanceOnce, delay));
+          });
         });
 
         // Heartbeat via socket a cada 10 minutos (evita HTTP poll quando socket está ligado)
@@ -543,6 +567,7 @@ export const SocketProvider = ({ children }) => {
           removeConnect,
           removeDisconnect,
           () => clearInterval(heartbeatInterval),
+          clearMaintenanceCheck,
         ];
       } catch (error) {
         console.error('[SocketContext] Error setting up socket:', error);

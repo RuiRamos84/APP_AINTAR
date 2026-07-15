@@ -91,6 +91,45 @@ Sistema automatizado de deployment para aplicações web com frontend React e ba
    └─ Reiniciar nginx (volta ao normal)
 ```
 
+## Página de Manutenção
+
+`maintenance.html` (raiz do repo, copiado para `nginx/html/`) é servido pelo Nginx
+quando a `maintenance.flag` existe — ver `location @maintenance` e os blocos
+`if (-f maintenance.flag) { return 503; }` em `nginx.conf`. Auto-suficiente (zero
+pedidos externos, tudo embebido em base64), com vigia real do sistema via polling
+a `/` — ao detetar o regresso, mostra confirmação e recarrega sozinha para a app.
+
+**Deploy é manual** (não faz parte do `Deploy-Main.ps1`): copiar directamente para
+`\\172.16.2.35\app\NewAPP\nginx\html\maintenance.html` (guardar sempre backup do
+ficheiro anterior em `nginx\html\maintenance-backups\` antes de substituir).
+
+### Deteção automática no cliente (sem refresh manual)
+
+Ativar a manutenção mata e reinicia o processo nginx (`Enable-MaintenanceMode`),
+o que derruba de imediato todas as ligações WebSocket activas. Uma sessão da app
+já aberta numa aba **não é avisada por si só** de que a manutenção começou — só
+veria a página se fizesse um pedido novo (refresh, navegação, chamada API).
+
+Para cobrir isso sem intervenção do utilizador, o frontend-v2 tem duas camadas
+de deteção (`frontend-v2/src/services/auth/AuthManager.js` +
+`frontend-v2/src/core/contexts/SocketContext.jsx`):
+
+1. **Interceptor Axios** — qualquer resposta 503 de qualquer pedido (heartbeat
+   periódico de 10 min, refetch do React Query, ação do utilizador) redirecciona
+   de imediato para `/maintenance.html`.
+2. **Desconexão do socket** — como o restart do nginx derruba o WebSocket em
+   segundos, o evento `disconnect` dispara uma rajada curta de verificações
+   HTTP reais a `/` (1.5s/3.5s/6s/10s); só redirecciona se alguma confirmar 503
+   (nunca decide só pelo erro do socket, para não reagir a uma instabilidade de
+   rede pontual). Cancela-se sozinha se o socket reconectar por conta própria.
+
+Resultado: sessões autenticadas com socket ligado (a generalidade) veem a página
+de manutenção em poucos segundos depois de `-EnableMaintenance`, sem refresh.
+
+⚠️ Esta lógica vive no **bundle do frontend-v2** — só entra em vigor depois de
+recompilar e voltar a fazer deploy (`DeployFrontend.ps1` / `Deploy-Main.ps1`),
+não com uma simples troca do `maintenance.html`.
+
 ## Pré-requisitos
 
 ### No Cliente (Workstation)
