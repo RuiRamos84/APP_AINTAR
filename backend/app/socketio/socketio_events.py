@@ -3,6 +3,7 @@ import jwt
 from flask_socketio import emit, join_room, leave_room, Namespace
 from threading import Lock
 from ..services.notification_service import notification_service, task_notification_service, central_notification_service
+from ..services.auth_service import update_last_activity
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,6 +59,20 @@ class SocketIOEvents(Namespace):
             )
             if stale_user_id is not None:
                 del self.connected_users[stale_user_id]
+
+    def on_heartbeat(self, data):
+        """Heartbeat via socket — substitui o pedido HTTP POST /auth/heartbeat
+        quando o socket está ligado (AuthManager.sendHeartbeat() salta-o de
+        propósito nesse caso). Mesma chave de cache que a rota HTTP: o
+        session_id do JWT (get_jwt_identity()), não o user_id.
+        """
+        session_id = data.get('sessionId')
+        if not session_id:
+            return
+        try:
+            update_last_activity(session_id)
+        except Exception as e:
+            logger.error(f"Erro ao processar heartbeat via socket: {str(e)}")
 
     def emit_notification_count(self, user_id, session_id):
         """Busca a contagem de notificações no serviço e emite para o utilizador."""
